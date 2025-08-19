@@ -61,8 +61,9 @@ export default function PrescricoesTab({ pacienteId }) {
   };
   
   const handleGerarPdf = (prescricaoId) => {
-    // Abre o PDF em uma nova aba. O apiClient lida com a URL base e autenticação.
-    window.open(`http://127.0.0.1:8000/api/prescricoes/${prescricaoId}/pdf/`, '_blank');
+    // Constrói a URL completa usando a baseURL do apiClient
+    const pdfUrl = `${apiClient.defaults.baseURL}/prescricoes/${prescricaoId}/pdf/`;
+    window.open(pdfUrl, '_blank');
   };
 
 

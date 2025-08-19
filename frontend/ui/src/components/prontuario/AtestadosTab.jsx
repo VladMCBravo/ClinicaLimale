@@ -46,7 +46,9 @@ export default function AtestadosTab({ pacienteId }) {
   };
   
   const handleGerarPdf = (atestadoId) => {
-    window.open(`http://127.0.0.1:8000/api/atestados/${atestadoId}/pdf/`, '_blank');
+    // Constrói a URL completa usando a baseURL do apiClient
+    const pdfUrl = `${apiClient.defaults.baseURL}/atestados/${atestadoId}/pdf/`;
+    window.open(pdfUrl, '_blank');
   };
 
   if (isLoading && atestados.length === 0) return <CircularProgress />;

@@ -144,12 +144,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configurações do CORS
 CORS_ALLOWED_ORIGINS = [
-    'null',  # Permite requisições de arquivos locais (file:///)
-    'http://127.0.0.1:5500', # Exemplo para o Live Server do VSCode
-    'http://localhost:8080', # Exemplo para outros servidores de desenvolvimento
+    # Adicione a URL do seu site no Vercel aqui!
+    "https://clinica-limale.vercel.app", 
+
+    # Estas são para o ambiente de desenvolvimento local
+    'null',
+    'http://127.0.0.1:5500',
+    'http://localhost:8080',
     'http://localhost:5173',
-    "http://localhost:3000",      # <-- ADICIONE ESTA LINHA
-    "http://127.0.0.1:3000",      # <-- E esta, por segurança
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 # Diz ao Django para usar nosso modelo de usuário personalizado
