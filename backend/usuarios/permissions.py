@@ -1,51 +1,30 @@
-from rest_framework.permissions import BasePermission
-from pacientes.models import Paciente # Precisamos importar o Paciente
+# backend/usuarios/permissions.py - VERSÃO CORRIGIDA E EXPANDIDA
+from rest_framework import permissions
+from pacientes.models import Paciente
 
-class IsAdminOrMedico(BasePermission):
-    """
-    Permissão customizada para permitir acesso apenas a administradores ou médicos.
-    """
+class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
-        # O usuário precisa estar autenticado
-        if not request.user or not request.user.is_authenticated:
-            return False
-        # O usuário precisa ter o cargo 'admin' ou 'medico'
-        return request.user.cargo in ['admin', 'medico']
+        return request.user and request.user.is_authenticated and request.user.cargo == 'admin'
 
-# --- ADICIONE A NOVA CLASSE ABAIXO ---
-
-class IsMedicoResponsavelOrAdmin(BasePermission):
-    """
-    Permissão que verifica se o usuário é superuser, admin ou o médico responsável.
-    """
+class IsRecepcaoUser(permissions.BasePermission):
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
+        return request.user and request.user.is_authenticated and request.user.cargo == 'recepcao'
 
-        # Superusuários e Admins sempre têm permissão
-        if request.user.is_superuser or request.user.cargo == 'admin':
+class IsMedicoUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and request.user.cargo == 'medico'
+
+# PERMISSÃO CORRIGIDA: Agora é mais flexível
+class IsMedicoResponsavelOrAdmin(permissions.BasePermission):
+    """
+    Permissão que verifica se o usuário é admin ou o médico responsável pelo paciente.
+    Funciona para prontuários e detalhes do paciente.
+    """
+    def has_object_permission(self, request, view, obj):
+        # Admins sempre têm permissão
+        if request.user.cargo == 'admin':
             return True
-
-        # Médicos precisam ser o responsável pelo paciente
+        # Se o usuário for médico, verifica se ele é o responsável pelo objeto (paciente)
         if request.user.cargo == 'medico':
-            paciente_id = view.kwargs.get('paciente_id')
-            if not paciente_id:
-                return False
-
-            try:
-                paciente = Paciente.objects.get(pk=paciente_id)
-                return paciente.medico_responsavel == request.user
-            except Paciente.DoesNotExist:
-                return False
-
-        # Outros cargos são bloqueados
+            return obj.medico_responsavel == request.user
         return False
-
-class IsRecepcaoOrAdmin(BasePermission):
-    """
-    Permissão customizada para permitir acesso apenas a administradores ou recepção.
-    """
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        return request.user.cargo in ['admin', 'recepcao']

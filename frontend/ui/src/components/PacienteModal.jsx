@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, CircularProgress, Box
+  TextField, Button, CircularProgress, Box, Autocomplete
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
@@ -17,6 +17,18 @@ const initialState = {
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
   const [formData, setFormData] = useState(initialState);
   const [isLoading, setIsLoading] = useState(false);
+  const [medicos, setMedicos] = useState([]); // <-- NOVO ESTADO para a lista de médicos
+
+// Busca a lista de médicos quando o modal abre
+  useEffect(() => {
+    if (open) {
+      apiClient.get('/usuarios/usuarios/?cargo=medico')
+        .then(response => {
+          setMedicos(response.data);
+        })
+        .catch(err => console.error("Erro ao buscar médicos", err));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (pacienteParaEditar) {
@@ -25,7 +37,8 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         data_nascimento: pacienteParaEditar.data_nascimento || '',
         email: pacienteParaEditar.email || '',
         telefone_celular: pacienteParaEditar.telefone_celular || '', // <-- ATUALIZE AQUI TAMBÉM
-        cpf: pacienteParaEditar.cpf || ''
+        cpf: pacienteParaEditar.cpf || '',
+        medico_responsavel: pacienteParaEditar.medico_responsavel || null, // <-- ADICIONE
       });
     } else {
       setFormData(initialState);
@@ -39,10 +52,12 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    // Garante que estamos enviando apenas o ID do médico
+    const dataToSend = { ...formData, medico_responsavel: formData.medico_responsavel?.id || formData.medico_responsavel };
     try {
       if (pacienteParaEditar) {
         // Modo Edição (PUT)
-        await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, formData);
+        await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
       } else {
         // Modo Criação (POST)
         await apiClient.post('/pacientes/', formData);
@@ -56,6 +71,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       setIsLoading(false);
     }
   };
+
+// Encontra o objeto do médico para o valor do Autocomplete
+  const medicoValue = medicos.find(m => m.id === formData.medico_responsavel) || null;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -71,6 +89,19 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               label="Telefone Celular" // <-- Label atualizada para clareza
               value={formData.telefone_celular} 
               onChange={handleChange} 
+            />
+            {/* NOVO CAMPO DE SELEÇÃO DE MÉDICO */}
+            <Autocomplete
+              options={medicos}
+              getOptionLabel={(option) => option.first_name + ' ' + option.last_name}
+              value={medicoValue}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              onChange={(event, newValue) => {
+                setFormData({ ...formData, medico_responsavel: newValue ? newValue.id : null });
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Médico Responsável" variant="outlined" />
+              )}
             />
             <TextField name="data_nascimento" label="Data de Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} />
           </Box>

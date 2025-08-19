@@ -28,7 +28,7 @@ from .serializers import (
 
 class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = EvolucaoSerializer
-    permission_classes = [IsAuthenticated, IsMedicoResponsavelOrAdmin]
+    permission_classes = [IsMedicoResponsavelOrAdmin]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -41,7 +41,7 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
-    permission_classes = [IsAuthenticated, IsMedicoResponsavelOrAdmin]
+    permission_classes = [IsMedicoResponsavelOrAdmin]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -54,7 +54,7 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
-    permission_classes = [IsAuthenticated, IsMedicoResponsavelOrAdmin]
+    permission_classes = [IsMedicoResponsavelOrAdmin]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -67,7 +67,7 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
 
 class AnamneseDetailAPIView(generics.GenericAPIView):
     serializer_class = AnamneseSerializer
-    permission_classes = [IsAuthenticated, IsMedicoResponsavelOrAdmin]
+    permission_classes = [IsMedicoResponsavelOrAdmin]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -107,7 +107,7 @@ class AnamneseDetailAPIView(generics.GenericAPIView):
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentoPacienteSerializer
-    permission_classes = [IsAuthenticated, IsMedicoResponsavelOrAdmin]
+    permission_classes = [IsMedicoResponsavelOrAdmin]
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):

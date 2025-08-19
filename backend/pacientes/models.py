@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings # Importa as configurações do Django
+from usuarios.models import CustomUser
 
 class Paciente(models.Model):
     GENERO_CHOICES = [
@@ -15,7 +16,9 @@ class Paciente(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        limit_choices_to={'cargo': 'medico'},
+        related_name='pacientes'
     )
     
     # Dados Demográficos
