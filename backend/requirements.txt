@@ -1,0 +1,9 @@
+asgiref==3.9.1
+Django==5.0.7
+django-cors-headers==4.7.0
+djangorestframework==3.16.1
+gunicorn==23.0.0
+packaging==25.0
+psycopg[binary]
+sqlparse==0.5.3
+xhtml2pdf

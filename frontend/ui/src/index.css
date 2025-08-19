@@ -1,0 +1,9 @@
+/* src/index.css */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f4f7fa;
+}
+.content {
+  padding: 20px 30px;
+}
