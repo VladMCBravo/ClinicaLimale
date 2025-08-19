@@ -1,18 +1,22 @@
+# backend/faturamento/views.py - VERSÃO CORRIGIDA
+
 from rest_framework import generics, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
-from usuarios.permissions import IsRecepcaoOrAdmin
-from django.db.models import Sum, Count
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
-from .models import Pagamento, Agendamento, CategoriaDespesa, Despesa
+# --- 1. LIMPEZA E CORREÇÃO DAS IMPORTAÇÕES ---
+from agendamentos.models import Agendamento # Importação correta do Agendamento
+from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
+from .models import Pagamento, CategoriaDespesa, Despesa
 from .serializers import (
     PagamentoSerializer, PagamentoCreateSerializer, 
     CategoriaDespesaSerializer, DespesaSerializer
 )
 
-# --- View de Pagamento ---
+# --- View de Pagamento (sem alterações, já estava boa) ---
 class PagamentoCreateAPIView(generics.CreateAPIView):
     serializer_class = PagamentoCreateSerializer
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
@@ -41,32 +45,34 @@ class PagamentoCreateAPIView(generics.CreateAPIView):
         return Response(read_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
-# --- ViewSets para Despesas ---
+# --- ViewSets para Despesas (com lógica de produção) ---
 class CategoriaDespesaViewSet(viewsets.ModelViewSet):
     queryset = CategoriaDespesa.objects.all().order_by('nome')
     serializer_class = CategoriaDespesaSerializer
-    # Garante que apenas administradores possam gerenciar as categorias
     permission_classes = [IsAdminUser]
 
 
 class DespesaViewSet(viewsets.ModelViewSet):
     queryset = Despesa.objects.all().order_by('-data_despesa')
     serializer_class = DespesaSerializer
-    permission_classes = [AllowAny] # <-- TROQUE POR ESTA LINHA
+    permission_classes = [IsAdminUser] 
 
+    # --- 2. LÓGICA DE PRODUÇÃO REATIVADA ---
     def perform_create(self, serializer):
-        # Como não temos um usuário logado no teste, não podemos associá-lo.
-        # Vamos comentar esta linha temporariamente.
-        # serializer.save(registrado_por=self.request.user)
-        serializer.save() # Salva sem associar um usuário
+        # Agora que o login funciona, associamos o usuário que registrou a despesa.
+        serializer.save(registrado_por=self.request.user)
 
-# --- View para Relatórios ---
+# --- View para Relatórios (com permissão corrigida) ---
 class RelatorioFinanceiroAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    # --- 3. PERMISSÃO REFINADA ---
+    # Relatórios financeiros devem ser vistos apenas por administradores.
+    permission_classes = [IsAdminUser]
 
     def get(self, request, *args, **kwargs):
         faturamento_por_forma = Pagamento.objects.values('forma_pagamento').annotate(total=Sum('valor')).order_by('-total')
         despesas_por_categoria = Despesa.objects.values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
+        
+        # Lógica de fluxo de caixa (já estava boa)
         faturamento_mensal = Pagamento.objects.annotate(mes=TruncMonth('data_pagamento')).values('mes').annotate(total=Sum('valor')).order_by('mes')
         despesas_mensais = Despesa.objects.annotate(mes=TruncMonth('data_despesa')).values('mes').annotate(total=Sum('valor')).order_by('mes')
         
@@ -82,8 +88,7 @@ class RelatorioFinanceiroAPIView(APIView):
             if mes_str not in fluxo_caixa:
                 fluxo_caixa[mes_str] = {'receitas': 0, 'despesas': 0}
             fluxo_caixa[mes_str]['despesas'] = item['total'] or 0
-
-        # ESTA É A LINHA QUE FALTAVA
+        
         fluxo_caixa_formatado = [{'mes': mes, **valores} for mes, valores in fluxo_caixa.items()]
         
         data = {
