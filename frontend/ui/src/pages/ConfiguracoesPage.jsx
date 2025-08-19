@@ -7,6 +7,7 @@ import {
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import UsuarioModal from '../components/configuracoes/UsuarioModal';
+import { Link as RouterLink } from 'react-router-dom'; // Importe o Link
 
 export default function ConfiguracoesPage() {
     const [users, setUsers] = useState([]);
@@ -44,13 +45,18 @@ export default function ConfiguracoesPage() {
 
     return (
         <Paper sx={{ p: 2, margin: 'auto' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5">Gestão de Usuários</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5">Gestão de Usuários</Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                 {/* Botão para a nova página */}
+                <Button variant="outlined" component={RouterLink} to="/configuracoes/categorias-despesa">
+                    Gerenciar Categorias de Despesa
+                </Button>
                 <Button variant="contained" onClick={() => setIsModalOpen(true)}>
                     Criar Novo Usuário
                 </Button>
             </Box>
-            
+            </Box>
             {/* --- CORREÇÃO: A TABELA QUE ESTAVA FALTANDO FOI ADICIONADA AQUI --- */}
             <TableContainer>
                 <Table>

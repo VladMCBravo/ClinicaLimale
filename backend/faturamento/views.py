@@ -1,7 +1,7 @@
 from rest_framework import generics, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny # Importe AllowAny
+from rest_framework.permissions import IsAdminUser
 from usuarios.permissions import IsRecepcaoOrAdmin
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncMonth
@@ -42,10 +42,11 @@ class PagamentoCreateAPIView(generics.CreateAPIView):
 
 
 # --- ViewSets para Despesas ---
-class CategoriaDespesaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CategoriaDespesa.objects.all()
+class CategoriaDespesaViewSet(viewsets.ModelViewSet):
+    queryset = CategoriaDespesa.objects.all().order_by('nome')
     serializer_class = CategoriaDespesaSerializer
-    permission_classes = [IsAuthenticated]
+    # Garante que apenas administradores possam gerenciar as categorias
+    permission_classes = [IsAdminUser]
 
 
 class DespesaViewSet(viewsets.ModelViewSet):

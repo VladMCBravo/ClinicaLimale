@@ -15,6 +15,7 @@ import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
+import CategoriasDespesaPage from './pages/CategoriasDespesaPage';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
               <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
               <Route path="/financeiro/*" element={<FinanceiroPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+              <Route path="/configuracoes/categorias-despesa" element={<CategoriasDespesaPage />} />
             </Route>
           </Route>
           
