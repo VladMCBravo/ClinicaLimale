@@ -1,39 +1,44 @@
 // src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { SnackbarProvider } from './contexts/SnackbarContext'; // <-- 1. IMPORTE
+import { SnackbarProvider } from './contexts/SnackbarContext';
 
-// Nossos componentes principais e de página
-import LoginPage from './pages/LoginPage'; // <-- Importe a página real
-import Navbar from './components/Navbar';
-import AgendaPage from './pages/AgendaPage'; // Renomeie o antigo Agenda.js
-import PacientesPage from './pages/PacientesPage'; // Vamos criar este
-import ProntuarioPage from './pages/ProntuarioPage'; // E este também
-import FinanceiroPage from './pages/FinanceiroPage'; // APENAS O IMPORT
+// Importe os novos componentes de layout e proteção
+import ProtectedRoute from './components/ProtectedRoute';
+import MainLayout from './components/MainLayout';
+
+// Importe suas páginas
+import LoginPage from './pages/LoginPage';
+import AgendaPage from './pages/AgendaPage';
+import DashboardPage from './pages/DashboardPage';
+import PacientesPage from './pages/PacientesPage';
+import ProntuarioPage from './pages/ProntuarioPage';
+import FinanceiroPage from './pages/FinanceiroPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 
 function App() {
   return (
     <SnackbarProvider>
-    <Router>
-      <Navbar />
-      <main className="content">
+      <Router>
         <Routes>
-          <Route path="/" element={<AgendaPage />} />
-          
-          {/* Rota para a lista de pacientes */}
-          <Route path="/pacientes" element={<PacientesPage />} />
-          
-          {/* Rota dinâmica para o prontuário de um paciente específico */}
-          <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
+          {/* Rota de Login (Pública) */}
+          <Route path="/login" element={<LoginPage />} />
 
-          <Route path="/financeiro/*" element={<FinanceiroPage />} />
-          <Route path="/login" element={<LoginPage />} /> {/* <-- Use o componente real */}
-          <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-    </Routes>
-      </main>
-    </Router>
-  </SnackbarProvider>
+          {/* Rotas Protegidas (Envolvidas pelo ProtectedRoute) */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<AgendaPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/pacientes" element={<PacientesPage />} />
+              <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
+              <Route path="/financeiro/*" element={<FinanceiroPage />} />
+              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+            </Route>
+          </Route>
+          
+        </Routes>
+      </Router>
+    </SnackbarProvider>
   );
 }
 
