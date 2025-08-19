@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os # Garanta que 'import os' está no topo do arquivo
 from pathlib import Path
+import dj_database_url # <-- 1. IMPORTE O PACOTE
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -88,14 +90,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'consultorio_db', # O nome do banco que você criou
-        'USER': 'postgres',    # Seu usuário do PostgreSQL
-        'PASSWORD': 'Vlad@0510',  # Sua senha do PostgreSQL
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        # A URL do banco de dados virá da variável de ambiente no Render.
+        # Se não encontrar, ele usa o seu banco de dados local como padrão.
+        default=f"postgresql://postgres:Vlad@0510@localhost:5432/consultorio_db",
+        conn_max_age=600
+    )
 }
 
 
