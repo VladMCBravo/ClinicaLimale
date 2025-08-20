@@ -1,67 +1,63 @@
-# backend/dashboard/views.py
-from django.utils import timezone
-from datetime import timedelta
-from django.db.models.functions import Extract
+# backend/dashboard/views.py - VERSÃO COMPLETA E INTELIGENTE
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from django.db.models import Sum, Count, Q # 1. ADICIONE 'Q' AQUI
+from django.db.models.functions import TruncMonth, Extract # 2. ADICIONE 'Extract' AQUI
+from datetime import timedelta
+
+from agendamentos.models import Agendamento
+from faturamento.models import Despesa, Pagamento
 from pacientes.models import Paciente
 from pacientes.serializers import PacienteSerializer
 
-
-# Vamos manter o nome da sua view, mas expandir a lógica
-class DashboardStatsAPIView(APIView):
-    permission_classes = [IsAdminUser] # <-- Permissão corrigida
-
-    def get(self, request, *args, **kwargs):
-        hoje = timezone.localdate()
-        start_of_month = hoje.replace(day=1)
-
-        # --- Lógica que você já tinha ---
-        agendamentos_hoje = Agendamento.objects.filter(data_hora_inicio__date=hoje)
-        pacientes_de_hoje = [ag.paciente for ag in agendamentos_hoje]
-
-        # --- Lógica expandida com dados financeiros ---
-        pendentes_count = Agendamento.objects.filter(pagamento__isnull=True, data_hora_inicio__date__lte=hoje).count()
-        receitas_mes = Pagamento.objects.filter(data_pagamento__gte=start_of_month).aggregate(Sum('valor'))['valor__sum'] or 0
-        despesas_mes = Despesa.objects.filter(data_despesa__gte=start_of_month).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        # --- Resposta completa com todos os dados ---
-        data = {
-            'agendamentos_hoje_count': agendamentos_hoje.count(),
-            'pacientes_hoje': [{'id': p.id, 'nome': p.nome_completo} for p in set(pacientes_de_hoje)],
-            'pagamentos_pendentes_count': pendentes_count,
-            'resumo_financeiro': {
-                'receitas_mes': receitas_mes,
-                'despesas_mes': despesas_mes,
-            }
-        }
-        return Response(data)
-
-class AniversariantesAPIView(APIView):
+class DashboardDataAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        hoje = timezone.now()
+        hoje = timezone.now().date()
         data_limite = hoje + timedelta(days=7)
+        start_of_month = hoje.replace(day=1)
 
-        # Extrai o dia do ano (1 a 366)
-        hoje_doy = hoje.timetuple().tm_yday
-        limite_doy = data_limite.timetuple().tm_yday
+        # --- DADOS GERAIS (Visíveis para todos) ---
+        agendamentos_hoje_count = Agendamento.objects.filter(data_hora_inicio__date=hoje).count()
 
-        # Anota (adiciona) o dia do ano de cada paciente ao queryset
+        # Lógica de aniversariantes (adaptada da versão anterior)
         pacientes = Paciente.objects.annotate(
             dia_do_ano=Extract('data_nascimento', 'doy')
         )
-
+        hoje_doy = hoje.timetuple().tm_yday
+        limite_doy = data_limite.timetuple().tm_yday
         if hoje_doy < limite_doy:
-            # Caso normal (não vira o ano)
-            aniversariantes = pacientes.filter(dia_do_ano__gte=hoje_doy, dia_do_ano__lte=limite_doy)
+            aniversariantes_qs = pacientes.filter(dia_do_ano__gte=hoje_doy, dia_do_ano__lte=limite_doy)
         else:
-            # Caso especial (a semana vira o ano, ex: 28/12 a 04/01)
-            aniversariantes = pacientes.filter(
-                models.Q(dia_do_ano__gte=hoje_doy) | models.Q(dia_do_ano__lte=limite_doy)
-            )
+            aniversariantes_qs = pacientes.filter(
+    Q(dia_do_ano__gte=hoje_doy) | Q(dia_do_ano__lte=limite_doy)
+)
 
-        serializer = PacienteSerializer(aniversariantes.order_by('dia_do_ano')[:10], many=True) # Limita a 10 resultados
-        return Response(serializer.data)
+        aniversariantes = PacienteSerializer(aniversariantes_qs.order_by('dia_do_ano')[:5], many=True).data
+
+        # --- Monta a base de dados para a resposta ---
+        data = {
+            'agendamentos_hoje_count': agendamentos_hoje_count,
+            'aniversariantes_semana': aniversariantes,
+        }
+
+        # --- DADOS FINANCEIROS (Visíveis APENAS para admins) ---
+        if request.user.cargo == 'admin':
+            receitas_mes = Pagamento.objects.filter(data_pagamento__gte=start_of_month).aggregate(Sum('valor'))['valor__sum'] or 0
+            despesas_mes = Despesa.objects.filter(data_despesa__gte=start_of_month).aggregate(Sum('valor'))['valor__sum'] or 0
+
+            # Bônus: Convênios mais utilizados
+            convenios_mais_usados = Pagamento.objects.values('agendamento__paciente__convenio').annotate(
+                total=Count('id')
+            ).order_by('-total').filter(agendamento__paciente__convenio__isnull=False)[:5]
+
+            data['dados_financeiros'] = {
+                'receitas_mes': receitas_mes,
+                'despesas_mes': despesas_mes,
+                'convenios_mais_usados': list(convenios_mais_usados)
+            }
+
+        return Response(data)

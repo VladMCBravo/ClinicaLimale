@@ -1,8 +1,7 @@
 # backend/dashboard/urls.py
 from django.urls import path
-from .views import DashboardStatsAPIView, AniversariantesAPIView # Adicione AniversariantesAPIView
+from .views import DashboardDataAPIView # Mude o nome da view importada
 
 urlpatterns = [
-    path('dashboard-stats/', DashboardStatsAPIView.as_view(), name='dashboard-stats'),
-    path('aniversariantes/', AniversariantesAPIView.as_view(), name='dashboard-aniversariantes'),
+    path('', DashboardDataAPIView.as_view(), name='dashboard-data'),
 ]
