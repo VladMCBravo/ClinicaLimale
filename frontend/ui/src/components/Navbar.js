@@ -3,7 +3,7 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-    FaCalendarAlt, FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, FaTachometerAlt
+    FaCalendarAlt, FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, FaTachometerAlt,
 } from 'react-icons/fa';
 import { IconButton } from '@mui/material';
 import logoImage from '../assets/logo.png';
