@@ -1,22 +1,16 @@
 // src/components/Navbar.js
 import React from 'react';
-// 1. Imports do react-router-dom combinados
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-    FaCalendarAlt,
-    FaUserFriends,
-    FaFileInvoiceDollar,
-    FaCog,
-    FaSignOutAlt
+    FaCalendarAlt, FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, FaTachometerAlt
 } from 'react-icons/fa';
-// 2. Import do IconButton do Material-UI
 import { IconButton } from '@mui/material';
 import logoImage from '../assets/logo.png';
 import './Navbar.css';
 
 const Navbar = () => {
-    const { user, logout } = useAuth();
+    const { user, logout } = useAuth(); // useAuth agora deve ler o 'userData' do sessionStorage
 
     return (
         <header className="main-header">
@@ -24,6 +18,12 @@ const Navbar = () => {
                 <img src={logoImage} alt="Clínica Limalé" className="logo-image" />
 
                 <nav className="main-nav">
+                    {/* Link do Dashboard para Admins */}
+                    {user && user.isAdmin && (
+                        <NavLink to="/dashboard">
+                            <FaTachometerAlt /> <span>Dashboard</span>
+                        </NavLink>
+                    )}
                     <NavLink to="/" end>
                         <FaCalendarAlt /> <span>Agenda</span>
                     </NavLink>
@@ -37,15 +37,17 @@ const Navbar = () => {
             </div>
 
             <div className="nav-right">
-                <span className="user-greeting">Olá, {user ? user.name : ''}</span>
+                {/* Saudação corrigida para usar os dados do usuário logado */}
+                <span className="user-greeting">Olá, {user ? user.first_name : ''}</span>
                 <div className="user-actions">
-                    {/* 3. Botão de configurações corrigido e no lugar certo */}
-                    {user.isAdmin && (
-                    <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button">
-                    <FaCog />
-                    </IconButton>
+                    {user && user.isAdmin && (
+                        // Estilo de cor adicionado diretamente aqui
+                        <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
+                            <FaCog />
+                        </IconButton>
                     )}
-                    <IconButton onClick={logout} className="icon-button" title="Sair">
+                    {/* Estilo de cor adicionado diretamente aqui */}
+                    <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
                         <FaSignOutAlt />
                     </IconButton>
                 </div>
@@ -53,6 +55,5 @@ const Navbar = () => {
         </header>
     );
 };
-// 4. O bloco de código duplicado que estava aqui foi removido.
 
 export default Navbar;

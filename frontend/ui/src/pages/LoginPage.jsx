@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
 import { Box, Button, Container, Paper, TextField, Typography } from '@mui/material';
+import logoImage from '../assets/logo.png'; // 1. IMPORTE A IMAGEM DO LOGO
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -14,21 +15,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     try {
-      // 1. Envia o usuário e senha para o endpoint de login
       const response = await apiClient.post('/auth/login/', {
         username: username,
         password: password,
       });
-
-      // 2. Pega o token da resposta
-      const token = response.data.key; // dj-rest-auth retorna o token na propriedade 'key'
-
-      // 3. Salva o token no sessionStorage do navegador
+      const token = response.data.key;
       sessionStorage.setItem('authToken', token);
+      
+      // Salva os dados do usuário para usar na Navbar
+      sessionStorage.setItem('userData', JSON.stringify(response.data.user));
 
-      // 4. Redireciona o usuário para a página principal (Agenda)
       navigate('/');
-
     } catch (err) {
       console.error("Erro no login:", err);
       setError('Usuário ou senha inválidos.');
@@ -38,8 +35,14 @@ export default function LoginPage() {
   return (
     <Container component="main" maxWidth="xs">
       <Paper elevation={3} sx={{ mt: 8, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        
+        {/* 2. ADICIONE O LOGO AQUI */}
+        <Box sx={{ mb: 2 }}>
+            <img src={logoImage} alt="Logo da Clínica Limalé" style={{ height: '80px' }} />
+        </Box>
+
         <Typography component="h1" variant="h5">
-        Login
+          Acesso ao Sistema
         </Typography>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
           <TextField
