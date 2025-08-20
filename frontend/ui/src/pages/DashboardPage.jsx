@@ -1,6 +1,9 @@
 // src/pages/DashboardPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Paper, Grid, CircularProgress, List, ListItem, ListItemText, Divider, Avatar } from '@mui/material';
+import { 
+    Box, Typography, Paper, Grid, CircularProgress, List, ListItem, 
+    ListItemIcon, ListItemText, Divider, Avatar 
+} from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { Link as RouterLink } from 'react-router-dom';
 import CakeIcon from '@mui/icons-material/Cake';
