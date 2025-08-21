@@ -1,21 +1,13 @@
-# backend/usuarios/urls.py - VERSÃO COMPLETA
-
+# backend/usuarios/urls.py - VERSÃO SIMPLIFICADA
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CustomAuthTokenLoginView, LogoutView, MedicoListView, UserViewSet
+from .views import MedicoListView, UserViewSet # Removemos a importação de login/logout
 
-# 1. Criamos um roteador
 router = DefaultRouter()
-# 2. Registramos nosso ViewSet com o roteador
-# O DRF criará as rotas /usuarios/ e /usuarios/{id}/ para nós automaticamente
 router.register(r'usuarios', UserViewSet, basename='usuario')
 
 urlpatterns = [
-    # Rotas existentes
-    path('login/', CustomAuthTokenLoginView.as_view(), name='api_login'),
-    path('logout/', LogoutView.as_view(), name='api_logout'),
+    # Removemos as rotas de login/logout daqui
     path('medicos/', MedicoListView.as_view(), name='lista_medicos'),
-    
-    # 3. Incluímos as rotas geradas pelo roteador
     path('', include(router.urls)),
 ]
