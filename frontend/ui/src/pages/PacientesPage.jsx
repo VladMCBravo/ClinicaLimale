@@ -133,8 +133,10 @@ export default function PacientesPage() {
                 <TableCell align="right">
                   <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
                   <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
-                  {user.isAdmin && (
-                    <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente"><DeleteIcon color="error" /></IconButton>
+                  {user && user.isAdmin && (
+                      <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente">
+                          <DeleteIcon color="error" />
+                      </IconButton>
                   )}
                 </TableCell>
               </TableRow>

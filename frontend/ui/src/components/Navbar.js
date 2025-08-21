@@ -41,7 +41,6 @@ const Navbar = () => {
                 <span className="user-greeting">Olá, {user ? user.first_name : ''}</span>
                 <div className="user-actions">
                     {user && user.isAdmin && (
-                        // Estilo de cor adicionado diretamente aqui
                         <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
                             <FaCog />
                         </IconButton>
