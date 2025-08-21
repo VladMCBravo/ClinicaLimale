@@ -20,7 +20,7 @@ export default function LoginPage() {
         password: password,
       });
 
-      const token = response.data.key;
+      const token = response.data.token;
       const userData = response.data.user; // Pega o objeto do usuário da resposta da API
 
       // VERIFICAÇÃO CRUCIAL
