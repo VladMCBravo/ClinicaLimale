@@ -10,7 +10,6 @@ import CakeIcon from '@mui/icons-material/Cake';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import BusinessIcon from '@mui/icons-material/Business';
-import EventIcon from '@mui/icons-material/Event';
 
 const StatCard = ({ title, value, color = 'primary.main', link }) => (
     <Paper component={RouterLink} to={link || '#'} sx={{ p: 2, textAlign: 'center', height: '100%', textDecoration: 'none' }}>
