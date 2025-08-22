@@ -52,6 +52,7 @@ class Paciente(models.Model):
     # Metadados
     data_cadastro = models.DateTimeField(auto_now_add=True) # Preenchido automaticamente na criação
     data_atualizacao = models.DateTimeField(auto_now=True)  # Preenchido automaticamente na atualização
+    numero_carteirinha = models.CharField(max_length=100, blank=True)
 
     def __str__(self):
         return self.nome_completo
