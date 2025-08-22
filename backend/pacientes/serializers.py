@@ -25,7 +25,6 @@ class PacienteSerializer(serializers.ModelSerializer):
             'plano_convenio', # Este campo será usado para escrita (enviar o ID)
             'numero_carteirinha',
             'plano_convenio_detalhes', # Este campo será usado para leitura (ver os detalhes)
-
             'total_consultas'
             # Adicione aqui outros campos que queira exibir, como 'convenio'
         ]
