@@ -11,7 +11,10 @@ class Agendamento(models.Model):
         ('Realizado', 'Realizado'),
         ('Não Compareceu', 'Não Compareceu'),
     ]
-
+    TIPO_ATENDIMENTO_CHOICES = [
+        ('Convenio', 'Convênio'),
+        ('Particular', 'Particular'),
+    ]
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
     data_hora_inicio = models.DateTimeField()
     data_hora_fim = models.DateTimeField()
@@ -21,13 +24,19 @@ class Agendamento(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
 
-     # --- NOVO CAMPO ---
+    # --- NOVO CAMPO ---
     plano_utilizado = models.ForeignKey(
-        PlanoConvenio,
+        'faturamento.PlanoConvenio',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         verbose_name="Plano Utilizado no Agendamento"
+    )
+
+    tipo_atendimento = models.CharField(
+        max_length=10,
+        choices=TIPO_ATENDIMENTO_CHOICES,
+        default='Particular' # Define um padrão
     )
 
     def __str__(self):

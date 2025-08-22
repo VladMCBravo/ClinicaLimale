@@ -166,6 +166,26 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
               <MenuItem value="Não Compareceu">Não Compareceu</MenuItem>
             </Select>
           </FormControl>
+          {/* --- NOVO SELETOR DE TIPO DE ATENDIMENTO --- */}
+    <FormControl fullWidth>
+        <InputLabel>Tipo de Atendimento</InputLabel>
+        <Select
+            name="tipo_atendimento"
+            value={formData.tipo_atendimento || 'Particular'} // Garante um valor padrão
+            label="Tipo de Atendimento"
+            onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}
+            // Desabilita a opção 'Convênio' se o paciente não tiver um plano
+            disabled={!pacienteDetalhes}
+        >
+            <MenuItem value="Particular">Particular</MenuItem>
+            <MenuItem 
+                value="Convenio" 
+                disabled={!pacienteDetalhes || !pacienteDetalhes.plano_convenio}
+            >
+                Convênio
+            </MenuItem>
+        </Select>
+    </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancelar</Button>

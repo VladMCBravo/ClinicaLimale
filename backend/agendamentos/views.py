@@ -5,6 +5,7 @@ from .models import Agendamento
 # 1. Importamos os dois serializers
 from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from datetime import date
+from faturamento.models import Pagamento # <-- 1. IMPORTE O MODELO PAGAMENTO
 
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -17,7 +18,28 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
             return AgendamentoWriteSerializer
         # Para listar, usamos o serializer de leitura
         return AgendamentoSerializer
+# --- 2. ADICIONE ESTE MÉTODO ---
+    def perform_create(self, serializer):
+        """
+        Este método é chamado após a validação e antes de salvar o objeto.
+        Nós o usamos para salvar o agendamento e então decidir se criamos um pagamento.
+        """
+        # Primeiro, salvamos o agendamento normalmente e pegamos a instância criada
+        agendamento = serializer.save()
 
+        # Agora, verificamos o tipo de atendimento do agendamento recém-criado
+        if agendamento.tipo_atendimento == 'Particular':
+            # Se for 'Particular', criamos um registro de pagamento pendente
+            Pagamento.objects.create(
+                agendamento=agendamento,
+                paciente=agendamento.paciente,
+                valor=0.00,  # Começa com 0, para ser definido depois na recepção
+                forma_pagamento='PIX', # Um valor padrão qualquer, pois ainda não foi pago
+                registrado_por=self.request.user,
+                # Se tiver um campo de status, pode defini-lo como 'Pendente'
+            )
+        # Se o tipo_atendimento for 'Convenio', nada acontece aqui, que é o comportamento desejado.
+        
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Agendamento.objects.all()
