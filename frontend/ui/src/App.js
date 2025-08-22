@@ -16,6 +16,7 @@ import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 import CategoriasDespesaPage from './pages/CategoriasDespesaPage';
+import ConveniosPage from './pages/ConveniosPage'; // Importe a nova página
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
               <Route path="/financeiro/*" element={<FinanceiroPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
               <Route path="/configuracoes/categorias-despesa" element={<CategoriasDespesaPage />} />
+              <Route path="/configuracoes/convenios" element={<ConveniosPage />} />
             </Route>
           </Route>
           

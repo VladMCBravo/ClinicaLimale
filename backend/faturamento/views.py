@@ -10,10 +10,11 @@ from django.db.models.functions import TruncMonth
 # --- 1. LIMPEZA E CORREÇÃO DAS IMPORTAÇÕES ---
 from agendamentos.models import Agendamento # Importação correta do Agendamento
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
-from .models import Pagamento, CategoriaDespesa, Despesa
+from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
 from .serializers import (
     PagamentoSerializer, PagamentoCreateSerializer, 
-    CategoriaDespesaSerializer, DespesaSerializer
+    CategoriaDespesaSerializer, DespesaSerializer,
+    ConvenioSerializer, PlanoConvenioSerializer
 )
 
 # --- View de Pagamento (sem alterações, já estava boa) ---
@@ -98,3 +99,13 @@ class RelatorioFinanceiroAPIView(APIView):
         }
         
         return Response(data)
+
+class ConvenioViewSet(viewsets.ModelViewSet):
+    queryset = Convenio.objects.prefetch_related('planos').all()
+    serializer_class = ConvenioSerializer
+    permission_classes = [IsAdminUser] # Apenas admins podem gerenciar
+
+class PlanoConvenioViewSet(viewsets.ModelViewSet):
+    queryset = PlanoConvenio.objects.all()
+    serializer_class = PlanoConvenioSerializer
+    permission_classes = [IsAdminUser] # Apenas admins podem gerenciar

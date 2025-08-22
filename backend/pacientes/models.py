@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings # Importa as configurações do Django
 from usuarios.models import CustomUser
 
+
 class Paciente(models.Model):
     GENERO_CHOICES = [
         ('Masculino', 'Masculino'),
@@ -41,7 +42,15 @@ class Paciente(models.Model):
     # Dados do Convênio
     convenio = models.CharField(max_length=100, blank=True)
     numero_carteirinha = models.CharField(max_length=100, blank=True)
-    plano_convenio = models.CharField(max_length=100, blank=True)
+
+    # Usamos uma string para referenciar o modelo de outro app
+    plano_convenio = models.ForeignKey(
+        'faturamento.PlanoConvenio', # <-- MUDANÇA AQUI
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pacientes'
+    )
 
     # Metadados
     data_cadastro = models.DateTimeField(auto_now_add=True) # Preenchido automaticamente na criação

@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
-from pacientes.models import Paciente
-from agendamentos.models import Agendamento
+
 
 # --- Modelo de Pagamento ---
 
@@ -14,15 +13,16 @@ class Pagamento(models.Model):
         ('Convenio', 'Convênio'),
     ]
     
+    # Usamos strings para referenciar os modelos de outros apps
     agendamento = models.OneToOneField(
-        Agendamento, 
+        'agendamentos.Agendamento', # <-- MUDANÇA AQUI
         on_delete=models.SET_NULL, 
         related_name='pagamento',
         null=True,
         blank=True
     )
-    
-    paciente = models.ForeignKey(Paciente, on_delete=models.PROTECT)
+
+    paciente = models.ForeignKey('pacientes.Paciente', on_delete=models.PROTECT) # <-- MUDANÇA AQUI
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     forma_pagamento = models.CharField(max_length=20, choices=FORMA_PAGAMENTO_CHOICES)
     data_pagamento = models.DateTimeField(auto_now_add=True)
@@ -72,3 +72,27 @@ class Despesa(models.Model):
         ordering = ['-data_despesa']
         verbose_name = "Despesa"
         verbose_name_plural = "Despesas"
+
+class Convenio(models.Model):
+    nome = models.CharField(max_length=100, unique=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
+
+class PlanoConvenio(models.Model):
+    convenio = models.ForeignKey(Convenio, on_delete=models.CASCADE, related_name='planos')
+    nome = models.CharField(max_length=100)
+    descricao = models.TextField(blank=True, null=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['convenio__nome', 'nome']
+        # Garante que não haja planos com mesmo nome no mesmo convênio
+        unique_together = ('convenio', 'nome')
+
+    def __str__(self):
+        return f"{self.convenio.nome} - {self.nome}"

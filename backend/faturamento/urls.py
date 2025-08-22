@@ -4,12 +4,16 @@ from .views import (
     PagamentoCreateAPIView, 
     CategoriaDespesaViewSet, 
     DespesaViewSet,
-    RelatorioFinanceiroAPIView # A importação que faltava
+    RelatorioFinanceiroAPIView,
+    ConvenioViewSet,
+    PlanoConvenioViewSet
 )
 
 router = DefaultRouter()
 router.register(r'categorias-despesa', CategoriaDespesaViewSet, basename='categoria-despesa')
 router.register(r'despesas', DespesaViewSet, basename='despesa')
+router.register(r'convenios', ConvenioViewSet, basename='convenio')
+router.register(r'planos', PlanoConvenioViewSet, basename='plano')
 
 urlpatterns = [
     # Sua rota de pagamento existente

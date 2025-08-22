@@ -55,6 +55,9 @@ export default function ConfiguracoesPage() {
                 <Button variant="contained" onClick={() => setIsModalOpen(true)}>
                     Criar Novo Usuário
                 </Button>
+                 <Button variant="outlined" component={RouterLink} to="/configuracoes/convenios">
+                    Gerenciar Convênios
+                </Button>
             </Box>
             </Box>
             {/* --- CORREÇÃO: A TABELA QUE ESTAVA FALTANDO FOI ADICIONADA AQUI --- */}

@@ -1,7 +1,7 @@
 # faturamento/serializers.py
 
 from rest_framework import serializers
-from .models import Pagamento, CategoriaDespesa, Despesa
+from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
 
 # SERIALIZER PARA LEITURA (O seu, que já era ótimo!)
 # Usado para mostrar os detalhes de um pagamento.
@@ -85,3 +85,17 @@ class DespesaSerializer(serializers.ModelSerializer):
         ]
         # O campo 'registrado_por' será preenchido automaticamente pela view, então é apenas de leitura.
         read_only_fields = ['registrado_por']
+    
+class PlanoConvenioSerializer(serializers.ModelSerializer):
+    convenio_nome = serializers.CharField(source='convenio.nome', read_only=True)
+
+    class Meta:
+        model = PlanoConvenio
+        fields = ['id', 'nome', 'descricao', 'ativo', 'convenio', 'convenio_nome']
+
+class ConvenioSerializer(serializers.ModelSerializer):
+    planos = PlanoConvenioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Convenio
+        fields = ['id', 'nome', 'ativo', 'planos']
