@@ -3,11 +3,13 @@
 from rest_framework import serializers
 from .models import Paciente
 from datetime import date
+from faturamento.serializers import PlanoConvenioSerializer # Importe
 
 class PacienteSerializer(serializers.ModelSerializer):
     # Campos calculados para enriquecer a resposta da API
     idade = serializers.SerializerMethodField()
     total_consultas = serializers.SerializerMethodField()
+    plano_convenio_detalhes = PlanoConvenioSerializer(source='plano_convenio', read_only=True)
 
     class Meta:
         model = Paciente
@@ -18,7 +20,12 @@ class PacienteSerializer(serializers.ModelSerializer):
             'cpf', 
             'data_nascimento',
             'telefone_celular',
+            'email',
             'idade', 
+            'plano_convenio', # Este campo será usado para escrita (enviar o ID)
+            'numero_carteirinha',
+            'plano_convenio_detalhes', # Este campo será usado para leitura (ver os detalhes)
+
             'total_consultas'
             # Adicione aqui outros campos que queira exibir, como 'convenio'
         ]
