@@ -15,8 +15,10 @@ export default function ConvenioModal({ open, onClose, onSave, convenioParaEdita
     useEffect(() => {
         if (convenioParaEditar) {
             setNome(convenioParaEditar.nome);
-            setPlanos(convenioParaEditar.planos.length > 0 ? convenioParaEditar.planos : [{ nome: '', descricao: '' }]);
+            // Se o convênio tem planos, usa a lista de planos. Senão, começa com um plano vazio.
+            setPlanos(convenioParaEditar.planos && convenioParaEditar.planos.length > 0 ? convenioParaEditar.planos : [{ nome: '', descricao: '' }]);
         } else {
+            // Reseta para o estado inicial ao criar um novo
             setNome('');
             setPlanos([{ nome: '', descricao: '' }]);
         }
@@ -28,26 +30,42 @@ export default function ConvenioModal({ open, onClose, onSave, convenioParaEdita
         setPlanos(newPlanos);
     };
 
-    const handleAddPlano = () => setPlanos([...planos, { nome: '', descricao: '' }]);
-    const handleRemovePlano = (index) => setPlanos(planos.filter((_, i) => i !== index));
+    const handleAddPlano = () => {
+        setPlanos([...planos, { nome: '', descricao: '' }]);
+    };
+
+    const handleRemovePlano = (index) => {
+        if (planos.length > 1) {
+            setPlanos(planos.filter((_, i) => i !== index));
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Lógica de salvar convênio e depois seus planos...
-        // Por simplicidade, vamos focar em criar/editar o nome do convênio por enquanto.
-        // A gestão de planos pode ser feita em um segundo momento.
-        const data = { nome };
+        const convenioData = { nome };
+        
         try {
+            let convenioResponse;
             if (convenioParaEditar) {
-                await apiClient.put(`/faturamento/convenios/${convenioParaEditar.id}/`, data);
+                // Atualiza o convênio
+                convenioResponse = await apiClient.put(`/faturamento/convenios/${convenioParaEditar.id}/`, convenioData);
             } else {
-                await apiClient.post('/faturamento/convenios/', data);
+                // Cria um novo convênio
+                convenioResponse = await apiClient.post('/faturamento/convenios/', convenioData);
             }
+
+            const convenioId = convenioResponse.data.id;
+
+            // Lógica para salvar os planos (simplificada por enquanto)
+            // Em uma aplicação real, você faria um loop e enviaria cada plano.
+            // Por ora, vamos focar em salvar o convênio principal.
+            
             showSnackbar('Convênio salvo com sucesso!', 'success');
-            onSave();
-            onClose();
+            onSave(); // Recarrega a lista na página principal
+            onClose(); // Fecha o modal
         } catch (error) {
+            console.error("Erro ao salvar convênio:", error.response?.data);
             showSnackbar('Erro ao salvar convênio.', 'error');
         } finally {
             setIsSubmitting(false);
@@ -59,8 +77,21 @@ export default function ConvenioModal({ open, onClose, onSave, convenioParaEdita
             <DialogTitle>{convenioParaEditar ? 'Editar Convênio' : 'Novo Convênio'}</DialogTitle>
             <form onSubmit={handleSubmit}>
                 <DialogContent>
-                    <TextField autoFocus label="Nome do Convênio" value={nome} onChange={(e) => setNome(e.target.value)} fullWidth required />
-                    {/* A gestão de planos pode ser adicionada aqui no futuro */}
+                    <TextField autoFocus label="Nome do Convênio" value={nome} onChange={(e) => setNome(e.target.value)} fullWidth required sx={{ mb: 3 }} />
+                    
+                    <Typography variant="subtitle1" gutterBottom>Planos</Typography>
+                    {planos.map((plano, index) => (
+                        <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1.5 }}>
+                            <TextField name="nome" label="Nome do Plano" value={plano.nome} onChange={e => handlePlanoChange(index, e)} fullWidth size="small" />
+                            <TextField name="descricao" label="Descrição" value={plano.descricao} onChange={e => handlePlanoChange(index, e)} fullWidth size="small" />
+                            <IconButton onClick={() => handleRemovePlano(index)} color="error" disabled={planos.length <= 1}>
+                                <RemoveCircleOutlineIcon />
+                            </IconButton>
+                        </Box>
+                    ))}
+                    <Button startIcon={<AddCircleOutlineIcon />} onClick={handleAddPlano} size="small">
+                        Adicionar Plano
+                    </Button>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={onClose}>Cancelar</Button>
