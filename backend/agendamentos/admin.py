@@ -1,38 +1,58 @@
+# backend/agendamentos/admin.py
+
 from django.contrib import admin
 from .models import Agendamento
+from django.utils import timezone # Importe o timezone
 
-# Criamos uma classe para personalizar como os Agendamentos são exibidos
+# Esta é a classe de configuração para o Admin
+@admin.register(Agendamento)
 class AgendamentoAdmin(admin.ModelAdmin):
-    # 1. Colunas na Lista: Define as colunas que aparecerão na listagem
+    # Campos que aparecerão na LISTA de agendamentos
     list_display = (
-        'id',  # ID do agendamento
+        'id',
         'paciente',
-        'get_data_formatada', # Usaremos uma função para formatar a data
-        'get_hora_inicio',    # E outra para a hora
+        'data_formatada', # Usaremos um método para formatar a data
+        'horario_formatado', # E o horário
         'tipo_consulta',
         'status',
+        'plano_utilizado', # <-- NOSSO CAMPO IMPORTANTE!
+        'tipo_atendimento' # <-- O campo que vamos criar
     )
 
-    # 2. Filtros: Adiciona uma barra lateral com filtros
-    list_filter = ('status', 'data_hora_inicio')
+    # Adiciona filtros úteis na barra lateral direita
+    list_filter = ('status', 'data_hora_inicio', 'tipo_atendimento')
 
-    # 3. Busca: Adiciona um campo de busca
-    # O '__' permite buscar em campos de modelos relacionados (ForeignKey)
+    # Permite buscar por nome do paciente ou CPF
     search_fields = ('paciente__nome_completo', 'paciente__cpf')
 
-    # Funções para formatar a data e a hora na listagem
-    def get_data_formatada(self, obj):
-        # Converte a hora para o fuso local e formata
-        return obj.data_hora_inicio.astimezone().strftime('%d/%m/%Y')
-    get_data_formatada.admin_order_field = 'data_hora_inicio' # Permite ordenar por esta coluna
-    get_data_formatada.short_description = 'Data' # Nome da coluna no admin
+    # Campos que aparecerão ao EDITAR um agendamento
+    # Organiza os campos em seções
+    fieldsets = (
+        ('Informações Principais', {
+            'fields': ('paciente', 'status', 'tipo_consulta')
+        }),
+        ('Datas e Horários', {
+            'fields': ('data_hora_inicio', 'data_hora_fim')
+        }),
+        ('Detalhes do Atendimento', {
+            'fields': ('tipo_atendimento', 'plano_utilizado') # <-- ADICIONADOS AQUI
+        }),
+        ('Outras Informações', {
+            'fields': ('observacoes',)
+        }),
+    )
 
-    def get_hora_inicio(self, obj):
-        # Converte a hora para o fuso local e formata
-        return obj.data_hora_inicio.astimezone().strftime('%H:%M')
-    get_hora_inicio.admin_order_field = 'data_hora_inicio' # Permite ordenar por esta coluna
-    get_hora_inicio.short_description = 'Horário' # Nome da coluna no admin
+    # Métodos para formatar a data e hora na lista
+    def data_formatada(self, obj):
+        if obj.data_hora_inicio:
+            return timezone.localtime(obj.data_hora_inicio).strftime('%d/%m/%Y')
+        return "N/A"
+    data_formatada.admin_order_field = 'data_hora_inicio'
+    data_formatada.short_description = 'Data'
 
-
-# Registra o modelo Agendamento junto com a sua classe de personalização
-admin.site.register(Agendamento, AgendamentoAdmin)
+    def horario_formatado(self, obj):
+        if obj.data_hora_inicio:
+            return timezone.localtime(obj.data_hora_inicio).strftime('%H:%M')
+        return "N/A"
+    horario_formatado.admin_order_field = 'data_hora_inicio'
+    horario_formatado.short_description = 'Horário'
