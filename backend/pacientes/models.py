@@ -39,10 +39,7 @@ class Paciente(models.Model):
     cidade = models.CharField(max_length=100, blank=True)
     estado = models.CharField(max_length=2, blank=True)
 
-    # Dados do Convênio
-    convenio = models.CharField(max_length=100, blank=True)
-    numero_carteirinha = models.CharField(max_length=100, blank=True)
-
+    
     # Usamos uma string para referenciar o modelo de outro app
     plano_convenio = models.ForeignKey(
         'faturamento.PlanoConvenio', # <-- MUDANÇA AQUI

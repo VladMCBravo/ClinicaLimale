@@ -1,6 +1,7 @@
 from django.db import models
 from pacientes.models import Paciente
 from django.utils import timezone # <- 1. IMPORTAMOS A FERRAMENTA DE FUSO HORÁRIO
+from faturamento.models import PlanoConvenio # <-- IMPORTE O MODELO
 
 class Agendamento(models.Model):
     STATUS_CHOICES = [
@@ -19,6 +20,15 @@ class Agendamento(models.Model):
     observacoes = models.TextField(blank=True, null=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
+
+     # --- NOVO CAMPO ---
+    plano_utilizado = models.ForeignKey(
+        PlanoConvenio,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Plano Utilizado no Agendamento"
+    )
 
     def __str__(self):
         # 2. CONVERTEMOS A HORA UTC DO BANCO PARA O FUSO LOCAL

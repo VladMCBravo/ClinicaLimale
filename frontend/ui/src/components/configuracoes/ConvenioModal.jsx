@@ -41,36 +41,36 @@ export default function ConvenioModal({ open, onClose, onSave, convenioParaEdita
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        const convenioData = { nome };
-        
-        try {
-            let convenioResponse;
-            if (convenioParaEditar) {
-                // Atualiza o convênio
-                convenioResponse = await apiClient.put(`/faturamento/convenios/${convenioParaEditar.id}/`, convenioData);
-            } else {
-                // Cria um novo convênio
-                convenioResponse = await apiClient.post('/faturamento/convenios/', convenioData);
-            }
+    e.preventDefault();
+    setIsSubmitting(true);
 
-            const convenioId = convenioResponse.data.id;
+    // Filtra planos que tenham um nome, para não enviar planos vazios
+    const planosValidos = planos.filter(p => p.nome.trim() !== '');
 
-            // Lógica para salvar os planos (simplificada por enquanto)
-            // Em uma aplicação real, você faria um loop e enviaria cada plano.
-            // Por ora, vamos focar em salvar o convênio principal.
-            
-            showSnackbar('Convênio salvo com sucesso!', 'success');
-            onSave(); // Recarrega a lista na página principal
-            onClose(); // Fecha o modal
-        } catch (error) {
-            console.error("Erro ao salvar convênio:", error.response?.data);
-            showSnackbar('Erro ao salvar convênio.', 'error');
-        } finally {
-            setIsSubmitting(false);
-        }
+    // --- A MUDANÇA ESTÁ AQUI ---
+    const convenioData = {
+        nome,
+        planos: planosValidos, // Envia a lista de planos junto
     };
+
+    try {
+        if (convenioParaEditar) {
+            await apiClient.put(`/faturamento/convenios/${convenioParaEditar.id}/`, convenioData);
+        } else {
+            await apiClient.post('/faturamento/convenios/', convenioData);
+        }
+
+        showSnackbar('Convênio e planos salvos com sucesso!', 'success');
+        onSave();
+        onClose();
+    } catch (error) {
+        console.error("Erro ao salvar convênio:", error.response?.data);
+        const errorMessage = error.response?.data?.nome?.[0] || 'Erro ao salvar convênio.';
+        showSnackbar(errorMessage, 'error');
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
