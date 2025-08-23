@@ -8,7 +8,8 @@ from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
 # --- 1. LIMPEZA E CORREÇÃO DAS IMPORTAÇÕES ---
-from agendamentos.models import Agendamento # Importação correta do Agendamento
+from agendamentos.serializers import AgendamentoSerializer
+from agendamentos.models import Agendamento
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
 from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
 from .serializers import (
@@ -115,3 +116,32 @@ class PlanoConvenioViewSet(viewsets.ModelViewSet):
     queryset = PlanoConvenio.objects.all()
     serializer_class = PlanoConvenioSerializer
     permission_classes = [IsAdminUser] # Apenas admins podem gerenciar
+
+class AgendamentosFaturaveisAPIView(generics.ListAPIView):
+    """
+    Endpoint para listar agendamentos de um convênio específico
+    dentro de um mês, que ainda não foram faturados (não têm uma guia TISS associada).
+    """
+    serializer_class = AgendamentoSerializer
+    permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
+
+    def get_queryset(self):
+        # Pegamos os parâmetros da URL (ex: ?convenio_id=1&mes=8&ano=2025)
+        convenio_id = self.request.query_params.get('convenio_id')
+        mes = self.request.query_params.get('mes')
+        ano = self.request.query_params.get('ano')
+
+        # Se os parâmetros essenciais не forem fornecidos, retorna uma lista vazia
+        if not all([convenio_id, mes, ano]):
+            return Agendamento.objects.none()
+
+        # Filtra os agendamentos com base nos critérios
+        queryset = Agendamento.objects.filter(
+            plano_utilizado__convenio__id=convenio_id,
+            data_hora_inicio__month=mes,
+            data_hora_inicio__year=ano,
+            tipo_atendimento='Convenio',
+            guia_tiss__isnull=True  # O filtro mágico: apenas os que ainda não têm guia!
+        ).select_related('paciente', 'plano_utilizado').order_by('data_hora_inicio')
+
+        return queryset

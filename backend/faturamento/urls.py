@@ -3,8 +3,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    PagamentoViewSet, 
-    CategoriaDespesaViewSet, 
+    AgendamentosFaturaveisAPIView, PagamentosPendentesListAPIView,
+    PagamentoViewSet,
+    CategoriaDespesaViewSet,
     DespesaViewSet,
     RelatorioFinanceiroAPIView,
     ConvenioViewSet,
@@ -28,6 +29,9 @@ urlpatterns = [
     # --- ESTA É A LINHA QUE ESTAVA A FALTAR ---
     # Adiciona a rota para a nossa lista de pagamentos pendentes
     path('pagamentos-pendentes/', PagamentosPendentesListAPIView.as_view(), name='pagamentos-pendentes'),
+
+# 2. Adicione a nova rota para o Faturamento TISS
+    path('agendamentos-faturaveis/', AgendamentosFaturaveisAPIView.as_view(), name='agendamentos-faturaveis'),
 
     # Inclui todas as rotas geradas pelo router (como /pagamentos/, /convenios/, etc.)
     path('', include(router.urls)),

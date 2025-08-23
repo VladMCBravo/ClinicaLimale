@@ -109,3 +109,39 @@ class PlanoConvenio(models.Model):
         ordering = ['convenio__nome', 'nome']
         unique_together = ('convenio', 'nome')
     def __str__(self): return f"{self.convenio.nome} - {self.nome}"
+
+# --- NOVOS MODELOS PARA FATURAMENTO TISS ---
+
+class LoteFaturamento(models.Model):
+    # ... (sem alterações dentro deste modelo)
+    STATUS_LOTE_CHOICES = [('Aberto', 'Em Aberto'), ('Enviado', 'Enviado para o Convênio'), ('Pago', 'Pago'), ('Pago com Glosa', 'Pago com Glosa'), ('Recusado', 'Recusado')]
+    convenio = models.ForeignKey('faturamento.Convenio', on_delete=models.PROTECT, related_name='lotes')
+    mes_referencia = models.DateField()
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_envio = models.DateTimeField(null=True, blank=True)
+    valor_total_lote = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=STATUS_LOTE_CHOICES, default='Aberto')
+    gerado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    
+    def __str__(self):
+        mes_ano = self.mes_referencia.strftime('%m/%Y')
+        return f"Lote para {self.convenio.nome} - Ref: {mes_ano} ({self.status})"
+    
+    class Meta: ordering = ['-mes_referencia']
+
+class GuiaTiss(models.Model):
+    lote = models.ForeignKey(LoteFaturamento, on_delete=models.CASCADE, related_name='guias')
+    
+    # --- CORREÇÃO AQUI: Usamos a string 'app.Model' ---
+    agendamento = models.OneToOneField(
+        'agendamentos.Agendamento', # <-- Em vez do objeto, usamos o caminho como string
+        on_delete=models.PROTECT, 
+        related_name='guia_tiss'
+    )
+    
+    valor_guia = models.DecimalField(max_digits=10, decimal_places=2)
+    status_guia = models.CharField(max_length=100, default="Enviada")
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Guia para o agendamento ID {self.agendamento.id} no Lote {self.lote.id}"
