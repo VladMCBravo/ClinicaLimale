@@ -1,35 +1,37 @@
+# backend/pacientes/admin.py - VERSÃO FINAL E CORRIGIDA
+
 from django.contrib import admin
 from .models import Paciente
 
-# Vamos criar uma classe para personalizar a página de administração de Pacientes
+@admin.register(Paciente)
 class PacienteAdmin(admin.ModelAdmin):
-    # Lista de campos que queremos que apareçam na visualização inicial
-    list_display = ('nome_completo', 'telefone_celular', 'cidade', 'data_cadastro', 'medico_responsavel')
-    # Adiciona uma barra de busca
-    search_fields = ('nome_completo', 'cpf', 'cidade')
-# --- NOVA SEÇÃO ---
-    # Organiza o formulário de criação/edição em seções (fieldsets)
-    # É aqui que garantimos que o campo apareça
+    # Campos que aparecerão na lista de pacientes
+    list_display = ('nome_completo', 'cpf', 'telefone_celular', 'plano_convenio')
+    
+    # Adiciona filtros úteis
+    list_filter = ('plano_convenio__convenio', 'data_cadastro')
+    
+    # Permite a busca por nome ou CPF
+    search_fields = ('nome_completo', 'cpf')
+    
+    # --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+    # Organizamos a página de edição em seções (fieldsets)
+    # e removemos a referência ao campo antigo 'convenio'
     fieldsets = (
-        ('Dados Pessoais', {
+        ('Informações Pessoais', {
             'fields': ('nome_completo', 'data_nascimento', 'cpf', 'genero')
         }),
-        ('Contato', {
+        ('Informações de Contato', {
             'fields': ('telefone_celular', 'email', 'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado')
         }),
-        ('Convênio', {
-            'fields': ('convenio', 'numero_carteirinha', 'plano_convenio'),
-            'classes': ('collapse',) # Deixa esta seção "recolhível"
+        # Usamos os novos campos corretos aqui
+        ('Dados do Convênio', {
+            'fields': ('plano_convenio', 'numero_carteirinha')
         }),
-        ('Atribuição Interna', {
-            'fields': ('medico_responsavel',) # <--- NOSSO NOVO CAMPO ESTÁ AQUI
+        ('Outras Informações', {
+            'fields': ('medico_responsavel',)
         }),
     )
 
-    # A "mágica" acontece aqui:
-    # Dizemos ao Django para incluir nosso arquivo JavaScript nesta página.
-    class Media:
-        js = ('pacientes/js/cep_autofill.js',)
-
-# Registra o modelo Paciente junto com a sua classe de personalização
-admin.site.register(Paciente, PacienteAdmin)
+    # Para melhorar a performance, usamos raw_id_fields para ForeignKeys com muitos itens
+    raw_id_fields = ('plano_convenio', 'medico_responsavel')
