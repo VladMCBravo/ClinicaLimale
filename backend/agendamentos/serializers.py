@@ -1,56 +1,61 @@
-# backend/agendamentos/serializers.py - VERSÃO FINAL E CORRIGIDA
+# backend/agendamentos/serializers.py - VERSÃO FINAL E COMPLETA
 
 from rest_framework import serializers
 from .models import Agendamento
 from pacientes.models import Paciente
-from faturamento.serializers import PagamentoStatusSerializer # Importamos o serializer de status
+from faturamento.serializers import PagamentoStatusSerializer
 
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
     """
-    Serializer de LEITURA para Agendamentos.
-    Envia dados detalhados e formatados para o frontend consumir.
+    Serializer de LEITURA final. Envia todos os dados necessários para
+    a Agenda, Sidebar, Dashboards e Relatórios.
     """
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
-    paciente = serializers.PrimaryKeyRelatedField(read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    pagamento = PagamentoStatusSerializer(read_only=True) # Aninha o status do pagamento
+    pagamento = PagamentoStatusSerializer(read_only=True)
+    primeira_consulta = serializers.SerializerMethodField() # <-- Reintroduzido
 
     class Meta:
         model = Agendamento
         fields = [
             'id',
-            'paciente', # Enviamos o ID do paciente
-            'paciente_nome', # E o nome para exibição
+            'paciente',
+            'paciente_nome', # <-- Para a Sidebar e Título do Evento
             'data_hora_inicio',
             'data_hora_fim',
-            'tipo_consulta',
             'status',
-            'status_display',
-            'plano_utilizado',
             'tipo_atendimento',
-            'pagamento', # Objeto com { id, status, valor } do pagamento
+            'pagamento', # <-- Para o ícone de pago
+            'primeira_consulta', # <-- Para o ícone de estrela
         ]
+
+    def get_primeira_consulta(self, obj):
+        """
+        Verifica se este é o primeiro agendamento 'Realizado' ou 'Confirmado' do paciente.
+        """
+        return not Agendamento.objects.filter(
+            paciente=obj.paciente,
+            status__in=['Realizado', 'Confirmado'],
+            data_hora_inicio__lt=obj.data_hora_inicio
+        ).exists()
 
 # --- Serializer para ESCRITA (POST, PUT) ---
 class AgendamentoWriteSerializer(serializers.ModelSerializer):
     """
-    Serializer de ESCRITA para Agendamentos.
-    Recebe os IDs e os dados que o usuário envia do formulário.
+    Serializer de ESCRITA final. Garante que TODOS os campos do modal são aceites.
     """
-    # Garante que o frontend pode enviar um ID de paciente
     paciente = serializers.PrimaryKeyRelatedField(queryset=Paciente.objects.all())
 
     class Meta:
         model = Agendamento
-        # --- CORREÇÃO CRÍTICA: Adicionamos os campos que faltavam ---
+        # --- CORREÇÃO FINAL: Todos os campos do formulário estão aqui ---
         fields = [
             'paciente', 
             'data_hora_inicio', 
             'data_hora_fim', 
             'status', 
             'tipo_consulta',
-            'plano_utilizado',    # <-- ESTAVA A FALTAR
-            'tipo_atendimento',   # <-- ESTAVA A FALTAR
+            'plano_utilizado',
+            'tipo_atendimento',
             'observacoes',
         ]
