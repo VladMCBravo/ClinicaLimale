@@ -34,6 +34,7 @@ export default function FinanceiroPage() {
                     <Tab label="Pagamentos Pendentes" {...a11yProps(0)} />
                     <Tab label="Despesas" {...a11yProps(1)} />
                     <Tab label="Relatórios" {...a11yProps(2)} />
+                    <Tab label="Faturamento de Convênios" {...a11yProps(3)} />
                 </Tabs>
             </Box>
 
