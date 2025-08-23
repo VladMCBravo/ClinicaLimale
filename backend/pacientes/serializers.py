@@ -17,16 +17,17 @@ class PacienteSerializer(serializers.ModelSerializer):
         fields = [
             'id', 
             'nome_completo', 
-            'cpf', 
             'data_nascimento',
-            'telefone_celular',
             'email',
-            'idade', 
-            'plano_convenio', # Este campo será usado para escrita (enviar o ID)
+            'telefone_celular',
+            'cpf',
+            'plano_convenio',
             'numero_carteirinha',
-            'plano_convenio_detalhes', # Este campo será usado para leitura (ver os detalhes)
-            'total_consultas'
-            # Adicione aqui outros campos que queira exibir, como 'convenio'
+            'medico_responsavel', # <-- A LINHA QUE FALTAVA
+            # --- Campos de leitura ---
+            'plano_convenio_detalhes',
+            'idade',
+            'total_consultas',
         ]
 
     def get_idade(self, obj):

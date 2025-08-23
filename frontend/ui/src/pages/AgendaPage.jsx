@@ -93,7 +93,12 @@ export default function AgendaPage() {
           <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
         </Grid>
         <Grid item sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Paper sx={{ height: '100%', p: 1 }}>
+                       <Paper sx={{ 
+                        height: '100%', 
+                        p: 2, // Pode manter o padding
+                        display: 'flex', // Adicione display flex
+                        flexDirection: 'column' // e a direção
+                    }}>
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
