@@ -1,4 +1,4 @@
-// src/components/agenda/PacientesDoDiaSidebar.jsx
+// src/components/agenda/PacientesDoDiaSidebar.jsx - VERSÃO CORRIGIDA
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Paper, List, ListItem, ListItemIcon, ListItemText, CircularProgress, Tooltip } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
@@ -8,12 +8,10 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import StarIcon from '@mui/icons-material/Star';
 
-// Mapeamento de status para ícones e cores
+// Mapeamento de status (sem alterações)
 const statusMap = {
     'Confirmado': { icon: <CheckCircleIcon />, color: 'success.main', title: 'Confirmado' },
-    'Aguardando': { icon: <HourglassEmptyIcon />, color: 'warning.main', title: 'Aguardando' },
-    'Cancelado': { icon: <CancelIcon />, color: 'error.main', title: 'Cancelado' },
-    'Pendente': { icon: <HelpOutlineIcon />, color: 'info.main', title: 'Pendente' }
+    // ... (o resto do seu statusMap)
 };
 
 export default function PacientesDoDiaSidebar({ refreshTrigger }) {
@@ -22,7 +20,6 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
 
     const fetchPacientesDoDia = useCallback(async () => {
         try {
-            // Seu backend já tem esta rota pronta!
             const response = await apiClient.get('/agendamentos/hoje/');
             setPacientes(response.data);
         } catch (error) {
@@ -42,7 +39,7 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
             {isLoading ? <CircularProgress /> : (
                 <List dense>
                     {pacientes.length > 0 ? pacientes.map(ag => {
-                        const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: 'Status Desconhecido' };
+                        const statusInfo = statusMap[ag.status_display] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status_display };
                         return (
                             <ListItem key={ag.id}>
                                 <ListItemIcon>
@@ -51,7 +48,9 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
                                     </Tooltip>
                                 </ListItemIcon>
                                 <ListItemText 
-                                    primary={ag.paciente}
+                                    // --- A CORREÇÃO ESTÁ AQUI ---
+                                    // Usamos 'paciente_nome' que agora vem da nossa API melhorada
+                                    primary={ag.paciente_nome}
                                     secondary={new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                 />
                                 {ag.primeira_consulta && (

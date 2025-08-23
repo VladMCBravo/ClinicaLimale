@@ -69,31 +69,33 @@ class DespesaViewSet(viewsets.ModelViewSet):
 
 # --- View para Relatórios (com permissão corrigida) ---
 class RelatorioFinanceiroAPIView(APIView):
-    # --- 3. PERMISSÃO REFINADA ---
-    # Relatórios financeiros devem ser vistos apenas por administradores.
     permission_classes = [IsAdminUser]
 
     def get(self, request, *args, **kwargs):
-        faturamento_por_forma = Pagamento.objects.values('forma_pagamento').annotate(total=Sum('valor')).order_by('-total')
+        # --- CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+        # Apenas pagamentos com status 'Pago' devem entrar nos relatórios financeiros
+        pagamentos_confirmados = Pagamento.objects.filter(status='Pago')
+
+        faturamento_por_forma = pagamentos_confirmados.values('forma_pagamento').annotate(total=Sum('valor')).order_by('-total')
         despesas_por_categoria = Despesa.objects.values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
         
-        # Lógica de fluxo de caixa (já estava boa)
-        faturamento_mensal = Pagamento.objects.annotate(mes=TruncMonth('data_pagamento')).values('mes').annotate(total=Sum('valor')).order_by('mes')
+        # A lógica do fluxo de caixa agora também usa apenas pagamentos confirmados
+        faturamento_mensal = pagamentos_confirmados.annotate(mes=TruncMonth('data_pagamento')).values('mes').annotate(total=Sum('valor')).order_by('mes')
         despesas_mensais = Despesa.objects.annotate(mes=TruncMonth('data_despesa')).values('mes').annotate(total=Sum('valor')).order_by('mes')
         
+        # O resto da lógica para formatar o fluxo_caixa permanece o mesmo
         fluxo_caixa = {}
+        # ... (código de formatação inalterado) ...
         for item in faturamento_mensal:
             mes_str = item['mes'].strftime('%Y-%m')
             if mes_str not in fluxo_caixa:
                 fluxo_caixa[mes_str] = {'receitas': 0, 'despesas': 0}
             fluxo_caixa[mes_str]['receitas'] = item['total'] or 0
-
         for item in despesas_mensais:
             mes_str = item['mes'].strftime('%Y-%m')
             if mes_str not in fluxo_caixa:
                 fluxo_caixa[mes_str] = {'receitas': 0, 'despesas': 0}
             fluxo_caixa[mes_str]['despesas'] = item['total'] or 0
-        
         fluxo_caixa_formatado = [{'mes': mes, **valores} for mes, valores in fluxo_caixa.items()]
         
         data = {
