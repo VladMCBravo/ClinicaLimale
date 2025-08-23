@@ -3,16 +3,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Paper, List, ListItem, ListItemIcon, ListItemText, CircularProgress, Tooltip } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
 
-// --- 1. IMPORTAÇÃO DOS ÍCONES CORRIGIDA ---
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // Confirmado
-import CancelIcon from '@mui/icons-material/Cancel';             // Cancelado
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';     // Status Desconhecido
-import StarIcon from '@mui/icons-material/Star';                   // Primeira Consulta
-import EventNoteIcon from '@mui/icons-material/EventNote';       // Agendado
-import DoneIcon from '@mui/icons-material/Done';                   // Realizado
-import PersonOffIcon from '@mui/icons-material/PersonOff';         // Não Compareceu
+// --- IMPORTAÇÃO COMPLETA DE ÍCONES ---
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';      // Confirmado
+import CancelIcon from '@mui/icons-material/Cancel';                  // Cancelado
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';          // Status Desconhecido
+import StarIcon from '@mui/icons-material/Star';                      // Primeira Consulta
+import EventNoteIcon from '@mui/icons-material/EventNote';          // Agendado
+import DoneIcon from '@mui/icons-material/Done';                      // Realizado
+import PersonOffIcon from '@mui/icons-material/PersonOff';            // Não Compareceu
 
-// --- 2. MAPEAMENTO DE STATUS COMPLETO E CORRETO ---
+// --- MAPEAMENTO DE STATUS COMPLETO E CORRETO ---
 const statusMap = {
     'Agendado': { icon: <EventNoteIcon />, color: 'info.main', title: 'Agendado' },
     'Confirmado': { icon: <CheckCircleIcon />, color: 'success.main', title: 'Confirmado' },
@@ -46,7 +46,6 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
             {isLoading ? <CircularProgress /> : (
                 <List dense>
                     {pacientes.length > 0 ? pacientes.map(ag => {
-                        // A lógica agora usa o novo statusMap completo
                         const statusInfo = statusMap[ag.status_display] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status_display || ag.status };
                         return (
                             <ListItem key={ag.id}>
