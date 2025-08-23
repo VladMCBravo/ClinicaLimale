@@ -1,7 +1,6 @@
 # backend/agendamentos/urls.py - VERSÃO CORRIGIDA
 
 from django.urls import path
-from faturamento.views import PagamentoCreateAPIView 
 from .views import (
     AgendamentoListCreateAPIView, 
     AgendamentoDetailAPIView,
@@ -21,7 +20,4 @@ urlpatterns = [
     
     # O caminho 'hoje/' corresponde a /api/agendamentos/hoje/
     path('hoje/', AgendamentosHojeListView.as_view(), name='lista-agendamentos-hoje'),
-
-    # O caminho '<int:agendamento_id>/pagamentos/' corresponde a /api/agendamentos/5/pagamentos/
-    path('<int:agendamento_id>/pagamentos/', PagamentoCreateAPIView.as_view(), name='criar-pagamento-agendamento'),
 ]
