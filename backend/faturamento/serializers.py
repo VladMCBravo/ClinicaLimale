@@ -2,17 +2,30 @@
 
 from rest_framework import serializers
 from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
+from agendamentos.models import Agendamento # Importe o modelo Agendamento
 
-# --- Serializers de Pagamento (Versão Limpa) ---
+# --- Serializers de Suporte ---
+class PagamentoStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Pagamento
+        fields = ['id', 'status', 'valor']
+
+# NOVO: Serializer simples para mostrar informações do agendamento dentro do pagamento
+class AgendamentoInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Agendamento
+        fields = ['id', 'data_hora_inicio', 'tipo_consulta']
+
+# --- Serializer Principal de Pagamento ---
 
 class PagamentoSerializer(serializers.ModelSerializer):
-    """
-    Serializer para LEITURA e listagem de pagamentos.
-    Mostra informações detalhadas e legíveis.
-    """
-    paciente = serializers.StringRelatedField(read_only=True)
+    paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
     registrado_por = serializers.StringRelatedField(read_only=True)
-    forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True)
+    forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    # ALTERAÇÃO: Agora usamos o serializer aninhado para ter os detalhes
+    agendamento = AgendamentoInfoSerializer(read_only=True)
 
     class Meta:
         model = Pagamento
@@ -20,7 +33,10 @@ class PagamentoSerializer(serializers.ModelSerializer):
             'id', 
             'agendamento', 
             'paciente', 
+            'paciente_nome',
             'valor', 
+            'status',
+            'status_display',
             'forma_pagamento',
             'forma_pagamento_display',
             'data_pagamento', 
@@ -35,6 +51,15 @@ class PagamentoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
         fields = ['valor', 'forma_pagamento']
+
+class PagamentoUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer específico para ATUALIZAR um pagamento.
+    Só permite alterar os campos necessários.
+    """
+    class Meta:
+        model = Pagamento
+        fields = ['valor', 'forma_pagamento', 'status']
 
 # --- Serializers de Despesas (Mantidos como estavam, pois estão ótimos) ---
 

@@ -13,15 +13,17 @@ import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import StarIcon from '@mui/icons-material/Star';
 
-// Função para renderizar o conteúdo do evento no calendário
+// --- ALTERAÇÃO 1: A lógica de renderização agora verifica o status ---
 function renderEventContent(eventInfo) {
-  const { pago, primeira_consulta } = eventInfo.event.extendedProps;
+  // A propriedade agora é 'status_pagamento'
+  const { status_pagamento, primeira_consulta } = eventInfo.event.extendedProps;
   return (
     <Box sx={{ p: '2px 4px', overflow: 'hidden', fontSize: '0.8em' }}>
       <b>{eventInfo.timeText}</b>
       <Typography variant="body2" component="span" sx={{ ml: 1 }}>{eventInfo.event.title}</Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
-        {pago && <Tooltip title="Consulta Paga"><MonetizationOnIcon sx={{ fontSize: 14, color: 'gold' }} /></Tooltip>}
+        {/* O ícone só aparece se o status for 'Pago' */}
+        {status_pagamento === 'Pago' && <Tooltip title="Consulta Paga"><MonetizationOnIcon sx={{ fontSize: 14, color: 'gold' }} /></Tooltip>}
         {primeira_consulta && <Tooltip title="Primeira Consulta"><StarIcon sx={{ fontSize: 14, color: 'orange' }} /></Tooltip>}
       </Box>
     </Box>
@@ -33,22 +35,24 @@ export default function AgendaPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDateInfo, setSelectedDateInfo] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
-// Usamos um contador simples. Toda vez que ele mudar, os componentes filhos serão alertados.
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
     
   const fetchEvents = (fetchInfo, successCallback, failureCallback) => {
+    // A API de agendamentos agora nos dá o objeto de pagamento
     apiClient.get('/agendamentos/')
       .then(response => {
         const eventosFormatados = response.data.map(ag => ({
             id: ag.id,
-            title: ag.paciente,
+            title: ag.paciente_nome, // Usando o paciente_nome do serializer
             start: ag.data_hora_inicio,
             end: ag.data_hora_fim,
             className: `status-${ag.status?.toLowerCase()}`,
             extendedProps: {
-              pago: ag.pago,
-              primeira_consulta: ag.primeira_consulta,
-              pacienteId: ag.paciente_id
+              // --- ALTERAÇÃO 2: Extraímos o status do pagamento ---
+              // Se ag.pagamento existir, pegamos o status. Senão, é nulo.
+              status_pagamento: ag.pagamento ? ag.pagamento.status : null,
+              primeira_consulta: ag.primeira_consulta, // Mantenha esta lógica se ainda a usa
+              pacienteId: ag.paciente
             }
         }));
         successCallback(eventosFormatados);
@@ -88,43 +92,39 @@ export default function AgendaPage() {
   return (
     <>
       <Grid container spacing={2} sx={{ height: 'calc(100vh - 100px)', flexWrap: 'nowrap' }}>
-                <Grid item sx={{ width: '300px', flexShrink: 0 }}>
-                    {/* 3. PASSANDO O GATILHO PARA A BARRA LATERAL */}
-                    <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
-                </Grid>
-          
-          {/* Coluna do Calendário */}
-          <Grid item sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Paper sx={{ height: '100%', p: 1 }}>
-                  <FullCalendar
-                      ref={calendarRef}
-                      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                      initialView="timeGridWeek"
-                      headerToolbar={{
-                          left: 'prev,next today',
-                          center: 'title',
-                          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                      }}
-                      locale="pt-br"
-                      buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
-                      height="100%"
-                      events={fetchEvents}
-                      eventContent={renderEventContent}
-                      slotMinTime="08:00:00"
-                      slotMaxTime="20:00:00"
-                      dateClick={handleDateClick}
-                      eventClick={handleEventClick}
-                  />
-              </Paper>
-          </Grid>
+        <Grid item sx={{ width: '300px', flexShrink: 0 }}>
+          <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
+        </Grid>
+        <Grid item sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Paper sx={{ height: '100%', p: 1 }}>
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="timeGridWeek"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+              }}
+              locale="pt-br"
+              buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
+              height="100%"
+              events={fetchEvents}
+              eventContent={renderEventContent}
+              slotMinTime="08:00:00"
+              slotMaxTime="20:00:00"
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+            />
+          </Paper>
+        </Grid>
       </Grid>
-
       <AgendamentoModal
-          open={isModalOpen}
-          onClose={handleCloseModal}
-          onSave={handleSave}
-          initialData={selectedDateInfo}
-          editingEvent={editingEvent}
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+        initialData={selectedDateInfo}
+        editingEvent={editingEvent}
       />
     </>
   );

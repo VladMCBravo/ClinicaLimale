@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Agendamento
 from pacientes.models import Paciente # Importamos o modelo Paciente
+from faturamento.serializers import PagamentoStatusSerializer # <-- Importe
 
 # --- Serializer para LEITURA (GET) ---
 # O seu, que já era ótimo, para exibir os dados de forma rica.
@@ -9,6 +10,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     paciente_id = serializers.IntegerField(source='paciente.id', read_only=True)
     pago = serializers.SerializerMethodField()
     primeira_consulta = serializers.SerializerMethodField()
+    pagamento = PagamentoStatusSerializer(read_only=True)
 
     class Meta:
         model = Agendamento
@@ -22,6 +24,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'status',
             'pago',
             'primeira_consulta'
+            'pagamento', # <-- Garanta que ele está na lista
         ]
         
     def get_pago(self, obj):

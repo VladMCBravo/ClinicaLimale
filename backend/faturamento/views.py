@@ -12,38 +12,42 @@ from agendamentos.models import Agendamento # Importação correta do Agendament
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
 from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
 from .serializers import (
-    PagamentoSerializer, PagamentoCreateSerializer, 
+    PagamentoSerializer, # O serializer principal para leitura
+    PagamentoUpdateSerializer, # <-- Vamos criar este serializer para atualização
     CategoriaDespesaSerializer, DespesaSerializer,
     ConvenioSerializer, PlanoConvenioSerializer
 )
 
 # --- View de Pagamento (sem alterações, já estava boa) ---
-class PagamentoCreateAPIView(generics.CreateAPIView):
-    serializer_class = PagamentoCreateSerializer
+class PagamentoViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint que permite que os pagamentos sejam vistos ou editados.
+    A criação de pagamentos agora é feita automaticamente via Agendamento.
+    Este endpoint é usado principalmente para listar e ATUALIZAR (marcar como pago).
+    """
+    queryset = Pagamento.objects.all().select_related('paciente', 'agendamento').order_by('-agendamento__data_hora_inicio')
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
 
-    def create(self, request, *args, **kwargs):
-        agendamento_id = self.kwargs.get('agendamento_id')
-        try:
-            agendamento = Agendamento.objects.get(pk=agendamento_id)
-        except Agendamento.DoesNotExist:
-            return Response({"detail": "Agendamento não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    # Método inteligente para usar o serializer correto para cada ação
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            # Para atualizar, usamos um serializer mais simples
+            return PagamentoUpdateSerializer
+        # Para todas as outras ações (como listar), usamos o serializer completo
+        return PagamentoSerializer
 
-        if hasattr(agendamento, 'pagamento'):
-            return Response({"detail": "Este agendamento já possui um pagamento registrado."}, status=status.HTTP_400_BAD_REQUEST)
+# --- ADICIONADO: Nova view para a tela do Financeiro ---
+class PagamentosPendentesListAPIView(generics.ListAPIView):
+    """
+    Endpoint para listar todos os pagamentos com status 'Pendente'.
+    Esta view substitui a lógica antiga de buscar agendamentos sem pagamento.
+    """
+    serializer_class = PagamentoSerializer # Reutilizamos o serializer principal que melhoramos
+    permission_classes = [IsAuthenticated]
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        serializer.save(
-            agendamento=agendamento, 
-            paciente=agendamento.paciente, 
-            registrado_por=request.user
-        )
-
-        read_serializer = PagamentoSerializer(serializer.instance)
-        headers = self.get_success_headers(read_serializer.data)
-        return Response(read_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    def get_queryset(self):
+        # A nova lógica correta: buscar Pagamentos com status 'Pendente'
+        return Pagamento.objects.filter(status='Pendente').order_by('agendamento__data_hora_inicio')
 
 
 # --- ViewSets para Despesas (com lógica de produção) ---

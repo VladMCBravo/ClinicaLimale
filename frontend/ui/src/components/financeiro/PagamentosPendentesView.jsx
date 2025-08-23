@@ -1,43 +1,55 @@
-// src/components/financeiro/PagamentosPendentesView.jsx
+// src/components/financeiro/PagamentosPendentesView.jsx - VERSÃO CORRIGIDA E ORGANIZADA
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Button, CircularProgress, Typography, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
-// --- ATIVADO: Importe o modal que acabamos de criar ---
 import PagamentoModal from './PagamentoModal'; 
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Para dar feedback ao usuário
 
 export default function PagamentosPendentesView() {
-    const [pendentes, setPendentes] = useState([]);
+    // 1. Nomenclatura atualizada para clareza
+    const [pagamentosPendentes, setPagamentosPendentes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
-    // --- ATIVADO: Estados para o modal de pagamento ---
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedAgendamento, setSelectedAgendamento] = useState(null);
+    const [selectedPagamento, setSelectedPagamento] = useState(null); // Agora selecionamos um pagamento
+    const { showSnackbar } = useSnackbar();
 
     const fetchPendentes = useCallback(async () => {
-        // Não mostra o loading em recargas, apenas na primeira vez
-        if (pendentes.length === 0) setIsLoading(true);
+        // Apenas mostra o spinner grande na primeira carga
+        if (pagamentosPendentes.length === 0) setIsLoading(true);
         try {
-            const response = await apiClient.get('/agendamentos/nao-pagos/');
-            setPendentes(response.data);
+            // 2. Chamada à API CORRETA
+            const response = await apiClient.get('/faturamento/pagamentos-pendentes/');
+            setPagamentosPendentes(response.data);
         } catch (error) {
             console.error("Erro ao buscar pagamentos pendentes:", error);
+            showSnackbar("Erro ao carregar pagamentos pendentes.", 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [pendentes.length]);
+    }, [pagamentosPendentes.length, showSnackbar]); // Adicionado showSnackbar como dependência
 
     useEffect(() => {
         fetchPendentes();
+        // O ESLint pode pedir para incluir fetchPendentes na dependência, o que está correto.
     }, [fetchPendentes]);
 
-    // --- ATIVADO: Função para abrir o modal ---
-    const handleOpenModal = (agendamento) => {
-        setSelectedAgendamento(agendamento);
+    const handleOpenModal = (pagamento) => {
+        setSelectedPagamento(pagamento); // Passa o objeto de pagamento
         setIsModalOpen(true);
     };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedPagamento(null);
+    }
+
+    const handleSavePagamento = () => {
+        handleCloseModal();
+        fetchPendentes(); // Recarrega a lista após salvar
+    }
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -45,7 +57,7 @@ export default function PagamentosPendentesView() {
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>Agendamentos com Pagamento Pendente</Typography>
+            <Typography variant="h6" gutterBottom>Pagamentos Pendentes</Typography>
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -57,18 +69,18 @@ export default function PagamentosPendentesView() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {pendentes.length > 0 ? (
-                            pendentes.map((ag) => (
-                                <TableRow key={ag.id}>
-                                    <TableCell>{new Date(ag.data_hora_inicio).toLocaleString('pt-BR')}</TableCell>
-                                    <TableCell>{ag.paciente}</TableCell>
-                                    <TableCell>{ag.tipo_consulta}</TableCell>
+                        {pagamentosPendentes.length > 0 ? (
+                            pagamentosPendentes.map((pag) => (
+                                // 3. Acesso aos dados corrigido segundo a nova API
+                                <TableRow key={pag.id}>
+                                    <TableCell>{new Date(pag.agendamento.data_hora_inicio).toLocaleString('pt-BR')}</TableCell>
+                                    <TableCell>{pag.paciente_nome}</TableCell>
+                                    <TableCell>{pag.agendamento.tipo_consulta}</TableCell>
                                     <TableCell align="right">
                                         <Button 
                                             variant="contained" 
                                             size="small"
-                                            // --- ATIVADO: Ação de clique no botão ---
-                                            onClick={() => handleOpenModal(ag)}
+                                            onClick={() => handleOpenModal(pag)}
                                         >
                                             Registrar Pagamento
                                         </Button>
@@ -86,13 +98,15 @@ export default function PagamentosPendentesView() {
                 </Table>
             </TableContainer>
             
-            {/* --- ATIVADO: Renderização do modal --- */}
-            <PagamentoModal 
-                open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={fetchPendentes}
-                agendamento={selectedAgendamento}
-            />
+            {/* 4. Passa o objeto de pagamento para o modal */}
+            {selectedPagamento && (
+                <PagamentoModal 
+                    open={isModalOpen}
+                    onClose={handleCloseModal}
+                    onSave={handleSavePagamento}
+                    pagamento={selectedPagamento} // A prop agora é 'pagamento'
+                />
+            )}
         </Box>
     );
 }

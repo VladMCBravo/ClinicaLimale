@@ -1,18 +1,31 @@
-// src/components/financeiro/PagamentoModal.jsx
-import React, { useState } from 'react';
+// src/components/financeiro/PagamentoModal.jsx - VERSÃO FINAL
+
+import React, { useState, useEffect } from 'react';
 import {
     Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, 
     DialogTitle, TextField, Select, MenuItem, InputLabel, FormControl, Typography
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 const initialFormState = { valor: '', forma_pagamento: '' };
 
-export default function PagamentoModal({ open, onClose, onSave, agendamento }) {
+// 1. A prop agora é 'pagamento'
+export default function PagamentoModal({ open, onClose, onSave, pagamento }) {
     const [formData, setFormData] = useState(initialFormState);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { showSnackbar } = useSnackbar();
 
-    // Limpa o formulário sempre que o modal for fechado
+    // 2. Popula o formulário com os dados do pagamento quando o modal abre
+    useEffect(() => {
+        if (pagamento) {
+            setFormData({
+                valor: pagamento.valor > 0 ? pagamento.valor : '', // Se o valor for 0, deixa em branco para o usuário preencher
+                forma_pagamento: '',
+            });
+        }
+    }, [pagamento]);
+
     const handleClose = () => {
         setFormData(initialFormState);
         onClose();
@@ -22,28 +35,34 @@ export default function PagamentoModal({ open, onClose, onSave, agendamento }) {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            // A URL corresponde à sua API: agendamentos/<id>/pagamentos/
-            await apiClient.post(`/agendamentos/${agendamento.id}/pagamentos/`, formData);
-            onSave(); // Avisa a página pai para recarregar a lista
-            handleClose(); // Fecha o modal
+            // 3. A requisição agora é PATCH para ATUALIZAR o pagamento existente
+            await apiClient.patch(`/faturamento/pagamentos/${pagamento.id}/`, {
+                valor: formData.valor,
+                forma_pagamento: formData.forma_pagamento,
+                status: 'Pago' // O objetivo principal: mudar o status para 'Pago'
+            });
+            showSnackbar('Pagamento registado com sucesso!', 'success');
+            onSave();
+            handleClose();
         } catch (error) {
-            console.error("Erro ao registrar pagamento:", error.response?.data);
-            // Aqui você pode adicionar um alerta de erro
+            console.error("Erro ao registar pagamento:", error.response?.data);
+            showSnackbar('Erro ao registar pagamento.', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (!agendamento) return null; // Não renderiza o modal sem um agendamento selecionado
+    if (!pagamento) return null;
 
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
-            <DialogTitle>Registrar Pagamento</DialogTitle>
+            <DialogTitle>Registar Pagamento</DialogTitle>
             <form onSubmit={handleSubmit}>
                 <DialogContent>
-                    <Typography variant="subtitle1">Paciente: <strong>{agendamento.paciente}</strong></Typography>
+                    {/* 4. As informações vêm do objeto 'pagamento' */}
+                    <Typography variant="subtitle1">Paciente: <strong>{pagamento.paciente_nome}</strong></Typography>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Consulta de {agendamento.tipo_consulta} em {new Date(agendamento.data_hora_inicio).toLocaleDateString('pt-BR')}
+                        Consulta de {pagamento.agendamento.tipo_consulta} em {new Date(pagamento.agendamento.data_hora_inicio).toLocaleDateString('pt-BR')}
                     </Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
                         <TextField
@@ -68,7 +87,6 @@ export default function PagamentoModal({ open, onClose, onSave, agendamento }) {
                                 <MenuItem value="CartaoCredito">Cartão de Crédito</MenuItem>
                                 <MenuItem value="CartaoDebito">Cartão de Débito</MenuItem>
                                 <MenuItem value="PIX">PIX</MenuItem>
-                                <MenuItem value="Convenio">Convênio</MenuItem>
                             </Select>
                         </FormControl>
                     </Box>
