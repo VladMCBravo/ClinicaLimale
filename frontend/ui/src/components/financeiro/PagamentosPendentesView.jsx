@@ -71,18 +71,23 @@ export default function PagamentosPendentesView() {
                     <TableBody>
                         {pagamentosPendentes.length > 0 ? (
                             pagamentosPendentes.map((pag) => (
-                                // 3. Acesso aos dados corrigido segundo a nova API
                                 <TableRow key={pag.id}>
-                                    <TableCell>{new Date(pag.agendamento.data_hora_inicio).toLocaleString('pt-BR')}</TableCell>
+                                    {/* --- A CORREÇÃO ESTÁ AQUI --- */}
+                                    {/* Usamos 'pag.agendamento?.' para aceder com segurança. Se pag.agendamento for nulo, não quebra. */}
+                                    <TableCell>
+                                        {pag.agendamento ? new Date(pag.agendamento.data_hora_inicio).toLocaleString('pt-BR') : 'Agendamento Removido'}
+                                    </TableCell>
                                     <TableCell>{pag.paciente_nome}</TableCell>
-                                    <TableCell>{pag.agendamento.tipo_consulta}</TableCell>
+                                    <TableCell>
+                                        {pag.agendamento ? pag.agendamento.tipo_consulta : 'N/A'}
+                                    </TableCell>
                                     <TableCell align="right">
                                         <Button 
                                             variant="contained" 
                                             size="small"
                                             onClick={() => handleOpenModal(pag)}
                                         >
-                                            Registrar Pagamento
+                                            Registar Pagamento
                                         </Button>
                                     </TableCell>
                                 </TableRow>

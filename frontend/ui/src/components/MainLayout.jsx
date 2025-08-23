@@ -2,27 +2,24 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
-import { Box } from '@mui/material'; // 1. Importe o componente Box
+import { Box } from '@mui/material';
 
 export default function MainLayout() {
   return (
-    // 2. O contentor principal agora é um flex container vertical
-    // que ocupa 100% da altura da janela (100vh).
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <Navbar />
-      {/* 3. A área de conteúdo principal é instruída a crescer
-          e ocupar todo o espaço restante. */}
       <Box 
         component="main" 
-        className="content" // Pode manter a sua classe se tiver estilos associados
+        className="content"
         sx={{ 
-          flexGrow: 1, // Faz esta caixa expandir para preencher o espaço
-          p: 2, // Adiciona um padding geral para a área de conteúdo
-          height: 'calc(100vh - H_DA_NAVBAR)', // O cálculo será implícito pelo flexGrow
-          overflow: 'hidden' // Garante que esta área também não crie scrollbars
+          flexGrow: 1,
+          overflow: 'hidden',
+          // --- A CORREÇÃO ESTÁ AQUI: REMOVEMOS O PADDING ---
+          // p: 2, // Esta linha foi removida.
+          // Agora o contentor principal apenas gere a estrutura.
         }}
       >
-        <Outlet /> {/* Aqui é onde a sua AgendaPage será renderizada */}
+        <Outlet />
       </Box>
     </Box>
   );

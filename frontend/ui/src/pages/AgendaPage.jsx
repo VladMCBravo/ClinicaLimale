@@ -88,7 +88,7 @@ export default function AgendaPage() {
   return (
     // O seu JSX aqui permanece o mesmo
     <>
-      <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap' }}>
+        <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap', p: 2 }}>
         <Grid item sx={{ width: '300px', flexShrink: 0 }}>
           <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
         </Grid>
