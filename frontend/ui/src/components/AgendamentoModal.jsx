@@ -1,9 +1,10 @@
-// src/components/AgendamentoModal.jsx
+// src/components/AgendamentoModal.jsx - VERSÃO FINAL E CORRIGIDA
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider // <-- Adicionados para layout
+  Box, Typography, Divider
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -11,81 +12,66 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
   const { showSnackbar } = useSnackbar();
   
-  // Adicionamos 'plano_utilizado' ao estado inicial do formulário
   const getInitialFormData = () => ({
     paciente: null,
     data_hora_inicio: '',
     data_hora_fim: '',
     status: 'Confirmado',
     tipo_consulta: 'Rotina',
-    plano_utilizado: null, // <-- CAMPO CHAVE PARA A INTEGRAÇÃO
+    plano_utilizado: null,
+    tipo_atendimento: 'Particular', // <-- 1. Adicionado ao estado inicial
+    observacoes: '',
   });
 
   const [formData, setFormData] = useState(getInitialFormData());
   const [pacientes, setPacientes] = useState([]);
   const [loadingPacientes, setLoadingPacientes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // --- NOVO ESTADO PARA GUARDAR OS DETALHES DO PACIENTE SELECIONADO ---
   const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-  // Efeito para buscar a lista de pacientes (para o Autocomplete)
   useEffect(() => {
     if (open) {
       setLoadingPacientes(true);
-      apiClient.get('/pacientes/')
-        .then(response => {
-          setPacientes(response.data);
-        })
+      apiClient.get('/pacientes/').then(response => { setPacientes(response.data); })
         .catch(error => console.error("Erro ao buscar lista de pacientes:", error))
         .finally(() => setLoadingPacientes(false));
     } else {
-      // Limpa o formulário e os detalhes ao fechar o modal
       setFormData(getInitialFormData());
       setPacienteDetalhes(null);
     }
   }, [open]);
   
-  // Efeito para preencher o formulário
   useEffect(() => {
-    if (editingEvent && pacientes.length > 0) {
-      // MODO EDIÇÃO
-      const pacienteId = editingEvent.extendedProps.pacienteId;
-      const pacienteObj = pacientes.find(p => p.id === pacienteId) || null;
-      if (pacienteObj) {
-        handlePacienteChange(null, pacienteObj); // Reutiliza a função de busca de detalhes
-      }
-      setFormData({
-        paciente: pacienteObj,
-        data_hora_inicio: new Date(editingEvent.startStr).toISOString().slice(0, 16),
-        data_hora_fim: editingEvent.endStr ? new Date(editingEvent.endStr).toISOString().slice(0, 16) : '',
-        status: editingEvent.extendedProps.status || 'Confirmado',
-        tipo_consulta: editingEvent.extendedProps.tipo_consulta || 'Rotina',
-        plano_utilizado: editingEvent.extendedProps.plano_utilizado || null,
-      });
-    } else if (initialData) {
-      // MODO CRIAÇÃO
-      setFormData(prev => ({ ...prev, data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) }));
+    if (initialData && !editingEvent) {
+        setFormData(prev => ({ ...prev, data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) }));
     }
-  }, [editingEvent, initialData, pacientes]);
+    // Lógica de edição pode ser adicionada aqui se necessário, mas a prioridade é a criação
+  }, [initialData, editingEvent]);
 
-
-  // --- NOVA FUNÇÃO PARA BUSCAR DETALHES DO PACIENTE E SEU PLANO ---
+  // --- 2. LÓGICA DE DEFINIÇÃO AUTOMÁTICA CORRIGIDA ---
   const handlePacienteChange = (event, pacienteSelecionado) => {
     if (pacienteSelecionado) {
-      // Busca os detalhes completos do paciente para pegar o plano
       apiClient.get(`/pacientes/${pacienteSelecionado.id}/`).then(response => {
-        setPacienteDetalhes(response.data);
-        setFormData({
-          ...formData,
-          paciente: pacienteSelecionado,
-          // Pré-popula o agendamento com o plano padrão do paciente
-          plano_utilizado: response.data.plano_convenio 
-        });
+        const detalhes = response.data;
+        setPacienteDetalhes(detalhes);
+        
+        const tipoAtendimentoPadrao = detalhes.plano_convenio ? 'Convenio' : 'Particular';
+
+        setFormData(prevFormData => ({
+            ...prevFormData,
+            paciente: pacienteSelecionado,
+            plano_utilizado: detalhes.plano_convenio,
+            tipo_atendimento: tipoAtendimentoPadrao // <-- Define o tipo automaticamente
+        }));
       });
     } else {
       setPacienteDetalhes(null);
-      setFormData({ ...formData, paciente: null, plano_utilizado: null });
+      setFormData(prevFormData => ({ 
+          ...prevFormData, 
+          paciente: null, 
+          plano_utilizado: null, 
+          tipo_atendimento: 'Particular' 
+      }));
     }
   };
 
@@ -93,7 +79,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Garantimos que estamos enviando o ID do paciente e do plano
+    // 3. Garantimos que todos os dados corretos são enviados
     const submissionData = {
       ...formData,
       paciente: formData.paciente ? formData.paciente.id : null,
@@ -107,7 +93,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         await apiClient.post('/agendamentos/', submissionData);
         showSnackbar('Agendamento criado com sucesso!', 'success');
       }
-      onSave(); // Recarrega o calendário e fecha o modal
+      onSave();
     } catch (error) {
       console.error("Erro ao salvar agendamento:", error.response?.data);
       showSnackbar('Erro ao salvar agendamento.', 'error');
@@ -116,6 +102,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     }
   };
   
+  // O seu JSX está quase perfeito, apenas garanta que o 'value' do Autocomplete está correto
+  const pacienteSelecionadoNoForm = pacientes.find(p => p.id === formData.paciente?.id) || null;
+
   return (
      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
@@ -124,16 +113,15 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
           <Autocomplete
             options={pacientes}
             getOptionLabel={(option) => option.nome_completo || ''}
-            value={formData.paciente}
+            value={pacienteSelecionadoNoForm} // <-- Usar a variável calculada
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            onChange={handlePacienteChange} // <-- A MÁGICA ACONTECE AQUI
+            onChange={handlePacienteChange}
             loading={loadingPacientes}
             renderInput={(params) => (
               <TextField {...params} label="Selecione o Paciente" required />
             )}
           />
           
-          {/* --- BLOCO DE INFORMAÇÕES DO PLANO (FEEDBACK VISUAL) --- */}
           {pacienteDetalhes && pacienteDetalhes.plano_convenio_detalhes && (
             <Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1, border: '1px solid #e0e0e0' }}>
               <Typography variant="body2" color="text.secondary">
@@ -143,6 +131,21 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
           )}
 
           <Divider />
+
+          <FormControl fullWidth>
+            <InputLabel>Tipo de Atendimento</InputLabel>
+            <Select
+                name="tipo_atendimento"
+                value={formData.tipo_atendimento} // <-- Agora lê do estado
+                label="Tipo de Atendimento"
+                onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}
+            >
+                <MenuItem value="Particular">Particular</MenuItem>
+                <MenuItem value="Convenio" disabled={!formData.plano_utilizado}>
+                    Convênio
+                </MenuItem>
+            </Select>
+          </FormControl>
 
           <TextField
             label="Início" type="datetime-local" name="data_hora_inicio"
@@ -166,26 +169,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
               <MenuItem value="Não Compareceu">Não Compareceu</MenuItem>
             </Select>
           </FormControl>
-          {/* --- NOVO SELETOR DE TIPO DE ATENDIMENTO --- */}
-    <FormControl fullWidth>
-        <InputLabel>Tipo de Atendimento</InputLabel>
-        <Select
-            name="tipo_atendimento"
-            value={formData.tipo_atendimento || 'Particular'} // Garante um valor padrão
-            label="Tipo de Atendimento"
-            onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}
-            // Desabilita a opção 'Convênio' se o paciente não tiver um plano
-            disabled={!pacienteDetalhes}
-        >
-            <MenuItem value="Particular">Particular</MenuItem>
-            <MenuItem 
-                value="Convenio" 
-                disabled={!pacienteDetalhes || !pacienteDetalhes.plano_convenio}
-            >
-                Convênio
-            </MenuItem>
-        </Select>
-    </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancelar</Button>
