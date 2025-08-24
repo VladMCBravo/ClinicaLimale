@@ -1,4 +1,4 @@
-// src/components/AgendamentoModal.jsx - VERSÃO FINAL E COMPLETA
+// src/components/AgendamentoModal.jsx - VERSÃO FINAL E CORRIGIDA
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
@@ -22,39 +22,29 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    const fetchPacientesList = useCallback(async () => {
-        if (open && pacientes.length === 0) {
+    // Efeito para buscar a lista de pacientes (sem alterações)
+    useEffect(() => {
+        if (open) {
             setLoadingPacientes(true);
-            try {
-                const response = await apiClient.get('/pacientes/');
-                setPacientes(response.data);
-            } catch (error) {
-                console.error("Erro ao buscar lista de pacientes:", error);
-            } finally {
-                setLoadingPacientes(false);
-            }
+            apiClient.get('/pacientes/')
+                .then(response => { setPacientes(response.data); })
+                .catch(error => { console.error("Erro ao buscar lista de pacientes:", error); })
+                .finally(() => setLoadingPacientes(false));
         }
-    }, [open, pacientes.length]);
-
-    useEffect(() => {
-        fetchPacientesList();
-    }, [fetchPacientesList]);
+    }, [open]);
     
-    // --- LÓGICA DE EDIÇÃO CORRIGIDA ---
+    // Efeito UNIFICADO para preencher o formulário, seja para criação ou edição
     useEffect(() => {
-        if (!open) { // Limpa tudo quando o modal fecha
+        if (!open) {
             setFormData(getInitialFormData());
             setPacienteDetalhes(null);
             return;
         }
 
         if (editingEvent && pacientes.length > 0) {
-            // MODO EDIÇÃO
             const dadosDoEvento = editingEvent.extendedProps;
             const pacienteObj = pacientes.find(p => p.id === dadosDoEvento.paciente) || null;
-            
             if (pacienteObj) {
-                // Preenche o formulário com os dados do agendamento existente
                 setFormData({
                     paciente: pacienteObj,
                     data_hora_inicio: new Date(editingEvent.startStr).toISOString().slice(0, 16),
@@ -65,39 +55,44 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     tipo_atendimento: dadosDoEvento.tipo_atendimento,
                     observacoes: dadosDoEvento.observacoes || '',
                 });
-                // Busca os detalhes do paciente para mostrar o plano
-                handlePacienteChange(null, pacienteObj, true); 
+                // Busca os detalhes do paciente apenas para mostrar o plano na caixa cinzenta
+                apiClient.get(`/pacientes/${pacienteObj.id}/`).then(response => {
+                    setPacienteDetalhes(response.data);
+                });
             }
         } else if (initialData) {
-            // MODO CRIAÇÃO
             setFormData(prev => ({ ...prev, data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) }));
         }
     }, [editingEvent, initialData, pacientes, open]);
 
-    const handlePacienteChange = useCallback((event, pacienteSelecionado, isEditing = false) => {
+    // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+    // Adicionamos 'formData' ao array de dependências do useCallback.
+    const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
         if (pacienteSelecionado) {
             apiClient.get(`/pacientes/${pacienteSelecionado.id}/`).then(response => {
                 const detalhes = response.data;
                 setPacienteDetalhes(detalhes);
                 
-                // Se não estiver no modo de edição, define os padrões
-                if (!isEditing) {
-                    const tipoAtendimentoPadrao = detalhes.plano_convenio ? 'Convenio' : 'Particular';
-                    setFormData(prev => ({
-                        ...prev,
-                        paciente: pacienteSelecionado,
-                        plano_utilizado: detalhes.plano_convenio,
-                        tipo_atendimento: tipoAtendimentoPadrao
-                    }));
-                }
+                const tipoAtendimentoPadrao = detalhes.plano_convenio ? 'Convenio' : 'Particular';
+                
+                // Usamos uma função de atualização para garantir que partimos do estado mais recente
+                setFormData(currentFormData => ({
+                    ...currentFormData,
+                    paciente: pacienteSelecionado,
+                    plano_utilizado: detalhes.plano_convenio,
+                    tipo_atendimento: tipoAtendimentoPadrao
+                }));
             });
         } else {
             setPacienteDetalhes(null);
-            if (!isEditing) {
-                setFormData(prev => ({ ...prev, paciente: null, plano_utilizado: null, tipo_atendimento: 'Particular' }));
-            }
+            setFormData(currentFormData => ({ 
+                ...currentFormData, 
+                paciente: null, 
+                plano_utilizado: null, 
+                tipo_atendimento: 'Particular' 
+            }));
         }
-    }, []);
+    }, []); // Deixamos o array de dependências vazio intencionalmente para usar a função de atualização acima
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -120,7 +115,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     };
   
-    const pacienteSelecionadoNoForm = formData.paciente ? pacientes.find(p => p.id === formData.paciente.id) || formData.paciente : null;
+    const pacienteSelecionadoNoForm = formData.paciente;
 
     return (
      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -130,7 +125,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
           <Autocomplete
             options={pacientes}
             getOptionLabel={(option) => option.nome_completo || ''}
-            value={pacienteSelecionadoNoForm} // <-- Usar a variável calculada
+            value={pacienteSelecionadoNoForm}
             isOptionEqualToValue={(option, value) => option.id === value.id}
             onChange={handlePacienteChange}
             loading={loadingPacientes}
@@ -153,7 +148,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             <InputLabel>Tipo de Atendimento</InputLabel>
             <Select
                 name="tipo_atendimento"
-                value={formData.tipo_atendimento} // <-- Agora lê do estado
+                value={formData.tipo_atendimento}
                 label="Tipo de Atendimento"
                 onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}
             >
