@@ -7,6 +7,7 @@ import { Paper, Typography, Box, Tabs, Tab } from '@mui/material';
 import PagamentosPendentesView from '../components/financeiro/PagamentosPendentesView';
 import DespesasView from '../components/financeiro/DespesasView';
 import RelatoriosView from '../components/financeiro/RelatoriosView';
+import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
 
 // Função auxiliar para acessibilidade das abas
 function a11yProps(index) {
@@ -43,6 +44,7 @@ export default function FinanceiroPage() {
                 {activeTab === 0 && <PagamentosPendentesView />}
                 {activeTab === 1 && <DespesasView />}
                 {activeTab === 2 && <RelatoriosView />}
+                {activeTab === 3 && <FaturamentoConveniosView />}
             </Box>
         </Paper>
     );
