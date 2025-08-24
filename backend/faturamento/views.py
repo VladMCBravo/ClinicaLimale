@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+from django.http import HttpResponse
 
 # --- 1. LIMPEZA E CORREÇÃO DAS IMPORTAÇÕES ---
 from agendamentos.serializers import AgendamentoSerializer
@@ -149,22 +150,18 @@ class AgendamentosFaturaveisAPIView(generics.ListAPIView):
         return queryset
 
 class GerarLoteFaturamentoAPIView(APIView):
-    """
-    Endpoint para receber os IDs dos agendamentos selecionados e criar
-    um Lote de Faturamento e as suas respetivas Guias TISS.
-    """
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
 
     def post(self, request, *args, **kwargs):
         convenio_id = request.data.get('convenio_id')
-        mes_referencia_str = request.data.get('mes_referencia') # Espera 'YYYY-MM'
+        mes_referencia_str = request.data.get('mes_referencia') # 'YYYY-MM'
         agendamento_ids = request.data.get('agendamento_ids', [])
 
         if not all([convenio_id, mes_referencia_str, agendamento_ids]):
             return Response({'detail': 'Dados insuficientes.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Cria o Lote
+            # --- 1. Lógica do Banco de Dados (continua a mesma) ---
             ano, mes = map(int, mes_referencia_str.split('-'))
             convenio = Convenio.objects.get(id=convenio_id)
             
@@ -174,33 +171,48 @@ class GerarLoteFaturamentoAPIView(APIView):
                 gerado_por=request.user,
                 status='Enviado'
             )
-
-            # Busca os agendamentos para criar as guias
-            agendamentos_para_faturar = Agendamento.objects.filter(id__in=agendamento_ids)
+            agendamentos_para_faturar = Agendamento.objects.filter(id__in=agendamento_ids).select_related('paciente')
 
             valor_total_lote = 0
             guias_a_criar = []
             for ag in agendamentos_para_faturar:
-                # Lógica de valor de exemplo
-                valor_da_guia = 100.00 
-                
-                guias_a_criar.append(
-                    GuiaTiss(
-                        lote=novo_lote,
-                        agendamento=ag,
-                        valor_guia=valor_da_guia
-                    )
-                )
+                valor_da_guia = 100.00 # Valor de exemplo
+                guias_a_criar.append(GuiaTiss(lote=novo_lote, agendamento=ag, valor_guia=valor_da_guia))
                 valor_total_lote += valor_da_guia
 
             GuiaTiss.objects.bulk_create(guias_a_criar)
-            
             novo_lote.valor_total_lote = valor_total_lote
             novo_lote.save()
 
-            return Response({'detail': 'Lote de faturamento gerado com sucesso!', 'lote_id': novo_lote.id}, status=status.HTTP_201_CREATED)
+            # --- 2. Lógica Nova: Gerar o conteúdo do Ficheiro XML ---
+            xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+            xml_content += '<ans:mensagemTISS xmlns:ans="http://www.ans.gov.br/padroes/tiss/schemas">\n'
+            xml_content += f'  <ans:cabecalho>\n'
+            xml_content += f'    <ans:identificacaoTransacao>\n'
+            xml_content += f'      <ans:tipoTransacao>ENVIO_LOTE_GUIAS</ans:tipoTransacao>\n'
+            xml_content += f'      <ans:sequencialTransacao>{novo_lote.id}</ans:sequencialTransacao>\n'
+            xml_content += f'      <ans:dataRegistroTransacao>{timezone.now().strftime("%Y-%m-%d")}</ans:dataRegistroTransacao>\n'
+            xml_content += f'    </ans:identificacaoTransacao>\n'
+            xml_content += f'  </ans:cabecalho>\n'
+            xml_content += f'  <ans:loteGuias>\n'
+            xml_content += f'    <ans:numeroLote>{novo_lote.id}</ans:numeroLote>\n'
+            
+            for ag in agendamentos_para_faturar:
+                xml_content += f'    <ans:guiaSP-SADT>\n'
+                xml_content += f'      <ans:dadosBeneficiario>\n'
+                xml_content += f'        <ans:numeroCarteira>{ag.paciente.numero_carteirinha}</ans:numeroCarteira>\n'
+                xml_content += f'        <ans:nomeBeneficiario>{ag.paciente.nome_completo}</ans:nomeBeneficiario>\n'
+                xml_content += f'      </ans:dadosBeneficiario>\n'
+                xml_content += f'      <ans:valorTotal>100.00</ans:valorTotal>\n' # Valor de Exemplo
+                xml_content += f'    </ans:guiaSP-SADT>\n'
+            
+            xml_content += f'  </ans:loteGuias>\n'
+            xml_content += '</ans:mensagemTISS>\n'
+            
+            # --- 3. Devolver o ficheiro como resposta ---
+            response = HttpResponse(xml_content, content_type='application/xml')
+            response['Content-Disposition'] = f'attachment; filename="lote_{novo_lote.id}_{convenio.nome}.xml"'
+            return response
 
-        except Convenio.DoesNotExist:
-            return Response({'detail': 'Convênio não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': f'Ocorreu um erro: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

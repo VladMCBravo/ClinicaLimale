@@ -92,26 +92,52 @@ export default function FaturamentoConveniosView() {
         return;
     }
 
-    setIsLoading(true); // Ativa o estado de carregamento
+    setIsLoading(true);
     try {
         const payload = {
             convenio_id: selectedConvenio,
-            mes_referencia: selectedMonth, // 'YYYY-MM'
+            mes_referencia: selectedMonth,
             agendamento_ids: selectedAgendamentos
         };
 
-        await apiClient.post('/faturamento/gerar-lote/', payload);
+        // --- LÓGICA NOVA: Tratar a resposta como um ficheiro ---
+        const response = await apiClient.post('/faturamento/gerar-lote/', payload, {
+            responseType: 'blob', // 1. Diz ao Axios para esperar um ficheiro
+        });
 
-        showSnackbar(`Lote com ${selectedAgendamentos.length} agendamentos gerado com sucesso!`, 'success');
+        // 2. Cria um link temporário para o ficheiro e simula um clique para descarregar
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Extrai o nome do ficheiro do cabeçalho da resposta, se existir
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = 'faturamento.xml';
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch.length === 2)
+                filename = filenameMatch[1];
+        }
+        link.setAttribute('download', filename);
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpa o link temporário
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
 
-        // Limpa a tela e busca novamente (os agendamentos faturados irão desaparecer da lista)
+        // --- 3. A MENSAGEM DE SUCESSO MELHORADA ---
+        showSnackbar('Lote gerado e ficheiro descarregado com sucesso!', 'success');
+        
+        // Recarrega a lista de agendamentos faturáveis
         handleBuscar(); 
 
     } catch (error) {
         console.error("Erro ao gerar lote de faturamento:", error);
         showSnackbar("Erro ao gerar lote.", 'error');
     } finally {
-        setIsLoading(false); // Desativa o estado de carregamento
+        setIsLoading(false);
     }
 };
 
