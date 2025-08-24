@@ -12,17 +12,16 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
     
-    // 1. Atualizamos o estado inicial do formulário
+    // 1. Atualizamos o estado inicial do formulário para usar 'procedimento'
     const getInitialFormData = () => ({
         paciente: null,
         data_hora_inicio: '',
         data_hora_fim: '',
         status: 'Confirmado',
-        procedimento: null, // <-- Usamos procedimento
+        procedimento: null, // <-- O campo principal agora
         plano_utilizado: null,
         tipo_atendimento: 'Particular',
         observacoes: '',
-        tipo_consulta: '', // <-- Adicionamos este campo para compatibilidade
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -32,22 +31,27 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    // Efeito para buscar pacientes e procedimentos
+    // 2. Efeito para buscar tanto os pacientes quanto os procedimentos
     useEffect(() => {
         if (open) {
             setLoading(true);
             const fetchPacientes = apiClient.get('/pacientes/');
             const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
+
             Promise.all([fetchPacientes, fetchProcedimentos])
                 .then(([pacientesResponse, procedimentosResponse]) => {
                     setPacientes(pacientesResponse.data);
                     setProcedimentos(procedimentosResponse.data);
-                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
+                })
+                .catch(error => {
+                    console.error("Erro ao buscar dados iniciais:", error);
+                    showSnackbar("Erro ao carregar dados para o agendamento.", 'error');
+                })
                 .finally(() => setLoading(false));
         }
     }, [open, showSnackbar]);
     
-    // Efeito para preencher o formulário para edição
+    // Efeito para preencher o formulário no modo de edição
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -67,11 +71,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     data_hora_inicio: new Date(editingEvent.startStr).toISOString().slice(0, 16),
                     data_hora_fim: editingEvent.endStr ? new Date(editingEvent.endStr).toISOString().slice(0, 16) : '',
                     status: dados.status,
-                    procedimento: procedimentoObj,
+                    procedimento: procedimentoObj, // <-- Preenche com o objeto do procedimento
                     plano_utilizado: dados.plano_utilizado,
                     tipo_atendimento: dados.tipo_atendimento,
                     observacoes: dados.observacoes || '',
-                    tipo_consulta: dados.tipo_consulta || '',
                 });
                 apiClient.get(`/pacientes/${pacienteObj.id}/`).then(res => setPacienteDetalhes(res.data));
             }
@@ -100,18 +103,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, []);
 
-    // 3. Lógica de submissão atualizada
+     // 3. Lógica de submissão atualizada para enviar o ID do procedimento
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // O `tipo_consulta` pode ser derivado da descrição do procedimento
-        const tipoConsultaTexto = formData.procedimento ? formData.procedimento.descricao : 'Consulta';
-
         const submissionData = {
           ...formData,
           paciente: formData.paciente?.id || null,
-          procedimento: formData.procedimento?.id || null, // <-- Envia o ID do procedimento
-          tipo_consulta: tipoConsultaTexto, // <-- Envia o texto da descrição
+          procedimento: formData.procedimento?.id || null, // <-- Enviamos o ID do procedimento
+          // O campo 'tipo_consulta' será preenchido no backend se necessário, ou podemos derivá-lo aqui
+          tipo_consulta: formData.procedimento ? formData.procedimento.descricao : 'Consulta',
         };
 
         try {
@@ -155,7 +156,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
           <Divider />
           
-          {/* --- 4. NOVO SELETOR DE PROCEDIMENTOS --- */}
+          {/* --- 4. SELETOR DE PROCEDIMENTOS SUBSTITUI O CAMPO DE TEXTO ANTIGO --- */}
           <Autocomplete
             options={procedimentos}
             getOptionLabel={(option) => `${option.codigo_tuss} - ${option.descricao}` || ''}
