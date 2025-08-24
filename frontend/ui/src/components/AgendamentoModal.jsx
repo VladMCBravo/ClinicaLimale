@@ -1,57 +1,41 @@
-// src/components/AgendamentoModal.jsx - VERSÃO FINAL COM PROCEDIMENTOS
-
+// src/components/AgendamentoModal.jsx - VERSÃO COM EDIÇÃO CORRIGIDA
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-  Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider
-} from '@mui/material';
+// ... (mantenha todas as suas importações)
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem, Box, Typography, Divider } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
     
-    // 1. Atualizamos o estado inicial do formulário para usar 'procedimento'
     const getInitialFormData = () => ({
-        paciente: null,
-        data_hora_inicio: '',
-        data_hora_fim: '',
-        status: 'Confirmado',
-        procedimento: null, // <-- O campo principal agora
-        plano_utilizado: null,
-        tipo_atendimento: 'Particular',
-        observacoes: '',
+        paciente: null, data_hora_inicio: '', data_hora_fim: '', status: 'Confirmado',
+        procedimento: null, plano_utilizado: null, tipo_atendimento: 'Particular', observacoes: '',
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
     const [pacientes, setPacientes] = useState([]);
-    const [procedimentos, setProcedimentos] = useState([]); // <-- NOVO: Estado para guardar os procedimentos
+    const [procedimentos, setProcedimentos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    // 2. Efeito para buscar tanto os pacientes quanto os procedimentos
+    // Efeito para buscar dados (sem alterações)
     useEffect(() => {
         if (open) {
             setLoading(true);
             const fetchPacientes = apiClient.get('/pacientes/');
             const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-
             Promise.all([fetchPacientes, fetchProcedimentos])
                 .then(([pacientesResponse, procedimentosResponse]) => {
                     setPacientes(pacientesResponse.data);
                     setProcedimentos(procedimentosResponse.data);
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar dados iniciais:", error);
-                    showSnackbar("Erro ao carregar dados para o agendamento.", 'error');
-                })
+                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
                 .finally(() => setLoading(false));
         }
     }, [open, showSnackbar]);
     
-    // Efeito para preencher o formulário no modo de edição
+    // --- LÓGICA DE PREENCHIMENTO REFINADA ---
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -59,6 +43,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             return;
         }
 
+        // MODO EDIÇÃO: Tem prioridade
         if (editingEvent && pacientes.length > 0 && procedimentos.length > 0) {
             const dados = editingEvent.extendedProps;
             const pacienteObj = pacientes.find(p => p.id === dados.paciente) || null;
@@ -66,20 +51,24 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             
             if (pacienteObj) {
                 setFormData({
-                    ...getInitialFormData(),
                     paciente: pacienteObj,
-                    data_hora_inicio: new Date(editingEvent.startStr).toISOString().slice(0, 16),
-                    data_hora_fim: editingEvent.endStr ? new Date(editingEvent.endStr).toISOString().slice(0, 16) : '',
+                    // Garante que a data/hora original do evento é usada
+                    data_hora_inicio: new Date(editingEvent.start).toISOString().slice(0, 16),
+                    data_hora_fim: editingEvent.end ? new Date(editingEvent.end).toISOString().slice(0, 16) : '',
                     status: dados.status,
-                    procedimento: procedimentoObj, // <-- Preenche com o objeto do procedimento
+                    procedimento: procedimentoObj,
                     plano_utilizado: dados.plano_utilizado,
                     tipo_atendimento: dados.tipo_atendimento,
                     observacoes: dados.observacoes || '',
                 });
                 apiClient.get(`/pacientes/${pacienteObj.id}/`).then(res => setPacienteDetalhes(res.data));
             }
+        // MODO CRIAÇÃO: Só é executado se não houver um evento para editar
         } else if (initialData) {
-            setFormData(prev => ({ ...prev, data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) }));
+            setFormData(prev => ({ 
+                ...getInitialFormData(), // Começa com o formulário limpo
+                data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) 
+            }));
         }
     }, [editingEvent, initialData, pacientes, procedimentos, open]);
 

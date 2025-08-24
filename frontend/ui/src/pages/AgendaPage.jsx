@@ -28,6 +28,13 @@ function renderEventContent(eventInfo) {
     </Box>
   );
 }
+const statusColors = {
+    'Agendado': '#6495ED', // CornflowerBlue
+    'Confirmado': '#32CD32', // LimeGreen
+    'Realizado': '#228B22', // ForestGreen
+    'Não Compareceu': '#A9A9A9', // DarkGray
+    // 'Cancelado' não precisa de cor, pois será removido
+};
 
 export default function AgendaPage() {
   const calendarRef = useRef(null);
@@ -40,20 +47,25 @@ export default function AgendaPage() {
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
     apiClient.get('/agendamentos/')
       .then(response => {
-        const eventosFormatados = response.data.map(ag => ({
-            id: ag.id,
-            title: ag.paciente_nome, // <-- Usa o nome do paciente
-            start: ag.data_hora_inicio,
-            end: ag.data_hora_fim,
-            className: `status-${ag.status?.toLowerCase()}`,
-            extendedProps: {
-              status_pagamento: ag.pagamento ? ag.pagamento.status : null,
-              primeira_consulta: ag.primeira_consulta, // <-- Agora vem direto da API
-              pacienteId: ag.paciente,
-              // Adicionamos todos os dados para o modo de edição
-              ...ag
-            }
-        }));
+        const eventosFormatados = response.data
+            // 1. AÇÃO: Filtra os agendamentos cancelados para que não apareçam
+            .filter(ag => ag.status !== 'Cancelado') 
+            .map(ag => {
+                // 2. VISUAL: Define a cor do evento com base no status
+                const eventColor = statusColors[ag.status] || '#808080'; // Cor padrão cinza
+                
+                return {
+                    id: ag.id,
+                    title: ag.paciente_nome,
+                    start: ag.data_hora_inicio,
+                    end: ag.data_hora_fim,
+                    backgroundColor: eventColor,
+                    borderColor: eventColor,
+                    extendedProps: {
+                      ...ag
+                    }
+                };
+            });
         successCallback(eventosFormatados);
       })
       .catch(error => failureCallback(error));

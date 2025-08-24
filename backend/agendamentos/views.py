@@ -6,7 +6,7 @@ from usuarios.permissions import IsRecepcaoOrAdmin
 from .models import Agendamento
 from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from datetime import date
-from faturamento.models import Pagamento
+from faturamento.models import Pagamento, Procedimento
 
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -18,18 +18,24 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         return AgendamentoSerializer
 
     def perform_create(self, serializer):
+        # Primeiro, salvamos o agendamento como de costume
         agendamento = serializer.save()
 
+        # Agora, verificamos se o atendimento é Particular
         if agendamento.tipo_atendimento == 'Particular':
-            # --- ALTERAÇÃO AQUI DENTRO ---
-            # Agora criamos um pagamento que é EXPLICITAMENTE pendente.
+            valor_do_pagamento = 0.00 # Valor padrão
+
+            # Se um procedimento foi associado ao agendamento, usamos o valor dele
+            if agendamento.procedimento:
+                valor_do_pagamento = agendamento.procedimento.valor
+
+            # Criamos o registro de pagamento com o valor correto
             Pagamento.objects.create(
                 agendamento=agendamento,
                 paciente=agendamento.paciente,
-                valor=0.00,
-                status='Pendente', # <-- Define o status como Pendente
-                registrado_por=self.request.user,
-                # Não definimos forma_pagamento nem data_pagamento aqui.
+                valor=valor_do_pagamento, # <-- A MÁGICA ACONTECE AQUI
+                status='Pendente',
+                registrado_por=self.request.user
             )
         
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
