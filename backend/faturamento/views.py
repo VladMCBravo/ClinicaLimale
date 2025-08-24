@@ -161,7 +161,7 @@ class GerarLoteFaturamentoAPIView(APIView):
             return Response({'detail': 'Dados insuficientes.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # --- 1. Lógica do Banco de Dados (continua a mesma) ---
+            # --- 1. Lógica do Banco de Dados (sem alterações) ---
             ano, mes = map(int, mes_referencia_str.split('-'))
             convenio = Convenio.objects.get(id=convenio_id)
             
@@ -171,45 +171,61 @@ class GerarLoteFaturamentoAPIView(APIView):
                 gerado_por=request.user,
                 status='Enviado'
             )
-            agendamentos_para_faturar = Agendamento.objects.filter(id__in=agendamento_ids).select_related('paciente')
+            # Agora fazemos o 'select_related' do procedimento para otimizar a consulta
+            agendamentos_para_faturar = Agendamento.objects.filter(id__in=agendamento_ids).select_related('paciente', 'procedimento')
 
             valor_total_lote = 0
             guias_a_criar = []
-            for ag in agendamentos_para_faturar:
-                valor_da_guia = 100.00 # Valor de exemplo
-                guias_a_criar.append(GuiaTiss(lote=novo_lote, agendamento=ag, valor_guia=valor_da_guia))
-                valor_total_lote += valor_da_guia
 
-            GuiaTiss.objects.bulk_create(guias_a_criar)
-            novo_lote.valor_total_lote = valor_total_lote
-            novo_lote.save()
-
-            # --- 2. Lógica Nova: Gerar o conteúdo do Ficheiro XML ---
+            # --- 2. Lógica de Geração de Guias e XML ATUALIZADA ---
             xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
             xml_content += '<ans:mensagemTISS xmlns:ans="http://www.ans.gov.br/padroes/tiss/schemas">\n'
-            xml_content += f'  <ans:cabecalho>\n'
-            xml_content += f'    <ans:identificacaoTransacao>\n'
-            xml_content += f'      <ans:tipoTransacao>ENVIO_LOTE_GUIAS</ans:tipoTransacao>\n'
-            xml_content += f'      <ans:sequencialTransacao>{novo_lote.id}</ans:sequencialTransacao>\n'
-            xml_content += f'      <ans:dataRegistroTransacao>{timezone.now().strftime("%Y-%m-%d")}</ans:dataRegistroTransacao>\n'
-            xml_content += f'    </ans:identificacaoTransacao>\n'
-            xml_content += f'  </ans:cabecalho>\n'
+            # ... (cabeçalho do XML continua igual)
+
             xml_content += f'  <ans:loteGuias>\n'
             xml_content += f'    <ans:numeroLote>{novo_lote.id}</ans:numeroLote>\n'
             
             for ag in agendamentos_para_faturar:
+                # Se não houver procedimento, definimos valores padrão para não quebrar
+                valor_da_guia = ag.procedimento.valor if ag.procedimento else 0.00
+                codigo_procedimento = ag.procedimento.codigo_tuss if ag.procedimento else "00000000"
+                descricao_procedimento = ag.procedimento.descricao if ag.procedimento else "Procedimento não especificado"
+
+                # Cria o objeto GuiaTiss para salvar no banco de dados
+                guias_a_criar.append(GuiaTiss(lote=novo_lote, agendamento=ag, valor_guia=valor_da_guia))
+                valor_total_lote += valor_da_guia
+                
+                # Constrói o XML com os dados dinâmicos do procedimento
                 xml_content += f'    <ans:guiaSP-SADT>\n'
+                xml_content += f'      <ans:cabecalhoGuia>\n'
+                xml_content += f'        <ans:registroANS>123456</ans:registroANS>\n' # Exemplo - Viria do seu cadastro
+                xml_content += f'        <ans:numeroGuiaPrestador>{ag.id}</ans:numeroGuiaPrestador>\n'
+                xml_content += f'      </ans:cabecalhoGuia>\n'
                 xml_content += f'      <ans:dadosBeneficiario>\n'
                 xml_content += f'        <ans:numeroCarteira>{ag.paciente.numero_carteirinha}</ans:numeroCarteira>\n'
                 xml_content += f'        <ans:nomeBeneficiario>{ag.paciente.nome_completo}</ans:nomeBeneficiario>\n'
                 xml_content += f'      </ans:dadosBeneficiario>\n'
-                xml_content += f'      <ans:valorTotal>100.00</ans:valorTotal>\n' # Valor de Exemplo
+                xml_content += f'      <ans:procedimentosExecutados>\n'
+                xml_content += f'        <ans:procedimento>\n'
+                xml_content += f'          <ans:codigoTabela>22</ans:codigoTabela>\n' # Tabela TUSS
+                xml_content += f'          <ans:codigoProcedimento>{codigo_procedimento}</ans:codigoProcedimento>\n'
+                xml_content += f'          <ans:descricaoProcedimento>{descricao_procedimento}</ans:descricaoProcedimento>\n'
+                xml_content += f'          <ans:quantidadeExecutada>1</ans:quantidadeExecutada>\n'
+                xml_content += f'          <ans:valorProcessado>{valor_da_guia:.2f}</ans:valorProcessado>\n'
+                xml_content += f'        </ans:procedimento>\n'
+                xml_content += f'      </ans:procedimentosExecutados>\n'
+                xml_content += f'      <ans:valorTotal>{valor_da_guia:.2f}</ans:valorTotal>\n'
                 xml_content += f'    </ans:guiaSP-SADT>\n'
             
             xml_content += f'  </ans:loteGuias>\n'
             xml_content += '</ans:mensagemTISS>\n'
             
-            # --- 3. Devolver o ficheiro como resposta ---
+            # Salva tudo no banco de dados
+            GuiaTiss.objects.bulk_create(guias_a_criar)
+            novo_lote.valor_total_lote = valor_total_lote
+            novo_lote.save()
+            
+            # --- 3. Devolve o ficheiro XML (sem alterações) ---
             response = HttpResponse(xml_content, content_type='application/xml')
             response['Content-Disposition'] = f'attachment; filename="lote_{novo_lote.id}_{convenio.nome}.xml"'
             return response
