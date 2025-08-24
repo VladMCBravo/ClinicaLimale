@@ -88,17 +88,13 @@ export default function AgendaPage() {
   return (
     // O seu JSX aqui permanece o mesmo
     <>
-        <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap', p: 2 }}>
-        <Grid item sx={{ width: '300px', flexShrink: 0 }}>
-          <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
+         <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap', p: 2 }}>
+        {/* Usamos height: '100%' para que as colunas ocupem a altura toda */}
+        <Grid item sx={{ width: '300px', flexShrink: 0, height: '100%' }}>
+          <PacientesDoDiaSidebar refreshTrigger={0} />
         </Grid>
-        <Grid item sx={{ flexGrow: 1, minWidth: 0 }}>
-                       <Paper sx={{ 
-                        height: '100%', 
-                        p: 2, // Pode manter o padding
-                        display: 'flex', // Adicione display flex
-                        flexDirection: 'column' // e a direção
-                    }}>
+        <Grid item sx={{ flexGrow: 1, height: '100%', display: 'flex' }}>
+          <Paper sx={{ width: '100%', height: '100%', p: 1, display: 'flex', flexDirection: 'column' }}>
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}

@@ -1,5 +1,4 @@
-// src/components/MainLayout.jsx - VERSÃO FINAL COM SCROLL CORRETO
-
+// src/components/MainLayout.jsx - VERSÃO FINAL E CORRIGIDA
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -14,18 +13,12 @@ export default function MainLayout() {
         className="content"
         sx={{ 
           flexGrow: 1,
-          // --- A CORREÇÃO ESTÁ AQUI ---
-          // Em vez de 'hidden', usamos 'auto' para o eixo Y (vertical).
-          // Isto fará com que uma barra de rolagem apareça DENTRO da área de conteúdo,
-          // mas apenas se o conteúdo for maior que a tela.
-          overflowY: 'auto',
+          // Permite que páginas com conteúdo longo tenham a sua própria barra de rolagem
+          overflowY: 'auto', 
         }}
       >
-        {/* Adicionamos um contentor interno para gerir o padding,
-            garantindo que o layout funcione em todas as páginas */}
-        <Box sx={{ p: 2 }}>
-            <Outlet />
-        </Box>
+        {/* Não colocamos padding aqui. Cada página será responsável pelo seu espaçamento. */}
+        <Outlet />
       </Box>
     </Box>
   );

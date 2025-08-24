@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.jsx
+// src/pages/DashboardPage.jsx - VERSÃO CORRIGIDA
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Typography, Paper, Grid, CircularProgress, List, ListItem, 
@@ -12,9 +12,12 @@ import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import BusinessIcon from '@mui/icons-material/Business';
 
 const StatCard = ({ title, value, color = 'primary.main', link }) => (
-    <Paper component={RouterLink} to={link || '#'} sx={{ p: 2, textAlign: 'center', height: '100%', textDecoration: 'none' }}>
-        <Typography variant="h6">{title}</Typography>
-        <Typography variant="h3" color={color}>{value}</Typography>
+    // Adicionamos padding ao Box para garantir espaçamento interno
+    <Paper component={RouterLink} to={link || '#'} sx={{ height: '100%', textDecoration: 'none' }}>
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h6">{title}</Typography>
+            <Typography variant="h3" color={color}>{value}</Typography>
+        </Box>
     </Paper>
 );
 
@@ -24,7 +27,7 @@ export default function DashboardPage() {
 
     const fetchData = useCallback(async () => {
         try {
-            const response = await apiClient.get('/dashboard/'); // A URL agora é a raiz do app dashboard
+            const response = await apiClient.get('/dashboard/');
             setData(response.data);
         } catch (error) {
             console.error("Erro ao carregar dados do dashboard:", error);
@@ -45,16 +48,15 @@ export default function DashboardPage() {
         return <Typography>Não foi possível carregar os dados do dashboard.</Typography>;
     }
 
+    // Adicionamos o padding aqui para ter um espaçamento consistente
     return (
-        <Box>
+        <Box sx={{ p: 2 }}>
             <Typography variant="h4" gutterBottom>Dashboard</Typography>
             <Grid container spacing={3}>
-                {/* Card de Agendamentos (visível para todos) */}
                 <Grid item xs={12} sm={6} md={4}>
                     <StatCard title="Consultas de Hoje" value={data.agendamentos_hoje_count} link="/" />
                 </Grid>
 
-                {/* --- CARDS FINANCEIROS (APENAS PARA ADMINS) --- */}
                 {data.dados_financeiros && (
                     <>
                         <Grid item xs={12} sm={6} md={4}>
@@ -63,13 +65,13 @@ export default function DashboardPage() {
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1}}>
                                     <AttachMoneyIcon color="success" />
                                     <Typography variant="h5" color="green">
-                                        R$ {data.dados_financeiros.receitas_mes.toFixed(2)}
+                                        R$ {Number(data.dados_financeiros.receitas_mes).toFixed(2)}
                                     </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1}}>
                                     <MoneyOffIcon color="error" />
                                     <Typography variant="h5" color="red">
-                                        R$ {data.dados_financeiros.despesas_mes.toFixed(2)}
+                                        R$ {Number(data.dados_financeiros.despesas_mes).toFixed(2)}
                                     </Typography>
                                 </Box>
                             </Paper>
@@ -78,10 +80,12 @@ export default function DashboardPage() {
                             <Paper sx={{p:2, height: '100%'}}>
                                 <Typography variant="h6">Convênios Mais Usados</Typography>
                                 <List dense>
+                                    {/* --- A CORREÇÃO ESTÁ AQUI --- */}
+                                    {/* A chave correta enviada pela nossa API agora é 'plano_utilizado__convenio__nome' */}
                                     {data.dados_financeiros.convenios_mais_usados.map((c, i) => (
                                         <ListItem key={i} disableGutters>
                                             <ListItemIcon sx={{minWidth: '32px'}}><BusinessIcon fontSize="small" /></ListItemIcon>
-                                            <ListItemText primary={c['agendamento__paciente__convenio']} secondary={`${c.total} consulta(s)`} />
+                                            <ListItemText primary={c['plano_utilizado__convenio__nome']} secondary={`${c.total} consulta(s)`} />
                                         </ListItem>
                                     ))}
                                 </List>
@@ -90,7 +94,7 @@ export default function DashboardPage() {
                     </>
                 )}
 
-                {/* Card de Aniversariantes (visível para todos) */}
+                {/* Card de Aniversariantes */}
                 <Grid item xs={12}>
                     <Paper sx={{ p: 2 }}>
                         <Typography variant="h6">Aniversariantes da Semana</Typography>
