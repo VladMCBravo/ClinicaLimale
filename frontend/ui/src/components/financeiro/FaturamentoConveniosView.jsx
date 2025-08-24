@@ -1,9 +1,10 @@
-// src/components/financeiro/FaturamentoConveniosView.jsx - VERSÃO COM TABELA
+// src/components/financeiro/FaturamentoConveniosView.jsx - VERSÃO COM IMPORT CORRIGIDO
 
 import React, { useState, useEffect } from 'react';
 import {
     Box, Button, CircularProgress, Typography, Paper, Grid, Select, MenuItem, FormControl,
-    InputLabel, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox
+    InputLabel, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox,
+    TextField // <-- 1. A IMPORTAÇÃO QUE FALTAVA ESTÁ AQUI
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -16,14 +17,12 @@ const getYearMonthString = (date) => {
 };
 
 export default function FaturamentoConveniosView() {
-    console.log("!!! O componente FaturamentoConveniosView foi chamado para renderizar !!!");
     // Estados para controlar o formulário e os dados
     const [convenios, setConvenios] = useState([]);
     const [selectedConvenio, setSelectedConvenio] = useState('');
-    // 1. O estado da data agora guarda a string 'YYYY-MM'
     const [selectedMonth, setSelectedMonth] = useState(getYearMonthString(new Date()));
     const [agendamentosFaturaveis, setAgendamentosFaturaveis] = useState([]);
-    const [selectedAgendamentos, setSelectedAgendamentos] = useState([]); // <-- NOVO: Guarda os IDs dos agendamentos selecionados
+    const [selectedAgendamentos, setSelectedAgendamentos] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
@@ -46,7 +45,7 @@ export default function FaturamentoConveniosView() {
         
         setIsLoading(true);
         setAgendamentosFaturaveis([]);
-        setSelectedAgendamentos([]); // Limpa a seleção anterior
+        setSelectedAgendamentos([]);
         
         const [ano, mes] = selectedMonth.split('-');
 
@@ -64,7 +63,7 @@ export default function FaturamentoConveniosView() {
         }
     };
     
-    // --- 2. NOVAS FUNÇÕES PARA GERIR A SELEÇÃO NA TABELA ---
+    // Funções para gerir a seleção na tabela
     const handleSelectAll = (event) => {
         if (event.target.checked) {
             const allIds = agendamentosFaturaveis.map((ag) => ag.id);
@@ -80,20 +79,13 @@ export default function FaturamentoConveniosView() {
 
         if (selectedIndex === -1) {
             newSelected = newSelected.concat(selectedAgendamentos, id);
-        } else if (selectedIndex === 0) {
-            newSelected = newSelected.concat(selectedAgendamentos.slice(1));
-        } else if (selectedIndex === selectedAgendamentos.length - 1) {
-            newSelected = newSelected.concat(selectedAgendamentos.slice(0, -1));
-        } else if (selectedIndex > 0) {
-            newSelected = newSelected.concat(
-                selectedAgendamentos.slice(0, selectedIndex),
-                selectedAgendamentos.slice(selectedIndex + 1),
-            );
+        } else if (selectedIndex >= 0) {
+            newSelected = selectedAgendamentos.filter(selectedId => selectedId !== id);
         }
         setSelectedAgendamentos(newSelected);
     };
 
-    // --- 3. FUNÇÃO PARA CRIAR O LOTE (POR ENQUANTO, APENAS MOSTRA OS DADOS) ---
+    // Função para criar o lote
     const handleGerarLote = () => {
         if (selectedAgendamentos.length === 0) {
             showSnackbar("Nenhum agendamento selecionado.", 'warning');
@@ -103,9 +95,7 @@ export default function FaturamentoConveniosView() {
         console.log("Período:", selectedMonth);
         console.log("IDs dos agendamentos selecionados:", selectedAgendamentos);
         showSnackbar(`A gerar lote com ${selectedAgendamentos.length} agendamentos... (Verificar consola)`, 'success');
-        // A lógica de chamada à API para criar o lote entrará aqui no próximo passo.
     };
-
 
     return (
         <Box>
@@ -123,7 +113,6 @@ export default function FaturamentoConveniosView() {
                         </FormControl>
                     </Grid>
                     <Grid item xs={12} md={4}>
-                        {/* 4. SELETOR DE MÊS/ANO FUNCIONAL */}
                         <TextField
                             label="Mês/Ano de Referência"
                             type="month"
@@ -141,7 +130,6 @@ export default function FaturamentoConveniosView() {
                 </Grid>
             </Paper>
 
-            {/* --- 5. TABELA DE RESULTADOS --- */}
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -181,7 +169,6 @@ export default function FaturamentoConveniosView() {
                 </Table>
             </TableContainer>
 
-            {/* --- 6. BOTÃO PARA GERAR O LOTE --- */}
             {selectedAgendamentos.length > 0 && (
                 <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                     <Button variant="contained" color="success" onClick={handleGerarLote}>
