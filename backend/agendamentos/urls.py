@@ -6,7 +6,7 @@ from .views import (
     AgendamentoDetailAPIView,
     AgendamentosNaoPagosListAPIView,
     AgendamentosHojeListView,
-    DebugLembretesView # <-- 1. Importe a nova view
+    EnviarLembretesCronView # <-- Importe
 )
 
 urlpatterns = [
@@ -22,5 +22,5 @@ urlpatterns = [
     # O caminho 'hoje/' corresponde a /api/agendamentos/hoje/
     path('hoje/', AgendamentosHojeListView.as_view(), name='lista-agendamentos-hoje'),
 
-     path('debug-lembretes/', DebugLembretesView.as_view(), name='debug-lembretes'),
+     path('cron/enviar-lembretes/', EnviarLembretesCronView.as_view(), name='cron-enviar-lembretes'),
 ]
