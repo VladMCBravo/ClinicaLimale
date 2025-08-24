@@ -145,3 +145,19 @@ class GuiaTiss(models.Model):
 
     def __str__(self):
         return f"Guia para o agendamento ID {self.agendamento.id} no Lote {self.lote.id}"
+
+class Procedimento(models.Model):
+    """
+    Representa um procedimento médico com seu código TUSS e valor.
+    Ex: Consulta em consultório, aplicação de medicação, etc.
+    """
+    codigo_tuss = models.CharField(max_length=20, unique=True, help_text="Código do procedimento na tabela TUSS")
+    descricao = models.CharField(max_length=255)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    ativo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.codigo_tuss} - {self.descricao}"
+
+    class Meta:
+        ordering = ['descricao']

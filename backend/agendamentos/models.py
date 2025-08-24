@@ -26,6 +26,13 @@ class Agendamento(models.Model):
         blank=True,
         verbose_name="Plano Utilizado no Agendamento"
     )
+    # --- NOVA LIGAÇÃO AO PROCEDIMENTO ---
+    procedimento = models.ForeignKey(
+        'faturamento.Procedimento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True # Permite agendamentos sem procedimento definido inicialmente
+    )
 
     tipo_atendimento = models.CharField(max_length=10, choices=TIPO_ATENDIMENTO_CHOICES, default='Particular')
     observacoes = models.TextField(blank=True, null=True)
