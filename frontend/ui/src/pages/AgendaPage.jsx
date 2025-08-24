@@ -78,10 +78,18 @@ export default function AgendaPage() {
   };
 
   const handleEventClick = (clickInfo) => {
-    setSelectedDateInfo(null);
-    setEditingEvent(clickInfo.event);
-    setIsModalOpen(true);
-  };
+  // --- ADICIONE ESTAS LINHAS DE DEPURAÇÃO ---
+  console.log("--- DEBUG: Evento Clicado ---");
+  console.log("Objeto do Evento:", clickInfo.event);
+  console.log("Hora de Início (start object):", clickInfo.event.start);
+  console.log("Hora de Fim (end object):", clickInfo.event.end);
+  console.log("---------------------------------");
+  // ---------------------------------------------
+
+  setSelectedDateInfo(null);
+  setEditingEvent(clickInfo.event);
+  setIsModalOpen(true);
+};
   
   const handleCloseModal = () => {
     setIsModalOpen(false);
