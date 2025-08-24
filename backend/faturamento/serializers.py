@@ -1,8 +1,8 @@
 # faturamento/serializers.py
 
 from rest_framework import serializers
-from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
-from agendamentos.models import Agendamento, Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, Procedimento
+from agendamentos.models import Agendamento
+from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, Procedimento
 
 
 # --- Serializers de Suporte ---
