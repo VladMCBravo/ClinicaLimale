@@ -1,4 +1,5 @@
-// src/components/AgendamentoModal.jsx - VERSÃO COM CORREÇÃO FINAL DE FUSO HORÁRIO
+// src/components/AgendamentoModal.jsx - VERSÃO FINAL E CORRIGIDA
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem, Box, Typography, Divider
@@ -12,6 +13,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const getInitialFormData = () => ({
         paciente: null, data_hora_inicio: '', data_hora_fim: '', status: 'Confirmado',
         procedimento: null, plano_utilizado: null, tipo_atendimento: 'Particular', observacoes: '',
+        tipo_consulta: '',
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -21,7 +23,27 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-     // --- LÓGICA DE PREENCHIMENTO FINAL E CORRIGIDA ---
+    // --- CORREÇÃO: ADICIONAMOS A LÓGICA DE BUSCA DE DADOS ---
+    useEffect(() => {
+        if (open) {
+            setLoading(true);
+            const fetchPacientes = apiClient.get('/pacientes/');
+            const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
+
+            Promise.all([fetchPacientes, fetchProcedimentos])
+                .then(([pacientesResponse, procedimentosResponse]) => {
+                    setPacientes(pacientesResponse.data);
+                    setProcedimentos(procedimentosResponse.data);
+                })
+                .catch(error => {
+                    console.error("Erro ao buscar dados iniciais:", error);
+                    showSnackbar("Erro ao carregar dados.", 'error');
+                })
+                .finally(() => setLoading(false));
+        }
+    }, [open, showSnackbar]);
+
+    // Lógica de preenchimento do formulário (agora irá funcionar)
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -29,6 +51,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             return;
         }
 
+        // Só executa a lógica de edição se os dados já tiverem sido carregados
         if (editingEvent && pacientes.length > 0 && procedimentos.length > 0) {
             const dados = editingEvent.extendedProps;
             const pacienteObj = pacientes.find(p => p.id === dados.paciente) || null;
@@ -37,12 +60,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (pacienteObj) {
                 setFormData({
                     paciente: pacienteObj,
-                    // --- A CORREÇÃO ESTÁ AQUI ---
-                    // Usamos a string de data original (startStr) e apenas a cortamos,
-                    // sem fazer nenhuma conversão de fuso horário.
                     data_hora_inicio: editingEvent.startStr.slice(0, 16),
                     data_hora_fim: editingEvent.endStr ? editingEvent.endStr.slice(0, 16) : '',
-                    // -----------------------------
                     status: dados.status,
                     procedimento: procedimentoObj,
                     plano_utilizado: dados.plano_utilizado,
