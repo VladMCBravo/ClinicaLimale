@@ -10,7 +10,8 @@ from .views import (
     RelatorioFinanceiroAPIView,
     ConvenioViewSet,
     PlanoConvenioViewSet,
-    PagamentosPendentesListAPIView # <-- Garanta que a importação está aqui
+    PagamentosPendentesListAPIView,
+    GerarLoteFaturamentoAPIView
 )
 
 # O router regista os ViewSets (que criam múltiplas URLs)
@@ -35,4 +36,7 @@ urlpatterns = [
 
     # Inclui todas as rotas geradas pelo router (como /pagamentos/, /convenios/, etc.)
     path('', include(router.urls)),
+
+     path('gerar-lote/', GerarLoteFaturamentoAPIView.as_view(), name='gerar-lote'),
+    
 ]

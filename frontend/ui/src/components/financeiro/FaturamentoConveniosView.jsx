@@ -86,16 +86,34 @@ export default function FaturamentoConveniosView() {
     };
 
     // Função para criar o lote
-    const handleGerarLote = () => {
-        if (selectedAgendamentos.length === 0) {
-            showSnackbar("Nenhum agendamento selecionado.", 'warning');
-            return;
-        }
-        console.log("Gerar lote para o convênio ID:", selectedConvenio);
-        console.log("Período:", selectedMonth);
-        console.log("IDs dos agendamentos selecionados:", selectedAgendamentos);
-        showSnackbar(`A gerar lote com ${selectedAgendamentos.length} agendamentos... (Verificar consola)`, 'success');
-    };
+    const handleGerarLote = async () => {
+    if (selectedAgendamentos.length === 0) {
+        showSnackbar("Nenhum agendamento selecionado.", 'warning');
+        return;
+    }
+
+    setIsLoading(true); // Ativa o estado de carregamento
+    try {
+        const payload = {
+            convenio_id: selectedConvenio,
+            mes_referencia: selectedMonth, // 'YYYY-MM'
+            agendamento_ids: selectedAgendamentos
+        };
+
+        await apiClient.post('/faturamento/gerar-lote/', payload);
+
+        showSnackbar(`Lote com ${selectedAgendamentos.length} agendamentos gerado com sucesso!`, 'success');
+
+        // Limpa a tela e busca novamente (os agendamentos faturados irão desaparecer da lista)
+        handleBuscar(); 
+
+    } catch (error) {
+        console.error("Erro ao gerar lote de faturamento:", error);
+        showSnackbar("Erro ao gerar lote.", 'error');
+    } finally {
+        setIsLoading(false); // Desativa o estado de carregamento
+    }
+};
 
     return (
         <Box>
