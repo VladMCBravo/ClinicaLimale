@@ -18,10 +18,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         data_hora_inicio: '',
         data_hora_fim: '',
         status: 'Confirmado',
-        procedimento: null, // <-- Trocamos tipo_consulta por procedimento
+        procedimento: null, // <-- Usamos procedimento
         plano_utilizado: null,
         tipo_atendimento: 'Particular',
         observacoes: '',
+        tipo_consulta: '', // <-- Adicionamos este campo para compatibilidade
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -31,27 +32,22 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    // 2. Efeito para buscar tanto os pacientes quanto os procedimentos
+    // Efeito para buscar pacientes e procedimentos
     useEffect(() => {
         if (open) {
             setLoading(true);
             const fetchPacientes = apiClient.get('/pacientes/');
             const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-
             Promise.all([fetchPacientes, fetchProcedimentos])
                 .then(([pacientesResponse, procedimentosResponse]) => {
                     setPacientes(pacientesResponse.data);
                     setProcedimentos(procedimentosResponse.data);
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar dados iniciais:", error);
-                    showSnackbar("Erro ao carregar dados.", 'error');
-                })
+                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
                 .finally(() => setLoading(false));
         }
     }, [open, showSnackbar]);
     
-    // Efeito para preencher o formulário (lógica de edição)
+    // Efeito para preencher o formulário para edição
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -60,9 +56,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
 
         if (editingEvent && pacientes.length > 0 && procedimentos.length > 0) {
-            const dadosDoEvento = editingEvent.extendedProps;
-            const pacienteObj = pacientes.find(p => p.id === dadosDoEvento.paciente) || null;
-            const procedimentoObj = procedimentos.find(p => p.id === dadosDoEvento.procedimento) || null;
+            const dados = editingEvent.extendedProps;
+            const pacienteObj = pacientes.find(p => p.id === dados.paciente) || null;
+            const procedimentoObj = procedimentos.find(p => p.id === dados.procedimento) || null;
             
             if (pacienteObj) {
                 setFormData({
@@ -70,11 +66,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     paciente: pacienteObj,
                     data_hora_inicio: new Date(editingEvent.startStr).toISOString().slice(0, 16),
                     data_hora_fim: editingEvent.endStr ? new Date(editingEvent.endStr).toISOString().slice(0, 16) : '',
-                    status: dadosDoEvento.status,
+                    status: dados.status,
                     procedimento: procedimentoObj,
-                    plano_utilizado: dadosDoEvento.plano_utilizado,
-                    tipo_atendimento: dadosDoEvento.tipo_atendimento,
-                    observacoes: dadosDoEvento.observacoes || '',
+                    plano_utilizado: dados.plano_utilizado,
+                    tipo_atendimento: dados.tipo_atendimento,
+                    observacoes: dados.observacoes || '',
+                    tipo_consulta: dados.tipo_consulta || '',
                 });
                 apiClient.get(`/pacientes/${pacienteObj.id}/`).then(res => setPacienteDetalhes(res.data));
             }
@@ -107,10 +104,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        // O `tipo_consulta` pode ser derivado da descrição do procedimento
+        const tipoConsultaTexto = formData.procedimento ? formData.procedimento.descricao : 'Consulta';
+
         const submissionData = {
-            ...formData,
-            paciente: formData.paciente?.id || null,
-            procedimento: formData.procedimento?.id || null, // <-- Enviamos o ID do procedimento
+          ...formData,
+          paciente: formData.paciente?.id || null,
+          procedimento: formData.procedimento?.id || null, // <-- Envia o ID do procedimento
+          tipo_consulta: tipoConsultaTexto, // <-- Envia o texto da descrição
         };
 
         try {

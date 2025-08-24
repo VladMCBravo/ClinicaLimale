@@ -9,30 +9,30 @@ from faturamento.serializers import PagamentoStatusSerializer
 class AgendamentoSerializer(serializers.ModelSerializer):
     """
     Serializer de LEITURA final. Envia todos os dados necessários para
-    a Agenda, Sidebar, Dashboards e Relatórios.
+    a Agenda, Sidebar, Faturamento, etc.
     """
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
     pagamento = PagamentoStatusSerializer(read_only=True)
-    primeira_consulta = serializers.SerializerMethodField() # <-- Reintroduzido
+    primeira_consulta = serializers.SerializerMethodField()
 
     class Meta:
         model = Agendamento
         fields = [
             'id',
             'paciente',
-            'paciente_nome', # <-- Para a Sidebar e Título do Evento
+            'paciente_nome',
             'data_hora_inicio',
             'data_hora_fim',
             'status',
             'tipo_atendimento',
-            'pagamento', # <-- Para o ícone de pago
-            'primeira_consulta', # <-- Para o ícone de estrela
+            'tipo_consulta', # <-- O campo que faltava para a tabela de faturamento
+            'procedimento',  # <-- O ID do procedimento
+            'pagamento',
+            'primeira_consulta',
+            'plano_utilizado',
         ]
 
     def get_primeira_consulta(self, obj):
-        """
-        Verifica se este é o primeiro agendamento 'Realizado' ou 'Confirmado' do paciente.
-        """
         return not Agendamento.objects.filter(
             paciente=obj.paciente,
             status__in=['Realizado', 'Confirmado'],
@@ -57,5 +57,6 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             'tipo_consulta',
             'plano_utilizado',
             'tipo_atendimento',
+            'procedimento', # <-- O campo que faltava para salvar o procedimento
             'observacoes',
         ]
