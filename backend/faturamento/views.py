@@ -14,12 +14,12 @@ from agendamentos.serializers import AgendamentoSerializer
 from agendamentos.models import Agendamento
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
 # Linha nova e corrigida
-from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, LoteFaturamento, GuiaTiss
+from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, LoteFaturamento, GuiaTiss, Procedimento
 from .serializers import (
     PagamentoSerializer,  # O serializer principal para leitura
     PagamentoUpdateSerializer,  # <-- Vamos criar este serializer para atualização
     CategoriaDespesaSerializer, DespesaSerializer,
-    ConvenioSerializer, PlanoConvenioSerializer
+    ConvenioSerializer, PlanoConvenioSerializer, ProcedimentoSerializer
 )
 
 # --- View de Pagamento (sem alterações, já estava boa) ---
@@ -216,3 +216,13 @@ class GerarLoteFaturamentoAPIView(APIView):
 
         except Exception as e:
             return Response({'detail': f'Ocorreu um erro: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- NOVO VIEWSET PARA PROCEDIMENTOS ---
+class ProcedimentoViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Endpoint que permite que procedimentos sejam listados.
+    ReadOnly para que não possam ser criados/editados via API por agora.
+    """
+    queryset = Procedimento.objects.filter(ativo=True).order_by('descricao')
+    serializer_class = ProcedimentoSerializer
+    permission_classes = [IsAuthenticated]

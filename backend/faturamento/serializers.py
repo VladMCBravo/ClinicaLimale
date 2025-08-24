@@ -2,7 +2,8 @@
 
 from rest_framework import serializers
 from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio
-from agendamentos.models import Agendamento # Importe o modelo Agendamento
+from agendamentos.models import Agendamento, Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, Procedimento
+
 
 # --- Serializers de Suporte ---
 class PagamentoStatusSerializer(serializers.ModelSerializer):
@@ -151,3 +152,9 @@ class ConvenioSerializer(serializers.ModelSerializer):
                 PlanoConvenio.objects.create(convenio=instance, **plano_data)
 
         return instance
+
+# --- NOVO SERIALIZER PARA PROCEDIMENTOS ---
+class ProcedimentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Procedimento
+        fields = ['id', 'codigo_tuss', 'descricao', 'valor']

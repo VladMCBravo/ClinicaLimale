@@ -11,7 +11,8 @@ from .views import (
     ConvenioViewSet,
     PlanoConvenioViewSet,
     PagamentosPendentesListAPIView,
-    GerarLoteFaturamentoAPIView
+    GerarLoteFaturamentoAPIView,
+    ProcedimentoViewSet
 )
 
 # O router regista os ViewSets (que criam múltiplas URLs)
@@ -21,6 +22,7 @@ router.register(r'categorias-despesa', CategoriaDespesaViewSet, basename='catego
 router.register(r'despesas', DespesaViewSet, basename='despesa')
 router.register(r'convenios', ConvenioViewSet, basename='convenio')
 router.register(r'planos', PlanoConvenioViewSet, basename='plano')
+router.register(r'procedimentos', ProcedimentoViewSet, basename='procedimento')
 
 # urlpatterns regista as views individuais
 urlpatterns = [
