@@ -1,7 +1,8 @@
-// src/components/AgendamentoModal.jsx - VERSÃO COM EDIÇÃO CORRIGIDA
+// src/components/AgendamentoModal.jsx - VERSÃO COM CORREÇÃO FINAL DE FUSO HORÁRIO
 import React, { useState, useEffect, useCallback } from 'react';
-// ... (mantenha todas as suas importações)
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem, Box, Typography, Divider } from '@mui/material';
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem, Box, Typography, Divider
+} from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
@@ -20,22 +21,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    // Efeito para buscar dados (sem alterações)
-    useEffect(() => {
-        if (open) {
-            setLoading(true);
-            const fetchPacientes = apiClient.get('/pacientes/');
-            const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-            Promise.all([fetchPacientes, fetchProcedimentos])
-                .then(([pacientesResponse, procedimentosResponse]) => {
-                    setPacientes(pacientesResponse.data);
-                    setProcedimentos(procedimentosResponse.data);
-                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
-                .finally(() => setLoading(false));
-        }
-    }, [open, showSnackbar]);
-    
-    // --- LÓGICA DE PREENCHIMENTO REFINADA ---
+     // --- LÓGICA DE PREENCHIMENTO FINAL E CORRIGIDA ---
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -43,7 +29,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             return;
         }
 
-        // MODO EDIÇÃO: Tem prioridade
         if (editingEvent && pacientes.length > 0 && procedimentos.length > 0) {
             const dados = editingEvent.extendedProps;
             const pacienteObj = pacientes.find(p => p.id === dados.paciente) || null;
@@ -52,9 +37,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (pacienteObj) {
                 setFormData({
                     paciente: pacienteObj,
-                    // Garante que a data/hora original do evento é usada
-                    data_hora_inicio: new Date(editingEvent.start).toISOString().slice(0, 16),
-                    data_hora_fim: editingEvent.end ? new Date(editingEvent.end).toISOString().slice(0, 16) : '',
+                    // --- A CORREÇÃO ESTÁ AQUI ---
+                    // Usamos a string de data original (startStr) e apenas a cortamos,
+                    // sem fazer nenhuma conversão de fuso horário.
+                    data_hora_inicio: editingEvent.startStr.slice(0, 16),
+                    data_hora_fim: editingEvent.endStr ? editingEvent.endStr.slice(0, 16) : '',
+                    // -----------------------------
                     status: dados.status,
                     procedimento: procedimentoObj,
                     plano_utilizado: dados.plano_utilizado,
@@ -63,10 +51,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 });
                 apiClient.get(`/pacientes/${pacienteObj.id}/`).then(res => setPacienteDetalhes(res.data));
             }
-        // MODO CRIAÇÃO: Só é executado se não houver um evento para editar
         } else if (initialData) {
             setFormData(prev => ({ 
-                ...getInitialFormData(), // Começa com o formulário limpo
+                ...getInitialFormData(),
                 data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) 
             }));
         }
