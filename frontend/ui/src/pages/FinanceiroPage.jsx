@@ -25,6 +25,9 @@ export default function FinanceiroPage() {
         setActiveTab(newValue);
     };
 
+     // --- ADICIONE ESTA LINHA ---
+    console.log("Página Financeira renderizou. Aba ativa é:", activeTab);
+
     return (
         <Paper sx={{ p: 2, margin: 'auto', width: '100%' }}>
             <Typography variant="h5" gutterBottom>Gestão Financeira</Typography>

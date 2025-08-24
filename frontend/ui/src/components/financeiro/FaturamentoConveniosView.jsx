@@ -16,6 +16,7 @@ const getYearMonthString = (date) => {
 };
 
 export default function FaturamentoConveniosView() {
+    console.log("!!! O componente FaturamentoConveniosView foi chamado para renderizar !!!");
     // Estados para controlar o formulário e os dados
     const [convenios, setConvenios] = useState([]);
     const [selectedConvenio, setSelectedConvenio] = useState('');
