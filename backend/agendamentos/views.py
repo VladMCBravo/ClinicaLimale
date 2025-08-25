@@ -152,8 +152,14 @@ class CriarSalaTelemedicinaView(APIView):
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
         }
-        # A sala será válida até 1 hora após o fim do agendamento
-        endDate = (agendamento.data_hora_fim + datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        # --- A CORREÇÃO ESTÁ AQUI ---
+        # 1. Adiciona 1 hora à data de fim do agendamento
+        end_time = agendamento.data_hora_fim + datetime.timedelta(hours=1)
+        # 2. Converte a data/hora para o fuso horário UTC
+        end_time_utc = end_time.astimezone(datetime.timezone.utc)
+        # 3. Formata a data/hora UTC para a string que a API do Whereby espera
+        endDate = end_time_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        # ---------------------------
 
         payload = {
             "endDate": endDate,
