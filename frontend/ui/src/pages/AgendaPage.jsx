@@ -119,7 +119,7 @@ export default function AgendaPage() {
               events={fetchEvents}
               eventContent={renderEventContent}
               slotMinTime="08:00:00"
-              slotMaxTime="23:00:00"
+              slotMaxTime="20:00:00"
               dateClick={handleDateClick}
               eventClick={handleEventClick}
             />
