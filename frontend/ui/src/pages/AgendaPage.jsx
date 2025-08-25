@@ -1,5 +1,7 @@
+// src/pages/AgendaPage.jsx - VERSÃO FINAL E CORRIGIDA
+
 import React, { useState, useRef, useCallback } from 'react';
-import { Box, Tooltip, Typography, Grid, Paper } from '@mui/material';
+import { Box, Tooltip, Typography, Paper } from '@mui/material'; // Usaremos Box para o layout
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -10,6 +12,7 @@ import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import StarIcon from '@mui/icons-material/Star';
 
+// Função para renderizar o conteúdo do evento (sem alterações)
 function renderEventContent(eventInfo) {
   const { status_pagamento, primeira_consulta } = eventInfo.event.extendedProps;
   return (
@@ -24,6 +27,7 @@ function renderEventContent(eventInfo) {
   );
 }
 
+// Mapeamento de status para cores (sem alterações)
 const statusColors = {
     'Agendado': '#6495ED',
     'Confirmado': '#32CD32',
@@ -38,6 +42,7 @@ export default function AgendaPage() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
     
+  // Lógica para buscar os eventos (sem alterações)
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
     apiClient.get('/agendamentos/')
       .then(response => {
@@ -66,19 +71,12 @@ export default function AgendaPage() {
     setIsModalOpen(true);
   };
 
+  // handleEventClick limpo, sem o código de depuração
   const handleEventClick = (clickInfo) => {
-  // --- ADICIONE ESTAS LINHAS DE DEPURAÇÃO ---
-  console.log("--- DEBUG: Evento Clicado ---");
-  console.log("Objeto do Evento:", clickInfo.event);
-  console.log("Hora de Início (start object):", clickInfo.event.start);
-  console.log("Hora de Fim (end object):", clickInfo.event.end);
-  console.log("---------------------------------");
-  // ---------------------------------------------
-
-  setSelectedDateInfo(null);
-  setEditingEvent(clickInfo.event);
-  setIsModalOpen(true);
-};
+    setSelectedDateInfo(null);
+    setEditingEvent(clickInfo.event);
+    setIsModalOpen(true);
+  };
   
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -96,18 +94,17 @@ export default function AgendaPage() {
 
   return (
     <>
-      {/* --- 1. O GRID PRINCIPAL OCUPA 100% DA ALTURA DO SEU PAI (O <Box> DO MAINLAYOUT) --- */}
-      <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap' }}>
+      {/* --- ESTRUTURA DE LAYOUT FINAL E ROBUSTA COM <Box> --- */}
+      <Box sx={{ display: 'flex', height: '100%', gap: 2, p: 2 }}>
         
-        {/* A coluna da sidebar */}
-        <Grid item sx={{ width: '300px', flexShrink: 0 }}>
+        {/* Coluna da Sidebar */}
+        <Box sx={{ width: '300px', flexShrink: 0 }}>
           <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
-        </Grid>
+        </Box>
 
-        {/* --- 2. A COLUNA DO CALENDÁRIO TAMBÉM OCUPA 100% DA ALTURA --- */}
-        <Grid item sx={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          {/* O Paper agora tem padding e expande para preencher o espaço */}
-          <Paper sx={{ width: '100%', flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
+        {/* Coluna do Calendário */}
+        <Box sx={{ flexGrow: 1, display: 'flex', minHeight: 0 }}>
+          <Paper sx={{ width: '100%', height: '100%', p: 2, display: 'flex', flexDirection: 'column' }}>
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -115,19 +112,19 @@ export default function AgendaPage() {
               headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
               locale="pt-br"
               buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
-              height="100%" // Ocupa 100% da altura do Paper
+              height="100%"
               events={fetchEvents}
               eventContent={renderEventContent}
               slotMinTime="08:00:00"
-              slotMaxTime="20:00:00"
+              slotMaxTime="23:00:00" // Mantemos o horário estendido
               dateClick={handleDateClick}
               eventClick={handleEventClick}
             />
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
 
-      {/* O seu AgendamentoModal continua aqui */}
+      </Box>
+
       <AgendamentoModal
         open={isModalOpen}
         onClose={handleCloseModal}
