@@ -4,6 +4,7 @@ from django.urls import path, include
 from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView
 # 1. IMPORTAMOS NOSSAS VIEWS CUSTOMIZADAS DE LOGIN E LOGOUT
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
+from .views import debug_env_view # <-- 1. Importe a nova view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,6 +15,10 @@ urlpatterns = [
     
     # A linha abaixo foi removida para evitar o conflito
     # path('api/auth/', include('dj_rest_auth.urls')),
+
+# --- 2. ADICIONE ESTA ROTA DE DEPURAÇÃO ---
+    # Coloque-a antes das outras rotas de API para garantir que é encontrada primeiro
+    path('debug/env/', debug_env_view, name='debug-env'),
 
     # O resto das suas URLs continua o mesmo
     path('api/pacientes/', include('pacientes.urls')),
