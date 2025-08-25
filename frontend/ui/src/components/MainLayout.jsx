@@ -1,4 +1,4 @@
-// src/components/MainLayout.jsx - VERSÃO FINAL E CORRIGIDA
+// src/components/MainLayout.jsx
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -10,22 +10,13 @@ export default function MainLayout() {
       <Navbar />
       <Box 
         component="main" 
-        className="content"
         sx={{ 
           flexGrow: 1,
-          // Garante que o contentor tenha uma altura de referência
-          position: 'relative', 
+          overflowY: 'auto', // Permite scroll apenas nas páginas que precisam
+          backgroundColor: '#f0f2f5'
         }}
       >
-        {/* Este Box interno gere o scroll e o padding */}
-        <Box sx={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          overflowY: 'auto',
-          p: 2, // Padding aplicado aqui
-        }}>
-            <Outlet />
-        </Box>
+        <Outlet /> {/* As páginas filhas agora controlam o seu próprio padding */}
       </Box>
     </Box>
   );
