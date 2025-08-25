@@ -123,7 +123,7 @@ export default function AgendaPage() {
         </Box>
       </Box>
       <AgendamentoModal
-        open={false}
+        open={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSave}
         initialData={selectedDateInfo}
