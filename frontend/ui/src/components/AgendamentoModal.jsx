@@ -4,7 +4,6 @@ import {
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
   Box, Typography, Divider
 } from '@mui/material';
-import VideocamIcon from '@mui/icons-material/Videocam';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
@@ -126,31 +125,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     };
   
-    // --- 3. Função handleCriarSala corrigida e simplificada ---
-    const handleCriarSala = async () => {
-        if (!editingEvent?.id) {
-            showSnackbar("Apenas agendamentos já salvos podem ter uma sala de telemedicina.", "warning");
-            return;
-        }
-        setIsSubmitting(true);
-        try {
-            const response = await apiClient.post(`/agendamentos/${editingEvent.id}/criar-telemedicina/`);
-            const link = response.data.link_telemedicina;
-            
-            setFormData(prev => ({ ...prev, link_telemedicina: link }));
-            showSnackbar("Sala de telemedicina criada com sucesso!", "success");
-            // Atualiza a agenda para que o evento passe a ter o link
-            if (window.calendarApi) {
-                window.calendarApi.refetchEvents();
-            }
-        } catch (error) {
-            console.error("Erro ao criar sala de telemedicina:", error);
-            showSnackbar("Erro ao criar sala de telemedicina.", "error");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
+   
      return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
