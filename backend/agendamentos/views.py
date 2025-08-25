@@ -8,6 +8,7 @@ from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser
 from .models import Agendamento
 from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from django.utils import timezone
+from django.core.mail import send_mail
 from faturamento.models import Pagamento, Procedimento
 import datetime
 import os # <-- 3. Adicione a importação do 'os'
@@ -66,10 +67,10 @@ class EnviarLembretesCronView(APIView):
         SECRET_KEY_CRON = os.environ.get('SECRET_KEY_CRON')
         provided_key = request.query_params.get('key')
 
-        # Corrigimos o 'satus' para 'status'
         if not SECRET_KEY_CRON or provided_key != SECRET_KEY_CRON:
             return Response({'detail': 'Acesso não autorizado.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+        # A lógica para encontrar os agendamentos está correta
         agora = timezone.localtime(timezone.now())
         amanha = agora.date() + datetime.timedelta(days=1)
         inicio_de_amanha = timezone.make_aware(datetime.datetime.combine(amanha, datetime.time.min))
@@ -84,10 +85,41 @@ class EnviarLembretesCronView(APIView):
         if not agendamentos_de_amanha.exists():
             return Response({'status': 'Nenhum agendamento para amanhã.'})
 
+        # --- BLOCO DE CÓDIGO RESTAURADO ---
         total_enviado = 0
+        falhas = 0
         for agendamento in agendamentos_de_amanha:
-            if agendamento.paciente.email:
-                # Aqui entraria a sua lógica de envio de email (send_mail)
-                total_enviado += 1
+            paciente = agendamento.paciente
+            if paciente.email:
+                hora_local = timezone.localtime(agendamento.data_hora_inicio)
+                data_formatada = hora_local.strftime('%d/%m/%Y')
+                hora_formatada = hora_local.strftime('%H:%M')
+
+                assunto = f"Lembrete de Consulta - Clínica Limalé"
+                mensagem = f"""
+                Olá, {paciente.nome_completo}!
+
+                Este é um lembrete da sua consulta amanhã, dia {data_formatada} às {hora_formatada}.
+
+                Se precisar reagendar, por favor, entre em contato.
+
+                Atenciosamente,
+                Clínica Limalé
+                """
+                
+                try:
+                    # Esta é a função que realmente envia o email
+                    send_mail(
+                        subject=assunto,
+                        message=mensagem,
+                        from_email=None,  # Usa o DEFAULT_FROM_EMAIL do settings.py
+                        recipient_list=[paciente.email],
+                        fail_silently=False,
+                    )
+                    total_enviado += 1
+                except Exception as e:
+                    # Se houver uma falha, registamos o erro
+                    print(f"Falha ao enviar email para {paciente.email}: {e}")
+                    falhas += 1
         
-        return Response({'status': f'Processo concluído. {total_enviado} emails enviados.'})
+        return Response({'status': f'Processo concluído. {total_enviado} emails enviados, {falhas} falhas.'})
