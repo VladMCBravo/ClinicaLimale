@@ -1,7 +1,4 @@
-// src/pages/AgendaPage.jsx - VERSÃO FINAL E CORRIGIDA
-
 import React, { useState, useRef, useCallback } from 'react';
-// ... (mantenha todas as suas importações)
 import { Box, Tooltip, Typography, Grid, Paper } from '@mui/material';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -13,9 +10,7 @@ import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import StarIcon from '@mui/icons-material/Star';
 
-// --- Lógica de renderização FINAL ---
 function renderEventContent(eventInfo) {
-  // Agora lemos as propriedades corretas do extendedProps
   const { status_pagamento, primeira_consulta } = eventInfo.event.extendedProps;
   return (
     <Box sx={{ p: '2px 4px', overflow: 'hidden', fontSize: '0.8em' }}>
@@ -28,12 +23,12 @@ function renderEventContent(eventInfo) {
     </Box>
   );
 }
+
 const statusColors = {
-    'Agendado': '#6495ED', // CornflowerBlue
-    'Confirmado': '#32CD32', // LimeGreen
-    'Realizado': '#228B22', // ForestGreen
-    'Não Compareceu': '#A9A9A9', // DarkGray
-    // 'Cancelado' não precisa de cor, pois será removido
+    'Agendado': '#6495ED',
+    'Confirmado': '#32CD32',
+    'Realizado': '#228B22',
+    'Não Compareceu': '#A9A9A9',
 };
 
 export default function AgendaPage() {
@@ -43,17 +38,13 @@ export default function AgendaPage() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
     
-  // --- Lógica de busca de eventos FINAL ---
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
     apiClient.get('/agendamentos/')
       .then(response => {
         const eventosFormatados = response.data
-            // 1. AÇÃO: Filtra os agendamentos cancelados para que não apareçam
             .filter(ag => ag.status !== 'Cancelado') 
             .map(ag => {
-                // 2. VISUAL: Define a cor do evento com base no status
-                const eventColor = statusColors[ag.status] || '#808080'; // Cor padrão cinza
-                
+                const eventColor = statusColors[ag.status] || '#808080';
                 return {
                     id: ag.id,
                     title: ag.paciente_nome,
@@ -61,9 +52,7 @@ export default function AgendaPage() {
                     end: ag.data_hora_fim,
                     backgroundColor: eventColor,
                     borderColor: eventColor,
-                    extendedProps: {
-                      ...ag
-                    }
+                    extendedProps: { ...ag }
                 };
             });
         successCallback(eventosFormatados);
@@ -106,15 +95,19 @@ export default function AgendaPage() {
   };
 
   return (
-    // O seu JSX aqui permanece o mesmo
     <>
-         <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap', p: 2 }}>
-        {/* Usamos height: '100%' para que as colunas ocupem a altura toda */}
-        <Grid item sx={{ width: '300px', flexShrink: 0, height: '100%' }}>
-          <PacientesDoDiaSidebar refreshTrigger={0} />
+      {/* --- 1. O GRID PRINCIPAL OCUPA 100% DA ALTURA DO SEU PAI (O <Box> DO MAINLAYOUT) --- */}
+      <Grid container spacing={2} sx={{ height: '100%', flexWrap: 'nowrap' }}>
+        
+        {/* A coluna da sidebar */}
+        <Grid item sx={{ width: '300px', flexShrink: 0 }}>
+          <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
         </Grid>
-        <Grid item sx={{ flexGrow: 1, height: '100%', display: 'flex' }}>
-          <Paper sx={{ width: '100%', height: '100%', p: 1, display: 'flex', flexDirection: 'column' }}>
+
+        {/* --- 2. A COLUNA DO CALENDÁRIO TAMBÉM OCUPA 100% DA ALTURA --- */}
+        <Grid item sx={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* O Paper agora tem padding e expande para preencher o espaço */}
+          <Paper sx={{ width: '100%', flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -122,17 +115,19 @@ export default function AgendaPage() {
               headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
               locale="pt-br"
               buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
-              height="100%"
+              height="100%" // Ocupa 100% da altura do Paper
               events={fetchEvents}
               eventContent={renderEventContent}
               slotMinTime="08:00:00"
-              slotMaxTime="20:00:00"
+              slotMaxTime="23:00:00"
               dateClick={handleDateClick}
               eventClick={handleEventClick}
             />
           </Paper>
         </Grid>
       </Grid>
+
+      {/* O seu AgendamentoModal continua aqui */}
       <AgendamentoModal
         open={isModalOpen}
         onClose={handleCloseModal}
