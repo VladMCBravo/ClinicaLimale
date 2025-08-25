@@ -11,7 +11,8 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from faturamento.models import Pagamento, Procedimento
 import datetime
-import os # <-- 3. Adicione a importação do 'os'
+import requests
+import os
 
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     # ... (sem alterações nesta view)
@@ -123,3 +124,59 @@ class EnviarLembretesCronView(APIView):
                     falhas += 1
         
         return Response({'status': f'Processo concluído. {total_enviado} emails enviados, {falhas} falhas.'})
+
+class CriarSalaTelemedicinaView(APIView):
+    """
+    Cria uma sala de telemedicina para um agendamento específico
+    usando a API do Whereby.
+    """
+    permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
+
+    def post(self, request, agendamento_id, *args, **kwargs):
+        try:
+            agendamento = Agendamento.objects.get(id=agendamento_id)
+        except Agendamento.DoesNotExist:
+            return Response({'detail': 'Agendamento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Se já existe um link, devolve-o para não criar salas duplicadas
+        if agendamento.link_telemedicina:
+            return Response({'link_telemedicina': agendamento.link_telemedicina}, status=status.HTTP_200_OK)
+
+        # Busca a chave da API guardada no Render
+        api_key = os.environ.get('WHEREBY_API_KEY')
+        if not api_key:
+            return Response({'detail': 'API Key do serviço de vídeo não configurada no servidor.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Prepara e envia o pedido para a API do Whereby
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        }
+        # A sala será válida até 1 hora após o fim do agendamento
+        endDate = (agendamento.data_hora_fim + datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        payload = {
+            "endDate": endDate,
+            "fields": ["hostRoomUrl"]
+        }
+
+        try:
+            response = requests.post('https://api.whereby.com/v1/meetings', headers=headers, json=payload)
+            response.raise_for_status() # Lança um erro se a resposta for 4xx ou 5xx
+            data = response.json()
+
+            link_sala = data.get('roomUrl')
+            id_sala = data.get('meetingId')
+
+            if not link_sala:
+                return Response({'detail': 'Não foi possível obter o link da sala da API do Whereby.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # Salva o link e o ID no nosso agendamento
+            agendamento.link_telemedicina = link_sala
+            agendamento.id_sala_telemedicina = id_sala
+            agendamento.save()
+
+            return Response({'link_telemedicina': link_sala}, status=status.HTTP_201_CREATED)
+
+        except requests.exceptions.RequestException as e:
+            return Response({'detail': f'Erro ao comunicar com a API do Whereby: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

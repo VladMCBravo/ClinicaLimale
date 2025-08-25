@@ -6,7 +6,9 @@ from .views import (
     AgendamentoDetailAPIView,
     AgendamentosNaoPagosListAPIView,
     AgendamentosHojeListView,
-    EnviarLembretesCronView # <-- Importe
+    EnviarLembretesCronView,
+    CriarSalaTelemedicinaView,
+    AgendamentoListCreateAPIView
 )
 
 urlpatterns = [
@@ -23,4 +25,6 @@ urlpatterns = [
     path('hoje/', AgendamentosHojeListView.as_view(), name='lista-agendamentos-hoje'),
 
      path('cron/enviar-lembretes/', EnviarLembretesCronView.as_view(), name='cron-enviar-lembretes'),
+
+     path('<int:agendamento_id>/criar-telemedicina/', CriarSalaTelemedicinaView.as_view(), name='criar-telemedicina'),
 ]

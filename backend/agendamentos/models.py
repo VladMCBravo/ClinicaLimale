@@ -33,7 +33,10 @@ class Agendamento(models.Model):
         null=True,
         blank=True # Permite agendamentos sem procedimento definido inicialmente
     )
-
+    # --- NOVOS CAMPOS PARA TELEMEDICINA ---
+    link_telemedicina = models.URLField(max_length=500, blank=True, null=True, verbose_name="Link da Sala de Telemedicina")
+    id_sala_telemedicina = models.CharField(max_length=200, blank=True, null=True, help_text="ID da sala retornado pela API de vídeo")
+    # ------------------------------------
     tipo_atendimento = models.CharField(max_length=10, choices=TIPO_ATENDIMENTO_CHOICES, default='Particular')
     observacoes = models.TextField(blank=True, null=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
