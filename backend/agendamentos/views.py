@@ -178,4 +178,15 @@ class CriarSalaTelemedicinaView(APIView):
             return Response({'link_telemedicina': link_sala}, status=status.HTTP_201_CREATED)
 
         except requests.exceptions.RequestException as e:
-            return Response({'detail': f'Erro ao comunicar com a API do Whereby: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Esta linha devolve um erro mais detalhado
+            return Response({'detail': f'Erro ao comunicar com a API do Whereby: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TelemedicinaListView(generics.ListAPIView):
+    serializer_class = AgendamentoSerializer
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        hoje = timezone.now()
+        return Agendamento.objects.filter(
+            data_hora_inicio__gte=hoje,
+            procedimento__descricao__icontains='Telemedicina'
+        ).order_by('data_hora_inicio').select_related('paciente', 'procedimento')
