@@ -46,13 +46,13 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
             {isLoading ? <CircularProgress /> : (
                 <List dense>
                     {pacientes.length > 0 ? pacientes.map(ag => {
-                        const statusInfo = statusMap[ag.status_display] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status_display || ag.status };
-                        return (
-                            <ListItem key={ag.id}>
-                                <ListItemIcon>
-                                    <Tooltip title={statusInfo.title}>
-                                        {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color } })}
-                                    </Tooltip>
+                            const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status };
+                            return (
+                                <ListItem key={ag.id}>
+                                    <ListItemIcon>
+                                        <Tooltip title={statusInfo.title}>
+                                            {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color } })}
+                                        </Tooltip>
                                 </ListItemIcon>
                                 <ListItemText 
                                     primary={ag.paciente_nome}

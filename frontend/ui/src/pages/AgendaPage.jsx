@@ -94,35 +94,36 @@ export default function AgendaPage() {
 
   return (
     // Adicionamos o padding aqui e garantimos a altura
-    <Box sx={{ display: 'flex', height: '100%', gap: 2, p: 2, boxSizing: 'border-box' }}>
-      <Box sx={{ width: '300px', flexShrink: 0 }}>
-        <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
-      </Box>
-
-      <Box sx={{ flexGrow: 1, display: 'flex', minHeight: 0 }}>
-        <Paper sx={{ width: '100%', height: '100%', p: 2, display: 'flex', flexDirection: 'column' }}>
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
-            headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-            locale="pt-br"
-            buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
-            height="100%"
-            events={fetchEvents}
-            eventContent={renderEventContent}
-            // --- AJUSTES FINAIS DO CALENDÁRIO ---
-            slotMinTime="08:00:00"
-            slotMaxTime="20:00:00"   // <-- Horário corrigido para terminar às 20h
-            allDaySlot={false}      // <-- Remove a secção "all-day"
-            // ------------------------------------
-            dateClick={handleDateClick}
-            eventClick={handleEventClick}
-          />
-        </Paper>
+    <Box sx={{ height: '100%', p: 2, boxSizing: 'border-box', overflowY: 'auto' }}>
+      <Box sx={{ display: 'flex', height: '100%', gap: 2 }}>
+        <Box sx={{ width: '300px', flexShrink: 0 }}>
+          <PacientesDoDiaSidebar refreshTrigger={0} />
+        </Box>
+        <Box sx={{ flexGrow: 1, display: 'flex', minHeight: 0 }}>
+          <Paper sx={{ width: '100%', height: '100%', p: 2, display: 'flex', flexDirection: 'column' }}>
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="timeGridWeek"
+              headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
+              locale="pt-br"
+              buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
+              height="100%"
+              events={fetchEvents}
+              eventContent={renderEventContent}
+              // --- AJUSTES FINAIS DO CALENDÁRIO ---
+              slotMinTime="08:00:00"
+              slotMaxTime="20:00:00" // <-- Horário corrigido para terminar às 20h
+              allDaySlot={false}     // <-- Remove a secção "all-day"
+              // ------------------------------------
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+            />
+          </Paper>
+        </Box>
       </Box>
       <AgendamentoModal
-        open={isModalOpen}
+        open={false}
         onClose={handleCloseModal}
         onSave={handleSave}
         initialData={selectedDateInfo}
