@@ -45,7 +45,15 @@ export default function LoginPage() {
   return (
     <Container component="main" maxWidth="xs">
       <Paper elevation={3} sx={{ mt: 8, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Box sx={{ mb: 2 }}>
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'center',       // Alinha verticalmente ao centro
+                justifyContent: 'center',   // Alinha horizontalmente ao centro
+                minHeight: '100vh',         // Garante que a altura é, no mínimo, a da tela
+                backgroundColor: '#f0f2f5', // Uma cor de fundo suave
+            }}
+        >
           <img src={logoImage} alt="Logo da Clínica Limalé" style={{ height: '80px' }} />
         </Box>
         <Typography component="h1" variant="h5">
