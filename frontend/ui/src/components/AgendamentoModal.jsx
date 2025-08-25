@@ -1,20 +1,27 @@
-// src/components/AgendamentoModal.jsx - VERSÃO FINAL E CORRIGIDA
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem, Box, Typography, Divider
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
+  Box, Typography, Divider
 } from '@mui/material';
+import VideocamIcon from '@mui/icons-material/Videocam';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import VideocamIcon from '@mui/icons-material/Videocam'; // Ícone para o botão
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
     
+    // 1. Estado inicial corrigido e limpo
     const getInitialFormData = () => ({
-        paciente: null, data_hora_inicio: '', data_hora_fim: '', status: 'Confirmado',
-        procedimento: null, plano_utilizado: null, tipo_atendimento: 'Particular', observacoes: '',
-        tipo_consulta: '',
+        paciente: null,
+        data_hora_inicio: '',
+        data_hora_fim: '',
+        status: 'Confirmado',
+        procedimento: null,
+        plano_utilizado: null,
+        tipo_atendimento: 'Particular',
+        observacoes: '',
+        link_telemedicina: '', // Campo para o link da telemedicina
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -24,27 +31,22 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    // --- CORREÇÃO: ADICIONAMOS A LÓGICA DE BUSCA DE DADOS ---
+    // Efeito para buscar pacientes e procedimentos (sem alterações)
     useEffect(() => {
         if (open) {
             setLoading(true);
             const fetchPacientes = apiClient.get('/pacientes/');
             const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-
             Promise.all([fetchPacientes, fetchProcedimentos])
                 .then(([pacientesResponse, procedimentosResponse]) => {
                     setPacientes(pacientesResponse.data);
                     setProcedimentos(procedimentosResponse.data);
-                })
-                .catch(error => {
-                    console.error("Erro ao buscar dados iniciais:", error);
-                    showSnackbar("Erro ao carregar dados.", 'error');
-                })
+                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
                 .finally(() => setLoading(false));
         }
     }, [open, showSnackbar]);
-
-    // Lógica de preenchimento do formulário (agora irá funcionar)
+    
+    // 2. useEffect de preenchimento corrigido para incluir o link da telemedicina
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -52,7 +54,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             return;
         }
 
-        // Só executa a lógica de edição se os dados já tiverem sido carregados
         if (editingEvent && pacientes.length > 0 && procedimentos.length > 0) {
             const dados = editingEvent.extendedProps;
             const pacienteObj = pacientes.find(p => p.id === dados.paciente) || null;
@@ -60,6 +61,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             
             if (pacienteObj) {
                 setFormData({
+                    ...getInitialFormData(),
                     paciente: pacienteObj,
                     data_hora_inicio: editingEvent.startStr.slice(0, 16),
                     data_hora_fim: editingEvent.endStr ? editingEvent.endStr.slice(0, 16) : '',
@@ -68,14 +70,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     plano_utilizado: dados.plano_utilizado,
                     tipo_atendimento: dados.tipo_atendimento,
                     observacoes: dados.observacoes || '',
+                    link_telemedicina: dados.link_telemedicina || '', // <-- Carrega o link existente
                 });
                 apiClient.get(`/pacientes/${pacienteObj.id}/`).then(res => setPacienteDetalhes(res.data));
             }
         } else if (initialData) {
-            setFormData(prev => ({ 
-                ...getInitialFormData(),
-                data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) 
-            }));
+            setFormData(prev => ({ ...prev, data_hora_inicio: new Date(initialData.start).toISOString().slice(0, 16) }));
         }
     }, [editingEvent, initialData, pacientes, procedimentos, open]);
 
@@ -100,14 +100,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     }, []);
 
      // 3. Lógica de submissão atualizada para enviar o ID do procedimento
-    const handleSubmit = async (e) => {
+     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         const submissionData = {
           ...formData,
           paciente: formData.paciente?.id || null,
-          procedimento: formData.procedimento?.id || null, // <-- Enviamos o ID do procedimento
-          // O campo 'tipo_consulta' será preenchido no backend se necessário, ou podemos derivá-lo aqui
+          procedimento: formData.procedimento?.id || null,
           tipo_consulta: formData.procedimento ? formData.procedimento.descricao : 'Consulta',
         };
 
@@ -127,26 +126,28 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     };
   
-  // --- NOVA FUNÇÃO PARA CRIAR A SALA DE TELEMEDICINA ---
+    // --- 3. Função handleCriarSala corrigida e simplificada ---
     const handleCriarSala = async () => {
-        const agendamentoId = editingEvent?.id || formData.id_do_agendamento_recem_criado; // Precisamos do ID
-        if (!agendamentoId) {
-            showSnackbar("Salve o agendamento primeiro antes de criar a sala.", "warning");
+        if (!editingEvent?.id) {
+            showSnackbar("Apenas agendamentos já salvos podem ter uma sala de telemedicina.", "warning");
             return;
         }
-
+        setIsSubmitting(true);
         try {
-            const response = await apiClient.post(`/agendamentos/${agendamentoId}/criar-telemedicina/`);
+            const response = await apiClient.post(`/agendamentos/${editingEvent.id}/criar-telemedicina/`);
             const link = response.data.link_telemedicina;
             
-            // Atualizamos o estado do formulário para mostrar o link
             setFormData(prev => ({ ...prev, link_telemedicina: link }));
             showSnackbar("Sala de telemedicina criada com sucesso!", "success");
-
-            // O ideal seria também mostrar o link na tela
+            // Atualiza a agenda para que o evento passe a ter o link
+            if (window.calendarApi) {
+                window.calendarApi.refetchEvents();
+            }
         } catch (error) {
             console.error("Erro ao criar sala de telemedicina:", error);
             showSnackbar("Erro ao criar sala de telemedicina.", "error");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -218,45 +219,35 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
           <Divider sx={{ my: 1 }} />
 
-          {/* --- SEÇÃO 2: NOVA ÁREA DE TELEMEDICINA --- */}
+           {/* --- SECÇÃO DE TELEMEDICINA CORRIGIDA --- */}
           <Box>
               <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                   Telemedicina
               </Typography>
               
-              {/* Se o link já existir no agendamento, mostra o campo de texto */}
               {formData.link_telemedicina ? (
                   <TextField
-                      label="Link da Consulta"
-                      value={formData.link_telemedicina}
-                      InputProps={{ readOnly: true }}
-                      fullWidth
-                      variant="filled"
-                      // Facilita a cópia do link ao clicar
+                      label="Link da Consulta" value={formData.link_telemedicina}
+                      InputProps={{ readOnly: true }} fullWidth variant="filled"
                       onClick={(e) => e.target.select()} 
                   />
               ) : (
-                  // Senão, mostra o botão para criar a sala
                   <Button
-                      variant="outlined"
-                      startIcon={<VideocamIcon />}
+                      variant="outlined" startIcon={<VideocamIcon />}
                       onClick={handleCriarSala}
-                      // O botão só fica ativo se for um agendamento já existente (modo de edição)
-                      disabled={!editingEvent}
+                      disabled={!editingEvent || isSubmitting}
                       fullWidth
                   >
                       Criar Sala de Telemedicina
                   </Button>
               )}
-              {/* Mostra uma dica se o botão estiver desabilitado */}
               {!editingEvent && (
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Salve o agendamento primeiro para poder gerar o link da telemedicina.
+                      Salve o agendamento primeiro para poder gerar o link.
                   </Typography>
               )}
           </Box>
         </DialogContent>
-
         <DialogActions>
           <Button onClick={onClose}>Cancelar</Button>
           <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente}>
