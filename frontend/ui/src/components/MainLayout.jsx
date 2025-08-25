@@ -1,5 +1,4 @@
-// src/components/MainLayout.jsx
-
+// src/components/MainLayout.jsx - VERSÃO FINAL E CORRIGIDA
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -14,14 +13,17 @@ export default function MainLayout() {
         className="content"
         sx={{ 
           flexGrow: 1,
-          overflowY: 'auto',
-          // --- ADICIONE ESTA LINHA ---
-          // Define uma cor de fundo padrão para toda a área de conteúdo.
-          // O '#f0f2f5' é um cinza claro comum em dashboards.
-          backgroundColor: '#f0f2f5', 
+          // Garante que o contentor tenha uma altura de referência
+          position: 'relative', 
         }}
       >
-        <Box sx={{ p: 2 }}>
+        {/* Este Box interno gere o scroll e o padding */}
+        <Box sx={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          overflowY: 'auto',
+          p: 2, // Padding aplicado aqui
+        }}>
             <Outlet />
         </Box>
       </Box>
