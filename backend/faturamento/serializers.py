@@ -1,9 +1,10 @@
-# faturamento/serializers.py
+# backend/faturamento/serializers.py
 
 from rest_framework import serializers
-from agendamentos.models import Agendamento
+# 1. Importa os modelos do próprio app faturamento
 from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, Procedimento
-
+# 2. Importa o modelo do app agendamentos em separado
+from agendamentos.models import Agendamento
 
 # --- Serializers de Suporte ---
 class PagamentoStatusSerializer(serializers.ModelSerializer):

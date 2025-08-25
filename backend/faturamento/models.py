@@ -2,8 +2,9 @@
 
 from django.db import models
 from django.conf import settings
-from django.utils import timezone # Importar timezone para data_pagamento
+from django.utils import timezone
 
+# NOTA: Nenhuma importação de 'agendamentos.models' aqui para evitar ciclos.
 # --- Modelo de Pagamento ---
 
 class Pagamento(models.Model):
