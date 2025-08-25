@@ -17,6 +17,7 @@ import FinanceiroPage from './pages/FinanceiroPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 import CategoriasDespesaPage from './pages/CategoriasDespesaPage';
 import ConveniosPage from './pages/ConveniosPage'; // Importe a nova página
+import TelemedicinaPage from './pages/TelemedicinaPage'; // <-- 1. Importe a nova página
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/pacientes" element={<PacientesPage />} />
               <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
+               <Route path="/telemedicina" element={<TelemedicinaPage />} />
               <Route path="/financeiro/*" element={<FinanceiroPage />} />
               <Route path="/configuracoes" element={<ConfiguracoesPage />} />
               <Route path="/configuracoes/categorias-despesa" element={<CategoriasDespesaPage />} />

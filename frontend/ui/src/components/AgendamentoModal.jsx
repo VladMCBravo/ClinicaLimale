@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import VideocamIcon from '@mui/icons-material/Videocam'; // Ícone para o botão
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
@@ -126,11 +127,37 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     };
   
-    return (
-     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+  // --- NOVA FUNÇÃO PARA CRIAR A SALA DE TELEMEDICINA ---
+    const handleCriarSala = async () => {
+        const agendamentoId = editingEvent?.id || formData.id_do_agendamento_recem_criado; // Precisamos do ID
+        if (!agendamentoId) {
+            showSnackbar("Salve o agendamento primeiro antes de criar a sala.", "warning");
+            return;
+        }
+
+        try {
+            const response = await apiClient.post(`/agendamentos/${agendamentoId}/criar-telemedicina/`);
+            const link = response.data.link_telemedicina;
+            
+            // Atualizamos o estado do formulário para mostrar o link
+            setFormData(prev => ({ ...prev, link_telemedicina: link }));
+            showSnackbar("Sala de telemedicina criada com sucesso!", "success");
+
+            // O ideal seria também mostrar o link na tela
+        } catch (error) {
+            console.error("Erro ao criar sala de telemedicina:", error);
+            showSnackbar("Erro ao criar sala de telemedicina.", "error");
+        }
+    };
+
+     return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+      
       <form onSubmit={handleSubmit}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '10px !important' }}>
+          
+          {/* --- SEÇÃO 1: DADOS PRINCIPAIS DO AGENDAMENTO --- */}
           <Autocomplete
             options={pacientes}
             getOptionLabel={(option) => option.nome_completo || ''}
@@ -149,9 +176,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             </Box>
           )}
 
-          <Divider />
-          
-          {/* --- 4. SELETOR DE PROCEDIMENTOS SUBSTITUI O CAMPO DE TEXTO ANTIGO --- */}
           <Autocomplete
             options={procedimentos}
             getOptionLabel={(option) => `${option.codigo_tuss} - ${option.descricao}` || ''}
@@ -171,7 +195,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}
             >
                 <MenuItem value="Particular">Particular</MenuItem>
-                <MenuItem value="Convenio" disabled={!formData.plano_utilizado}>Convênio</MenuItem>
+                <MenuItem value="Convenio" disabled={!formData.plano_convenio}>Convênio</MenuItem>
             </Select>
           </FormControl>
 
@@ -191,7 +215,48 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
               <MenuItem value="Não Compareceu">Não Compareceu</MenuItem>
             </Select>
           </FormControl>
+
+          <Divider sx={{ my: 1 }} />
+
+          {/* --- SEÇÃO 2: NOVA ÁREA DE TELEMEDICINA --- */}
+          <Box>
+              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                  Telemedicina
+              </Typography>
+              
+              {/* Se o link já existir no agendamento, mostra o campo de texto */}
+              {formData.link_telemedicina ? (
+                  <TextField
+                      label="Link da Consulta"
+                      value={formData.link_telemedicina}
+                      InputProps={{ readOnly: true }}
+                      fullWidth
+                      variant="filled"
+                      // Facilita a cópia do link ao clicar
+                      onClick={(e) => e.target.select()} 
+                  />
+              ) : (
+                  // Senão, mostra o botão para criar a sala
+                  <Button
+                      variant="outlined"
+                      startIcon={<VideocamIcon />}
+                      onClick={handleCriarSala}
+                      // O botão só fica ativo se for um agendamento já existente (modo de edição)
+                      disabled={!editingEvent}
+                      fullWidth
+                  >
+                      Criar Sala de Telemedicina
+                  </Button>
+              )}
+              {/* Mostra uma dica se o botão estiver desabilitado */}
+              {!editingEvent && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      Salve o agendamento primeiro para poder gerar o link da telemedicina.
+                  </Typography>
+              )}
+          </Box>
         </DialogContent>
+
         <DialogActions>
           <Button onClick={onClose}>Cancelar</Button>
           <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente}>
