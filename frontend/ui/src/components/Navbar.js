@@ -1,10 +1,11 @@
-// src/components/Navbar.jsx - VERSÃO COM TELEMEDICINA
+// src/components/Navbar.jsx - VERSÃO FINAL E CORRIGIDA
+
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
     FaCalendarAlt, FaUserFriends, FaFileInvoiceDollar, FaCog, 
-    FaSignOutAlt, FaTachometerAlt, FaVideo // <-- 1. Ícone novo
+    FaSignOutAlt, FaTachometerAlt, FaVideo
 } from 'react-icons/fa';
 import { IconButton } from '@mui/material';
 import logoImage from '../assets/logo.png';
@@ -19,7 +20,7 @@ const Navbar = () => {
                 <img src={logoImage} alt="Clínica Limalé" className="logo-image" />
 
                 <nav className="main-nav">
-                    {/* --- 2. ORDEM DAS ABAS CORRIGIDA --- */}
+                    {/* Ordem das abas corrigida */}
                     <NavLink to="/" end>
                         <FaCalendarAlt /> <span>Agenda</span>
                     </NavLink>
@@ -39,8 +40,21 @@ const Navbar = () => {
                     )}
                 </nav>
             </div>
-            {/* O resto do seu componente (nav-right) continua igual */}
-            {/* ... */}
+
+            {/* --- SECÇÃO DA DIREITA (SAUDAÇÃO E BOTÕES) RESTAURADA --- */}
+            <div className="nav-right">
+                <span className="user-greeting">Olá, {user ? user.first_name : ''}</span>
+                <div className="user-actions">
+                    {user && user.isAdmin && (
+                        <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
+                            <FaCog />
+                        </IconButton>
+                    )}
+                    <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
+                        <FaSignOutAlt />
+                    </IconButton>
+                </div>
+            </div>
         </header>
     );
 };

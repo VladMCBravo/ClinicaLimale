@@ -1,4 +1,5 @@
-// src/components/MainLayout.jsx - VERSÃO FINAL E CORRIGIDA
+// src/components/MainLayout.jsx
+
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -13,12 +14,16 @@ export default function MainLayout() {
         className="content"
         sx={{ 
           flexGrow: 1,
-          // Permite que páginas com conteúdo longo tenham a sua própria barra de rolagem
-          overflowY: 'auto', 
+          overflowY: 'auto',
+          // --- ADICIONE ESTA LINHA ---
+          // Define uma cor de fundo padrão para toda a área de conteúdo.
+          // O '#f0f2f5' é um cinza claro comum em dashboards.
+          backgroundColor: '#f0f2f5', 
         }}
       >
-        {/* Não colocamos padding aqui. Cada página será responsável pelo seu espaçamento. */}
-        <Outlet />
+        <Box sx={{ p: 2 }}>
+            <Outlet />
+        </Box>
       </Box>
     </Box>
   );
