@@ -10,7 +10,7 @@ from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from django.utils import timezone
 from django.core.mail import send_mail
 from faturamento.models import Pagamento, Procedimento
-from datetime import datetime, timedelta
+import datetime # ALTERADO: Importe o módulo datetime inteiro
 import requests
 import os
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser, AllowRead_WriteRecepcaoAdmin
@@ -145,9 +145,10 @@ class CriarSalaTelemedicinaView(APIView):
             'Content-Type': 'application/json',
         }
 
-        # A API da Daily permite configurar a expiração da sala em UNIX timestamp
         # Vamos definir para expirar 2 horas após o início da consulta
-        expiracao = agendamento.data_hora_inicio + datetime.timedelta(hours=2)
+        # ALTERADO: Acessamos o timedelta a partir do módulo datetime que importamos
+        expiracao = agendamento.data_hora_inicio + datetime.timedelta(hours=2) #
+        
         payload = {
             'properties': {
                 'exp': int(expiracao.timestamp())
