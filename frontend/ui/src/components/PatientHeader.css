@@ -1,0 +1,30 @@
+/* src/components/PatientHeader.css */
+/* NOVO: Este é um arquivo de estilo totalmente novo. */
+
+.patient-header {
+  background-color: #ffffff;
+  padding: 16px 24px;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px; /* Adiciona um espaço antes do conteúdo do prontuário */
+
+  /* A mágica para o header ficar fixo no topo da rolagem */
+  position: sticky;
+  top: 0;
+  z-index: 1000; /* Garante que ele fique acima de outros elementos */
+}
+
+.patient-name {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #343a40;
+}
+
+.patient-vitals {
+  display: flex;
+  gap: 24px; /* Espaçamento entre os itens */
+  font-size: 1rem;
+  color: #495057;
+}

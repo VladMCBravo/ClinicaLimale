@@ -1,17 +1,17 @@
-// src/pages/ProntuarioPage.jsx
+// src/pages/ProntuarioPage.jsx - VERSÃO COM HEADER FIXO DO PACIENTE
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
 import { Box, Typography, Paper, Tabs, Tab, CircularProgress } from '@mui/material';
 
-// --- Importe os componentes das abas que você criou ---
 import AnamneseTab from '../components/prontuario/AnamneseTab';
 import EvolucoesTab from '../components/prontuario/EvolucoesTab';
 import PrescricoesTab from '../components/prontuario/PrescricoesTab'; 
 import AtestadosTab from '../components/prontuario/AtestadosTab'; 
-import AnexosTab from '../components/prontuario/AnexosTab'; // <-- IMPORTE O NOVO COMPONENTE
+import AnexosTab from '../components/prontuario/AnexosTab';
+import PatientHeader from '../components/PatientHeader'; // NOVO: Importamos o novo componente
 
-// Componente auxiliar para painel de abas (continua o mesmo)
 function TabPanel(props) {
   const { children, value, index } = props;
   return (
@@ -56,43 +56,46 @@ export default function ProntuarioPage() {
       </Paper>
     );
   }
-
+  
+  // NOVO: A verificação de !paciente foi movida para depois do 'loading' para evitar um piscar na tela.
   if (!paciente) {
-    return null;
+    return null; 
   }
 
   return (
-    <Paper sx={{ p: 2, margin: 'auto' }}>
-      <Typography variant="h5" gutterBottom>
-        Prontuário de: {paciente.nome_completo}
-      </Typography>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={activeTab} onChange={(event, newValue) => setActiveTab(newValue)}>
-          <Tab label="Anamnese" />
-          <Tab label="Evoluções" />
-          <Tab label="Prescrições" />
-          <Tab label="Atestados" /> 
-          <Tab label="Anexos" /> 
-        </Tabs>
-      </Box>
-      
-      {/* Agora estamos renderizando os componentes reais dentro das abas */}
-      <TabPanel value={activeTab} index={0}>
-        <AnamneseTab pacienteId={paciente.id} />
-      </TabPanel>
-      <TabPanel value={activeTab} index={1}>
-        <EvolucoesTab pacienteId={paciente.id} />
-      </TabPanel>
-      <TabPanel value={activeTab} index={2}>
-        <PrescricoesTab pacienteId={paciente.id} />
-      </TabPanel>
-      <TabPanel value={activeTab} index={3}>
-        <AtestadosTab pacienteId={paciente.id} />
-      </TabPanel>
-      <TabPanel value={activeTab} index={4}>
-        {/* ADICIONE O NOVO PAINEL COM O COMPONENTE */}
-        <AnexosTab pacienteId={paciente.id} />
-      </TabPanel>
-    </Paper>
+    // NOVO: Usamos um Box como container principal para o header e o conteúdo.
+    <Box> 
+      {/* NOVO: Adicionamos o header do paciente aqui, passando os dados do paciente */}
+      <PatientHeader paciente={paciente} />
+
+      <Paper sx={{ p: 2, margin: 'auto' }}>
+        {/* ALTERADO: Removemos o Typography com o nome, pois ele já está no header. */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={activeTab} onChange={(event, newValue) => setActiveTab(newValue)}>
+            <Tab label="Anamnese" />
+            <Tab label="Evoluções" />
+            <Tab label="Prescrições" />
+            <Tab label="Atestados" /> 
+            <Tab label="Anexos" /> 
+          </Tabs>
+        </Box>
+        
+        <TabPanel value={activeTab} index={0}>
+          <AnamneseTab pacienteId={paciente.id} />
+        </TabPanel>
+        <TabPanel value={activeTab} index={1}>
+          <EvolucoesTab pacienteId={paciente.id} />
+        </TabPanel>
+        <TabPanel value={activeTab} index={2}>
+          <PrescricoesTab pacienteId={paciente.id} />
+        </TabPanel>
+        <TabPanel value={activeTab} index={3}>
+          <AtestadosTab pacienteId={paciente.id} />
+        </TabPanel>
+        <TabPanel value={activeTab} index={4}>
+          <AnexosTab pacienteId={paciente.id} />
+        </TabPanel>
+      </Paper>
+    </Box>
   );
 }
