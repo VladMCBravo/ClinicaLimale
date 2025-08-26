@@ -146,7 +146,7 @@ class CriarSalaTelemedicinaView(APIView):
 
         # A API da Daily permite configurar a expiração da sala em UNIX timestamp
         # Vamos definir para expirar 2 horas após o início da consulta
-        expiracao = agendamento.data_hora_inicio + timedelta(hours=2)
+        expiracao = agendamento.data_hora_inicio + datetime.timedelta(hours=2)
         payload = {
             'properties': {
                 'exp': int(expiracao.timestamp())

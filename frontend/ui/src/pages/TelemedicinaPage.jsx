@@ -17,7 +17,8 @@ export default function TelemedicinaPage() {
     const fetchConsultas = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await apiClient.get('/agendamentos/telemedicina/');
+            // Adicionamos um parâmetro aleatório para evitar o cache
+            const response = await apiClient.get(`/agendamentos/telemedicina/?timestamp=${new Date().getTime()}`);
             setConsultas(response.data);
         } catch (error) {
             console.error("Erro ao buscar consultas de telemedicina:", error);
