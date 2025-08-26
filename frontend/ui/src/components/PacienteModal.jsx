@@ -14,9 +14,12 @@ const initialState = {
   email: '',
   telefone_celular: '',
   cpf: '',
+  // NOVO: Adicionamos peso e altura ao estado inicial
+  peso: '',
+  altura: '',
   medico_responsavel: null,
-  plano_convenio: null, // <-- NOVO: Armazenará o ID do plano selecionado
-  numero_carteirinha: '', // <-- NOVO
+  plano_convenio: null,
+  numero_carteirinha: '',
 };
 
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
@@ -51,19 +54,21 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   }, [open]);
 
   // Efeito para preencher o formulário (MODIFICADO)
-  useEffect(() => {
+useEffect(() => {
     if (open) {
       if (pacienteParaEditar) {
-        // MODO EDIÇÃO
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
           email: pacienteParaEditar.email || '',
           telefone_celular: pacienteParaEditar.telefone_celular || '',
           cpf: pacienteParaEditar.cpf || '',
+          // NOVO: Preenchemos os campos de peso e altura no modo de edição
+          peso: pacienteParaEditar.peso || '',
+          altura: pacienteParaEditar.altura || '',
           medico_responsavel: pacienteParaEditar.medico_responsavel || null,
-          plano_convenio: pacienteParaEditar.plano_convenio || null, // <-- NOVO
-          numero_carteirinha: pacienteParaEditar.numero_carteirinha || '', // <-- NOVO
+          plano_convenio: pacienteParaEditar.plano_convenio || null,
+          numero_carteirinha: pacienteParaEditar.numero_carteirinha || '',
         });
         
         // --- LÓGICA ADICIONAL PARA PREENCHER OS AUTOCOMPLETES DE CONVÊNIO/PLANO ---
@@ -107,8 +112,12 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     e.preventDefault();
     setIsLoading(true);
     
-    // O ID do médico já está correto no estado
-    const dataToSend = { ...formData }; 
+     // ALTERADO: Garantimos que os novos campos sejam incluídos no envio para a API
+    const dataToSend = { 
+      ...formData,
+      peso: formData.peso || null, // Envia 'null' se o campo estiver vazio
+      altura: formData.altura || null,
+    }; 
 
     try {
       if (pacienteParaEditar) {
@@ -145,6 +154,11 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} />
             <TextField name="telefone_celular" label="Telefone Celular" value={formData.telefone_celular} onChange={handleChange} />
             <TextField name="data_nascimento" label="Data de Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+             {/* NOVO: Adicionamos os campos de peso e altura em uma linha */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth />
+                <TextField name="altura" label="Altura (m)" type="number" value={formData.altura} onChange={handleChange} fullWidth />
+            </Box>
             <Autocomplete
               options={medicos}
               getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}

@@ -89,24 +89,28 @@ export default function AgendaPage() {
     show({ event, id: menuId, props: { agendamento } });
   }
 
-  // NOVO: Função para lidar com as ações do menu
-  const handleMenuAction = (action, agendamento) => {
-    if (action === 'abrirProntuario') {
-        // CORREÇÃO: Usamos agendamento.paciente aqui também.
-        navigate(`/pacientes/${agendamento.paciente}/prontuario`);
-    } else if (action === 'editarAgendamento') {
-        const mockEvent = { 
-            id: agendamento.id, 
-            extendedProps: agendamento, 
-            start: new Date(agendamento.data_hora_inicio), 
-            end: new Date(agendamento.data_hora_fim),
-            title: agendamento.paciente_nome // Adicionado para consistência
-        };
-        setEditingEvent(mockEvent);
-        setIsModalOpen(true);
-    }
+// ALTERADO: Esta função agora vai REUTILIZAR a lógica do clique esquerdo
+const handleMenuAction = (action, agendamento) => {
+  if (action === 'abrirProntuario') {
+    navigate(`/pacientes/${agendamento.paciente}/prontuario`);
+  } else if (action === 'editarAgendamento') {
+    // A MÁGICA ACONTECE AQUI:
+    // Em vez de duplicar a lógica, nós montamos um objeto simples
+    // e chamamos a função handleEventClick que já funciona perfeitamente.
+    const mockClickInfo = {
+      event: {
+        id: agendamento.id,
+        extendedProps: agendamento,
+        start: new Date(agendamento.data_hora_inicio),
+        end: new Date(agendamento.data_hora_fim),
+        title: agendamento.paciente_nome
+      }
+    };
+    handleEventClick(mockClickInfo); // <<-- REUTILIZANDO A FUNÇÃO EXISTENTE
+  }
   // Adicione outras ações futuras aqui...
-  };
+};
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingEvent(null);

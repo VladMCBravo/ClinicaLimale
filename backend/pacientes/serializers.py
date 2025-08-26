@@ -3,17 +3,15 @@
 from rest_framework import serializers
 from .models import Paciente
 from datetime import date
-from faturamento.serializers import PlanoConvenioSerializer # Importe
+from faturamento.serializers import PlanoConvenioSerializer
 
 class PacienteSerializer(serializers.ModelSerializer):
-    # Campos calculados para enriquecer a resposta da API
     idade = serializers.SerializerMethodField()
     total_consultas = serializers.SerializerMethodField()
     plano_convenio_detalhes = PlanoConvenioSerializer(source='plano_convenio', read_only=True)
 
     class Meta:
         model = Paciente
-        # Adicionamos os novos campos à lista
         fields = [
             'id', 
             'nome_completo', 
@@ -21,9 +19,12 @@ class PacienteSerializer(serializers.ModelSerializer):
             'email',
             'telefone_celular',
             'cpf',
+            # NOVO: Adicionamos os novos campos à lista para que a API os reconheça.
+            'peso',
+            'altura',
             'plano_convenio',
             'numero_carteirinha',
-            'medico_responsavel', # <-- A LINHA QUE FALTAVA
+            'medico_responsavel',
             # --- Campos de leitura ---
             'plano_convenio_detalhes',
             'idade',

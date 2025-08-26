@@ -1,5 +1,7 @@
+# backend/pacientes/models.py
+
 from django.db import models
-from django.conf import settings # Importa as configurações do Django
+from django.conf import settings
 from usuarios.models import CustomUser
 
 
@@ -10,9 +12,6 @@ class Paciente(models.Model):
         ('Outro', 'Outro'),
     ]
 
-    # --- NOVO CAMPO ---
-    # Liga o paciente a um usuário (que será o médico)
-    # on_delete=models.SET_NULL: se o médico for deletado, o campo fica nulo mas o paciente continua no sistema
     medico_responsavel = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -25,8 +24,12 @@ class Paciente(models.Model):
     # Dados Demográficos
     nome_completo = models.CharField(max_length=255)
     data_nascimento = models.DateField()
-    cpf = models.CharField(max_length=14, unique=True) # "unique=True" garante que não haja CPFs duplicados
+    cpf = models.CharField(max_length=14, unique=True)
     genero = models.CharField(max_length=20, choices=GENERO_CHOICES, blank=True)
+    # NOVO: Adicionamos os campos de peso e altura aqui.
+    # Usamos blank=True e null=True para torná-los opcionais.
+    peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Peso em kg")
+    altura = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, help_text="Altura em metros")
 
     # Informações de Contato
     telefone_celular = models.CharField(max_length=20)
