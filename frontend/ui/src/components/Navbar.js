@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx - VERSÃO FINAL E CORRIGIDA
+// src/components/Navbar.jsx - VERSÃO COM LÓGICA DE PERMISSÃO PRECISA
 
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
@@ -14,47 +14,60 @@ import './Navbar.css';
 const Navbar = () => {
     const { user, logout } = useAuth();
 
+    // Não precisamos mais de variáveis locais, pois o hook useAuth já nos dá as flags.
+
     return (
         <header className="main-header">
             <div className="nav-left">
                 <img src={logoImage} alt="Clínica Limalé" className="logo-image" />
 
-                <nav className="main-nav">
-                    {/* Ordem das abas corrigida */}
-                    <NavLink to="/" end>
-                        <FaCalendarAlt /> <span>Agenda</span>
-                    </NavLink>
-                    <NavLink to="/pacientes">
-                        <FaUserFriends /> <span>Pacientes</span>
-                    </NavLink>
-                    <NavLink to="/telemedicina">
-                        <FaVideo /> <span>Telemedicina</span>
-                    </NavLink>
-                    <NavLink to="/financeiro">
-                        <FaFileInvoiceDollar /> <span>Financeiro</span>
-                    </NavLink>
-                    {user && user.isAdmin && (
-                        <NavLink to="/dashboard">
-                            <FaTachometerAlt /> <span>Dashboard</span>
+                {/* A navegação só aparece se o usuário estiver logado */}
+                {user && (
+                    <nav className="main-nav">
+                        {/* Links visíveis para TODOS */}
+                        <NavLink to="/" end>
+                            <FaCalendarAlt /> <span>Agenda</span>
                         </NavLink>
-                    )}
-                </nav>
+                        <NavLink to="/pacientes">
+                            <FaUserFriends /> <span>Pacientes</span>
+                        </NavLink>
+                        <NavLink to="/telemedicina">
+                            <FaVideo /> <span>Telemedicina</span>
+                        </NavLink>
+
+                        {/* Links visíveis para ADMIN e RECEPÇÃO */}
+                        {(user.isAdmin || user.isRecepcao) && (
+                            <>
+                                <NavLink to="/financeiro">
+                                    <FaFileInvoiceDollar /> <span>Financeiro</span>
+                                </NavLink>
+                                <NavLink to="/dashboard">
+                                    <FaTachometerAlt /> <span>Dashboard</span>
+                                </NavLink>
+                            </>
+                        )}
+                    </nav>
+                )}
             </div>
 
-            {/* --- SECÇÃO DA DIREITA (SAUDAÇÃO E BOTÕES) RESTAURADA --- */}
-            <div className="nav-right">
-                <span className="user-greeting">Olá, {user ? user.first_name : ''}</span>
-                <div className="user-actions">
-                    {user && user.isAdmin && (
-                        <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
-                            <FaCog />
+            {user && (
+                <div className="nav-right">
+                    <span className="user-greeting">Olá, {user.first_name || ''}</span>
+                    <div className="user-actions">
+
+                        {/* Ícone de Configurações visível APENAS PARA ADMIN */}
+                        {user.isAdmin && (
+                            <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
+                                <FaCog />
+                            </IconButton>
+                        )}
+
+                        <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
+                            <FaSignOutAlt />
                         </IconButton>
-                    )}
-                    <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
-                        <FaSignOutAlt />
-                    </IconButton>
+                    </div>
                 </div>
-            </div>
+            )}
         </header>
     );
 };

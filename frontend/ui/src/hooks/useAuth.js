@@ -1,4 +1,5 @@
-// src/hooks/useAuth.js
+// src/hooks/useAuth.js - VERSÃO CORRIGIDA E MELHORADA
+
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
@@ -6,23 +7,26 @@ import apiClient from '../api/axiosConfig';
 export const useAuth = () => {
     const navigate = useNavigate();
 
-    // useMemo garante que esta lógica só rode quando necessário, otimizando a performance.
     const user = useMemo(() => {
         try {
             const userDataString = sessionStorage.getItem('userData');
             if (userDataString && userDataString !== 'undefined') {
                 const userData = JSON.parse(userDataString);
-                // Adiciona a propriedade 'isAdmin' para facilitar as verificações
+                
+                // ADICIONA FLAGS BOOLEANAS PARA CADA CARGO
+                // Isso torna as verificações nos componentes muito mais fáceis e legíveis.
                 userData.isAdmin = userData.cargo === 'admin';
+                userData.isRecepcao = userData.cargo === 'recepcao';
+                userData.isMedico = userData.cargo === 'medico';
+                
                 return userData;
             }
         } catch (error) {
             console.error("Erro ao processar dados do usuário:", error);
-            // Se houver erro, limpa a sessão para evitar loops de erro
             sessionStorage.clear();
             return null;
         }
-        return null; // Retorna null se não houver dados
+        return null;
     }, []);
 
     const logout = async () => {
@@ -31,7 +35,7 @@ export const useAuth = () => {
         } catch (error) {
             console.error("Erro no logout da API:", error);
         } finally {
-            sessionStorage.clear(); // Limpa toda a sessão
+            sessionStorage.clear();
             navigate('/login');
         }
     };
