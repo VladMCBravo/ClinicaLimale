@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # No Render, você já sabe como adicionar variáveis de ambiente.
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key-for-development')
 
-# --- MELHORIA DE DEBUG: Ativar/desativar o modo de depuração automaticamente ---
+# --- MELHORIA DE DEBUG - Ativar/desativar o modo de depuração automaticamente ---
 # O valor 'False' é mais seguro para produção. 'True' só será usado se você definir
 # a variável de ambiente DEBUG=True, o que é útil para depuração remota.
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
