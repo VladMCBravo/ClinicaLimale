@@ -125,42 +125,57 @@ class EnviarLembretesCronView(APIView):
 
 # --- VIEW DE TELEMEDICINA COM A CORREÇÃO DE FUSO HORÁRIO ---
 class CriarSalaTelemedicinaView(APIView):
-    permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
     def post(self, request, agendamento_id, *args, **kwargs):
         try:
-            agendamento = Agendamento.objects.get(id=agendamento_id)
+            agendamento = Agendamento.objects.get(pk=agendamento_id)
         except Agendamento.DoesNotExist:
             return Response({'detail': 'Agendamento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if agendamento.link_telemedicina:
-            return Response({'link_telemedicina': agendamento.link_telemedicina}, status=status.HTTP_200_OK)
-
-        api_key = os.environ.get('WHEREBY_API_KEY')
+        # --- LÓGICA PARA A API DA DAILY.CO ---
+        api_key = os.environ.get('DAILY_API_KEY') # <-- Usaremos uma nova variável de ambiente
         if not api_key:
-            return Response({'detail': 'API Key do serviço de vídeo não configurada no servidor.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'detail': 'A chave da API de vídeo não está configurada no servidor.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        headers = { 'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json' }
-        end_time = agendamento.data_hora_fim + datetime.timedelta(hours=1)
-        end_time_utc = end_time.astimezone(datetime.timezone.utc)
-        endDate = end_time_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
-        payload = { "endDate": endDate, "fields": ["hostRoomUrl"] }
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        }
+
+        # A API da Daily permite configurar a expiração da sala em UNIX timestamp
+        # Vamos definir para expirar 2 horas após o início da consulta
+        expiracao = agendamento.data_hora_inicio + timedelta(hours=2)
+        payload = {
+            'properties': {
+                'exp': int(expiracao.timestamp())
+            }
+        }
 
         try:
-            response = requests.post('https://api.whereby.com/v1/meetings', headers=headers, json=payload)
-            response.raise_for_status()
+            # O endpoint para criar salas na Daily.co é /rooms
+            response = requests.post('https://api.daily.co/v1/rooms', headers=headers, json=payload)
+            response.raise_for_status()  # Lança exceção para erros 4xx/5xx
+
             data = response.json()
-            link_sala = data.get('roomUrl')
-            id_sala = data.get('meetingId')
+            room_url = data.get('url')
+            room_id = data.get('id')
 
-            if not link_sala:
-                return Response({'detail': 'Não foi possível obter o link da sala.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            agendamento.link_telemedicina = link_sala
-            agendamento.id_sala_telemedicina = id_sala
+            # Salva os dados no nosso modelo de agendamento
+            agendamento.link_telemedicina = room_url
+            agendamento.id_sala_telemedicina = room_id
             agendamento.save()
-            return Response({'link_telemedicina': link_sala}, status=status.HTTP_201_CREATED)
+
+            return Response({'roomUrl': room_url}, status=status.HTTP_201_CREATED)
+
         except requests.exceptions.RequestException as e:
-            return Response({'detail': f'Erro ao comunicar com a API do Whereby: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Captura o erro da API e o retorna de forma clara
+            error_detail = f'Erro ao comunicar com a API da Daily.co: {e}'
+            if e.response:
+                error_detail += f" | Resposta: {e.response.text}"
+
+            return Response({'detail': error_detail}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- A VIEW QUE ESTAVA EM FALTA ---
 class TelemedicinaListView(generics.ListAPIView):
