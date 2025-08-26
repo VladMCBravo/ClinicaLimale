@@ -119,6 +119,22 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# --- MELHORIA DE SEGURANÇA PARA COOKIES EM PRODUÇÃO ---
+# Necessário para que a autenticação funcione com frontend e backend em domínios diferentes,
+# especialmente em navegadores com alta privacidade como o Safari.
+
+# Permite que o cookie seja enviado em requisições de outros domínios (cross-site)
+SESSION_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SAMESITE = 'None'
+
+# Exige que os cookies acima só sejam enviados através de uma conexão segura (HTTPS)
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# Permite que o frontend envie credenciais (como cookies de sessão) para o backend
+CORS_ALLOW_CREDENTIALS = True
+
 # Se o seu frontend e backend estiverem em subdomínios do mesmo site no futuro,
 # você pode usar esta configuração, que é mais segura.
 # CORS_TRUSTED_ORIGINS = ['https://clinica-limale.vercel.app']

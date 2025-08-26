@@ -20,8 +20,8 @@ export default function TelemedicinaPage() {
             const response = await apiClient.get('/agendamentos/telemedicina/');
             setConsultas(response.data);
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || "Erro ao carregar as consultas de telemedicina.";
-            showSnackbar(errorMessage, "error");
+            console.error("Erro ao buscar consultas de telemedicina:", error);
+            showSnackbar("Erro ao carregar consultas.", "error");
         } finally {
             setIsLoading(false);
         }
@@ -37,8 +37,8 @@ export default function TelemedicinaPage() {
             showSnackbar("Sala criada com sucesso!", "success");
             fetchConsultas(); // Atualiza a lista para mostrar o novo link
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || "Erro ao criar a sala de telemedicina.";
-            showSnackbar(errorMessage, "error");
+            console.error("Erro ao criar sala:", error.response?.data);
+            showSnackbar("Erro ao criar a sala de telemedicina.", "error");
         }
     };
 
