@@ -72,13 +72,15 @@ export default function AgendaPage() {
   const handleEventClick = (clickInfo) => {
     const agendamento = clickInfo.event.extendedProps;
     if (user?.isMedico) {
-      navigate(`/pacientes/${agendamento.paciente.id}/prontuario`);
+      // CORREÇÃO: Usamos agendamento.paciente, que deve conter o ID do paciente.
+      navigate(`/pacientes/${agendamento.paciente}/prontuario`);
     } else if (user?.isAdmin || user?.isRecepcao) {
       setSelectedDateInfo(null);
       setEditingEvent(clickInfo.event);
       setIsModalOpen(true);
     }
-  };
+};
+
 
   // NOVO: Função para o menu de clique direito
   const handleContextMenu = (event, agendamento) => {
@@ -90,15 +92,21 @@ export default function AgendaPage() {
   // NOVO: Função para lidar com as ações do menu
   const handleMenuAction = (action, agendamento) => {
     if (action === 'abrirProntuario') {
-        navigate(`/pacientes/${agendamento.paciente.id}/prontuario`);
+        // CORREÇÃO: Usamos agendamento.paciente aqui também.
+        navigate(`/pacientes/${agendamento.paciente}/prontuario`);
     } else if (action === 'editarAgendamento') {
-        const mockEvent = { id: agendamento.id, extendedProps: agendamento, start: new Date(agendamento.data_hora_inicio), end: new Date(agendamento.data_hora_fim) };
+        const mockEvent = { 
+            id: agendamento.id, 
+            extendedProps: agendamento, 
+            start: new Date(agendamento.data_hora_inicio), 
+            end: new Date(agendamento.data_hora_fim),
+            title: agendamento.paciente_nome // Adicionado para consistência
+        };
         setEditingEvent(mockEvent);
         setIsModalOpen(true);
     }
-    // Adicione outras ações futuras aqui...
+  // Adicione outras ações futuras aqui...
   };
-  
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingEvent(null);
