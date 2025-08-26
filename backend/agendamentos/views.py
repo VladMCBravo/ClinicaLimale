@@ -10,7 +10,7 @@ from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from django.utils import timezone
 from django.core.mail import send_mail
 from faturamento.models import Pagamento, Procedimento
-import datetime
+from datetime import datetime, timedelta
 import requests
 import os
 
