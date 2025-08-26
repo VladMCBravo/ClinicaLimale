@@ -1,106 +1,127 @@
-// src/pages/TelemedicinaPage.jsx - VERSÃO FINAL E FUNCIONAL
+// src/pages/TelemedicinaPage.jsx - VERSÃO COMPLETA E FUNCIONAL
+
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-    Box, Paper, Typography, CircularProgress, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, Button, Link
-} from '@mui/material';
-import VideocamIcon from '@mui/icons-material/Videocam';
-import LinkIcon from '@mui/icons-material/Link';
+import { Box, Paper, Typography, Button, CircularProgress } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 export default function TelemedicinaPage() {
-    const [consultas, setConsultas] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const { showSnackbar } = useSnackbar();
+  const [consultas, setConsultas] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [criandoSalaId, setCriandoSalaId] = useState(null); // NOVO: Para mostrar loading no botão certo
+  const { showSnackbar } = useSnackbar();
 
-    const fetchConsultas = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            // Adicionamos um parâmetro aleatório para evitar o cache
-            const response = await apiClient.get(`/agendamentos/telemedicina/?timestamp=${new Date().getTime()}`);
-            setConsultas(response.data);
-        } catch (error) {
-            console.error("Erro ao buscar consultas de telemedicina:", error);
-            showSnackbar("Erro ao carregar consultas.", "error");
-        } finally {
-            setIsLoading(false);
-        }
-    }, [showSnackbar]);
+  // Função para buscar as consultas da API
+  const fetchConsultas = useCallback(() => {
+    setIsLoading(true);
+    apiClient.get('/agendamentos/telemedicina/') // Assumindo que este é o seu endpoint
+      .then(response => {
+        setConsultas(response.data);
+      })
+      .catch(err => {
+        console.error("Erro ao buscar consultas de telemedicina:", err);
+        showSnackbar('Erro ao carregar consultas.', 'error');
+      })
+      .finally(() => setIsLoading(false));
+  }, [showSnackbar]);
 
-    useEffect(() => {
-        fetchConsultas();
-    }, [fetchConsultas]);
+  // Busca as consultas quando o componente monta
+  useEffect(() => {
+    fetchConsultas();
+  }, [fetchConsultas]);
 
-    const handleCriarSala = async (agendamentoId) => {
-        try {
-            await apiClient.post(`/agendamentos/${agendamentoId}/criar-telemedicina/`);
-            showSnackbar("Sala criada com sucesso!", "success");
-            fetchConsultas(); // Atualiza a lista para mostrar o novo link
-        } catch (error) {
-            console.error("Erro ao criar sala:", error.response?.data);
-            showSnackbar("Erro ao criar a sala de telemedicina.", "error");
-        }
-    };
 
-    if (isLoading) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
-    }
+  // ALTERADO: Função para criar a sala agora atualiza a interface
+  const handleCriarSala = (agendamentoId) => {
+    setCriandoSalaId(agendamentoId); // Ativa o loading no botão específico
+    
+    apiClient.post(`/agendamentos/${agendamentoId}/criar-telemedicina/`)
+      .then(response => {
+        showSnackbar('Sala criada com sucesso!', 'success');
+        
+        // NOVO: Atualiza a lista de consultas em tempo real
+        // Encontramos a consulta que foi atualizada e adicionamos o link nela
+        setConsultas(prevConsultas => 
+          prevConsultas.map(consulta => 
+            consulta.id === agendamentoId 
+              ? { ...consulta, link_telemedicina: response.data.roomUrl } 
+              : consulta
+          )
+        );
+      })
+      .catch(err => {
+        console.error("Erro ao criar sala:", err);
+        showSnackbar('Erro ao criar a sala de telemedicina.', 'error');
+      })
+      .finally(() => {
+        setCriandoSalaId(null); // Desativa o loading
+      });
+  };
 
-    return (
-        <Box sx={{ p: 2 }}>
-            <Paper sx={{ p: 2 }}>
-                <Typography variant="h5" gutterBottom>
-                    Consultas de Telemedicina
-                </Typography>
-                <TableContainer>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Data e Hora</TableCell>
-                                <TableCell>Paciente</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell align="center">Ações</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {consultas.length > 0 ? (
-                                consultas.map((ag) => (
-                                    <TableRow key={ag.id}>
-                                        <TableCell>{new Date(ag.data_hora_inicio).toLocaleString('pt-BR')}</TableCell>
-                                        <TableCell>{ag.paciente_nome}</TableCell>
-                                        <TableCell>{ag.status}</TableCell>
-                                        <TableCell align="center">
-                                            {ag.link_telemedicina ? (
-                                                <Button
-                                                    variant="contained" color="success"
-                                                    startIcon={<LinkIcon />} component={Link} href={ag.link_telemedicina}
-                                                    target="_blank"
-                                                >
-                                                    Aceder à Sala
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    variant="outlined" startIcon={<VideocamIcon />}
-                                                    onClick={() => handleCriarSala(ag.id)}
-                                                >
-                                                    Criar Sala
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} align="center">
-                                        Não há consultas de telemedicina agendadas.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Paper>
-        </Box>
-    );
+  // NOVO: Função para copiar o link para a área de transferência
+  const handleCopiarLink = (link) => {
+    navigator.clipboard.writeText(link);
+    showSnackbar('Link copiado para a área de transferência!', 'info');
+  };
+
+  if (isLoading) {
+    return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+  }
+
+  return (
+    <Paper sx={{ p: 2, margin: 'auto' }}>
+      <Typography variant="h5" gutterBottom>
+        Consultas de Telemedicina
+      </Typography>
+      
+      {/* Tabela para listar as consultas */}
+      <table width="100%" style={{ borderCollapse: 'collapse', marginTop: '20px' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #ddd' }}>
+            <th align="left" style={{ padding: '8px' }}>Data e Hora</th>
+            <th align="left" style={{ padding: '8px' }}>Paciente</th>
+            <th align="left" style={{ padding: '8px' }}>Status</th>
+            <th align="left" style={{ padding: '8px' }}>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {consultas.length === 0 ? (
+            <tr><td colSpan="4" align="center" style={{ padding: '16px' }}>Nenhuma consulta de telemedicina encontrada.</td></tr>
+          ) : (
+            consultas.map(consulta => (
+              <tr key={consulta.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px' }}>{new Date(consulta.data_hora_inicio).toLocaleString('pt-BR')}</td>
+                <td style={{ padding: '8px' }}>{consulta.paciente_nome}</td>
+                <td style={{ padding: '8px' }}>{consulta.status}</td>
+                <td style={{ padding: '8px' }}>
+                  
+                  {/* ALTERADO: Lógica condicional para os botões */}
+                  {consulta.link_telemedicina ? (
+                    // Se o link JÁ EXISTE, mostra os botões de ação
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button variant="contained" onClick={() => window.open(consulta.link_telemedicina, '_blank')}>
+                        Entrar na Sala
+                      </Button>
+                      <Button variant="outlined" onClick={() => handleCopiarLink(consulta.link_telemedicina)}>
+                        Copiar Link
+                      </Button>
+                    </Box>
+                  ) : (
+                    // Se o link NÃO EXISTE, mostra o botão para criar
+                    <Button
+                      variant="contained"
+                      onClick={() => handleCriarSala(consulta.id)}
+                      disabled={criandoSalaId === consulta.id}
+                    >
+                      {criandoSalaId === consulta.id ? <CircularProgress size={24} /> : 'Criar Sala'}
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </Paper>
+  );
 }

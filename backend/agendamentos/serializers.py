@@ -4,6 +4,8 @@ from rest_framework import serializers
 from .models import Agendamento
 from pacientes.models import Paciente
 from faturamento.serializers import PagamentoStatusSerializer
+from pacientes.serializers import PacienteSerializer # Exemplo de import
+
 
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
@@ -25,6 +27,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'data_hora_fim',
             'status',
             'tipo_atendimento',
+            'link_telemedicina', # <-- NOVO: Adicione este campo
             'tipo_consulta', # <-- O campo que faltava para a tabela de faturamento
             'procedimento',  # <-- O ID do procedimento
             'pagamento',
