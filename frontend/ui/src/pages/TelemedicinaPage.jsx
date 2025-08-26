@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Paper, Typography, CircularProgress, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, Button
+    TableCell, TableContainer, TableHead, TableRow, Button, Link
 } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import LinkIcon from '@mui/icons-material/Link';
@@ -47,7 +47,7 @@ export default function TelemedicinaPage() {
     }
 
     return (
-        <Box sx={{ p: 2 }}> {/* Adiciona padding à página */}
+        <Box sx={{ p: 2 }}>
             <Paper sx={{ p: 2 }}>
                 <Typography variant="h5" gutterBottom>
                     Consultas de Telemedicina
@@ -73,7 +73,7 @@ export default function TelemedicinaPage() {
                                             {ag.link_telemedicina ? (
                                                 <Button
                                                     variant="contained" color="success"
-                                                    startIcon={<LinkIcon />} href={ag.link_telemedicina}
+                                                    startIcon={<LinkIcon />} component={Link} href={ag.link_telemedicina}
                                                     target="_blank"
                                                 >
                                                     Aceder à Sala

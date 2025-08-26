@@ -1,3 +1,4 @@
+// src/components/AgendamentoModal.jsx - VERSÃO LIMPA E CORRIGIDA
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
@@ -10,16 +11,9 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
     
-    // 1. Estado inicial corrigido e limpo
     const getInitialFormData = () => ({
-        paciente: null,
-        data_hora_inicio: '',
-        data_hora_fim: '',
-        status: 'Confirmado',
-        procedimento: null,
-        plano_utilizado: null,
-        tipo_atendimento: 'Particular',
-        observacoes: '',
+        paciente: null, data_hora_inicio: '', data_hora_fim: '', status: 'Confirmado',
+        procedimento: null, plano_utilizado: null, tipo_atendimento: 'Particular', observacoes: '',
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -29,7 +23,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
-    // Efeito para buscar pacientes e procedimentos (sem alterações)
     useEffect(() => {
         if (open) {
             setLoading(true);
@@ -122,16 +115,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             setIsSubmitting(false);
         }
     };
-  
-   
+
      return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
       
       <form onSubmit={handleSubmit}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '10px !important' }}>
-          
-          {/* --- SEÇÃO 1: DADOS PRINCIPAIS DO AGENDAMENTO --- */}
           <Autocomplete
             options={pacientes}
             getOptionLabel={(option) => option.nome_completo || ''}
@@ -150,7 +140,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             </Box>
           )}
 
-          <Autocomplete
+           <Autocomplete
             options={procedimentos}
             getOptionLabel={(option) => `${option.codigo_tuss} - ${option.descricao}` || ''}
             value={formData.procedimento}
@@ -161,7 +151,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             loading={loading}
             renderInput={(params) => (<TextField {...params} label="Procedimento" required />)}
           />
-
           <FormControl fullWidth>
             <InputLabel>Tipo de Atendimento</InputLabel>
             <Select

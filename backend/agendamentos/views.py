@@ -1,4 +1,4 @@
-# backend/agendamentos/views.py - VERSÃO FINAL E CORRIGIDA
+# backend/agendamentos/views.py - VERSÃO FINAL E COMPLETA
 
 from rest_framework import generics, status
 from rest_framework.views import APIView
@@ -14,7 +14,6 @@ import datetime
 import requests
 import os
 
-# --- Todas as suas views existentes (AgendamentoListCreateAPIView, etc.) permanecem exatamente iguais ---
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     queryset = Agendamento.objects.all().select_related('paciente').order_by('data_hora_inicio')
@@ -127,7 +126,6 @@ class EnviarLembretesCronView(APIView):
 # --- VIEW DE TELEMEDICINA COM A CORREÇÃO DE FUSO HORÁRIO ---
 class CriarSalaTelemedicinaView(APIView):
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
-
     def post(self, request, agendamento_id, *args, **kwargs):
         try:
             agendamento = Agendamento.objects.get(id=agendamento_id)
@@ -141,46 +139,30 @@ class CriarSalaTelemedicinaView(APIView):
         if not api_key:
             return Response({'detail': 'API Key do serviço de vídeo não configurada no servidor.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        }
-        
-        # --- A CORREÇÃO ESTÁ AQUI ---
-        # 1. Adiciona 1 hora à data de fim do agendamento
+        headers = { 'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json' }
         end_time = agendamento.data_hora_fim + datetime.timedelta(hours=1)
-        # 2. Converte a data/hora para o fuso horário UTC
         end_time_utc = end_time.astimezone(datetime.timezone.utc)
-        # 3. Formata a data/hora UTC para a string que a API do Whereby espera
         endDate = end_time_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
-        # ---------------------------
-
-        payload = {
-            "endDate": endDate,
-            "fields": ["hostRoomUrl"]
-        }
+        payload = { "endDate": endDate, "fields": ["hostRoomUrl"] }
 
         try:
             response = requests.post('https://api.whereby.com/v1/meetings', headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-
             link_sala = data.get('roomUrl')
             id_sala = data.get('meetingId')
 
             if not link_sala:
-                return Response({'detail': 'Não foi possível obter o link da sala da API do Whereby.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'detail': 'Não foi possível obter o link da sala.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             agendamento.link_telemedicina = link_sala
             agendamento.id_sala_telemedicina = id_sala
             agendamento.save()
-
             return Response({'link_telemedicina': link_sala}, status=status.HTTP_201_CREATED)
-
         except requests.exceptions.RequestException as e:
-            # Esta linha devolve um erro mais detalhado
-            return Response({'detail': f'Erro ao comunicar com a API do Whereby: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'detail': f'Erro ao comunicar com a API do Whereby: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# --- A VIEW QUE ESTAVA EM FALTA ---
 class TelemedicinaListView(generics.ListAPIView):
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
