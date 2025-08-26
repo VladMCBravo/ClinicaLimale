@@ -33,64 +33,66 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   const [convenioSelecionado, setConvenioSelecionado] = useState(null); // Objeto do convênio escolhido no 1º Autocomplete
   const [planosFiltrados, setPlanosFiltrados] = useState([]); // Lista de planos filtrada para o 2º Autocomplete
 
-  // Efeito para buscar médicos (seu código original, mantido)
+  // EFEITO 1: Busca os dados necessários (médicos e convênios) quando o modal abre.
   useEffect(() => {
     if (open) {
+      // Busca médicos
       apiClient.get('/usuarios/usuarios/?cargo=medico')
         .then(response => setMedicos(response.data))
         .catch(err => console.error("Erro ao buscar médicos", err));
-    }
-  }, [open]);
-
-  // --- NOVO EFEITO PARA BUSCAR OS CONVÊNIOS ---
-  useEffect(() => {
-    if (open) {
+      
+      // Busca convênios
       apiClient.get('/faturamento/convenios/')
-        .then(response => {
-          setConvenios(response.data);
-        })
+        .then(response => setConvenios(response.data))
         .catch(err => console.error("Erro ao buscar convênios", err));
     }
   }, [open]);
 
-  // Efeito para preencher o formulário (MODIFICADO)
-useEffect(() => {
+  // EFEITO 2: Preenche os dados básicos do formulário quando o paciente muda (edição) ou ao abrir (criação).
+  useEffect(() => {
     if (open) {
       if (pacienteParaEditar) {
+        // MODO EDIÇÃO: Preenche com os dados existentes
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
           email: pacienteParaEditar.email || '',
           telefone_celular: pacienteParaEditar.telefone_celular || '',
           cpf: pacienteParaEditar.cpf || '',
-          // NOVO: Preenchemos os campos de peso e altura no modo de edição
           peso: pacienteParaEditar.peso || '',
           altura: pacienteParaEditar.altura || '',
           medico_responsavel: pacienteParaEditar.medico_responsavel || null,
           plano_convenio: pacienteParaEditar.plano_convenio || null,
           numero_carteirinha: pacienteParaEditar.numero_carteirinha || '',
         });
-        
-        // --- LÓGICA ADICIONAL PARA PREENCHER OS AUTOCOMPLETES DE CONVÊNIO/PLANO ---
-        if (pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
-          const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
-          // Encontra o convênio pai do plano do paciente
-          const convenioPai = convenios.find(c => c.planos.some(p => p.id === planoDoPaciente.id));
-          if (convenioPai) {
-            setConvenioSelecionado(convenioPai);
-            setPlanosFiltrados(convenioPai.planos);
-          }
-        } else {
-           setConvenioSelecionado(null);
-        }
-
       } else {
-        // MODO CRIAÇÃO
+        // MODO CRIAÇÃO: Reseta o formulário
         setFormData(initialState);
         setConvenioSelecionado(null);
+        setPlanosFiltrados([]);
       }
     }
-  }, [pacienteParaEditar, open, convenios]); // Adicionado 'convenios' como dependência
+  }, [pacienteParaEditar, open]);
+
+  // EFEITO 3 (NOVO): Lida APENAS com a lógica de pré-selecionar o convênio/plano.
+  // Ele só roda quando os dados do paciente ou a lista de convênios estiverem prontos.
+  useEffect(() => {
+    if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
+      const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
+      const convenioPai = convenios.find(c => c.planos.some(p => p.id === planoDoPaciente.id));
+      
+      if (convenioPai) {
+        setConvenioSelecionado(convenioPai);
+        setPlanosFiltrados(convenioPai.planos);
+      }
+    } else if (!pacienteParaEditar) {
+        // Limpa a seleção se for um novo paciente
+        setConvenioSelecionado(null);
+        setPlanosFiltrados([]);
+    }
+  }, [pacienteParaEditar, convenios]); // Depende dos dados do paciente E da lista de convênios
+
+
 
   // --- NOVO HANDLER PARA QUANDO O CONVÊNIO MUDA ---
   const handleConvenioChange = (event, novoConvenio) => {
