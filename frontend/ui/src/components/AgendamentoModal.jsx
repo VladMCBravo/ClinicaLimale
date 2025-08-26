@@ -20,7 +20,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         plano_utilizado: null,
         tipo_atendimento: 'Particular',
         observacoes: '',
-        link_telemedicina: '', // Campo para o link da telemedicina
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -45,7 +44,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [open, showSnackbar]);
     
-    // 2. useEffect de preenchimento corrigido para incluir o link da telemedicina
+
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -69,7 +68,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     plano_utilizado: dados.plano_utilizado,
                     tipo_atendimento: dados.tipo_atendimento,
                     observacoes: dados.observacoes || '',
-                    link_telemedicina: dados.link_telemedicina || '', // <-- Carrega o link existente
                 });
                 apiClient.get(`/pacientes/${pacienteObj.id}/`).then(res => setPacienteDetalhes(res.data));
             }
@@ -191,37 +189,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
               <MenuItem value="Não Compareceu">Não Compareceu</MenuItem>
             </Select>
           </FormControl>
-
-          <Divider sx={{ my: 1 }} />
-
-           {/* --- SECÇÃO DE TELEMEDICINA CORRIGIDA --- */}
-          <Box>
-              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                  Telemedicina
-              </Typography>
-              
-              {formData.link_telemedicina ? (
-                  <TextField
-                      label="Link da Consulta" value={formData.link_telemedicina}
-                      InputProps={{ readOnly: true }} fullWidth variant="filled"
-                      onClick={(e) => e.target.select()} 
-                  />
-              ) : (
-                  <Button
-                      variant="outlined" startIcon={<VideocamIcon />}
-                      onClick={handleCriarSala}
-                      disabled={!editingEvent || isSubmitting}
-                      fullWidth
-                  >
-                      Criar Sala de Telemedicina
-                  </Button>
-              )}
-              {!editingEvent && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Salve o agendamento primeiro para poder gerar o link.
-                  </Typography>
-              )}
-          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancelar</Button>
