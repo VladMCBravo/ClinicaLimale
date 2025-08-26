@@ -113,12 +113,12 @@ class RelatorioFinanceiroAPIView(APIView):
 class ConvenioViewSet(viewsets.ModelViewSet):
     queryset = Convenio.objects.prefetch_related('planos').all()
     serializer_class = ConvenioSerializer
-    permission_classes = [IsAdminUser] # Apenas admins podem gerenciar
+    permission_classes = [IsRecepcaoOrAdmin]
 
 class PlanoConvenioViewSet(viewsets.ModelViewSet):
     queryset = PlanoConvenio.objects.all()
     serializer_class = PlanoConvenioSerializer
-    permission_classes = [IsAdminUser] # Apenas admins podem gerenciar
+    permission_classes = [IsRecepcaoOrAdmin]
 
 class AgendamentosFaturaveisAPIView(generics.ListAPIView):
     """
