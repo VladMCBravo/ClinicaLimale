@@ -2,6 +2,7 @@
 
 from rest_framework import permissions
 from pacientes.models import Paciente
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -38,3 +39,22 @@ class IsMedicoResponsavelOrAdmin(permissions.BasePermission):
             if paciente:
                 return paciente.medico_responsavel == request.user
         return False
+
+class AllowRead_WriteRecepcaoAdmin(BasePermission):
+    """
+    Permissão customizada que:
+    - Permite leitura (GET, HEAD, OPTIONS) para qualquer usuário autenticado.
+    - Permite escrita (POST, PUT, PATCH, DELETE) APENAS para usuários
+      com cargo 'recepcao' ou 'admin'.
+    """
+    def has_permission(self, request, view):
+        # Primeiro, garante que o usuário está logado.
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Se o método da requisição for um método seguro (GET), permite o acesso.
+        if request.method in SAFE_METHODS:
+            return True
+            
+        # Se for um método de escrita (POST, PUT, etc.), verifica o cargo.
+        return request.user.cargo in ['admin', 'recepcao']

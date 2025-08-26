@@ -13,9 +13,10 @@ from faturamento.models import Pagamento, Procedimento
 from datetime import datetime, timedelta
 import requests
 import os
+from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser, AllowRead_WriteRecepcaoAdmin
 
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowRead_WriteRecepcaoAdmin]
     queryset = Agendamento.objects.all().select_related('paciente').order_by('data_hora_inicio')
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -36,7 +37,7 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
             )
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowRead_WriteRecepcaoAdmin]
     queryset = Agendamento.objects.all()
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:

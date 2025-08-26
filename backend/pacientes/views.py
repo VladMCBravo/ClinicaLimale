@@ -1,14 +1,14 @@
 # backend/pacientes/views.py - VERSÃO CORRIGIDA
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-from usuarios.permissions import IsMedicoResponsavelOrAdmin # Importe a permissão corrigida
+from usuarios.permissions import IsMedicoResponsavelOrAdmin, AllowRead_WriteRecepcaoAdmin
 from .models import Paciente
 from .serializers import PacienteSerializer
 
 class PacienteListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PacienteSerializer
-    # Qualquer usuário logado pode listar pacientes (a lógica de filtragem está abaixo)
-    permission_classes = [IsAuthenticated]
+    # Esta permissão agora bloqueia a criação (POST) por médicos.
+    permission_classes = [AllowRead_WriteRecepcaoAdmin]
 
     def get_queryset(self):
         user = self.request.user
@@ -32,6 +32,6 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
 class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Paciente.objects.all()
     serializer_class = PacienteSerializer
-    # APLICA A REGRA: Apenas o médico responsável ou um admin podem ver/editar/deletar os detalhes de um paciente.
-    # Recepção será bloqueada aqui.
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    # O médico ainda poderá ver os detalhes (GET) se a lógica no get_queryset permitir,
+    # mas será bloqueado ao tentar salvar (PUT/PATCH).
+    permission_classes = [AllowRead_WriteRecepcaoAdmin]
