@@ -26,7 +26,9 @@ class DashboardDataAPIView(APIView):
 
         # KPIs Operacionais (para ambos os perfis)
         agendamentos_hoje_count = Agendamento.objects.filter(data_hora_inicio__date=hoje).count()
-        pacientes_novos_mes_count = Paciente.objects.filter(created_at__gte=start_of_month).count() # Assumindo que você tem um campo 'created_at' no modelo Paciente
+        pacientes_novos_mes_count = Paciente.objects.filter(
+            data_cadastro__gte=start_of_month
+        ).count()
         
         # Lógica de aniversariantes (sua lógica original, mantida)
         data_limite_aniversario = hoje + timedelta(days=30) # Aumentei para aniversariantes do mês
