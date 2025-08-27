@@ -1,4 +1,5 @@
-// src/pages/DashboardPage.jsx - VERSÃO CORRIGIDA
+// src/pages/DashboardPage.jsx - VERSÃO FINAL COM CARDS DINÂMICOS POR PERFIL
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Typography, Paper, Grid, CircularProgress, List, ListItem, 
@@ -7,16 +8,25 @@ import {
 import apiClient from '../api/axiosConfig';
 import { Link as RouterLink } from 'react-router-dom';
 import CakeIcon from '@mui/icons-material/Cake';
+
+// NOVO: Adicionamos mais ícones para os novos cards
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import MoneyOffIcon from '@mui/icons-material/MoneyOff';
-import BusinessIcon from '@mui/icons-material/Business';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 
-const StatCard = ({ title, value, color = 'primary.main', link }) => (
-    // Adicionamos padding ao Box para garantir espaçamento interno
-    <Paper component={RouterLink} to={link || '#'} sx={{ height: '100%', textDecoration: 'none' }}>
-        <Box sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6">{title}</Typography>
-            <Typography variant="h3" color={color}>{value}</Typography>
+
+// Componente de Card de Estatística (pequeno ajuste para o ícone)
+const StatCard = ({ title, value, icon, color = 'primary.main', link }) => (
+    <Paper component={RouterLink} to={link || '#'} sx={{ height: '100%', textDecoration: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', p: 2 }}>
+        <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h6" sx={{ color: 'text.secondary' }}>{title}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1 }}>
+                {icon}
+                <Typography variant="h3" color={color}>{value}</Typography>
+            </Box>
         </Box>
     </Paper>
 );
@@ -48,74 +58,82 @@ export default function DashboardPage() {
         return <Typography>Não foi possível carregar os dados do dashboard.</Typography>;
     }
 
-    // Adicionamos o padding aqui para ter um espaçamento consistente
+    // A mágica acontece aqui: renderizamos os cards condicionalmente.
     return (
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, flexGrow: 1 }}>
             <Typography variant="h4" gutterBottom>Dashboard</Typography>
             <Grid container spacing={3}>
-                <Grid item xs={12} sm={6} md={4}>
-                    <StatCard title="Consultas de Hoje" value={data.agendamentos_hoje_count} link="/" />
-                </Grid>
+                
+                {/* --- CARDS RENDERIZADOS CONDICIONALMENTE --- */}
 
-                {data.dados_financeiros && (
-                    <>
-                        <Grid item xs={12} sm={6} md={4}>
-                            <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                <Typography variant="h6" align="center">Balanço do Mês</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1}}>
-                                    <AttachMoneyIcon color="success" />
-                                    <Typography variant="h5" color="green">
-                                        R$ {Number(data.dados_financeiros.receitas_mes).toFixed(2)}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1}}>
-                                    <MoneyOffIcon color="error" />
-                                    <Typography variant="h5" color="red">
-                                        R$ {Number(data.dados_financeiros.despesas_mes).toFixed(2)}
-                                    </Typography>
-                                </Box>
-                            </Paper>
-                        </Grid>
-                         <Grid item xs={12} sm={6} md={4}>
-                            <Paper sx={{p:2, height: '100%'}}>
-                                <Typography variant="h6">Convênios Mais Usados</Typography>
-                                <List dense>
-                                    {/* --- A CORREÇÃO ESTÁ AQUI --- */}
-                                    {/* A chave correta enviada pela nossa API agora é 'plano_utilizado__convenio__nome' */}
-                                    {data.dados_financeiros.convenios_mais_usados.map((c, i) => (
-                                        <ListItem key={i} disableGutters>
-                                            <ListItemIcon sx={{minWidth: '32px'}}><BusinessIcon fontSize="small" /></ListItemIcon>
-                                            <ListItemText primary={c['plano_utilizado__convenio__nome']} secondary={`${c.total} consulta(s)`} />
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </Paper>
-                        </Grid>
-                    </>
+                {/* KPI: Faturamento Bruto (Apenas Admin) */}
+                {data.receitas_mes != null && (
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatCard title="Faturamento do Mês" value={`R$ ${Number(data.receitas_mes).toFixed(2)}`} icon={<AttachMoneyIcon sx={{ fontSize: 40 }} color="success" />} color="success.main" />
+                    </Grid>
                 )}
 
-                {/* Card de Aniversariantes */}
-                <Grid item xs={12}>
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6">Aniversariantes da Semana</Typography>
-                        <List>
-                            {data.aniversariantes_semana.length > 0 ? data.aniversariantes_semana.map((p, index) => (
-                                <React.Fragment key={p.id}>
-                                    <ListItem>
-                                        <Avatar sx={{ bgcolor: 'secondary.main', mr: 2 }}><CakeIcon /></Avatar>
-                                        <ListItemText 
-                                            primary={p.nome_completo}
-                                            secondary={`Aniversário em ${new Date(p.data_nascimento).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', timeZone: 'UTC' })}`}
-                                        />
-                                    </ListItem>
-                                    {index < data.aniversariantes_semana.length - 1 && <Divider />}
-                                </React.Fragment>
-                            )) : (
-                                <ListItem><ListItemText primary="Nenhum aniversariante na próxima semana." /></ListItem>
-                            )}
-                        </List>
-                    </Paper>
-                </Grid>
+                {/* KPI: Despesas (Apenas Admin) */}
+                {data.despesas_mes != null && (
+                     <Grid item xs={12} sm={6} md={3}>
+                        <StatCard title="Despesas do Mês" value={`R$ ${Number(data.despesas_mes).toFixed(2)}`} icon={<MoneyOffIcon sx={{ fontSize: 40 }} color="error" />} color="error.main" />
+                    </Grid>
+                )}
+                
+                {/* KPI: Lucro Líquido (Apenas Admin) */}
+                {data.lucro_liquido_mes != null && (
+                     <Grid item xs={12} sm={6} md={3}>
+                        <StatCard title="Lucro do Mês" value={`R$ ${Number(data.lucro_liquido_mes).toFixed(2)}`} icon={<AccountBalanceIcon sx={{ fontSize: 40 }} color="primary" />} />
+                    </Grid>
+                )}
+
+                {/* KPI: Consultas de Hoje (Admin e Recepção) */}
+                {data.agendamentos_hoje_count != null && (
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatCard title="Consultas de Hoje" value={data.agendamentos_hoje_count} icon={<EventAvailableIcon sx={{ fontSize: 40 }} color="primary" />} link="/" />
+                    </Grid>
+                )}
+                
+                {/* KPI: Pacientes Novos (Admin e Recepção) */}
+                {data.pacientes_novos_mes_count != null && (
+                     <Grid item xs={12} sm={6} md={3}>
+                        <StatCard title="Pacientes Novos (Mês)" value={data.pacientes_novos_mes_count} icon={<PersonAddIcon sx={{ fontSize: 40 }} color="secondary" />} link="/pacientes" />
+                    </Grid>
+                )}
+
+                {/* KPI: Consultas a Confirmar (Apenas Recepção) */}
+                {data.consultas_a_confirmar_count != null && (
+                    <Grid item xs={12} sm={6} md={3}>
+                        <StatCard title="Consultas a Confirmar" value={data.consultas_a_confirmar_count} icon={<PlaylistAddCheckIcon sx={{ fontSize: 40 }} color="warning" />} />
+                    </Grid>
+                )}
+
+                {/* --- LISTAS DE INFORMAÇÕES --- */}
+
+                {/* Lista de Aniversariantes (Admin e Recepção) */}
+                {data.aniversariantes_mes && (
+                    <Grid item xs={12} md={6}>
+                        <Paper sx={{ p: 2, height: '100%' }}>
+                            <Typography variant="h6">Aniversariantes do Mês</Typography>
+                            <List>
+                                {data.aniversariantes_mes.length > 0 ? data.aniversariantes_mes.map((p, index) => (
+                                    <React.Fragment key={p.id}>
+                                        <ListItem>
+                                            <Avatar sx={{ bgcolor: 'secondary.main', mr: 2 }}><CakeIcon /></Avatar>
+                                            <ListItemText 
+                                                primary={p.nome_completo}
+                                                secondary={`Aniversário em ${new Date(p.data_nascimento).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', timeZone: 'UTC' })}`}
+                                            />
+                                        </ListItem>
+                                        {index < data.aniversariantes_mes.length - 1 && <Divider />}
+                                    </React.Fragment>
+                                )) : (
+                                    <ListItem><ListItemText primary="Nenhum aniversariante no próximo mês." /></ListItem>
+                                )}
+                            </List>
+                        </Paper>
+                    </Grid>
+                )}
             </Grid>
         </Box>
     );
