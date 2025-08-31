@@ -144,7 +144,7 @@ class VerificarPacienteView(APIView):
             )
 
         try:
-            paciente = Paciente.objects.get(telefone=telefone)
+            paciente = Paciente.objects.get(telefone_celular=telefone)
             return Response({
                 "status": "paciente_encontrado",
                 "paciente_id": paciente.id,
