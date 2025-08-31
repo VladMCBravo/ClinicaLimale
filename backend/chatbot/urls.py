@@ -5,6 +5,7 @@ from .views import (
     ChatMemoryView,
     AgendamentoChatbotView,
     VerificarPacienteView,       # <-- Nova importação
+    VerificarSegurancaView,
     ListarProcedimentosView,     # <-- Nova importação
     ConsultarHorariosDisponiveisView, # <-- Nova importação
     GerarPixView                 # <-- Nova importação
@@ -17,6 +18,7 @@ urlpatterns = [
 
     # --- Verificação e Consulta de Pacientes ---
     path('pacientes/verificar/', VerificarPacienteView.as_view(), name='chatbot_verificar_paciente'),
+    path('pacientes/verificar-seguranca/', VerificarSegurancaView.as_view(), name='chatbot_verificar_seguranca'),
 
     # --- Consultas de Informações da Clínica ---
     path('procedimentos/', ListarProcedimentosView.as_view(), name='chatbot_listar_procedimentos'),
