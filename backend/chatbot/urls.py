@@ -1,13 +1,13 @@
-# chatbot/urls.py
+# chatbot/urls.py - VERSÃO ATUALIZADA
+
 from django.urls import path
-from .views import ChatMemoryView
+from .views import ChatMemoryView, AgendamentoChatbotView # <-- IMPORTE A NOVA VIEW
 
 urlpatterns = [
-    # Rota para o POST (salvar memória)
-    # Ex: POST /api/chatbot/chat-memory/
+    # Rotas da Memória do Chat
     path('chat-memory/', ChatMemoryView.as_view(), name='chat_memory_save'),
-
-    # Rota para o GET (carregar memória)
-    # Ex: GET /api/chatbot/chat-memory/whatsapp:+5511999998888/
     path('chat-memory/<str:session_id>/', ChatMemoryView.as_view(), name='chat_memory_load'),
+
+    # --- NOVA ROTA PARA AGENDAMENTO ---
+    path('agendamentos/criar/', AgendamentoChatbotView.as_view(), name='chatbot_criar_agendamento'),
 ]
