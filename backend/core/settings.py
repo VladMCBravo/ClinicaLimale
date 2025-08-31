@@ -47,9 +47,11 @@ INSTALLED_APPS = [
     'dashboard',
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_api_key',
     'dj_rest_auth',
     'allauth',
     'whitenoise.runserver_nostatic', # Adicionado para melhor servir ficheiros estáticos
+    'chatbot',
 ]
 
 MIDDLEWARE = [

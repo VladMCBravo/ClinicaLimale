@@ -56,8 +56,5 @@ class AllowRead_WriteRecepcaoAdmin(BasePermission):
         if request.method in SAFE_METHODS:
             return True
             
-          # Se for um método de escrita (POST, PUT, etc.), verifica o cargo OU o username.
-        return (
-            request.user.cargo in ['admin', 'recepcao'] or
-            request.user.username == 'n8n_service_user'
-        )
+        # Se for um método de escrita (POST, PUT, etc.), verifica o cargo.
+        return request.user.cargo in ['admin', 'recepcao']
