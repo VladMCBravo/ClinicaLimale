@@ -247,3 +247,35 @@ class GerarPixView(APIView):
             "status": "pix_gerado",
             "qr_code_texto": qr_code_exemplo
         })
+
+class VerificarSegurancaView(APIView):
+    """
+    Verifica se o CPF fornecido corresponde ao paciente identificado
+    pelo número de telefone, para autorizar ações sensíveis.
+    """
+    permission_classes = [HasAPIKey] # Apenas o N8N pode acessar
+
+    def post(self, request):
+        # Usamos 'telefone_celular' para manter a consistência com o modelo
+        telefone = request.data.get('telefone_celular')
+        cpf = request.data.get('cpf')
+
+        if not telefone or not cpf:
+            return Response(
+                {'error': 'Os campos "telefone_celular" e "cpf" são obrigatórios.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verificamos se existe um paciente que bate com AMBOS os dados
+        paciente_existe = Paciente.objects.filter(
+            telefone_celular=telefone,
+            cpf=cpf
+        ).exists()
+
+        if paciente_existe:
+            return Response({"status": "verificado"})
+        else:
+            return Response(
+                {"status": "dados_nao_conferem"},
+                status=status.HTTP_403_FORBIDDEN # 403 é um bom status para falha de autorização
+            )
