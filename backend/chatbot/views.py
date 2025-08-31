@@ -7,8 +7,11 @@ from rest_framework_api_key.permissions import HasAPIKey
 from .models import ChatMemory
 
 # --- NOVAS IMPORTAÇÕES ---
-from pacientes.models import Paciente
+from pacientes.models import Paciente # Importe o modelo de Paciente
+from faturamento.models import Procedimento # Importe o modelo de Procedimento
 from agendamentos.serializers import AgendamentoWriteSerializer
+from agendamentos.models import Agendamento # Importe o modelo de Agendamento
+from datetime import datetime, time # Importe as ferramentas de data e hora
 from django.utils import timezone
 from datetime import timedelta
 # -------------------------
@@ -125,3 +128,122 @@ class AgendamentoChatbotView(APIView):
         else:
             # Se houver erros de validação (ex: horário ocupado), eles serão retornados
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class VerificarPacienteView(APIView):
+    """
+    Verifica se um paciente existe com base no número de telefone.
+    """
+    permission_classes = [HasAPIKey] # Apenas o N8N pode acessar
+
+    def get(self, request):
+        telefone = request.query_params.get('telefone')
+        if not telefone:
+            return Response(
+                {'error': 'O parâmetro "telefone" é obrigatório.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            paciente = Paciente.objects.get(telefone=telefone)
+            return Response({
+                "status": "paciente_encontrado",
+                "paciente_id": paciente.id,
+                "nome_completo": paciente.nome_completo
+            })
+        except Paciente.DoesNotExist:
+            return Response(
+                {"status": "paciente_nao_encontrado"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+class ListarProcedimentosView(APIView):
+    """
+    Retorna uma lista de procedimentos (consultas, exames) com seus valores.
+    """
+    permission_classes = [HasAPIKey] # Apenas o N8N pode acessar
+
+    def get(self, request):
+        # Filtramos apenas procedimentos que têm um valor definido
+        procedimentos = Procedimento.objects.filter(valor__gt=0)
+        
+        # Formatamos a resposta de uma forma simples para o N8N entender
+        dados_formatados = [
+            {
+                "id": proc.id,
+                "nome": proc.descricao, # Supondo que o nome do procedimento está no campo 'descricao'
+                "valor": f"{proc.valor:.2f}".replace('.', ',') # Formata como "350,00"
+            }
+            for proc in procedimentos
+        ]
+        return Response(dados_formatados)
+
+class ConsultarHorariosDisponiveisView(APIView):
+    """
+    Calcula e retorna os horários livres em um determinado dia.
+    """
+    permission_classes = [HasAPIKey]
+
+    def get(self, request):
+        data_str = request.query_params.get('data') # Formato esperado: "AAAA-MM-DD"
+        if not data_str:
+            return Response({'error': 'O parâmetro "data" é obrigatório.'}, status=4.00)
+
+        try:
+            data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=4.00)
+
+        # Lógica de horários (simplificada para o exemplo)
+        # Você pode customizar isso com os horários reais da clínica
+        horario_inicio_dia = time(9, 0)
+        horario_fim_dia = time(18, 0)
+        duracao_consulta_min = 50
+        intervalo_min = 10
+
+        # Pega todos os agendamentos já marcados para aquele dia
+        agendamentos_no_dia = Agendamento.objects.filter(data_hora_inicio__date=data_desejada)
+        horarios_ocupados = {ag.data_hora_inicio.time() for ag in agendamentos_no_dia}
+
+        horarios_disponiveis = []
+        horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
+        fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
+
+        while horario_atual < fim_do_dia:
+            if horario_atual.time() not in horarios_ocupados:
+                horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
+            
+            # Avança para o próximo slot (duração da consulta + intervalo)
+            horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
+
+        return Response({"data": data_str, "horarios_disponiveis": horarios_disponiveis})
+
+class GerarPixView(APIView):
+    """
+    Gera uma cobrança PIX para um agendamento.
+    """
+    permission_classes = [HasAPIKey]
+
+    def post(self, request):
+        agendamento_id = request.data.get('agendamento_id')
+        if not agendamento_id:
+            return Response({'error': 'agendamento_id é obrigatório.'}, status=400)
+
+        try:
+            agendamento = Agendamento.objects.get(id=agendamento_id)
+        except Agendamento.DoesNotExist:
+            return Response({'error': 'Agendamento não encontrado.'}, status=404)
+
+        # --- AQUI ENTRA A LÓGICA DO SEU GATEWAY DE PAGAMENTO ---
+        # Exemplo:
+        # 1. Chamar a API do Mercado Pago com os dados do agendamento.
+        # 2. A API do Mercado Pago retorna os dados do PIX.
+        # 3. Você salva o ID da transação no seu banco de dados.
+        # ---------------------------------------------------------
+        
+        # Resposta de exemplo (simulada)
+        qr_code_exemplo = "00020126...codigo_copia_cola_exemplo..."
+        
+        return Response({
+            "agendamento_id": agendamento.id,
+            "status": "pix_gerado",
+            "qr_code_texto": qr_code_exemplo
+        })
