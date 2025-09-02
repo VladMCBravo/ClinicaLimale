@@ -215,14 +215,14 @@ class ConsultarHorariosDisponiveisView(APIView):
         print(f"Horários ocupados extraídos: {horarios_ocupados}")
         # --- FIM DO CÓDIGO DE LOG ---
         
-        horario_inicio_dia = time(9, 0)
+        horario_inicio_dia = time(8, 0)
         horario_fim_dia = time(18, 0)
         duracao_consulta_min = 50
         intervalo_min = 10
         agendamentos_no_dia = Agendamento.objects.filter(
         data_hora_inicio__date=data_desejada
         ).exclude(status='Cancelado') # <-- ADICIONE ESTA LINHA PARA EXCLUIR OS CANCELADOS
-        horarios_ocupados = {ag.data_hora_inicio.time() for ag in agendamentos_no_dia}
+        horarios_ocupados = {timezone.localtime(ag.data_hora_inicio).time() for ag in agendamentos_no_dia}
         horarios_disponiveis = []
         horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
         fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
