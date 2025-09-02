@@ -32,7 +32,13 @@ function renderEventContent(eventInfo) {
     );
 }
 
-const statusColors = { 'Agendado': '#6495ED', 'Confirmado': '#32CD32', 'Realizado': '#228B22', 'Não Compareceu': '#A9A9A9' };
+const statusColors = { 
+    'Agendado': '#6495ED', 
+    'Confirmado': '#32CD32', 
+    'Realizado': '#228B22', 
+    'Não Compareceu': '#A9A9A9',
+    'Aguardando Pagamento': '#FFD700' // <-- ADICIONE ESTA LINHA (cor dourada/amarela)
+};
 
 // NOVO: IDs para os menus de contexto
 const MENU_ID_MEDICO = "menu-medico";

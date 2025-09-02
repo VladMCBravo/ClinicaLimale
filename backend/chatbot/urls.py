@@ -4,11 +4,13 @@ from django.urls import path
 from .views import (
     ChatMemoryView,
     AgendamentoChatbotView,
-    VerificarPacienteView,       # <-- Nova importação
+    VerificarPacienteView,
     VerificarSegurancaView,
-    ListarProcedimentosView,     # <-- Nova importação
-    ConsultarHorariosDisponiveisView, # <-- Nova importação
-    GerarPixView                 # <-- Nova importação
+    ListarProcedimentosView,
+    ConsultarHorariosDisponiveisView,
+    GerarPixView,
+    CadastrarPacienteView, # --- NOVO ---
+    ConsultarAgendamentosPacienteView, # --- NOVO ---
 )
 
 urlpatterns = [
@@ -17,8 +19,10 @@ urlpatterns = [
     path('chat-memory/<str:session_id>/', ChatMemoryView.as_view(), name='chat_memory_load'),
 
     # --- Verificação e Consulta de Pacientes ---
+    path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'), # --- NOVO ---
     path('pacientes/verificar/', VerificarPacienteView.as_view(), name='chatbot_verificar_paciente'),
     path('pacientes/verificar-seguranca/', VerificarSegurancaView.as_view(), name='chatbot_verificar_seguranca'),
+    path('pacientes/meus-agendamentos/', ConsultarAgendamentosPacienteView.as_view(), name='chatbot_meus_agendamentos'), # --- NOVO ---
 
     # --- Consultas de Informações da Clínica ---
     path('procedimentos/', ListarProcedimentosView.as_view(), name='chatbot_listar_procedimentos'),

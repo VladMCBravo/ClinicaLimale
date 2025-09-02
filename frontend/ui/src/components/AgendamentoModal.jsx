@@ -172,6 +172,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             <InputLabel>Status</InputLabel>
             <Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}>
               <MenuItem value="Agendado">Agendado</MenuItem>
+              <MenuItem value="Aguardando Pagamento">Aguardando Pagamento</MenuItem> {/* <-- ADICIONE ESTA LINHA */}
               <MenuItem value="Confirmado">Confirmado</MenuItem>
               <MenuItem value="Cancelado">Cancelado</MenuItem>
               <MenuItem value="Realizado">Realizado</MenuItem>

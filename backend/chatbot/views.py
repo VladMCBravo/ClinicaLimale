@@ -6,22 +6,22 @@ from rest_framework import status
 from rest_framework_api_key.permissions import HasAPIKey
 from .models import ChatMemory
 
-# --- NOVAS IMPORTAÇÕES ---
-from pacientes.models import Paciente # Importe o modelo de Paciente
-from faturamento.models import Procedimento # Importe o modelo de Procedimento
+# --- IMPORTAÇÕES ---
+from pacientes.models import Paciente
+from faturamento.models import Procedimento, Pagamento # <-- Pagamento importado
 from agendamentos.serializers import AgendamentoWriteSerializer
-from agendamentos.models import Agendamento # Importe o modelo de Agendamento
-from datetime import datetime, time # Importe as ferramentas de data e hora
+from agendamentos.models import Agendamento
+from datetime import datetime, time, timedelta
 from django.utils import timezone
-from datetime import timedelta
-from usuarios.models import CustomUser 
-# -------------------------
+from usuarios.models import CustomUser # <-- Importe o modelo de usuário
+
+# --- NOVO ---
+# Importe o serializer de Paciente para o cadastro
+from pacientes.serializers import PacienteSerializer
 
 
 class ChatMemoryView(APIView):
-    # ... (sua view de memória do chat continua aqui, sem alterações) ...
     permission_classes = [HasAPIKey]
-    # ... (código da get e post) ...
     def get(self, request, session_id):
         try:
             chat = ChatMemory.objects.get(session_id=session_id)
@@ -47,246 +47,187 @@ class ChatMemoryView(APIView):
         )
 
 
-# --- NOVA VIEW PARA AGENDAMENTO VIA CHATBOT ---
+# --- NOVO ---
+class CadastrarPacienteView(APIView):
+    """
+    Cria um novo paciente no sistema.
+    """
+    permission_classes = [HasAPIKey]
+
+    def post(self, request):
+        # Verifica se o CPF ou Email já existem para evitar duplicados
+        cpf = request.data.get('cpf')
+        email = request.data.get('email')
+        if Paciente.objects.filter(cpf=cpf).exists():
+            return Response({'error': 'Um paciente com este CPF já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
+        if Paciente.objects.filter(email=email).exists():
+            return Response({'error': 'Um paciente com este email já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
+
+        serializer = PacienteSerializer(data=request.data)
+        if serializer.is_valid():
+            paciente = serializer.save()
+            return Response(
+                {'sucesso': f"Paciente {paciente.nome_completo} cadastrado com sucesso!", "paciente_id": paciente.id},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --- NOVO ---
+class ConsultarAgendamentosPacienteView(APIView):
+    """
+    Retorna os agendamentos de um paciente específico.
+    """
+    permission_classes = [HasAPIKey]
+
+    def get(self, request):
+        cpf = request.query_params.get('cpf')
+        if not cpf:
+            return Response({'error': 'O parâmetro "cpf" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            paciente = Paciente.objects.get(cpf=cpf)
+            agendamentos = Agendamento.objects.filter(paciente=paciente).order_by('-data_hora_inicio') # Mais recentes primeiro
+            
+            dados_formatados = [
+                {
+                    "id": ag.id,
+                    "data_hora": ag.data_hora_inicio.strftime('%d/%m/%Y às %H:%M'),
+                    "status": ag.status,
+                    "procedimento": ag.procedimento.descricao if ag.procedimento else "Não especificado"
+                }
+                for ag in agendamentos
+            ]
+            return Response(dados_formatados)
+        except Paciente.DoesNotExist:
+            return Response({"error": "Paciente com este CPF não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+
 class AgendamentoChatbotView(APIView):
-    """
-    Endpoint seguro para o N8N criar agendamentos.
-    """
     permission_classes = [HasAPIKey]
 
     def post(self, request):
         session_id = request.data.get('sessionId')
         cpf_paciente = request.data.get('cpf')
-        data_hora_inicio_str = request.data.get('data_hora_inicio') # Ex: "2025-09-25T10:00:00"
+        data_hora_inicio_str = request.data.get('data_hora_inicio')
 
         if not all([session_id, cpf_paciente, data_hora_inicio_str]):
-            return Response(
-                {'error': 'sessionId, cpf e data_hora_inicio são obrigatórios.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'sessionId, cpf e data_hora_inicio são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Encontrar o paciente
         try:
-            # A forma mais segura é verificar o CPF E o telefone (session_id)
             paciente = Paciente.objects.get(cpf=cpf_paciente, telefone_celular=session_id)
         except Paciente.DoesNotExist:
-            return Response(
-                {'error': 'Paciente não encontrado ou dados não conferem. Por favor, verifique o CPF e tente novamente.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Paciente não encontrado ou dados não conferem.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # 2. Preparar os dados para o serializer
-        # Usamos o AgendamentoWriteSerializer que você já criou!
-        # Isso garante que todas as regras de negócio sejam as mesmas.
         try:
             data_hora_inicio = timezone.datetime.fromisoformat(data_hora_inicio_str)
-            data_hora_fim = data_hora_inicio + timedelta(minutes=50) # Duração padrão de 50 min
+            data_hora_fim = data_hora_inicio + timedelta(minutes=50)
         except ValueError:
-             return Response(
-                {'error': 'Formato de data inválido. Use AAAA-MM-DDTHH:MM:SS.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+             return Response({'error': 'Formato de data inválido. Use AAAA-MM-DDTHH:MM:SS.'}, status=status.HTTP_400_BAD_REQUEST)
 
         dados_agendamento = {
             'paciente': paciente.id,
             'data_hora_inicio': data_hora_inicio,
             'data_hora_fim': data_hora_fim,
-            'status': 'Confirmado', # Já entra como confirmado pelo WhatsApp
-            'tipo_atendimento': 'Particular', # Exemplo padrão
-            # Outros campos podem ser adicionados aqui se o chatbot os coletar
+            'status': 'Aguardando Pagamento', # --- ALTERADO ---
+            'tipo_atendimento': 'Particular',
         }
 
         serializer = AgendamentoWriteSerializer(data=dados_agendamento)
 
-        # 3. Validar e Salvar
         if serializer.is_valid():
-            # A lógica de criar o pagamento pendente que está na sua outra view
-            # será executada AUTOMATICAMENTE se você estiver usando signals,
-            # ou podemos chamá-la aqui diretamente. Vamos assumir que não usa signals.
-
             agendamento = serializer.save()
 
-            # Replicando a lógica da sua view original para criar o pagamento
             if agendamento.tipo_atendimento == 'Particular':
-                from faturamento.models import Pagamento # Importação local
-                valor_pagamento = 0.00
-                if agendamento.procedimento:
-                    valor_pagamento = agendamento.procedimento.valor
-
-                # Importe o seu modelo de usuário no topo do arquivo
-                from usuarios.models import CustomUser
-
-                # Busque o usuário de serviço que você deve ter criado no Admin
                 try:
                     usuario_servico = CustomUser.objects.get(username='servico_chatbot')
                 except CustomUser.DoesNotExist:
-                    # Alternativa: use o primeiro superusuário (ID 1)
                     usuario_servico = CustomUser.objects.get(id=1)
 
                 Pagamento.objects.create(
                     agendamento=agendamento,
                     paciente=agendamento.paciente,
-                    valor=valor_pagamento,
+                    valor=agendamento.procedimento.valor if agendamento.procedimento else 0.00,
                     status='Pendente',
-                    registrado_por=usuario_servico # LINHA CORRIGIDA
+                    registrado_por=usuario_servico # --- ALTERADO ---
                 )
 
             return Response(
-                {'sucesso': f"Agendamento para {paciente.nome_completo} criado com sucesso para {data_hora_inicio.strftime('%d/%m/%Y às %H:%M')}."},
+                {'sucesso': f"Agendamento para {paciente.nome_completo} criado com sucesso para {data_hora_inicio.strftime('%d/%m/%Y às %H:%M')}. Status: {agendamento.status}"},
                 status=status.HTTP_201_CREATED
             )
         else:
-            # Se houver erros de validação (ex: horário ocupado), eles serão retornados
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class VerificarPacienteView(APIView):
-    """
-    Verifica se um paciente existe com base no número de telefone.
-    """
-    permission_classes = [HasAPIKey] # Apenas o N8N pode acessar
 
+# --- Outras views (VerificarPacienteView, ListarProcedimentosView, etc.) continuam aqui... ---
+class VerificarPacienteView(APIView):
+    permission_classes = [HasAPIKey]
     def get(self, request):
         telefone = request.query_params.get('telefone')
         if not telefone:
-            return Response(
-                {'error': 'O parâmetro "telefone" é obrigatório.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+            return Response({'error': 'O parâmetro "telefone" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             paciente = Paciente.objects.get(telefone_celular=telefone)
-            return Response({
-                "status": "paciente_encontrado",
-                "paciente_id": paciente.id,
-                "nome_completo": paciente.nome_completo
-            })
+            return Response({"status": "paciente_encontrado", "paciente_id": paciente.id, "nome_completo": paciente.nome_completo})
         except Paciente.DoesNotExist:
-            return Response(
-                {"status": "paciente_nao_encontrado"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-class ListarProcedimentosView(APIView):
-    """
-    Retorna uma lista de procedimentos (consultas, exames) com seus valores.
-    """
-    permission_classes = [HasAPIKey] # Apenas o N8N pode acessar
+            return Response({"status": "paciente_nao_encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
+class ListarProcedimentosView(APIView):
+    permission_classes = [HasAPIKey]
     def get(self, request):
-        # Filtramos apenas procedimentos que têm um valor definido
         procedimentos = Procedimento.objects.filter(valor__gt=0)
-        
-        # Formatamos a resposta de uma forma simples para o N8N entender
-        dados_formatados = [
-            {
-                "id": proc.id,
-                "nome": proc.descricao, # Supondo que o nome do procedimento está no campo 'descricao'
-                "valor": f"{proc.valor:.2f}".replace('.', ',') # Formata como "350,00"
-            }
-            for proc in procedimentos
-        ]
+        dados_formatados = [{"id": proc.id, "nome": proc.descricao, "valor": f"{proc.valor:.2f}".replace('.', ',')} for proc in procedimentos]
         return Response(dados_formatados)
 
 class ConsultarHorariosDisponiveisView(APIView):
-    """
-    Calcula e retorna os horários livres em um determinado dia.
-    """
     permission_classes = [HasAPIKey]
-
     def get(self, request):
-        data_str = request.query_params.get('data') # Formato esperado: "AAAA-MM-DD"
+        data_str = request.query_params.get('data')
         if not data_str:
-            return Response({'error': 'O parâmetro "data" é obrigatório.'}, status=4.00)
-
+            return Response({'error': 'O parâmetro "data" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
         except ValueError:
-            return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=4.00)
-
-        # Lógica de horários (simplificada para o exemplo)
-        # Você pode customizar isso com os horários reais da clínica
+            return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
         horario_inicio_dia = time(9, 0)
         horario_fim_dia = time(18, 0)
         duracao_consulta_min = 50
         intervalo_min = 10
-
-        # Pega todos os agendamentos já marcados para aquele dia
         agendamentos_no_dia = Agendamento.objects.filter(data_hora_inicio__date=data_desejada)
         horarios_ocupados = {ag.data_hora_inicio.time() for ag in agendamentos_no_dia}
-
         horarios_disponiveis = []
         horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
         fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
-
         while horario_atual < fim_do_dia:
             if horario_atual.time() not in horarios_ocupados:
                 horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
-            
-            # Avança para o próximo slot (duração da consulta + intervalo)
             horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
-
         return Response({"data": data_str, "horarios_disponiveis": horarios_disponiveis})
 
 class GerarPixView(APIView):
-    """
-    Gera uma cobrança PIX para um agendamento.
-    """
     permission_classes = [HasAPIKey]
-
     def post(self, request):
         agendamento_id = request.data.get('agendamento_id')
         if not agendamento_id:
             return Response({'error': 'agendamento_id é obrigatório.'}, status=400)
-
         try:
             agendamento = Agendamento.objects.get(id=agendamento_id)
+            # Lógica de pagamento aqui...
+            qr_code_exemplo = "00020126...codigo_copia_cola_exemplo..."
+            return Response({"agendamento_id": agendamento.id, "status": "pix_gerado", "qr_code_texto": qr_code_exemplo})
         except Agendamento.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado.'}, status=404)
 
-        # --- AQUI ENTRA A LÓGICA DO SEU GATEWAY DE PAGAMENTO ---
-        # Exemplo:
-        # 1. Chamar a API do Mercado Pago com os dados do agendamento.
-        # 2. A API do Mercado Pago retorna os dados do PIX.
-        # 3. Você salva o ID da transação no seu banco de dados.
-        # ---------------------------------------------------------
-        
-        # Resposta de exemplo (simulada)
-        qr_code_exemplo = "00020126...codigo_copia_cola_exemplo..."
-        
-        return Response({
-            "agendamento_id": agendamento.id,
-            "status": "pix_gerado",
-            "qr_code_texto": qr_code_exemplo
-        })
-
 class VerificarSegurancaView(APIView):
-    """
-    Verifica se o CPF fornecido corresponde ao paciente identificado
-    pelo número de telefone, para autorizar ações sensíveis.
-    """
-    permission_classes = [HasAPIKey] # Apenas o N8N pode acessar
-
+    permission_classes = [HasAPIKey]
     def post(self, request):
-        # Usamos 'telefone_celular' para manter a consistência com o modelo
         telefone = request.data.get('telefone_celular')
         cpf = request.data.get('cpf')
-
         if not telefone or not cpf:
-            return Response(
-                {'error': 'Os campos "telefone_celular" e "cpf" são obrigatórios.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Verificamos se existe um paciente que bate com AMBOS os dados
-        paciente_existe = Paciente.objects.filter(
-            telefone_celular=telefone,
-            cpf=cpf
-        ).exists()
-
+            return Response({'error': 'Os campos "telefone_celular" e "cpf" são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+        paciente_existe = Paciente.objects.filter(telefone_celular=telefone, cpf=cpf).exists()
         if paciente_existe:
             return Response({"status": "verificado"})
         else:
-            return Response(
-                {"status": "dados_nao_conferem"},
-                status=status.HTTP_403_FORBIDDEN # 403 é um bom status para falha de autorização
-            )
+            return Response({"status": "dados_nao_conferem"}, status=status.HTTP_403_FORBIDDEN)

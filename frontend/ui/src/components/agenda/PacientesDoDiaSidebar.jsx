@@ -4,6 +4,7 @@ import { Typography, Paper, List, ListItem, ListItemIcon, ListItemText, Circular
 import apiClient from '../../api/axiosConfig';
 
 // --- IMPORTAÇÃO COMPLETA DE ÍCONES ---
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'; // <-- ADICIONE ESTA IMPORTAÇÃO
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';      // Confirmado
 import CancelIcon from '@mui/icons-material/Cancel';                  // Cancelado
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';          // Status Desconhecido
@@ -15,6 +16,7 @@ import PersonOffIcon from '@mui/icons-material/PersonOff';            // Não Co
 // --- MAPEAMENTO DE STATUS COMPLETO E CORRETO ---
 const statusMap = {
     'Agendado': { icon: <EventNoteIcon />, color: 'info.main', title: 'Agendado' },
+    'Aguardando Pagamento': { icon: <HourglassEmptyIcon />, color: 'warning.main', title: 'Aguardando Pagamento' }, // <-- ADICIONE ESTA LINHA
     'Confirmado': { icon: <CheckCircleIcon />, color: 'success.main', title: 'Confirmado' },
     'Cancelado': { icon: <CancelIcon />, color: 'error.main', title: 'Cancelado' },
     'Realizado': { icon: <DoneIcon />, color: 'action.active', title: 'Realizado' },
