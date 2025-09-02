@@ -97,14 +97,15 @@ class ConsultarAgendamentosPacienteView(APIView):
             agendamentos = Agendamento.objects.filter(paciente=paciente).order_by('-data_hora_inicio') # Mais recentes primeiro
             
             dados_formatados = [
-                {
-                    "id": ag.id,
-                    "data_hora": ag.data_hora_inicio.strftime('%d/%m/%Y às %H:%M'),
-                    "status": ag.status,
-                    "procedimento": ag.procedimento.descricao if ag.procedimento else "Não especificado"
-                }
-                for ag in agendamentos
-            ]
+    {
+        "id": ag.id,
+        # AQUI ESTÁ A CORREÇÃO: Envolvemos o campo com timezone.localtime()
+        "data_hora": timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M'),
+        "status": ag.status,
+        "procedimento": ag.procedimento.descricao if ag.procedimento else "Não especificado"
+    }
+    for ag in agendamentos
+]
             return Response(dados_formatados)
         except Paciente.DoesNotExist:
             return Response({"error": "Paciente com este CPF não encontrado."}, status=status.HTTP_404_NOT_FOUND)
