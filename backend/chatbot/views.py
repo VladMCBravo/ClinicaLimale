@@ -14,6 +14,7 @@ from agendamentos.models import Agendamento # Importe o modelo de Agendamento
 from datetime import datetime, time # Importe as ferramentas de data e hora
 from django.utils import timezone
 from datetime import timedelta
+from usuarios.models import CustomUser 
 # -------------------------
 
 
@@ -113,12 +114,22 @@ class AgendamentoChatbotView(APIView):
                 if agendamento.procedimento:
                     valor_pagamento = agendamento.procedimento.valor
 
+                # Importe o seu modelo de usuário no topo do arquivo
+                from usuarios.models import CustomUser
+
+                # Busque o usuário de serviço que você deve ter criado no Admin
+                try:
+                    usuario_servico = CustomUser.objects.get(username='servico_chatbot')
+                except CustomUser.DoesNotExist:
+                    # Alternativa: use o primeiro superusuário (ID 1)
+                    usuario_servico = CustomUser.objects.get(id=1)
+
                 Pagamento.objects.create(
                     agendamento=agendamento,
                     paciente=agendamento.paciente,
                     valor=valor_pagamento,
                     status='Pendente',
-                    registrado_por=request.user # O usuário será o 'n8n_service_user'
+                    registrado_por=usuario_servico # LINHA CORRIGIDA
                 )
 
             return Response(
