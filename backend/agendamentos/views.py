@@ -26,15 +26,24 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         agendamento = serializer.save()
         if agendamento.tipo_atendimento == 'Particular':
             valor_do_pagamento = 0.00
-            if agendamento.procedimento:
-                valor_do_pagamento = agendamento.procedimento.valor
-            Pagamento.objects.create(
-                agendamento=agendamento,
-                paciente=agendamento.paciente,
-                valor=valor_do_pagamento,
-                status='Pendente',
-                registrado_por=self.request.user
-            )
+        if agendamento.procedimento:
+            valor_do_pagamento = agendamento.procedimento.valor
+
+        # --- LÓGICA DE USUÁRIO DE SERVIÇO ---
+        try:
+            # Busque um usuário que você criou no admin, ex: 'servico_chatbot'
+            usuario_servico = self.request.user._meta.model.objects.get(username='servico_chatbot')
+        except self.request.user._meta.model.DoesNotExist:
+            # Como alternativa, pegue o primeiro superusuário (geralmente id=1)
+            usuario_servico = self.request.user._meta.model.objects.get(id=1)
+
+        Pagamento.objects.create(
+            agendamento=agendamento,
+            paciente=agendamento.paciente,
+            valor=valor_do_pagamento,
+            status='Pendente',
+            registrado_por=usuario_servico # <--- LINHA CORRIGIDA
+        )
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]
