@@ -117,7 +117,8 @@ class AgendamentoChatbotView(APIView):
         session_id = request.data.get('sessionId')
         cpf_paciente = request.data.get('cpf')
         data_hora_inicio_str = request.data.get('data_hora_inicio')
-        
+        procedimento_id = request.data.get('procedimentoId') # <-- 1. ADICIONE ESTA LINHA
+
         if cpf_paciente:
             cpf_paciente = re.sub(r'\D', '', cpf_paciente)
 
@@ -139,8 +140,9 @@ class AgendamentoChatbotView(APIView):
             'paciente': paciente.id,
             'data_hora_inicio': data_hora_inicio,
             'data_hora_fim': data_hora_fim,
-            'status': 'Aguardando Pagamento', # --- ALTERADO ---
+            'status': 'Agendado', # <-- CORREÇÃO APLICADA
             'tipo_atendimento': 'Particular',
+            'procedimento': procedimento_id, # <-- PASSO 2: ADICIONE O ID AQUI
         }
 
         serializer = AgendamentoWriteSerializer(data=dados_agendamento)
