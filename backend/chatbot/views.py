@@ -200,6 +200,21 @@ class ConsultarHorariosDisponiveisView(APIView):
             data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
         except ValueError:
             return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # --- INÍCIO DO CÓDIGO DE LOG ---
+        print(f"--- INICIANDO CONSULTA DE HORÁRIOS PARA {data_desejada} ---")
+
+        agendamentos_no_dia = Agendamento.objects.filter(
+            data_hora_inicio__date=data_desejada
+        ).exclude(status='Cancelado')
+        
+        print(f"Agendamentos encontrados (não cancelados): {list(agendamentos_no_dia)}")
+
+        horarios_ocupados = {ag.data_hora_inicio.time() for ag in agendamentos_no_dia}
+        
+        print(f"Horários ocupados extraídos: {horarios_ocupados}")
+        # --- FIM DO CÓDIGO DE LOG ---
+        
         horario_inicio_dia = time(9, 0)
         horario_fim_dia = time(18, 0)
         duracao_consulta_min = 50
