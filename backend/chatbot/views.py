@@ -1,6 +1,8 @@
 # chatbot/views.py - VERSÃO ATUALIZADA
 
 import re # <-- ADICIONE ESTA LINHA NO TOPO DO ARQUIVO
+import mercadopago # <-- Importação do MP
+from django.conf import settings # <-- Para ler as variáveis de ambiente de forma segura
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -222,20 +224,6 @@ class ConsultarHorariosDisponiveisView(APIView):
             horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
         return Response({"data": data_str, "horarios_disponiveis": horarios_disponiveis})
 
-class GerarPixView(APIView):
-    permission_classes = [HasAPIKey]
-    def post(self, request):
-        agendamento_id = request.data.get('agendamento_id')
-        if not agendamento_id:
-            return Response({'error': 'agendamento_id é obrigatório.'}, status=400)
-        try:
-            agendamento = Agendamento.objects.get(id=agendamento_id)
-            # Lógica de pagamento aqui...
-            qr_code_exemplo = "00020126...codigo_copia_cola_exemplo..."
-            return Response({"agendamento_id": agendamento.id, "status": "pix_gerado", "qr_code_texto": qr_code_exemplo})
-        except Agendamento.DoesNotExist:
-            return Response({'error': 'Agendamento não encontrado.'}, status=404)
-
 class VerificarSegurancaView(APIView):
     permission_classes = [HasAPIKey]
     def post(self, request):
@@ -250,3 +238,86 @@ class VerificarSegurancaView(APIView):
             return Response({"status": "verificado"})
         else:
             return Response({"status": "dados_nao_conferem"}, status=status.HTTP_403_FORBIDDEN)
+        
+class GerarPixView(APIView):
+    permission_classes = [HasAPIKey]
+
+    def post(self, request):
+        agendamento_id = request.data.get('agendamento_id')
+        if not agendamento_id:
+            return Response({'error': 'agendamento_id é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            agendamento = Agendamento.objects.get(id=agendamento_id)
+            pagamento = Pagamento.objects.get(agendamento=agendamento)
+        except (Agendamento.DoesNotExist, Pagamento.DoesNotExist):
+            return Response({'error': 'Agendamento ou Pagamento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Esta linha LÊ a variável de ambiente que você configurou no Render. É seguro!
+        sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
+
+        notification_url = request.build_absolute_uri('/api/chatbot/pagamentos/webhook/')
+
+        payment_data = {
+            "transaction_amount": float(pagamento.valor),
+            "description": f"Pagamento para consulta: {agendamento.procedimento.descricao}",
+            "payment_method_id": "pix",
+            "payer": {
+                "email": agendamento.paciente.email,
+                "first_name": agendamento.paciente.nome_completo.split(' ')[0],
+            },
+            "notification_url": notification_url,
+        }
+
+        payment_response = sdk.payment().create(payment_data)
+        payment = payment_response["response"]
+
+        if payment_response["status"] == 201:
+            pagamento.id_transacao_externa = str(payment['id'])
+            pagamento.save()
+
+            qr_code = payment['point_of_interaction']['transaction_data']['qr_code']
+            qr_code_base64 = payment['point_of_interaction']['transaction_data']['qr_code_base64']
+
+            return Response({
+                "agendamento_id": agendamento.id,
+                "status": "pix_gerado",
+                "qr_code_texto": qr_code,
+                "qr_code_imagem": f"data:image/png;base64,{qr_code_base64}"
+            })
+        else:
+            return Response(payment_response, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MercadoPagoWebhookView(APIView):
+    """
+    Recebe notificações do Mercado Pago sobre o status do pagamento.
+    """
+    def post(self, request):
+        query_params = request.query_params
+        
+        if query_params.get("type") == "payment":
+            payment_id = query_params.get("data.id")
+
+            # Acessa a chave de forma segura novamente
+            sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
+            payment_info = sdk.payment().get(payment_id)
+            
+            if payment_info["status"] == 200:
+                payment_data = payment_info["response"]
+                
+                try:
+                    pagamento = Pagamento.objects.get(id_transacao_externa=str(payment_data["id"]))
+                    
+                    if payment_data["status"] == "approved" and pagamento.agendamento.status == "Agendado":
+                        pagamento.status = 'Pago'
+                        pagamento.save()
+                        
+                        agendamento = pagamento.agendamento
+                        agendamento.status = 'Confirmado'
+                        agendamento.save()
+                        
+                except Pagamento.DoesNotExist:
+                    pass
+
+        return Response(status=status.HTTP_200_OK)

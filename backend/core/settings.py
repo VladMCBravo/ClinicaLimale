@@ -2,6 +2,7 @@
 Django settings for core project.
 """
 import os
+MERCADO_PAGO_ACCESS_TOKEN = os.getenv('MERCADO_PAGO_ACCESS_TOKEN')
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
