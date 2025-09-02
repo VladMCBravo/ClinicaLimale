@@ -67,7 +67,7 @@ class AgendamentoChatbotView(APIView):
         # 1. Encontrar o paciente
         try:
             # A forma mais segura é verificar o CPF E o telefone (session_id)
-            paciente = Paciente.objects.get(cpf=cpf_paciente, telefone=session_id)
+            paciente = Paciente.objects.get(cpf=cpf_paciente, telefone_celular=session_id)
         except Paciente.DoesNotExist:
             return Response(
                 {'error': 'Paciente não encontrado ou dados não conferem. Por favor, verifique o CPF e tente novamente.'},
