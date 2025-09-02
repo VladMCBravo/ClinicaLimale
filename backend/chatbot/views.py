@@ -1,5 +1,6 @@
 # chatbot/views.py - VERSÃO ATUALIZADA
 
+import re # <-- ADICIONE ESTA LINHA NO TOPO DO ARQUIVO
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -58,6 +59,9 @@ class CadastrarPacienteView(APIView):
         # Verifica se o CPF ou Email já existem para evitar duplicados
         cpf = request.data.get('cpf')
         email = request.data.get('email')
+        if cpf:
+            cpf = re.sub(r'\D', '', cpf)
+
         if Paciente.objects.filter(cpf=cpf).exists():
             return Response({'error': 'Um paciente com este CPF já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
         if Paciente.objects.filter(email=email).exists():
@@ -82,6 +86,9 @@ class ConsultarAgendamentosPacienteView(APIView):
 
     def get(self, request):
         cpf = request.query_params.get('cpf')
+        if cpf:
+            cpf = re.sub(r'\D', '', cpf)
+
         if not cpf:
             return Response({'error': 'O parâmetro "cpf" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -110,6 +117,9 @@ class AgendamentoChatbotView(APIView):
         session_id = request.data.get('sessionId')
         cpf_paciente = request.data.get('cpf')
         data_hora_inicio_str = request.data.get('data_hora_inicio')
+        
+        if cpf_paciente:
+            cpf_paciente = re.sub(r'\D', '', cpf_paciente)
 
         if not all([session_id, cpf_paciente, data_hora_inicio_str]):
             return Response({'error': 'sessionId, cpf e data_hora_inicio são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -194,7 +204,9 @@ class ConsultarHorariosDisponiveisView(APIView):
         horario_fim_dia = time(18, 0)
         duracao_consulta_min = 50
         intervalo_min = 10
-        agendamentos_no_dia = Agendamento.objects.filter(data_hora_inicio__date=data_desejada)
+        agendamentos_no_dia = Agendamento.objects.filter(
+        data_hora_inicio__date=data_desejada
+        ).exclude(status='Cancelado') # <-- ADICIONE ESTA LINHA PARA EXCLUIR OS CANCELADOS
         horarios_ocupados = {ag.data_hora_inicio.time() for ag in agendamentos_no_dia}
         horarios_disponiveis = []
         horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
@@ -224,6 +236,8 @@ class VerificarSegurancaView(APIView):
     def post(self, request):
         telefone = request.data.get('telefone_celular')
         cpf = request.data.get('cpf')
+        if cpf:
+            cpf = re.sub(r'\D', '', cpf)
         if not telefone or not cpf:
             return Response({'error': 'Os campos "telefone_celular" e "cpf" são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
         paciente_existe = Paciente.objects.filter(telefone_celular=telefone, cpf=cpf).exists()
