@@ -1,6 +1,6 @@
 // src/components/financeiro/ProcedimentosView.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, IconButton } from '@mui/material';
+import { Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, IconButton, Button } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
