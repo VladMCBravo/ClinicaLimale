@@ -1,37 +1,41 @@
-# backend/pacientes/views.py - VERSÃO CORRIGIDA
+# backend/pacientes/views.py - VERSÃO OTIMIZADA
+
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from usuarios.permissions import IsMedicoResponsavelOrAdmin, AllowRead_WriteRecepcaoAdmin
 from .models import Paciente
 from .serializers import PacienteSerializer
+from django.db.models import Count # <-- 1. IMPORTE O 'Count'
 
 class PacienteListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PacienteSerializer
-    # Esta permissão agora bloqueia a criação (POST) por médicos.
     permission_classes = [AllowRead_WriteRecepcaoAdmin]
 
     def get_queryset(self):
         user = self.request.user
+        base_queryset = Paciente.objects.all()
+
+        # 2. A MÁGICA ACONTECE AQUI:
+        # Pedimos ao Django para adicionar um novo campo 'total_consultas' em cada paciente,
+        # contendo a contagem de seus agendamentos. Isso é feito de forma super eficiente.
+        queryset_anotado = base_queryset.annotate(
+            total_consultas=Count('agendamentos')
+        )
         
-        # Admin e Recepção veem todos os pacientes
+        # O resto da sua lógica de permissão continua a mesma, mas agora sobre o queryset otimizado
         if user.cargo in ['admin', 'recepcao']:
-            return Paciente.objects.all()
+            return queryset_anotado
         
-        # Médicos veem apenas os seus pacientes
         if user.cargo == 'medico':
-            return Paciente.objects.filter(medico_responsavel=user)
+            return queryset_anotado.filter(medico_responsavel=user)
         
-        # Retorna uma lista vazia por segurança para qualquer outro caso
         return Paciente.objects.none()
 
     def perform_create(self, serializer):
-        # A lógica de criação agora confia nos dados enviados pelo modal
-        # Se um médico estiver criando, o modal já enviará o ID dele.
         serializer.save()
 
+# A PacienteDetailAPIView não precisa de alterações, mas podemos otimizá-la também se quisermos
 class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Paciente.objects.all()
+    queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos')) # Adicionamos a otimização aqui também
     serializer_class = PacienteSerializer
-    # O médico ainda poderá ver os detalhes (GET) se a lógica no get_queryset permitir,
-    # mas será bloqueado ao tentar salvar (PUT/PATCH).
     permission_classes = [AllowRead_WriteRecepcaoAdmin]

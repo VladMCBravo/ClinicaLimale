@@ -1,4 +1,4 @@
-# backend/pacientes/serializers.py
+# backend/pacientes/serializers.py - VERSÃO OTIMIZADA E MAIS LEVE
 
 from rest_framework import serializers
 from .models import Paciente
@@ -7,8 +7,11 @@ from faturamento.serializers import PlanoConvenioSerializer
 
 class PacienteSerializer(serializers.ModelSerializer):
     idade = serializers.SerializerMethodField()
-    total_consultas = serializers.SerializerMethodField()
     plano_convenio_detalhes = PlanoConvenioSerializer(source='plano_convenio', read_only=True)
+    
+    # 1. MUDANÇA AQUI: Trocamos o SerializerMethodField por um campo simples,
+    # pois o valor agora vem direto da query do banco de dados.
+    total_consultas = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Paciente
@@ -19,16 +22,14 @@ class PacienteSerializer(serializers.ModelSerializer):
             'email',
             'telefone_celular',
             'cpf',
-            # NOVO: Adicionamos os novos campos à lista para que a API os reconheça.
             'peso',
             'altura',
             'plano_convenio',
             'numero_carteirinha',
             'medico_responsavel',
-            # --- Campos de leitura ---
             'plano_convenio_detalhes',
             'idade',
-            'total_consultas',
+            'total_consultas', # <-- O campo permanece aqui, mas agora é mais simples
         ]
 
     def get_idade(self, obj):
@@ -38,9 +39,4 @@ class PacienteSerializer(serializers.ModelSerializer):
         idade = hoje.year - obj.data_nascimento.year - ((hoje.month, hoje.day) < (obj.data_nascimento.month, obj.data_nascimento.day))
         return idade
 
-    def get_total_consultas(self, obj):
-        # 'agendamentos' é o related_name do ForeignKey em Agendamento
-        # Se você não definiu um, o padrão é 'agendamento_set'
-        if hasattr(obj, 'agendamentos'):
-             return obj.agendamentos.count()
-        return 0
+  
