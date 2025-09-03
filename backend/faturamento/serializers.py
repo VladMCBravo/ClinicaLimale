@@ -1,161 +1,114 @@
-# backend/faturamento/serializers.py
+# backend/faturamento/serializers.py - VERSÃO ATUALIZADA
 
 from rest_framework import serializers
-# 1. Importa os modelos do próprio app faturamento
-from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, Procedimento
-# 2. Importa o modelo do app agendamentos em separado
+from .models import (
+    Pagamento, CategoriaDespesa, Despesa, Convenio, 
+    PlanoConvenio, Procedimento, ValorProcedimentoConvenio # 1. Importe o novo modelo
+)
 from agendamentos.models import Agendamento
 
-# --- Serializers de Suporte ---
+# --- TODOS OS SEUS SERIALIZERS EXISTENTES (Pagamento, Despesa, etc.) FICAM AQUI EM CIMA ---
+# ... (seu código de PagamentoSerializer, DespesaSerializer, etc. não muda) ...
 class PagamentoStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
         fields = ['id', 'status', 'valor']
 
-# NOVO: Serializer simples para mostrar informações do agendamento dentro do pagamento
 class AgendamentoInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
         fields = ['id', 'data_hora_inicio', 'tipo_consulta']
-
-# --- Serializer Principal de Pagamento ---
 
 class PagamentoSerializer(serializers.ModelSerializer):
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
     registrado_por = serializers.StringRelatedField(read_only=True)
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    
-    # ALTERAÇÃO: Agora usamos o serializer aninhado para ter os detalhes
     agendamento = AgendamentoInfoSerializer(read_only=True)
-
     class Meta:
         model = Pagamento
-        fields = [
-            'id', 
-            'agendamento', 
-            'paciente', 
-            'paciente_nome',
-            'valor', 
-            'status',
-            'status_display',
-            'forma_pagamento',
-            'forma_pagamento_display',
-            'data_pagamento', 
-            'registrado_por'
-        ]
+        fields = ['id', 'agendamento', 'paciente', 'paciente_nome', 'valor', 'status', 'status_display', 'forma_pagamento', 'forma_pagamento_display', 'data_pagamento', 'registrado_por']
 
 class PagamentoCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer otimizado para a CRIAÇÃO de pagamentos.
-    Recebe apenas os campos necessários do frontend.
-    """
     class Meta:
         model = Pagamento
         fields = ['valor', 'forma_pagamento']
 
 class PagamentoUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer específico para ATUALIZAR um pagamento.
-    Só permite alterar os campos necessários.
-    """
     class Meta:
         model = Pagamento
         fields = ['valor', 'forma_pagamento', 'status']
-
-# --- Serializers de Despesas (Mantidos como estavam, pois estão ótimos) ---
 
 class CategoriaDespesaSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaDespesa
         fields = '__all__'
 
-
 class DespesaSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
     registrado_por_nome = serializers.CharField(source='registrado_por.get_full_name', read_only=True, allow_null=True)
-
     class Meta:
         model = Despesa
-        fields = [
-            'id',
-            'categoria',
-            'categoria_nome',
-            'descricao',
-            'valor',
-            'data_despesa',
-            'registrado_por',
-            'registrado_por_nome',
-            'data_registro'
-        ]
+        fields = ['id', 'categoria', 'categoria_nome', 'descricao', 'valor', 'data_despesa', 'registrado_por', 'registrado_por_nome', 'data_registro']
         read_only_fields = ['registrado_por']
 
-# --- Serializers de Convênios e Planos (COM A NOVA LÓGICA) ---
-
+# --- Serializers de Convênios e Planos (Mantidos) ---
 class PlanoConvenioSerializer(serializers.ModelSerializer):
-    """
-    Serializer para o modelo PlanoConvenio.
-    Usado tanto para leitura quanto para escrita aninhada dentro de ConvenioSerializer.
-    """
     class Meta:
         model = PlanoConvenio
-        # O campo 'convenio' não é necessário aqui, pois ele será
-        # inferido pelo contexto quando criarmos através do ConvenioSerializer.
         fields = ['id', 'nome', 'descricao', 'ativo']
 
-
 class ConvenioSerializer(serializers.ModelSerializer):
-    """
-    Serializer principal para Convênio, agora com capacidade
-    de criar e atualizar seus planos aninhados.
-    """
-    # 1. Removido 'read_only=True' para permitir a escrita.
-    #    'required=False' evita erros se a lista de planos vier vazia.
     planos = PlanoConvenioSerializer(many=True, required=False)
-
     class Meta:
         model = Convenio
         fields = ['id', 'nome', 'ativo', 'planos']
 
     def create(self, validated_data):
-        """
-        Sobrescreve o método de criação padrão para lidar com os planos.
-        """
-        # 2. Separa os dados dos planos dos dados do convênio.
         planos_data = validated_data.pop('planos', [])
-        
-        # 3. Cria o objeto principal (Convênio).
         convenio = Convenio.objects.create(**validated_data)
-        
-        # 4. Itera sobre os dados dos planos e cria cada um, associando-os ao convênio recém-criado.
         for plano_data in planos_data:
             PlanoConvenio.objects.create(convenio=convenio, **plano_data)
-            
         return convenio
 
     def update(self, instance, validated_data):
-        """
-        Sobrescreve o método de atualização para lidar com os planos.
-        """
-        # 1. Separa os dados dos planos.
         planos_data = validated_data.pop('planos', None)
-
-        # 2. Atualiza os campos do objeto principal (Convênio).
         instance.nome = validated_data.get('nome', instance.nome)
         instance.ativo = validated_data.get('ativo', instance.ativo)
         instance.save()
-
-        # 3. Lógica para atualizar os planos.
-        #    (Uma abordagem simples é deletar os antigos e criar os novos).
         if planos_data is not None:
-            instance.planos.all().delete() # Deleta os planos existentes associados a este convênio.
+            instance.planos.all().delete()
             for plano_data in planos_data:
                 PlanoConvenio.objects.create(convenio=instance, **plano_data)
-
         return instance
 
-# --- NOVO SERIALIZER PARA PROCEDIMENTOS ---
+# --- ATUALIZAÇÃO E NOVOS SERIALIZERS PARA PROCEDIMENTOS E PREÇOS ---
+
+# 2. NOVO: Serializer para a nossa "tabela de preços"
+class ValorProcedimentoConvenioSerializer(serializers.ModelSerializer):
+    # Para mostrar o nome e ID do plano, e não apenas o ID
+    plano_convenio = PlanoConvenioSerializer(read_only=True)
+    # Campo para receber o ID do plano ao criar/atualizar um preço
+    plano_convenio_id = serializers.PrimaryKeyRelatedField(
+        queryset=PlanoConvenio.objects.all(), source='plano_convenio', write_only=True
+    )
+
+    class Meta:
+        model = ValorProcedimentoConvenio
+        fields = ['id', 'plano_convenio', 'plano_convenio_id', 'valor']
+
+# 3. ATUALIZADO: O serializer principal de Procedimento
 class ProcedimentoSerializer(serializers.ModelSerializer):
+    # A mágica está aqui: mostramos todos os preços de convênios associados
+    valores_convenio = ValorProcedimentoConvenioSerializer(many=True, read_only=True)
+
     class Meta:
         model = Procedimento
-        fields = ['id', 'codigo_tuss', 'descricao', 'valor']
+        fields = [
+            'id', 
+            'codigo_tuss', 
+            'descricao', 
+            'valor_particular', # 4. Corrigido de 'valor' para 'valor_particular'
+            'ativo', 
+            'valores_convenio' # 5. Campo aninhado com a lista de preços
+        ]

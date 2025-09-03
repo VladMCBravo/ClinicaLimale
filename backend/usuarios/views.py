@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser # Mantenha IsAdminUser
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from .models import CustomUser
-from .serializers import MedicoSerializer, UserSerializer, UserCreateSerializer
+from .models import CustomUser, Especialidade
+from .serializers import MedicoSerializer, UserSerializer, UserCreateSerializer, EspecialidadeSerializer
 
 class CustomAuthTokenLoginView(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
@@ -51,3 +51,12 @@ class UserViewSet(viewsets.ModelViewSet):
             # Apenas admins podem fazer as outras ações
             self.permission_classes = [IsAdminUser]
         return super().get_permissions()
+
+# --- NOVA VIEWSET ADICIONADA AQUI ---
+class EspecialidadeViewSet(viewsets.ModelViewSet):
+    """
+    Endpoint da API para visualizar e editar especialidades.
+    """
+    queryset = Especialidade.objects.all().order_by('nome')
+    serializer_class = EspecialidadeSerializer
+    permission_classes = [IsAuthenticated] # Apenas usuários logados podem gerenciar especialidades

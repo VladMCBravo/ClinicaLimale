@@ -1,6 +1,8 @@
 # backend/faturamento/views.py - VERSÃO CORRIGIDA
 
+from argparse import Action
 from rest_framework import generics, status, viewsets
+from rest_framework.decorators import action  # <-- ADICIONE ESTA LINHA AQUI
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -14,7 +16,7 @@ from agendamentos.serializers import AgendamentoSerializer
 from agendamentos.models import Agendamento
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
 # Linha nova e corrigida
-from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, LoteFaturamento, GuiaTiss, Procedimento
+from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, LoteFaturamento, GuiaTiss, Procedimento, ValorProcedimentoConvenio
 from .serializers import (
     PagamentoSerializer,  # O serializer principal para leitura
     PagamentoUpdateSerializer,  # <-- Vamos criar este serializer para atualização
@@ -234,11 +236,40 @@ class GerarLoteFaturamentoAPIView(APIView):
             return Response({'detail': f'Ocorreu um erro: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- NOVO VIEWSET PARA PROCEDIMENTOS ---
-class ProcedimentoViewSet(viewsets.ReadOnlyModelViewSet):
+class ProcedimentoViewSet(viewsets.ModelViewSet): # 1. Mudamos para ModelViewSet
     """
-    Endpoint que permite que procedimentos sejam listados.
-    ReadOnly para que não possam ser criados/editados via API por agora.
+    Endpoint que permite que procedimentos sejam listados, criados e editados.
+    Inclui uma ação para definir preços por convênio.
     """
-    queryset = Procedimento.objects.filter(ativo=True).order_by('descricao')
+    queryset = Procedimento.objects.prefetch_related('valores_convenio__plano_convenio').filter(ativo=True).order_by('descricao')
     serializer_class = ProcedimentoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] # Mantemos a permissão
+
+    # 2. AÇÃO CUSTOMIZADA: para adicionar/editar um preço de convênio em um procedimento
+    @action(detail=True, methods=['post', 'put'], url_path='definir-preco-convenio')
+    def definir_preco_convenio(self, request, pk=None):
+        procedimento = self.get_object()
+        plano_id = request.data.get('plano_convenio_id')
+        valor = request.data.get('valor')
+
+        if not plano_id or valor is None:
+            return Response(
+                {'error': 'Os campos "plano_convenio_id" e "valor" são obrigatórios.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            plano = PlanoConvenio.objects.get(id=plano_id)
+        except PlanoConvenio.DoesNotExist:
+            return Response({'error': 'Plano de convênio não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Cria ou atualiza o preço para a combinação procedimento + plano
+        obj, created = ValorProcedimentoConvenio.objects.update_or_create(
+            procedimento=procedimento,
+            plano_convenio=plano,
+            defaults={'valor': valor}
+        )
+        
+        # Retorna o procedimento completo e atualizado
+        serializer = self.get_serializer(procedimento)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)

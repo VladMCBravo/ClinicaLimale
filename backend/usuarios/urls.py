@@ -1,14 +1,18 @@
-# backend/usuarios/urls.py
+# backend/usuarios/urls.py - VERSÃO ATUALIZADA
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-# Removemos a importação de login/logout, pois agora estão no core/urls.py
-from .views import MedicoListView, UserViewSet 
+# 1. Importe a nova ViewSet
+from .views import MedicoListView, UserViewSet, EspecialidadeViewSet
 
 router = DefaultRouter()
 router.register(r'usuarios', UserViewSet, basename='usuario')
+# 2. Registre a nova rota para especialidades
+router.register(r'especialidades', EspecialidadeViewSet, basename='especialidade')
+
 
 urlpatterns = [
-    # As rotas de login/logout foram removidas daqui
     path('medicos/', MedicoListView.as_view(), name='lista_medicos'),
+    # 3. O include do router agora serve as duas rotas: /usuarios e /especialidades
     path('', include(router.urls)),
 ]
