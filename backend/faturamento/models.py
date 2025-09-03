@@ -154,7 +154,8 @@ class Procedimento(models.Model):
     """
     codigo_tuss = models.CharField(max_length=20, unique=True, help_text="Código do procedimento na tabela TUSS")
     descricao = models.CharField(max_length=255)
-    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    # --- ALTERAÇÃO 1: Renomeamos 'valor' para ser mais específico ---
+    valor_particular = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Particular (R$)")
     ativo = models.BooleanField(default=True)
 
     def __str__(self):
@@ -162,3 +163,24 @@ class Procedimento(models.Model):
 
     class Meta:
         ordering = ['descricao']
+
+
+# --- NOVO MODEL ADICIONADO AQUI ---
+# Coloque este código logo abaixo do modelo Procedimento
+class ValorProcedimentoConvenio(models.Model):
+    """
+    Tabela de preços: Liga um Procedimento a um Plano de Convênio 
+    e define um valor específico para essa combinação.
+    """
+    procedimento = models.ForeignKey(Procedimento, on_delete=models.CASCADE, related_name='valores_convenio')
+    plano_convenio = models.ForeignKey(PlanoConvenio, on_delete=models.CASCADE, related_name='valores_procedimento')
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Acordado (R$)")
+
+    def __str__(self):
+        return f"{self.procedimento.descricao} | {self.plano_convenio.nome}: R$ {self.valor}"
+
+    class Meta:
+        # Garante que não teremos duas entradas de preço para a mesma combinação
+        unique_together = ('procedimento', 'plano_convenio')
+        verbose_name = "Valor de Procedimento por Convênio"
+        verbose_name_plural = "Valores de Procedimentos por Convênios"
