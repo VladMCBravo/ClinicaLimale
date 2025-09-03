@@ -16,35 +16,28 @@ import os
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser, AllowRead_WriteRecepcaoAdmin
 from . import services # <-- 1. IMPORTE O NOVO MÓDULO DE SERVIÇOS
 
+# --- CLASSE CORRIGIDA ---
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]
     queryset = Agendamento.objects.all().select_related('paciente').order_by('data_hora_inicio')
+    
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return AgendamentoWriteSerializer
         return AgendamentoSerializer
     
     def perform_create(self, serializer):
-        # 2. A MÁGICA ACONTECE AQUI:
-        # A view não sabe mais as regras de negócio. Ela apenas delega para o serviço.
+        """
+        Salva o agendamento e delega a criação do pagamento pendente para a camada de serviço.
+        """
+        # 1. Salva o agendamento através do serializer
         agendamento = serializer.save()
+        
+        # 2. Chama o serviço para executar as regras de negócio (criar o pagamento)
         services.criar_agendamento_e_pagamento_pendente(agendamento, self.request.user)
 
-        # --- LÓGICA DE USUÁRIO DE SERVIÇO ---
-        try:
-            # Busque um usuário que você criou no admin, ex: 'servico_chatbot'
-            usuario_servico = self.request.user._meta.model.objects.get(username='servico_chatbot')
-        except self.request.user._meta.model.DoesNotExist:
-            # Como alternativa, pegue o primeiro superusuário (geralmente id=1)
-            usuario_servico = self.request.user._meta.model.objects.get(id=1)
-
-        Pagamento.objects.create(
-            agendamento=agendamento,
-            paciente=agendamento.paciente,
-            valor=valor_do_pagamento,
-            status='Pendente',
-            registrado_por=usuario_servico # <--- LINHA CORRIGIDA
-        )
+        # E é isso! Todo o código antigo que estava aqui foi movido para services.py
+        # e deve ser removido desta função.
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]

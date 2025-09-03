@@ -101,11 +101,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         };
 
         try {
-            const request = editingEvent 
-                ? apiClient.put(`/agendamentos/${editingEvent.id}/`, submissionData)
-                : apiClient.post('/agendamentos/', submissionData);
-            
-            await request;
+        // USA AS NOVAS FUNÇÕES DO SERVIÇO
+        const request = editingEvent 
+            ? agendamentoService.updateAgendamento(editingEvent.id, submissionData)
+            : agendamentoService.createAgendamento(submissionData);
+
+        await request;
             showSnackbar(editingEvent ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success');
             onSave();
         } catch (error) {
