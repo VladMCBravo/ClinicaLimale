@@ -186,9 +186,16 @@ class CriarSalaTelemedicinaView(APIView):
 class TelemedicinaListView(generics.ListAPIView):
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
+    
     def get_queryset(self):
         hoje = timezone.now()
+        
+        # --- A MUDANÇA ESTÁ AQUI ---
+        # Em vez de filtrar pelo nome do procedimento...
+        # return Agendamento.objects.filter(procedimento__descricao__icontains='Telemedicina', ...)
+        
+        # ...filtramos diretamente pela nova flag de modalidade. É mais limpo e seguro.
         return Agendamento.objects.filter(
             data_hora_inicio__gte=hoje,
-            procedimento__descricao__icontains='Telemedicina'
+            modalidade='Telemedicina'
         ).order_by('data_hora_inicio').select_related('paciente', 'procedimento')

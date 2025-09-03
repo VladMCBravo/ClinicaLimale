@@ -1,6 +1,6 @@
 // src/components/AgendamentoModal.jsx - VERSÃO FINAL E REFATORADA
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
@@ -18,6 +18,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const getInitialFormData = () => ({
         paciente: null, data_hora_inicio: '', data_hora_fim: '', status: 'Confirmado',
         procedimento: null, plano_utilizado: null, tipo_atendimento: 'Particular', observacoes: '',
+        tipo_visita: 'Primeira Consulta', // <-- NOVO
+        modalidade: 'Presencial',        // <-- NOVO
     });
 
     const [formData, setFormData] = useState(getInitialFormData());
@@ -100,6 +102,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
           paciente: formData.paciente?.id || null,
           procedimento: formData.procedimento?.id || null,
           tipo_consulta: formData.procedimento ? formData.procedimento.descricao : 'Consulta',
+          // 2. Os novos campos (tipo_visita e modalidade) já estarão aqui por causa do ...formData
         };
 
         try {
@@ -117,6 +120,26 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             setIsSubmitting(false);
         }
     };
+
+        const valorDoProcedimento = useMemo(() => {
+        const { paciente, procedimento, tipo_atendimento } = formData;
+        
+        if (!procedimento) return null; // Se não há procedimento, não há valor
+
+        if (tipo_atendimento === 'Convenio' && pacienteDetalhes?.plano_convenio) {
+            const precoConvenio = procedimento.valores_convenio.find(
+                vc => vc.plano_convenio.id === pacienteDetalhes.plano_convenio
+            );
+            if (precoConvenio) {
+                return `Valor (Convênio): R$ ${precoConvenio.valor}`;
+            } else {
+                return "Valor não definido para este plano.";
+            }
+        }
+        // Se for particular ou não encontrar preço de convênio, mostra o particular
+        return `Valor (Particular): R$ ${procedimento.valor_particular}`;
+
+    }, [formData.procedimento, formData.tipo_atendimento, pacienteDetalhes]);
 
     // O JSX (a parte visual) continua exatamente o mesmo
     return (
@@ -155,6 +178,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 loading={loading}
                 renderInput={(params) => (<TextField {...params} label="Procedimento" required />)}
             />
+            {valorDoProcedimento && (
+        <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}>
+            <Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>
+                {valorDoProcedimento}
+            </Typography>
+        </Box>
+    )}
             <FormControl fullWidth>
                 <InputLabel>Tipo de Atendimento</InputLabel>
                 <Select
@@ -165,7 +195,31 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     <MenuItem value="Convenio" disabled={!formData.plano_utilizado}>Convênio</MenuItem>
                 </Select>
             </FormControl>
+<FormControl fullWidth>
+                        <InputLabel>Modalidade</InputLabel>
+                        <Select
+                            name="modalidade"
+                            value={formData.modalidade}
+                            label="Modalidade"
+                            onChange={(e) => setFormData({...formData, modalidade: e.target.value})}
+                        >
+                            <MenuItem value="Presencial">Presencial (na clínica)</MenuItem>
+                            <MenuItem value="Telemedicina">Telemedicina</MenuItem>
+                        </Select>
+                    </FormControl>
 
+                    <FormControl fullWidth>
+                        <InputLabel>Tipo da Visita</InputLabel>
+                        <Select
+                            name="tipo_visita"
+                            value={formData.tipo_visita}
+                            label="Tipo da Visita"
+                            onChange={(e) => setFormData({...formData, tipo_visita: e.target.value})}
+                        >
+                            <MenuItem value="Primeira Consulta">Primeira Consulta</MenuItem>
+                            <MenuItem value="Retorno">Retorno</MenuItem>
+                        </Select>
+                    </FormControl>
             <TextField label="Início" type="datetime-local" name="data_hora_inicio" value={formData.data_hora_inicio}
                 onChange={(e) => setFormData({...formData, data_hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} required
             />

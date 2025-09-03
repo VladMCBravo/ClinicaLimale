@@ -12,7 +12,8 @@ from .views import (
     PlanoConvenioViewSet,
     PagamentosPendentesListAPIView,
     GerarLoteFaturamentoAPIView,
-    ProcedimentoViewSet
+    ProcedimentoViewSet,
+    TussUploadView
 )
 
 # O router regista os ViewSets (que criam múltiplas URLs)
@@ -39,6 +40,6 @@ urlpatterns = [
     # Inclui todas as rotas geradas pelo router (como /pagamentos/, /convenios/, etc.)
     path('', include(router.urls)),
 
-     path('gerar-lote/', GerarLoteFaturamentoAPIView.as_view(), name='gerar-lote'),
-    
+    path('gerar-lote/', GerarLoteFaturamentoAPIView.as_view(), name='gerar-lote'),
+    path('procedimentos/upload-tuss/', TussUploadView.as_view(), name='upload_tuss'),
 ]

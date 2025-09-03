@@ -7,7 +7,15 @@ const getProcedimentos = () => apiClient.get('/faturamento/procedimentos/');
 const updateProcedimento = (id, data) => apiClient.put(`/faturamento/procedimentos/${id}/`, data);
 const definirPrecoConvenio = (procedimentoId, data) => apiClient.post(`/faturamento/procedimentos/${procedimentoId}/definir-preco-convenio/`, data);
 const getPlanosConvenio = () => apiClient.get('/faturamento/planos/');
-
+const uploadTuss = (formData) => {
+    // O segundo argumento é o 'data', que é o nosso FormData com o arquivo.
+    // O terceiro argumento são as 'options', onde definimos o cabeçalho correto para upload de arquivos.
+    return apiClient.post('/faturamento/procedimentos/upload-tuss/', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+};
 // --- Funções para Pagamentos Pendentes ---
 const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pendentes/');
 const updatePagamento = (id, data) => apiClient.patch(`/faturamento/pagamentos/${id}/`, data);
@@ -32,6 +40,7 @@ export const faturamentoService = {
     updateProcedimento,
     definirPrecoConvenio,
     getPlanosConvenio,
+    uploadTuss,
     // Pagamentos
     getPagamentosPendentes,
     updatePagamento,

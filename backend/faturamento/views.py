@@ -1,4 +1,7 @@
 # backend/faturamento/views.py - VERSÃO CORRIGIDA
+import csv
+import io # Para ler o arquivo em memória
+from rest_framework.parsers import MultiPartParser, FormParser # Para lidar com uploads de arquivos
 
 from argparse import Action
 from rest_framework import generics, status, viewsets
@@ -273,3 +276,46 @@ class ProcedimentoViewSet(viewsets.ModelViewSet): # 1. Mudamos para ModelViewSet
         # Retorna o procedimento completo e atualizado
         serializer = self.get_serializer(procedimento)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+class TussUploadView(APIView):
+    permission_classes = [IsAdminUser] # Apenas administradores podem fazer isso
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        arquivo_csv = request.FILES.get('arquivo_tuss')
+        if not arquivo_csv:
+            return Response({'error': 'Nenhum arquivo enviado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not arquivo_csv.name.endswith('.csv'):
+            return Response({'error': 'O arquivo deve ser no formato CSV.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        criados = 0
+        atualizados = 0
+
+        try:
+            # Lê o arquivo em memória de forma segura
+            decoded_file = arquivo_csv.read().decode('utf-8-sig') # 'utf-8-sig' remove BOM
+            io_string = io.StringIO(decoded_file)
+            reader = csv.DictReader(io_string, delimiter=';')
+
+            for row in reader:
+                codigo_tuss = row.get('CODIGO_TUSS') # Ajuste o nome da coluna se necessário
+                descricao = row.get('DESCRICAO')   # Ajuste o nome da coluna se necessário
+
+                if codigo_tuss and descricao:
+                    _, created = Procedimento.objects.update_or_create(
+                        codigo_tuss=codigo_tuss,
+                        defaults={'descricao': descricao}
+                    )
+                    if created:
+                        criados += 1
+                    else:
+                        atualizados += 1
+        except Exception as e:
+            return Response({'error': f'Erro ao processar o arquivo: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({
+            'status': 'Importação concluída com sucesso!',
+            'criados': criados,
+            'atualizados': atualizados
+        }, status=status.HTTP_200_OK)

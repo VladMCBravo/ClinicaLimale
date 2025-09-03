@@ -10,7 +10,7 @@ export default function ProcedimentosView() {
     const [procedimentos, setProcedimentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const { showSnackbar } = useSnackbar();
-
+    const [isUploading, setIsUploading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [procedimentoSelecionado, setProcedimentoSelecionado] = useState(null);
 
@@ -37,9 +37,39 @@ export default function ProcedimentosView() {
 
     if (isLoading) return <CircularProgress />;
 
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('arquivo_tuss', file);
+
+        try {
+            // Nota: Precisaremos criar 'uploadTuss' em nosso faturamentoService
+            const response = await faturamentoService.uploadTuss(formData); 
+            showSnackbar(`${response.data.criados} novos procedimentos criados, ${response.data.atualizados} atualizados.`, 'success');
+            fetchProcedimentos(); // Recarrega a lista
+        } catch (error) {
+            showSnackbar('Erro no upload do arquivo.', 'error');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>Procedimentos e Tabela de Preços</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">Procedimentos e Tabela de Preços</Typography>
+                <Button
+                    variant="contained"
+                    component="label"
+                    disabled={isUploading}
+                >
+                    {isUploading ? <CircularProgress size={24} /> : 'Upload Tabela TUSS'}
+                    <input type="file" accept=".csv" hidden onChange={handleFileUpload} />
+                </Button>
+            </Box>
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>

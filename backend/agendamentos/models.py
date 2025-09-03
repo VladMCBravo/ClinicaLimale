@@ -11,7 +11,30 @@ from django.conf import settings
 class Agendamento(models.Model):
     TIPO_ATENDIMENTO_CHOICES = [('Convenio', 'Convênio'), ('Particular', 'Particular')]
     STATUS_CHOICES = [('Agendado', 'Agendado'), ('Confirmado', 'Confirmado'), ('Cancelado', 'Cancelado'), ('Realizado', 'Realizado'), ('Não Compareceu', 'Não Compareceu')]
+ # --- NOVOS CAMPOS PARA CLASSIFICAÇÃO ---
+    TIPO_VISITA_CHOICES = [
+        ('Primeira Consulta', 'Primeira Consulta'),
+        ('Retorno', 'Retorno'),
+    ]
+    MODALIDADE_CHOICES = [
+        ('Presencial', 'Presencial'),
+        ('Telemedicina', 'Telemedicina'),
+    ]
 
+    tipo_visita = models.CharField(
+        max_length=20, 
+        choices=TIPO_VISITA_CHOICES, 
+        default='Primeira Consulta', 
+        blank=True, 
+        null=True
+    )
+    modalidade = models.CharField(
+        max_length=20, 
+        choices=MODALIDADE_CHOICES, 
+        default='Presencial', 
+        blank=True, 
+        null=True
+    )
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='agendamentos')
     data_hora_inicio = models.DateTimeField()
     data_hora_fim = models.DateTimeField()
