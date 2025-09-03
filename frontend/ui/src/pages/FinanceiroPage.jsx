@@ -8,6 +8,7 @@ import PagamentosPendentesView from '../components/financeiro/PagamentosPendente
 import DespesasView from '../components/financeiro/DespesasView';
 import RelatoriosView from '../components/financeiro/RelatoriosView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
+import ProcedimentosView from '../components/financeiro/ProcedimentosView'; // <-- 1. IMPORTE A NOVA VIEW
 
 // Função auxiliar para acessibilidade das abas
 function a11yProps(index) {
@@ -39,6 +40,7 @@ export default function FinanceiroPage() {
                     <Tab label="Despesas" {...a11yProps(1)} />
                     <Tab label="Relatórios" {...a11yProps(2)} />
                     <Tab label="Faturamento de Convênios" {...a11yProps(3)} />
+                     <Tab label="Procedimentos e Preços" {...a11yProps(4)} /> {/* <-- 2. ADICIONE A NOVA ABA */}
                 </Tabs>
             </Box>
 
@@ -46,6 +48,7 @@ export default function FinanceiroPage() {
                 {/* 3. O conteúdo exibido depende diretamente do estado 'activeTab' */}
                 {activeTab === 0 && <PagamentosPendentesView />}
                 {activeTab === 1 && <DespesasView />}
+                {activeTab === 4 && <ProcedimentosView />} {/* <-- 3. ADICIONE O CONTEÚDO DA NOVA ABA */}
                 {activeTab === 2 && <RelatoriosView />}
                 {activeTab === 3 && <FaturamentoConveniosView />}
             </Box>

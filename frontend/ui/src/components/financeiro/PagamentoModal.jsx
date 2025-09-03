@@ -5,7 +5,7 @@ import {
     Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, 
     DialogTitle, TextField, Select, MenuItem, InputLabel, FormControl, Typography
 } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
+import { faturamentoService } from '../../services/faturamentoService'; // <-- ADICIONADO
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
 const initialFormState = { valor: '', forma_pagamento: '' };
@@ -31,16 +31,18 @@ export default function PagamentoModal({ open, onClose, onSave, pagamento }) {
         onClose();
     };
 
-    const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            // 3. A requisição agora é PATCH para ATUALIZAR o pagamento existente
-            await apiClient.patch(`/faturamento/pagamentos/${pagamento.id}/`, {
+            const dataToSend = {
                 valor: formData.valor,
                 forma_pagamento: formData.forma_pagamento,
-                status: 'Pago' // O objetivo principal: mudar o status para 'Pago'
-            });
+                status: 'Pago'
+            };
+            // AQUI ESTÁ A MUDANÇA: Usando o serviço
+            await faturamentoService.updatePagamento(pagamento.id, dataToSend);
+            
             showSnackbar('Pagamento registado com sucesso!', 'success');
             onSave();
             handleClose();

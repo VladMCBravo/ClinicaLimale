@@ -6,7 +6,8 @@ import {
     InputLabel, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Checkbox,
     TextField // <-- 1. A IMPORTAÇÃO QUE FALTAVA ESTÁ AQUI
 } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
+
+import { faturamentoService } from '../../services/faturamentoService'; // <-- ADICIONADO
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
 // Função para formatar a data para o formato YYYY-MM
@@ -28,7 +29,8 @@ export default function FaturamentoConveniosView() {
 
     // Efeito para buscar a lista de todos os convênios
     useEffect(() => {
-        apiClient.get('/faturamento/convenios/')
+        // AQUI ESTÁ A MUDANÇA: Usando o serviço
+        faturamentoService.getConvenios()
             .then(response => { setConvenios(response.data); })
             .catch(error => {
                 console.error("Erro ao buscar convênios:", error);
@@ -36,7 +38,6 @@ export default function FaturamentoConveniosView() {
             });
     }, [showSnackbar]);
 
-    // Função para buscar os agendamentos faturáveis
     const handleBuscar = async () => {
         if (!selectedConvenio || !selectedMonth) {
             showSnackbar("Por favor, selecione um convênio e um mês/ano.", 'warning');
@@ -48,9 +49,11 @@ export default function FaturamentoConveniosView() {
         setSelectedAgendamentos([]);
         
         const [ano, mes] = selectedMonth.split('-');
+        const params = { convenio_id: selectedConvenio, ano, mes };
 
         try {
-            const response = await apiClient.get(`/faturamento/agendamentos-faturaveis/?convenio_id=${selectedConvenio}&ano=${ano}&mes=${mes}`);
+            // AQUI ESTÁ A MUDANÇA: Usando o serviço
+            const response = await faturamentoService.getAgendamentosFaturaveis(params);
             setAgendamentosFaturaveis(response.data);
             if (response.data.length === 0) {
                 showSnackbar("Nenhum agendamento para faturar encontrado para este período.", 'info');
@@ -92,54 +95,49 @@ export default function FaturamentoConveniosView() {
         return;
     }
 
-    setIsLoading(true);
-    try {
-        const payload = {
-            convenio_id: selectedConvenio,
-            mes_referencia: selectedMonth,
-            agendamento_ids: selectedAgendamentos
-        };
+   setIsLoading(true);
+        try {
+            const payload = {
+                convenio_id: selectedConvenio,
+                mes_referencia: selectedMonth,
+                agendamento_ids: selectedAgendamentos
+            };
 
-        // --- LÓGICA NOVA: Tratar a resposta como um ficheiro ---
-        const response = await apiClient.post('/faturamento/gerar-lote/', payload, {
-            responseType: 'blob', // 1. Diz ao Axios para esperar um ficheiro
-        });
+            // AQUI ESTÁ A MUDANÇA: Usando o serviço
+            const response = await faturamentoService.gerarLoteFaturamento(payload);
 
-        // 2. Cria um link temporário para o ficheiro e simula um clique para descarregar
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        
-        // Extrai o nome do ficheiro do cabeçalho da resposta, se existir
-        const contentDisposition = response.headers['content-disposition'];
-        let filename = 'faturamento.xml';
-        if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-            if (filenameMatch.length === 2)
-                filename = filenameMatch[1];
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // A lógica de extrair o nome do arquivo da resposta é complexa e pode ser mantida
+            // porque ela não depende do apiClient, mas sim do objeto de resposta do axios.
+            // Por isso, esta parte não muda.
+            const contentDisposition = response.headers['content-disposition'];
+            let filename = 'faturamento.xml';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch && filenameMatch.length === 2)
+                    filename = filenameMatch[1];
+            }
+            link.setAttribute('download', filename);
+            
+            document.body.appendChild(link);
+            link.click();
+            
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            showSnackbar('Lote gerado e ficheiro descarregado com sucesso!', 'success');
+            handleBuscar(); 
+
+        } catch (error) {
+            console.error("Erro ao gerar lote de faturamento:", error);
+            showSnackbar("Erro ao gerar lote.", 'error');
+        } finally {
+            setIsLoading(false);
         }
-        link.setAttribute('download', filename);
-        
-        document.body.appendChild(link);
-        link.click();
-        
-        // Limpa o link temporário
-        link.parentNode.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        // --- 3. A MENSAGEM DE SUCESSO MELHORADA ---
-        showSnackbar('Lote gerado e ficheiro descarregado com sucesso!', 'success');
-        
-        // Recarrega a lista de agendamentos faturáveis
-        handleBuscar(); 
-
-    } catch (error) {
-        console.error("Erro ao gerar lote de faturamento:", error);
-        showSnackbar("Erro ao gerar lote.", 'error');
-    } finally {
-        setIsLoading(false);
-    }
-};
+    };
 
     return (
         <Box>

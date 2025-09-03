@@ -1,8 +1,8 @@
 // src/components/financeiro/RelatoriosView.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, CircularProgress, Typography, Paper, Grid } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
 
+import { faturamentoService } from '../../services/faturamentoService'; // <-- ADICIONADO
 // Importando os componentes de gráficos e o core do Chart.js
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -17,7 +17,8 @@ export default function RelatoriosView() {
     const fetchReports = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await apiClient.get('/faturamento/relatorios/financeiro/');
+            // AQUI ESTÁ A MUDANÇA: Usando o serviço
+            const response = await faturamentoService.getRelatorioFinanceiro();
             setReportData(response.data);
         } catch (error) {
             console.error("Erro ao buscar relatórios:", error);
@@ -29,6 +30,7 @@ export default function RelatoriosView() {
     useEffect(() => {
         fetchReports();
     }, [fetchReports]);
+
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;

@@ -5,7 +5,8 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Select, MenuItem, InputLabel, FormControl
 } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
+
+import { faturamentoService } from '../../services/faturamentoService'; // <-- ADICIONADO
 import { useSnackbar } from '../../contexts/SnackbarContext'; // <-- IMPORTE O HOOK DE NOTIFICAÇÃO
 
 const initialFormState = { 
@@ -23,12 +24,12 @@ export default function DespesasView() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Simplificamos a função fetchData, removendo o useCallback para garantir que ela sempre busca os dados mais recentes
     const fetchData = async () => {
         try {
+            // AQUI ESTÁ A MUDANÇA: Usando o serviço
             const [despesasRes, categoriasRes] = await Promise.all([
-                apiClient.get('/faturamento/despesas/'),
-                apiClient.get('/faturamento/categorias-despesa/')
+                faturamentoService.getDespesas(),
+                faturamentoService.getCategoriasDespesa()
             ]);
             setDespesas(despesasRes.data);
             setCategorias(categoriasRes.data);
@@ -43,19 +44,20 @@ export default function DespesasView() {
     useEffect(() => {
         setIsLoading(true);
         fetchData();
-    }, []); // Roda apenas uma vez na montagem inicial
+    }, []);
 
     const handleSave = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post('/faturamento/despesas/', formData);
-            showSnackbar('Despesa salva com sucesso!', 'success'); // <-- FEEDBACK DE SUCESSO
+            // AQUI ESTÁ A MUDANÇA: Usando o serviço
+            await faturamentoService.createDespesa(formData);
+            showSnackbar('Despesa salva com sucesso!', 'success');
             setFormData(initialFormState);
-            fetchData(); // Recarrega os dados para atualizar a lista
+            fetchData();
         } catch (error) {
             console.error("Erro ao salvar despesa:", error.response?.data);
-            showSnackbar('Erro ao salvar despesa. Verifique os campos.', 'error'); // <-- FEEDBACK DE ERRO
+            showSnackbar('Erro ao salvar despesa. Verifique os campos.', 'error');
         } finally {
             setIsSubmitting(false);
         }

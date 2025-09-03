@@ -4,7 +4,8 @@ import {
     Box, Button, CircularProgress, Typography, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
+
+import { faturamentoService } from '../../services/faturamentoService'; // <-- IMPORTAMOS O SERVIÇO
 import PagamentoModal from './PagamentoModal'; 
 import { useSnackbar } from '../../contexts/SnackbarContext'; // Para dar feedback ao usuário
 
@@ -17,11 +18,10 @@ export default function PagamentosPendentesView() {
     const { showSnackbar } = useSnackbar();
 
     const fetchPendentes = useCallback(async () => {
-        // Apenas mostra o spinner grande na primeira carga
         if (pagamentosPendentes.length === 0) setIsLoading(true);
         try {
-            // 2. Chamada à API CORRETA
-            const response = await apiClient.get('/faturamento/pagamentos-pendentes/');
+            // A MÁGICA ACONTECE AQUI: Usamos a função do serviço
+            const response = await faturamentoService.getPagamentosPendentes();
             setPagamentosPendentes(response.data);
         } catch (error) {
             console.error("Erro ao buscar pagamentos pendentes:", error);
@@ -29,11 +29,10 @@ export default function PagamentosPendentesView() {
         } finally {
             setIsLoading(false);
         }
-    }, [pagamentosPendentes.length, showSnackbar]); // Adicionado showSnackbar como dependência
+    }, [pagamentosPendentes.length, showSnackbar]);
 
     useEffect(() => {
         fetchPendentes();
-        // O ESLint pode pedir para incluir fetchPendentes na dependência, o que está correto.
     }, [fetchPendentes]);
 
     const handleOpenModal = (pagamento) => {
