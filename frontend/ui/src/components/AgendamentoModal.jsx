@@ -5,7 +5,8 @@ import {
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
   Box, Typography, Divider
 } from '@mui/material';
-import apiClient from '../api/axiosConfig';
+
+import { agendamentoService } from '../services/agendamentoService'; // <-- ADICIONADO
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
@@ -24,18 +25,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
 
     useEffect(() => {
-        if (open) {
-            setLoading(true);
-            const fetchPacientes = apiClient.get('/pacientes/');
-            const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-            Promise.all([fetchPacientes, fetchProcedimentos])
-                .then(([pacientesResponse, procedimentosResponse]) => {
-                    setPacientes(pacientesResponse.data);
-                    setProcedimentos(procedimentosResponse.data);
-                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
-                .finally(() => setLoading(false));
-        }
-    }, [open, showSnackbar]);
+    if (open) {
+        setLoading(true);
+        // USA A NOVA FUNÇÃO DO SERVIÇO
+        agendamentoService.getModalData()
+            .then(([pacientesResponse, procedimentosResponse]) => {
+                setPacientes(pacientesResponse.data);
+                setProcedimentos(procedimentosResponse.data);
+            }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); })
+            .finally(() => setLoading(false));
+    }
+}, [open, showSnackbar]);
     
 
     useEffect(() => {

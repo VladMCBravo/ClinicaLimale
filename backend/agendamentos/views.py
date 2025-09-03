@@ -14,6 +14,7 @@ import datetime # ALTERADO: Importe o módulo datetime inteiro
 import requests
 import os
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser, AllowRead_WriteRecepcaoAdmin
+from . import services # <-- 1. IMPORTE O NOVO MÓDULO DE SERVIÇOS
 
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]
@@ -22,12 +23,12 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return AgendamentoWriteSerializer
         return AgendamentoSerializer
+    
     def perform_create(self, serializer):
+        # 2. A MÁGICA ACONTECE AQUI:
+        # A view não sabe mais as regras de negócio. Ela apenas delega para o serviço.
         agendamento = serializer.save()
-        if agendamento.tipo_atendimento == 'Particular':
-            valor_do_pagamento = 0.00
-        if agendamento.procedimento:
-            valor_do_pagamento = agendamento.procedimento.valor
+        services.criar_agendamento_e_pagamento_pendente(agendamento, self.request.user)
 
         # --- LÓGICA DE USUÁRIO DE SERVIÇO ---
         try:

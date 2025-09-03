@@ -6,11 +6,11 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import apiClient from '../api/axiosConfig';
 import AgendamentoModal from '../components/AgendamentoModal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import StarIcon from '@mui/icons-material/Star';
+import { agendamentoService } from '../services/agendamentoService'; // <-- ADICIONADO
 
 // NOVO: Importações para a nova funcionalidade
 import { useNavigate } from 'react-router-dom';
@@ -57,7 +57,8 @@ export default function AgendaPage() {
   const { show } = useContextMenu();
 
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
-    apiClient.get('/agendamentos/')
+    // USA A NOVA FUNÇÃO DO SERVIÇO
+    agendamentoService.getAgendamentos()
       .then(response => {
         const eventosFormatados = response.data.filter(ag => ag.status !== 'Cancelado').map(ag => {
             const eventColor = statusColors[ag.status] || '#808080';

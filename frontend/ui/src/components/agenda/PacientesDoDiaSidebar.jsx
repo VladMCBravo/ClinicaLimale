@@ -1,7 +1,7 @@
 // src/components/agenda/PacientesDoDiaSidebar.jsx - VERSÃO FINAL E COMPLETA
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Paper, List, ListItem, ListItemIcon, ListItemText, CircularProgress, Tooltip } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
+import { agendamentoService } from '../../services/agendamentoService'; // <-- ADICIONADO
 
 // --- IMPORTAÇÃO COMPLETA DE ÍCONES ---
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'; // <-- ADICIONE ESTA IMPORTAÇÃO
@@ -28,15 +28,13 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchPacientesDoDia = useCallback(async () => {
-        try {
-            const response = await apiClient.get('/agendamentos/hoje/');
-            setPacientes(response.data);
-        } catch (error) {
-            console.error("Erro ao buscar pacientes do dia:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+    try {
+        // USA A NOVA FUNÇÃO DO SERVIÇO
+        const response = await agendamentoService.getAgendamentosHoje();
+        setPacientes(response.data);
+    } catch (error) { /* ... */ }
+    finally { setIsLoading(false); }
+}, []);
 
     useEffect(() => {
         fetchPacientesDoDia();
