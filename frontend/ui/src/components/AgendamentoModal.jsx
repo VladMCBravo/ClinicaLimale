@@ -91,31 +91,31 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
      // 3. Lógica de submissão atualizada para enviar o ID do procedimento
      const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        const submissionData = {
-          ...formData,
-          paciente: formData.paciente?.id || null,
-          procedimento: formData.procedimento?.id || null,
-          tipo_consulta: formData.procedimento ? formData.procedimento.descricao : 'Consulta',
-        };
+    e.preventDefault();
+    setIsSubmitting(true);
+    const submissionData = {
+      ...formData,
+      paciente: formData.paciente?.id || null,
+      procedimento: formData.procedimento?.id || null,
+      tipo_consulta: formData.procedimento ? formData.procedimento.descricao : 'Consulta',
+    };
 
-        try {
-        // USA AS NOVAS FUNÇÕES DO SERVIÇO
+    try {
+        // MANTENHA APENAS ESTE BLOCO QUE USA O SERVIÇO
         const request = editingEvent 
             ? agendamentoService.updateAgendamento(editingEvent.id, submissionData)
             : agendamentoService.createAgendamento(submissionData);
-
+        
         await request;
-            showSnackbar(editingEvent ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success');
-            onSave();
-        } catch (error) {
-            console.error("Erro ao salvar agendamento:", error.response?.data);
-            showSnackbar('Erro ao salvar agendamento.', 'error');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+        showSnackbar(editingEvent ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success');
+        onSave();
+    } catch (error) {
+        console.error("Erro ao salvar agendamento:", error.response?.data);
+        showSnackbar('Erro ao salvar agendamento.', 'error');
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
      return (
      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
