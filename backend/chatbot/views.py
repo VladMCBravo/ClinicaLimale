@@ -285,7 +285,7 @@ class CancelarAgendamentosExpiradosView(APIView):
     def post(self, request):
         # 1. Verificação de Segurança
         auth_header = request.headers.get('Authorization')
-        secret_key = f"Bearer {settings.CRON_SECRET_KEY}"
+        secret_key = f"Bearer {settings.CRONAGENDA_SECRET_KEY}"
 
         if not auth_header or auth_header != secret_key:
             return Response({"error": "Não autorizado"}, status=status.HTTP_401_UNAUTHORIZED)
