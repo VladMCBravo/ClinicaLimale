@@ -44,7 +44,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
 # --- Serializer para ESCRITA (POST, PUT) ---
 class AgendamentoWriteSerializer(serializers.ModelSerializer):
     paciente = serializers.PrimaryKeyRelatedField(queryset=Paciente.objects.all())
-
+    # COMENTÁRIO PARA FORÇAR O DEPLOY
     class Meta:
         model = Agendamento
         fields = [

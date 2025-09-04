@@ -1,27 +1,21 @@
-# backend/agendamentos/admin.py
+# Em: backend/agendamentos/admin.py - VERSÃO FINAL REFINADA
 
 from django.contrib import admin
 from .models import Agendamento
-from django.utils import timezone # Importe o timezone
+from django.utils import timezone
 
-# Esta é a classe de configuração para o Admin
 @admin.register(Agendamento)
 class AgendamentoAdmin(admin.ModelAdmin):
-    # Campos que aparecerão na LISTA de agendamentos
     list_display = (
         'id',
         'paciente',
-        'data_formatada', # Usaremos um método para formatar a data
-        'horario_formatado', # E o horário
-        'tipo_consulta',
+        'data_formatada',
+        'horario_formatado',
+        'modalidade', # <-- Ótimo para ver rapidamente na lista
         'status',
-        'plano_utilizado', # <-- NOSSOS CAMPOS IMPORTANTES!
-        'modalidade', # <-- NOVO
-        'tipo_visita',  # <-- NOVO
-        'tipo_atendimento' # <-- O campo que vamos criar
+        'link_telemedicina', # <-- Adicionado aqui para fácil visualização
     )
-    
-    list_filter = ('status', 'modalidade', 'tipo_atendimento') # <-- Adicione modalidade ao filtro
+    list_filter = ('status', 'modalidade', 'tipo_atendimento')
     search_fields = ('paciente__nome_completo',)
 
     fieldsets = (
@@ -32,14 +26,23 @@ class AgendamentoAdmin(admin.ModelAdmin):
             'fields': ('data_hora_inicio', 'data_hora_fim')
         }),
         ('Detalhes do Atendimento', {
-            'fields': ('tipo_atendimento', 'plano_utilizado', 'modalidade', 'tipo_visita', 'observacoes') # <-- ADICIONADOS AQUI
-        }),
-        ('Outras Informações', {
-            'fields': ('observacoes',)
+            # 1. ADICIONAMOS OS CAMPOS DE TELEMEDICINA AQUI
+            'fields': (
+                'tipo_atendimento', 
+                'plano_utilizado', 
+                'modalidade', 
+                'tipo_visita', 
+                'observacoes',
+                'link_telemedicina',
+                'id_sala_telemedicina'
+            )
         }),
     )
+    
+    # 2. TORNAMOS OS CAMPOS GERADOS AUTOMATICAMENTE "SOMENTE LEITURA"
+    readonly_fields = ('link_telemedicina', 'id_sala_telemedicina')
 
-    # Métodos para formatar a data e hora na lista
+    # ... (o resto dos seus métodos como data_formatada, etc.) ...
     def data_formatada(self, obj):
         if obj.data_hora_inicio:
             return timezone.localtime(obj.data_hora_inicio).strftime('%d/%m/%Y')
