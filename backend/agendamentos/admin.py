@@ -15,27 +15,24 @@ class AgendamentoAdmin(admin.ModelAdmin):
         'horario_formatado', # E o horário
         'tipo_consulta',
         'status',
-        'plano_utilizado', # <-- NOSSO CAMPO IMPORTANTE!
+        'plano_utilizado', # <-- NOSSOS CAMPOS IMPORTANTES!
+        'modalidade', # <-- NOVO
+        'tipo_visita',  # <-- NOVO
         'tipo_atendimento' # <-- O campo que vamos criar
     )
+    
+    list_filter = ('status', 'modalidade', 'tipo_atendimento') # <-- Adicione modalidade ao filtro
+    search_fields = ('paciente__nome_completo',)
 
-    # Adiciona filtros úteis na barra lateral direita
-    list_filter = ('status', 'data_hora_inicio', 'tipo_atendimento')
-
-    # Permite buscar por nome do paciente ou CPF
-    search_fields = ('paciente__nome_completo', 'paciente__cpf')
-
-    # Campos que aparecerão ao EDITAR um agendamento
-    # Organiza os campos em seções
     fieldsets = (
         ('Informações Principais', {
-            'fields': ('paciente', 'status', 'tipo_consulta')
+            'fields': ('paciente', 'status', 'procedimento', 'tipo_consulta')
         }),
         ('Datas e Horários', {
             'fields': ('data_hora_inicio', 'data_hora_fim')
         }),
         ('Detalhes do Atendimento', {
-            'fields': ('tipo_atendimento', 'plano_utilizado') # <-- ADICIONADOS AQUI
+            'fields': ('tipo_atendimento', 'plano_utilizado', 'modalidade', 'tipo_visita', 'observacoes') # <-- ADICIONADOS AQUI
         }),
         ('Outras Informações', {
             'fields': ('observacoes',)
