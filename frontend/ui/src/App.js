@@ -3,6 +3,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
+// --- 1. IMPORTE OS COMPONENTES NECESSÁRIOS ---
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import 'dayjs/locale/pt-br'; // Importa a localidade para o português
+
 // Importe os novos componentes de layout e proteção
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './components/MainLayout';
@@ -23,6 +28,8 @@ import TelemedicinaPage from './pages/TelemedicinaPage'; // <-- 1. Importe a nov
 function App() {
   return (
     <SnackbarProvider>
+      {/* --- 2. ENVOLVA O ROUTER COM O LOCALIZATIONPROVIDER --- */}
+      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br"></LocalizationProvider>
       <Router>
         <Routes>
           {/* Rota de Login (Pública) */}

@@ -11,6 +11,8 @@ import {
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService'; 
 import { useSnackbar } from '../contexts/SnackbarContext';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs from 'dayjs';
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
@@ -65,7 +67,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     plano_utilizado: dados.plano_utilizado,
                     tipo_atendimento: dados.tipo_atendimento,
                     observacoes: dados.observacoes || '',
-                });
+                    // --- LINHAS CORRIGIDAS/ADICIONADAS AQUI ---
+                // Lê a modalidade do agendamento, se não existir, usa 'Presencial' como padrão
+                modalidade: dados.modalidade || 'Presencial',
+                // Lê o tipo da visita, se não existir, usa 'Primeira Consulta' como padrão
+                tipo_visita: dados.tipo_visita || 'Primeira Consulta',
+            });
                 // 2. CORREÇÃO DA LINHA 65: Usando o novo serviço de paciente
                 pacienteService.getPacienteDetalhes(pacienteObj.id).then(res => setPacienteDetalhes(res.data));
             }
@@ -141,11 +148,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
     }, [formData.procedimento, formData.tipo_atendimento, pacienteDetalhes]);
 
-    // O JSX (a parte visual) continua exatamente o mesmo
+    
     return (
      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-        {/* ... todo o seu JSX permanece aqui ... */}
-         <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+        <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
       
         <form onSubmit={handleSubmit}>
             <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '10px !important' }}>
@@ -220,12 +226,18 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                             <MenuItem value="Retorno">Retorno</MenuItem>
                         </Select>
                     </FormControl>
-            <TextField label="Início" type="datetime-local" name="data_hora_inicio" value={formData.data_hora_inicio}
-                onChange={(e) => setFormData({...formData, data_hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} required
-            />
-            <TextField label="Fim" type="datetime-local" name="data_hora_fim" value={formData.data_hora_fim}
-                onChange={(e) => setFormData({...formData, data_hora_fim: e.target.value})} InputLabelProps={{ shrink: true }} required
-            />
+            <DateTimePicker
+    label="Início"
+    value={formData.data_hora_inicio ? dayjs(formData.data_hora_inicio) : null}
+    onChange={(newValue) => setFormData({ ...formData, data_hora_inicio: newValue ? newValue.toISOString() : '' })}
+    ampm={false} // Para formato 24h
+/>
+<DateTimePicker
+    label="Fim"
+    value={formData.data_hora_fim ? dayjs(formData.data_hora_fim) : null}
+    onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue ? newValue.toISOString() : '' })}
+    ampm={false} // Para formato 24h
+/>
             <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}>
