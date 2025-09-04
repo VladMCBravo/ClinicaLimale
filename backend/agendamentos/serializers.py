@@ -9,30 +9,29 @@ from pacientes.serializers import PacienteSerializer # Exemplo de import
 
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
-    """
-    Serializer de LEITURA final. Envia todos os dados necessários para
-    a Agenda, Sidebar, Faturamento, etc.
-    """
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
-    pagamento = PagamentoStatusSerializer(read_only=True)
+    status_pagamento = serializers.CharField(source='pagamento.status', read_only=True, default='Pendente')
     primeira_consulta = serializers.SerializerMethodField()
 
     class Meta:
         model = Agendamento
         fields = [
-            'id',
-            'paciente',
-            'paciente_nome',
-            'data_hora_inicio',
-            'data_hora_fim',
-            'status',
-            'tipo_atendimento',
-            'link_telemedicina', # <-- NOVO: Adicione este campo
-            'tipo_consulta', # <-- O campo que faltava para a tabela de faturamento
-            'procedimento',  # <-- O ID do procedimento
-            'pagamento',
-            'primeira_consulta',
+            'id', 
+            'paciente', # Mantemos o ID para o navigate
+            'paciente_nome', 
+            'data_hora_inicio', 
+            'data_hora_fim', 
+            'status', 
+            'tipo_consulta',
             'plano_utilizado',
+            'tipo_atendimento',
+            'procedimento',
+            'observacoes',
+            'status_pagamento',
+            'primeira_consulta',
+            'link_telemedicina',
+            'modalidade',
+            'tipo_visita',
         ]
 
     def get_primeira_consulta(self, obj):
