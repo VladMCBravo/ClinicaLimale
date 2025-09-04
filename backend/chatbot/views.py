@@ -21,6 +21,7 @@ from pacientes.serializers import PacienteSerializer
 # --- 1. A IMPORTAÇÃO MAIS IMPORTANTE ---
 # Importamos o nosso módulo de serviços do app de agendamentos
 from agendamentos import services as agendamento_services
+import logging
 
 class ChatMemoryView(APIView):
     # ... (sem alterações) ...
@@ -283,23 +284,50 @@ class MercadoPagoWebhookView(APIView):
 
 class CancelarAgendamentosExpiradosView(APIView):
     def post(self, request):
-        # 1. Verificação de Segurança
+        # 1. Verificação de Segurança (sem alterações aqui)
         auth_header = request.headers.get('Authorization')
         secret_key = f"Bearer {settings.CRONAGENDA_SECRET_KEY}"
 
         if not auth_header or auth_header != secret_key:
             return Response({"error": "Não autorizado"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # 2. Lógica de Cancelamento (mesma do comando anterior)
-        agora = timezone.now()
-        agendamentos_expirados = Agendamento.objects.filter(
-            status='Agendado',
-            expira_em__lte=agora
-        )
+        # --- INÍCIO DAS MUDANÇAS COM LOGS ---
+        logger = logging.getLogger(__name__)
+        agora_utc = timezone.now()
+        
+        logger.info(f"[CRONJOB] Executando verificação de agendamentos expirados.")
+        logger.info(f"[CRONJOB] Horário atual (UTC) do servidor: {agora_utc}")
 
-        total_cancelados = agendamentos_expirados.count()
+        # 2. Lógica de Cancelamento
+        # Primeiro, vamos buscar TODOS os agendamentos pendentes para inspecioná-los
+        agendamentos_pendentes = Agendamento.objects.filter(status='Agendado')
+        
+        if not agendamentos_pendentes.exists():
+            logger.info("[CRONJOB] Nenhum agendamento com status 'Agendado' encontrado.")
+            return Response({"status": "sucesso", "cancelados": 0, "detalhe": "Nenhum agendamento pendente."})
+
+        logger.info(f"[CRONJOB] {agendamentos_pendentes.count()} agendamento(s) pendente(s) encontrado(s). Verificando prazos...")
+
+        # Agora, filtramos para ver quais realmente expiraram
+        agendamentos_para_cancelar = agendamentos_pendentes.filter(expira_em__lte=agora_utc)
+        
+        total_cancelados = 0
+        for agendamento in agendamentos_para_cancelar:
+            # Log de cada agendamento que será cancelado
+            logger.info(f"[CRONJOB] CANCELANDO Agendamento ID {agendamento.id}. Prazo: {agendamento.expira_em}. Horário Atual: {agora_utc}")
+            agendamento.status = 'Cancelado'
+            agendamento.save()
+            total_cancelados += 1
 
         if total_cancelados > 0:
-            agendamentos_expirados.update(status='Cancelado')
+            logger.info(f"[CRONJOB] SUCESSO: {total_cancelados} agendamento(s) foram cancelados.")
+        else:
+            # Este log nos dirá por que nada foi cancelado
+            logger.info("[CRONJOB] Nenhum agendamento atingiu o prazo de expiração nesta verificação.")
+            # Vamos logar os prazos dos agendamentos pendentes para depuração
+            for ag in agendamentos_pendentes:
+                logger.info(f"[CRONJOB] DEBUG: Agendamento pendente ID {ag.id} tem prazo de expiração em (UTC): {ag.expira_em}")
+
 
         return Response({"status": "sucesso", "cancelados": total_cancelados})
+        # --- FIM DAS MUDANÇAS COM LOGS ---```
