@@ -103,6 +103,8 @@ class AgendamentoChatbotView(APIView):
         cpf_paciente = request.data.get('cpf')
         data_hora_inicio_str = request.data.get('data_hora_inicio')
         procedimento_id = request.data.get('procedimentoId')
+        # Define o prazo de validade para 15 minutos a partir de agora
+        prazo_expiracao = timezone.now() + timedelta(minutes=15)
 
         if cpf_paciente:
             cpf_paciente = re.sub(r'\D', '', cpf_paciente)
@@ -128,6 +130,7 @@ class AgendamentoChatbotView(APIView):
             'status': 'Agendado',
             'tipo_atendimento': 'Particular',
             'procedimento': procedimento_id,
+            'expira_em': prazo_expiracao, # <-- ADICIONE ESTA LINHA
         }
 
         serializer = AgendamentoWriteSerializer(data=dados_agendamento)

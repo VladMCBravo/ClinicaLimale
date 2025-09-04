@@ -40,7 +40,8 @@ class Agendamento(models.Model):
     data_hora_fim = models.DateTimeField()
     tipo_consulta = models.CharField(max_length=100, default='Consulta')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Agendado')
-    
+    expira_em = models.DateTimeField(null=True, blank=True, verbose_name="Expira em")
+
     # --- CORREÇÃO AQUI: Usamos a string 'app.Model' ---
     plano_utilizado = models.ForeignKey(
         'faturamento.PlanoConvenio', # <-- Em vez do objeto, usamos o caminho como string

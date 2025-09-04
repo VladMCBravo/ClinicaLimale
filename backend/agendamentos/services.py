@@ -1,5 +1,6 @@
 # backend/agendamentos/services.py
-
+from django.utils import timezone
+from datetime import timedelta
 from faturamento.models import Pagamento
 from django.contrib.auth import get_user_model
 
@@ -10,7 +11,12 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado)
     """
     # 1. Salva a instância do agendamento primeiro (o serializer já fez o .save())
     agendamento = agendamento_instance
-
+    # --- REFINAMENTO AQUI ---
+    # Se a modalidade for Telemedicina, definimos um prazo de expiração.
+    # Isso funciona tanto para agendamentos criados pela recepcionista quanto pelo chatbot.
+    if agendamento.modalidade == 'Telemedicina' and not agendamento.expira_em:
+        agendamento.expira_em = timezone.now() + timedelta(minutes=15)
+        agendamento.save() # Salva o prazo no agendamento
     # 2. Lógica para determinar o valor do pagamento
     valor_do_pagamento = 0.00 # Valor padrão
     if agendamento.tipo_atendimento == 'Particular' and agendamento.procedimento:
