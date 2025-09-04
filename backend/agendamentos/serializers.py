@@ -57,6 +57,8 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             'tipo_atendimento',
             'procedimento',
             'observacoes',
+            'modalidade',
+            'tipo_visita',
         ]
          
     def validate(self, data):
