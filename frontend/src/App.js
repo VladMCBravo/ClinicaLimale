@@ -28,30 +28,31 @@ import TelemedicinaPage from './pages/TelemedicinaPage'; // <-- 1. Importe a nov
 function App() {
   return (
     <SnackbarProvider>
-      {/* --- 2. ENVOLVA O ROUTER COM O LOCALIZATIONPROVIDER --- */}
-      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br"></LocalizationProvider>
-      <Router>
-        <Routes>
-          {/* Rota de Login (Pública) */}
-          <Route path="/login" element={<LoginPage />} />
+      {/* --- 2. "ENVELOPE" TODA A APLICAÇÃO COM O LOCALIZATIONPROVIDER --- */}
+      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
+        <Router>
+          <Routes>
+            {/* Rota de Login (Pública) */}
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* Rotas Protegidas (Envolvidas pelo ProtectedRoute) */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<AgendaPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/pacientes" element={<PacientesPage />} />
-              <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
-               <Route path="/telemedicina" element={<TelemedicinaPage />} />
-              <Route path="/financeiro/*" element={<FinanceiroPage />} />
-              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-              <Route path="/configuracoes/categorias-despesa" element={<CategoriasDespesaPage />} />
-              <Route path="/configuracoes/convenios" element={<ConveniosPage />} />
-              <Route path="/configuracoes/especialidades" element={<EspecialidadesPage />} /> {/* <-- 2. ADICIONE A NOVA ROTA */}
+            {/* Rotas Protegidas (Envolvidas pelo ProtectedRoute) */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<AgendaPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/pacientes" element={<PacientesPage />} />
+                <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
+                <Route path="/telemedicina" element={<TelemedicinaPage />} />
+                <Route path="/financeiro/*" element={<FinanceiroPage />} />
+                <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                <Route path="/configuracoes/categorias-despesa" element={<CategoriasDespesaPage />} />
+                <Route path="/configuracoes/convenios" element={<ConveniosPage />} />
+                <Route path="/configuracoes/especialidades" element={<EspecialidadesPage />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </LocalizationProvider>
     </SnackbarProvider>
   );
 }
