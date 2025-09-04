@@ -57,17 +57,30 @@ export default function AgendaPage() {
   const { show } = useContextMenu();
 
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
-    // USA A NOVA FUNÇÃO DO SERVIÇO
-    agendamentoService.getAgendamentos()
-      .then(response => {
-        const eventosFormatados = response.data.filter(ag => ag.status !== 'Cancelado').map(ag => {
-            const eventColor = statusColors[ag.status] || '#808080';
-            return { id: ag.id, title: ag.paciente_nome, start: ag.data_hora_inicio, end: ag.data_hora_fim, backgroundColor: eventColor, borderColor: eventColor, extendedProps: { ...ag } };
-        });
-        successCallback(eventosFormatados);
-      })
-      .catch(error => failureCallback(error));
-  }, []);
+        agendamentoService.getAgendamentos()
+          .then(response => {
+            const eventosFormatados = response.data
+                .filter(ag => ag.status !== 'Cancelado')
+                .map(ag => {
+                    const eventColor = statusColors[ag.status] || '#808080';
+                    return { 
+                        id: ag.id, 
+                        title: ag.paciente_nome, 
+                        start: ag.data_hora_inicio, 
+                        end: ag.data_hora_fim, 
+                        backgroundColor: eventColor, 
+                        borderColor: eventColor, 
+                        // --- A CORREÇÃO CRÍTICA ESTÁ AQUI ---
+                        // Precisamos garantir que TODOS os dados do agendamento,
+                        // incluindo os novos campos, estejam disponíveis aqui.
+                        // A forma mais simples é espalhar todo o objeto 'ag'.
+                        extendedProps: { ...ag } 
+                    };
+                });
+            successCallback(eventosFormatados);
+          })
+          .catch(error => failureCallback(error));
+      }, []);
 
   const handleDateClick = (arg) => {
     setEditingEvent(null);
