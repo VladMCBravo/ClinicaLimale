@@ -137,3 +137,5 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'nao-responda@suaclini
 
 # Mercado Pago
 MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
+# Adicione esta linha para ler a variável do Render
+CRONAGENDA_SECRET_KEY = os.getenv('CRONAGENDA_SECRET_KEY')
