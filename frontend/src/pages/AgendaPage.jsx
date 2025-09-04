@@ -1,6 +1,6 @@
 // src/pages/AgendaPage.jsx - VERSÃO COM CLIQUE DIRECIONADO E MENU DE AÇÃO RÁPIDA
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Box, Tooltip, Typography, Paper } from '@mui/material';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -55,6 +55,25 @@ export default function AgendaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { show } = useContextMenu();
+
+ // Este useEffect será executado uma vez quando o componente for montado.
+    useEffect(() => {
+        // Define o intervalo de atualização em milissegundos (ex: 60000 = 60 segundos)
+        const INTERVALO_DE_ATUALIZACAO = 60000;
+
+        const intervalId = setInterval(() => {
+            console.log("Atualizando agendamentos automaticamente...");
+            if (calendarRef.current) {
+                // Chama a função nativa do FullCalendar para recarregar os eventos
+                calendarRef.current.getApi().refetchEvents();
+            }
+        }, INTERVALO_DE_ATUALIZACAO);
+
+        // Função de limpeza: Quando o usuário sair da página da agenda,
+        // nós paramos o "timer" para não gastar recursos desnecessariamente.
+        return () => clearInterval(intervalId);
+
+    }, []); // O array vazio [] garante que isso rode apenas uma vez.
 
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
         agendamentoService.getAgendamentos()
