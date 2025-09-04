@@ -280,3 +280,26 @@ class MercadoPagoWebhookView(APIView):
                 except Pagamento.DoesNotExist:
                     pass
         return Response(status=status.HTTP_200_OK)
+
+class CancelarAgendamentosExpiradosView(APIView):
+    def post(self, request):
+        # 1. Verificação de Segurança
+        auth_header = request.headers.get('Authorization')
+        secret_key = f"Bearer {settings.CRON_SECRET_KEY}"
+
+        if not auth_header or auth_header != secret_key:
+            return Response({"error": "Não autorizado"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # 2. Lógica de Cancelamento (mesma do comando anterior)
+        agora = timezone.now()
+        agendamentos_expirados = Agendamento.objects.filter(
+            status='Agendado',
+            expira_em__lte=agora
+        )
+
+        total_cancelados = agendamentos_expirados.count()
+
+        if total_cancelados > 0:
+            agendamentos_expirados.update(status='Cancelado')
+
+        return Response({"status": "sucesso", "cancelados": total_cancelados})

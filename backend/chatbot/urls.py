@@ -12,6 +12,7 @@ from .views import (
     CadastrarPacienteView, # --- NOVO ---
     ConsultarAgendamentosPacienteView, # --- NOVO ---
     MercadoPagoWebhookView,
+    CancelarAgendamentosExpiradosView, # --- NOVO ---
 )
 
 urlpatterns = [
@@ -35,4 +36,5 @@ urlpatterns = [
     # --- Fluxo de Pagamento ---
     path('pagamentos/gerar-pix/', GerarPixView.as_view(), name='chatbot_gerar_pix'),
     path('pagamentos/webhook/', MercadoPagoWebhookView.as_view(), name='chatbot_pagamento_webhook'), # <-- ADICIONAR ESTA ROTA
+     path('tasks/cancelar-expirados/', CancelarAgendamentosExpiradosView.as_view(), name='task_cancelar_expirados'),
 ]
