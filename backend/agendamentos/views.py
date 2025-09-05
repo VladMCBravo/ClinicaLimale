@@ -15,6 +15,9 @@ import requests
 import os
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser, AllowRead_WriteRecepcaoAdmin
 from . import services # <-- 1. IMPORTE O NOVO MÓDULO DE SERVIÇOS
+from rest_framework_api_key.permissions import HasAPIKey
+# Importa a classe do nosso comando de cancelamento
+from .management.commands.cancelar_agendamentos_expirados import Command as CancelarAgendamentosCommand
 
 # --- CLASSE CORRIGIDA ---
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
@@ -199,3 +202,23 @@ class TelemedicinaListView(generics.ListAPIView):
             data_hora_inicio__gte=hoje,
             modalidade='Telemedicina'
         ).order_by('data_hora_inicio').select_related('paciente', 'procedimento')
+
+class ExecutarCancelamentosExpiradosView(APIView):
+    permission_classes = [HasAPIKey] # Protegida pela chave de API
+
+    def post(self, request, *args, **kwargs):
+        """
+        Executa a rotina para cancelar agendamentos que expiraram.
+        """
+        try:
+            # Cria uma instância do nosso comando "faxineiro"
+            comando = CancelarAgendamentosCommand()
+            
+            # Executa a lógica principal do comando
+            resultado = comando.handle()
+            
+            # Retorna uma resposta de sucesso para o N8N
+            return Response({'status': 'sucesso', 'detalhes': resultado}, status=status.HTTP_200_OK)
+        except Exception as e:
+            # Em caso de erro, informa o N8N
+            return Response({'status': 'erro', 'detalhes': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

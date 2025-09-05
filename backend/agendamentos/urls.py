@@ -8,8 +8,8 @@ from .views import (
     AgendamentosHojeListView,
     EnviarLembretesCronView,
     CriarSalaTelemedicinaView,
-    TelemedicinaListView
-    # A importação duplicada de AgendamentoListCreateAPIView foi removida
+    TelemedicinaListView,
+    ExecutarCancelamentosExpiradosView
 )
 
 urlpatterns = [
@@ -20,4 +20,6 @@ urlpatterns = [
     path('cron/enviar-lembretes/', EnviarLembretesCronView.as_view(), name='cron-enviar-lembretes'),
     path('<int:agendamento_id>/criar-telemedicina/', CriarSalaTelemedicinaView.as_view(), name='criar-telemedicina'),
     path('telemedicina/', TelemedicinaListView.as_view(), name='lista-telemedicina'),
+    # --- NOVA ROTA PARA O N8N ---
+    path('executar-cancelamentos/', ExecutarCancelamentosExpiradosView.as_view(), name='executar-cancelamentos'),
 ]
