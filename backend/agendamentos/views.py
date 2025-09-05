@@ -204,21 +204,38 @@ class TelemedicinaListView(generics.ListAPIView):
         ).order_by('data_hora_inicio').select_related('paciente', 'procedimento')
 
 class ExecutarCancelamentosExpiradosView(APIView):
-    permission_classes = [HasAPIKey] # Protegida pela chave de API
+    permission_classes = [HasAPIKey]
 
     def post(self, request, *args, **kwargs):
-        """
-        Executa a rotina para cancelar agendamentos que expiraram.
-        """
-        try:
-            # Cria uma instância do nosso comando "faxineiro"
-            comando = CancelarAgendamentosCommand()
-            
-            # Executa a lógica principal do comando
-            resultado = comando.handle()
-            
-            # Retorna uma resposta de sucesso para o N8N
-            return Response({'status': 'sucesso', 'detalhes': resultado}, status=status.HTTP_200_OK)
-        except Exception as e:
-            # Em caso de erro, informa o N8N
-            return Response({'status': 'erro', 'detalhes': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        agora_utc = timezone.now()
+        
+        debug_info = {
+            "horario_atual_utc": agora_utc.isoformat(),
+            "agendamentos_pendentes_count": 0,
+            "detalhes_pendentes": []
+        }
+
+        # Primeiro, buscamos todos os agendamentos pendentes para inspecionar
+        agendamentos_pendentes = Agendamento.objects.filter(
+            status='Agendado', 
+            expira_em__isnull=False
+        )
+        debug_info["agendamentos_pendentes_count"] = agendamentos_pendentes.count()
+        
+        for ag in agendamentos_pendentes:
+            debug_info["detalhes_pendentes"].append({
+                "id": ag.id,
+                "expira_em_utc": ag.expira_em.isoformat() if ag.expira_em else None,
+                "expirado": ag.expira_em < agora_utc if ag.expira_em else False
+            })
+
+        # Agora, filtramos de verdade para ver quais realmente expiraram
+        agendamentos_para_cancelar = agendamentos_pendentes.filter(expira_em__lte=agora_utc)
+        
+        total_cancelados = agendamentos_para_cancelar.update(status='Cancelado')
+        
+        return Response({
+            "status": "sucesso", 
+            "cancelados": total_cancelados,
+            "debug_info": debug_info
+        }, status=status.HTTP_200_OK)
