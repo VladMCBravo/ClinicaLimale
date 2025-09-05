@@ -59,6 +59,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             'observacoes',
             'modalidade',
             'tipo_visita',
+            'expira_em',
         ]
          
     def validate(self, data):
