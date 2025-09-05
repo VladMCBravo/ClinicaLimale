@@ -149,13 +149,12 @@ class AgendamentoChatbotView(APIView):
             # Chamamos a função de serviço que já contém TODA a lógica de negócio
             agendamento_services.criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico)
 
-        return Response(
-                {'sucesso': f"Agendamento para {paciente.nome_completo} criado com sucesso para {data_hora_inicio.strftime('%d/%m/%Y às %H:%M')}. Status: {agendamento.status}",
-                 'agendamento_id': agendamento.id  # <-- ADICIONE ESTA LINHA
-                },
+            return Response(
+                {'sucesso': f"Agendamento para {paciente.nome_completo} criado com sucesso para {data_hora_inicio.strftime('%d/%m/%Y às %H:%M')}. Status: {agendamento.status}", 'agendamento_id': agendamento.id},
                 status=status.HTTP_201_CREATED
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # --- O resto das views não precisa de alterações ---
 # ... (VerificarPacienteView, ListarProcedimentosView, etc. continuam aqui) ...
