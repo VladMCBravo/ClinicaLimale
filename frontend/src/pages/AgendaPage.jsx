@@ -58,21 +58,24 @@ export default function AgendaPage() {
 
  // Este useEffect será executado uma vez quando o componente for montado.
     useEffect(() => {
-        // Define o intervalo de atualização em milissegundos (ex: 60000 = 60 segundos)
-        const INTERVALO_DE_ATUALIZACAO = 60000;
+        const INTERVALO_DE_ATUALIZACAO = 60000; // 60 segundos
 
         const intervalId = setInterval(() => {
-            console.log("Atualizando agendamentos automaticamente...");
+            console.log("Atualizando agendamentos e pacientes do dia...");
+            
+            // Atualiza o calendário interno (como já fazia)
             if (calendarRef.current) {
-                // Chama a função nativa do FullCalendar para recarregar os eventos
                 calendarRef.current.getApi().refetchEvents();
             }
+            
+            // ATUALIZA A SIDEBAR:
+            // Ao mudar o estado do 'refreshTrigger', nós forçamos a sidebar
+            // a buscar os dados novamente, pois ela depende dessa prop.
+            setRefreshTrigger(prev => prev + 1);
+
         }, INTERVALO_DE_ATUALIZACAO);
 
-        // Função de limpeza: Quando o usuário sair da página da agenda,
-        // nós paramos o "timer" para não gastar recursos desnecessariamente.
         return () => clearInterval(intervalId);
-
     }, []); // O array vazio [] garante que isso rode apenas uma vez.
 
   const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
