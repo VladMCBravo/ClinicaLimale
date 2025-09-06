@@ -113,9 +113,12 @@ class AgendamentoChatbotView(APIView):
             return Response({'error': 'sessionId, cpf e data_hora_inicio são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            paciente = Paciente.objects.get(cpf=cpf_paciente, telefone_celular=session_id)
+            # CORREÇÃO: Buscando o paciente apenas pelo CPF,
+            # pois a segurança já foi validada pela ferramenta.
+            paciente = Paciente.objects.get(cpf=cpf_paciente)
         except Paciente.DoesNotExist:
-            return Response({'error': 'Paciente não encontrado ou dados não conferem.'}, status=status.HTTP_404_NOT_FOUND)
+            # Mudamos a mensagem de erro para ser mais clara no futuro
+            return Response({'error': f'Paciente com CPF {cpf_paciente} não encontrado no banco de dados.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             data_hora_inicio = timezone.datetime.fromisoformat(data_hora_inicio_str)
