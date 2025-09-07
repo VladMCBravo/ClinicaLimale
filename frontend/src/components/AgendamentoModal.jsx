@@ -66,12 +66,34 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
 
         if (editingEvent) {
-             // Lógica para edição
+             const dados = editingEvent.extendedProps;
+             // Lógica para preencher o form no modo de edição
+             setTipoAgendamento(dados.tipo_agendamento || 'Consulta');
+             setFormData({
+                paciente: pacientes.find(p => p.id === dados.paciente) || null,
+                data_hora_inicio: dayjs(editingEvent.startStr),
+                data_hora_fim: dayjs(editingEvent.endStr),
+                status: dados.status,
+                tipo_atendimento: dados.tipo_atendimento,
+                plano_utilizado: dados.plano_utilizado,
+                observacoes: dados.observacoes || '',
+                tipo_visita: dados.tipo_visita || 'Primeira Consulta',
+                modalidade: dados.modalidade || 'Presencial', // <-- Preenche a modalidade
+                especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
+                medico: medicos.find(m => m.id === dados.medico) || null,
+                procedimento: procedimentos.find(p => p.id === dados.procedimento) || null,
+             });
         } else if (initialData) {
             // Lógica para criação
-            setFormData(prev => ({ ...prev, data_hora_inicio: dayjs(initialData.start) }));
+            const startTime = dayjs(initialData.start);
+            setFormData(prev => ({ 
+                ...prev, 
+                data_hora_inicio: startTime,
+                data_hora_fim: startTime.add(50, 'minute') // <-- PREENCHE AUTOMATICAMENTE AQUI TAMBÉM
+            }));
         }
-    }, [editingEvent, initialData, open]);
+    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades]);
+    
     
     // --- LÓGICA PARA ATUALIZAR DADOS QUANDO UM PACIENTE É SELECIONADO ---
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
@@ -148,6 +170,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         <form onSubmit={handleSubmit}>
             <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '10px !important' }}>
             
+                {/* ... Autocomplete do Paciente (sem alteração) ... */}
                 <Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''}
                     value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id}
                     onChange={handlePacienteChange}
@@ -186,6 +209,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                             onChange={(e, value) => setFormData({ ...formData, medico: value })}
                             disabled={!formData.especialidade}
                             renderInput={(params) => <TextField {...params} label="Médico" required />} />
+                    
+                    {/* --- CAMPO DE MODALIDADE ADICIONADO AQUI --- */}
+                    <FormControl fullWidth>
+                        <InputLabel>Modalidade</InputLabel>
+                        <Select name="modalidade" value={formData.modalidade} label="Modalidade"
+                            onChange={(e) => setFormData({...formData, modalidade: e.target.value})} >
+                            <MenuItem value="Presencial">Presencial (na clínica)</MenuItem>
+                                <MenuItem value="Telemedicina">Telemedicina</MenuItem>
+                            </Select>
+                        </FormControl>
                     </>
                 ) : (
                     <Autocomplete options={procedimentos} getOptionLabel={(p) => p.descricao || ''}
@@ -210,11 +243,19 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     </Box>
                 )}
                 
+                {/* --- MUDANÇA NA LÓGICA DE DATAS --- */}
                 <DateTimePicker label="Início" value={formData.data_hora_inicio}
-                    onChange={(value) => setFormData({ ...formData, data_hora_inicio: value, data_hora_fim: value ? value.add(50, 'minute') : null })} />
+                    onChange={(newValue) => {
+                        setFormData({ 
+                            ...formData, 
+                            data_hora_inicio: newValue, 
+                            // Se a data de início for alterada, recalcula a data de fim
+                            data_hora_fim: newValue ? newValue.add(50, 'minute') : null 
+                        });
+                    }} />
                 
                 <DateTimePicker label="Fim" value={formData.data_hora_fim}
-                    onChange={(value) => setFormData({ ...formData, data_hora_fim: value })} />
+                    onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} />
                 
                 {/* --- CAMPO DE STATUS REINTEGRADO --- */}
                 <FormControl fullWidth>
