@@ -1,14 +1,15 @@
-// src/pages/EspecialidadesPage.jsx
+// src/pages/EspecialidadesPage.jsx - VERSÃO FINAL COM VALOR
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Typography, Paper, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, CircularProgress, Button, IconButton,
-    Dialog, DialogTitle, DialogContent, DialogActions, TextField
+    Dialog, DialogTitle, DialogContent, DialogActions, TextField, InputAdornment
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { configuracoesService } from '../services/configuracoesService'; // Nosso novo serviço!
+import { configuracoesService } from '../services/configuracoesService';
 
 export default function EspecialidadesPage() {
     const [especialidades, setEspecialidades] = useState([]);
@@ -20,6 +21,7 @@ export default function EspecialidadesPage() {
     const [itemParaEditar, setItemParaEditar] = useState(null);
     const [nomeEspecialidade, setNomeEspecialidade] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState({ nome: '', valor_consulta: '' });
 
     const fetchEspecialidades = useCallback(async () => {
         setIsLoading(true);
@@ -40,31 +42,42 @@ export default function EspecialidadesPage() {
     // Funções para o Modal
     const handleOpenModal = (item = null) => {
         setItemParaEditar(item);
-        setNomeEspecialidade(item ? item.nome : '');
+        // --- PREENCHE O NOVO ESTADO ---
+        if (item) {
+            setFormData({ nome: item.nome, valor_consulta: item.valor_consulta || '' });
+        } else {
+            setFormData({ nome: '', valor_consulta: '' });
+        }
         setIsModalOpen(true);
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setItemParaEditar(null);
-        setNomeEspecialidade('');
+        setFormData({ nome: '', valor_consulta: '' }); // Limpa o formulário
     };
 
     const handleSave = async () => {
-        if (!nomeEspecialidade.trim()) {
+        if (!formData.nome.trim()) {
             showSnackbar('O nome não pode estar vazio.', 'warning');
             return;
         }
         setIsSubmitting(true);
         try {
+            // Prepara os dados para enviar, garantindo que o valor seja um número ou nulo
+            const dataToSend = {
+                nome: formData.nome,
+                valor_consulta: formData.valor_consulta ? parseFloat(formData.valor_consulta) : null
+            };
+
             if (itemParaEditar) {
-                await configuracoesService.updateEspecialidade(itemParaEditar.id, { nome: nomeEspecialidade });
+                await configuracoesService.updateEspecialidade(itemParaEditar.id, dataToSend);
             } else {
-                await configuracoesService.createEspecialidade({ nome: nomeEspecialidade });
+                await configuracoesService.createEspecialidade(dataToSend);
             }
             showSnackbar('Especialidade salva com sucesso!', 'success');
             handleCloseModal();
-            fetchEspecialidades(); // Recarrega a lista
+            fetchEspecialidades();
         } catch (error) {
             showSnackbar('Erro ao salvar especialidade.', 'error');
         } finally {
@@ -99,6 +112,7 @@ export default function EspecialidadesPage() {
                     <TableHead>
                         <TableRow>
                             <TableCell>Nome da Especialidade</TableCell>
+                            <TableCell>Valor da Consulta (Particular)</TableCell> {/* <-- NOVA COLUNA */}
                             <TableCell align="right">Ações</TableCell>
                         </TableRow>
                     </TableHead>
@@ -106,6 +120,9 @@ export default function EspecialidadesPage() {
                         {especialidades.map((item) => (
                             <TableRow key={item.id} hover>
                                 <TableCell>{item.nome}</TableCell>
+                                <TableCell> {/* <-- NOVA CÉLULA */}
+                                    {item.valor_consulta ? `R$ ${parseFloat(item.valor_consulta).toFixed(2)}` : 'Não definido'}
+                                </TableCell>
                                 <TableCell align="right">
                                     <IconButton onClick={() => handleOpenModal(item)}><EditIcon /></IconButton>
                                     <IconButton onClick={() => handleDelete(item.id)}><DeleteIcon color="error" /></IconButton>
@@ -116,19 +133,23 @@ export default function EspecialidadesPage() {
                 </Table>
             </TableContainer>
 
-            {/* Modal para Adicionar/Editar */}
             <Dialog open={isModalOpen} onClose={handleCloseModal}>
                 <DialogTitle>{itemParaEditar ? 'Editar Especialidade' : 'Nova Especialidade'}</DialogTitle>
                 <DialogContent>
                     <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Nome da Especialidade"
-                        type="text"
-                        fullWidth
-                        variant="standard"
-                        value={nomeEspecialidade}
-                        onChange={(e) => setNomeEspecialidade(e.target.value)}
+                        autoFocus margin="dense" label="Nome da Especialidade" type="text" fullWidth
+                        variant="outlined" value={formData.nome}
+                        onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                        sx={{ mb: 2 }}
+                    />
+                    {/* --- CAMPO DE VALOR ADICIONADO --- */}
+                    <TextField
+                        margin="dense" label="Valor da Consulta Particular" type="number" fullWidth
+                        variant="outlined" value={formData.valor_consulta}
+                        onChange={(e) => setFormData({...formData, valor_consulta: e.target.value})}
+                        InputProps={{
+                            startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                        }}
                     />
                 </DialogContent>
                 <DialogActions>
