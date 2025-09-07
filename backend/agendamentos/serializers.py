@@ -47,7 +47,6 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'procedimento_descricao', # Descrição do procedimento
             'data_criacao', # Adicionado para visualização
             'data_atualizacao', # Adicionado para visualização
-            'tipo_visita', # Adicionado para visualização
             'expira_em', # Adicionado para visualização
             'id_sala_telemedicina', # Adicionado para visualização
         ]

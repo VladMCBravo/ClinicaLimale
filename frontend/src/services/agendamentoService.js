@@ -1,4 +1,5 @@
-// src/services/agendamentoService.js
+// src/services/agendamentoService.js - VERSÃO ATUALIZADA
+
 import apiClient from '../api/axiosConfig';
 
 const getAgendamentos = () => {
@@ -17,11 +18,17 @@ const updateAgendamento = (id, data) => {
     return apiClient.put(`/agendamentos/${id}/`, data);
 };
 
-// Função para buscar os dados necessários para o modal de uma só vez
+// --- FUNÇÃO ALTERADA ---
+// Agora busca TODOS os dados necessários para o modal de uma só vez.
 const getModalData = () => {
     const fetchPacientes = apiClient.get('/pacientes/');
     const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-    return Promise.all([fetchPacientes, fetchProcedimentos]);
+    // --- NOVAS BUSCAS ADICIONADAS ---
+    const fetchMedicos = apiClient.get('/usuarios/usuarios/?cargo=medico');
+    const fetchEspecialidades = apiClient.get('/usuarios/especialidades/');
+    
+    // O Promise.all vai esperar todas as 4 requisições terminarem.
+    return Promise.all([fetchPacientes, fetchProcedimentos, fetchMedicos, fetchEspecialidades]);
 };
 
 export const agendamentoService = {
@@ -29,5 +36,5 @@ export const agendamentoService = {
     getAgendamentosHoje,
     createAgendamento,
     updateAgendamento,
-    getModalData,
+    getModalData, // <-- Exportamos a função atualizada
 };
