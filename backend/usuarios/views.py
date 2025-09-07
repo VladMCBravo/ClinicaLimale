@@ -1,13 +1,14 @@
 # backend/usuarios/views.py - VERSÃO CORRIGIDA
-from rest_framework import generics, status, viewsets
+from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser # Mantenha IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from .models import CustomUser, Especialidade
-from .serializers import MedicoSerializer, UserSerializer, UserCreateSerializer, EspecialidadeSerializer
+from .serializers import UserSerializer, EspecialidadeSerializer
 
+# --- SUAS VIEWS DE AUTENTICAÇÃO (SEM MUDANÇAS) ---
 class CustomAuthTokenLoginView(ObtainAuthToken):
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -25,38 +26,37 @@ class LogoutView(APIView):
         except (AttributeError, Token.DoesNotExist):
             return Response({"detail": "Token não encontrado ou usuário não autenticado."}, status=status.HTTP_400_BAD_REQUEST)
 
-class MedicoListView(generics.ListAPIView):
-    queryset = CustomUser.objects.filter(cargo='medico').order_by('first_name')
-    serializer_class = MedicoSerializer
-    permission_classes = [IsAuthenticated]
-
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all().order_by('first_name')
+# --- VIEWSET DE USUÁRIOS UNIFICADA E CORRIGIDA ---
+class CustomUserViewSet(viewsets.ModelViewSet):
+    serializer_class = UserSerializer
     
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return UserCreateSerializer
-        return UserSerializer
+    def get_queryset(self):
+        """
+        Esta função agora filtra corretamente os usuários por cargo.
+        Resolve o problema do "Médico Responsável" no modal de pacientes.
+        """
+        queryset = CustomUser.objects.all().order_by('first_name')
+        cargo = self.request.query_params.get('cargo')
+        if cargo:
+            queryset = queryset.filter(cargo=cargo)
+        return queryset
 
-    # MÉTODO DE PERMISSÃO CORRIGIDO
     def get_permissions(self):
         """
-        Permite que qualquer usuário logado LISTE os usuários (necessário para
-        selecionar médicos), mas apenas admins podem CRIAR, EDITAR ou DELETAR.
+        Permissões: Qualquer um logado pode listar, mas só Admin pode modificar.
         """
         if self.action == 'list':
-            # Qualquer um logado pode ver a lista
             self.permission_classes = [IsAuthenticated]
         else:
-            # Apenas admins podem fazer as outras ações
             self.permission_classes = [IsAdminUser]
         return super().get_permissions()
 
-# --- NOVA VIEWSET ADICIONADA AQUI ---
+# --- VIEWSET DE ESPECIALIDADES (SEM MUDANÇAS) ---
 class EspecialidadeViewSet(viewsets.ModelViewSet):
-    """
-    Endpoint da API para visualizar e editar especialidades.
-    """
     queryset = Especialidade.objects.all().order_by('nome')
     serializer_class = EspecialidadeSerializer
-    permission_classes = [IsAuthenticated] # Apenas usuários logados podem gerenciar especialidades
+    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            self.permission_classes = [IsAdminUser]
+        return super().get_permissions()

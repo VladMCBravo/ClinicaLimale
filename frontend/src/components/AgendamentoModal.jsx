@@ -138,7 +138,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
         // A lógica de valor por convênio é mais complexa e pode ser adicionada aqui se necessário
         return null;
-    }, [tipoAgendamento, formData]);
+    }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.tipo_atendimento]); // Lista de dependências corrigida
 
     
     return (

@@ -1,21 +1,24 @@
-// src/pages/ConfiguracoesPage.jsx
+// src/pages/ConfiguracoesPage.jsx - VERSÃO REVISADA
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Typography, Paper, Table, TableBody, TableCell, 
-    TableContainer, TableHead, TableRow, CircularProgress, Switch, Button 
+    TableContainer, TableHead, TableRow, CircularProgress, Switch, Button, IconButton 
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import UsuarioModal from '../components/configuracoes/UsuarioModal';
-import { Link as RouterLink } from 'react-router-dom'; // Importe o Link
+import { Link as RouterLink } from 'react-router-dom';
+import EditIcon from '@mui/icons-material/Edit';
 
 export default function ConfiguracoesPage() {
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const { showSnackbar } = useSnackbar();
     const [isModalOpen, setIsModalOpen] = useState(false);
-
+    const [editingUser, setEditingUser] = useState(null);
+    
     const fetchUsers = useCallback(async () => {
+        setIsLoading(true);
         try {
             const response = await apiClient.get('/usuarios/usuarios/');
             setUsers(response.data);
@@ -29,6 +32,16 @@ export default function ConfiguracoesPage() {
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
+
+    const handleOpenModal = (user = null) => {
+        setEditingUser(user);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingUser(null);
+    };
 
     const handleToggleActive = async (user) => {
         const newStatus = !user.is_active;
@@ -58,7 +71,7 @@ export default function ConfiguracoesPage() {
                     <Button variant="outlined" component={RouterLink} to="/configuracoes/especialidades">
                         Especialidades
                     </Button>
-                    <Button variant="contained" onClick={() => setIsModalOpen(true)}>
+                    <Button variant="contained" onClick={() => handleOpenModal()}> {/* Modificado */}
                         Criar Novo Usuário
                     </Button>
                 </Box>
@@ -72,6 +85,7 @@ export default function ConfiguracoesPage() {
                             <TableCell>Usuário (Login)</TableCell>
                             <TableCell>Cargo</TableCell>
                             <TableCell align="center">Status (Ativo)</TableCell>
+                            <TableCell align="right">Ações</TableCell> {/* <-- NOVA COLUNA */}
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -87,6 +101,11 @@ export default function ConfiguracoesPage() {
                                         color="success"
                                         title={user.is_active ? "Desativar usuário" : "Ativar usuário"}
                                     />
+                                 </TableCell>
+                                <TableCell align="right"> {/* <-- CÉLULA COM O BOTÃO */}
+                                    <IconButton onClick={() => handleOpenModal(user)}>
+                                        <EditIcon />
+                                    </IconButton>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -96,8 +115,9 @@ export default function ConfiguracoesPage() {
 
             <UsuarioModal 
                 open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={handleCloseModal}
                 onSave={fetchUsers}
+                usuarioParaEditar={editingUser} // <-- NOVA PROP
             />
         </Paper>
     );

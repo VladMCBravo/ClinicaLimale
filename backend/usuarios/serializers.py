@@ -1,69 +1,60 @@
-# backend/usuarios/serializers.py - VERSÃO ATUALIZADA
+# backend/usuarios/serializers.py - VERSÃO FINAL E UNIFICADA
 
 from rest_framework import serializers
-from .models import CustomUser, Especialidade # 1. Importe o modelo Especialidade
+from .models import CustomUser, Especialidade
 
-# --- NOVO SERIALIZER ADICIONADO AQUI ---
 class EspecialidadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Especialidade
-        fields = ['id', 'nome']
+        fields = ['id', 'nome', 'valor_consulta']
 
-# -----------------------------------------------------------------------------
-
-# SEU SERIALIZER EXISTENTE (MANTIDO)
-class MedicoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['id', 'first_name', 'last_name', 'username']
-
-# -----------------------------------------------------------------------------
-
-# SERIALIZER DE USUÁRIO ATUALIZADO
-# Este serializer agora lida com a exibição e atualização de especialidades.
 class UserSerializer(serializers.ModelSerializer):
-    # 2. Campo para exibir os detalhes das especialidades (somente leitura)
-    especialidades = EspecialidadeSerializer(many=True, read_only=True)
+    # Para LEITURA: Mostra os detalhes completos das especialidades.
+    especialidades_detalhes = EspecialidadeSerializer(source='especialidades', many=True, read_only=True)
     
-    # 3. Campo para receber uma lista de IDs de especialidades ao ATUALIZAR um usuário (somente escrita)
-    especialidades_ids = serializers.PrimaryKeyRelatedField(
-        many=True, 
-        queryset=Especialidade.objects.all(), 
-        source='especialidades', 
-        write_only=True,
-        required=False # Torna o campo opcional
-    )
-
-    class Meta:
-        model = CustomUser
-        # 4. Adicionamos os novos campos à lista de fields
-        fields = [
-            'id', 'username', 'first_name', 'last_name', 'email', 'cargo', 
-            'is_active', 'especialidades', 'especialidades_ids'
-        ]
-        # Excluímos a senha do retorno por segurança, como você já fazia
-        extra_kwargs = {'password': {'write_only': True}}
-
-
-# SERIALIZER DE CRIAÇÃO DE USUÁRIOS ATUALIZADO
-# Este serializer lida com a criação e também com a atribuição inicial de especialidades.
-class UserCreateSerializer(serializers.ModelSerializer):
-    # 5. Adicionamos o mesmo campo para receber os IDs na criação
-    especialidades_ids = serializers.PrimaryKeyRelatedField(
+    # Para ESCRITA (criar/editar): Aceita uma lista de IDs de especialidades.
+    especialidades = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Especialidade.objects.all(),
-        source='especialidades',
-        write_only=True,
-        required=False # Torna o campo opcional
+        required=False # Opcional, nem todo usuário é médico
     )
 
     class Meta:
         model = CustomUser
-        # 6. Adicionamos o campo à lista de fields
-        fields = ['username', 'password', 'first_name', 'last_name', 'cargo', 'is_active', 'especialidades_ids']
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'email', 'cargo', 
+            'is_active', 'especialidades', 'especialidades_detalhes'
+        ]
+        # Garante que a senha não seja enviada de volta na resposta
+        extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
     def create(self, validated_data):
-        # O método create continua seguro para a senha
-        user = CustomUser.objects.create_user(**validated_data)
+        # Remove as especialidades dos dados para tratar separadamente
+        especialidades_data = validated_data.pop('especialidades', [])
+        
+        # Garante que a senha seja obrigatória na criação
+        password = validated_data.pop('password')
+        if not password:
+            raise serializers.ValidationError({'password': 'A senha é obrigatória na criação.'})
+
+        # Cria o usuário com a senha criptografada
+        user = CustomUser.objects.create_user(**validated_data, password=password)
+        
+        # Associa as especialidades
+        if especialidades_data:
+            user.especialidades.set(especialidades_data)
         return user
+
+    def update(self, instance, validated_data):
+        # Se uma nova senha for fornecida, atualiza de forma segura
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+
+        # Atualiza as especialidades, se fornecidas
+        if 'especialidades' in validated_data:
+            especialidades_data = validated_data.pop('especialidades')
+            instance.especialidades.set(especialidades_data)
+
+        # Atualiza os outros campos
+        return super().update(instance, validated_data)
