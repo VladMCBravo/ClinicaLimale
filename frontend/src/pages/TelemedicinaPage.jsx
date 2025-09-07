@@ -14,9 +14,12 @@ export default function TelemedicinaPage() {
   // Função para buscar as consultas da API
   const fetchConsultas = useCallback(() => {
     setIsLoading(true);
-    apiClient.get('/agendamentos/telemedicina/') // Assumindo que este é o seu endpoint
+    apiClient.get('/agendamentos/telemedicina/')
       .then(response => {
-        setConsultas(response.data);
+        // --- A CORREÇÃO CRÍTICA ESTÁ AQUI ---
+        // Nós filtramos a lista ANTES de guardá-la no estado.
+        const consultasAtivas = response.data.filter(consulta => consulta.status !== 'Cancelado');
+        setConsultas(consultasAtivas);
       })
       .catch(err => {
         console.error("Erro ao buscar consultas de telemedicina:", err);
