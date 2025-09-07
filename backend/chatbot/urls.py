@@ -1,4 +1,4 @@
-# chatbot/urls.py - VERSÃO ATUALIZADA
+# chatbot/urls.py - VERSÃO FINAL PADRONIZADA
 
 from django.urls import path
 from .views import (
@@ -9,23 +9,28 @@ from .views import (
     ListarProcedimentosView,
     ConsultarHorariosDisponiveisView,
     GerarPixView,
-    CadastrarPacienteView, # --- NOVO ---
-    ConsultarAgendamentosPacienteView, # --- NOVO ---
+    CadastrarPacienteView,
+    ConsultarAgendamentosPacienteView,
     MercadoPagoWebhookView,
+    # --- NOVAS VIEWS IMPORTADAS ---
+    ListarEspecialidadesView,
+    ListarMedicosPorEspecialidadeView,
 )
 
 urlpatterns = [
-    # --- Gerenciamento de Memória da Conversa ---
+    # --- Gerenciamento de Memória ---
     path('chat-memory/', ChatMemoryView.as_view(), name='chat_memory_save'),
     path('chat-memory/<str:session_id>/', ChatMemoryView.as_view(), name='chat_memory_load'),
 
-    # --- Verificação e Consulta de Pacientes ---
-    path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'), # --- NOVO ---
+    # --- Pacientes ---
+    path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'),
     path('pacientes/verificar/', VerificarPacienteView.as_view(), name='chatbot_verificar_paciente'),
     path('pacientes/verificar-seguranca/', VerificarSegurancaView.as_view(), name='chatbot_verificar_seguranca'),
-    path('pacientes/meus-agendamentos/', ConsultarAgendamentosPacienteView.as_view(), name='chatbot_meus_agendamentos'), # --- NOVO ---
+    path('pacientes/meus-agendamentos/', ConsultarAgendamentosPacienteView.as_view(), name='chatbot_meus_agendamentos'),
 
-    # --- Consultas de Informações da Clínica ---
+    # --- Consultas de Informações da Clínica (NOVAS ROTAS)---
+    path('especialidades/', ListarEspecialidadesView.as_view(), name='chatbot_listar_especialidades'), # <-- NOVA
+    path('medicos/', ListarMedicosPorEspecialidadeView.as_view(), name='chatbot_listar_medicos'),       # <-- NOVA
     path('procedimentos/', ListarProcedimentosView.as_view(), name='chatbot_listar_procedimentos'),
 
     # --- Fluxo de Agendamento ---
@@ -34,5 +39,5 @@ urlpatterns = [
     
     # --- Fluxo de Pagamento ---
     path('pagamentos/gerar-pix/', GerarPixView.as_view(), name='chatbot_gerar_pix'),
-    path('pagamentos/webhook/', MercadoPagoWebhookView.as_view(), name='chatbot_pagamento_webhook'), # <-- ADICIONAR ESTA ROTA
+    path('pagamentos/webhook/', MercadoPagoWebhookView.as_view(), name='chatbot_pagamento_webhook'),
 ]

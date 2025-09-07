@@ -1,9 +1,10 @@
-# chatbot/views.py - VERSÃO REFATORADA E INTEGRADA
+# chatbot/views.py - VERSÃO FINAL PADRONIZADA
 
 import re
 import mercadopago
 from django.conf import settings
 from rest_framework.views import APIView
+from rest_framework import generics # Importamos generics para views de lista
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_api_key.permissions import HasAPIKey
@@ -16,11 +17,11 @@ from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.models import Agendamento
 from datetime import datetime, time, timedelta
 from django.utils import timezone
-from usuarios.models import CustomUser
+from usuarios.models import CustomUser, Especialidade # Importamos Especialidade
 from pacientes.serializers import PacienteSerializer
-# --- 1. A IMPORTAÇÃO MAIS IMPORTANTE ---
-# Importamos o nosso módulo de serviços do app de agendamentos
 from agendamentos import services as agendamento_services
+# --- NOVO: Serializers que vamos precisar ---
+from usuarios.serializers import EspecialidadeSerializer, UserSerializer
 
 class ChatMemoryView(APIView):
     # ... (sem alterações) ...
@@ -94,73 +95,6 @@ class ConsultarAgendamentosPacienteView(APIView):
         except Paciente.DoesNotExist:
             return Response({"error": "Paciente com este CPF não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-# --- A VIEW PRINCIPAL QUE VAMOS REFATORAR ---
-class AgendamentoChatbotView(APIView):
-    permission_classes = [HasAPIKey]
-
-    def post(self, request):
-        session_id = request.data.get('sessionId')
-        cpf_paciente = request.data.get('cpf')
-        data_hora_inicio_str = request.data.get('data_hora_inicio')
-        procedimento_id = request.data.get('procedimentoId')
-        # Define o prazo de validade para 15 minutos a partir de agora
-        prazo_expiracao = timezone.now() + timedelta(minutes=15)
-
-        if cpf_paciente:
-            cpf_paciente = re.sub(r'\D', '', cpf_paciente)
-
-        if not all([session_id, cpf_paciente, data_hora_inicio_str]):
-            return Response({'error': 'sessionId, cpf e data_hora_inicio são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            # CORREÇÃO: Buscando o paciente apenas pelo CPF,
-            # pois a segurança já foi validada pela ferramenta.
-            paciente = Paciente.objects.get(cpf=cpf_paciente)
-        except Paciente.DoesNotExist:
-            # Mudamos a mensagem de erro para ser mais clara no futuro
-            return Response({'error': f'Paciente com CPF {cpf_paciente} não encontrado no banco de dados.'}, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            data_hora_inicio = timezone.datetime.fromisoformat(data_hora_inicio_str)
-            data_hora_fim = data_hora_inicio + timedelta(minutes=50)
-        except ValueError:
-             return Response({'error': 'Formato de data inválido. Use AAAA-MM-DDTHH:MM:SS.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        dados_agendamento = {
-            'paciente': paciente.id,
-            'data_hora_inicio': data_hora_inicio,
-            'data_hora_fim': data_hora_fim,
-            'status': 'Agendado',
-            'tipo_atendimento': 'Particular',
-            'procedimento': procedimento_id,
-            'expira_em': prazo_expiracao, # <-- ADICIONE ESTA LINHA
-        }
-
-        serializer = AgendamentoWriteSerializer(data=dados_agendamento)
-
-        if serializer.is_valid():
-            # 2. A MÁGICA DA REFATORAÇÃO
-            # Em vez de salvar e depois criar o pagamento aqui, delegamos tudo para o serviço.
-            agendamento = serializer.save()
-            
-            # Busca o usuário de serviço que será usado como 'registrado_por'
-            try:
-                usuario_servico = CustomUser.objects.get(username='servico_chatbot')
-            except CustomUser.DoesNotExist:
-                usuario_servico = CustomUser.objects.get(id=1) # Fallback para o admin
-
-            # Chamamos a função de serviço que já contém TODA a lógica de negócio
-            agendamento_services.criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico)
-
-            return Response(
-                {'sucesso': f"Agendamento para {paciente.nome_completo} criado com sucesso para {data_hora_inicio.strftime('%d/%m/%Y às %H:%M')}. Status: {agendamento.status}", 'agendamento_id': agendamento.id},
-                status=status.HTTP_201_CREATED
-            )
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# --- O resto das views não precisa de alterações ---
-# ... (VerificarPacienteView, ListarProcedimentosView, etc. continuam aqui) ...
 class VerificarPacienteView(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
@@ -172,42 +106,6 @@ class VerificarPacienteView(APIView):
             return Response({"status": "paciente_encontrado", "paciente_id": paciente.id, "nome_completo": paciente.nome_completo})
         except Paciente.DoesNotExist:
             return Response({"status": "paciente_nao_encontrado"}, status=status.HTTP_404_NOT_FOUND)
-
-class ListarProcedimentosView(APIView):
-    permission_classes = [HasAPIKey]
-    def get(self, request):
-        procedimentos = Procedimento.objects.filter(valor_particular__gt=0).filter(ativo=True)
-        dados_formatados = [{"id": proc.id, "nome": proc.descricao, "valor": f"{proc.valor_particular:.2f}".replace('.', ',')} for proc in procedimentos]
-        return Response(dados_formatados)
-
-class ConsultarHorariosDisponiveisView(APIView):
-    permission_classes = [HasAPIKey]
-    def get(self, request):
-        data_str = request.query_params.get('data')
-        if not data_str:
-            return Response({'error': 'O parâmetro "data" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
-        except ValueError:
-            return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-                
-        horario_inicio_dia = time(8, 0)
-        horario_fim_dia = time(18, 0)
-        duracao_consulta_min = 50
-        intervalo_min = 10
-        agendamentos_no_dia = Agendamento.objects.filter(
-        data_hora_inicio__date=data_desejada
-        ).exclude(status='Cancelado')
-        horarios_ocupados = {timezone.localtime(ag.data_hora_inicio).time() for ag in agendamentos_no_dia}
-        horarios_disponiveis = []
-        horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
-        fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
-        while horario_atual < fim_do_dia:
-            if horario_atual.time() not in horarios_ocupados:
-                horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
-            horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
-        return Response({"data": data_str, "horarios_disponiveis": horarios_disponiveis})
 
 class VerificarSegurancaView(APIView):
     permission_classes = [HasAPIKey]
@@ -224,6 +122,161 @@ class VerificarSegurancaView(APIView):
         else:
             return Response({"status": "dados_nao_conferem"}, status=status.HTTP_403_FORBIDDEN)
         
+# --- NOVAS VIEWS PARA DAR INTELIGÊNCIA AO CHATBOT ---
+
+class ListarEspecialidadesView(generics.ListAPIView):
+    """
+    NOVO: Endpoint para o N8N buscar a lista de especialidades disponíveis
+    e seus respectivos valores de consulta particular.
+    """
+    permission_classes = [HasAPIKey]
+    queryset = Especialidade.objects.all().order_by('nome')
+    serializer_class = EspecialidadeSerializer
+
+class ListarMedicosPorEspecialidadeView(generics.ListAPIView):
+    """
+    NOVO: Endpoint para o N8N buscar os médicos de uma determinada especialidade.
+    Exemplo de chamada: /api/chatbot/medicos/?especialidade_id=1
+    """
+    permission_classes = [HasAPIKey]
+    serializer_class = UserSerializer # Reutilizamos o serializer principal de usuário
+
+    def get_queryset(self):
+        queryset = CustomUser.objects.filter(cargo='medico', is_active=True)
+        especialidade_id = self.request.query_params.get('especialidade_id')
+        if especialidade_id:
+            queryset = queryset.filter(especialidades__id=especialidade_id)
+        return queryset
+
+# --- VIEWS EXISTENTES QUE SERÃO REFATORADAS ---
+
+class ListarProcedimentosView(generics.ListAPIView): # Mudamos para generics.ListAPIView para padronizar
+    """
+    REFATORADO: Endpoint para listar procedimentos, que já existia.
+    """
+    permission_classes = [HasAPIKey]
+    queryset = Procedimento.objects.filter(valor_particular__gt=0, ativo=True).exclude(descricao__iexact='consulta')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        dados_formatados = [
+            {"id": proc.id, "nome": proc.descricao, "valor": f"{proc.valor_particular:.2f}".replace('.', ',')}
+            for proc in queryset
+        ]
+        return Response(dados_formatados)
+
+
+class ConsultarHorariosDisponiveisView(APIView):
+    """
+    REFATORADO: Agora, a consulta de horários pode ser feita para um médico específico,
+    tornando la agenda muito mais precisa.
+    """
+    permission_classes = [HasAPIKey]
+    def get(self, request):
+        data_str = request.query_params.get('data')
+        medico_id = request.query_params.get('medico_id') # <-- NOVO PARÂMETRO
+
+        if not data_str:
+            return Response({'error': 'O parâmetro "data" (AAAA-MM-DD) é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Formato de data inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # --- LÓGICA DE CÁLCULO DE HORÁRIOS (AGORA COMPLETA) ---
+
+        # 1. Define os parâmetros da agenda
+        horario_inicio_dia = time(8, 0)
+        horario_fim_dia = time(18, 0)
+        duracao_consulta_min = 50 # Duração de cada slot
+        intervalo_min = 10 # Intervalo entre os slots
+
+        # 2. Busca os agendamentos existentes no dia
+        agendamentos_no_dia = Agendamento.objects.filter(
+            data_hora_inicio__date=data_desejada
+        ).exclude(status='Cancelado')
+
+        # Se um médico foi especificado, filtramos apenas os agendamentos dele
+        if medico_id:
+            agendamentos_no_dia = agendamentos_no_dia.filter(medico_id=medico_id)
+
+        # 3. Cria um conjunto de horários já ocupados para checagem rápida
+        horarios_ocupados = {timezone.localtime(ag.data_hora_inicio).time() for ag in agendamentos_no_dia}
+
+        # 4. Gera todos os possíveis horários do dia e verifica a disponibilidade
+        horarios_disponiveis = []
+        horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
+        fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
+
+        while horario_atual < fim_do_dia:
+            # Checa se o horário atual não está na lista de ocupados
+            if horario_atual.time() not in horarios_ocupados:
+                horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
+            
+            # Avança para o próximo slot de horário (duração + intervalo)
+            horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
+
+        return Response({"data": data_str, "horarios_disponiveis": horarios_disponiveis})
+
+
+class AgendamentoChatbotView(APIView):
+    """
+    REFATORADO: A view principal de criação de agendamento agora aceita
+    tanto 'Consulta' quanto 'Procedimento', seguindo as mesmas regras do sistema.
+    """
+    permission_classes = [HasAPIKey]
+
+    def post(self, request):
+        dados = request.data
+        cpf_paciente = dados.get('cpf')
+
+        try:
+            paciente = Paciente.objects.get(cpf=re.sub(r'\D', '', cpf_paciente))
+            data_hora_inicio = timezone.datetime.fromisoformat(dados.get('data_hora_inicio'))
+            data_hora_fim = data_hora_inicio + timedelta(minutes=50)
+        except Paciente.DoesNotExist:
+            return Response({'error': f'Paciente com CPF {cpf_paciente} não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        except (ValueError, TypeError):
+            return Response({'error': 'Formato de data inválido ou ausente.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Monta a base do agendamento
+        dados_agendamento = {
+            'paciente': paciente.id,
+            'data_hora_inicio': data_hora_inicio,
+            'data_hora_fim': data_hora_fim,
+            'status': 'Agendado',
+            'tipo_atendimento': 'Particular',
+            'expira_em': timezone.now() + timedelta(minutes=15),
+            'tipo_agendamento': dados.get('tipo_agendamento')
+        }
+
+        # Lógica condicional: preenche os dados dependendo do tipo
+        if dados.get('tipo_agendamento') == 'Consulta':
+            dados_agendamento['especialidade'] = dados.get('especialidade_id')
+            dados_agendamento['medico'] = dados.get('medico_id')
+            dados_agendamento['modalidade'] = dados.get('modalidade', 'Presencial') # Padrão para Presencial
+        elif dados.get('tipo_agendamento') == 'Procedimento':
+            dados_agendamento['procedimento'] = dados.get('procedimento_id')
+        else:
+            return Response({'error': "O campo 'tipo_agendamento' ('Consulta' ou 'Procedimento') é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = AgendamentoWriteSerializer(data=dados_agendamento)
+        if serializer.is_valid():
+            agendamento = serializer.save()
+            
+            try:
+                usuario_servico = CustomUser.objects.get(username='servico_chatbot')
+            except CustomUser.DoesNotExist:
+                usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
+
+            agendamento_services.criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico)
+            
+            return Response({'sucesso': "Agendamento criado com sucesso!", 'agendamento_id': agendamento.id}, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+     
+     # --- VIEWS DE PAGAMENTO (sem alterações) ---   
 class GerarPixView(APIView):
     permission_classes = [HasAPIKey]
     def post(self, request):
