@@ -1,4 +1,4 @@
-# Em: backend/agendamentos/admin.py - VERSÃO FINAL REFINADA
+# Em: backend/agendamentos/admin.py - VERSÃO FINAL E CORRIGIDA
 
 from django.contrib import admin
 from .models import Agendamento
@@ -6,43 +6,57 @@ from django.utils import timezone
 
 @admin.register(Agendamento)
 class AgendamentoAdmin(admin.ModelAdmin):
+    # --- LISTA PRINCIPAL (MELHORADA) ---
     list_display = (
-        'id',
         'paciente',
         'data_formatada',
         'horario_formatado',
-        'modalidade', # <-- Ótimo para ver rapidamente na lista
+        'tipo_agendamento', # <-- NOVO
+        'medico',           # <-- NOVO
         'status',
-        'link_telemedicina', # <-- Adicionado aqui para fácil visualização
     )
-    list_filter = ('status', 'modalidade', 'tipo_atendimento')
-    search_fields = ('paciente__nome_completo',)
+    # --- FILTROS E BUSCA (MELHORADOS) ---
+    list_filter = ('status', 'tipo_agendamento', 'medico', 'data_hora_inicio')
+    search_fields = ('paciente__nome_completo', 'medico__first_name', 'medico__last_name')
 
+    # --- FORMULÁRIO DE EDIÇÃO (CORRIGIDO E REORGANIZADO) ---
     fieldsets = (
         ('Informações Principais', {
-            'fields': ('paciente', 'status', 'procedimento', 'tipo_consulta')
+            'fields': (
+                'paciente', 
+                'status', 
+                'data_hora_inicio', 
+                'data_hora_fim'
+            )
         }),
-        ('Datas e Horários', {
-            'fields': ('data_hora_inicio', 'data_hora_fim')
+        # --- NOVA SEÇÃO PARA A LÓGICA PRINCIPAL ---
+        ('Classificação do Agendamento', {
+            'fields': (
+                'tipo_agendamento', # Removido 'tipo_consulta' e adicionado este
+                'medico',
+                'especialidade',
+                'procedimento',
+            )
         }),
         ('Detalhes do Atendimento', {
-            # 1. ADICIONAMOS OS CAMPOS DE TELEMEDICINA AQUI
             'fields': (
                 'tipo_atendimento', 
                 'plano_utilizado', 
                 'modalidade', 
                 'tipo_visita', 
                 'observacoes',
-                'link_telemedicina',
-                'id_sala_telemedicina'
             )
+        }),
+        ('Telemedicina (Opcional)', {
+            'fields': ('link_telemedicina', 'id_sala_telemedicina'),
+            'classes': ('collapse',) # Deixa esta seção recolhida
         }),
     )
     
-    # 2. TORNAMOS OS CAMPOS GERADOS AUTOMATICAMENTE "SOMENTE LEITURA"
+    # Seus campos somente leitura continuam aqui
     readonly_fields = ('link_telemedicina', 'id_sala_telemedicina')
 
-    # ... (o resto dos seus métodos como data_formatada, etc.) ...
+    # --- SEUS MÉTODOS PERSONALIZADOS (MANTIDOS) ---
     def data_formatada(self, obj):
         if obj.data_hora_inicio:
             return timezone.localtime(obj.data_hora_inicio).strftime('%d/%m/%Y')
