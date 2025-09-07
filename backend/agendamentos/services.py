@@ -7,22 +7,29 @@ from django.contrib.auth import get_user_model
 def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado):
     """
     Função de serviço que centraliza a regra de negócio para criar um agendamento
-    e seu respectivo pagamento pendente.
+    e seu respectivo pagamento pendente, agora com a nova lógica de valores.
     """
-    # 1. Salva a instância do agendamento primeiro (o serializer já fez o .save())
     agendamento = agendamento_instance
-    # --- REFINAMENTO AQUI ---
-    # Se a modalidade for Telemedicina, definimos um prazo de expiração.
-    # Isso funciona tanto para agendamentos criados pela recepcionista quanto pelo chatbot.
+    
+    # Lógica de expiração para Telemedicina (sem alterações)
     if agendamento.modalidade == 'Telemedicina' and not agendamento.expira_em:
         agendamento.expira_em = timezone.now() + timedelta(minutes=15)
-        agendamento.save() # Salva o prazo no agendamento
-    # 2. Lógica para determinar o valor do pagamento
-    valor_do_pagamento = 0.00 # Valor padrão
-    if agendamento.tipo_atendimento == 'Particular' and agendamento.procedimento:
-        valor_do_pagamento = agendamento.procedimento.valor_particular
+        agendamento.save()
+    # --- LÓGICA DE CÁLCULO DE VALOR TOTALMENTE ATUALIZADA ---
+    valor_do_pagamento = 0.00 
+
+    # Se for uma CONSULTA PARTICULAR, o valor vem da ESPECIALIDADE
+    if agendamento.tipo_agendamento == 'Consulta' and agendamento.tipo_atendimento == 'Particular':
+        if agendamento.especialidade and agendamento.especialidade.valor_consulta:
+            valor_do_pagamento = agendamento.especialidade.valor_consulta
+
+    # Se for um PROCEDIMENTO PARTICULAR, o valor vem do PROCEDIMENTO
+    elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.tipo_atendimento == 'Particular':
+        if agendamento.procedimento and agendamento.procedimento.valor_particular:
+            valor_do_pagamento = agendamento.procedimento.valor_particular
+
+    # Se for CONVÊNIO, a lógica continua baseada no procedimento acordado com o plano
     elif agendamento.tipo_atendimento == 'Convenio' and agendamento.procedimento and agendamento.plano_utilizado:
-        # Busca o valor acordado com o convênio
         valor_acordado = agendamento.procedimento.valores_convenio.filter(plano_convenio=agendamento.plano_utilizado).first()
         if valor_acordado:
             valor_do_pagamento = valor_acordado.valor

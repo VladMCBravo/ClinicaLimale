@@ -5,12 +5,14 @@ from pacientes.models import Paciente
 from django.utils import timezone
 from django.conf import settings
 
-# --- REMOVEMOS A IMPORTAÇÃO DIRETA ---
-# from faturamento.models import PlanoConvenio # <-- APAGUE OU COMENTE ESTA LINHA
-
 class Agendamento(models.Model):
     TIPO_ATENDIMENTO_CHOICES = [('Convenio', 'Convênio'), ('Particular', 'Particular')]
     STATUS_CHOICES = [('Agendado', 'Agendado'), ('Confirmado', 'Confirmado'), ('Cancelado', 'Cancelado'), ('Realizado', 'Realizado'), ('Não Compareceu', 'Não Compareceu')]
+ # --- A DEFINIÇÃO QUE FALTAVA ESTÁ AQUI ---
+    TIPO_AGENDAMENTO_CHOICES = [
+        ('Consulta', 'Consulta'),
+        ('Procedimento', 'Procedimento'),
+    ]
  # --- NOVOS CAMPOS PARA CLASSIFICAÇÃO ---
     TIPO_VISITA_CHOICES = [
         ('Primeira Consulta', 'Primeira Consulta'),
@@ -20,6 +22,28 @@ class Agendamento(models.Model):
         ('Presencial', 'Presencial'),
         ('Telemedicina', 'Telemedicina'),
     ]
+
+# --- CAMPOS DA NOVA LÓGICA ---
+    tipo_agendamento = models.CharField(max_length=20, choices=TIPO_AGENDAMENTO_CHOICES, default='Consulta')
+    
+    # Campo 'medico' aponta para o seu CustomUser e filtra para mostrar apenas médicos
+    medico = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agendamentos_como_medico',
+        # Dica de ouro: Isso filtra a lista para mostrar apenas usuários com cargo 'medico' no admin!
+        limit_choices_to={'cargo': 'medico'} 
+    )
+    
+    # Campo 'especialidade' aponta para o seu modelo no app 'usuarios'
+    especialidade = models.ForeignKey(
+        'usuarios.Especialidade',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     tipo_visita = models.CharField(
         max_length=20, 
@@ -38,7 +62,6 @@ class Agendamento(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='agendamentos')
     data_hora_inicio = models.DateTimeField()
     data_hora_fim = models.DateTimeField()
-    tipo_consulta = models.CharField(max_length=100, default='Consulta')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Agendado')
     expira_em = models.DateTimeField(null=True, blank=True, verbose_name="Expira em")
 
