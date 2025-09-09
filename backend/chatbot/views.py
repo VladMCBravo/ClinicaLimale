@@ -49,18 +49,19 @@ class ChatMemoryView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Salva ou atualiza o objeto no banco de dados
-        obj, created = ChatMemory.objects.update_or_create(
-            session_id=session_id,
-            defaults={
-                'memory_data': memory_data,
-                'state': state
-            }
-        )
+        # --- MUDANÇA DE LÓGICA PARA GARANTIR O SALVAMENTO ---
+        # 1. Busca o objeto. Se não existir, cria um novo.
+        obj, created = ChatMemory.objects.get_or_create(session_id=session_id)
 
-        # --- MUDANÇA CRUCIAL AQUI ---
-        # Em vez de retornar um status, agora ele retorna o objeto
-        # que acabou de salvar, no mesmo formato do GET.
+        # 2. Atualiza os campos do objeto na memória com os novos dados.
+        obj.memory_data = memory_data
+        obj.state = state
+
+        # 3. Salva explicitamente as mudanças no banco de dados.
+        obj.save()
+        # ----------------------------------------------------
+
+        # Retorna o objeto que foi salvo, no mesmo formato do GET.
         return Response({
             'state': obj.state,
             'memoryData': obj.memory_data
