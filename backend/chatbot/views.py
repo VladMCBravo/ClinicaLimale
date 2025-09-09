@@ -29,24 +29,36 @@ class ChatMemoryView(APIView):
     def get(self, request, session_id):
         try:
             chat = ChatMemory.objects.get(session_id=session_id)
-            return Response({'memoryData': chat.memory_data})
+            return Response({
+                'state': chat.state,
+                'memoryData': chat.memory_data
+            })
         except ChatMemory.DoesNotExist:
-            return Response({'memoryData': []})
-
+            # Retorna um estado inicial para novos usuários
+            return Response({
+                'state': 'inicio',
+                'memoryData': []
+            })
     def post(self, request):
         session_id = request.data.get('sessionId')
         memory_data = request.data.get('memoryData')
+        state = request.data.get('state') # <-- Agora ele pega o 'state' que o N8N envia
+
         if not session_id or memory_data is None:
             return Response(
                 {'error': 'sessionId e memoryData são obrigatórios.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        # Agora ele salva o state junto com a memória no banco de dados
         obj, created = ChatMemory.objects.update_or_create(
             session_id=session_id,
-            defaults={'memory_data': memory_data}
+            defaults={
+                'memory_data': memory_data,
+                'state': state
+            }
         )
         return Response(
-            {'status': 'Memória salva com sucesso'},
+            {'status': 'Memória e estado salvos com sucesso'},
             status=status.HTTP_200_OK
         )
 
