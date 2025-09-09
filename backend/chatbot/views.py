@@ -24,7 +24,6 @@ from agendamentos import services as agendamento_services
 from usuarios.serializers import EspecialidadeSerializer, UserSerializer
 
 class ChatMemoryView(APIView):
-    # ... (sem alterações) ...
     permission_classes = [HasAPIKey]
     def get(self, request, session_id):
         try:
@@ -42,14 +41,15 @@ class ChatMemoryView(APIView):
     def post(self, request):
         session_id = request.data.get('sessionId')
         memory_data = request.data.get('memoryData')
-        state = request.data.get('state') # <-- Agora ele pega o 'state' que o N8N envia
+        state = request.data.get('state')
 
         if not session_id or memory_data is None:
             return Response(
                 {'error': 'sessionId e memoryData são obrigatórios.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        # Agora ele salva o state junto com a memória no banco de dados
+
+        # Salva ou atualiza o objeto no banco de dados
         obj, created = ChatMemory.objects.update_or_create(
             session_id=session_id,
             defaults={
@@ -57,10 +57,14 @@ class ChatMemoryView(APIView):
                 'state': state
             }
         )
-        return Response(
-            {'status': 'Memória e estado salvos com sucesso'},
-            status=status.HTTP_200_OK
-        )
+
+        # --- MUDANÇA CRUCIAL AQUI ---
+        # Em vez de retornar um status, agora ele retorna o objeto
+        # que acabou de salvar, no mesmo formato do GET.
+        return Response({
+            'state': obj.state,
+            'memoryData': obj.memory_data
+        }, status=status.HTTP_200_OK)
 
 # ... (CadastrarPacienteView e ConsultarAgendamentosPacienteView não mudam) ...
 class CadastrarPacienteView(APIView):
