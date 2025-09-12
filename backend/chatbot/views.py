@@ -183,37 +183,33 @@ class ListarProcedimentosView(generics.ListAPIView): # Mudamos para generics.Lis
         return Response(dados_formatados)
 
 
+# ########################################################################## #
+# ################ INÍCIO DA SEÇÃO MODIFICADA ################################ #
+# ########################################################################## #
+
 class ConsultarHorariosDisponiveisView(APIView):
     """
-    REFATORADO: Agora, a consulta de horários pode ser feita para um médico específico,
-    tornando la agenda muito mais precisa.
+    SUPER-REFATORADO: Agora a view é proativa. Se nenhuma data for fornecida,
+    ela procura o próximo dia com horários disponíveis automaticamente.
     """
     permission_classes = [HasAPIKey]
-    def get(self, request):
-        data_str = request.query_params.get('data')
-        medico_id = request.query_params.get('medico_id') # <-- NOVO PARÂMETRO
 
-        if not data_str:
-            return Response({'error': 'O parâmetro "data" (AAAA-MM-DD) é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
-        except ValueError:
-            return Response({'error': 'Formato de data inválido.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # --- LÓGICA DE CÁLCULO DE HORÁRIOS (AGORA COMPLETA) ---
-
+    def _buscar_horarios_no_dia(self, data_desejada, medico_id):
+        """
+        Método auxiliar que contém a lógica para encontrar horários
+        em um dia específico, reutilizada pela busca proativa.
+        """
         # 1. Define os parâmetros da agenda
         horario_inicio_dia = time(8, 0)
         horario_fim_dia = time(18, 0)
-        duracao_consulta_min = 50 # Duração de cada slot
-        intervalo_min = 10 # Intervalo entre os slots
+        duracao_consulta_min = 50
+        intervalo_min = 10
 
         # 2. Busca os agendamentos existentes no dia
         agendamentos_no_dia = Agendamento.objects.filter(
             data_hora_inicio__date=data_desejada
         ).exclude(status='Cancelado')
 
-        # Se um médico foi especificado, filtramos apenas os agendamentos dele
         if medico_id:
             agendamentos_no_dia = agendamentos_no_dia.filter(medico_id=medico_id)
 
@@ -224,16 +220,60 @@ class ConsultarHorariosDisponiveisView(APIView):
         horarios_disponiveis = []
         horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
         fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
+        
+        # --- MELHORIA: Não sugerir horários que já passaram no dia de hoje ---
+        agora = timezone.localtime(timezone.now())
+        if data_desejada == agora.date() and horario_atual < agora:
+            horario_atual = agora
+            # Arredonda para o próximo slot de 5 minutos para limpar a sugestão
+            if horario_atual.minute % 5 != 0:
+                minutos_para_adicionar = 5 - (horario_atual.minute % 5)
+                horario_atual += timedelta(minutes=minutos_para_adicionar)
+
 
         while horario_atual < fim_do_dia:
-            # Checa se o horário atual não está na lista de ocupados
             if horario_atual.time() not in horarios_ocupados:
                 horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
             
-            # Avança para o próximo slot de horário (duração + intervalo)
             horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
 
-        return Response({"data": data_str, "horarios_disponiveis": horarios_disponiveis})
+        return horarios_disponiveis
+
+    def get(self, request):
+        medico_id = request.query_params.get('medico_id')
+        data_str = request.query_params.get('data') # Agora é opcional
+
+        # Se uma data específica for fornecida, usa a lógica antiga
+        if data_str:
+            try:
+                data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            horarios = self._buscar_horarios_no_dia(data_desejada, medico_id)
+            return Response({"data": data_str, "horarios_disponiveis": horarios})
+
+        # Se NENHUMA data for fornecida, procura proativamente
+        else:
+            data_atual = timezone.localdate()
+            # Procura nos próximos 90 dias por um horário
+            for i in range(90):
+                data_a_verificar = data_atual + timedelta(days=i)
+                horarios = self._buscar_horarios_no_dia(data_a_verificar, medico_id)
+                
+                # Se encontrou horários, para o loop e retorna o resultado
+                if horarios:
+                    return Response({
+                        "data": data_a_verificar.strftime('%Y-%m-%d'),
+                        "horarios_disponiveis": horarios
+                    })
+            
+            # Se o loop terminar sem encontrar nada
+            return Response({"data": None, "horarios_disponiveis": []})
+
+# ########################################################################## #
+# ################# FIM DA SEÇÃO MODIFICADA ################################## #
+# ########################################################################## #
 
 
 class AgendamentoChatbotView(APIView):
