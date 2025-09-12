@@ -216,10 +216,13 @@ class ConsultarHorariosDisponiveisView(APIView):
         # 3. Cria um conjunto de horários já ocupados para checagem rápida
         horarios_ocupados = {timezone.localtime(ag.data_hora_inicio).time() for ag in agendamentos_no_dia}
 
-        # 4. Gera todos os possíveis horários do dia e verifica a disponibilidade
+        # --- CORREÇÃO APLICADA AQUI ---
+        # 4. Gera horários do dia TORNANDO-OS "AWARE" (conscientes do fuso horário)
+        tz = timezone.get_current_timezone()
+        horario_atual = timezone.make_aware(datetime.combine(data_desejada, horario_inicio_dia), tz)
+        fim_do_dia = timezone.make_aware(datetime.combine(data_desejada, horario_fim_dia), tz)
+        
         horarios_disponiveis = []
-        horario_atual = datetime.combine(data_desejada, horario_inicio_dia)
-        fim_do_dia = datetime.combine(data_desejada, horario_fim_dia)
         
         # --- MELHORIA: Não sugerir horários que já passaram no dia de hoje ---
         agora = timezone.localtime(timezone.now())
@@ -230,7 +233,6 @@ class ConsultarHorariosDisponiveisView(APIView):
                 minutos_para_adicionar = 5 - (horario_atual.minute % 5)
                 horario_atual += timedelta(minutes=minutos_para_adicionar)
 
-
         while horario_atual < fim_do_dia:
             if horario_atual.time() not in horarios_ocupados:
                 horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
@@ -240,10 +242,10 @@ class ConsultarHorariosDisponiveisView(APIView):
         return horarios_disponiveis
 
     def get(self, request):
+        # ... (O resto do método get continua exatamente igual ao que lhe enviei antes)
         medico_id = request.query_params.get('medico_id')
-        data_str = request.query_params.get('data') # Agora é opcional
+        data_str = request.query_params.get('data')
 
-        # Se uma data específica for fornecida, usa a lógica antiga
         if data_str:
             try:
                 data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
@@ -252,23 +254,18 @@ class ConsultarHorariosDisponiveisView(APIView):
             
             horarios = self._buscar_horarios_no_dia(data_desejada, medico_id)
             return Response({"data": data_str, "horarios_disponiveis": horarios})
-
-        # Se NENHUMA data for fornecida, procura proativamente
         else:
             data_atual = timezone.localdate()
-            # Procura nos próximos 90 dias por um horário
             for i in range(90):
                 data_a_verificar = data_atual + timedelta(days=i)
                 horarios = self._buscar_horarios_no_dia(data_a_verificar, medico_id)
                 
-                # Se encontrou horários, para o loop e retorna o resultado
                 if horarios:
                     return Response({
                         "data": data_a_verificar.strftime('%Y-%m-%d'),
                         "horarios_disponiveis": horarios
                     })
             
-            # Se o loop terminar sem encontrar nada
             return Response({"data": None, "horarios_disponiveis": []})
 
 # ########################################################################## #
