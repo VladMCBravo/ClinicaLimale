@@ -196,9 +196,11 @@ class ConsultarHorariosDisponiveisView(APIView):
 
     def _buscar_horarios_no_dia(self, data_desejada, medico_id):
         """
-        Método auxiliar que contém a lógica para encontrar horários
-        em um dia específico, reutilizada pela busca proativa.
+        Método auxiliar com marcadores de depuração para investigar
+        porque não estão a ser encontrados horários.
         """
+        print(f"\n--- INICIANDO BUSCA PARA DATA: {data_desejada}, MEDICO_ID: {medico_id} ---")
+
         # 1. Define os parâmetros da agenda
         horario_inicio_dia = time(8, 0)
         horario_fim_dia = time(18, 0)
@@ -213,32 +215,38 @@ class ConsultarHorariosDisponiveisView(APIView):
         if medico_id:
             agendamentos_no_dia = agendamentos_no_dia.filter(medico_id=medico_id)
 
-        # 3. Cria um conjunto de horários já ocupados para checagem rápida
+        # 3. Cria um conjunto de horários já ocupados
         horarios_ocupados = {timezone.localtime(ag.data_hora_inicio).time() for ag in agendamentos_no_dia}
+        print(f"Horários já ocupados neste dia: {horarios_ocupados}")
 
-        # --- CORREÇÃO APLICADA AQUI ---
-        # 4. Gera horários do dia TORNANDO-OS "AWARE" (conscientes do fuso horário)
+        # 4. Gera horários do dia
         tz = timezone.get_current_timezone()
         horario_atual = timezone.make_aware(datetime.combine(data_desejada, horario_inicio_dia), tz)
         fim_do_dia = timezone.make_aware(datetime.combine(data_desejada, horario_fim_dia), tz)
         
         horarios_disponiveis = []
         
-        # --- MELHORIA: Não sugerir horários que já passaram no dia de hoje ---
         agora = timezone.localtime(timezone.now())
+        print(f"Hora atual do servidor (agora): {agora.strftime('%Y-%m-%d %H:%M:%S')}")
         if data_desejada == agora.date() and horario_atual < agora:
             horario_atual = agora
-            # Arredonda para o próximo slot de 5 minutos para limpar a sugestão
+            print(f"Ajustando horário de início para agora: {horario_atual.strftime('%H:%M')}")
             if horario_atual.minute % 5 != 0:
                 minutos_para_adicionar = 5 - (horario_atual.minute % 5)
                 horario_atual += timedelta(minutes=minutos_para_adicionar)
+                print(f"Arredondando horário de início para: {horario_atual.strftime('%H:%M')}")
+
+        print(f"Loop de horários: De {horario_atual.strftime('%H:%M')} até {fim_do_dia.strftime('%H:%M')}")
 
         while horario_atual < fim_do_dia:
+            print(f"  -> Verificando slot: {horario_atual.strftime('%H:%M')}")
             if horario_atual.time() not in horarios_ocupados:
                 horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
+                print(f"    => Slot ADICIONADO. Lista agora tem {len(horarios_disponiveis)} horários.")
             
             horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
 
+        print(f"--- FIM DA BUSCA. Total de horários encontrados: {len(horarios_disponiveis)} ---")
         return horarios_disponiveis
 
     def get(self, request):
