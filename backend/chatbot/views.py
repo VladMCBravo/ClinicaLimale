@@ -350,11 +350,23 @@ class GerarPixView(APIView):
             pagamento = Pagamento.objects.get(agendamento=agendamento)
         except (Agendamento.DoesNotExist, Pagamento.DoesNotExist):
             return Response({'error': 'Agendamento ou Pagamento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        
         sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
         notification_url = request.build_absolute_uri('/api/chatbot/pagamentos/webhook/')
+
+        # --- CORREÇÃO APLICADA AQUI ---
+        # Define a descrição com base no tipo de agendamento
+        if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
+            description = f"Pagamento para consulta: {agendamento.especialidade.nome}"
+        elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
+            description = f"Pagamento para procedimento: {agendamento.procedimento.descricao}"
+        else:
+            description = "Pagamento de agendamento na Clínica Limalé" # Fallback
+        # --- FIM DA CORREÇÃO ---
+
         payment_data = {
             "transaction_amount": float(pagamento.valor),
-            "description": f"Pagamento para consulta: {agendamento.procedimento.descricao}",
+            "description": description, # <-- USA A DESCRIÇÃO CORRIGIDA
             "payment_method_id": "pix",
             "payer": {
                 "email": agendamento.paciente.email,
@@ -364,6 +376,7 @@ class GerarPixView(APIView):
         }
         payment_response = sdk.payment().create(payment_data)
         payment = payment_response["response"]
+
         if payment_response["status"] == 201:
             pagamento.id_transacao_externa = str(payment['id'])
             pagamento.save()
