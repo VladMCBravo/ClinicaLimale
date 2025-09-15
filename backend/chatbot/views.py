@@ -2,6 +2,7 @@
 
 import re
 import mercadopago
+from dateutil import parser
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework import generics # Importamos generics para views de lista
@@ -294,11 +295,20 @@ class AgendamentoChatbotView(APIView):
 
         try:
             paciente = Paciente.objects.get(cpf=re.sub(r'\D', '', cpf_paciente))
-            data_hora_inicio = timezone.datetime.fromisoformat(dados.get('data_hora_inicio'))
+
+            # --- MUDANÇA PRINCIPAL AQUI ---
+            # Substituímos fromisoformat por dateutil.parser.isoparse
+            data_hora_inicio_str = dados.get('data_hora_inicio')
+            if not data_hora_inicio_str:
+                raise ValueError("data_hora_inicio está ausente")
+            data_hora_inicio = parser.isoparse(data_hora_inicio_str)
+            # --- FIM DA MUDANÇA ---
+
             data_hora_fim = data_hora_inicio + timedelta(minutes=50)
+
         except Paciente.DoesNotExist:
             return Response({'error': f'Paciente com CPF {cpf_paciente} não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, parser.ParserError): # Adicionamos o ParserError
             return Response({'error': 'Formato de data inválido ou ausente.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Monta a base do agendamento
