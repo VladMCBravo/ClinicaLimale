@@ -1,4 +1,5 @@
 # backend/agendamentos/services.py
+
 from django.utils import timezone
 from datetime import timedelta
 from faturamento.models import Pagamento
@@ -7,41 +8,46 @@ from django.contrib.auth import get_user_model
 def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado):
     """
     Função de serviço que centraliza a regra de negócio para criar um agendamento
-    e seu respectivo pagamento pendente, agora com a nova lógica de valores.
+    e seu respectivo pagamento pendente.
     """
     agendamento = agendamento_instance
     
-    # Lógica de expiração para Telemedicina (sem alterações)
-    if agendamento.modalidade == 'Telemedicina' and not agendamento.expira_em:
+    # --- LÓGICA DE EXPIRAÇÃO ATUALIZADA E ABRANGENTE ---
+    # Define os cargos que NÃO devem ter agendamentos com expiração automática.
+    cargos_isentos = ['recepcao', 'admin'] 
+
+    # A condição agora foi simplificada para aplicar a expiração a QUALQUER agendamento
+    # que não seja criado por um usuário com cargo isento (ex: via WhatsApp).
+    # Removemos a verificação "agendamento.modalidade == 'Telemedicina'".
+    if (not agendamento.expira_em and
+            (not usuario_logado or usuario_logado.cargo not in cargos_isentos)):
         agendamento.expira_em = timezone.now() + timedelta(minutes=15)
         agendamento.save()
-    # --- LÓGICA DE CÁLCULO DE VALOR TOTALMENTE ATUALIZADA ---
+
+    # --- LÓGICA DE CÁLCULO DE VALOR (PERMANECE IGUAL) ---
     valor_do_pagamento = 0.00 
 
-    # Se for uma CONSULTA PARTICULAR, o valor vem da ESPECIALIDADE
     if agendamento.tipo_agendamento == 'Consulta' and agendamento.tipo_atendimento == 'Particular':
         if agendamento.especialidade and agendamento.especialidade.valor_consulta:
             valor_do_pagamento = agendamento.especialidade.valor_consulta
 
-    # Se for um PROCEDIMENTO PARTICULAR, o valor vem do PROCEDIMENTO
     elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.tipo_atendimento == 'Particular':
         if agendamento.procedimento and agendamento.procedimento.valor_particular:
             valor_do_pagamento = agendamento.procedimento.valor_particular
 
-    # Se for CONVÊNIO, a lógica continua baseada no procedimento acordado com o plano
     elif agendamento.tipo_atendimento == 'Convenio' and agendamento.procedimento and agendamento.plano_utilizado:
         valor_acordado = agendamento.procedimento.valores_convenio.filter(plano_convenio=agendamento.plano_utilizado).first()
         if valor_acordado:
             valor_do_pagamento = valor_acordado.valor
 
-    # 3. Encontra um usuário de serviço para registrar o pagamento
+    # Encontra um usuário de serviço para registrar o pagamento
     User = get_user_model()
     try:
-        usuario_servico = User.objects.get(username='servico_sistema') # Um usuário genérico
+        usuario_servico = User.objects.get(username='servico_sistema')
     except User.DoesNotExist:
         usuario_servico = User.objects.filter(is_superuser=True).first() or usuario_logado
 
-    # 4. Cria o objeto de Pagamento
+    # Cria o objeto de Pagamento
     Pagamento.objects.create(
         agendamento=agendamento,
         paciente=agendamento.paciente,
