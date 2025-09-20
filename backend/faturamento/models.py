@@ -41,6 +41,8 @@ class Pagamento(models.Model):
     pix_copia_e_cola = models.TextField(blank=True, null=True)
     pix_qr_code_base64 = models.TextField(blank=True, null=True, help_text="Imagem do QR Code em formato base64")
     pix_expira_em = models.DateTimeField(blank=True, null=True, help_text="Data e hora em que a cobrança PIX expira")
+    # --- NOVO CAMPO PARA LINK DE CARTÃO ---
+    link_pagamento = models.URLField(max_length=500, blank=True, null=True, help_text="URL do link de pagamento para Cartão de Crédito")
 
 
     def __str__(self):

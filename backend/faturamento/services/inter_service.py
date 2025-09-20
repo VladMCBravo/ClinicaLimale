@@ -51,3 +51,30 @@ def gerar_cobranca_pix(pagamento_obj, minutos_expiracao=15):
 
     print("--- PAGAMENTO ATUALIZADO COM DADOS DO PIX ---")
     return pagamento_obj
+
+# --- NOVA FUNÇÃO PARA GERAR LINK DE PAGAMENTO ---
+def gerar_link_pagamento_cartao(pagamento_obj, minutos_expiracao=15):
+    """
+    Função que simula a criação de um link de pagamento para cartão no Banco Inter.
+    
+    No futuro, esta função irá chamar o endpoint correspondente da API do Inter.
+    """
+    print("--- SIMULANDO GERAÇÃO DE LINK DE PAGAMENTO (CARTÃO) ---")
+
+    # Resposta simulada que o Inter (ou outro provedor) nos daria
+    data_expiracao = timezone.now() + timedelta(minutes=minutos_expiracao)
+    
+    resposta_simulada = {
+        "id": f"pl_{uuid.uuid4()}", # Payment Link ID
+        "url": f"https://pagamento.bancointer.com.br/simulado/{pagamento_obj.id}",
+        "expira_em": data_expiracao.isoformat()
+    }
+    print(f"Resposta do Inter (simulada): {resposta_simulada}")
+
+    # Atualiza o objeto de Pagamento com os dados recebidos
+    pagamento_obj.link_pagamento = resposta_simulada['url']
+    pagamento_obj.pix_expira_em = data_expiracao # Reutilizamos o campo de expiração
+    pagamento_obj.save()
+
+    print("--- PAGAMENTO ATUALIZADO COM LINK DE PAGAMENTO ---")
+    return pagamento_obj

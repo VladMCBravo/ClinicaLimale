@@ -310,6 +310,10 @@ class AgendamentoChatbotView(APIView):
         except (ValueError, TypeError, parser.ParserError): # Adicionamos o ParserError
             return Response({'error': 'Formato de data inválido ou ausente.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # --- CAPTURA O MÉTODO DE PAGAMENTO ESCOLHIDO ---
+        metodo_pagamento = dados.get('metodo_pagamento_escolhido', 'PIX') # Padrão para PIX
+        
+
         # Monta a base do agendamento
         dados_agendamento = {
             'paciente': paciente.id,
@@ -317,7 +321,6 @@ class AgendamentoChatbotView(APIView):
             'data_hora_fim': data_hora_fim,
             'status': 'Agendado',
             'tipo_atendimento': 'Particular',
-            'expira_em': timezone.now() + timedelta(minutes=15),
             'tipo_agendamento': dados.get('tipo_agendamento')
         }
 
@@ -340,26 +343,30 @@ class AgendamentoChatbotView(APIView):
             except CustomUser.DoesNotExist:
                 usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
 
-            # Esta função agora cria o pagamento E a cobrança PIX internamente!
-            agendamento_services.criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico)
+            # --- PASSA O MÉTODO DE PAGAMENTO PARA O SERVIÇO ---
+            agendamento_services.criar_agendamento_e_pagamento_pendente(
+                agendamento, 
+                usuario_servico,
+                metodo_pagamento_escolhido=metodo_pagamento # <-- Passando o parâmetro
+            )
             
-            # --- NOVA LÓGICA DE RESPOSTA ---
-            # Vamos buscar os dados do PIX que acabaram de ser criados.
+            # --- ATUALIZA A LÓGICA DE RESPOSTA ---
             pagamento_associado = agendamento.pagamento
-            dados_pix = {}
-            if pagamento_associado and pagamento_associado.pix_qr_code_base64:
-                dados_pix = {
-                    "pix_copia_e_cola": pagamento_associado.pix_copia_e_cola,
-                    "pix_qr_code_imagem": pagamento_associado.pix_qr_code_base64,
-                    "pix_expira_em": pagamento_associado.pix_expira_em.isoformat()
-                }
+            dados_pagamento = {}
 
-            # Montamos a resposta final
+            if pagamento_associado.pix_copia_e_cola:
+                dados_pagamento['tipo'] = 'PIX'
+                dados_pagamento['pix_copia_e_cola'] = pagamento_associado.pix_copia_e_cola
+                dados_pagamento['pix_qr_code_imagem'] = pagamento_associado.pix_qr_code_base64
+            elif pagamento_associado.link_pagamento:
+                dados_pagamento['tipo'] = 'CartaoCredito'
+                dados_pagamento['link'] = pagamento_associado.link_pagamento
+
             resposta_final = {
-                'sucesso': "Agendamento criado! PIX gerado para pagamento.", 
+                'sucesso': "Agendamento criado! Realize o pagamento para confirmar.", 
                 'agendamento_id': agendamento.id,
                 'pagamento_id': pagamento_associado.id,
-                'dados_pix': dados_pix
+                'dados_pagamento': dados_pagamento
             }
             
             return Response(resposta_final, status=status.HTTP_201_CREATED)
