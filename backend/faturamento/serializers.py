@@ -25,9 +25,18 @@ class PagamentoSerializer(serializers.ModelSerializer):
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     agendamento = AgendamentoInfoSerializer(read_only=True)
+
     class Meta:
         model = Pagamento
-        fields = ['id', 'agendamento', 'paciente', 'paciente_nome', 'valor', 'status', 'status_display', 'forma_pagamento', 'forma_pagamento_display', 'data_pagamento', 'registrado_por']
+        # --- CAMPOS ADICIONADOS AQUI ---
+        fields = [
+            'id', 'agendamento', 'paciente', 'paciente_nome', 'valor', 
+            'status', 'status_display', 'forma_pagamento', 'forma_pagamento_display', 
+            'data_pagamento', 'registrado_por',
+            # Novos campos para o frontend usar
+            'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em'
+        ]
+        read_only_fields = ['registrado_por']
 
 class PagamentoCreateSerializer(serializers.ModelSerializer):
     class Meta:

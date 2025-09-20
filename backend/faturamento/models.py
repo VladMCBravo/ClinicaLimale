@@ -4,23 +4,22 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
-# NOTA: Nenhuma importação de 'agendamentos.models' aqui para evitar ciclos.
-# --- Modelo de Pagamento ---
-
 class Pagamento(models.Model):
+    # ... (seus campos e choices existentes permanecem iguais)
     FORMA_PAGAMENTO_CHOICES = [
         ('Dinheiro', 'Dinheiro'),
         ('CartaoCredito', 'Cartão de Crédito'),
         ('CartaoDebito', 'Cartão de Débito'),
         ('PIX', 'PIX'),
         ('Convenio', 'Convênio'),
+        # Adicionado para pagamentos presenciais
+        ('MaquinaCartao', 'Máquina de Cartão'), 
     ]
-
-    # --- ALTERAÇÃO 1: Novo campo de STATUS ---
     STATUS_PAGAMENTO_CHOICES = [
         ('Pendente', 'Pendente'),
         ('Pago', 'Pago'),
         ('Cancelado', 'Cancelado'),
+        ('Expirado', 'Expirado'), # Novo status para controle
     ]
     
     agendamento = models.OneToOneField(
@@ -30,38 +29,24 @@ class Pagamento(models.Model):
         null=True,
         blank=True
     )
-
     paciente = models.ForeignKey('pacientes.Paciente', on_delete=models.PROTECT)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
-
-    # --- ALTERAÇÃO 2: Permitir que estes campos fiquem vazios para pagamentos pendentes ---
-    forma_pagamento = models.CharField(
-        max_length=20, 
-        choices=FORMA_PAGAMENTO_CHOICES, 
-        blank=True, 
-        null=True
-    )
-    # auto_now_add=True foi removido. A data será preenchida apenas quando o pagamento for confirmado.
+    forma_pagamento = models.CharField(max_length=20, choices=FORMA_PAGAMENTO_CHOICES, blank=True, null=True)
     data_pagamento = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='Pendente')
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
 
-    # --- ALTERAÇÃO 3: Adicionamos o campo status ao modelo ---
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_PAGAMENTO_CHOICES,
-        default='Pendente'
-    )
+    # --- NOVOS CAMPOS PARA INTEGRAÇÃO PIX (INTER) ---
+    inter_txid = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="ID da transação gerado pelo Banco Inter")
+    pix_copia_e_cola = models.TextField(blank=True, null=True)
+    pix_qr_code_base64 = models.TextField(blank=True, null=True, help_text="Imagem do QR Code em formato base64")
+    pix_expira_em = models.DateTimeField(blank=True, null=True, help_text="Data e hora em que a cobrança PIX expira")
 
-    registrado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, 
-        on_delete=models.PROTECT
-    )
 
-    # --- ALTERAÇÃO 4: Melhoramos o __str__ para mostrar o status ---
     def __str__(self):
         return f"Pagamento de R$ {self.valor} para {self.paciente.nome_completo} ({self.status})"
 
     def save(self, *args, **kwargs):
-        # Preenche a data de pagamento automaticamente quando o status muda para "Pago"
         if self.status == 'Pago' and self.data_pagamento is None:
             self.data_pagamento = timezone.now()
         super().save(*args, **kwargs)

@@ -8,10 +8,8 @@ from .views import (
     VerificarSegurancaView,
     ListarProcedimentosView,
     ConsultarHorariosDisponiveisView,
-    GerarPixView,
     CadastrarPacienteView,
     ConsultarAgendamentosPacienteView,
-    MercadoPagoWebhookView,
     # --- NOVAS VIEWS IMPORTADAS ---
     ListarEspecialidadesView,
     ListarMedicosPorEspecialidadeView,
@@ -37,7 +35,4 @@ urlpatterns = [
     path('agendamentos/horarios-disponiveis/', ConsultarHorariosDisponiveisView.as_view(), name='chatbot_horarios_disponiveis'),
     path('agendamentos/criar/', AgendamentoChatbotView.as_view(), name='chatbot_criar_agendamento'),
     
-    # --- Fluxo de Pagamento ---
-    path('pagamentos/gerar-pix/', GerarPixView.as_view(), name='chatbot_gerar_pix'),
-    path('pagamentos/webhook/', MercadoPagoWebhookView.as_view(), name='chatbot_pagamento_webhook'),
 ]

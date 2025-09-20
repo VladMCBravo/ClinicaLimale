@@ -13,7 +13,8 @@ from .views import (
     PagamentosPendentesListAPIView,
     GerarLoteFaturamentoAPIView,
     ProcedimentoViewSet,
-    TussUploadView
+    TussUploadView,
+    InterWebhookAPIView
 )
 
 # O router regista os ViewSets (que criam múltiplas URLs)
@@ -42,4 +43,8 @@ urlpatterns = [
 
     path('gerar-lote/', GerarLoteFaturamentoAPIView.as_view(), name='gerar-lote'),
     path('procedimentos/upload-tuss/', TussUploadView.as_view(), name='upload_tuss'),
+
+        # --- NOVA ROTA PARA O WEBHOOK ---
+    path('pagamentos/inter-webhook/', InterWebhookAPIView.as_view(), name='inter-webhook'),
+
 ]

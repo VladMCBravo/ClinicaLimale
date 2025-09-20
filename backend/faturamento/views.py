@@ -8,7 +8,7 @@ from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action  # <-- ADICIONE ESTA LINHA AQUI
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -319,3 +319,40 @@ class TussUploadView(APIView):
             'criados': criados,
             'atualizados': atualizados
         }, status=status.HTTP_200_OK)
+
+# --- NOVA VIEW PARA WEBHOOK DO INTER ---
+class InterWebhookAPIView(APIView):
+    permission_classes = [AllowAny] # Webhooks não exigem autenticação de usuário
+
+    def post(self, request, *args, **kwargs):
+        dados_webhook = request.data
+        print(f"--- WEBHOOK DO INTER RECEBIDO --- \n {dados_webhook}")
+
+        # A API do Inter envia um array de 'pix'
+        if 'pix' in dados_webhook and isinstance(dados_webhook['pix'], list):
+            for pix_info in dados_webhook['pix']:
+                txid = pix_info.get('txid')
+                valor_pago = pix_info.get('valor')
+
+                if not txid:
+                    continue
+
+                try:
+                    # Encontra o pagamento no seu banco de dados pelo txid
+                    pagamento = Pagamento.objects.get(inter_txid=txid)
+
+                    # Verifica se o pagamento já não foi processado
+                    if pagamento.status == 'Pendente':
+                        pagamento.status = 'Pago'
+                        pagamento.forma_pagamento = 'PIX'
+                        # Opcional: validar se o valor_pago corresponde ao pagamento.valor
+                        pagamento.save()
+                        print(f"Pagamento {pagamento.id} confirmado via webhook com sucesso!")
+                    else:
+                        print(f"Pagamento {pagamento.id} já estava com status '{pagamento.status}'. Webhook ignorado.")
+
+                except Pagamento.DoesNotExist:
+                    print(f"ERRO: Webhook recebido para txid '{txid}' não encontrado no sistema.")
+        
+        # Sempre retorne uma resposta 200 OK para o Inter saber que você recebeu.
+        return Response(status=status.HTTP_200_OK)

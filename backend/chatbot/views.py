@@ -1,7 +1,6 @@
 # chatbot/views.py - VERSÃO FINAL PADRONIZADA
 
 import re
-import mercadopago
 from dateutil import parser
 from django.conf import settings
 from rest_framework.views import APIView
@@ -284,8 +283,8 @@ class ConsultarHorariosDisponiveisView(APIView):
 
 class AgendamentoChatbotView(APIView):
     """
-    REFATORADO: A view principal de criação de agendamento agora aceita
-    tanto 'Consulta' quanto 'Procedimento', seguindo as mesmas regras do sistema.
+    REFATORADO: A view principal de criação de agendamento agora retorna
+    os dados do PIX diretamente na sua resposta, eliminando a necessidade de uma segunda chamada.
     """
     permission_classes = [HasAPIKey]
 
@@ -341,84 +340,28 @@ class AgendamentoChatbotView(APIView):
             except CustomUser.DoesNotExist:
                 usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
 
+            # Esta função agora cria o pagamento E a cobrança PIX internamente!
             agendamento_services.criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico)
             
-            return Response({'sucesso': "Agendamento criado com sucesso!", 'agendamento_id': agendamento.id}, status=status.HTTP_201_CREATED)
+            # --- NOVA LÓGICA DE RESPOSTA ---
+            # Vamos buscar os dados do PIX que acabaram de ser criados.
+            pagamento_associado = agendamento.pagamento
+            dados_pix = {}
+            if pagamento_associado and pagamento_associado.pix_qr_code_base64:
+                dados_pix = {
+                    "pix_copia_e_cola": pagamento_associado.pix_copia_e_cola,
+                    "pix_qr_code_imagem": pagamento_associado.pix_qr_code_base64,
+                    "pix_expira_em": pagamento_associado.pix_expira_em.isoformat()
+                }
+
+            # Montamos a resposta final
+            resposta_final = {
+                'sucesso': "Agendamento criado! PIX gerado para pagamento.", 
+                'agendamento_id': agendamento.id,
+                'pagamento_id': pagamento_associado.id,
+                'dados_pix': dados_pix
+            }
+            
+            return Response(resposta_final, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-     
-     # --- VIEWS DE PAGAMENTO (sem alterações) ---   
-class GerarPixView(APIView):
-    permission_classes = [HasAPIKey]
-    def post(self, request):
-        agendamento_id = request.data.get('agendamento_id')
-        if not agendamento_id:
-            return Response({'error': 'agendamento_id é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            agendamento = Agendamento.objects.get(id=agendamento_id)
-            pagamento = Pagamento.objects.get(agendamento=agendamento)
-        except (Agendamento.DoesNotExist, Pagamento.DoesNotExist):
-            return Response({'error': 'Agendamento ou Pagamento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        
-        sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
-        notification_url = request.build_absolute_uri('/api/chatbot/pagamentos/webhook/')
-
-        # --- CORREÇÃO APLICADA AQUI ---
-        # Define a descrição com base no tipo de agendamento
-        if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
-            description = f"Pagamento para consulta: {agendamento.especialidade.nome}"
-        elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
-            description = f"Pagamento para procedimento: {agendamento.procedimento.descricao}"
-        else:
-            description = "Pagamento de agendamento na Clínica Limalé" # Fallback
-        # --- FIM DA CORREÇÃO ---
-
-        payment_data = {
-            "transaction_amount": float(pagamento.valor),
-            "description": description, # <-- USA A DESCRIÇÃO CORRIGIDA
-            "payment_method_id": "pix",
-            "payer": {
-                "email": agendamento.paciente.email,
-                "first_name": agendamento.paciente.nome_completo.split(' ')[0],
-            },
-            "notification_url": notification_url,
-        }
-        payment_response = sdk.payment().create(payment_data)
-        payment = payment_response["response"]
-
-        if payment_response["status"] == 201:
-            pagamento.id_transacao_externa = str(payment['id'])
-            pagamento.save()
-            qr_code = payment['point_of_interaction']['transaction_data']['qr_code']
-            qr_code_base64 = payment['point_of_interaction']['transaction_data']['qr_code_base64']
-            return Response({
-                "agendamento_id": agendamento.id,
-                "status": "pix_gerado",
-                "qr_code_texto": qr_code,
-                "qr_code_imagem": f"data:image/png;base64,{qr_code_base64}"
-            })
-        else:
-            return Response(payment_response, status=status.HTTP_400_BAD_REQUEST)
-
-class MercadoPagoWebhookView(APIView):
-    def post(self, request):
-        query_params = request.query_params
-        if query_params.get("type") == "payment":
-            payment_id = query_params.get("data.id")
-            sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
-            payment_info = sdk.payment().get(payment_id)
-            if payment_info["status"] == 200:
-                payment_data = payment_info["response"]
-                try:
-                    pagamento = Pagamento.objects.get(id_transacao_externa=str(payment_data["id"]))
-                    if payment_data["status"] == "approved" and pagamento.agendamento.status == "Agendado":
-                        pagamento.status = 'Pago'
-                        pagamento.save()
-                        agendamento = pagamento.agendamento
-                        agendamento.status = 'Confirmado'
-                        agendamento.save()
-                except Pagamento.DoesNotExist:
-                    pass
-        return Response(status=status.HTTP_200_OK)
-
