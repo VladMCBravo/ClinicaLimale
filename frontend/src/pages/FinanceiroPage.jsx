@@ -1,57 +1,68 @@
 // src/pages/FinanceiroPage.jsx - VERSÃO CORRIGIDA E SIMPLIFICADA
 
-import React, { useState } from 'react';
-import { Paper, Typography, Box, Tabs, Tab } from '@mui/material';
+import React from 'react';
+// --- IMPORTAÇÃO CORRIGIDA ---
+// Removemos useState, Tabs e Tab que não são mais usados e adicionamos Grid.
+import { Paper, Typography, Box, Grid } from '@mui/material';
 
-// Importe os componentes das abas
+// Importe todos os componentes que farão parte do dashboard
+import DashboardResumo from '../components/financeiro/DashboardResumo';
 import PagamentosPendentesView from '../components/financeiro/PagamentosPendentesView';
 import DespesasView from '../components/financeiro/DespesasView';
 import RelatoriosView from '../components/financeiro/RelatoriosView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
-import ProcedimentosView from '../components/financeiro/ProcedimentosView'; // <-- 1. IMPORTE A NOVA VIEW
-
-// Função auxiliar para acessibilidade das abas
-function a11yProps(index) {
-    return {
-        id: `financeiro-tab-${index}`,
-        'aria-controls': `financeiro-tabpanel-${index}`,
-    };
-}
+import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 
 export default function FinanceiroPage() {
-    // 1. Usamos um estado local para controlar a aba ativa. Começa na aba 0 (Pagamentos Pendentes).
-    const [activeTab, setActiveTab] = useState(0);
-
-    const handleChange = (event, newValue) => {
-        setActiveTab(newValue);
-    };
-
-     // --- ADICIONE ESTA LINHA ---
-    console.log("Página Financeira renderizou. Aba ativa é:", activeTab);
-
     return (
-        <Paper sx={{ p: 2, margin: 'auto', width: '100%' }}>
-            <Typography variant="h5" gutterBottom>Gestão Financeira</Typography>
-            
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                {/* 2. As Tabs agora são controladas pelo estado 'activeTab' */}
-                <Tabs value={activeTab} onChange={handleChange} aria-label="abas de gestão financeira">
-                    <Tab label="Pagamentos Pendentes" {...a11yProps(0)} />
-                    <Tab label="Despesas" {...a11yProps(1)} />
-                    <Tab label="Relatórios" {...a11yProps(2)} />
-                    <Tab label="Faturamento de Convênios" {...a11yProps(3)} />
-                     <Tab label="Procedimentos e Preços" {...a11yProps(4)} /> {/* <-- 2. ADICIONE A NOVA ABA */}
-                </Tabs>
-            </Box>
+        <Box sx={{ width: '100%', p: 2 }}>
+            <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
+                Dashboard Financeiro
+            </Typography>
 
-            <Box sx={{ mt: 3, p: 1 }}>
-                {/* 3. O conteúdo exibido depende diretamente do estado 'activeTab' */}
-                {activeTab === 0 && <PagamentosPendentesView />}
-                {activeTab === 1 && <DespesasView />}
-                {activeTab === 4 && <ProcedimentosView />} {/* <-- 3. ADICIONE O CONTEÚDO DA NOVA ABA */}
-                {activeTab === 2 && <RelatoriosView />}
-                {activeTab === 3 && <FaturamentoConveniosView />}
-            </Box>
-        </Paper>
+            {/* 1. O Resumo do Dia aparece no topo */}
+            <DashboardResumo />
+
+            {/* 2. O Grid para os blocos interativos */}
+            <Grid container spacing={3}>
+                
+                {/* Bloco de Pagamentos Pendentes */}
+                <Grid item xs={12} lg={7}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                        {/* Removemos o título de dentro do componente para o layout ficar mais limpo */}
+                        <Typography variant="h6" gutterBottom>Pagamentos Pendentes</Typography>
+                        <PagamentosPendentesView />
+                    </Paper>
+                </Grid>
+                
+                {/* Bloco de Despesas */}
+                <Grid item xs={12} lg={5}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                        <Typography variant="h6" gutterBottom>Adicionar Despesa</Typography>
+                        <DespesasView />
+                    </Paper>
+                </Grid>
+
+                {/* Bloco de Relatórios (Gráficos) */}
+                <Grid item xs={12}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                        <RelatoriosView />
+                    </Paper>
+                </Grid>
+                
+                {/* Bloco de Procedimentos e Faturamento (Adicionados) */}
+                <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                        <ProcedimentosView />
+                    </Paper>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 2, height: '100%' }}>
+                        <FaturamentoConveniosView />
+                    </Paper>
+                </Grid>
+
+            </Grid>
+        </Box>
     );
 }

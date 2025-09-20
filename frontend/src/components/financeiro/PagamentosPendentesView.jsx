@@ -56,7 +56,6 @@ export default function PagamentosPendentesView() {
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>Pagamentos Pendentes</Typography>
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>

@@ -32,6 +32,9 @@ const getRelatorioFinanceiro = () => apiClient.get('/faturamento/relatorios/fina
 const getConvenios = () => apiClient.get('/faturamento/convenios/');
 const getAgendamentosFaturaveis = (params) => apiClient.get('/faturamento/agendamentos-faturaveis/', { params });
 const gerarLoteFaturamento = (data) => apiClient.post('/faturamento/gerar-lote/', data, { responseType: 'blob' });
+// --- NOVA FUNÇÃO PARA O DASHBOARD ---
+const getDashboardFinanceiro = () => apiClient.get('/faturamento/dashboard-financeiro/');
+
 
 
 export const faturamentoService = {
@@ -54,4 +57,5 @@ export const faturamentoService = {
     getConvenios,
     getAgendamentosFaturaveis,
     gerarLoteFaturamento,
+    getDashboardFinanceiro, // <-- ADICIONE AQUI
 };
