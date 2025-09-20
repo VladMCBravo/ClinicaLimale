@@ -12,13 +12,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+from datetime import datetime, time # <-- IMPORTAÇÃO CORRIGIDA
 from django.http import HttpResponse
 
 # --- 1. LIMPEZA E CORREÇÃO DAS IMPORTAÇÕES ---
 from agendamentos.serializers import AgendamentoSerializer
 from agendamentos.models import Agendamento
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
-# Linha nova e corrigida
+from .services import inter_service # Importa nosso serviço do Inter
+
 from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, LoteFaturamento, GuiaTiss, Procedimento, ValorProcedimentoConvenio
 from .serializers import (
     PagamentoSerializer,  # O serializer principal para leitura
@@ -356,3 +358,54 @@ class InterWebhookAPIView(APIView):
         
         # Sempre retorne uma resposta 200 OK para o Inter saber que você recebeu.
         return Response(status=status.HTTP_200_OK)
+
+# --- NOVA VIEW PARA O DASHBOARD FINANCEIRO ---
+
+class FinanceiroDashboardAPIView(APIView):
+    permission_classes = [IsRecepcaoOrAdmin] # Apenas recepção e admin podem ver
+
+    def get(self, request):
+        # 1. Busca dados externos (da API do Banco Inter)
+        saldo_em_conta = inter_service.consultar_saldo()
+        
+        # Define o período para hoje
+        hoje = timezone.localdate()
+        inicio_dia = timezone.make_aware(datetime.combine(hoje, time.min))
+        fim_dia = timezone.make_aware(datetime.combine(hoje, time.max))
+
+        # 2. Busca dados internos (do seu banco de dados)
+        pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia))
+        despesas_hoje = Despesa.objects.filter(data_despesa=hoje)
+        pagamentos_pendentes_hoje = Pagamento.objects.filter(
+            agendamento__data_hora_inicio__date=hoje,
+            status='Pendente'
+        ).select_related('paciente', 'agendamento')
+
+        # 3. Calcula os totais
+        faturamento_dia = sum(p.valor for p in pagamentos_hoje)
+        total_despesas_dia = sum(d.valor for d in despesas_hoje)
+        lucro_dia = faturamento_dia - total_despesas_dia
+
+        # 4. Monta a resposta final para o frontend
+        dados = {
+            # Cards de Destaque
+            "saldo_em_conta": saldo_em_conta,
+            "faturamento_do_dia": faturamento_dia,
+            "despesas_do_dia": total_despesas_dia,
+            "lucro_do_dia": lucro_dia,
+
+            # Listas e Tabelas
+            "pagamentos_pendentes_hoje": [
+                {
+                    "paciente": p.paciente.nome_completo,
+                    "horario": timezone.localtime(p.agendamento.data_hora_inicio).strftime('%H:%M'),
+                    "valor": p.valor
+                }
+                for p in pagamentos_pendentes_hoje
+            ],
+            
+            # Para o futuro (Fase 2), podemos adicionar o extrato aqui
+            # "ultimas_transacoes_banco": inter_service.consultar_extrato(inicio_dia, fim_dia)
+        }
+        
+        return Response(dados)

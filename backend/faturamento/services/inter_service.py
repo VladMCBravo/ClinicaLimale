@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 from django.utils import timezone
+from decimal import Decimal
 
 # NOTA: Quando você tiver as chaves, a biblioteca oficial do Inter ou 'requests' será usada aqui.
 # Por enquanto, vamos simular a resposta da API.
@@ -78,3 +79,49 @@ def gerar_link_pagamento_cartao(pagamento_obj, minutos_expiracao=15):
 
     print("--- PAGAMENTO ATUALIZADO COM LINK DE PAGAMENTO ---")
     return pagamento_obj
+
+# --- NOVAS FUNÇÕES DE LEITURA ---
+
+def consultar_saldo():
+    """
+    Função que simula a consulta de saldo na API do Banco Inter.
+
+    No futuro, esta função irá:
+    1. Se autenticar na API.
+    2. Fazer uma requisição GET ao endpoint de saldo.
+    3. Retornar o valor formatado.
+    """
+    print("--- SIMULANDO CONSULTA DE SALDO NO INTER ---")
+    # A resposta real da API seria um JSON como {"valor": 15780.55}
+    saldo_simulado = Decimal('15780.55')
+    print(f"Saldo retornado (simulado): {saldo_simulado}")
+    return saldo_simulado
+
+def consultar_extrato(data_inicio, data_fim):
+    """
+    Função que simula a consulta de extrato por período na API do Inter.
+    """
+    print(f"--- SIMULANDO CONSULTA DE EXTRATO DE {data_inicio} ATÉ {data_fim} ---")
+    # A resposta real seria uma lista de transações
+    extrato_simulado = [
+        {
+            "data": (timezone.now() - timedelta(hours=1)).isoformat(),
+            "tipo": "PIX_RECEBIDO",
+            "valor": Decimal('150.00'),
+            "descricao": "PIX recebido de Maria Souza"
+        },
+        {
+            "data": (timezone.now() - timedelta(hours=3)).isoformat(),
+            "tipo": "PAGAMENTO_BOLETO",
+            "valor": Decimal('-350.70'),
+            "descricao": "Pagamento de conta de luz"
+        },
+        {
+            "data": (timezone.now() - timedelta(hours=5)).isoformat(),
+            "tipo": "PIX_RECEBIDO",
+            "valor": Decimal('200.00'),
+            "descricao": "PIX recebido de João Pereira"
+        }
+    ]
+    print(f"Extrato retornado (simulado): {len(extrato_simulado)} transações.")
+    return extrato_simulado

@@ -14,6 +14,7 @@ from .views import (
     GerarLoteFaturamentoAPIView,
     ProcedimentoViewSet,
     TussUploadView,
+    FinanceiroDashboardAPIView,
     InterWebhookAPIView
 )
 
@@ -44,7 +45,8 @@ urlpatterns = [
     path('gerar-lote/', GerarLoteFaturamentoAPIView.as_view(), name='gerar-lote'),
     path('procedimentos/upload-tuss/', TussUploadView.as_view(), name='upload_tuss'),
 
-        # --- NOVA ROTA PARA O WEBHOOK ---
-    path('pagamentos/inter-webhook/', InterWebhookAPIView.as_view(), name='inter-webhook'),
+     # --- NOVA ROTA PARA O DASHBOARD ---
+    path('dashboard-financeiro/', FinanceiroDashboardAPIView.as_view(), name='dashboard-financeiro'),
 
+    path('pagamentos/inter-webhook/', InterWebhookAPIView.as_view(), name='inter-webhook'),
 ]
