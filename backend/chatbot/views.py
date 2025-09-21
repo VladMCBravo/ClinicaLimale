@@ -290,6 +290,16 @@ class AgendamentoChatbotView(APIView):
 
     def post(self, request):
         dados = request.data
+         # --- ADICIONE ESTE PRINT DE DIAGNÓSTICO ---
+        print(f"[DIAGNÓSTICO] Dados recebidos do N8N: {dados}")
+        # -----------------------------------------
+
+        metodo_pagamento = dados.get('metodo_pagamento_escolhido', 'PIX')
+
+        # --- ADICIONE ESTE SEGUNDO PRINT ---
+        print(f"[DIAGNÓSTICO] Método de pagamento escolhido: {metodo_pagamento}")
+        # ---------------------------------
+        
         cpf_paciente = dados.get('cpf')
 
         try:
