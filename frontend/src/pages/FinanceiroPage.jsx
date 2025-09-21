@@ -1,8 +1,6 @@
-// src/pages/FinanceiroPage.jsx - VERSÃO CORRIGIDA E SIMPLIFICADA
+// src/pages/FinanceiroPage.jsx - VERSÃO DASHBOARD REORGANIZADO
 
 import React from 'react';
-// --- IMPORTAÇÃO CORRIGIDA ---
-// Removemos useState, Tabs e Tab que não são mais usados e adicionamos Grid.
 import { Paper, Typography, Box, Grid } from '@mui/material';
 
 // Importe todos os componentes que farão parte do dashboard
@@ -16,47 +14,50 @@ import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 export default function FinanceiroPage() {
     return (
         <Box sx={{ width: '100%', p: 2 }}>
-            <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
+            <Typography variant="h4" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
                 Dashboard Financeiro
             </Typography>
 
-            {/* 1. O Resumo do Dia aparece no topo */}
+            {/* LINHA 1: RESUMO DO DIA (Mantido no topo, é o mais importante) */}
             <DashboardResumo />
 
-            {/* 2. O Grid para os blocos interativos */}
+            {/* O Grid principal que organiza todos os blocos abaixo */}
             <Grid container spacing={3}>
                 
-                {/* Bloco de Pagamentos Pendentes */}
-                <Grid item xs={12} lg={7}>
+                {/* LINHA 2: BLOCO DE PAGAMENTOS PENDENTES (Ação principal do dia) */}
+                <Grid item xs={12}>
                     <Paper sx={{ p: 2, height: '100%' }}>
-                        {/* Removemos o título de dentro do componente para o layout ficar mais limpo */}
-                        <Typography variant="h6" gutterBottom>Pagamentos Pendentes</Typography>
+                        {/* É bom manter os títulos dentro dos blocos para dar contexto */}
                         <PagamentosPendentesView />
                     </Paper>
                 </Grid>
                 
-                {/* Bloco de Despesas */}
-                <Grid item xs={12} lg={5}>
+                {/* LINHA 3: DESPESAS E RELATÓRIOS LADO A LADO */}
+                {/* Bloco de Despesas (Formulário e Tabela) */}
+                <Grid item xs={12} md={7}>
                     <Paper sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="h6" gutterBottom>Adicionar Despesa</Typography>
+                         <Typography variant="h6" gutterBottom>Gestão de Despesas</Typography>
                         <DespesasView />
                     </Paper>
                 </Grid>
 
                 {/* Bloco de Relatórios (Gráficos) */}
-                <Grid item xs={12}>
+                <Grid item xs={12} md={5}>
                     <Paper sx={{ p: 2, height: '100%' }}>
                         <RelatoriosView />
                     </Paper>
                 </Grid>
-                
-                {/* Bloco de Procedimentos e Faturamento (Adicionados) */}
-                <Grid item xs={12} md={6}>
+
+                {/* LINHA 4: TABELAS DE GESTÃO */}
+                {/* Bloco de Procedimentos e Preços */}
+                <Grid item xs={12} lg={7}>
                     <Paper sx={{ p: 2, height: '100%' }}>
                         <ProcedimentosView />
                     </Paper>
                 </Grid>
-                <Grid item xs={12} md={6}>
+
+                {/* Bloco de Faturamento de Convênios */}
+                <Grid item xs={12} lg={5}>
                     <Paper sx={{ p: 2, height: '100%' }}>
                         <FaturamentoConveniosView />
                     </Paper>
