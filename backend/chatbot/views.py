@@ -1,11 +1,16 @@
 # chatbot/views.py - VERSÃO FINAL PADRONIZADA
 
 import re
+import logging # <-- 1. IMPORTAÇÃO ADICIONADA
 from dateutil import parser
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework import generics # Importamos generics para views de lista
 from rest_framework.response import Response
+
+# 2. CRIAÇÃO DO LOGGER
+logger = logging.getLogger(__name__)
+
 from rest_framework import status
 from rest_framework_api_key.permissions import HasAPIKey
 from .models import ChatMemory
@@ -290,16 +295,14 @@ class AgendamentoChatbotView(APIView):
 
     def post(self, request):
         dados = request.data
-         # --- ADICIONE ESTE PRINT DE DIAGNÓSTICO ---
-        print(f"[DIAGNÓSTICO] Dados recebidos do N8N: {dados}")
-        # -----------------------------------------
-
+          # --- 3. LOGS ADICIONADOS AQUI ---
+        logger.info("[DIAGNÓSTICO] Dados recebidos do N8N: %s", dados)
+        
         metodo_pagamento = dados.get('metodo_pagamento_escolhido', 'PIX')
 
-        # --- ADICIONE ESTE SEGUNDO PRINT ---
-        print(f"[DIAGNÓSTICO] Método de pagamento escolhido: {metodo_pagamento}")
-        # ---------------------------------
-        
+        logger.info("[DIAGNÓSTICO] Método de pagamento escolhido: %s", metodo_pagamento)
+        # ------------------------------------
+
         cpf_paciente = dados.get('cpf')
 
         try:

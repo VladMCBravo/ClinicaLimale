@@ -1,5 +1,6 @@
 # backend/agendamentos/services.py
 
+import logging # <-- 1. Importe o logging
 from django.utils import timezone
 from datetime import timedelta
 from faturamento.models import Pagamento
@@ -7,6 +8,8 @@ from django.contrib.auth import get_user_model
 # --- Importe os serviços do Inter que já criamos ---
 from faturamento.services.inter_service import gerar_cobranca_pix, gerar_link_pagamento_cartao
 
+# 2. Crie um logger para este arquivo
+logger = logging.getLogger(__name__)
 
 def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado, metodo_pagamento_escolhido='PIX'):
     agendamento = agendamento_instance
@@ -38,19 +41,19 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
     # Lógica de geração de pagamento (PIX ou Link)
     if not usuario_logado or usuario_logado.cargo not in cargos_isentos:
         if valor_do_pagamento > 0: # Só gera cobrança se houver valor
-           # --- ADICIONE ESTES PRINTS DE DIAGNÓSTICO ---
-            print(f"[DIAGNÓSTICO] Serviço recebeu a escolha: {metodo_pagamento_escolhido}")
+           # --- 3. TROQUE OS PRINTS POR LOGGER.INFO ---
+            logger.info("[DIAGNÓSTICO] Serviço recebeu a escolha: %s", metodo_pagamento_escolhido)
 
             if metodo_pagamento_escolhido == 'PIX':
-                print("[DIAGNÓSTICO] Entrando no bloco para gerar PIX.")
+                logger.info("[DIAGNÓSTICO] Entrando no bloco para gerar PIX.")
                 gerar_cobranca_pix(pagamento, minutos_expiracao=15)
             elif metodo_pagamento_escolhido == 'CartaoCredito':
-                print("[DIAGNÓSTICO] Entrando no bloco para gerar LINK DE CARTÃO.")
+                logger.info("[DIAGNÓSTICO] Entrando no bloco para gerar LINK DE CARTÃO.")
                 gerar_link_pagamento_cartao(pagamento, minutos_expiracao=15)
             else:
-                print("[DIAGNÓSTICO] NENHUMA CONDIÇÃO DE PAGAMENTO FOI ATENDIDA.")
+                logger.info("[DIAGNÓSTICO] NENHUMA CONDIÇÃO DE PAGAMENTO FOI ATENDIDA.")
             # ---------------------------------------------
- 
+
             # A regra de expiração do AGENDAMENTO agora usa o tempo do pagamento
             if pagamento.pix_expira_em:
                 agendamento.expira_em = pagamento.pix_expira_em
