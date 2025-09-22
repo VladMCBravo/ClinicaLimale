@@ -295,38 +295,24 @@ class AgendamentoChatbotView(APIView):
 
     def post(self, request):
         dados = request.data
-         # --- ALTERADO PARA logger.warning ---
         logger.warning("[DIAGNÓSTICO] Dados recebidos do N8N: %s", dados)
         
         metodo_pagamento = dados.get('metodo_pagamento_escolhido', 'PIX')
-
         logger.warning("[DIAGNÓSTICO] Método de pagamento escolhido: %s", metodo_pagamento)
-        # ------------------------------------
         
         cpf_paciente = dados.get('cpf')
-
         try:
             paciente = Paciente.objects.get(cpf=re.sub(r'\D', '', cpf_paciente))
-
-            # --- MUDANÇA PRINCIPAL AQUI ---
-            # Substituímos fromisoformat por dateutil.parser.isoparse
             data_hora_inicio_str = dados.get('data_hora_inicio')
             if not data_hora_inicio_str:
                 raise ValueError("data_hora_inicio está ausente")
             data_hora_inicio = parser.isoparse(data_hora_inicio_str)
-            # --- FIM DA MUDANÇA ---
-
             data_hora_fim = data_hora_inicio + timedelta(minutes=50)
-
         except Paciente.DoesNotExist:
             return Response({'error': f'Paciente com CPF {cpf_paciente} não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        except (ValueError, TypeError, parser.ParserError): # Adicionamos o ParserError
+        except (ValueError, TypeError, parser.ParserError):
             return Response({'error': 'Formato de data inválido ou ausente.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # --- CAPTURA O MÉTODO DE PAGAMENTO ESCOLHIDO ---
-        metodo_pagamento = dados.get('metodo_pagamento_escolhido', 'PIX') # Padrão para PIX
         
-
         # Monta a base do agendamento
         dados_agendamento = {
             'paciente': paciente.id,
@@ -337,11 +323,11 @@ class AgendamentoChatbotView(APIView):
             'tipo_agendamento': dados.get('tipo_agendamento')
         }
 
-        # Lógica condicional: preenche os dados dependendo do tipo
+        # Lógica condicional (sem alterações)
         if dados.get('tipo_agendamento') == 'Consulta':
             dados_agendamento['especialidade'] = dados.get('especialidade_id')
             dados_agendamento['medico'] = dados.get('medico_id')
-            dados_agendamento['modalidade'] = dados.get('modalidade', 'Presencial') # Padrão para Presencial
+            dados_agendamento['modalidade'] = dados.get('modalidade', 'Presencial')
         elif dados.get('tipo_agendamento') == 'Procedimento':
             dados_agendamento['procedimento'] = dados.get('procedimento_id')
         else:
@@ -356,29 +342,35 @@ class AgendamentoChatbotView(APIView):
             except CustomUser.DoesNotExist:
                 usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
 
-            # --- PASSA O MÉTODO DE PAGAMENTO PARA O SERVIÇO ---
+            # Passa o método de pagamento para o serviço
             agendamento_services.criar_agendamento_e_pagamento_pendente(
                 agendamento, 
                 usuario_servico,
-                metodo_pagamento_escolhido=metodo_pagamento # <-- Passando o parâmetro
+                metodo_pagamento_escolhido=metodo_pagamento
             )
             
-            # --- ATUALIZA A LÓGICA DE RESPOSTA ---
+            # --- CORREÇÃO PRINCIPAL AQUI ---
+            # Recarrega o objeto 'agendamento' com os dados mais recentes do banco de dados,
+            # incluindo a relação com o 'pagamento' que o serviço acabou de criar.
+            agendamento.refresh_from_db()
+            # --------------------------------
+
+            # Agora, a lógica de resposta vai funcionar
             pagamento_associado = agendamento.pagamento
             dados_pagamento = {}
 
-            if pagamento_associado.pix_copia_e_cola:
+            if hasattr(pagamento_associado, 'pix_copia_e_cola') and pagamento_associado.pix_copia_e_cola:
                 dados_pagamento['tipo'] = 'PIX'
                 dados_pagamento['pix_copia_e_cola'] = pagamento_associado.pix_copia_e_cola
                 dados_pagamento['pix_qr_code_imagem'] = pagamento_associado.pix_qr_code_base64
-            elif pagamento_associado.link_pagamento:
+            elif hasattr(pagamento_associado, 'link_pagamento') and pagamento_associado.link_pagamento:
                 dados_pagamento['tipo'] = 'CartaoCredito'
                 dados_pagamento['link'] = pagamento_associado.link_pagamento
 
             resposta_final = {
                 'sucesso': "Agendamento criado! Realize o pagamento para confirmar.", 
                 'agendamento_id': agendamento.id,
-                'pagamento_id': pagamento_associado.id,
+                'pagamento_id': pagamento_associado.id if pagamento_associado else None,
                 'dados_pagamento': dados_pagamento
             }
             
