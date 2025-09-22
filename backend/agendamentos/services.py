@@ -1,5 +1,6 @@
 # backend/agendamentos/services.py
 
+import sys  # <-- 1. Importe o módulo 'sys'
 import logging 
 from django.utils import timezone
 from datetime import timedelta
@@ -11,10 +12,15 @@ logger = logging.getLogger(__name__)
 
 def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado, metodo_pagamento_escolhido='PIX'):
     
+    # --- USANDO PRINT PARA STDERR PARA GARANTIR A SAÍDA ---
+    print("\n--- INICIANDO CRIAR_AGENDAMENTO_E_PAGAMENTO_PENDENTE ---", file=sys.stderr)
+    sys.stderr.flush()
+    # ----------------------------------------------------
+
     agendamento = agendamento_instance
     cargos_isentos = ['recepcao', 'admin']
 
-    # Lógica de cálculo de valor (está correta)
+    # Lógica de cálculo de valor
     valor_do_pagamento = 0.00
     if agendamento.tipo_agendamento == 'Consulta':
         if agendamento.especialidade and agendamento.especialidade.valor_consulta:
@@ -23,7 +29,11 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
         if agendamento.procedimento and agendamento.procedimento.valor_particular:
             valor_do_pagamento = agendamento.procedimento.valor_particular
     
-    # Cria o objeto de Pagamento (está correto)
+    # --- DIAGNÓSTICO COM PRINT ---
+    print(f"[SERVICE-DIAG] Valor do pagamento calculado: {valor_do_pagamento}", file=sys.stderr)
+    sys.stderr.flush()
+    # ---------------------------
+    
     pagamento = Pagamento.objects.create(
         agendamento=agendamento,
         paciente=agendamento.paciente,
@@ -35,24 +45,27 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
     # Lógica de geração de pagamento
     if not usuario_logado or usuario_logado.cargo not in cargos_isentos:
         if valor_do_pagamento > 0:
-            logger.warning("[DIAGNÓSTICO] Serviço recebeu a escolha: %s", metodo_pagamento_escolhido)
+            print(f"[SERVICE-DIAG] Serviço recebeu a escolha: {metodo_pagamento_escolhido}", file=sys.stderr)
+            sys.stderr.flush()
 
             if metodo_pagamento_escolhido == 'PIX':
-                logger.warning("[DIAGNÓSTICO] Entrando no bloco para gerar PIX.")
-                # --- CHAMADA RESTAURADA ---
+                print("[SERVICE-DIAG] Entrando no bloco para gerar PIX.", file=sys.stderr)
+                sys.stderr.flush()
                 gerar_cobranca_pix(pagamento, minutos_expiracao=15)
 
             elif metodo_pagamento_escolhido == 'CartaoCredito':
-                logger.warning("[DIAGNÓSTICO] Entrando no bloco para gerar LINK DE CARTÃO.")
-                # --- CHAMADA RESTAURADA ---
+                print("[SERVICE-DIAG] Entrando no bloco para gerar LINK DE CARTÃO.", file=sys.stderr)
+                sys.stderr.flush()
                 gerar_link_pagamento_cartao(pagamento, minutos_expiracao=15)
                 
             else:
-                logger.warning("[DIAGNÓSTICO] NENHUMA CONDIÇÃO DE PAGAMENTO FOI ATENDIDA.")
+                print("[SERVICE-DIAG] NENHUMA CONDIÇÃO DE PAGAMENTO FOI ATENDIDA.", file=sys.stderr)
+                sys.stderr.flush()
 
-            # Atualiza a expiração do agendamento (está correto)
             if pagamento.pix_expira_em:
                 agendamento.expira_em = pagamento.pix_expira_em
                 agendamento.save()
 
+    print("--- FINALIZANDO CRIAR_AGENDAMENTO_E_PAGAMENTO_PENDENTE ---", file=sys.stderr)
+    sys.stderr.flush()
     return agendamento
