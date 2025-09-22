@@ -1,6 +1,6 @@
 # backend/agendamentos/services.py
 
-import logging # <-- 1. Importe o logging
+import logging 
 from django.utils import timezone
 from datetime import timedelta
 from faturamento.models import Pagamento
