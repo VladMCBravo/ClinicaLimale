@@ -11,11 +11,6 @@ logger = logging.getLogger(__name__)
 
 def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado, metodo_pagamento_escolhido='PIX'):
     
-    # --- TESTE DE CERTEZA ---
-    # Para termos 100% de certeza que este novo código está rodando no servidor.
-    raise ValueError("VERSÃO FINAL DO services.py FOI ATUALIZADA COM SUCESSO!")
-    # -------------------------
-
     agendamento = agendamento_instance
     cargos_isentos = ['recepcao', 'admin']
 
