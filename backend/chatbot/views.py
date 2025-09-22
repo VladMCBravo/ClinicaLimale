@@ -295,14 +295,14 @@ class AgendamentoChatbotView(APIView):
 
     def post(self, request):
         dados = request.data
-          # --- 3. LOGS ADICIONADOS AQUI ---
-        logger.info("[DIAGNÓSTICO] Dados recebidos do N8N: %s", dados)
+         # --- ALTERADO PARA logger.warning ---
+        logger.warning("[DIAGNÓSTICO] Dados recebidos do N8N: %s", dados)
         
         metodo_pagamento = dados.get('metodo_pagamento_escolhido', 'PIX')
 
-        logger.info("[DIAGNÓSTICO] Método de pagamento escolhido: %s", metodo_pagamento)
+        logger.warning("[DIAGNÓSTICO] Método de pagamento escolhido: %s", metodo_pagamento)
         # ------------------------------------
-
+        
         cpf_paciente = dados.get('cpf')
 
         try:

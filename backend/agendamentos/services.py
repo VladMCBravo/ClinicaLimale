@@ -41,18 +41,18 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
     # Lógica de geração de pagamento (PIX ou Link)
     if not usuario_logado or usuario_logado.cargo not in cargos_isentos:
         if valor_do_pagamento > 0: # Só gera cobrança se houver valor
-           # --- 3. TROQUE OS PRINTS POR LOGGER.INFO ---
-            logger.info("[DIAGNÓSTICO] Serviço recebeu a escolha: %s", metodo_pagamento_escolhido)
+           # --- ALTERADO PARA logger.warning ---
+            logger.warning("[DIAGNÓSTICO] Serviço recebeu a escolha: %s", metodo_pagamento_escolhido)
 
             if metodo_pagamento_escolhido == 'PIX':
-                logger.info("[DIAGNÓSTICO] Entrando no bloco para gerar PIX.")
-                gerar_cobranca_pix(pagamento, minutos_expiracao=15)
+                logger.warning("[DIAGNÓSTICO] Entrando no bloco para gerar PIX.")
+                # ...
             elif metodo_pagamento_escolhido == 'CartaoCredito':
-                logger.info("[DIAGNÓSTICO] Entrando no bloco para gerar LINK DE CARTÃO.")
-                gerar_link_pagamento_cartao(pagamento, minutos_expiracao=15)
+                logger.warning("[DIAGNÓSTICO] Entrando no bloco para gerar LINK DE CARTÃO.")
+                # ...
             else:
-                logger.info("[DIAGNÓSTICO] NENHUMA CONDIÇÃO DE PAGAMENTO FOI ATENDIDA.")
-            # ---------------------------------------------
+                logger.warning("[DIAGNÓSTICO] NENHUMA CONDIÇÃO DE PAGAMENTO FOI ATENDIDA.")
+            # ------------------------------------
 
             # A regra de expiração do AGENDAMENTO agora usa o tempo do pagamento
             if pagamento.pix_expira_em:
