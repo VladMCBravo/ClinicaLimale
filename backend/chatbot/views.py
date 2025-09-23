@@ -346,7 +346,8 @@ class AgendamentoChatbotView(APIView):
             agendamento_services.criar_agendamento_e_pagamento_pendente(
                 agendamento, 
                 usuario_servico,
-                metodo_pagamento_escolhido=metodo_pagamento
+                metodo_pagamento_escolhido=metodo_pagamento,
+                initiated_by_chatbot=True  # <-- ADICIONE ESTE PARÂMETRO
             )
             
             # --- CORREÇÃO PRINCIPAL AQUI ---
