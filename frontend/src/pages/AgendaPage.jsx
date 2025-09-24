@@ -18,15 +18,21 @@ import { useAuth } from '../hooks/useAuth';
 import { Menu, Item, useContextMenu } from 'react-contexify';
 import 'react-contexify/dist/ReactContexify.css'; // Estilo do menu
 
+// --- 3. MELHORA A APARÊNCIA DO CONTEÚDO DO EVENTO ---
+// Esta função foi refinada para um visual mais limpo e legível.
 function renderEventContent(eventInfo) {
     const { status_pagamento, primeira_consulta } = eventInfo.event.extendedProps;
     return (
-        <Box sx={{ p: '2px 4px', overflow: 'hidden', fontSize: '0.8em' }}>
-            <b>{eventInfo.timeText}</b>
-            <Typography variant="body2" component="span" sx={{ ml: 1 }}>{eventInfo.event.title}</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '2px' }}>
-                {status_pagamento === 'Pago' && <Tooltip title="Consulta Paga"><MonetizationOnIcon sx={{ fontSize: 14, color: 'gold' }} /></Tooltip>}
-                {primeira_consulta && <Tooltip title="Primeira Consulta"><StarIcon sx={{ fontSize: 14, color: 'orange' }} /></Tooltip>}
+        <Box sx={{ p: '2px 4px', overflow: 'hidden', fontSize: '0.85em', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Box>
+                <b>{eventInfo.timeText}</b>
+                <Typography variant="body2" component="span" sx={{ ml: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {eventInfo.event.title}
+                </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 'auto' }}>
+                {status_pagamento === 'Pago' && <Tooltip title="Consulta Paga"><MonetizationOnIcon sx={{ fontSize: 16, color: 'gold' }} /></Tooltip>}
+                {primeira_consulta && <Tooltip title="Primeira Consulta"><StarIcon sx={{ fontSize: 16, color: 'orange' }} /></Tooltip>}
             </Box>
         </Box>
     );
@@ -37,10 +43,9 @@ const statusColors = {
     'Confirmado': '#32CD32', 
     'Realizado': '#228B22', 
     'Não Compareceu': '#A9A9A9',
-    'Aguardando Pagamento': '#FFD700' // <-- ADICIONE ESTA LINHA (cor dourada/amarela)
+    'Aguardando Pagamento': '#FFD700'
 };
 
-// NOVO: IDs para os menus de contexto
 const MENU_ID_MEDICO = "menu-medico";
 const MENU_ID_GESTAO = "menu-gestao";
 
@@ -50,8 +55,6 @@ export default function AgendaPage() {
   const [selectedDateInfo, setSelectedDateInfo] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  // NOVO: Hooks para a nova lógica
   const { user } = useAuth();
   const navigate = useNavigate();
   const { show } = useContextMenu();
@@ -171,12 +174,9 @@ const handleMenuAction = (action, agendamento) => {
     setRefreshTrigger(prev => prev + 1); 
   };
 
-  return (
-    // --- LAYOUT PRINCIPAL CORRIGIDO ---
-    // Este Box agora controla o layout para evitar a barra de rolagem dupla
+return (
     <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', p: 2, boxSizing: 'border-box', gap: 2 }}>
-      {/* A altura é calculada com base na altura da tela (100vh) menos a altura do seu header/navbar (ex: 64px) */}
-      {/* Ajuste o '64px' se a altura do seu menu superior for diferente */}
+      {/* O layout principal para evitar barra de rolagem dupla já está correto */}
       
       <Box sx={{ width: '300px', flexShrink: 0, height: '100%' }}>
         <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
@@ -204,14 +204,19 @@ const handleMenuAction = (action, agendamento) => {
                 handleContextMenu(e, info.event.extendedProps);
               });
             }}
-            // --- ALTERAÇÕES PARA EMPILHAR EVENTOS ---
-            eventDisplay='block' // Faz os eventos empilharem em vez de se espremerem lado a lado
-            eventOverlap={false}  // Garante que eles não se sobreponham visualmente
+            
+            // --- 1. SOLUÇÃO PARA O "ENCAVALAMENTO" ---
+            eventDisplay='block' // Faz os eventos empilharem em vez de se espremerem lado a lado.
+            eventOverlap={false}  // Garante que eles não se sobreponham visualmente.
+            
+            // --- 2. ADICIONA A LINHA DE TEMPO ATUAL (ESTILO GOOGLE CALENDAR) ---
+            nowIndicator={true}   // Mostra a linha vermelha indicando o horário atual.
           />
         </Paper>
       </Box>
       
       <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />
+
 
       {/* NOVO: Definição dos Menus de Contexto */}
       <Menu id={MENU_ID_MEDICO}>
