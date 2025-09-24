@@ -85,17 +85,21 @@ export default function AgendaPage() {
                 .filter(ag => ag.status !== 'Cancelado')
                 .map(ag => {
                     const eventColor = statusColors[ag.status] || '#808080';
+                    // --- NOVA LÓGICA DE BORDA AQUI ---
+                    let borderColor = eventColor; // Por padrão, a borda tem a mesma cor do fundo
+                    if (ag.tipo_agendamento === 'Consulta') {
+                        borderColor = '#1976d2'; // Um tom de azul para a borda
+                    } else if (ag.tipo_agendamento === 'Procedimento') {
+                        borderColor = '#9c27b0'; // Um tom de roxo para a borda
+                    }
+
                     return { 
                         id: ag.id, 
                         title: ag.paciente_nome, 
                         start: ag.data_hora_inicio, 
                         end: ag.data_hora_fim, 
                         backgroundColor: eventColor, 
-                        borderColor: eventColor, 
-                        // --- A CORREÇÃO CRÍTICA ESTÁ AQUI ---
-                        // Precisamos garantir que TODOS os dados do agendamento,
-                        // incluindo os novos campos, estejam disponíveis aqui.
-                        // A forma mais simples é espalhar todo o objeto 'ag'.
+                        borderColor: borderColor, // <-- USAMOS A NOVA COR DA BORDA AQUI
                         extendedProps: { ...ag } 
                     };
                 });
