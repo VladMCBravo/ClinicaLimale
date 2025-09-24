@@ -31,10 +31,20 @@ const getModalData = () => {
     return Promise.all([fetchPacientes, fetchProcedimentos, fetchMedicos, fetchEspecialidades]);
 };
 
+// --- NOVA FUNÇÃO ADICIONADA ---
+// Responsável por chamar o endpoint que verifica a capacidade do horário.
+const verificarCapacidade = (inicio, fim) => {
+    // Usamos URLSearchParams para garantir que as datas no formato ISO sejam enviadas corretamente.
+    const params = new URLSearchParams({ inicio, fim });
+    return apiClient.get(`/agendamentos/verificar-capacidade/?${params.toString()}`);
+};
+
+
 export const agendamentoService = {
     getAgendamentos,
     getAgendamentosHoje,
     createAgendamento,
     updateAgendamento,
-    getModalData, // <-- Exportamos a função atualizada
+    getModalData,
+    verificarCapacidade, // <-- EXPORTAMOS A NOVA FUNÇÃO
 };

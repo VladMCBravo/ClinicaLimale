@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser
-
+from django.utils.dateparse import parse_datetime
 from .models import Agendamento
 from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from django.utils import timezone
@@ -239,4 +239,40 @@ class ExecutarCancelamentosExpiradosView(APIView):
             "status": "sucesso", 
             "cancelados": total_cancelados,
             "debug_info": debug_info
+        }, status=status.HTTP_200_OK)
+
+# --- NOVA VIEW PARA VERIFICAR CAPACIDADE ---
+class VerificarCapacidadeHorarioAPIView(APIView):
+    permission_classes = [IsAuthenticated] # Protegido por autenticação
+
+    def get(self, request, *args, **kwargs):
+        inicio_str = request.query_params.get('inicio')
+        fim_str = request.query_params.get('fim')
+
+        if not inicio_str or not fim_str:
+            return Response(
+                {'detail': 'Parâmetros "inicio" e "fim" são obrigatórios.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            inicio = parse_datetime(inicio_str)
+            fim = parse_datetime(fim_str)
+        except ValueError:
+            return Response(
+                {'detail': 'Formato de data inválido. Use o formato ISO 8601.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        conflitos = Agendamento.objects.filter(
+            data_hora_inicio__lt=fim, 
+            data_hora_fim__gt=inicio,
+        ).exclude(status='Cancelado')
+
+        consultas_agendadas = conflitos.filter(tipo_agendamento='Consulta').count()
+        procedimentos_agendados = conflitos.filter(tipo_agendamento='Procedimento').count()
+
+        return Response({
+            'consultas_agendadas': consultas_agendadas,
+            'procedimentos_agendados': procedimentos_agendados
         }, status=status.HTTP_200_OK)

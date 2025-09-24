@@ -1,13 +1,13 @@
-// src/components/AgendamentoModal.jsx - VERSÃO CORRIGIDA E SEGURA
+// src/components/AgendamentoModal.jsx - VERSÃO COM VERIFICAÇÃO DE CAPACIDADE
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider
+  Box, Typography, Divider, Chip // Chip foi importado para o indicador
 } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
-import { pacienteService } from '../services/pacienteService'; // Importado para detalhes do paciente
+import { pacienteService } from '../services/pacienteService';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
@@ -16,8 +16,8 @@ const getInitialFormData = () => ({
     paciente: null,
     data_hora_inicio: null,
     data_hora_fim: null,
-    status: 'Agendado', // <-- VALOR INICIAL SEGURO (Aguardando Pagamento)
-    tipo_atendimento: 'Particular', // <-- CAMPO REINTEGRADO
+    status: 'Agendado',
+    tipo_atendimento: 'Particular',
     plano_utilizado: null,
     observacoes: '',
     tipo_visita: 'Primeira Consulta',
@@ -39,17 +39,19 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [procedimentos, setProcedimentos] = useState([]);
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
-    const [pacienteDetalhes, setPacienteDetalhes] = useState(null); // Para dados do convênio
-    
+    const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
 
-    // Efeito para buscar todos os dados quando o modal abre
+    // --- NOVO ESTADO PARA CONTROLE DE CAPACIDADE ---
+    const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
+
+    // Efeito para buscar dados gerais (pacientes, médicos, etc.)
     useEffect(() => {
         if (open) {
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
                     setPacientes(pacientesRes.data);
-                    setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta')); // Filtra "consulta" dos procedimentos
+                    setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
                     setMedicos(medicosRes.data);
                     setEspecialidades(especialidadesRes.data);
                 }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
@@ -94,6 +96,28 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades]);
     
+    // --- NOVO EFEITO PARA VERIFICAR A CAPACIDADE DO HORÁRIO ---
+    useEffect(() => {
+        if (open && formData.data_hora_inicio && formData.data_hora_fim) {
+            setCapacidade(prev => ({ ...prev, loading: true }));
+            
+            const inicioISO = formData.data_hora_inicio.toISOString();
+            const fimISO = formData.data_hora_fim.toISOString();
+            
+            agendamentoService.verificarCapacidade(inicioISO, fimISO)
+                .then(response => {
+                    setCapacidade({
+                        consultas: response.data.consultas_agendadas,
+                        procedimentos: response.data.procedimentos_agendados,
+                        loading: false
+                    });
+                })
+                .catch(err => {
+                    console.error("Erro ao verificar capacidade", err);
+                    setCapacidade({ consultas: 0, procedimentos: 0, loading: false });
+                });
+        }
+    }, [open, formData.data_hora_inicio, formData.data_hora_fim]); // Roda sempre que as datas mudam
     
     // --- LÓGICA PARA ATUALIZAR DADOS QUANDO UM PACIENTE É SELECIONADO ---
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
@@ -162,6 +186,38 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         return null;
     }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.tipo_atendimento]); // Lista de dependências corrigida
 
+    // --- NOVA FUNÇÃO PARA RENDERIZAR O INDICADOR DE CAPACIDADE ---
+    const renderCapacidadeInfo = () => {
+        const CAPACIDADE_CONSULTAS = 3;
+        const CAPACIDADE_PROCEDIMENTOS = 1;
+
+        // Se estiver editando, subtrai 1 da contagem atual para não contar o próprio agendamento
+        const countAjustadoConsultas = editingEvent && tipoAgendamento === 'Consulta' ? Math.max(0, capacidade.consultas -1) : capacidade.consultas;
+        const countAjustadoProcedimentos = editingEvent && tipoAgendamento === 'Procedimento' ? Math.max(0, capacidade.procedimentos - 1) : capacidade.procedimentos;
+
+        const consultasDisponiveis = CAPACIDADE_CONSULTAS - countAjustadoConsultas;
+        const procedimentosDisponiveis = CAPACIDADE_PROCEDIMENTOS - countAjustadoProcedimentos;
+
+        return (
+            <Box sx={{ p: 1.5, backgroundColor: '#f0f4f8', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center', mt: 1, mb: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Disponibilidade:</Typography>
+                {capacidade.loading ? <CircularProgress size={20} /> : (
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Chip 
+                            label={`Consultas: ${consultasDisponiveis}`}
+                            color={consultasDisponiveis > 0 ? "success" : "error"}
+                            size="small" variant="outlined"
+                        />
+                        <Chip 
+                            label={`Procedimentos: ${procedimentosDisponiveis}`}
+                            color={procedimentosDisponiveis > 0 ? "success" : "error"}
+                            size="small" variant="outlined"
+                        />
+                    </Box>
+                )}
+            </Box>
+        );
+    };
     
     return (
      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -256,7 +312,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 
                 <DateTimePicker label="Fim" value={formData.data_hora_fim}
                     onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} />
-                
+                {/* --- INDICADOR DE CAPACIDADE ADICIONADO AQUI --- */}
+                {formData.data_hora_inicio && renderCapacidadeInfo()}
                 {/* --- CAMPO DE STATUS REINTEGRADO --- */}
                 <FormControl fullWidth>
                     <InputLabel>Status</InputLabel>
