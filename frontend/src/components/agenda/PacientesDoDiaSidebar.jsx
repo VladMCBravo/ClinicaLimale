@@ -30,29 +30,40 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
     const fetchPacientesDoDia = useCallback(async () => {
     try {
         // USA A NOVA FUNÇÃO DO SERVIÇO
-        const response = await agendamentoService.getAgendamentosHoje();
-        setPacientes(response.data);
-    } catch (error) { /* ... */ }
-    finally { setIsLoading(false); }
-}, []);
+       const response = await agendamentoService.getAgendamentosHoje();
+            
+            // --- ALTERAÇÃO PRINCIPAL: ORDENAÇÃO DOS DADOS NO FRONTEND ---
+            // Isso garante que o React renderize todos os itens na ordem cronológica correta.
+            const dadosOrdenados = response.data.sort((a, b) => 
+                new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
+            );
+            setPacientes(dadosOrdenados);
+
+        } catch (error) {
+            console.error("Erro ao buscar pacientes do dia:", error);
+            setPacientes([]); // Limpa a lista em caso de erro
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchPacientesDoDia();
     }, [fetchPacientesDoDia, refreshTrigger]);
 
     return (
-        <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
+        <Paper elevation={2} sx={{ p: 2, height: '100%', overflowY: 'auto' }}>
             <Typography variant="h6" gutterBottom>Pacientes do Dia</Typography>
             {isLoading ? <CircularProgress /> : (
                 <List dense>
                     {pacientes.length > 0 ? pacientes.map(ag => {
-                            const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status };
-                            return (
-                                <ListItem key={ag.id}>
-                                    <ListItemIcon>
-                                        <Tooltip title={statusInfo.title}>
-                                            {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color } })}
-                                        </Tooltip>
+                        const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status };
+                        return (
+                            <ListItem key={ag.id}>
+                                <ListItemIcon>
+                                    <Tooltip title={statusInfo.title}>
+                                        {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color } })}
+                                    </Tooltip>
                                 </ListItemIcon>
                                 <ListItemText 
                                     primary={ag.paciente_nome}

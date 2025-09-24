@@ -172,38 +172,45 @@ const handleMenuAction = (action, agendamento) => {
   };
 
   return (
-    <Box sx={{ height: '100%', p: 2, boxSizing: 'border-box', overflowY: 'auto' }}>
-      <Box sx={{ display: 'flex', height: '100%', gap: 2 }}>
-        <Box sx={{ width: '300px', flexShrink: 0 }}>
-          <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
-        </Box>
-        <Box sx={{ flexGrow: 1, display: 'flex', minHeight: 0 }}>
-          <Paper sx={{ width: '100%', height: '100%', p: 2, display: 'flex', flexDirection: 'column' }}>
-            <FullCalendar
-              ref={calendarRef}
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="timeGridWeek"
-              headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-              locale="pt-br"
-              buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
-              height="100%"
-              events={fetchEvents}
-              eventContent={renderEventContent}
-              slotMinTime="08:00:00"
-              slotMaxTime="20:00:00"
-              allDaySlot={false}
-              dateClick={handleDateClick}
-              eventClick={handleEventClick} // ALTERADO: Esta função agora tem a lógica
-              // NOVO: Adicionamos um listener para quando o evento é montado no DOM
-              eventDidMount={(info) => {
-                info.el.addEventListener('contextmenu', (e) => {
-                  handleContextMenu(e, info.event.extendedProps);
-                });
-              }}
-            />
-          </Paper>
-        </Box>
+    // --- LAYOUT PRINCIPAL CORRIGIDO ---
+    // Este Box agora controla o layout para evitar a barra de rolagem dupla
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', p: 2, boxSizing: 'border-box', gap: 2 }}>
+      {/* A altura é calculada com base na altura da tela (100vh) menos a altura do seu header/navbar (ex: 64px) */}
+      {/* Ajuste o '64px' se a altura do seu menu superior for diferente */}
+      
+      <Box sx={{ width: '300px', flexShrink: 0, height: '100%' }}>
+        <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} />
       </Box>
+      
+      <Box sx={{ flexGrow: 1, display: 'flex', minHeight: 0 }}>
+        <Paper sx={{ width: '100%', height: '100%', p: 2, display: 'flex', flexDirection: 'column' }}>
+          <FullCalendar
+            ref={calendarRef}
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            initialView="timeGridWeek"
+            headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
+            locale="pt-br"
+            buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
+            height="100%"
+            events={fetchEvents}
+            eventContent={renderEventContent}
+            slotMinTime="08:00:00"
+            slotMaxTime="20:00:00"
+            allDaySlot={false}
+            dateClick={handleDateClick}
+            eventClick={handleEventClick}
+            eventDidMount={(info) => {
+              info.el.addEventListener('contextmenu', (e) => {
+                handleContextMenu(e, info.event.extendedProps);
+              });
+            }}
+            // --- ALTERAÇÕES PARA EMPILHAR EVENTOS ---
+            eventDisplay='block' // Faz os eventos empilharem em vez de se espremerem lado a lado
+            eventOverlap={false}  // Garante que eles não se sobreponham visualmente
+          />
+        </Paper>
+      </Box>
+      
       <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />
 
       {/* NOVO: Definição dos Menus de Contexto */}

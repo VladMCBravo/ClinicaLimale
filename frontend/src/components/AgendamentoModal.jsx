@@ -1,10 +1,10 @@
-// src/components/AgendamentoModal.jsx - VERSÃO COM VERIFICAÇÃO DE CAPACIDADE
+// src/components/AgendamentoModal.jsx - VERSÃO ATUALIZADA E CORRIGIDA
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider, Chip // Chip foi importado para o indicador
+  Box, Typography, Divider, Chip
 } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -13,18 +13,10 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
 
 const getInitialFormData = () => ({
-    paciente: null,
-    data_hora_inicio: null,
-    data_hora_fim: null,
-    status: 'Agendado',
-    tipo_atendimento: 'Particular',
-    plano_utilizado: null,
-    observacoes: '',
-    tipo_visita: 'Primeira Consulta',
-    modalidade: 'Presencial',
-    especialidade: null,
-    medico: null,
-    procedimento: null,
+    paciente: null, data_hora_inicio: null, data_hora_fim: null, status: 'Agendado',
+    tipo_atendimento: 'Particular', plano_utilizado: null, observacoes: '',
+    tipo_visita: 'Primeira Consulta', modalidade: 'Presencial', especialidade: null,
+    medico: null, procedimento: null,
 });
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
@@ -33,8 +25,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     // --- ESTADOS ---
     const [formData, setFormData] = useState(getInitialFormData());
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // --- ESTADOS PARA DADOS DA API ---
     const [pacientes, setPacientes] = useState([]);
     const [procedimentos, setProcedimentos] = useState([]);
     const [medicos, setMedicos] = useState([]);
@@ -42,8 +32,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
 
-    // --- NOVO ESTADO PARA CONTROLE DE CAPACIDADE ---
+    // --- ESTADOS DE CONTROLE DE CAPACIDADE ---
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
+    const [isSlotAvailable, setIsSlotAvailable] = useState(true); // Controla se o botão Salvar deve ser habilitado
+
 
     // Efeito para buscar dados gerais (pacientes, médicos, etc.)
     useEffect(() => {
@@ -118,7 +110,35 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 });
         }
     }, [open, formData.data_hora_inicio, formData.data_hora_fim]); // Roda sempre que as datas mudam
-    
+    // --- ALTERAÇÃO PRINCIPAL: LÓGICA DE VALIDAÇÃO DE VAGAS ---
+    // Este useEffect agora centraliza a lógica de validação e controla o estado 'isSlotAvailable'
+    useEffect(() => {
+        const CAPACIDADE_CONSULTAS = 3;
+        const CAPACIDADE_PROCEDIMENTOS = 1;
+
+        if (!open) return; // Não faz nada se o modal estiver fechado
+
+        let consultasOcupadas = capacidade.consultas;
+        let procedimentosOcupados = capacidade.procedimentos;
+
+        // Se estiver editando, remove o agendamento atual da contagem para não contar contra si mesmo
+        if (editingEvent) {
+            const tipoOriginal = editingEvent.extendedProps.tipo_agendamento;
+            if (tipoOriginal === 'Consulta') consultasOcupadas = Math.max(0, consultasOcupadas - 1);
+            if (tipoOriginal === 'Procedimento') procedimentosOcupados = Math.max(0, procedimentosOcupados - 1);
+        }
+
+        // Verifica a disponibilidade para o tipo de agendamento selecionado no formulário
+        if (tipoAgendamento === 'Consulta') {
+            setIsSlotAvailable(consultasOcupadas < CAPACIDADE_CONSULTAS);
+        } else if (tipoAgendamento === 'Procedimento') {
+            setIsSlotAvailable(procedimentosOcupados < CAPACIDADE_PROCEDIMENTOS);
+        } else {
+            setIsSlotAvailable(true); // Habilita por padrão se nenhum tipo for selecionado
+        }
+    }, [capacidade, tipoAgendamento, editingEvent, open]); // Reavalia sempre que a capacidade ou a seleção mudar
+
+
     // --- LÓGICA PARA ATUALIZAR DADOS QUANDO UM PACIENTE É SELECIONADO ---
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
         setFormData(prev => ({ ...prev, paciente: pacienteSelecionado }));
@@ -186,17 +206,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         return null;
     }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.tipo_atendimento]); // Lista de dependências corrigida
 
-    // --- NOVA FUNÇÃO PARA RENDERIZAR O INDICADOR DE CAPACIDADE ---
+     // A função de renderizar a capacidade agora é puramente visual
     const renderCapacidadeInfo = () => {
         const CAPACIDADE_CONSULTAS = 3;
         const CAPACIDADE_PROCEDIMENTOS = 1;
-
-        // Se estiver editando, subtrai 1 da contagem atual para não contar o próprio agendamento
-        const countAjustadoConsultas = editingEvent && tipoAgendamento === 'Consulta' ? Math.max(0, capacidade.consultas -1) : capacidade.consultas;
-        const countAjustadoProcedimentos = editingEvent && tipoAgendamento === 'Procedimento' ? Math.max(0, capacidade.procedimentos - 1) : capacidade.procedimentos;
-
-        const consultasDisponiveis = CAPACIDADE_CONSULTAS - countAjustadoConsultas;
-        const procedimentosDisponiveis = CAPACIDADE_PROCEDIMENTOS - countAjustadoProcedimentos;
+        const consultasDisponiveis = CAPACIDADE_CONSULTAS - capacidade.consultas;
+        const procedimentosDisponiveis = CAPACIDADE_PROCEDIMENTOS - capacidade.procedimentos;
 
         return (
             <Box sx={{ p: 1.5, backgroundColor: '#f0f4f8', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center', mt: 1, mb: 1 }}>
@@ -325,10 +340,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     </Select>
                 </FormControl>
 
-            </DialogContent>
+     </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancelar</Button>
-                <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente}>
+                {/* --- BOTÃO SALVAR AGORA USA O ESTADO 'isSlotAvailable' PARA SE AUTO-VALIDAR --- */}
+                <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente || !isSlotAvailable}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
                 </Button>
             </DialogActions>
