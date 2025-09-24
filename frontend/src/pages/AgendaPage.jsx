@@ -23,16 +23,26 @@ import 'react-contexify/dist/ReactContexify.css'; // Estilo do menu
 function renderEventContent(eventInfo) {
     const { status_pagamento, primeira_consulta } = eventInfo.event.extendedProps;
     return (
-        <Box sx={{ p: '2px 4px', overflow: 'hidden', fontSize: '0.85em', display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Box>
+        <Box sx={{ p: '2px 4px', overflow: 'hidden', fontSize: '0.85em' }}>
+            {/* Linha 1: Horário e Título */}
+            <div>
                 <b>{eventInfo.timeText}</b>
-                <Typography variant="body2" component="span" sx={{ ml: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <Typography variant="body2" component="span" sx={{ ml: 1 }}>
                     {eventInfo.event.title}
                 </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 'auto' }}>
-                {status_pagamento === 'Pago' && <Tooltip title="Consulta Paga"><MonetizationOnIcon sx={{ fontSize: 16, color: 'gold' }} /></Tooltip>}
-                {primeira_consulta && <Tooltip title="Primeira Consulta"><StarIcon sx={{ fontSize: 16, color: 'orange' }} /></Tooltip>}
+            </div>
+            {/* Linha 2: Ícones (agora sempre visíveis) */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '4px' }}>
+                {status_pagamento === 'Pago' && (
+                    <Tooltip title="Consulta Paga">
+                        <MonetizationOnIcon sx={{ fontSize: 16, color: 'gold' }} />
+                    </Tooltip>
+                )}
+                {primeira_consulta && (
+                    <Tooltip title="Primeira Consulta">
+                        <StarIcon sx={{ fontSize: 16, color: 'orange' }} />
+                    </Tooltip>
+                )}
             </Box>
         </Box>
     );
