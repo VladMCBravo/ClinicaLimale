@@ -6,7 +6,8 @@ export default function Aniversariantes({ aniversariantes }) {
     if (!aniversariantes) return null;
 
     return (
-        <Paper sx={{ p: 2, height: '100%' }}>
+        // A ÚNICA MUDANÇA É AQUI: Adicionamos variant="outlined"
+        <Paper sx={{ p: 2, height: '100%' }} variant="outlined">
             <Typography variant="h6">Aniversariantes do Mês</Typography>
             <List>
                 {aniversariantes.length > 0 ? aniversariantes.map((p, index) => (

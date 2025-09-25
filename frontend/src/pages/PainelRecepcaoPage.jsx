@@ -1,29 +1,20 @@
-// src/pages/PainelRecepcaoPage.jsx - VERSÃO CORRIGIDA E ESTRUTURADA
+// src/pages/PainelRecepcaoPage.jsx - VERSÃO COM LAYOUT E ESTILO REFINADOS
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Grid, CircularProgress, Paper, Button } from '@mui/material';
+import { Box, Typography, Grid, CircularProgress, Paper } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
-// --- NOVOS COMPONENTES QUE VAMOS CRIAR E IMPORTAR ---
-// (Por enquanto, podemos criá-los no mesmo arquivo para simplificar, e depois separar)
-
-// Componente para os Cards de KPI
 import KpiCards from '../components/painel/KpiCards'; 
-// Componente para a lista de Aniversariantes
 import Aniversariantes from '../components/painel/Aniversariantes';
-// Componente para os botões de Ações Rápidas
 import AcoesRapidas from '../components/painel/AcoesRapidas';
-
 
 export default function PainelRecepcaoPage() {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Sua lógica de busca de dados, que vamos reaproveitar
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Vamos assumir que o endpoint /dashboard/ continua funcionando por enquanto
             const response = await apiClient.get('/dashboard/');
             setData(response.data);
         } catch (error) {
@@ -42,45 +33,36 @@ export default function PainelRecepcaoPage() {
     }
 
     if (!data) {
-        return <Typography sx={{ p: 2 }}>Não foi possível carregar os dados do painel.</Typography>;
+        return <Typography sx={{ p: 3 }}>Não foi possível carregar os dados do painel.</Typography>;
     }
 
     return (
-        <Box sx={{ p: 2, flexGrow: 1 }}>
-            <Typography variant="h4" gutterBottom>Painel de Controle</Typography>
+        // MUDANÇA: Adicionamos um fundo sutil e mais padding
+        <Box sx={{ p: 3, flexGrow: 1, backgroundColor: '#f4f6f8', minHeight: 'calc(100vh - 64px)' }}>
+            <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>Painel de Controle</Typography>
             
             <Grid container spacing={3}>
                 
                 {/* === COLUNA PRINCIPAL (ESQUERDA) === */}
-                <Grid item xs={12} lg={8}>
+                <Grid item xs={12} md={8}>
                     <Grid container spacing={3}>
                         
                         <Grid item xs={12}>
-                            {/* Usamos o componente KpiCards, passando os dados */}
                             <KpiCards data={data} />
                         </Grid>
                         
                         <Grid item xs={12}>
-                            <Paper sx={{ p: 2, height: '100%' }}>
+                            {/* MUDANÇA: Aplicando o novo estilo de painel */}
+                            <Paper sx={{ p: 2, height: '100%' }} variant="outlined">
                                 <Typography variant="h6">Lista de Espera</Typography>
                                 <Typography sx={{ mt: 1 }} color="text.secondary">
                                     (Componente a ser desenvolvido)
                                 </Typography>
                             </Paper>
                         </Grid>
-                    </Grid>
-                </Grid>
 
-                {/* === COLUNA LATERAL (DIREITA) === */}
-                <Grid item xs={12} lg={4}>
-                    <Grid container spacing={3}>
-                        
-                        <Grid item xs={12}>
-                             <AcoesRapidas />
-                        </Grid>
-                        
-                        <Grid item xs={12}>
-                           <Paper sx={{ p: 2, height: '100%' }}>
+                         <Grid item xs={12}>
+                            <Paper sx={{ p: 2, height: '100%' }} variant="outlined">
                                 <Typography variant="h6">Pacientes do Dia</Typography>
                                 <Typography sx={{ mt: 1 }} color="text.secondary">
                                     (Componente a ser desenvolvido)
@@ -88,10 +70,23 @@ export default function PainelRecepcaoPage() {
                             </Paper>
                         </Grid>
 
+                    </Grid>
+                </Grid>
+
+                {/* === COLUNA LATERAL (DIREITA) === */}
+                <Grid item xs={12} md={4}>
+                    <Grid container spacing={3} sx={{ flexDirection: 'column' }}>
+                        
                         <Grid item xs={12}>
-                           {/* Usamos o componente Aniversariantes, passando apenas a lista que ele precisa */}
+                             {/* O componente AcoesRapidas já deve usar Paper variant="outlined" */}
+                             <AcoesRapidas /> 
+                        </Grid>
+                        
+                        <Grid item xs={12}>
+                           {/* O componente Aniversariantes já deve usar Paper variant="outlined" */}
                            <Aniversariantes aniversariantes={data.aniversariantes_mes} />
                         </Grid>
+
                     </Grid>
                 </Grid>
 

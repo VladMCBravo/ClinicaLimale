@@ -6,7 +6,8 @@ import AddCardIcon from '@mui/icons-material/AddCard';
 
 export default function AcoesRapidas() {
   return (
-    <Paper sx={{ p: 2 }}>
+    // A ÚNICA MUDANÇA É AQUI: Adicionamos variant="outlined"
+    <Paper sx={{ p: 2 }} variant="outlined">
       <Typography variant="h6" gutterBottom>Ações Rápidas</Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 2 }}>
         <Button variant="contained" startIcon={<PersonAddIcon />}>

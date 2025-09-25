@@ -21,30 +21,37 @@ const Navbar = () => {
             <div className="nav-left">
                 <img src={logoImage} alt="Clínica Limalé" className="logo-image" />
 
-                {/* A navegação só aparece se o usuário estiver logado */}
                 {user && (
                     <nav className="main-nav">
-                        {/* Links visíveis para TODOS */}
+                        {/* === NOVA ORDEM DOS LINKS ABAIXO === */}
+
+                        {/* Painel (Apenas Admin e Recepção) */}
+                        {(user.isAdmin || user.isRecepcao) && (
+                            <NavLink to="/painel">
+                                <FaTachometerAlt /> <span>Painel</span>
+                            </NavLink>
+                        )}
+                        
+                        {/* Agenda (Todos) */}
                         <NavLink to="/" end>
                             <FaCalendarAlt /> <span>Agenda</span>
                         </NavLink>
-                        <NavLink to="/pacientes">
-                            <FaUserFriends /> <span>Pacientes</span>
-                        </NavLink>
+
+                        {/* Telemedicina (Todos) */}
                         <NavLink to="/telemedicina">
                             <FaVideo /> <span>Telemedicina</span>
                         </NavLink>
+                        
+                        {/* Pacientes (Todos) */}
+                        <NavLink to="/pacientes">
+                            <FaUserFriends /> <span>Pacientes</span>
+                        </NavLink>
 
-                        {/* Links visíveis para ADMIN e RECEPÇÃO */}
+                        {/* Financeiro (Apenas Admin e Recepção) */}
                         {(user.isAdmin || user.isRecepcao) && (
-                            <>
-                                <NavLink to="/financeiro">
-                                    <FaFileInvoiceDollar /> <span>Financeiro</span>
-                                </NavLink>
-                                <NavLink to="/painel">
-                                    <FaTachometerAlt /> <span>Painel</span>
-                                </NavLink>
-                            </>
+                            <NavLink to="/financeiro">
+                                <FaFileInvoiceDollar /> <span>Financeiro</span>
+                            </NavLink>
                         )}
                     </nav>
                 )}
