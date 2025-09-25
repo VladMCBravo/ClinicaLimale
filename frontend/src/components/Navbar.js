@@ -41,8 +41,8 @@ const Navbar = () => {
                                 <NavLink to="/financeiro">
                                     <FaFileInvoiceDollar /> <span>Financeiro</span>
                                 </NavLink>
-                                <NavLink to="/dashboard">
-                                    <FaTachometerAlt /> <span>Dashboard</span>
+                                <NavLink to="/painel">
+                                    <FaTachometerAlt /> <span>Painel</span>
                                 </NavLink>
                             </>
                         )}

@@ -15,31 +15,33 @@ import MainLayout from './components/MainLayout';
 // Importe suas páginas
 import LoginPage from './pages/LoginPage';
 import AgendaPage from './pages/AgendaPage';
-import DashboardPage from './pages/DashboardPage';
+// REMOVA A LINHA ABAIXO, POIS NÃO SERÁ MAIS USADA DIRETAMENTE AQUI
+// import DashboardPage from './pages/DashboardPage'; 
+import PainelRecepcaoPage from './pages/PainelRecepcaoPage'; // <-- ADICIONE ESTA LINHA
 import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 import CategoriasDespesaPage from './pages/CategoriasDespesaPage';
-import ConveniosPage from './pages/ConveniosPage'; // Importe a nova página
-import EspecialidadesPage from './pages/EspecialidadesPage'; // <-- 1. IMPORTE A NOVA PÁGINA
-import TelemedicinaPage from './pages/TelemedicinaPage'; // <-- 1. Importe a nova página
+import ConveniosPage from './pages/ConveniosPage';
+import EspecialidadesPage from './pages/EspecialidadesPage';
+import TelemedicinaPage from './pages/TelemedicinaPage';
 
 function App() {
   return (
     <SnackbarProvider>
-      {/* --- 2. "ENVELOPE" TODA A APLICAÇÃO COM O LOCALIZATIONPROVIDER --- */}
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
         <Router>
           <Routes>
             {/* Rota de Login (Pública) */}
             <Route path="/login" element={<LoginPage />} />
 
-            {/* Rotas Protegidas (Envolvidas pelo ProtectedRoute) */}
+            {/* Rotas Protegidas */}
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<AgendaPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
+                {/* A ROTA AGORA APONTA PARA O COMPONENTE CORRETO */}
+                <Route path="/painel" element={<PainelRecepcaoPage />} /> 
                 <Route path="/pacientes" element={<PacientesPage />} />
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
                 <Route path="/telemedicina" element={<TelemedicinaPage />} />
