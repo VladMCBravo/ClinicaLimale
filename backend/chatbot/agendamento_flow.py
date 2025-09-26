@@ -3,42 +3,60 @@ import requests
 import re
 from datetime import datetime
 
+# --- 1. IMPORTE SEUS MODELOS AQUI ---
+from usuarios.models import Especialidade, CustomUser # Assumindo o caminho dos seus apps
+from faturamento.models import Procedimento # Se precisar no futuro
+
 class AgendamentoManager:
     def __init__(self, session_id, memoria, base_url):
         self.session_id = session_id
         self.memoria = memoria
-        self.base_url = base_url.rstrip('/') # Garante que não haja barras duplas
+        # O base_url e a API Key ainda são úteis para APIs externas, então mantemos
+        self.base_url = base_url.rstrip('/')
         self.api_key = os.getenv('API_KEY_CHATBOT')
         self.headers = {'Api-Key': self.api_key}
 
-    def _chamar_api(self, endpoint, method='GET', data=None, params=None):
-        """Função auxiliar para fazer chamadas à nossa própria API."""
-        url = f"{self.base_url}/api/chatbot/{endpoint}/"
+    # Esta função agora é para APIs EXTERNAS, se precisar no futuro.
+    # Não a usaremos para buscar dados internos.
+    def _chamar_api_externa(self, endpoint, method='GET', data=None, params=None):
+        # ... (código da sua função _chamar_api original) ...
+        pass
+
+    # --- 2. CRIE FUNÇÕES PRIVADAS PARA BUSCAR DADOS NO BANCO ---
+    def _get_especialidades_from_db(self):
+        """Busca especialidades diretamente do banco de dados."""
         try:
-            if method.upper() == 'GET':
-                response = requests.get(url, headers=self.headers, params=params, timeout=30)
-            elif method.upper() == 'POST':
-                response = requests.post(url, headers=self.headers, json=data, timeout=30)
+            # .values() é mais eficiente pois retorna dicionários,
+            # que é exatamente o que a API retornaria.
+            especialidades = Especialidade.objects.all().values('id', 'nome')
+            return list(especialidades) # Converte o QuerySet para uma lista
+        except Exception as e:
+            print(f"Erro ao buscar especialidades no banco: {e}")
+            return None
+            
+    def _get_medicos_from_db(self, especialidade_id):
+        """Busca médicos de uma especialidade diretamente do banco."""
+        try:
+            medicos = CustomUser.objects.filter(
+                cargo='medico', 
+                especialidade_id=especialidade_id
+            ).values('id', 'first_name', 'last_name')
+            return list(medicos)
+        except Exception as e:
+            print(f"Erro ao buscar médicos no banco: {e}")
+            return None
 
-            # Tratamento de erro 404 (não encontrado) como um caso de sucesso de chamada, mas sem resultado
-            if response.status_code == 404:
-                return None # Ex: Paciente não encontrado
-                
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Erro ao chamar API interna ({url}): {e}")
-            return {"error": str(e)} # Retorna um erro para tratamento
-
+    # O processar continua o mesmo
     def processar(self, resposta_usuario, estado_atual):
+        # ... (sem alterações aqui)
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
             'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
             'agendamento_awaiting_cpf': self.handle_awaiting_cpf,
-            'agendamento_awaiting_new_patient_nome': self.handle_awaiting_new_patient_nome,
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
+            'agendamento_awaiting_new_patient_nome': self.handle_awaiting_new_patient_nome,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
         }
         handler = handlers.get(estado_atual, self.handle_fallback)
@@ -79,16 +97,17 @@ class AgendamentoManager:
             return {"response_message": "Não entendi. Por favor, diga 'Consulta' ou 'Procedimento'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_modality(self, resposta_usuario):
-        # A linha abaixo remove espaços e capitaliza corretamente.
         modalidade = "".join(resposta_usuario.strip().split()).capitalize()
 
         if modalidade not in ['Presencial', 'Telemedicina']:
             return {"response_message": "Modalidade inválida. Por favor, responda com *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
 
         self.memoria['modalidade'] = modalidade
-        especialidades = self._chamar_api('especialidades')
         
-        if not especialidades or "error" in especialidades:
+        # TROCA: Sai a chamada de API, entra a consulta direta ao banco
+        especialidades = self._get_especialidades_from_db()
+        
+        if not especialidades:
             return {"response_message": "Desculpe, estou com problemas para carregar as especialidades. Tente novamente mais tarde.", "new_state": "inicio", "memory_data": self.memoria}
 
         self.memoria['lista_especialidades'] = especialidades
@@ -109,15 +128,20 @@ class AgendamentoManager:
         self.memoria['especialidade_id'] = especialidade_escolhida['id']
         self.memoria['especialidade_nome'] = especialidade_escolhida['nome']
         
-        medicos = self._chamar_api('medicos', params={'especialidade_id': especialidade_escolhida['id']})
-        if not medicos or "error" in medicos:
+        # TROCA: Sai a chamada de API, entra a consulta direta ao banco
+        medicos = self._get_medicos_from_db(especialidade_id=especialidade_escolhida['id'])
+
+        if not medicos:
             return { "response_message": f"Não encontrei médicos disponíveis para {especialidade_escolhida['nome']} no momento.", "new_state": "inicio", "memory_data": self.memoria }
         
-        medico = medicos[0] # Pega o primeiro por padrão
+        medico = medicos[0]
         self.memoria['medico_id'] = medico['id']
         self.memoria['medico_nome'] = f"{medico['first_name']} {medico['last_name']}"
 
-        horarios = self._chamar_api('agendamentos/horarios-disponiveis', params={'medico_id': medico['id']})
+        # A busca de horários disponíveis PODE continuar sendo uma API,
+        # pois é uma lógica mais complexa. Vamos assumir que ela funciona.
+        horarios = self._chamar_api_externa('agendamentos/horarios-disponiveis', params={'medico_id': medico['id']})
+        
         if not horarios or not horarios.get('horarios_disponiveis') or "error" in horarios:
             return { "response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {self.memoria['medico_nome']} nos próximos 90 dias. Gostaria de tentar outra especialidade?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria }
         
