@@ -494,7 +494,7 @@ def chatbot_orchestrator(request):
         # 2. Lógica de Roteamento Principal
         if estado_atual and estado_atual != 'inicio':
             # --- SE JÁ ESTÁ EM UM FLUXO ---
-            if estado_atual.startswith('agendamento_'):
+            if estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_'):
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message)
                 resposta_final = resultado.get("response_message")
@@ -505,32 +505,37 @@ def chatbot_orchestrator(request):
                 # Salva o nome do usuário na memória e segue para a próxima etapa
                 nova_memoria['nome_usuario'] = user_message.strip().capitalize()
                 resposta_final = f"Prazer, {nova_memoria['nome_usuario']}! Como posso te ajudar hoje? Você pode pedir informações sobre a clínica, agendar uma consulta ou procedimento."
-                novo_estado = 'inicio' # Volta ao estado inicial, mas agora com o nome salvo
-
-            # ... aqui podemos adicionar outros fluxos (elif estado_atual.startswith('outro_fluxo_'))
+                novo_estado = 'inicio'
 
         else:
             # --- SE NÃO ESTÁ EM NENHUM FLUXO, USA A IA ROTEADORA ---
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
-            
+            entity = intent_data.get("entity") # Adicionado para buscar a entidade
+
             if intent == "saudacao":
-                # Verifica se já sabemos o nome do usuário
                 if memoria_atual.get('nome_usuario'):
-                    resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Como posso te ajudar?"
+                    resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Em que posso ajudar?"
                     novo_estado = 'inicio'
                 else:
                     resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
                     novo_estado = 'aguardando_nome'
 
             elif intent == "iniciar_agendamento":
+                # Ao iniciar um agendamento, passamos a memória atual (que contém o nome do usuário)
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message)
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
             
-            # ... aqui entram os outros 'if' para buscar_preco, etc. ...
+            elif intent == "buscar_preco": # Adicionada a lógica de buscar_preco que faltava
+                if entity:
+                    base_url = request.build_absolute_uri('/')
+                    resposta_final = _buscar_preco_servico(base_url, entity)
+                else:
+                    resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
+                novo_estado = 'inicio'
             
             else: # Fallback
                 resposta_final = "Desculpe, não entendi. Você gostaria de agendar uma consulta ou saber um preço?"
