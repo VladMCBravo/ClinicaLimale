@@ -1,44 +1,34 @@
-// src/services/agendamentoService.js - VERSÃO ATUALIZADA
-
+// src/services/agendamentoService.js
 import apiClient from '../api/axiosConfig';
 
-const getAgendamentos = () => {
-    return apiClient.get('/agendamentos/');
+const getAgendamentos = (medicoId, especialidadeId) => {
+    const params = new URLSearchParams();
+    if (medicoId) {
+        params.append('medico_id', medicoId);
+    }
+    if (especialidadeId) {
+        params.append('especialidade_id', especialidadeId);
+    }
+    const queryString = params.toString();
+    const url = `/agendamentos/${queryString ? `?${queryString}` : ''}`;
+    return apiClient.get(url);
 };
 
-const getAgendamentosHoje = () => {
-    return apiClient.get('/agendamentos/hoje/');
-};
-
-const createAgendamento = (data) => {
-    return apiClient.post('/agendamentos/', data);
-};
-
-const updateAgendamento = (id, data) => {
-    return apiClient.put(`/agendamentos/${id}/`, data);
-};
-
-// --- FUNÇÃO ALTERADA ---
-// Agora busca TODOS os dados necessários para o modal de uma só vez.
-const getModalData = () => {
-    const fetchPacientes = apiClient.get('/pacientes/');
-    const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-    // --- NOVAS BUSCAS ADICIONADAS ---
-    const fetchMedicos = apiClient.get('/usuarios/usuarios/?cargo=medico');
-    const fetchEspecialidades = apiClient.get('/usuarios/especialidades/');
-    
-    // O Promise.all vai esperar todas as 4 requisições terminarem.
-    return Promise.all([fetchPacientes, fetchProcedimentos, fetchMedicos, fetchEspecialidades]);
-};
-
-// --- NOVA FUNÇÃO ADICIONADA ---
-// Responsável por chamar o endpoint que verifica a capacidade do horário.
+const getAgendamentosHoje = () => apiClient.get('/agendamentos/hoje/');
+const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
+const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
 const verificarCapacidade = (inicio, fim) => {
-    // Usamos URLSearchParams para garantir que as datas no formato ISO sejam enviadas corretamente.
     const params = new URLSearchParams({ inicio, fim });
     return apiClient.get(`/agendamentos/verificar-capacidade/?${params.toString()}`);
 };
 
+const getModalData = () => {
+    const fetchPacientes = apiClient.get('/pacientes/');
+    const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
+    const fetchMedicos = apiClient.get('/usuarios/usuarios/?cargo=medico');
+    const fetchEspecialidades = apiClient.get('/usuarios/especialidades/');
+    return Promise.all([fetchPacientes, fetchProcedimentos, fetchMedicos, fetchEspecialidades]);
+};
 
 export const agendamentoService = {
     getAgendamentos,
@@ -46,5 +36,5 @@ export const agendamentoService = {
     createAgendamento,
     updateAgendamento,
     getModalData,
-    verificarCapacidade, // <-- EXPORTAMOS A NOVA FUNÇÃO
+    verificarCapacidade,
 };
