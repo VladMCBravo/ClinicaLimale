@@ -5,6 +5,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import listPlugin from '@fullcalendar/list'; // <-- PASSO 1: IMPORTAR O PLUGIN DE LISTA
 import { useNavigate } from 'react-router-dom';
 import { Menu, Item, useContextMenu } from 'react-contexify';
 import 'react-contexify/dist/ReactContexify.css';
@@ -75,13 +76,23 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
             <Paper sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }} variant="outlined">
                 <FullCalendar
                     ref={calendarRef}
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="timeGridWeek"
-                    headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
+                    // PASSO 2: ADICIONAR O PLUGIN À LISTA
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                    
+                    // PASSO 3: MUDAR A VISÃO INICIAL E OS BOTÕES
+                    initialView="timeGridWeek" // Mantemos a de semana como padrão geral
+                    headerToolbar={{
+                        left: 'prev,next today',
+                        center: 'title',
+                        // Adicionamos 'listDay' e o renomeamos para 'Hoje' ou 'Lista'
+                        right: 'dayGridMonth,timeGridWeek,listDay'
+                    }}
+                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', list: 'Lista' }}
+
                     locale="pt-br"
-                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
                     height="100%"
                     events={fetchEvents}
+                    // O eventContent não é usado na visão de lista, mas mantemos para as outras visões
                     eventContent={renderEventContent}
                     slotMinTime="08:00:00"
                     slotMaxTime="20:00:00"
@@ -93,10 +104,8 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
                         info.el.addEventListener('contextmenu', (e) => handleContextMenu(e, info.event.extendedProps));
                     }}
                     nowIndicator={true}
-                    
-                    // MANTEMOS ESTA COMBINAÇÃO PARA INFORMAR A INTENÇÃO AO FULLCALENDAR
-                    eventDisplay="block"
-                    eventOverlap={false}
+
+                    // REMOVEMOS AS PROPS DE EMPILHAMENTO, POIS NÃO SÃO NECESSÁRIAS AQUI
                 />
             </Paper>
             <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />

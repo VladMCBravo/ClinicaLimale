@@ -9,30 +9,14 @@ body {
 }
 
 /* ================================================================= */
-/* === VERSÃO FINAL E DEFINITIVA PARA O EMPILHAMENTO VERTICAL === */
+/* === REMOVA TODO O BLOCO DE CSS DO FULLCALENDAR DE ANTES === */
+/* === Deixe apenas as regras cosméticas, se desejar, como esta: === */
 /* ================================================================= */
 
-/* Regras cosméticas para o texto dentro do evento */
+/* Melhora o espaçamento interno dos eventos na visão de semana/dia */
 .fc-v-event .fc-event-main {
   padding: 3px 5px !important;
-}
-
-.fc-v-event .fc-event-title {
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
-}
-
-/* Regra principal para forçar o empilhamento vertical */
-/* Esta regra sobrescreve os estilos 'left', 'right' e 'width'
-   que o FullCalendar aplica para criar o layout lado a lado.
-*/
-.fc-timegrid-col-events .fc-timegrid-event-harness {
-  position: relative !important; /* Usamos 'relative' em vez de 'static' */
-  left: 0 !important;
-  right: 0 !important;
-  top: auto !important;
-  width: 100% !important;
-  margin: 0 0 4px 0 !important; /* Remove margem lateral e adiciona margem inferior */
+  white-space: nowrap;
 }
