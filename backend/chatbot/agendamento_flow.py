@@ -54,9 +54,12 @@ class AgendamentoManager:
 
     def handle_inicio(self, resposta_usuario):
         # Limpa qualquer memória de agendamentos antigos para começar um novo
+        nome_usuario = self.memoria.get('nome_usuario', 'tudo bem') # Pega o nome do usuário, ou usa um fallback
         self.memoria.clear() 
+        self.memoria['nome_usuario'] = nome_usuario # Garante que o nome não seja apagado
+        
         return {
-            "response_message": "Ótimo, vamos agendar! Você gostaria de marcar uma Consulta ou um Procedimento?",
+            "response_message": f"Ótimo, {nome_usuario}, vamos agendar! Você gostaria de marcar uma Consulta ou um Procedimento?",
             "new_state": "agendamento_awaiting_type",
             "memory_data": self.memoria
         }

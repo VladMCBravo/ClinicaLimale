@@ -482,7 +482,7 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        # 1. Carrega a memória e o estado do usuário
+        # 1. Carrega a memória e o estado do usuário do banco de dados
         memoria_obj, created = ChatMemory.objects.get_or_create(session_id=session_id)
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
@@ -491,47 +491,52 @@ def chatbot_orchestrator(request):
         novo_estado = estado_atual
         nova_memoria = memoria_atual
 
-        # 2. DISTRIBUIDOR: Verifica se já está em um fluxo ou se inicia um novo
-        if estado_atual and (estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_')):
-            # Se já está no fluxo de agendamento, continua com o Manager
-            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-            resultado = manager.processar(user_message)
-            resposta_final = resultado.get("response_message")
-            novo_estado = resultado.get("new_state")
-            nova_memoria = resultado.get("memory_data")
-        
-        else:
-            # Se não está em nenhum fluxo, usa a IA Roteadora para descobrir a intenção
-            intent_data = chain_roteadora.invoke({"user_message": user_message})
-            intent = intent_data.get("intent")
-            entity = intent_data.get("entity")
-
-            if intent == "iniciar_agendamento":
-                manager = AgendamentoManager(session_id, {}, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message) # Chama o primeiro passo ('handle_inicio')
+        # 2. Lógica de Roteamento Principal
+        if estado_atual and estado_atual != 'inicio':
+            # --- SE JÁ ESTÁ EM UM FLUXO ---
+            if estado_atual.startswith('agendamento_'):
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message)
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
             
-            elif intent == "buscar_preco":
-                if entity:
-                    base_url = request.build_absolute_uri('/')
-                    resposta_final = _buscar_preco_servico(base_url, entity)
-                else:
-                    resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
-                novo_estado = 'inicio' # Após o preço, volta ao estado inicial
+            elif estado_atual == 'aguardando_nome':
+                # Salva o nome do usuário na memória e segue para a próxima etapa
+                nova_memoria['nome_usuario'] = user_message.strip().capitalize()
+                resposta_final = f"Prazer, {nova_memoria['nome_usuario']}! Como posso te ajudar hoje? Você pode pedir informações sobre a clínica, agendar uma consulta ou procedimento."
+                novo_estado = 'inicio' # Volta ao estado inicial, mas agora com o nome salvo
+
+            # ... aqui podemos adicionar outros fluxos (elif estado_atual.startswith('outro_fluxo_'))
+
+        else:
+            # --- SE NÃO ESTÁ EM NENHUM FLUXO, USA A IA ROTEADORA ---
+            intent_data = chain_roteadora.invoke({"user_message": user_message})
+            intent = intent_data.get("intent")
             
-            # Adicionei a lógica para o if de "saudacao" que estava faltando
-            elif intent == "saudacao":
-                resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Como posso te ajudar hoje?"
+            if intent == "saudacao":
+                # Verifica se já sabemos o nome do usuário
+                if memoria_atual.get('nome_usuario'):
+                    resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Como posso te ajudar?"
+                    novo_estado = 'inicio'
+                else:
+                    resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
+                    novo_estado = 'aguardando_nome'
+
+            elif intent == "iniciar_agendamento":
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message)
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
+            
+            # ... aqui entram os outros 'if' para buscar_preco, etc. ...
+            
+            else: # Fallback
+                resposta_final = "Desculpe, não entendi. Você gostaria de agendar uma consulta ou saber um preço?"
                 novo_estado = 'inicio'
 
-            else:
-                # Lógica de fallback para outras intenções
-                resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta ou saber um preço?"
-                novo_estado = 'inicio'
-
-        # 3. Salva o novo estado e a memória
+        # 3. Salva o novo estado e a memória no banco de dados
         memoria_obj.state = novo_estado
         memoria_obj.memory_data = nova_memoria
         memoria_obj.save()
@@ -540,5 +545,5 @@ def chatbot_orchestrator(request):
         return JsonResponse({"response_message": resposta_final})
 
     except Exception as e:
-        logger.error(f"Erro no orquestrador do chatbot: {e}")
+        logger.error(f"Erro no orquestrador do chatbot: {e}", exc_info=True)
         return JsonResponse({"error": "Ocorreu um erro interno."}, status=500)
