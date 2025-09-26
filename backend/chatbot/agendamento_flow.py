@@ -6,6 +6,7 @@ from datetime import datetime
 # --- 1. IMPORTE SEUS MODELOS AQUI ---
 from usuarios.models import Especialidade, CustomUser # Assumindo o caminho dos seus apps
 from faturamento.models import Procedimento # Se precisar no futuro
+from agendamentos.services import buscar_proximo_horario_disponivel
 
 class AgendamentoManager:
     def __init__(self, session_id, memoria, base_url):
@@ -125,31 +126,34 @@ class AgendamentoManager:
         }
 
     def handle_awaiting_specialty(self, resposta_usuario):
+        # ... (lógica para encontrar a especialidade e o médico, que já está funcionando) ...
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower() or esp['nome'].lower() in resposta_usuario.lower()), None)
         
         if not especialidade_escolhida:
-            return {"response_message": "Não encontrei essa especialidade. Por favor, digite um nome da lista que te enviei.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+            return {"response_message": "Não encontrei essa especialidade...", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
         self.memoria['especialidade_id'] = especialidade_escolhida['id']
         self.memoria['especialidade_nome'] = especialidade_escolhida['nome']
         
-        # TROCA: Sai a chamada de API, entra a consulta direta ao banco
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_escolhida['id'])
 
         if not medicos:
-            return { "response_message": f"Não encontrei médicos disponíveis para {especialidade_escolhida['nome']} no momento.", "new_state": "inicio", "memory_data": self.memoria }
+            return { "response_message": f"Não encontrei médicos para {especialidade_escolhida['nome']}.", "new_state": "inicio", "memory_data": self.memoria }
         
         medico = medicos[0]
         self.memoria['medico_id'] = medico['id']
         self.memoria['medico_nome'] = f"{medico['first_name']} {medico['last_name']}"
 
-        # A busca de horários disponíveis PODE continuar sendo uma API,
-        # pois é uma lógica mais complexa. Vamos assumir que ela funciona.
-        horarios = self._chamar_api_externa('agendamentos/horarios-disponiveis', params={'medico_id': medico['id']})
+        # 2. A MUDANÇA É AQUI: REMOVA A CHAMADA DE API E CHAME A FUNÇÃO DIRETA
+        # DE: horarios = self._chamar_api_externa('agendamentos/horarios-disponiveis', ...)
+        # PARA:
+        horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
         
-        if not horarios or not horarios.get('horarios_disponiveis') or "error" in horarios:
+        # A lógica de verificação continua a mesma
+        if not horarios or not horarios.get('horarios_disponiveis'):
             return { "response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {self.memoria['medico_nome']} nos próximos 90 dias. Gostaria de tentar outra especialidade?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria }
         
+        # ... (o resto da função para montar a mensagem continua igual) ...
         data_sugerida = horarios['data']
         horario_sugerido = horarios['horarios_disponiveis'][0]
         self.memoria['data_hora_inicio'] = f"{data_sugerida}T{horario_sugerido}"

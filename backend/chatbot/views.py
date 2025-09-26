@@ -35,6 +35,7 @@ from .models import ChatMemory
 from pacientes.models import Paciente
 from faturamento.models import Procedimento, Pagamento
 from agendamentos.serializers import AgendamentoWriteSerializer
+from agendamentos.services import buscar_proximo_horario_disponivel
 from agendamentos.models import Agendamento
 from .agendamento_flow import AgendamentoManager
 from usuarios.models import CustomUser, Especialidade
@@ -230,13 +231,12 @@ class ConsultarHorariosDisponiveisView(APIView):
 
     def get(self, request):
         medico_id = request.query_params.get('medico_id')
-        print(f"\n\n--- [API-HORARIOS] NOVA REQUISIÇÃO PARA MEDICO_ID: {medico_id} ---")
-
-        if not medico_id: return Response({"error": "O parâmetro 'medico_id' é obrigatório."}, status=400)
-        try:
-            medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
-        except CustomUser.DoesNotExist:
-            return Response({"error": "Médico não encontrado."}, status=404)
+        if not medico_id:
+            return Response({"error": "O parâmetro 'medico_id' é obrigatório."}, status=400)
+        
+        # Apenas chama a função centralizada e retorna o resultado
+        resultado = buscar_proximo_horario_disponivel(medico_id=medico_id)
+        return Response(resultado)
 
         data_atual = timezone.localdate()
         for i in range(90):
