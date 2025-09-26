@@ -21,8 +21,21 @@ class AgendamentoManager:
     # Esta função agora é para APIs EXTERNAS, se precisar no futuro.
     # Não a usaremos para buscar dados internos.
     def _chamar_api_externa(self, endpoint, method='GET', data=None, params=None):
-        # ... (código da sua função _chamar_api original) ...
-        pass
+        url = f"{self.base_url}/api/chatbot/{endpoint}/"
+        try:
+            if method.upper() == 'GET':
+                response = requests.get(url, headers=self.headers, params=params, timeout=30)
+            elif method.upper() == 'POST':
+                response = requests.post(url, headers=self.headers, json=data, timeout=30)
+            
+            if response.status_code == 404:
+                return None
+                
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Erro ao chamar API externa ({url}): {e}")
+            return {"error": str(e)}
 
     # --- 2. CRIE FUNÇÕES PRIVADAS PARA BUSCAR DADOS NO BANCO ---
     def _get_especialidades_from_db(self):
@@ -267,7 +280,7 @@ class AgendamentoManager:
 
 
     def handle_awaiting_confirmation(self, resposta_usuario):
-        # Aqui criamos o agendamento de fato
+        # A lógica para montar os dados do agendamento está correta
         dados_agendamento = {
             "cpf": self.memoria.get('cpf'),
             "data_hora_inicio": self.memoria.get('data_hora_inicio'),
@@ -275,15 +288,15 @@ class AgendamentoManager:
             "especialidade_id": self.memoria.get('especialidade_id'),
             "medico_id": self.memoria.get('medico_id'),
             "modalidade": self.memoria.get('modalidade'),
-            # Adicione metodo_pagamento_escolhido se o usuário puder escolher
         }
         
-        resultado = self._chamar_api('agendamentos/criar', method='POST', data=dados_agendamento)
+        # A CORREÇÃO É AQUI: mude de _chamar_api para _chamar_api_externa
+        resultado = self._chamar_api_externa('agendamentos/criar', method='POST', data=dados_agendamento)
         
         if not resultado or 'error' in resultado:
              return {"response_message": f"Houve um erro ao criar seu agendamento: {resultado.get('error', 'Tente novamente')}", "new_state": "inicio", "memory_data": self.memoria}
         
-        # Sucesso!
+        # ... (o resto da função para montar a mensagem de sucesso continua igual) ...
         agendamento_id = resultado.get('agendamento_id')
         pagamento = resultado.get('dados_pagamento', {})
         
@@ -292,7 +305,6 @@ class AgendamentoManager:
         if pagamento.get('tipo') == 'PIX':
             resposta_final += "Aqui está o PIX para pagamento:\n\n"
             resposta_final += f"*Copia e Cola:*\n`{pagamento.get('pix_copia_e_cola')}`"
-            # (O QR Code em base64 não pode ser enviado por texto, mas o link sim)
         elif pagamento.get('tipo') == 'CartaoCredito':
              resposta_final += f"Acesse o link a seguir para pagar com cartão de crédito:\n{pagamento.get('link')}"
 
@@ -300,6 +312,6 @@ class AgendamentoManager:
         
         return {
             "response_message": resposta_final,
-            "new_state": "inicio", # Reseta o fluxo
-            "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')} # Mantém só o nome
+            "new_state": "inicio",
+            "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}
         }
