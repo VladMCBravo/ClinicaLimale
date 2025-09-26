@@ -60,6 +60,7 @@ class AgendamentoManager:
             'agendamento_awaiting_type': self.handle_awaiting_type,
             'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
+            'agendamento_awaiting_slot_choice': self.handle_awaiting_slot_choice,
             'agendamento_awaiting_cpf': self.handle_awaiting_cpf,
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
             'agendamento_awaiting_new_patient_nome': self.handle_awaiting_new_patient_nome,
