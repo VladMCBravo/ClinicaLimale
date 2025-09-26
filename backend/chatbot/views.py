@@ -180,6 +180,7 @@ class ConsultarHorariosDisponiveisView(APIView):
         Calcula os horários livres em um dia específico para um médico.
         """
         DURACAO_CONSULTA_MINUTOS = 30 # Duração de cada slot de agendamento
+        print(f"\n[DEBUG-HORARIOS] Verificando dia: {data_desejada.strftime('%Y-%m-%d')}")
 
         # 1. Busca a jornada de trabalho REAL do médico no banco de dados
         dia_semana_desejado = data_desejada.weekday()
@@ -187,9 +188,11 @@ class ConsultarHorariosDisponiveisView(APIView):
             medico=medico, 
             dia_da_semana=dia_semana_desejado
         )
+        print(f"[DEBUG-HORARIOS] Dia da semana: {dia_semana_desejado}. Jornadas encontradas: {jornadas_do_dia.count()}")
 
         if not jornadas_do_dia.exists():
-            return [] # Se não houver jornada cadastrada para este dia, retorna vazio
+            print("[DEBUG-HORARIOS] -> Fim da verificação: Médico não trabalha neste dia da semana.")
+            return []
 
         # 2. Busca os agendamentos já existentes e confirmados
         agendamentos_existentes = Agendamento.objects.filter(
@@ -199,42 +202,55 @@ class ConsultarHorariosDisponiveisView(APIView):
         ).values_list('data_hora_inicio', flat=True)
 
         horarios_ocupados = {ag.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
+        print(f"[DEBUG-HORARIOS] Horários já ocupados: {[h.strftime('%H:%M') for h in horarios_ocupados]}")
 
-        # 3. Gera os horários disponíveis
         horarios_disponiveis_dia = []
+        agora = timezone.now()
+        print(f"[DEBUG-HORARIOS] Hora atual (servidor): {agora.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
         for turno in jornadas_do_dia:
+            print(f"[DEBUG-HORARIOS] Verificando turno: {turno.hora_inicio.strftime('%H:%M')} - {turno.hora_fim.strftime('%H:%M')}")
             horario_slot = timezone.make_aware(datetime.datetime.combine(data_desejada, turno.hora_inicio))
+
             while horario_slot.time() < turno.hora_fim:
-                if horario_slot > timezone.now() and horario_slot not in horarios_ocupados:
+                print(f"[DEBUG-HORARIOS]  -> Checando slot: {horario_slot.strftime('%H:%M')}", end='')
+
+                if horario_slot <= agora:
+                    print(" -> Rejeitado (está no passado)")
+                elif horario_slot in horarios_ocupados:
+                    print(" -> Rejeitado (está ocupado)")
+                else:
+                    print(" -> ACEITO!")
                     horarios_disponiveis_dia.append(horario_slot.strftime('%H:%M'))
-                
+
                 horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
 
+        print(f"[DEBUG-HORARIOS] -> Fim da verificação. Total de horários livres no dia: {len(horarios_disponiveis_dia)}")
         return sorted(horarios_disponiveis_dia)
 
     def get(self, request):
         medico_id = request.query_params.get('medico_id')
-        if not medico_id:
-            return Response({"error": "O parâmetro 'medico_id' é obrigatório."}, status=400)
+        print(f"\n\n--- [API-HORARIOS] NOVA REQUISIÇÃO PARA MEDICO_ID: {medico_id} ---")
 
+        if not medico_id: return Response({"error": "O parâmetro 'medico_id' é obrigatório."}, status=400)
         try:
             medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
         except CustomUser.DoesNotExist:
             return Response({"error": "Médico não encontrado."}, status=404)
 
-        # Procura proativamente pelo próximo dia livre nos próximos 90 dias
         data_atual = timezone.localdate()
         for i in range(90):
             data_a_verificar = data_atual + timedelta(days=i)
             horarios = self._buscar_horarios_no_dia(data_a_verificar, medico)
-            
-            if horarios: # Encontrou!
+
+            if horarios:
+                print(f"--- [API-HORARIOS] SUCESSO! Encontrados horários no dia {data_a_verificar}. Retornando resposta. ---")
                 return Response({
                     "data": data_a_verificar.strftime('%Y-%m-%d'),
                     "horarios_disponiveis": horarios
                 })
-        
-        # Se não encontrou nada em 90 dias
+
+        print("--- [API-HORARIOS] FALHA. Nenhum horário encontrado nos próximos 90 dias. ---")
         return Response({"data": None, "horarios_disponiveis": []})
 
 # ########################################################################## #
