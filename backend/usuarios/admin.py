@@ -7,9 +7,6 @@ from .models import CustomUser, Especialidade, JornadaDeTrabalho # 1. Importe o 
 # 2. Registre o modelo Especialidade para que ele apareça no admin
 admin.site.register(Especialidade)
 
-# 3. Registre o modelo JornadaDeTrabalho para que ele apareça no admin
-admin.site.register(JornadaDeTrabalho)
-
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     
