@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import StarIcon from '@mui/icons-material/Star';
 
-// Constantes e Funções de Renderização
+// Constantes e Funções de Renderização (sem alterações)
 const statusColors = {
     'Agendado': '#6495ED',
     'Confirmado': '#32CD32',
@@ -23,10 +23,8 @@ const statusColors = {
     'Não Compareceu': '#A9A9A9',
     'Aguardando Pagamento': '#FFD700'
 };
-
 const MENU_ID_MEDICO = "menu-medico-painel";
 const MENU_ID_GESTAO = "menu-gestao-painel";
-
 function renderEventContent(eventInfo) {
     const { status_pagamento, primeira_consulta } = eventInfo.event.extendedProps;
     return (
@@ -53,7 +51,6 @@ function renderEventContent(eventInfo) {
     );
 }
 
-// O componente agora recebe os filtros como PROPS
 export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onSave }) {
     const calendarRef = useRef(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,85 +59,16 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
     const { user } = useAuth();
     const navigate = useNavigate();
     const { show } = useContextMenu();
-
-    const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
-        // Usa os filtros recebidos para chamar o service
-        agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
-            .then(response => {
-                const eventosFormatados = response.data
-                    .filter(ag => ag.status !== 'Cancelado')
-                    .map(ag => {
-                        const eventColor = statusColors[ag.status] || '#808080';
-                        let borderColor = ag.tipo_agendamento === 'Consulta' ? '#1976d2' : '#9c27b0';
-                        return {
-                            id: ag.id,
-                            title: ag.paciente_nome,
-                            start: ag.data_hora_inicio,
-                            end: ag.data_hora_fim,
-                            backgroundColor: eventColor,
-                            borderColor: borderColor,
-                            extendedProps: { ...ag }
-                        };
-                    });
-                successCallback(eventosFormatados);
-            })
-            .catch(error => failureCallback(error));
-    }, [medicoFiltro, especialidadeFiltro]); // A dependência garante que a busca é refeita quando o filtro muda
-
-    useEffect(() => {
-        if (calendarRef.current) {
-            calendarRef.current.getApi().refetchEvents();
-        }
-    }, [medicoFiltro, especialidadeFiltro]);
-
-    const handleDateClick = (arg) => {
-        setEditingEvent(null);
-        setSelectedDateInfo({ start: arg.date, end: arg.date });
-        setIsModalOpen(true);
-    };
-
-    const handleEventClick = (clickInfo) => {
-        const agendamento = clickInfo.event.extendedProps;
-        if (user?.isMedico) {
-            navigate(`/pacientes/${agendamento.paciente}/prontuario`);
-        } else if (user?.isAdmin || user?.isRecepcao) {
-            setSelectedDateInfo(null);
-            setEditingEvent(clickInfo.event);
-            setIsModalOpen(true);
-        }
-    };
-
-    const handleContextMenu = (event, agendamento) => {
-        event.preventDefault();
-        const menuId = user.isMedico ? MENU_ID_MEDICO : MENU_ID_GESTAO;
-        show({ event, id: menuId, props: { agendamento } });
-    };
-
-    const handleMenuAction = (action, agendamento) => {
-        if (action === 'editarAgendamento') {
-            const mockClickInfo = { event: { extendedProps: agendamento } };
-            handleEventClick(mockClickInfo);
-        } else if (action === 'abrirProntuario') {
-            navigate(`/pacientes/${agendamento.paciente}/prontuario`);
-        }
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingEvent(null);
-        setSelectedDateInfo(null);
-    };
-
-    const handleSave = () => {
-        handleCloseModal();
-        if (calendarRef.current) {
-            calendarRef.current.getApi().refetchEvents();
-        }
-        // Se a função onSave foi passada (pelo Painel), chame-a
-        if (onSave) {
-            onSave();
-        }
-    };
+    
+    // ... Toda a lógica de handlers e hooks permanece a mesma ...
+    const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => { agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro).then(response => { const eventosFormatados = response.data.filter(ag => ag.status !== 'Cancelado').map(ag => ({ id: ag.id, title: ag.paciente_nome, start: ag.data_hora_inicio, end: ag.data_hora_fim, backgroundColor: statusColors[ag.status] || '#808080', borderColor: ag.tipo_agendamento === 'Consulta' ? '#1976d2' : '#9c27b0', extendedProps: { ...ag } })); successCallback(eventosFormatados); }).catch(error => failureCallback(error)); }, [medicoFiltro, especialidadeFiltro]);
+    useEffect(() => { if (calendarRef.current) { calendarRef.current.getApi().refetchEvents(); } }, [medicoFiltro, especialidadeFiltro]);
+    const handleDateClick = (arg) => { setEditingEvent(null); setSelectedDateInfo({ start: arg.date, end: arg.date }); setIsModalOpen(true); };
+    const handleEventClick = (clickInfo) => { const agendamento = clickInfo.event.extendedProps; if (user?.isMedico) { navigate(`/pacientes/${agendamento.paciente}/prontuario`); } else if (user?.isAdmin || user?.isRecepcao) { setSelectedDateInfo(null); setEditingEvent(clickInfo.event); setIsModalOpen(true); } };
+    const handleContextMenu = (event, agendamento) => { event.preventDefault(); const menuId = user.isMedico ? MENU_ID_MEDICO : MENU_ID_GESTAO; show({ event, id: menuId, props: { agendamento } }); };
+    const handleMenuAction = (action, agendamento) => { if (action === 'editarAgendamento') { const mockClickInfo = { event: { extendedProps: agendamento } }; handleEventClick(mockClickInfo); } else if (action === 'abrirProntuario') { navigate(`/pacientes/${agendamento.paciente}/prontuario`); } };
+    const handleCloseModal = () => { setIsModalOpen(false); setEditingEvent(null); setSelectedDateInfo(null); };
+    const handleSave = () => { handleCloseModal(); if (calendarRef.current) { calendarRef.current.getApi().refetchEvents(); } if (onSave) { onSave(); } };
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -165,10 +93,10 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
                         info.el.addEventListener('contextmenu', (e) => handleContextMenu(e, info.event.extendedProps));
                     }}
                     nowIndicator={true}
-
-                    // --- COMBINAÇÃO CORRETA PARA EMPILHAMENTO VERTICAL ---
+                    
+                    // MANTEMOS ESTA COMBINAÇÃO PARA INFORMAR A INTENÇÃO AO FULLCALENDAR
                     eventDisplay="block"
-                    eventOverlap={false} // Informa ao calendário para não sobrepor os blocos
+                    eventOverlap={false}
                 />
             </Paper>
             <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />
