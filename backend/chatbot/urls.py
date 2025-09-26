@@ -5,7 +5,6 @@ from .views import (
     chatbot_orchestrator,
     VerificarPacienteCPFView, 
     AgendamentoChatbotView,
-    VerificarPacienteView,
     VerificarSegurancaView,
     ListarProcedimentosView,
     ConsultarHorariosDisponiveisView,
@@ -22,7 +21,6 @@ urlpatterns = [
     path('pacientes/verificar-cpf/', VerificarPacienteCPFView.as_view(), name='verificar_paciente_cpf'),
     # --- Pacientes ---
     path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'),
-    path('pacientes/verificar/', VerificarPacienteView.as_view(), name='chatbot_verificar_paciente'),
     path('pacientes/verificar-seguranca/', VerificarSegurancaView.as_view(), name='chatbot_verificar_seguranca'),
     path('pacientes/meus-agendamentos/', ConsultarAgendamentosPacienteView.as_view(), name='chatbot_meus_agendamentos'),
 
