@@ -168,7 +168,7 @@ class ListarProcedimentosView(generics.ListAPIView): # Mudamos para generics.Lis
 # ################ INÍCIO DA SEÇÃO MODIFICADA ################################ #
 # ########################################################################## #
 
-class ConsultarHorariosDisponisponisveisView(APIView):
+class ConsultarHorariosDisponiveisView(APIView):
     """
     API final. Busca o próximo dia com horários disponíveis
     baseado na JORNADA DE TRABALHO REAL do médico cadastrada no Admin.
