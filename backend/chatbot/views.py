@@ -41,6 +41,7 @@ from usuarios.models import CustomUser, Especialidade
 from pacientes.serializers import PacienteSerializer
 from agendamentos import services as agendamento_services
 from usuarios.serializers import EspecialidadeSerializer, UserSerializer
+from usuarios.models import CustomUser, JornadaDeTrabalho
 
 # --- CONFIGURAÇÕES INICIAIS ---
 load_dotenv()
@@ -169,92 +170,87 @@ class ListarProcedimentosView(generics.ListAPIView): # Mudamos para generics.Lis
 
 class ConsultarHorariosDisponiveisView(APIView):
     """
-    SUPER-REFATORADO: Agora a view é proativa. Se nenhuma data for fornecida,
-    ela procura o próximo dia com horários disponíveis automaticamente.
+    API final e corrigida. Busca o próximo dia com horários disponíveis
+    baseado na JORNADA DE TRABALHO REAL do médico cadastrada no Admin.
     """
     permission_classes = [HasAPIKey]
 
-    def _buscar_horarios_no_dia(self, data_desejada, medico_id):
+    def _buscar_horarios_no_dia(self, data_desejada, medico):
         """
-        Método auxiliar com marcadores de depuração para investigar
-        porque não estão a ser encontrados horários.
+        Método auxiliar que calcula os horários livres em um dia específico
+        para um determinado médico, baseado na sua jornada de trabalho.
         """
-        print(f"\n--- INICIANDO BUSCA PARA DATA: {data_desejada}, MEDICO_ID: {medico_id} ---")
+        # --- PARÂMETROS DE NEGÓCIO ---
+        DURACAO_CONSULTA_MINUTOS = 30 # Defina a duração padrão da consulta
 
-        # 1. Define os parâmetros da agenda
-        horario_inicio_dia = time(8, 0)
-        horario_fim_dia = time(18, 0)
-        duracao_consulta_min = 50
-        intervalo_min = 10
+        # 1. BUSCAR A JORNADA DE TRABALHO DO MÉDICO PARA ESTE DIA DA SEMANA
+        dia_semana_desejado = data_desejada.weekday() # Segunda=0, Domingo=6
+        jornadas_do_dia = JornadaDeTrabalho.objects.filter(
+            medico=medico, 
+            dia_da_semana=dia_semana_desejado
+        )
 
-        # 2. Busca os agendamentos existentes no dia
-        agendamentos_no_dia = Agendamento.objects.filter(
-            data_hora_inicio__date=data_desejada
-        ).exclude(status='Cancelado')
+        if not jornadas_do_dia.exists():
+            return [] # Médico não trabalha neste dia da semana
 
-        if medico_id:
-            agendamentos_no_dia = agendamentos_no_dia.filter(medico_id=medico_id)
+        # 2. BUSCAR AGENDAMENTOS EXISTENTES PARA O MÉDICO NESTE DIA
+        agendamentos_existentes = Agendamento.objects.filter(
+            medico=medico,
+            data_hora_inicio__date=data_desejada,
+            status__in=['Agendado', 'Confirmado']
+        ).values_list('data_hora_inicio', flat=True)
 
-        # 3. Cria um conjunto de horários já ocupados
-        horarios_ocupados = {timezone.localtime(ag.data_hora_inicio).time() for ag in agendamentos_no_dia}
-        print(f"Horários já ocupados neste dia: {horarios_ocupados}")
+        horarios_ocupados = {ag.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
 
-        # 4. Gera horários do dia
-        tz = timezone.get_current_timezone()
-        horario_atual = timezone.make_aware(datetime.combine(data_desejada, horario_inicio_dia), tz)
-        fim_do_dia = timezone.make_aware(datetime.combine(data_desejada, horario_fim_dia), tz)
+        # 3. GERAR SLOTS DISPONÍVEIS BASEADO NA JORNADA
+        horarios_disponiveis_dia = []
         
-        horarios_disponiveis = []
-        
-        agora = timezone.localtime(timezone.now())
-        print(f"Hora atual do servidor (agora): {agora.strftime('%Y-%m-%d %H:%M:%S')}")
-        if data_desejada == agora.date() and horario_atual < agora:
-            horario_atual = agora
-            print(f"Ajustando horário de início para agora: {horario_atual.strftime('%H:%M')}")
-            if horario_atual.minute % 5 != 0:
-                minutos_para_adicionar = 5 - (horario_atual.minute % 5)
-                horario_atual += timedelta(minutes=minutos_para_adicionar)
-                print(f"Arredondando horário de início para: {horario_atual.strftime('%H:%M')}")
-
-        print(f"Loop de horários: De {horario_atual.strftime('%H:%M')} até {fim_do_dia.strftime('%H:%M')}")
-
-        while horario_atual < fim_do_dia:
-            print(f"  -> Verificando slot: {horario_atual.strftime('%H:%M')}")
-            if horario_atual.time() not in horarios_ocupados:
-                horarios_disponiveis.append(horario_atual.strftime('%H:%M'))
-                print(f"    => Slot ADICIONADO. Lista agora tem {len(horarios_disponiveis)} horários.")
+        # O médico pode ter mais de um turno no dia (ex: manhã e tarde)
+        for turno in jornadas_do_dia:
+            hora_inicio_turno = turno.hora_inicio
+            hora_fim_turno = turno.hora_fim
             
-            horario_atual += timedelta(minutes=duracao_consulta_min + intervalo_min)
+            # Combina a data desejada com a hora de início do turno
+            horario_slot = timezone.make_aware(datetime.datetime.combine(data_desejada, hora_inicio_turno))
 
-        print(f"--- FIM DA BUSCA. Total de horários encontrados: {len(horarios_disponiveis)} ---")
-        return horarios_disponiveis
+            # Itera de X em X minutos até o fim do turno
+            while horario_slot.time() < hora_fim_turno:
+                # Um slot é válido se:
+                # 1. Não está no passado
+                # 2. Não está na lista de horários já ocupados
+                if horario_slot > timezone.now() and horario_slot not in horarios_ocupados:
+                    horarios_disponiveis_dia.append(horario_slot.strftime('%H:%M'))
+                
+                horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
+
+        return sorted(horarios_disponiveis_dia) # Retorna os horários em ordem
 
     def get(self, request):
-        # ... (O resto do método get continua exatamente igual ao que lhe enviei antes)
         medico_id = request.query_params.get('medico_id')
-        data_str = request.query_params.get('data')
+        if not medico_id:
+            return Response({"error": "O parâmetro 'medico_id' é obrigatório."}, status=400)
 
-        if data_str:
-            try:
-                data_desejada = datetime.strptime(data_str, '%Y-%m-%d').date()
-            except ValueError:
-                return Response({'error': 'Formato de data inválido. Use AAAA-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
+        except CustomUser.DoesNotExist:
+            return Response({"error": "Médico não encontrado."}, status=404)
+
+        # A lógica de buscar por 90 dias está perfeita e foi mantida
+        data_atual = timezone.localdate()
+        for i in range(90): # Busca nos próximos 90 dias
+            data_a_verificar = data_atual + timedelta(days=i)
             
-            horarios = self._buscar_horarios_no_dia(data_desejada, medico_id)
-            return Response({"data": data_str, "horarios_disponiveis": horarios})
-        else:
-            data_atual = timezone.localdate()
-            for i in range(90):
-                data_a_verificar = data_atual + timedelta(days=i)
-                horarios = self._buscar_horarios_no_dia(data_a_verificar, medico_id)
-                
-                if horarios:
-                    return Response({
-                        "data": data_a_verificar.strftime('%Y-%m-%d'),
-                        "horarios_disponiveis": horarios
-                    })
+            # Chamamos a nossa NOVA lógica que usa a Jornada de Trabalho
+            horarios = self._buscar_horarios_no_dia(data_a_verificar, medico)
             
-            return Response({"data": None, "horarios_disponiveis": []})
+            if horarios: # Se encontrou horários, retorna o primeiro dia disponível
+                return Response({
+                    "data": data_a_verificar.strftime('%Y-%m-%d'),
+                    "horarios_disponiveis": horarios
+                })
+        
+        # Se o loop terminar sem encontrar nada
+        return Response({"data": None, "horarios_disponiveis": []})
 
 # ########################################################################## #
 # ################# FIM DA SEÇÃO MODIFICADA ################################## #
