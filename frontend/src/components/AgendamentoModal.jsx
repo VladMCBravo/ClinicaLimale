@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider, Chip
+  Box, Typography, Divider, Chip, Grid
 } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -235,115 +235,123 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     };
     
     return (
-     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-        <DialogTitle>{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+        {/* === CABEÇALHO DO MODAL === */}
+        <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" component="div">
+                    {editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}
+                </Typography>
+                
+                {/* Indicador de disponibilidade movido para o cabeçalho */}
+                {formData.data_hora_inicio && renderCapacidadeInfo()} 
+            </Box>
+        </DialogTitle>
       
         <form onSubmit={handleSubmit}>
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '10px !important' }}>
+            <DialogContent dividers sx={{ p: 3 }}> {/* 'dividers' adiciona linhas sutis */}
+                <Grid container spacing={3}>
+
+                    {/* =============================================================== */}
+                    {/* === COLUNA ESQUERDA: PACIENTE E DETALHES DA CONSULTA === */}
+                    {/* =============================================================== */}
+                    <Grid item xs={12} md={6}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                            
+                            <FormControl fullWidth>
+                                <Autocomplete 
+                                    options={pacientes} 
+                                    getOptionLabel={(p) => p.nome_completo || ''}
+                                    value={formData.paciente} 
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    onChange={handlePacienteChange}
+                                    renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" />)} 
+                                />
+                            </FormControl>
+                            
+                            {pacienteDetalhes?.plano_convenio_detalhes && (
+                                <Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome} - {pacienteDetalhes.plano_convenio_detalhes.nome}</strong>
+                                    </Typography>
+                                </Box>
+                            )}
+
+                            <Divider sx={{ my: 1 }}><Chip label="Detalhes do Agendamento" size="small" /></Divider>
+                            
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Tipo de Agendamento</InputLabel>
+                                <Select value={tipoAgendamento} label="Tipo de Agendamento" onChange={(e) => setTipoAgendamento(e.target.value)}>
+                                    <MenuItem value="Consulta">Consulta</MenuItem>
+                                    <MenuItem value="Procedimento">Procedimento</MenuItem>
+                                </Select>
+                            </FormControl>
+
+                            {tipoAgendamento === 'Consulta' ? (
+                                <>
+                                    <Autocomplete options={especialidades} getOptionLabel={(e) => e.nome || ''} value={formData.especialidade} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, especialidade: value, medico: null })} renderInput={(params) => <TextField {...params} label="Especialidade *" size="small" />} />
+                                    <Autocomplete options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} />
+                                </>
+                            ) : (
+                                <Autocomplete options={procedimentos} getOptionLabel={(p) => p.descricao || ''} value={formData.procedimento} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, procedimento: value })} renderInput={(params) => (<TextField {...params} label="Procedimento *" size="small" />)} />
+                            )}
+                        </Box>
+                    </Grid>
+
+                    {/* =============================================================== */}
+                    {/* === COLUNA DIREITA: LOGÍSTICA, HORÁRIO E STATUS === */}
+                    {/* =============================================================== */}
+                    <Grid item xs={12} md={6}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                             <FormControl fullWidth size="small">
+                                <InputLabel>Modalidade</InputLabel>
+                                <Select name="modalidade" value={formData.modalidade} label="Modalidade" onChange={(e) => setFormData({...formData, modalidade: e.target.value})} >
+                                    <MenuItem value="Presencial">Presencial (na clínica)</MenuItem>
+                                    <MenuItem value="Telemedicina">Telemedicina</MenuItem>
+                                </Select>
+                            </FormControl>
+
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Tipo de Atendimento</InputLabel>
+                                <Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}>
+                                    <MenuItem value="Particular">Particular</MenuItem>
+                                    <MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem>
+                                </Select>
+                            </FormControl>
+                            
+                            {valorExibido && (
+                                <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}>
+                                    <Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>{valorExibido}</Typography>
+                                </Box>
+                            )}
+                            
+                            <Divider sx={{ my: 1 }}><Chip label="Horário" size="small" /></Divider>
+
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <DateTimePicker label="Início *" value={formData.data_hora_inicio} onChange={(newValue) => { setFormData({ ...formData, data_hora_inicio: newValue, data_hora_fim: newValue ? newValue.add(50, 'minute') : null }); }} slotProps={{ textField: { size: 'small' } }} />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DateTimePicker label="Fim *" value={formData.data_hora_fim} onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} slotProps={{ textField: { size: 'small' } }} />
+                                </Grid>
+                            </Grid>
+
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Status</InputLabel>
+                                <Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                                    <MenuItem value="Agendado">Agendado (Aguardando Pagamento)</MenuItem>
+                                    <MenuItem value="Confirmado">Confirmado (Pago)</MenuItem>
+                                    <MenuItem value="Realizado">Realizado</MenuItem>
+                                    <MenuItem value="Não Compareceu">Não Compareceu</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Box>
+                    </Grid>
+                </Grid>
+            </DialogContent>
             
-                {/* ... Autocomplete do Paciente (sem alteração) ... */}
-                <Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''}
-                    value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id}
-                    onChange={handlePacienteChange}
-                    renderInput={(params) => (<TextField {...params} label="Paciente" required />)} />
-                
-                {pacienteDetalhes?.plano_convenio_detalhes && (
-                    <Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome} - {pacienteDetalhes.plano_convenio_detalhes.nome}</strong>
-                        </Typography>
-                    </Box>
-                )}
-
-                <FormControl fullWidth>
-                    <InputLabel>Tipo de Agendamento</InputLabel>
-                    <Select value={tipoAgendamento} label="Tipo de Agendamento"
-                        onChange={(e) => setTipoAgendamento(e.target.value)} >
-                        <MenuItem value="Consulta">Consulta</MenuItem>
-                        <MenuItem value="Procedimento">Procedimento</MenuItem>
-                    </Select>
-                </FormControl>
-
-                <Divider />
-
-                {tipoAgendamento === 'Consulta' ? (
-                    <>
-                        <Autocomplete options={especialidades} getOptionLabel={(e) => e.nome || ''}
-                            value={formData.especialidade} isOptionEqualToValue={(o, v) => o.id === v.id}
-                            onChange={(e, value) => setFormData({ ...formData, especialidade: value, medico: null })}
-                            renderInput={(params) => <TextField {...params} label="Especialidade" required />} />
-
-                        <Autocomplete 
-                            options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)}
-                            getOptionLabel={(m) => m.first_name + ' ' + m.last_name}
-                            value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id}
-                            onChange={(e, value) => setFormData({ ...formData, medico: value })}
-                            disabled={!formData.especialidade}
-                            renderInput={(params) => <TextField {...params} label="Médico" required />} />
-                    
-                    {/* --- CAMPO DE MODALIDADE ADICIONADO AQUI --- */}
-                    <FormControl fullWidth>
-                        <InputLabel>Modalidade</InputLabel>
-                        <Select name="modalidade" value={formData.modalidade} label="Modalidade"
-                            onChange={(e) => setFormData({...formData, modalidade: e.target.value})} >
-                            <MenuItem value="Presencial">Presencial (na clínica)</MenuItem>
-                                <MenuItem value="Telemedicina">Telemedicina</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </>
-                ) : (
-                    <Autocomplete options={procedimentos} getOptionLabel={(p) => p.descricao || ''}
-                        value={formData.procedimento} isOptionEqualToValue={(o, v) => o.id === v.id}
-                        onChange={(e, value) => setFormData({ ...formData, procedimento: value })}
-                        renderInput={(params) => (<TextField {...params} label="Procedimento" required />)} />
-                )}
-                
-                {/* --- CAMPO DE TIPO DE ATENDIMENTO REINTEGRADO --- */}
-                <FormControl fullWidth>
-                    <InputLabel>Tipo de Atendimento</InputLabel>
-                    <Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento"
-                        onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}>
-                        <MenuItem value="Particular">Particular</MenuItem>
-                        <MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem>
-                    </Select>
-                </FormControl>
-
-                {valorExibido && (
-                    <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}>
-                        <Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>{valorExibido}</Typography>
-                    </Box>
-                )}
-                
-                {/* --- MUDANÇA NA LÓGICA DE DATAS --- */}
-                <DateTimePicker label="Início" value={formData.data_hora_inicio}
-                    onChange={(newValue) => {
-                        setFormData({ 
-                            ...formData, 
-                            data_hora_inicio: newValue, 
-                            // Se a data de início for alterada, recalcula a data de fim
-                            data_hora_fim: newValue ? newValue.add(50, 'minute') : null 
-                        });
-                    }} />
-                
-                <DateTimePicker label="Fim" value={formData.data_hora_fim}
-                    onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} />
-                {/* --- INDICADOR DE CAPACIDADE ADICIONADO AQUI --- */}
-                {formData.data_hora_inicio && renderCapacidadeInfo()}
-                {/* --- CAMPO DE STATUS REINTEGRADO --- */}
-                <FormControl fullWidth>
-                    <InputLabel>Status</InputLabel>
-                    <Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                        <MenuItem value="Agendado">Agendado (Aguardando Pagamento)</MenuItem>
-                        <MenuItem value="Confirmado">Confirmado (Pago)</MenuItem>
-                        <MenuItem value="Realizado">Realizado</MenuItem>
-                        <MenuItem value="Não Compareceu">Não Compareceu</MenuItem>
-                    </Select>
-                </FormControl>
-
-     </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ p: '16px 24px' }}>
                 <Button onClick={onClose}>Cancelar</Button>
-                {/* --- BOTÃO SALVAR AGORA USA O ESTADO 'isSlotAvailable' PARA SE AUTO-VALIDAR --- */}
                 <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente || !isSlotAvailable}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
                 </Button>
