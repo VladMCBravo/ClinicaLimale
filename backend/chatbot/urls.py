@@ -2,7 +2,6 @@
 
 from django.urls import path
 from .views import (
-    ChatMemoryView,
     chatbot_orchestrator,
     AgendamentoChatbotView,
     VerificarPacienteView,
@@ -18,9 +17,7 @@ from .views import (
 
 urlpatterns = [
     # --- Gerenciamento de Memória ---
-    path('chat-memory/', ChatMemoryView.as_view(), name='chat_memory_save'),
     path('orchestrator/', chatbot_orchestrator, name='chatbot_orchestrator'),
-    path('chat-memory/<str:session_id>/', ChatMemoryView.as_view(), name='chat_memory_load'),
 
     # --- Pacientes ---
     path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'),

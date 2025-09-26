@@ -46,49 +46,6 @@ from usuarios.serializers import EspecialidadeSerializer, UserSerializer
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-class ChatMemoryView(APIView):
-    permission_classes = [HasAPIKey]
-    def get(self, request, session_id):
-        try:
-            chat = ChatMemory.objects.get(session_id=session_id)
-            return Response({
-                'state': chat.state,
-                'memoryData': chat.memory_data
-            })
-        except ChatMemory.DoesNotExist:
-            # Retorna um estado inicial para novos usuários
-            return Response({
-                'state': 'inicio',
-                'memoryData': []
-            })
-    def post(self, request):
-        session_id = request.data.get('sessionId')
-        memory_data = request.data.get('memoryData')
-        state = request.data.get('state')
-
-        if not session_id or memory_data is None:
-            return Response(
-                {'error': 'sessionId e memoryData são obrigatórios.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # --- MUDANÇA DE LÓGICA PARA GARANTIR O SALVAMENTO ---
-        # 1. Busca o objeto. Se não existir, cria um novo.
-        obj, created = ChatMemory.objects.get_or_create(session_id=session_id)
-
-        # 2. Atualiza os campos do objeto na memória com os novos dados.
-        obj.memory_data = memory_data
-        obj.state = state
-
-        # 3. Salva explicitamente as mudanças no banco de dados.
-        obj.save()
-        # ----------------------------------------------------
-
-        # Retorna o objeto que foi salvo, no mesmo formato do GET.
-        return Response({
-            'state': obj.state,
-            'memoryData': obj.memory_data
-        }, status=status.HTTP_200_OK)
 
 # ... (CadastrarPacienteView e ConsultarAgendamentosPacienteView não mudam) ...
 class CadastrarPacienteView(APIView):
@@ -472,8 +429,7 @@ def _buscar_preco_servico(base_url, entity):
 @require_POST
 def chatbot_orchestrator(request):
     """
-    Esta view orquestra a conversa, gerenciando o estado e delegando para managers.
-    VERSÃO SIMPLIFICADA E CORRIGIDA.
+    Esta view orquestra TODA a conversa, incluindo o gerenciamento de memória.
     """
     try:
         data = json.loads(request.body)
@@ -486,33 +442,33 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        memoria_obj, created = ChatMemory.objects.get_or_create(session_id=session_id)
+        # 1. CARREGA a memória e o estado diretamente do banco de dados
+        memoria_obj, created = ChatMemory.objects.get_or_create(
+            session_id=session_id,
+            defaults={'memory_data': {}, 'state': 'inicio'}
+        )
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
         logger.warning(f"[DEBUG CHATBOT] Estado Carregado do BD: '{estado_atual}'")
 
-        # --- LÓGICA DE DECISÃO UNIFICADA ---
+        # ... (O restante da lógica de decisão continua exatamente igual)
         
-        # Por padrão, as variáveis finais serão as atuais
-        resposta_final = ""
-        novo_estado = estado_atual
-        nova_memoria = memoria_atual
-
-        if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_')):
-            logger.warning("[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO.")
-            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-            resultado = manager.processar(user_message)
-            resposta_final = resultado.get("response_message")
-            novo_estado = resultado.get("new_state")
-            nova_memoria = resultado.get("memory_data")
-
-        elif estado_atual == 'aguardando_nome':
-            logger.warning("[DEBUG CHATBOT] Rota: Salvando nome do usuário.")
-            nova_memoria['nome_usuario'] = user_message.strip().capitalize()
-            resposta_final = f"Prazer, {nova_memoria.get('nome_usuario', '')}! Como posso te ajudar hoje?"
-            novo_estado = 'inicio'
-
-        else: # Se o estado é 'inicio' ou qualquer outro não previsto, usamos a IA
+        resultado_manager = None
+        
+        if estado_atual and estado_atual != 'inicio':
+            logger.warning(f"[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO '{estado_atual}'.")
+            if estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_'):
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message)
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
+            elif estado_atual == 'aguardando_nome':
+                nova_memoria = memoria_atual
+                nova_memoria['nome_usuario'] = user_message.strip().capitalize()
+                resposta_final = f"Prazer, {nova_memoria.get('nome_usuario', '')}! Como posso te ajudar hoje?"
+                novo_estado = 'inicio'
+        else:
             logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVO FLUXO (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
@@ -521,11 +477,10 @@ def chatbot_orchestrator(request):
 
             if intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message) # Chama o handle_inicio
+                resultado = manager.processar(user_message)
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
-            
             elif intent == "saudacao":
                 if memoria_atual.get('nome_usuario'):
                     resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Em que posso ajudar?"
@@ -533,16 +488,19 @@ def chatbot_orchestrator(request):
                 else:
                     resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
                     novo_estado = 'aguardando_nome'
+                nova_memoria = memoria_atual
             else:
                 resposta_final = "Desculpe, não entendi bem. Como posso te ajudar?"
                 novo_estado = 'inicio'
+                nova_memoria = memoria_atual
         
-        # --- ETAPA FINAL E UNIFICADA ---
+        # 3. SALVA o novo estado e a memória no banco de dados
         logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
         memoria_obj.state = novo_estado
         memoria_obj.memory_data = nova_memoria
         memoria_obj.save()
 
+        # 4. Retorna a resposta
         logger.warning(f"[DEBUG CHATBOT] Resposta Final Enviada: '{resposta_final[:100]}...'")
         return JsonResponse({"response_message": resposta_final})
 
