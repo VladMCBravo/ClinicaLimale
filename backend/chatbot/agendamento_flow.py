@@ -29,12 +29,24 @@ class AgendamentoManager:
             return None
 
     def processar(self, resposta_usuario):
+        """
+        O método principal que recebe a mensagem do usuário e o estado atual
+        e retorna a próxima resposta e o novo estado.
+        """
+        # --- CORREÇÃO APLICADA AQUI ---
+        # 1. Pega o estado ATUAL da memória
         estado_atual = self.memoria.get('state', 'agendamento_inicio')
 
+        # 2. Se a intenção for iniciar um novo agendamento, FORÇA o estado para o início.
+        # Isso acontece quando o usuário vem da IA Roteadora.
+        if estado_atual == 'inicio':
+             estado_atual = 'agendamento_inicio'
+        # --- FIM DA CORREÇÃO ---
+        
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
-            'agendamento_awaiting_modality': self.handle_awaiting_modality, # <-- ADICIONADO AQUI
+            'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
             'agendamento_awaiting_final_data': self.handle_awaiting_final_data,
         }
