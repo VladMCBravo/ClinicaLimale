@@ -34,8 +34,8 @@ class AgendamentoManager:
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
+            'agendamento_awaiting_modality': self.handle_awaiting_modality, # <-- ADICIONADO AQUI
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
-            # Adicionaremos os outros estados aqui (horário, confirmação, etc.)
             'agendamento_awaiting_final_data': self.handle_awaiting_final_data,
         }
         handler = handlers.get(estado_atual, self.handle_fallback)
@@ -103,6 +103,28 @@ class AgendamentoManager:
                 "memory_data": self.memoria
             }
 
+    def handle_awaiting_modality(self, resposta_usuario):
+        # Corresponde ao seu estado N8N: AGUARDANDO MODALIDADE
+        modalidade = resposta_usuario.strip().capitalize()
+
+        if modalidade not in ['Presencial', 'Telemedicina']:
+            return {
+                "response_message": "Desculpe, não entendi. Por favor, responda com *Presencial* ou *Telemedicina*.",
+                "new_state": "agendamento_awaiting_modality",
+                "memory_data": self.memoria
+            }
+
+        self.memoria['modalidade'] = modalidade
+        
+        # Pega a lista de especialidades que já buscamos no passo anterior
+        especialidades = self.memoria.get('lista_especialidades', [])
+        nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in especialidades])
+        
+        return {
+            "response_message": f"Entendido, atendimento {modalidade}. Temos estas especialidades:\n{nomes_especialidades}\n\nQual delas você deseja agendar?",
+            "new_state": "agendamento_awaiting_specialty",
+            "memory_data": self.memoria
+        }
 
     def handle_awaiting_specialty(self, resposta_usuario):
         # #- NOVO PASSO 3 -# Usuário escolhe a especialidade, buscamos horários.
