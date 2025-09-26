@@ -84,10 +84,13 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
                     headerToolbar={{
                         left: 'prev,next today',
                         center: 'title',
-                        // Adicionamos 'listDay' e o renomeamos para 'Hoje' ou 'Lista'
-                        right: 'dayGridMonth,timeGridWeek,listDay'
+                        // MANTEMOS 'listDay' aqui, pois é o nome da *visão*
+                        right: 'dayGridMonth,timeGridWeek,listDay' 
                     }}
-                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', list: 'Lista' }}
+                    
+                    // A MUDANÇA É AQUI:
+                    // Nós dizemos ao FullCalendar para usar o texto "Dia" para a visão 'list'.
+                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', list: 'Dia' }}
 
                     locale="pt-br"
                     height="100%"
