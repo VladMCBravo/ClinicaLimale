@@ -253,9 +253,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 <Grid container spacing={3}>
 
                     {/* =============================================================== */}
-                    {/* === COLUNA ESQUERDA: PACIENTE E DETALHES DA CONSULTA === */}
+                    {/* === COLUNA ESQUERDA (AGORA COM MAIS ESPAÇO) === */}
                     {/* =============================================================== */}
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={7}> {/* <-- MUDANÇA DE 6 PARA 7 */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                             
                             <FormControl fullWidth>
@@ -299,9 +299,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     </Grid>
 
                     {/* =============================================================== */}
-                    {/* === COLUNA DIREITA: LOGÍSTICA, HORÁRIO E STATUS === */}
+                    {/* === COLUNA DIREITA (AGORA MAIS COMPACTA) === */}
                     {/* =============================================================== */}
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={5}> {/* <-- MUDANÇA DE 6 PARA 5 */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                              <FormControl fullWidth size="small">
                                 <InputLabel>Modalidade</InputLabel>
