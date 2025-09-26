@@ -442,7 +442,6 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        # 1. CARREGA a memória e o estado diretamente do banco de dados
         memoria_obj, created = ChatMemory.objects.get_or_create(
             session_id=session_id,
             defaults={'memory_data': {}, 'state': 'inicio'}
@@ -450,25 +449,25 @@ def chatbot_orchestrator(request):
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
         logger.warning(f"[DEBUG CHATBOT] Estado Carregado do BD: '{estado_atual}'")
-
-        # ... (O restante da lógica de decisão continua exatamente igual)
         
-        resultado_manager = None
-        
-        if estado_atual and estado_atual != 'inicio':
+        # --- LÓGICA PRINCIPAL ---
+        if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_')):
             logger.warning(f"[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO '{estado_atual}'.")
-            if estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_'):
-                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message)
-                resposta_final = resultado.get("response_message")
-                novo_estado = resultado.get("new_state")
-                nova_memoria = resultado.get("memory_data")
-            elif estado_atual == 'aguardando_nome':
-                nova_memoria = memoria_atual
-                nova_memoria['nome_usuario'] = user_message.strip().capitalize()
-                resposta_final = f"Prazer, {nova_memoria.get('nome_usuario', '')}! Como posso te ajudar hoje?"
-                novo_estado = 'inicio'
-        else:
+            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+            # --- ALTERAÇÃO PRINCIPAL AQUI ---
+            resultado = manager.processar(user_message, estado_atual)
+            # ----------------------------------
+            resposta_final = resultado.get("response_message")
+            novo_estado = resultado.get("new_state")
+            nova_memoria = resultado.get("memory_data")
+        
+        elif estado_atual == 'aguardando_nome':
+            nova_memoria = memoria_atual
+            nova_memoria['nome_usuario'] = user_message.strip().title() # title() é melhor que capitalize()
+            resposta_final = f"Prazer, {nova_memoria.get('nome_usuario', '')}! Como posso te ajudar hoje?"
+            novo_estado = 'inicio'
+
+        else: # O estado é 'inicio' ou um estado desconhecido, então a IA decide
             logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVO FLUXO (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
@@ -477,7 +476,10 @@ def chatbot_orchestrator(request):
 
             if intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message)
+                # --- ALTERAÇÃO PRINCIPAL AQUI ---
+                # Forçamos o início do fluxo de agendamento
+                resultado = manager.processar(user_message, 'agendamento_inicio')
+                # ----------------------------------
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
@@ -489,18 +491,18 @@ def chatbot_orchestrator(request):
                     resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
                     novo_estado = 'aguardando_nome'
                 nova_memoria = memoria_atual
+            # ... (outras intenções, como buscar preço, poderiam vir aqui) ...
             else:
                 resposta_final = "Desculpe, não entendi bem. Como posso te ajudar?"
                 novo_estado = 'inicio'
                 nova_memoria = memoria_atual
         
-        # 3. SALVA o novo estado e a memória no banco de dados
+        # Salva o novo estado e a memória
         logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
         memoria_obj.state = novo_estado
         memoria_obj.memory_data = nova_memoria
         memoria_obj.save()
 
-        # 4. Retorna a resposta
         logger.warning(f"[DEBUG CHATBOT] Resposta Final Enviada: '{resposta_final[:100]}...'")
         return JsonResponse({"response_message": resposta_final})
 
