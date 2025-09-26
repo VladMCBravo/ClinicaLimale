@@ -7,6 +7,17 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework import generics # Importamos generics para views de lista
 from rest_framework.response import Response
+import os
+from dotenv import load_dotenv
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.memory import ConversationBufferMemory
+load_dotenv()
 
 # 2. CRIAÇÃO DO LOGGER
 logger = logging.getLogger(__name__)
@@ -378,3 +389,70 @@ class AgendamentoChatbotView(APIView):
             return Response(resposta_final, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# --- Cérebro da IA Roteadora ---
+prompt_roteador = ChatPromptTemplate.from_messages([
+    ("system", """
+    # MISSÃO
+    Você é um assistente de IA roteador. Sua única função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome).
+    # FORMATO DE SAÍDA OBRIGATÓRIO
+    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent" e, se aplicável, a chave "entity". NADA MAIS.
+    # INTENÇÕES POSSÍVEIS
+    - "saudacao": Para saudações como "oi", "bom dia", "olá".
+    - "buscar_preco": Quando o usuário pergunta o preço ou valor de um serviço.
+    - "iniciar_agendamento": Quando o usuário quer marcar uma consulta, exame ou ver horários.
+    """),
+    ("human", "{user_message}")
+])
+llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+parser = JsonOutputParser()
+chain_roteadora = prompt_roteador | llm | parser
+# --- Fim da configuração do Cérebro ---
+
+
+@csrf_exempt
+@require_POST
+def chatbot_orchestrator(request):
+    """
+    Esta é a nova view principal que orquestra toda a conversa.
+    """
+    try:
+        data = json.loads(request.body)
+        user_message = data.get("message")
+        session_id = data.get("sessionId") # Usaremos para carregar/salvar a memória
+
+        if not user_message or not session_id:
+            return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
+
+        # 1. IA ROTEADORA: Decide o que fazer
+        intent_data = chain_roteadora.invoke({"user_message": user_message})
+        intent = intent_data.get("intent")
+        entity = intent_data.get("entity")
+
+        resposta_final = ""
+
+        # 2. DISTRIBUIDOR: Executa a ação baseada na intenção
+        if intent == "saudacao":
+            resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Como posso te ajudar hoje?"
+
+        elif intent == "buscar_preco":
+            # Aqui poderíamos chamar suas views ListarEspecialidadesView e ListarProcedimentosView
+            # Por enquanto, vamos simular uma resposta para testar.
+            if entity:
+                resposta_final = f"Ok, vou verificar o preço para '{entity}'."
+            else:
+                resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
+        
+        elif intent == "iniciar_agendamento":
+            resposta_final = "Ótimo! Vamos iniciar o seu agendamento. Para começar, por favor, me informe o seu CPF."
+            # Aqui começaria a lógica de estados, chamando suas outras views.
+
+        else:
+            resposta_final = "Desculpe, não entendi. Posso te ajudar a agendar uma consulta, verificar preços ou obter informações sobre a clínica."
+
+        # 3. RETORNO: Envia a resposta para o N8N/WAHA
+        return JsonResponse({"response_message": resposta_final})
+
+    except Exception as e:
+        logger.error(f"Erro no orquestrador do chatbot: {e}")
+        return JsonResponse({"error": "Ocorreu um erro interno."}, status=500)
