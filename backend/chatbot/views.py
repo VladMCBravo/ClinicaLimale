@@ -478,10 +478,10 @@ def chatbot_orchestrator(request):
         data = json.loads(request.body)
         user_message = data.get("message")
         session_id = data.get("sessionId")
-        
+
         logger.warning(f"\n--- INÍCIO DA REQUISIÇÃO ---")
         logger.warning(f"[DEBUG CHATBOT] Session ID: {session_id}, Mensagem: '{user_message}'")
-
+        
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
@@ -490,14 +490,30 @@ def chatbot_orchestrator(request):
         estado_atual = memoria_obj.state
         logger.warning(f"[DEBUG CHATBOT] Estado Carregado do BD: '{estado_atual}'")
 
-        resultado_manager = None
-        
-        # --- LÓGICA DE ROTEAMENTO CORRIGIDA ---
-        if estado_atual and (estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_')):
-            logger.warning("[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO DE AGENDAMENTO.")
-            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-            resultado_manager = manager.processar(user_message)
+        # Variáveis para armazenar o resultado final
+        resposta_final = ""
+        novo_estado = estado_atual
+        nova_memoria = memoria_atual
+
+        # --- LÓGICA DE ROTEAMENTO REFINADA ---
+        if estado_atual and estado_atual != 'inicio':
+            # Se já está em um fluxo, delega para o especialista apropriado
+            logger.warning(f"[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO '{estado_atual}'.")
+            if estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_'):
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message)
+                # Atualiza as variáveis com o resultado do manager
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
+
+            elif estado_atual == 'aguardando_nome':
+                nova_memoria['nome_usuario'] = user_message.strip().capitalize()
+                resposta_final = f"Prazer, {nova_memoria.get('nome_usuario', '')}! Como posso te ajudar hoje?"
+                novo_estado = 'inicio'
+
         else:
+            # Se não está em um fluxo, usa a IA para descobrir a intenção
             logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVO FLUXO (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
@@ -506,42 +522,35 @@ def chatbot_orchestrator(request):
 
             if intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado_manager = manager.processar(user_message)
+                resultado = manager.processar(user_message) # Chama o handle_inicio
+                # Atualiza as variáveis com o resultado do manager
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
+            
+            elif intent == "saudacao":
+                if memoria_atual.get('nome_usuario'):
+                    resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Em que posso ajudar?"
+                    novo_estado = 'inicio'
+                else:
+                    resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
+                    novo_estado = 'aguardando_nome'
             else:
-                # Se não for iniciar agendamento, lidamos com outras intenções aqui
-                if intent == "saudacao":
-                    if memoria_atual.get('nome_usuario'):
-                        resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Em que posso ajudar?"
-                        novo_estado = 'inicio'
-                    else:
-                        resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
-                        novo_estado = 'aguardando_nome'
-                    
-                    # Para estes casos simples, já temos a resposta e o estado.
-                    memoria_obj.state = novo_estado
-                    memoria_obj.memory_data = memoria_atual # Mantém a memória atual
-                    memoria_obj.save()
-                    return JsonResponse({"response_message": resposta_final})
-
-        # --- PROCESSAMENTO DO RESULTADO DO MANAGER ---
-        if resultado_manager:
-            resposta_final = resultado_manager.get("response_message")
-            novo_estado = resultado_manager.get("new_state")
-            nova_memoria = resultado_manager.get("memory_data")
-
-            logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
-            memoria_obj.state = novo_estado
-            memoria_obj.memory_data = nova_memoria
-            memoria_obj.save()
-
-            logger.warning(f"[DEBUG CHATBOT] Resposta Final Enviada: '{resposta_final[:100]}...'")
-            return JsonResponse({"response_message": resposta_final})
-
-        # Fallback se nenhuma lógica acima produzir uma resposta
-        fallback_response = "Desculpe, não consegui processar sua solicitação. Como posso ajudar?"
-        memoria_obj.state = 'inicio'
+                # Lógica de fallback
+                resposta_final = "Desculpe, não entendi. Gostaria de agendar ou saber um preço?"
+                novo_estado = 'inicio'
+        
+        # --- ETAPA FINAL E UNIFICADA ---
+        # 3. Salva o novo estado e a memória no banco de dados
+        logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
+        memoria_obj.state = novo_estado
+        memoria_obj.memory_data = nova_memoria
         memoria_obj.save()
-        return JsonResponse({"response_message": fallback_response})
+
+        # 4. Retorna a resposta para o N8N/WAHA
+        logger.warning(f"[DEBUG CHATBOT] Resposta Final Enviada: '{resposta_final[:100]}...'")
+        logger.warning(f"--- FIM DA REQUISIÇÃO ---\n")
+        return JsonResponse({"response_message": resposta_final})
 
     except Exception as e:
         logger.error(f"ERRO CRÍTICO no orquestrador do chatbot: {e}", exc_info=True)
