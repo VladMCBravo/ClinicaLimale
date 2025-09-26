@@ -14,13 +14,19 @@ class AgendamentoManager:
         self.headers = {'Api-Key': self.api_key}
 
     def _chamar_api(self, endpoint, method='GET', data=None, params=None):
+        """Função auxiliar para fazer chamadas à nossa própria API."""
         url = f"{self.base_url}api/chatbot/{endpoint}/"
-        if method.upper() == 'GET':
-            response = requests.get(url, headers=self.headers, params=params)
-        elif method.upper() == 'POST':
-            response = requests.post(url, headers=self.headers, json=data)
-        response.raise_for_status()
-        return response.json()
+        try:
+            if method.upper() == 'GET':
+                response = requests.get(url, headers=self.headers, params=params, timeout=15)
+            elif method.upper() == 'POST':
+                response = requests.post(url, headers=self.headers, json=data, timeout=15)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            # Em caso de erro na API, podemos logar e retornar None ou lançar uma exceção
+            print(f"Erro ao chamar API interna: {e}") # Usando print para debug no Render
+            return None
 
     def processar(self, resposta_usuario):
         estado_atual = self.memoria.get('state', 'agendamento_inicio')
@@ -44,9 +50,11 @@ class AgendamentoManager:
 
     # --- NOVOS PASSOS DO FLUXO ---
 
+    # --- Funções "Handler" para Cada Estado ---
+
     def handle_inicio(self, resposta_usuario):
-        # #- NOVO PASSO 1 -# Pergunta o que o usuário deseja agendar.
-        self.memoria.clear() # Limpa memória de agendamentos antigos
+        # Limpa qualquer memória de agendamentos antigos para começar um novo
+        self.memoria.clear() 
         return {
             "response_message": "Ótimo, vamos agendar! Você gostaria de marcar uma Consulta ou um Procedimento?",
             "new_state": "agendamento_awaiting_type",
@@ -54,29 +62,47 @@ class AgendamentoManager:
         }
 
     def handle_awaiting_type(self, resposta_usuario):
-        # #- NOVO PASSO 2 -# Usuário escolhe entre Consulta e Procedimento.
+        # Corresponde ao seu estado N8N: AGUARDANDO TIPO (CONSULTA OU PROCEDIMENTO)
         escolha = resposta_usuario.lower()
+        
         if 'consulta' in escolha or '1' in escolha:
             self.memoria['tipo_agendamento'] = 'Consulta'
             especialidades = self._chamar_api('especialidades')
+            
+            if not especialidades:
+                return {"response_message": "Desculpe, não consegui carregar as especialidades no momento. Tente novamente em alguns instantes.", "new_state": "inicio", "memory_data": {}}
+
             self.memoria['lista_especialidades'] = especialidades
             nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in especialidades])
             
             return {
-                "response_message": f"Entendido, consulta. Temos estas especialidades:\n{nomes_especialidades}\n\nQual você deseja?",
-                "new_state": "agendamento_awaiting_specialty",
+                "response_message": f"Entendido, consulta. Qual a modalidade de atendimento que prefere? Por favor, responda com *Presencial* ou *Telemedicina*.",
+                "new_state": "agendamento_awaiting_modality", # Próximo estado
                 "memory_data": self.memoria
             }
+            
         elif 'procedimento' in escolha or '2' in escolha:
             self.memoria['tipo_agendamento'] = 'Procedimento'
-            # (A lógica para listar procedimentos viria aqui)
-            return { "response_message": "Fluxo de procedimento ainda em construção.", "new_state": "inicio", "memory_data": {} }
-        else:
+            procedimentos = self._chamar_api('procedimentos')
+
+            if not procedimentos:
+                 return {"response_message": "Desculpe, não consegui carregar os procedimentos no momento. Tente novamente em alguns instantes.", "new_state": "inicio", "memory_data": {}}
+
+            self.memoria['lista_procedimentos'] = procedimentos
+            nomes_procedimentos = '\n'.join([f"• {proc['nome']} (R$ {proc['valor']})" for proc in procedimentos])
+
             return {
-                "response_message": "Não entendi. Por favor, escolha entre Consulta ou Procedimento.",
-                "new_state": "agendamento_awaiting_type",
+                "response_message": f"Certo, procedimento. Qual destes você gostaria de agendar?\n\n{nomes_procedimentos}",
+                "new_state": "agendamento_awaiting_procedure", # Próximo estado
                 "memory_data": self.memoria
             }
+        else:
+            return {
+                "response_message": "Desculpe, não entendi. Por favor, responda com 'Consulta' ou 'Procedimento'.",
+                "new_state": "agendamento_awaiting_type", # Pede para tentar de novo
+                "memory_data": self.memoria
+            }
+
 
     def handle_awaiting_specialty(self, resposta_usuario):
         # #- NOVO PASSO 3 -# Usuário escolhe a especialidade, buscamos horários.
