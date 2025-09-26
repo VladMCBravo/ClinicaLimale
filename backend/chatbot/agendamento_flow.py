@@ -7,6 +7,7 @@ from datetime import datetime
 from usuarios.models import Especialidade, CustomUser # Assumindo o caminho dos seus apps
 from faturamento.models import Procedimento # Se precisar no futuro
 from agendamentos.services import buscar_proximo_horario_disponivel
+from pacientes.models import Paciente
 
 class AgendamentoManager:
     def __init__(self, session_id, memoria, base_url):
@@ -172,20 +173,26 @@ class AgendamentoManager:
 
     # --- NOVO HANDLER PARA PROCESSAR A ESCOLHA ---
     def handle_awaiting_slot_choice(self, resposta_usuario):
-        horario_escolhido_str = resposta_usuario.strip()
+        # Limpa a resposta do usuário para um formato padrão HH:MM
+        try:
+            # Tenta converter a resposta para um objeto de tempo e formata de volta
+            hora_obj = datetime.strptime(resposta_usuario.strip(), '%H:%M')
+            horario_escolhido_str = hora_obj.strftime('%H:%M')
+        except ValueError:
+            # Se o usuário digitar algo que não é um horário, a validação abaixo vai falhar
+            horario_escolhido_str = resposta_usuario.strip()
+
         horarios_ofertados = self.memoria.get('horarios_ofertados', {})
         lista_horarios_validos = horarios_ofertados.get('horarios_disponiveis', [])
 
-        # Validação simples para ver se o que o usuário digitou está na lista de opções
         if horario_escolhido_str not in lista_horarios_validos:
             horarios_validos_str = ", ".join(lista_horarios_validos)
             return {
-                "response_message": f"Hum, não encontrei o horário '{horario_escolhido_str}' na lista de opções. Por favor, escolha um dos seguintes horários: {horarios_validos_str}",
+                "response_message": f"Hum, não encontrei o horário '{resposta_usuario.strip()}' na lista. Por favor, escolha um destes: {horarios_validos_str}",
                 "new_state": "agendamento_awaiting_slot_choice",
                 "memory_data": self.memoria
             }
         
-        # Sucesso! Guardamos a data e hora completas e seguimos para o CPF
         data_sugerida = horarios_ofertados['data']
         self.memoria['data_hora_inicio'] = f"{data_sugerida}T{horario_escolhido_str}"
 
@@ -195,6 +202,7 @@ class AgendamentoManager:
             "memory_data": self.memoria
         }
 
+    # AJUSTE 2: CORRIGIR A CHAMADA DA API DE VERIFICAÇÃO DE CPF
     def handle_awaiting_cpf(self, resposta_usuario):
         cpf = re.sub(r'\D', '', resposta_usuario)
         if len(cpf) != 11:
@@ -202,17 +210,23 @@ class AgendamentoManager:
         
         self.memoria['cpf'] = cpf
         
-        # A MUDANÇA É AQUI: Usamos a nova rota com método GET
-        # Ele agora ignora completamente o telefone.
-        paciente = self._chamar_api_externa('pacientes/verificar-cpf', method='GET', params={'cpf': cpf})
+        # REMOVEMOS A CHAMADA DE API E VERIFICAMOS DIRETO NO BANCO
+        paciente_existe = Paciente.objects.filter(cpf=cpf).exists()
 
-        # A lógica de decisão continua a mesma
-        if paciente and paciente.get("status") == "paciente_encontrado":
-            # Paciente encontrado! Vamos para a confirmação final do agendamento
-            # (Aqui você poderia adicionar um passo de "Olá, Fulano! Confirmar agendamento?")
-            return self.handle_awaiting_confirmation("sim")
+        if paciente_existe:
+            # Paciente encontrado!
+            paciente = Paciente.objects.get(cpf=cpf)
+            nome_paciente = paciente.nome_completo.split(' ')[0] # Pega o primeiro nome
+            
+            # Atualiza a memória com o nome do paciente para uso futuro
+            self.memoria['nome_usuario'] = nome_paciente
+            
+            mensagem = f"Olá, {nome_paciente}! Encontrei seu cadastro. Vamos finalizar seu agendamento."
+            # AQUI VOCÊ PODE IR DIRETO PARA O PAGAMENTO OU FAZER UMA ÚLTIMA CONFIRMAÇÃO
+            # Por enquanto, vamos direto para a criação do agendamento
+            return self.handle_awaiting_confirmation(mensagem)
         else:
-            # Paciente não encontrado, vamos iniciar o cadastro
+            # Paciente não encontrado, iniciar cadastro
             return {
                 "response_message": "Vi que você é novo por aqui! Para criar seu cadastro, qual seu nome completo?",
                 "new_state": "agendamento_awaiting_new_patient_nome",
