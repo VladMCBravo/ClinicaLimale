@@ -125,7 +125,7 @@ class AgendamentoManager:
         }
 
     def handle_awaiting_specialty(self, resposta_usuario):
-        especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower()), None)
+        especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower() or esp['nome'].lower() in resposta_usuario.lower()), None)
         
         if not especialidade_escolhida:
             return {"response_message": "Não encontrei essa especialidade. Por favor, digite um nome da lista que te enviei.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}

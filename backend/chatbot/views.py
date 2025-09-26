@@ -168,32 +168,30 @@ class ListarProcedimentosView(generics.ListAPIView): # Mudamos para generics.Lis
 # ################ INÍCIO DA SEÇÃO MODIFICADA ################################ #
 # ########################################################################## #
 
-class ConsultarHorariosDisponiveisView(APIView):
+class ConsultarHorariosDisponisponisveisView(APIView):
     """
-    API final e corrigida. Busca o próximo dia com horários disponíveis
+    API final. Busca o próximo dia com horários disponíveis
     baseado na JORNADA DE TRABALHO REAL do médico cadastrada no Admin.
     """
-    permission_classes = [HasAPIKey]
+    permission_classes = [HasAPIKey] # Protege a API com a chave
 
     def _buscar_horarios_no_dia(self, data_desejada, medico):
         """
-        Método auxiliar que calcula os horários livres em um dia específico
-        para um determinado médico, baseado na sua jornada de trabalho.
+        Calcula os horários livres em um dia específico para um médico.
         """
-        # --- PARÂMETROS DE NEGÓCIO ---
-        DURACAO_CONSULTA_MINUTOS = 30 # Defina a duração padrão da consulta
+        DURACAO_CONSULTA_MINUTOS = 30 # Duração de cada slot de agendamento
 
-        # 1. BUSCAR A JORNADA DE TRABALHO DO MÉDICO PARA ESTE DIA DA SEMANA
-        dia_semana_desejado = data_desejada.weekday() # Segunda=0, Domingo=6
+        # 1. Busca a jornada de trabalho REAL do médico no banco de dados
+        dia_semana_desejado = data_desejada.weekday()
         jornadas_do_dia = JornadaDeTrabalho.objects.filter(
             medico=medico, 
             dia_da_semana=dia_semana_desejado
         )
 
         if not jornadas_do_dia.exists():
-            return [] # Médico não trabalha neste dia da semana
+            return [] # Se não houver jornada cadastrada para este dia, retorna vazio
 
-        # 2. BUSCAR AGENDAMENTOS EXISTENTES PARA O MÉDICO NESTE DIA
+        # 2. Busca os agendamentos já existentes e confirmados
         agendamentos_existentes = Agendamento.objects.filter(
             medico=medico,
             data_hora_inicio__date=data_desejada,
@@ -202,28 +200,17 @@ class ConsultarHorariosDisponiveisView(APIView):
 
         horarios_ocupados = {ag.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
 
-        # 3. GERAR SLOTS DISPONÍVEIS BASEADO NA JORNADA
+        # 3. Gera os horários disponíveis
         horarios_disponiveis_dia = []
-        
-        # O médico pode ter mais de um turno no dia (ex: manhã e tarde)
         for turno in jornadas_do_dia:
-            hora_inicio_turno = turno.hora_inicio
-            hora_fim_turno = turno.hora_fim
-            
-            # Combina a data desejada com a hora de início do turno
-            horario_slot = timezone.make_aware(datetime.datetime.combine(data_desejada, hora_inicio_turno))
-
-            # Itera de X em X minutos até o fim do turno
-            while horario_slot.time() < hora_fim_turno:
-                # Um slot é válido se:
-                # 1. Não está no passado
-                # 2. Não está na lista de horários já ocupados
+            horario_slot = timezone.make_aware(datetime.datetime.combine(data_desejada, turno.hora_inicio))
+            while horario_slot.time() < turno.hora_fim:
                 if horario_slot > timezone.now() and horario_slot not in horarios_ocupados:
                     horarios_disponiveis_dia.append(horario_slot.strftime('%H:%M'))
                 
                 horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
 
-        return sorted(horarios_disponiveis_dia) # Retorna os horários em ordem
+        return sorted(horarios_disponiveis_dia)
 
     def get(self, request):
         medico_id = request.query_params.get('medico_id')
@@ -235,21 +222,19 @@ class ConsultarHorariosDisponiveisView(APIView):
         except CustomUser.DoesNotExist:
             return Response({"error": "Médico não encontrado."}, status=404)
 
-        # A lógica de buscar por 90 dias está perfeita e foi mantida
+        # Procura proativamente pelo próximo dia livre nos próximos 90 dias
         data_atual = timezone.localdate()
-        for i in range(90): # Busca nos próximos 90 dias
+        for i in range(90):
             data_a_verificar = data_atual + timedelta(days=i)
-            
-            # Chamamos a nossa NOVA lógica que usa a Jornada de Trabalho
             horarios = self._buscar_horarios_no_dia(data_a_verificar, medico)
             
-            if horarios: # Se encontrou horários, retorna o primeiro dia disponível
+            if horarios: # Encontrou!
                 return Response({
                     "data": data_a_verificar.strftime('%Y-%m-%d'),
                     "horarios_disponiveis": horarios
                 })
         
-        # Se o loop terminar sem encontrar nada
+        # Se não encontrou nada em 90 dias
         return Response({"data": None, "horarios_disponiveis": []})
 
 # ########################################################################## #
