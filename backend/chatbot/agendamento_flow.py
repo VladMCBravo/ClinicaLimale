@@ -37,10 +37,15 @@ class AgendamentoManager:
     def _get_medicos_from_db(self, especialidade_id):
         """Busca médicos de uma especialidade diretamente do banco."""
         try:
+            # A MUDANÇA É APENAS AQUI
             medicos = CustomUser.objects.filter(
-                cargo='medico', 
-                especialidade_id=especialidade_id
+                cargo='medico',
+                especialidades__id=especialidade_id  # DE: especialidade_id=... PARA: especialidades__id=...
             ).values('id', 'first_name', 'last_name')
+              
+            # Apenas para debug, podemos remover depois
+            print(f"Buscando médicos para especialidade ID: {especialidade_id}. Encontrados: {list(medicos)}")
+
             return list(medicos)
         except Exception as e:
             print(f"Erro ao buscar médicos no banco: {e}")
