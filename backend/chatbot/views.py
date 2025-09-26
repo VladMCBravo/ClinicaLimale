@@ -36,6 +36,7 @@ from pacientes.models import Paciente
 from faturamento.models import Procedimento, Pagamento
 from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.models import Agendamento
+from .agendamento_flow import AgendamentoManager
 from usuarios.models import CustomUser, Especialidade
 from pacientes.serializers import PacienteSerializer
 from agendamentos import services as agendamento_services
@@ -453,7 +454,7 @@ def _buscar_preco_servico(base_url, entity):
 @require_POST
 def chatbot_orchestrator(request):
     """
-    Esta é a nova view principal que orquestra toda a conversa.
+    Esta view orquestra a conversa, gerenciando o estado e delegando para managers.
     """
     try:
         data = json.loads(request.body)
@@ -463,25 +464,61 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        intent_data = chain_roteadora.invoke({"user_message": user_message})
-        intent = intent_data.get("intent")
-        entity = intent_data.get("entity")
+        # 1. Carrega a memória e o estado do usuário
+        memoria_obj, created = ChatMemory.objects.get_or_create(session_id=session_id)
+        memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
+        estado_atual = memoria_obj.state
 
         resposta_final = ""
+        novo_estado = estado_atual
+        nova_memoria = memoria_atual
 
-        if intent == "saudacao":
-            resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Como posso te ajudar hoje?"
-        elif intent == "buscar_preco":
-            if entity:
-                base_url = request.build_absolute_uri('/')
-                resposta_final = _buscar_preco_servico(base_url, entity)
-            else:
-                resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
-        elif intent == "iniciar_agendamento":
-            resposta_final = "Ótimo! Vamos iniciar o seu agendamento. Para começar, por favor, me informe o seu CPF."
+        # 2. DISTRIBUIDOR: Verifica se já está em um fluxo ou se inicia um novo
+        if estado_atual and (estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_')):
+            # Se já está no fluxo de agendamento, continua com o Manager
+            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+            resultado = manager.processar(user_message)
+            resposta_final = resultado.get("response_message")
+            novo_estado = resultado.get("new_state")
+            nova_memoria = resultado.get("memory_data")
+        
         else:
-            resposta_final = "Desculpe, não entendi. Posso te ajudar a agendar uma consulta, verificar preços ou obter informações sobre a clínica."
+            # Se não está em nenhum fluxo, usa a IA Roteadora para descobrir a intenção
+            intent_data = chain_roteadora.invoke({"user_message": user_message})
+            intent = intent_data.get("intent")
+            entity = intent_data.get("entity")
 
+            if intent == "iniciar_agendamento":
+                manager = AgendamentoManager(session_id, {}, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message) # Chama o primeiro passo ('handle_inicio')
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
+            
+            elif intent == "buscar_preco":
+                if entity:
+                    base_url = request.build_absolute_uri('/')
+                    resposta_final = _buscar_preco_servico(base_url, entity)
+                else:
+                    resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
+                novo_estado = 'inicio' # Após o preço, volta ao estado inicial
+            
+            # Adicionei a lógica para o if de "saudacao" que estava faltando
+            elif intent == "saudacao":
+                resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Como posso te ajudar hoje?"
+                novo_estado = 'inicio'
+
+            else:
+                # Lógica de fallback para outras intenções
+                resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta ou saber um preço?"
+                novo_estado = 'inicio'
+
+        # 3. Salva o novo estado e a memória
+        memoria_obj.state = novo_estado
+        memoria_obj.memory_data = nova_memoria
+        memoria_obj.save()
+
+        # 4. Retorna a resposta para o N8N/WAHA
         return JsonResponse({"response_message": resposta_final})
 
     except Exception as e:
