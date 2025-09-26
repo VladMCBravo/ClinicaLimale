@@ -16,10 +16,10 @@ class AgendamentoManager:
         url = f"{self.base_url}/api/chatbot/{endpoint}/"
         try:
             if method.upper() == 'GET':
-                response = requests.get(url, headers=self.headers, params=params, timeout=15)
+                response = requests.get(url, headers=self.headers, params=params, timeout=30)
             elif method.upper() == 'POST':
-                response = requests.post(url, headers=self.headers, json=data, timeout=15)
-            
+                response = requests.post(url, headers=self.headers, json=data, timeout=30)
+
             # Tratamento de erro 404 (não encontrado) como um caso de sucesso de chamada, mas sem resultado
             if response.status_code == 404:
                 return None # Ex: Paciente não encontrado
@@ -79,7 +79,9 @@ class AgendamentoManager:
             return {"response_message": "Não entendi. Por favor, diga 'Consulta' ou 'Procedimento'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_modality(self, resposta_usuario):
-        modalidade = resposta_usuario.strip().capitalize()
+        # A linha abaixo remove espaços e capitaliza corretamente.
+        modalidade = "".join(resposta_usuario.strip().split()).capitalize()
+
         if modalidade not in ['Presencial', 'Telemedicina']:
             return {"response_message": "Modalidade inválida. Por favor, responda com *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
 
