@@ -62,7 +62,7 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
 def buscar_proximo_horario_disponivel(medico_id):
     """
     Função centralizada que busca o próximo dia e horários disponíveis para um médico.
-    VERSÃO CORRIGIDA: Agora checa a sobreposição de horários considerando a duração.
+    VERSÃO FINAL CORRIGIDA: Acessa os dados do turno como um dicionário.
     """
     try:
         medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
@@ -77,6 +77,7 @@ def buscar_proximo_horario_disponivel(medico_id):
     for j in jornadas:
         if j.dia_da_semana not in horarios_de_trabalho:
             horarios_de_trabalho[j.dia_da_semana] = []
+        # Esta parte está correta, cria dicionários
         horarios_de_trabalho[j.dia_da_semana].append({'inicio': j.hora_inicio, 'fim': j.hora_fim})
 
     if not horarios_de_trabalho:
@@ -85,45 +86,33 @@ def buscar_proximo_horario_disponivel(medico_id):
     hoje = timezone.localtime(timezone.now()).date()
     data_fim_busca = hoje + timedelta(days=DIAS_PARA_BUSCA)
     
-    # MUDANÇA AQUI: Buscamos os objetos completos, não apenas a data de início
     agendamentos_existentes = Agendamento.objects.filter(
         medico=medico,
-        data_hora_inicio__date__range=[hoje, data_fim_busca],
+        data_hora_inicio__range=[
+            timezone.make_aware(datetime.datetime.combine(hoje, time.min)),
+            timezone.make_aware(datetime.datetime.combine(data_fim_busca, time.max))
+        ],
         status__in=['Agendado', 'Confirmado']
-    )
+    ).values_list('data_hora_inicio', flat=True)
+
+    horarios_ocupados = {ag.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
 
     data_atual = hoje
     while data_atual <= data_fim_busca:
         dia_semana_atual = data_atual.weekday()
         if dia_semana_atual in horarios_de_trabalho:
             horarios_disponiveis_dia = []
-            
-            # Filtra os agendamentos apenas para o dia que estamos verificando (mais eficiente)
-            agendamentos_do_dia = [ag for ag in agendamentos_existentes if ag.data_hora_inicio.date() == data_atual]
-
             for turno in horarios_de_trabalho[dia_semana_atual]:
-                horario_slot_inicio = timezone.make_aware(datetime.datetime.combine(data_atual, turno.inicio))
+                # --- A CORREÇÃO ESTÁ AQUI ---
+                hora_inicio_turno = turno['inicio']
+                hora_fim_turno = turno['fim']
                 
-                while horario_slot_inicio.time() < turno.fim:
-                    horario_slot_fim = horario_slot_inicio + timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
-                    
-                    slot_esta_livre = True
-                    # Se o slot já passou, não está livre
-                    if horario_slot_inicio <= timezone.now():
-                        slot_esta_livre = False
-                    else:
-                        # VERIFICA A SOBREPOSIÇÃO com cada agendamento existente
-                        for ag_existente in agendamentos_do_dia:
-                            # O slot está ocupado se o início do nosso slot for antes do fim do agendamento existente
-                            # E o fim do nosso slot for depois do início do agendamento existente.
-                            if horario_slot_inicio < ag_existente.data_hora_fim and horario_slot_fim > ag_existente.data_hora_inicio:
-                                slot_esta_livre = False
-                                break # Encontrou um conflito, não precisa checar os outros
-
-                    if slot_esta_livre:
-                        horarios_disponiveis_dia.append(horario_slot_inicio.strftime('%H:%M'))
-                    
-                    horario_slot_inicio += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
+                horario_slot = timezone.make_aware(datetime.datetime.combine(data_atual, hora_inicio_turno))
+                while horario_slot.time() < hora_fim_turno:
+                # --- FIM DA CORREÇÃO ---
+                    if horario_slot > timezone.now() and horario_slot not in horarios_ocupados:
+                        horarios_disponiveis_dia.append(horario_slot.strftime('%H:%M'))
+                    horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
             
             if horarios_disponiveis_dia:
                 return {
