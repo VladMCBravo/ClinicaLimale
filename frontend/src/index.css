@@ -7,3 +7,22 @@ body {
 .content {
   padding: 20px 30px;
 }
+
+/* ================================================================= */
+/* === ADICIONE O CÓDIGO ABAIXO PARA CORRIGIR A SOBREPOSIÇÃO === */
+/* ================================================================= */
+
+/* Melhora o espaçamento interno dos eventos na agenda */
+.fc-v-event .fc-event-main {
+  padding: 2px 5px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Garante que o texto dentro do evento seja legível */
+.fc-v-event .fc-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

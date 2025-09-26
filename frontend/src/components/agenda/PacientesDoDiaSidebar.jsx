@@ -59,8 +59,8 @@ export default function PacientesDoDiaSidebar({ refreshTrigger }) {
                     {pacientes.length > 0 ? pacientes.map(ag => {
                         const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status };
                         return (
-                            <ListItem key={ag.id}>
-                                <ListItemIcon>
+                            <ListItem key={ag.id} sx={{ py: 0.5 }}> {/* Diminui o padding vertical */}
+                                <ListItemIcon sx={{ minWidth: 32 }}>
                                     <Tooltip title={statusInfo.title}>
                                         {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color } })}
                                     </Tooltip>

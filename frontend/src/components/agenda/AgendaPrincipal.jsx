@@ -157,15 +157,18 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
                     eventContent={renderEventContent}
                     slotMinTime="08:00:00"
                     slotMaxTime="20:00:00"
+                    slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
                     allDaySlot={false}
                     dateClick={handleDateClick}
                     eventClick={handleEventClick}
                     eventDidMount={(info) => {
                         info.el.addEventListener('contextmenu', (e) => handleContextMenu(e, info.event.extendedProps));
                     }}
-                    eventDisplay='block'
-                    eventOverlap={false}
                     nowIndicator={true}
+
+                    // --- MUDANÇA PRINCIPAL AQUI ---
+                    // Removidas as props 'eventDisplay' e 'eventOverlap' para permitir
+                    // que o FullCalendar gerencie o layout dos eventos automaticamente.
                 />
             </Paper>
             <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />

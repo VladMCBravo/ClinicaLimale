@@ -1,12 +1,9 @@
-// src/components/painel/AcoesRapidas.jsx - Agora controla a visão principal
-
 import React from 'react';
 import { Button, Paper, Typography, Box } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import AddCardIcon from '@mui/icons-material/AddCard';
 
-// O componente agora recebe a função 'onViewChange' como propriedade
 export default function AcoesRapidas({ onViewChange }) {
   return (
     <Paper sx={{ p: 2 }} variant="outlined">
@@ -15,8 +12,8 @@ export default function AcoesRapidas({ onViewChange }) {
         <Button 
             variant="contained" 
             startIcon={<PersonAddIcon />}
-            // Ao clicar, informa o componente pai para mudar a visão
             onClick={() => onViewChange('novoPaciente')}
+            size="small" // <-- ADICIONADO
         >
           Novo Paciente
         </Button>
@@ -24,6 +21,7 @@ export default function AcoesRapidas({ onViewChange }) {
             variant="outlined" 
             startIcon={<EventAvailableIcon />}
             onClick={() => onViewChange('verificarDisponibilidade')}
+            size="small" // <-- ADICIONADO
         >
           Verificar Disponibilidade
         </Button>
@@ -32,6 +30,7 @@ export default function AcoesRapidas({ onViewChange }) {
             startIcon={<AddCardIcon />} 
             color="secondary"
             onClick={() => onViewChange('lancamentoCaixa')}
+            size="small" // <-- ADICIONADO
         >
           Lançamento no Caixa
         </Button>
