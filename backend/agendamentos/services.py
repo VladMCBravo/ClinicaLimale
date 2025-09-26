@@ -61,20 +61,18 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
 
 def buscar_proximo_horario_disponivel(medico_id):
     """
-    Função centralizada com RASTREADORES DE DEPURAÇÃO para encontrar horários.
+    Função centralizada que busca o próximo dia e horários disponíveis para um médico.
+    VERSÃO CORRIGIDA: Agora checa a sobreposição de horários considerando a duração.
     """
-    print(f"\n\n--- [SERVICE-HORARIOS] INICIANDO BUSCA PARA MEDICO_ID: {medico_id} ---")
     try:
         medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
     except CustomUser.DoesNotExist:
-        print(f"--- [SERVICE-HORARIOS] ERRO: Médico com ID {medico_id} não encontrado. ---")
         return {"data": None, "horarios_disponiveis": []}
 
-    DURACAO_CONSULTA_MINUTOS = 30
+    DURACAO_CONSULTA_MINUTOS = 50
     DIAS_PARA_BUSCA = 90
     
     jornadas = JornadaDeTrabalho.objects.filter(medico=medico)
-    print(f"[SERVICE-HORARIOS] Total de jornadas cadastradas para o médico: {jornadas.count()}")
     horarios_de_trabalho = {}
     for j in jornadas:
         if j.dia_da_semana not in horarios_de_trabalho:
@@ -82,57 +80,56 @@ def buscar_proximo_horario_disponivel(medico_id):
         horarios_de_trabalho[j.dia_da_semana].append({'inicio': j.hora_inicio, 'fim': j.hora_fim})
 
     if not horarios_de_trabalho:
-        print("--- [SERVICE-HORARIOS] FALHA: Nenhuma jornada de trabalho encontrada no dicionário. ---")
         return {"data": None, "horarios_disponiveis": []}
 
     hoje = timezone.localtime(timezone.now()).date()
     data_fim_busca = hoje + timedelta(days=DIAS_PARA_BUSCA)
     
+    # MUDANÇA AQUI: Buscamos os objetos completos, não apenas a data de início
     agendamentos_existentes = Agendamento.objects.filter(
         medico=medico,
-        data_hora_inicio__range=[
-            timezone.make_aware(datetime.datetime.combine(hoje, time.min)),
-            timezone.make_aware(datetime.datetime.combine(data_fim_busca, time.max))
-        ],
+        data_hora_inicio__date__range=[hoje, data_fim_busca],
         status__in=['Agendado', 'Confirmado']
-    ).values_list('data_hora_inicio', flat=True)
-
-    horarios_ocupados = {ag.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
-    print(f"[SERVICE-HORARIOS] Horários já ocupados nos próximos 90 dias: {[h.strftime('%d/%m %H:%M') for h in horarios_ocupados]}")
-    
-    agora = timezone.now()
-    print(f"[SERVICE-HORARIOS] Hora atual do servidor para comparação: {agora.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    )
 
     data_atual = hoje
     while data_atual <= data_fim_busca:
         dia_semana_atual = data_atual.weekday()
-        print(f"\n[SERVICE-HORARIOS] Verificando dia: {data_atual.strftime('%d/%m/%Y')} (Dia da semana: {dia_semana_atual})")
-
         if dia_semana_atual in horarios_de_trabalho:
             horarios_disponiveis_dia = []
+            
+            # Filtra os agendamentos apenas para o dia que estamos verificando (mais eficiente)
+            agendamentos_do_dia = [ag for ag in agendamentos_existentes if ag.data_hora_inicio.date() == data_atual]
+
             for turno in horarios_de_trabalho[dia_semana_atual]:
-                print(f"[SERVICE-HORARIOS]  -> Encontrado turno das {turno['inicio'].strftime('%H:%M')} às {turno['fim'].strftime('%H:%M')}")
-                horario_slot = timezone.make_aware(datetime.datetime.combine(data_atual, turno['inicio']))
-                while horario_slot.time() < turno['fim']:
-                    print(f"[SERVICE-HORARIOS]    -> Checando slot: {horario_slot.strftime('%H:%M')}", end='')
-                    if horario_slot <= agora:
-                        print(" -> Rejeitado (está no passado)")
-                    elif horario_slot in horarios_ocupados:
-                        print(" -> Rejeitado (está ocupado)")
+                horario_slot_inicio = timezone.make_aware(datetime.datetime.combine(data_atual, turno.inicio))
+                
+                while horario_slot_inicio.time() < turno.fim:
+                    horario_slot_fim = horario_slot_inicio + timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
+                    
+                    slot_esta_livre = True
+                    # Se o slot já passou, não está livre
+                    if horario_slot_inicio <= timezone.now():
+                        slot_esta_livre = False
                     else:
-                        print(" -> ACEITO!")
-                        horarios_disponiveis_dia.append(horario_slot.strftime('%H:%M'))
-                    horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
+                        # VERIFICA A SOBREPOSIÇÃO com cada agendamento existente
+                        for ag_existente in agendamentos_do_dia:
+                            # O slot está ocupado se o início do nosso slot for antes do fim do agendamento existente
+                            # E o fim do nosso slot for depois do início do agendamento existente.
+                            if horario_slot_inicio < ag_existente.data_hora_fim and horario_slot_fim > ag_existente.data_hora_inicio:
+                                slot_esta_livre = False
+                                break # Encontrou um conflito, não precisa checar os outros
+
+                    if slot_esta_livre:
+                        horarios_disponiveis_dia.append(horario_slot_inicio.strftime('%H:%M'))
+                    
+                    horario_slot_inicio += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
             
             if horarios_disponiveis_dia:
-                print(f"--- [SERVICE-HORARIOS] SUCESSO! Encontrados {len(horarios_disponiveis_dia)} horários. Retornando. ---")
                 return {
                     "data": data_atual.strftime('%Y-%m-%d'),
                     "horarios_disponiveis": sorted(horarios_disponiveis_dia)
                 }
-        else:
-             print("[SERVICE-HORARIOS]  -> Sem jornada de trabalho para este dia.")
         data_atual += timedelta(days=1)
-    
-    print("--- [SERVICE-HORARIOS] FALHA GERAL: Nenhum horário encontrado nos próximos 90 dias. ---")
+
     return {"data": None, "horarios_disponiveis": []}

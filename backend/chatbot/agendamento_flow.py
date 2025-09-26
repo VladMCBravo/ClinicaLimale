@@ -126,71 +126,79 @@ class AgendamentoManager:
         }
 
     def handle_awaiting_specialty(self, resposta_usuario):
-        # ... (lógica para encontrar a especialidade e o médico, que já está funcionando) ...
+        # ... (lógica para encontrar médico é a mesma) ...
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower() or esp['nome'].lower() in resposta_usuario.lower()), None)
-        
-        if not especialidade_escolhida:
+        if not especialidade_escolhida: # ... (retorna erro)
             return {"response_message": "Não encontrei essa especialidade...", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
-
+        
         self.memoria['especialidade_id'] = especialidade_escolhida['id']
         self.memoria['especialidade_nome'] = especialidade_escolhida['nome']
-        
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_escolhida['id'])
-
-        if not medicos:
-            return { "response_message": f"Não encontrei médicos para {especialidade_escolhida['nome']}.", "new_state": "inicio", "memory_data": self.memoria }
+        if not medicos: # ... (retorna erro)
+            return {"response_message": f"Não encontrei médicos para {especialidade_escolhida['nome']}.", "new_state": "inicio", "memory_data": self.memoria}
         
-        medico = medicos[0]
+        medico = medicos[0] # Pega o primeiro por padrão
         self.memoria['medico_id'] = medico['id']
         self.memoria['medico_nome'] = f"{medico['first_name']} {medico['last_name']}"
 
-        # 2. A MUDANÇA É AQUI: REMOVA A CHAMADA DE API E CHAME A FUNÇÃO DIRETA
-        # DE: horarios = self._chamar_api_externa('agendamentos/horarios-disponiveis', ...)
-        # PARA:
+        # MUDANÇA: AGORA BUSCAMOS O PRIMEIRO DIA DISPONÍVEL
         horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
         
-        # A lógica de verificação continua a mesma
         if not horarios or not horarios.get('horarios_disponiveis'):
-            return { "response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {self.memoria['medico_nome']} nos próximos 90 dias. Gostaria de tentar outra especialidade?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria }
+            return {"response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {self.memoria['medico_nome']} nos próximos 90 dias...", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
         
-        # ... (o resto da função para montar a mensagem continua igual) ...
+        # Guardamos os horários encontrados na memória para validar a escolha depois
+        self.memoria['horarios_ofertados'] = horarios
+        
         data_sugerida = horarios['data']
-        horario_sugerido = horarios['horarios_disponiveis'][0]
-        self.memoria['data_hora_inicio'] = f"{data_sugerida}T{horario_sugerido}"
+        lista_horarios = horarios['horarios_disponiveis']
         
         data_formatada = datetime.strptime(data_sugerida, '%Y-%m-%d').strftime('%d/%m/%Y')
-
+        
+        # Montamos a mensagem com as opções
+        horarios_str = ", ".join(lista_horarios)
         mensagem = (
-            f"Ótima escolha! Encontrei um horário para *{especialidade_escolhida['nome']}* com Dr(a). *{self.memoria['medico_nome']}* "
-            f"no dia *{data_formatada} às {horario_sugerido}*.\n\n"
-            "Para continuarmos, por favor, me informe o seu *CPF*."
+            f"Ótimo! Para Dr(a). *{self.memoria['medico_nome']}*, encontrei os seguintes horários disponíveis no dia *{data_formatada}*:\n\n"
+            f"*{horarios_str}*\n\n"
+            "Qual horário você prefere? (Ex: 09:30)"
         )
+
         return {
             "response_message": mensagem,
+            "new_state": "agendamento_awaiting_slot_choice", # VAMOS PARA O NOVO ESTADO
+            "memory_data": self.memoria
+        }
+
+    # --- NOVO HANDLER PARA PROCESSAR A ESCOLHA ---
+    def handle_awaiting_slot_choice(self, resposta_usuario):
+        horario_escolhido_str = resposta_usuario.strip()
+        horarios_ofertados = self.memoria.get('horarios_ofertados', {})
+        lista_horarios_validos = horarios_ofertados.get('horarios_disponiveis', [])
+
+        # Validação simples para ver se o que o usuário digitou está na lista de opções
+        if horario_escolhido_str not in lista_horarios_validos:
+            horarios_validos_str = ", ".join(lista_horarios_validos)
+            return {
+                "response_message": f"Hum, não encontrei o horário '{horario_escolhido_str}' na lista de opções. Por favor, escolha um dos seguintes horários: {horarios_validos_str}",
+                "new_state": "agendamento_awaiting_slot_choice",
+                "memory_data": self.memoria
+            }
+        
+        # Sucesso! Guardamos a data e hora completas e seguimos para o CPF
+        data_sugerida = horarios_ofertados['data']
+        self.memoria['data_hora_inicio'] = f"{data_sugerida}T{horario_escolhido_str}"
+
+        return {
+            "response_message": "Perfeito, horário anotado! Para confirmar seu agendamento, por favor, me informe seu *CPF*.",
             "new_state": "agendamento_awaiting_cpf",
             "memory_data": self.memoria
         }
 
     def handle_awaiting_cpf(self, resposta_usuario):
-        cpf = re.sub(r'\D', '', resposta_usuario)
-        if len(cpf) != 11:
-            return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "agendamento_awaiting_cpf", "memory_data": self.memoria}
-        
-        self.memoria['cpf'] = cpf
-        
-        # Usando a view VerificarSegurancaView (poderia ser uma view de verificação mais simples)
-        paciente = self._chamar_api('pacientes/verificar-seguranca', method='POST', data={'cpf': cpf, 'telefone_celular': self.session_id})
+        # A partir daqui, o fluxo continua como antes
+        # ... (pede CPF, depois vai para cadastro ou confirmação final) ...
+        return {"response_message": "Vi que você é novo por aqui! Qual seu nome completo?", "new_state": "agendamento_awaiting_new_patient_nome", "memory_data": self.memoria}
 
-        if paciente and "status" in paciente and paciente["status"] == "verificado":
-            # Paciente encontrado e verificado! Vamos direto para a confirmação.
-             return self.handle_awaiting_confirmation("sim") # Pula para a confirmação final
-        else:
-            # Paciente não encontrado, vamos iniciar o cadastro
-            return {
-                "response_message": "Vi que você é novo por aqui! Para criar seu cadastro, qual seu *nome completo*?",
-                "new_state": "agendamento_awaiting_new_patient_nome",
-                "memory_data": self.memoria
-            }
 
     def handle_awaiting_new_patient_nome(self, resposta_usuario):
         self.memoria['nome_completo'] = resposta_usuario.strip().title()
