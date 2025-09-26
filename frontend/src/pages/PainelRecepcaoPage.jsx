@@ -1,26 +1,21 @@
-// src/pages/PainelRecepcaoPage.jsx - VERSÃO COM LAYOUT GOOGLE CALENDAR
+// src/pages/PainelRecepcaoPage.jsx - VERSÃO COM LAYOUT CORRIGIDO
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, CircularProgress, Paper } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
-// Importe os componentes da nova estrutura
 import AcoesRapidas from '../components/painel/AcoesRapidas';
 import BarraStatus from '../components/painel/BarraStatus';
 
-// (Vamos precisar criar esses componentes de "visão" depois)
-// import FormularioNovoPaciente from '../components/pacientes/FormularioNovoPaciente'; 
-// import VerificadorDisponibilidade from '../components/agenda/VerificadorDisponibilidade';
-// import PacientesDoDia from '../components/painel/PacientesDoDia';
+// (Componentes de "visão" a serem desenvolvidos)
 
 export default function PainelRecepcaoPage() {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    // ESTADO para controlar a área de trabalho dinâmica
-    const [activeView, setActiveView] = useState('pacientesDoDia'); 
+    // MUDANÇA: A visão padrão agora será a 'listaEspera'
+    const [activeView, setActiveView] = useState('listaEspera'); 
 
     const fetchData = useCallback(async () => {
-        // ... sua função fetchData continua a mesma ...
         setIsLoading(true);
         try {
             const response = await apiClient.get('/dashboard/');
@@ -35,13 +30,13 @@ export default function PainelRecepcaoPage() {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
 
-    // Função para renderizar a visão correta na área de trabalho
     const renderActiveView = () => {
         switch (activeView) {
-            case 'pacientesDoDia':
+            // ADICIONADO: A Lista de Espera como uma visão principal
+            case 'listaEspera':
                 return (
                     <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
-                         <Typography variant="h6">Pacientes do Dia</Typography>
+                         <Typography variant="h6">Lista de Espera</Typography>
                          <Typography sx={{ mt: 1 }} color="text.secondary">(Componente a ser desenvolvido)</Typography>
                     </Paper>
                 );
@@ -60,20 +55,28 @@ export default function PainelRecepcaoPage() {
                     </Paper>
                 );
             default:
-                return <Typography>Selecione uma ação</Typography>;
+                // Por padrão, mostramos a lista de espera
+                return (
+                    <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                         <Typography variant="h6">Lista de Espera</Typography>
+                         <Typography sx={{ mt: 1 }} color="text.secondary">(Componente a ser desenvolvido)</Typography>
+                    </Paper>
+                );
         }
     };
 
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3 }}>
             
-            {/* Coluna 1: Ações (Esquerda) */}
+            {/* Coluna 1: Ações e Pacientes do Dia (Esquerda) */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <AcoesRapidas onViewChange={setActiveView} />
-                {/* O componente "Pacientes do Dia" pode vir aqui embaixo, se desejar */}
-                 <Box sx={{ flexGrow: 1 }}>
-                     {/* Este é um bom lugar para a lista de pacientes do dia, já que é uma referência constante */}
-                 </Box>
+                
+                {/* MUDANÇA: Pacientes do Dia agora está na coluna da esquerda, abaixo das ações */}
+                <Paper variant="outlined" sx={{ p: 2, flexGrow: 1 }}>
+                    <Typography variant="h6">Pacientes do Dia</Typography>
+                    <Typography sx={{ mt: 1 }} color="text.secondary">(Componente a ser desenvolvido)</Typography>
+                </Paper>
             </Box>
 
             {/* Coluna 2: Área de Trabalho Dinâmica (Centro) */}
@@ -85,7 +88,6 @@ export default function PainelRecepcaoPage() {
             <Box sx={{ flexShrink: 0 }}>
                 <BarraStatus data={data} />
             </Box>
-
         </Box>
     );
 }
