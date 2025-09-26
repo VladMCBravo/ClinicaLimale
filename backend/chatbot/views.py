@@ -412,7 +412,7 @@ prompt_roteador = ChatPromptTemplate.from_messages([
     ("human", "{user_message}")
 ])
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-latest", # <-- MUDANÇA AQUI
+    model="gemini-1.5-flash-latest", # <-- MUDANÇA AQUI
     temperature=0,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
