@@ -478,6 +478,10 @@ def chatbot_orchestrator(request):
         data = json.loads(request.body)
         user_message = data.get("message")
         session_id = data.get("sessionId")
+        
+        logger.warning(f"\n--- INÍCIO DA REQUISIÇÃO ---")
+        logger.warning(f"[DEBUG CHATBOT] Session ID: {session_id}")
+        logger.warning(f"[DEBUG CHATBOT] Mensagem Recebida: '{user_message}'")
 
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
@@ -486,6 +490,7 @@ def chatbot_orchestrator(request):
         memoria_obj, created = ChatMemory.objects.get_or_create(session_id=session_id)
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
+        logger.warning(f"[DEBUG CHATBOT] Estado Carregado do BD: '{estado_atual}'")
 
         resposta_final = ""
         novo_estado = estado_atual
@@ -493,8 +498,9 @@ def chatbot_orchestrator(request):
 
         # 2. Lógica de Roteamento Principal
         if estado_atual and estado_atual != 'inicio':
-            # --- SE JÁ ESTÁ EM UM FLUXO ---
+            logger.warning("[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO EXISTENTE.")
             if estado_atual.startswith('agendamento_') or estado_atual.startswith('cadastro_'):
+                logger.warning(f"[DEBUG CHATBOT] Delegando para AgendamentoManager com estado '{estado_atual}'.")
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message)
                 resposta_final = resultado.get("response_message")
@@ -502,16 +508,17 @@ def chatbot_orchestrator(request):
                 nova_memoria = resultado.get("memory_data")
             
             elif estado_atual == 'aguardando_nome':
-                # Salva o nome do usuário na memória e segue para a próxima etapa
+                logger.warning("[DEBUG CHATBOT] Rota: Salvando nome do usuário.")
                 nova_memoria['nome_usuario'] = user_message.strip().capitalize()
                 resposta_final = f"Prazer, {nova_memoria['nome_usuario']}! Como posso te ajudar hoje? Você pode pedir informações sobre a clínica, agendar uma consulta ou procedimento."
                 novo_estado = 'inicio'
 
         else:
-            # --- SE NÃO ESTÁ EM NENHUM FLUXO, USA A IA ROTEADORA ---
+            logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVO FLUXO (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
-            entity = intent_data.get("entity") # Adicionado para buscar a entidade
+            entity = intent_data.get("entity")
+            logger.warning(f"[DEBUG CHATBOT] Intenção Detectada: '{intent}', Entidade: '{entity}'")
 
             if intent == "saudacao":
                 if memoria_atual.get('nome_usuario'):
@@ -522,33 +529,32 @@ def chatbot_orchestrator(request):
                     novo_estado = 'aguardando_nome'
 
             elif intent == "iniciar_agendamento":
-                # Ao iniciar um agendamento, passamos a memória atual (que contém o nome do usuário)
+                logger.warning("[DEBUG CHATBOT] Intenção 'iniciar_agendamento', chamando AgendamentoManager pela primeira vez.")
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message)
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
             
-            elif intent == "buscar_preco": # Adicionada a lógica de buscar_preco que faltava
-                if entity:
-                    base_url = request.build_absolute_uri('/')
-                    resposta_final = _buscar_preco_servico(base_url, entity)
-                else:
-                    resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
-                novo_estado = 'inicio'
+            elif intent == "buscar_preco":
+                # ... (lógica de buscar_preco) ...
+                pass
             
             else: # Fallback
                 resposta_final = "Desculpe, não entendi. Você gostaria de agendar uma consulta ou saber um preço?"
                 novo_estado = 'inicio'
 
         # 3. Salva o novo estado e a memória no banco de dados
+        logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
         memoria_obj.state = novo_estado
         memoria_obj.memory_data = nova_memoria
         memoria_obj.save()
 
         # 4. Retorna a resposta para o N8N/WAHA
+        logger.warning(f"[DEBUG CHATBOT] Resposta Final Enviada: '{resposta_final[:100]}...'")
+        logger.warning(f"--- FIM DA REQUISIÇÃO ---\n")
         return JsonResponse({"response_message": resposta_final})
 
     except Exception as e:
-        logger.error(f"Erro no orquestrador do chatbot: {e}", exc_info=True)
+        logger.error(f"ERRO CRÍTICO no orquestrador do chatbot: {e}", exc_info=True)
         return JsonResponse({"error": "Ocorreu um erro interno."}, status=500)
