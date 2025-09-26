@@ -1,44 +1,49 @@
-# chatbot/views.py - VERSÃO FINAL PADRONIZADA
+# chatbot/views.py - VERSÃO CORRIGIDA E ORGANIZADA
 
+# --- SEÇÃO DE IMPORTAÇÕES PADRÃO E DJANGO ---
 import re
-import logging # <-- 1. IMPORTAÇÃO ADICIONADA
-import requests
-from dateutil import parser
-from django.conf import settings
-from rest_framework.views import APIView
-from rest_framework import generics # Importamos generics para views de lista
-from rest_framework.response import Response
 import os
-from dotenv import load_dotenv
 import json
+import logging
+from datetime import datetime, time, timedelta
+from dateutil import parser
+
+from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.conf import settings
+
+# --- SEÇÃO DE IMPORTAÇÕES DO DJANGO REST FRAMEWORK ---
+from rest_framework.views import APIView
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_api_key.permissions import HasAPIKey
+
+# --- SEÇÃO DE IMPORTAÇÕES DO LANGCHAIN E IA ---
+from dotenv import load_dotenv
+import requests
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.memory import ConversationBufferMemory
-load_dotenv()
+# A linha abaixo foi removida pois causava erro e não estava em uso.
+# from langchain_core.memory import ConversationBufferMemory 
 
-# 2. CRIAÇÃO DO LOGGER
-logger = logging.getLogger(__name__)
-
-from rest_framework import status
-from rest_framework_api_key.permissions import HasAPIKey
+# --- SEÇÃO DE IMPORTAÇÕES DO SEU PROJETO ---
 from .models import ChatMemory
-
-# --- IMPORTAÇÕES ---
 from pacientes.models import Paciente
 from faturamento.models import Procedimento, Pagamento
 from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.models import Agendamento
-from datetime import datetime, time, timedelta
-from django.utils import timezone
-from usuarios.models import CustomUser, Especialidade # Importamos Especialidade
+from usuarios.models import CustomUser, Especialidade
 from pacientes.serializers import PacienteSerializer
 from agendamentos import services as agendamento_services
-# --- NOVO: Serializers que vamos precisar ---
 from usuarios.serializers import EspecialidadeSerializer, UserSerializer
+
+# --- CONFIGURAÇÕES INICIAIS ---
+load_dotenv()
+logger = logging.getLogger(__name__)
 
 class ChatMemoryView(APIView):
     permission_classes = [HasAPIKey]
@@ -391,7 +396,7 @@ class AgendamentoChatbotView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# --- Cérebro da IA Roteadora ---
+# --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
 prompt_roteador = ChatPromptTemplate.from_messages([
     ("system", """
     # MISSÃO
@@ -408,33 +413,29 @@ prompt_roteador = ChatPromptTemplate.from_messages([
 llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
 parser = JsonOutputParser()
 chain_roteadora = prompt_roteador | llm | parser
-# --- Fim da configuração do Cérebro ---
 
 def _buscar_preco_servico(base_url, entity):
     """
     Função auxiliar que chama as APIs internas para encontrar o preço de um serviço.
     """
-    api_key = os.getenv('API_KEY_CHATBOT') # Assumindo que você tem uma chave para sua própria API
-    headers = {'Authorization': f'Api-Key {api_key}'}
+    api_key = os.getenv('API_KEY_CHATBOT') 
+    headers = {'Api-Key': api_key}
     
-    # Garante que a URL base termine com / para juntar os caminhos corretamente
     if not base_url.endswith('/'):
         base_url += '/'
 
     try:
-        # Chama suas duas APIs de listagem
         url_especialidades = f"{base_url}api/chatbot/especialidades/"
         url_procedimentos = f"{base_url}api/chatbot/procedimentos/"
 
         resp_especialidades = requests.get(url_especialidades, headers=headers)
-        resp_especialidades.raise_for_status() # Lança um erro se a resposta não for 200 OK
+        resp_especialidades.raise_for_status()
         
         resp_procedimentos = requests.get(url_procedimentos, headers=headers)
         resp_procedimentos.raise_for_status()
 
         todos_os_servicos = resp_especialidades.json() + resp_procedimentos.json()
-
-        # Lógica de busca (primeiro exata, depois parcial)
+        
         servico_encontrado = next((s for s in todos_os_servicos if s['nome'].lower() == entity.lower()), None)
         if not servico_encontrado:
             servico_encontrado = next((s for s in todos_os_servicos if entity.lower() in s['nome'].lower()), None)
@@ -462,34 +463,25 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        # 1. IA ROTEADORA: Decide o que fazer
         intent_data = chain_roteadora.invoke({"user_message": user_message})
         intent = intent_data.get("intent")
         entity = intent_data.get("entity")
 
         resposta_final = ""
 
-        # 2. DISTRIBUIDOR: Executa a ação baseada na intenção
         if intent == "saudacao":
             resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Como posso te ajudar hoje?"
-
         elif intent == "buscar_preco":
             if entity:
-                # --- MUDANÇA PRINCIPAL AQUI ---
-                # Pega a URL base da requisição atual para chamar a própria API
                 base_url = request.build_absolute_uri('/')
                 resposta_final = _buscar_preco_servico(base_url, entity)
-                # --- FIM DA MUDANÇA ---
             else:
                 resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
-        
         elif intent == "iniciar_agendamento":
             resposta_final = "Ótimo! Vamos iniciar o seu agendamento. Para começar, por favor, me informe o seu CPF."
-
         else:
             resposta_final = "Desculpe, não entendi. Posso te ajudar a agendar uma consulta, verificar preços ou obter informações sobre a clínica."
 
-        # 3. RETORNO: Envia a resposta para o N8N/WAHA
         return JsonResponse({"response_message": resposta_final})
 
     except Exception as e:
