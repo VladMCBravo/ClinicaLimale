@@ -167,8 +167,8 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
                     nowIndicator={true}
 
                     // --- MUDANÇA PRINCIPAL AQUI ---
-                    // Removidas as props 'eventDisplay' e 'eventOverlap' para permitir
-                    // que o FullCalendar gerencie o layout dos eventos automaticamente.
+                    // Adicionamos 'eventDisplay' para forçar o modo de bloco (um por linha)
+                    eventDisplay="block"
                 />
             </Paper>
             <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />
