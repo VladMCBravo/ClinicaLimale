@@ -2,6 +2,7 @@
 
 import re
 import logging # <-- 1. IMPORTAÇÃO ADICIONADA
+import requests
 from dateutil import parser
 from django.conf import settings
 from rest_framework.views import APIView
@@ -409,6 +410,43 @@ parser = JsonOutputParser()
 chain_roteadora = prompt_roteador | llm | parser
 # --- Fim da configuração do Cérebro ---
 
+def _buscar_preco_servico(base_url, entity):
+    """
+    Função auxiliar que chama as APIs internas para encontrar o preço de um serviço.
+    """
+    api_key = os.getenv('API_KEY_CHATBOT') # Assumindo que você tem uma chave para sua própria API
+    headers = {'Authorization': f'Api-Key {api_key}'}
+    
+    # Garante que a URL base termine com / para juntar os caminhos corretamente
+    if not base_url.endswith('/'):
+        base_url += '/'
+
+    try:
+        # Chama suas duas APIs de listagem
+        url_especialidades = f"{base_url}api/chatbot/especialidades/"
+        url_procedimentos = f"{base_url}api/chatbot/procedimentos/"
+
+        resp_especialidades = requests.get(url_especialidades, headers=headers)
+        resp_especialidades.raise_for_status() # Lança um erro se a resposta não for 200 OK
+        
+        resp_procedimentos = requests.get(url_procedimentos, headers=headers)
+        resp_procedimentos.raise_for_status()
+
+        todos_os_servicos = resp_especialidades.json() + resp_procedimentos.json()
+
+        # Lógica de busca (primeiro exata, depois parcial)
+        servico_encontrado = next((s for s in todos_os_servicos if s['nome'].lower() == entity.lower()), None)
+        if not servico_encontrado:
+            servico_encontrado = next((s for s in todos_os_servicos if entity.lower() in s['nome'].lower()), None)
+
+        if servico_encontrado and servico_encontrado.get('valor'):
+            return f"O valor para {servico_encontrado['nome']} é de R$ {servico_encontrado['valor']}."
+        else:
+            return f"Não encontrei um preço para o serviço '{entity}'. Por favor, verifique o nome."
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Erro ao chamar APIs de serviço: {e}")
+        return "Desculpe, estou com um problema para acessar as informações de preço no momento."
 
 @csrf_exempt
 @require_POST
@@ -419,7 +457,7 @@ def chatbot_orchestrator(request):
     try:
         data = json.loads(request.body)
         user_message = data.get("message")
-        session_id = data.get("sessionId") # Usaremos para carregar/salvar a memória
+        session_id = data.get("sessionId")
 
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
@@ -436,16 +474,17 @@ def chatbot_orchestrator(request):
             resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Como posso te ajudar hoje?"
 
         elif intent == "buscar_preco":
-            # Aqui poderíamos chamar suas views ListarEspecialidadesView e ListarProcedimentosView
-            # Por enquanto, vamos simular uma resposta para testar.
             if entity:
-                resposta_final = f"Ok, vou verificar o preço para '{entity}'."
+                # --- MUDANÇA PRINCIPAL AQUI ---
+                # Pega a URL base da requisição atual para chamar a própria API
+                base_url = request.build_absolute_uri('/')
+                resposta_final = _buscar_preco_servico(base_url, entity)
+                # --- FIM DA MUDANÇA ---
             else:
                 resposta_final = "Claro! Qual consulta ou procedimento você gostaria de saber o preço?"
         
         elif intent == "iniciar_agendamento":
             resposta_final = "Ótimo! Vamos iniciar o seu agendamento. Para começar, por favor, me informe o seu CPF."
-            # Aqui começaria a lógica de estados, chamando suas outras views.
 
         else:
             resposta_final = "Desculpe, não entendi. Posso te ajudar a agendar uma consulta, verificar preços ou obter informações sobre a clínica."
