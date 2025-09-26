@@ -3,6 +3,7 @@
 from django.urls import path
 from .views import (
     chatbot_orchestrator,
+    VerificarPacienteCPFView, 
     AgendamentoChatbotView,
     VerificarPacienteView,
     VerificarSegurancaView,
@@ -18,7 +19,7 @@ from .views import (
 urlpatterns = [
     # --- Gerenciamento de Memória ---
     path('orchestrator/', chatbot_orchestrator, name='chatbot_orchestrator'),
-
+    path('pacientes/verificar-cpf/', VerificarPacienteCPFView.as_view(), name='verificar_paciente_cpf'),
     # --- Pacientes ---
     path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'),
     path('pacientes/verificar/', VerificarPacienteView.as_view(), name='chatbot_verificar_paciente'),

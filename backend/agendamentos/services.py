@@ -69,7 +69,7 @@ def buscar_proximo_horario_disponivel(medico_id):
     except CustomUser.DoesNotExist:
         return {"data": None, "horarios_disponiveis": []}
 
-    DURACAO_CONSULTA_MINUTOS = 50
+    DURACAO_CONSULTA_MINUTOS = 20
     DIAS_PARA_BUSCA = 90
     
     jornadas = JornadaDeTrabalho.objects.filter(medico=medico)

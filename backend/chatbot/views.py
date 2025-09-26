@@ -94,16 +94,24 @@ class ConsultarAgendamentosPacienteView(APIView):
         except Paciente.DoesNotExist:
             return Response({"error": "Paciente com este CPF não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
-class VerificarPacienteView(APIView):
+class VerificarPacienteCPFView(APIView):
+    """
+    Endpoint simples que verifica se um paciente existe usando apenas o CPF.
+    """
     permission_classes = [HasAPIKey]
+
     def get(self, request):
-        telefone = request.query_params.get('telefone')
-        if not telefone:
-            return Response({'error': 'O parâmetro "telefone" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            paciente = Paciente.objects.get(telefone_celular=telefone)
-            return Response({"status": "paciente_encontrado", "paciente_id": paciente.id, "nome_completo": paciente.nome_completo})
-        except Paciente.DoesNotExist:
+        cpf = request.query_params.get('cpf')
+        if not cpf:
+            return Response({'error': 'O parâmetro "cpf" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        cpf_limpo = re.sub(r'\D', '', cpf)
+        
+        paciente_existe = Paciente.objects.filter(cpf=cpf_limpo).exists()
+        
+        if paciente_existe:
+            return Response({"status": "paciente_encontrado"})
+        else:
             return Response({"status": "paciente_nao_encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
 class VerificarSegurancaView(APIView):

@@ -196,10 +196,28 @@ class AgendamentoManager:
         }
 
     def handle_awaiting_cpf(self, resposta_usuario):
-        # A partir daqui, o fluxo continua como antes
-        # ... (pede CPF, depois vai para cadastro ou confirmação final) ...
-        return {"response_message": "Vi que você é novo por aqui! Qual seu nome completo?", "new_state": "agendamento_awaiting_new_patient_nome", "memory_data": self.memoria}
+        cpf = re.sub(r'\D', '', resposta_usuario)
+        if len(cpf) != 11:
+            return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "agendamento_awaiting_cpf", "memory_data": self.memoria}
+        
+        self.memoria['cpf'] = cpf
+        
+        # A MUDANÇA É AQUI: Usamos a nova rota com método GET
+        # Ele agora ignora completamente o telefone.
+        paciente = self._chamar_api_externa('pacientes/verificar-cpf', method='GET', params={'cpf': cpf})
 
+        # A lógica de decisão continua a mesma
+        if paciente and paciente.get("status") == "paciente_encontrado":
+            # Paciente encontrado! Vamos para a confirmação final do agendamento
+            # (Aqui você poderia adicionar um passo de "Olá, Fulano! Confirmar agendamento?")
+            return self.handle_awaiting_confirmation("sim")
+        else:
+            # Paciente não encontrado, vamos iniciar o cadastro
+            return {
+                "response_message": "Vi que você é novo por aqui! Para criar seu cadastro, qual seu nome completo?",
+                "new_state": "agendamento_awaiting_new_patient_nome",
+                "memory_data": self.memoria
+            }
 
     def handle_awaiting_new_patient_nome(self, resposta_usuario):
         self.memoria['nome_completo'] = resposta_usuario.strip().title()
