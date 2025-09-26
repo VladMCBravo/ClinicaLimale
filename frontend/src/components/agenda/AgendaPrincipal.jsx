@@ -166,9 +166,9 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
                     }}
                     nowIndicator={true}
 
-                    // --- MUDANÇA PRINCIPAL AQUI ---
-                    // Adicionamos 'eventDisplay' para forçar o modo de bloco (um por linha)
+                    // --- COMBINAÇÃO CORRETA PARA EMPILHAMENTO VERTICAL ---
                     eventDisplay="block"
+                    eventOverlap={false} // Informa ao calendário para não sobrepor os blocos
                 />
             </Paper>
             <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />

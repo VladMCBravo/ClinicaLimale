@@ -9,7 +9,7 @@ body {
 }
 
 /* ================================================================= */
-/* === SUBSTITUA O CÓDIGO ANTERIOR POR ESTE NOVO CÓDIGO ABAIXO === */
+/* === CÓDIGO CSS CORRIGIDO E MAIS LIMPO === */
 /* ================================================================= */
 
 /* Melhora o espaçamento interno e a aparência dos eventos */
@@ -26,18 +26,4 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
-}
-
-/* A MÁGICA PARA O EMPILHAMENTO VERTICAL ACONTECE AQUI:
-  Nós removemos o posicionamento 'absolute' que o FullCalendar usa
-  para colocar os eventos lado a lado e os tratamos como blocos normais.
-*/
-.fc-timegrid-event-harness {
-  position: static !important; /* Essencial: remove o posicionamento calculado */
-  display: block !important;
-  width: auto !important;
-  left: 0 !important;
-  right: 0 !important;
-  top: auto !important;
-  margin-bottom: 4px !important; /* Adiciona um espaço entre os eventos empilhados */
 }
