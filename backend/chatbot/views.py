@@ -420,10 +420,12 @@ parser = JsonOutputParser()
 chain_roteadora = prompt_roteador | llm | parser
 
 def _buscar_preco_servico(base_url, entity):
-    """
-    Função auxiliar que chama as APIs internas para encontrar o preço de um serviço.
-    """
-    api_key = os.getenv('API_KEY_CHATBOT') 
+    logger.info(f"--- INICIANDO BUSCA DE PREÇO PARA: '{entity}' ---")
+    api_key = os.getenv('API_KEY_CHATBOT')
+    if not api_key:
+        logger.error("!!! ERRO CRÍTICO: API_KEY_CHATBOT não encontrada nas variáveis de ambiente.")
+        return "Desculpe, estou com um problema interno de configuração para buscar preços."
+    
     headers = {'Api-Key': api_key}
     
     if not base_url.endswith('/'):
@@ -431,28 +433,40 @@ def _buscar_preco_servico(base_url, entity):
 
     try:
         url_especialidades = f"{base_url}api/chatbot/especialidades/"
-        url_procedimentos = f"{base_url}api/chatbot/procedimentos/"
-
-        resp_especialidades = requests.get(url_especialidades, headers=headers)
+        logger.info(f"Chamando API de especialidades: {url_especialidades}")
+        resp_especialidades = requests.get(url_especialidades, headers=headers, timeout=10)
         resp_especialidades.raise_for_status()
+        logger.info("Sucesso ao buscar especialidades.")
         
-        resp_procedimentos = requests.get(url_procedimentos, headers=headers)
+        url_procedimentos = f"{base_url}api/chatbot/procedimentos/"
+        logger.info(f"Chamando API de procedimentos: {url_procedimentos}")
+        resp_procedimentos = requests.get(url_procedimentos, headers=headers, timeout=10)
         resp_procedimentos.raise_for_status()
+        logger.info("Sucesso ao buscar procedimentos.")
 
-        todos_os_servicos = resp_especialidades.json() + resp_procedimentos.json()
-        
+        especialidades_data = resp_especialidades.json()
+        procedimentos_data = resp_procedimentos.json()
+        todos_os_servicos = especialidades_data + procedimentos_data
+        logger.info(f"Total de {len(todos_os_servicos)} serviços carregados para busca.")
+
         servico_encontrado = next((s for s in todos_os_servicos if s['nome'].lower() == entity.lower()), None)
         if not servico_encontrado:
             servico_encontrado = next((s for s in todos_os_servicos if entity.lower() in s['nome'].lower()), None)
 
         if servico_encontrado and servico_encontrado.get('valor'):
-            return f"O valor para {servico_encontrado['nome']} é de R$ {servico_encontrado['valor']}."
+            resultado = f"O valor para {servico_encontrado['nome']} é de R$ {servico_encontrado['valor']}."
+            logger.info(f"Preço encontrado: {resultado}")
+            return resultado
         else:
+            logger.warning(f"Serviço '{entity}' não encontrado na lista de preços.")
             return f"Não encontrei um preço para o serviço '{entity}'. Por favor, verifique o nome."
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Erro ao chamar APIs de serviço: {e}")
-        return "Desculpe, estou com um problema para acessar as informações de preço no momento."
+        logger.error(f"ERRO DE CONEXÃO ao chamar APIs de serviço: {e}")
+        return "Desculpe, estou com um problema para me conectar ao sistema de preços no momento."
+    except Exception as e:
+        logger.error(f"ERRO INESPERADO na busca de preço: {e}")
+        return "Ocorreu um erro inesperado ao buscar as informações de preço."
 
 @csrf_exempt
 @require_POST
