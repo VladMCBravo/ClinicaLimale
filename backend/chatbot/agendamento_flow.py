@@ -132,6 +132,16 @@ class AgendamentoManager:
         if not especialidade_escolhida:
             return {"response_message": "Não encontrei essa especialidade na lista.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
         
+        self.memoria.update({'especialidade_id': especialidade_escolhida['id'], 'especialidade_nome': especialidade_escolhida['nome']})
+        self.memoria['tipo_agendamento'] = 'Consulta'
+        
+        if 'pediatria' in especialidade_escolhida['nome'].lower():
+            return {"response_message": "Entendido. A consulta é para você ou para uma criança?", "new_state": "agendamento_awaiting_patient_type", "memory_data": self.memoria}
+        else:
+            self.memoria['agendamento_para_crianca'] = False
+            return self._iniciar_busca_de_horarios(especialidade_escolhida['id'], especialidade_escolhida['nome'])
+
+        
         self.memoria['tipo_agendamento'] = 'Consulta' # Garante o tipo correto
         if 'pediatria' in especialidade_escolhida['nome'].lower():
             self.memoria['agendamento_para_crianca_flag'] = True
