@@ -61,8 +61,19 @@ class AgendamentoManager:
         nome_usuario = self.memoria.get('nome_usuario', 'tudo bem')
         self.memoria.clear() 
         self.memoria['nome_usuario'] = nome_usuario
-        return { "response_message": f"Vamos lá, {nome_usuario}! Você gostaria de agendar uma *Consulta* ou um *Procedimento* (exames)?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria }
-
+        
+        # MENSAGEM REFINADA PARA SER MAIS ACOLHEDORA
+        resposta = (
+            f"Claro, {nome_usuario}, vamos agendar! Para que eu possa te ajudar melhor, "
+            "você precisa marcar uma *Consulta* para conversar com um especialista, "
+            "ou agendar um *Exame* (procedimento) que já foi solicitado?"
+        )
+        
+        return {
+            "response_message": resposta,
+            "new_state": "agendamento_awaiting_type",
+            "memory_data": self.memoria
+        }
     def handle_awaiting_type(self, resposta_usuario):
         escolha = resposta_usuario.lower()
         if 'consulta' in escolha:

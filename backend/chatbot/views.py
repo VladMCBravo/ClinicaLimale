@@ -363,13 +363,14 @@ class AgendamentoChatbotView(APIView):
 prompt_roteador = ChatPromptTemplate.from_messages([
     ("system", """
     # MISSÃO
-    Você é um assistente de IA roteador. Sua única função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome).
+    Você é um assistente de IA roteador. Sua função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome).
     # FORMATO DE SAÍDA OBRIGATÓRIO
     Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent" e, se aplicável, a chave "entity". NADA MAIS.
     # INTENÇÕES POSSÍVEIS
     - "saudacao": Para saudações como "oi", "bom dia", "olá".
     - "buscar_preco": Quando o usuário pergunta o preço ou valor de um serviço.
-    - "iniciar_agendamento": Quando o usuário quer marcar uma consulta, exame ou ver horários.
+    - "iniciar_agendamento": Quando o usuário explicitamente pede para marcar uma consulta, exame ou ver horários. (ex: "quero agendar", "marcar consulta", "ver horários").
+    - "triagem_sintomas": QUANDO O USUÁRIO DESCREVE UM PROBLEMA DE SAÚDE OU SINTOMA. (ex: "estou com dor de cabeça", "meu filho está com febre", "sinto enjoo").
     """),
     ("human", "{user_message}")
 ])
@@ -482,12 +483,18 @@ def chatbot_orchestrator(request):
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
+
+            # <<-- NOVO BLOCO PARA TRIAGEM DE SINTOMAS -->>
+            elif intent == "triagem_sintomas":
+                resposta_final = "Entendo sua preocupação. Para que eu possa te ajudar a identificar a especialidade mais adequada, pode me descrever um pouco melhor o que você está sentindo?"
+                novo_estado = 'triagem_awaiting_description' # Novo estado para o próximo passo
+                nova_memoria = memoria_atual
             
-            # (Aqui podemos adicionar elif para 'buscar_preco', 'triagem_sintomas', etc. no futuro)
+            # (Aqui podemos adicionar elif para 'buscar_preco', etc. no futuro)
             
-            else: # Se a intenção não for clara, pedimos para reformular.
+            else: # Se a intenção não for clara
                 resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
-                novo_estado = 'identificando_demanda' # Mantém no mesmo estado para nova tentativa
+                novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
 
         elif estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_')):
