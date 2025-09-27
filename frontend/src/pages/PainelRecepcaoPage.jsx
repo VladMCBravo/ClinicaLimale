@@ -9,6 +9,7 @@ import BarraStatus from '../components/painel/BarraStatus';
 import FiltrosAgenda from '../components/painel/FiltrosAgenda';
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal'; // A agenda unificada!
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
+import ListaEspera from '../components/painel/ListaEspera'; // <-- ADICIONE ESTA LINHA
 
 export default function PainelRecepcaoPage() {
     const [data, setData] = useState(null);
