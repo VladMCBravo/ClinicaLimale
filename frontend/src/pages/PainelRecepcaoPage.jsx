@@ -13,7 +13,7 @@ import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 export default function PainelRecepcaoPage() {
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeView, setActiveView] = useState('agenda'); // A visão padrão agora é a agenda
+    const [activeView, setActiveView] = useState('listaEspera');
     const [refreshSidebar, setRefreshSidebar] = useState(0);
 
     // Estados para os filtros
@@ -51,11 +51,13 @@ export default function PainelRecepcaoPage() {
 
     const renderActiveView = () => {
         switch (activeView) {
+            case 'listaEspera':
+                return <ListaEspera />;
             case 'agenda':
                 return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleAgendaSave} />;
             // Adicione outros casos aqui se precisar (ex: 'novoPaciente', 'verificarDisponibilidade')
             default:
-                return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleAgendaSave} />;
+                return <ListaEspera />;
         }
     };
 
