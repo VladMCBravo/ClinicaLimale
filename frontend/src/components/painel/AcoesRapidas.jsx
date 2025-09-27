@@ -1,10 +1,12 @@
+// src/components/painel/AcoesRapidas.jsx
 import React from 'react';
 import { Button, Paper, Typography, Box } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import AddCardIcon from '@mui/icons-material/AddCard';
 
-export default function AcoesRapidas({ onViewChange }) {
+// O componente agora recebe props para cada ação específica
+export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, onCaixaClick }) {
   return (
     <Paper sx={{ p: 2 }} variant="outlined">
       <Typography variant="h6" gutterBottom>Ações Rápidas</Typography>
@@ -12,16 +14,16 @@ export default function AcoesRapidas({ onViewChange }) {
         <Button 
             variant="contained" 
             startIcon={<PersonAddIcon />}
-            onClick={() => onViewChange('novoPaciente')}
-            size="small" // <-- ADICIONADO
+            onClick={onNovoPacienteClick} // <-- MUDANÇA: Chama a nova prop
+            size="small"
         >
           Novo Paciente
         </Button>
         <Button 
             variant="outlined" 
             startIcon={<EventAvailableIcon />}
-            onClick={() => onViewChange('verificarDisponibilidade')}
-            size="small" // <-- ADICIONADO
+            // onClick={onVerificarClick} // Para uso futuro
+            size="small"
         >
           Verificar Disponibilidade
         </Button>
@@ -29,8 +31,8 @@ export default function AcoesRapidas({ onViewChange }) {
             variant="outlined" 
             startIcon={<AddCardIcon />} 
             color="secondary"
-            onClick={() => onViewChange('lancamentoCaixa')}
-            size="small" // <-- ADICIONADO
+            // onClick={onCaixaClick} // Para uso futuro
+            size="small"
         >
           Lançamento no Caixa
         </Button>
