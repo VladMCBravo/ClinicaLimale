@@ -12,6 +12,70 @@ from faturamento.services.inter_service import gerar_cobranca_pix, gerar_link_pa
 
 logger = logging.getLogger(__name__)
 
+def buscar_proximo_horario_procedimento(procedimento_id):
+    """
+    Busca o próximo horário disponível para um procedimento específico.
+    A lógica é baseada nos horários de funcionamento da clínica para exames
+    e na capacidade de apenas um procedimento por vez.
+    """
+    # --- PARÂMETROS DE NEGÓCIO PARA PROCEDIMENTOS (AJUSTE CONFORME NECESSÁRIO) ---
+    DURACAO_PROCEDIMENTO_MINUTOS = 60 # Duração padrão de um exame
+    DIAS_PARA_BUSCA = 90
+    # Horários de funcionamento para exames (Segunda=0, Terça=1, etc.)
+    HORARIOS_FUNCIONAMENTO_EXAMES = {
+        0: [{'inicio': time(8, 0), 'fim': time(18, 0)}], # Segunda
+        1: [{'inicio': time(8, 0), 'fim': time(18, 0)}], # Terça
+        2: [{'inicio': time(8, 0), 'fim': time(18, 0)}], # Quarta
+        3: [{'inicio': time(8, 0), 'fim': time(18, 0)}], # Quinta
+        4: [{'inicio': time(8, 0), 'fim': time(18, 0)}], # Sexta
+    }
+
+    hoje = timezone.localtime(timezone.now()).date()
+    data_fim_busca = hoje + timedelta(days=DIAS_PARA_BUSCA)
+
+    # Busca todos os outros procedimentos já agendados
+    procedimentos_existentes = Agendamento.objects.filter(
+        tipo_agendamento='Procedimento',
+        data_hora_inicio__date__range=[hoje, data_fim_busca],
+        status__in=['Agendado', 'Confirmado']
+    )
+
+    data_atual = hoje
+    while data_atual <= data_fim_busca:
+        dia_semana_atual = data_atual.weekday()
+        if dia_semana_atual in HORARIOS_FUNCIONAMENTO_EXAMES:
+            horarios_disponiveis_dia = []
+            agendamentos_do_dia = [ag for ag in procedimentos_existentes if ag.data_hora_inicio.date() == data_atual]
+
+            for turno in HORARIOS_FUNCIONAMENTO_EXAMES[dia_semana_atual]:
+                horario_slot_inicio = timezone.make_aware(datetime.datetime.combine(data_atual, turno['inicio']))
+                
+                while horario_slot_inicio.time() < turno['fim']:
+                    horario_slot_fim = horario_slot_inicio + timedelta(minutes=DURACAO_PROCEDIMENTO_MINUTOS)
+                    
+                    slot_esta_livre = True
+                    if horario_slot_inicio <= timezone.now():
+                        slot_esta_livre = False
+                    else:
+                        for ag_existente in agendamentos_do_dia:
+                            if horario_slot_inicio < ag_existente.data_hora_fim and horario_slot_fim > ag_existente.data_hora_inicio:
+                                slot_esta_livre = False
+                                break
+                    
+                    if slot_esta_livre:
+                        horarios_disponiveis_dia.append(horario_slot_inicio.strftime('%H:%M'))
+                    
+                    horario_slot_inicio += timedelta(minutes=DURACAO_PROCEDIMENTO_MINUTOS)
+            
+            if horarios_disponiveis_dia:
+                return {
+                    "data": data_atual.strftime('%Y-%m-%d'),
+                    "horarios_disponiveis": sorted(horarios_disponiveis_dia)
+                }
+        data_atual += timedelta(days=1)
+
+    return {"data": None, "horarios_disponiveis": []}
+
 # A função agora aceita um novo parâmetro: initiated_by_chatbot
 def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado, metodo_pagamento_escolhido='PIX', initiated_by_chatbot=False):
     agendamento = agendamento_instance

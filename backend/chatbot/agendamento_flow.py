@@ -2,17 +2,17 @@ import os
 import requests
 import re
 from datetime import datetime, timedelta
+import json
+from django.utils import timezone
 
 # --- 1. IMPORTE SEUS MODELOS AQUI ---
 from usuarios.models import Especialidade, CustomUser # Assumindo o caminho dos seus apps
 from faturamento.models import Procedimento # Se precisar no futuro
-from agendamentos.services import buscar_proximo_horario_disponivel
+from agendamentos.services import buscar_proximo_horario_disponivel, buscar_proximo_horario_procedimento # <<-- IMPORTAMOS A NOVA FUNÇÃO
 from pacientes.models import Paciente
 from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.services import criar_agendamento_e_pagamento_pendente
-from pacientes.models import Paciente
-from usuarios.models import CustomUser # Para buscar o usuário de serviço
-import json
+
 
 class AgendamentoManager:
     def __init__(self, session_id, memoria, base_url):
@@ -70,6 +70,9 @@ class AgendamentoManager:
         except Exception as e:
             print(f"Erro ao buscar médicos no banco: {e}")
             return None
+        
+    def _get_procedimentos_from_db(self): # <<-- NOVO MÉTODO AUXILIAR
+        return list(Procedimento.objects.filter(ativo=True, valor_particular__gt=0).values('id', 'descricao'))
 
     # O processar continua o mesmo
     def processar(self, resposta_usuario, estado_atual):
@@ -77,6 +80,7 @@ class AgendamentoManager:
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
+            'agendamento_awaiting_procedure': self.handle_awaiting_procedure,
             'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
             'agendamento_awaiting_slot_choice': self.handle_awaiting_slot_choice,
@@ -121,6 +125,24 @@ class AgendamentoManager:
             return {"response_message": "A função de agendamento de procedimentos ainda está em desenvolvimento. Vamos focar em consultas por enquanto.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
         else:
             return {"response_message": "Não entendi. Por favor, diga 'Consulta' ou 'Procedimento'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+
+    def handle_awaiting_procedure(self, resposta_usuario): # <<-- NOVO HANDLER
+        procedimento_escolhido = next((proc for proc in self.memoria.get('lista_procedimentos', []) if resposta_usuario.lower() in proc['descricao'].lower()), None)
+        if not procedimento_escolhido:
+            return {"response_message": "Não encontrei esse procedimento na lista. Por favor, digite um nome válido.", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria}
+
+        self.memoria.update({'procedimento_id': procedimento_escolhido['id'], 'procedimento_nome': procedimento_escolhido['descricao']})
+        
+        horarios = buscar_proximo_horario_procedimento(procedimento_id=procedimento_escolhido['id'])
+        if not horarios or not horarios.get('horarios_disponiveis'):
+            return {"response_message": f"Infelizmente, não há horários disponíveis para '{procedimento_escolhido['descricao']}' nos próximos 90 dias.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+
+        self.memoria['horarios_ofertados'] = horarios
+        data_formatada = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
+        horarios_str = ", ".join(horarios['horarios_disponiveis'])
+        
+        mensagem = f"Encontrei os seguintes horários para *{procedimento_escolhido['descricao']}* no dia *{data_formatada}*:\n\n*{horarios_str}*\n\nQual horário você prefere?"
+        return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
     def handle_awaiting_modality(self, resposta_usuario):
         modalidade = "".join(resposta_usuario.strip().split()).capitalize()
@@ -274,7 +296,7 @@ class AgendamentoManager:
             "telefone_celular": self.session_id # Usando o session_id como telefone
         }
         
-        resultado = self._chamar_api('pacientes/cadastrar', method='POST', data=dados_cadastro)
+        resultado = self._chamar_api_externa('pacientes/cadastrar', method='POST', data=dados_cadastro)
         if not resultado or 'error' in resultado:
             return {"response_message": f"Tive um problema ao criar seu cadastro: {resultado.get('error', 'Erro desconhecido')}. Vamos tentar de novo. Qual seu CPF?", "new_state": "agendamento_awaiting_cpf", "memory_data": self.memoria}
 
@@ -284,35 +306,45 @@ class AgendamentoManager:
         return self.handle_awaiting_confirmation("sim")
 
 
-    def handle_awaiting_confirmation(self, resposta_usuario):
+    def handle_awaiting_confirmation(self, resposta_usuario): # <<-- PEQUENO AJUSTE AQUI
         try:
-            # --- LÓGICA DE CRIAÇÃO DO AGENDAMENTO (AGORA INTERNA) ---
-            
-            # Monta os dados necessários para o serializer
+            paciente, created = Paciente.objects.get_or_create(
+                cpf=self.memoria.get('cpf'),
+                defaults={'nome_completo': self.memoria.get('nome_completo', ''), 'email': self.memoria.get('email', '')}
+            )
+
+            # Base do agendamento
             dados_agendamento = {
-                'paciente': Paciente.objects.get(cpf=self.memoria.get('cpf')).id,
+                'paciente': paciente.id,
                 'data_hora_inicio': self.memoria.get('data_hora_inicio'),
-                # A duração da consulta agora é calculada com base no que definimos antes
-                'data_hora_fim': datetime.fromisoformat(self.memoria.get('data_hora_inicio')) + timedelta(minutes=50),
+                'data_hora_fim': datetime.fromisoformat(self.memoria.get('data_hora_inicio')) + timedelta(minutes=50), # Ajustar duração se necessário
                 'status': 'Agendado',
                 'tipo_agendamento': self.memoria.get('tipo_agendamento'),
-                'especialidade': self.memoria.get('especialidade_id'),
-                'medico': self.memoria.get('medico_id'),
-                'modalidade': self.memoria.get('modalidade'),
                 'tipo_atendimento': 'Particular',
             }
 
+            # Adiciona campos específicos de Consulta ou Procedimento
+            if self.memoria.get('tipo_agendamento') == 'Consulta':
+                dados_agendamento.update({
+                    'especialidade': self.memoria.get('especialidade_id'),
+                    'medico': self.memoria.get('medico_id'),
+                    'modalidade': self.memoria.get('modalidade'),
+                })
+            elif self.memoria.get('tipo_agendamento') == 'Procedimento':
+                dados_agendamento.update({
+                    'procedimento': self.memoria.get('procedimento_id'),
+                    'modalidade': 'Presencial', # Procedimentos são sempre presenciais
+                })
+
             serializer = AgendamentoWriteSerializer(data=dados_agendamento)
             if not serializer.is_valid():
-                # Se os dados forem inválidos por algum motivo, retorna erro
                 error_messages = json.dumps(serializer.errors)
-                return {"response_message": f"Desculpe, houve um erro ao validar os dados do agendamento: {error_messages}", "new_state": "inicio", "memory_data": self.memoria}
+                return {"response_message": f"Erro ao validar os dados: {error_messages}", "new_state": "inicio", "memory_data": self.memoria}
 
             agendamento = serializer.save()
-            
-            # Precisamos de um usuário para registrar o pagamento
-            # Vamos pegar o primeiro superusuário como padrão
             usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
+            criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico, initiated_by_chatbot=True)
+            agendamento.refresh_from_db()
 
             # Chama o serviço de pagamento diretamente
             criar_agendamento_e_pagamento_pendente(
@@ -340,11 +372,10 @@ class AgendamentoManager:
             elif dados_pagamento.get('tipo') == 'CartaoCredito':
                 resposta_final += f"Link para pagamento com cartão:\n{dados_pagamento.get('link')}"
             
-            return {
-                "response_message": resposta_final,
-                "new_state": "inicio",
-                "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}
-            }
+            return {"response_message": resposta_final, "new_state": "inicio", "memory_data": self.memoria}
+        except Exception as e:
+            return {"response_message": f"Desculpe, ocorreu um erro inesperado: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
+
 
         except Exception as e:
             # Captura qualquer erro inesperado e informa o usuário
