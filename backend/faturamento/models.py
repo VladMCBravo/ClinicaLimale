@@ -141,6 +141,11 @@ class Procedimento(models.Model):
     """
     codigo_tuss = models.CharField(max_length=20, unique=True, help_text="Código do procedimento na tabela TUSS")
     descricao = models.CharField(max_length=255)
+    descricao_detalhada = models.TextField(
+        blank=True, 
+        verbose_name="Descrição Detalhada para Chatbot",
+        help_text="Texto completo que o chatbot usará para descrever o exame."
+    )
     # --- ALTERAÇÃO 1: Renomeamos 'valor' para ser mais específico ---
     valor_particular = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Particular (R$)")
     ativo = models.BooleanField(default=True)
@@ -150,7 +155,8 @@ class Procedimento(models.Model):
 
     class Meta:
         ordering = ['descricao']
-
+    
+    
 
 # --- NOVO MODEL ADICIONADO AQUI ---
 # Coloque este código logo abaixo do modelo Procedimento

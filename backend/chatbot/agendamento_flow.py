@@ -34,7 +34,7 @@ class AgendamentoManager:
         return list(CustomUser.objects.filter(cargo='medico', especialidades__id=especialidade_id).values('id', 'first_name', 'last_name'))
     
     def _get_procedimentos_from_db(self):
-        return list(Procedimento.objects.filter(ativo=True, valor_particular__gt=0).values('id', 'descricao'))
+        return list(Procedimento.objects.filter(ativo=True, valor_particular__gt=0).values('id', 'descricao', 'descricao_detalhada'))
 
     # --- ROTEADOR PRINCIPAL ---
     def processar(self, resposta_usuario, estado_atual):
@@ -90,14 +90,29 @@ class AgendamentoManager:
         if not procedimento_escolhido:
             return {"response_message": "Não encontrei esse procedimento na lista. Por favor, digite um nome válido.", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria}
         self.memoria.update({'procedimento_id': procedimento_escolhido['id'], 'procedimento_nome': procedimento_escolhido['descricao']})
+        # Prepara a mensagem de valorização primeiro
+        descricao_valorizacao = ""
+        if procedimento_escolhido.get('descricao_detalhada'):
+            descricao_valorizacao = (
+                f"Perfeito! Vou te explicar sobre esse exame.\n\n"
+                f"{procedimento_escolhido['descricao_detalhada']}\n\n"
+                "Este exame é realizado com equipamentos de última geração e por profissionais altamente qualificados, "
+                "garantindo resultados precisos e confiáveis."
+            )
         horarios = buscar_proximo_horario_procedimento(procedimento_id=procedimento_escolhido['id'])
         if not horarios or not horarios.get('horarios_disponiveis'):
             return {"response_message": f"Infelizmente, não há horários disponíveis para '{procedimento_escolhido['descricao']}' nos próximos 90 dias.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
         self.memoria['horarios_ofertados'] = horarios
         data_formatada = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
         horarios_str = ", ".join(horarios['horarios_disponiveis'])
-        mensagem = f"Encontrei os seguintes horários para *{procedimento_escolhido['descricao']}* no dia *{data_formatada}*:\n\n*{horarios_str}*\n\nQual horário você prefere?"
-        return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+        
+        mensagem_horarios = f"Encontrei os seguintes horários disponíveis no dia *{data_formatada}*:\n\n*{horarios_str}*\n\nQual horário você prefere?"
+        
+        # Junta a descrição com a oferta de horários
+        resposta_final = f"{descricao_valorizacao}\n\n{mensagem_horarios}".strip()
+
+        return {"response_message": resposta_final, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+
 
     def handle_awaiting_modality(self, resposta_usuario):
         modalidade = "".join(resposta_usuario.strip().split()).capitalize()
