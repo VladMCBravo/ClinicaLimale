@@ -48,6 +48,7 @@ class AgendamentoManager:
             'agendamento_awaiting_cpf': self.handle_awaiting_cpf,
             'agendamento_awaiting_new_patient_nome': self.handle_awaiting_new_patient_nome,
             'agendamento_awaiting_new_patient_nascimento': self.handle_awaiting_new_patient_nascimento, # <<-- NOVO ESTADO
+            'agendamento_awaiting_new_patient_phone': self.handle_awaiting_new_patient_phone, # <<-- NOVO ESTADO
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
         }
@@ -277,11 +278,12 @@ class AgendamentoManager:
         
         self.memoria['cpf'] = cpf
         paciente_existe = Paciente.objects.filter(cpf=cpf).exists()
+
         if paciente_existe:
             paciente = Paciente.objects.get(cpf=cpf)
             nome_paciente = paciente.nome_completo.split(' ')[0]
             self.memoria['nome_usuario'] = nome_paciente
-            mensagem = f"Olá, {nome_paciente}! Encontrei seu cadastro. Vamos finalizar."
+            mensagem = f"Olá, {nome_paciente}! Encontrei seu cadastro. Vamos finalizar seu agendamento."
             return self.handle_awaiting_confirmation(mensagem)
         else:
             return {
@@ -292,33 +294,51 @@ class AgendamentoManager:
 
     def handle_awaiting_new_patient_nome(self, resposta_usuario):
         self.memoria['nome_completo'] = resposta_usuario.strip().title()
-        # MUDANÇA: AGORA PERGUNTA A DATA DE NASCIMENTO
         return {
             "response_message": f"Obrigado, {self.memoria['nome_completo']}. Agora, por favor, me informe sua *data de nascimento* (no formato DD/MM/AAAA).",
             "new_state": "agendamento_awaiting_new_patient_nascimento",
             "memory_data": self.memoria
         }
-    # <<-- NOVO HANDLER PARA DATA DE NASCIMENTO -->>
+    
     def handle_awaiting_new_patient_nascimento(self, resposta_usuario):
         try:
-            # Tenta validar e formatar a data
             data_nasc_obj = datetime.strptime(resposta_usuario.strip(), '%d/%m/%Y')
             self.memoria['data_nascimento'] = data_nasc_obj.strftime('%d/%m/%Y')
             
-            # Pergunta o e-mail, que agora é o próximo passo
+            # MUDANÇA: AGORA PERGUNTA O TELEFONE
             return {
-                "response_message": "Data anotada! Para finalizar o cadastro, qual o seu melhor *e-mail*?",
-                "new_state": "agendamento_awaiting_new_patient_email",
+                "response_message": "Obrigado! E qual é o seu *telefone celular* com DDD para contato?",
+                "new_state": "agendamento_awaiting_new_patient_phone", # <<-- VAI PARA O NOVO ESTADO
                 "memory_data": self.memoria
             }
         except ValueError:
-            # Se o formato for inválido, pede novamente
             return {
                 "response_message": "Formato de data inválido. Por favor, use DD/MM/AAAA (ex: 25/12/1990).",
                 "new_state": "agendamento_awaiting_new_patient_nascimento",
                 "memory_data": self.memoria
             }
 
+    # <<-- NOVO HANDLER PARA O TELEFONE -->>
+    def handle_awaiting_new_patient_phone(self, resposta_usuario):
+        # Limpa o telefone para guardar apenas os números
+        telefone = re.sub(r'\D', '', resposta_usuario)
+        
+        # Validação simples de tamanho
+        if len(telefone) < 10 or len(telefone) > 11:
+            return {
+                "response_message": "Número de telefone inválido. Por favor, envie o número com DDD (ex: 11999998888).",
+                "new_state": "agendamento_awaiting_new_patient_phone",
+                "memory_data": self.memoria
+            }
+            
+        self.memoria['telefone_celular'] = telefone
+        
+        # Pergunta o e-mail, que agora é o próximo passo
+        return {
+            "response_message": "Telefone anotado! Para finalizar o cadastro, qual o seu melhor *e-mail*?",
+            "new_state": "agendamento_awaiting_new_patient_email",
+            "memory_data": self.memoria
+        }
     def handle_awaiting_new_patient_email(self, resposta_usuario):
         email = resposta_usuario.strip().lower()
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
@@ -340,6 +360,7 @@ class AgendamentoManager:
                 defaults={
                     'nome_completo': self.memoria.get('nome_completo', ''),
                     'email': self.memoria.get('email', ''),
+                    'telefone_celular': self.memoria.get('telefone_celular', ''),
                     'data_nascimento': data_nascimento_obj, # <<-- SALVA A DATA DE NASCIMENTO
                 }
             )
