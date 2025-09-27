@@ -9,6 +9,7 @@ from agendamentos.models import Agendamento
 from faturamento.models import Pagamento
 from django.contrib.auth import get_user_model
 from faturamento.services.inter_service import gerar_cobranca_pix, gerar_link_pagamento_cartao
+from pacientes.models import Paciente
 
 logger = logging.getLogger(__name__)
 
@@ -186,3 +187,36 @@ def buscar_proximo_horario_disponivel(medico_id):
         data_atual += timedelta(days=1)
 
     return {"data": None, "horarios_disponiveis": []}
+
+def listar_agendamentos_futuros(cpf):
+    """Busca no banco de dados todos os agendamentos futuros de um paciente."""
+    try:
+        paciente = Paciente.objects.get(cpf=cpf)
+        agora = timezone.now()
+        
+        agendamentos = Agendamento.objects.filter(
+            paciente=paciente,
+            data_hora_inicio__gte=agora,
+            status__in=['Agendado', 'Confirmado']
+        ).order_by('data_hora_inicio')
+        
+        return list(agendamentos)
+    except Paciente.DoesNotExist:
+        return []
+
+def cancelar_agendamento_service(agendamento_id):
+    """Altera o status de um agendamento para 'Cancelado'."""
+    try:
+        agendamento = Agendamento.objects.get(id=agendamento_id)
+        
+        agendamento.status = 'Cancelado'
+        agendamento.save()
+        
+        if hasattr(agendamento, 'pagamento'):
+            pagamento = agendamento.pagamento
+            pagamento.status = 'Cancelado'
+            pagamento.save()
+            
+        return {"status": "sucesso", "mensagem": "Agendamento cancelado com sucesso."}
+    except Agendamento.DoesNotExist:
+        return {"status": "erro", "mensagem": "Agendamento não encontrado."}
