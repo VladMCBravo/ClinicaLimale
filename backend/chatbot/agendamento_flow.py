@@ -58,6 +58,12 @@ class AgendamentoManager:
     # --- ROTEADOR PRINCIPAL ---
     def processar(self, resposta_usuario, estado_atual):
         handlers = {
+            # Fluxo de Cancelamento
+            'cancelamento_inicio': self.handle_cancelamento_inicio,
+            'cancelamento_awaiting_cpf': self.handle_cancelamento_awaiting_cpf,
+            'cancelamento_awaiting_choice': self.handle_cancelamento_awaiting_choice,
+            'cancelamento_awaiting_confirmation': self.handle_cancelamento_awaiting_confirmation,
+            # Fluxo de Agendamento e Cadastro
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
             'agendamento_awaiting_procedure': self.handle_awaiting_procedure,
@@ -318,53 +324,23 @@ class AgendamentoManager:
     # ##################################################
 
     def handle_cancelamento_inicio(self, resposta_usuario):
-        return {
-            "response_message": "Entendido. Para localizar seu agendamento, por favor, me informe o seu *CPF*.",
-            "new_state": "cancelamento_awaiting_cpf",
-            "memory_data": self.memoria
-        }
+        return {"response_message": "Entendido. Para localizar seu agendamento, por favor, me informe o seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_cpf(self, resposta_usuario):
         cpf = re.sub(r'\D', '', resposta_usuario)
         if len(cpf) != 11:
-            return {
-                "response_message": "CPF inválido. Por favor, digite os 11 números.",
-                "new_state": "cancelamento_awaiting_cpf",
-                "memory_data": self.memoria
-            }
-
+            return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
         agendamentos = listar_agendamentos_futuros(cpf)
-
         if not agendamentos:
-            return {
-                "response_message": "Não encontrei nenhum agendamento futuro registrado no seu CPF. Posso te ajudar com algo mais?",
-                "new_state": "inicio",
-                "memory_data": self.memoria
-            }
-        
-        # Guardamos os dados formatados na memória para os próximos passos
-        self.memoria['agendamentos_para_cancelar'] = [
-            {
-                "id": ag.id,
-                "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else ag.procedimento.descricao} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"
-            } for ag in agendamentos
-        ]
-
+            return {"response_message": "Não encontrei agendamentos futuros no seu CPF. Posso ajudar com algo mais?", "new_state": "inicio", "memory_data": self.memoria}
+        self.memoria['agendamentos_para_cancelar'] = [{"id": ag.id, "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else ag.procedimento.descricao} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"} for ag in agendamentos]
         if len(agendamentos) == 1:
             ag = self.memoria['agendamentos_para_cancelar'][0]
             self.memoria['agendamento_selecionado_id'] = ag['id']
-            return {
-                "response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nVocê confirma o cancelamento? (Sim/Não)",
-                "new_state": "cancelamento_awaiting_confirmation",
-                "memory_data": self.memoria
-            }
+            return {"response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nConfirma o cancelamento? (Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
         else:
             lista_texto = "\n".join([f"{i+1} - {ag['texto']}" for i, ag in enumerate(self.memoria['agendamentos_para_cancelar'])])
-            return {
-                "response_message": f"Encontrei os seguintes agendamentos no seu CPF:\n{lista_texto}\n\nQual o *número* do agendamento que você deseja cancelar?",
-                "new_state": "cancelamento_awaiting_choice",
-                "memory_data": self.memoria
-            }
+            return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_choice(self, resposta_usuario):
         try:
@@ -373,39 +349,20 @@ class AgendamentoManager:
             if 0 <= escolha < len(agendamentos_lista):
                 ag_selecionado = agendamentos_lista[escolha]
                 self.memoria['agendamento_selecionado_id'] = ag_selecionado['id']
-                return {
-                    "response_message": f"Você confirma o cancelamento do agendamento:\n• {ag_selecionado['texto']}\n\n(Sim/Não)",
-                    "new_state": "cancelamento_awaiting_confirmation",
-                    "memory_data": self.memoria
-                }
+                return {"response_message": f"Confirma o cancelamento de:\n• {ag_selecionado['texto']}\n\n(Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
             else:
                 raise ValueError("Escolha fora do intervalo")
         except (ValueError, IndexError):
-            return {
-                "response_message": "Opção inválida. Por favor, digite apenas o número correspondente ao agendamento.",
-                "new_state": "cancelamento_awaiting_choice",
-                "memory_data": self.memoria
-            }
+            return {"response_message": "Opção inválida. Por favor, digite apenas o número correspondente.", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_confirmation(self, resposta_usuario):
         resposta = resposta_usuario.lower()
         if 'sim' in resposta:
             agendamento_id = self.memoria.get('agendamento_selecionado_id')
             resultado = cancelar_agendamento_service(agendamento_id)
-            return {
-                "response_message": resultado.get('mensagem', 'Ocorreu um erro ao cancelar.'),
-                "new_state": "inicio",
-                "memory_data": self.memoria
-            }
+            return {"response_message": resultado.get('mensagem', 'Ocorreu um erro.'), "new_state": "inicio", "memory_data": self.memoria}
         elif 'não' in resposta or 'nao' in resposta:
-            return {
-                "response_message": "Ok, o agendamento foi mantido. Posso ajudar com algo mais?",
-                "new_state": "inicio",
-                "memory_data": self.memoria
-            }
+            return {"response_message": "Ok, o agendamento foi mantido. Posso ajudar com algo mais?", "new_state": "inicio", "memory_data": self.memoria}
         else:
-            return {
-                "response_message": "Não entendi. Por favor, responda com 'Sim' ou 'Não' para confirmar o cancelamento.",
-                "new_state": "cancelamento_awaiting_confirmation",
-                "memory_data": self.memoria
-            }
+            return {"response_message": "Não entendi. Responda com 'Sim' ou 'Não'.", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
+    
