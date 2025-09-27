@@ -416,6 +416,29 @@ prompt_sintomas = ChatPromptTemplate.from_template(
 )
 chain_sintomas = prompt_sintomas | llm | parser_sintomas
 
+# --- CÉREBRO 3: IA EXTRATORA DE DADOS DE PACIENTE ---
+class DadosPacienteOutput(BaseModel):
+    nome_completo: str = Field(description="O nome completo do paciente.")
+    data_nascimento: str = Field(description="A data de nascimento do paciente no formato DD/MM/AAAA.")
+    telefone_celular: str = Field(description="O número de telefone do paciente, incluindo DDD.")
+
+parser_extracao = JsonOutputParser(pydantic_object=DadosPacienteOutput)
+prompt_extracao = ChatPromptTemplate.from_template(
+    """
+    # MISSÃO
+    Você é um assistente de IA que extrai dados de um texto. Analise a mensagem do usuário e extraia o nome completo, a data de nascimento e o telefone.
+    # REGRAS
+    - A data de nascimento deve estar no formato DD/MM/AAAA. Se o usuário fornecer de outra forma, converta-a.
+    - O telefone deve conter o DDD.
+    # INSTRUÇÕES DE FORMATAÇÃO
+    {format_instructions}
+    # MENSAGEM DO USUÁRIO
+    {dados_do_usuario}
+    """,
+    partial_variables={"format_instructions": parser_extracao.get_format_instructions()},
+)
+chain_extracao_dados = prompt_extracao | llm | parser_extracao
+
 # --- ORQUESTRADOR PRINCIPAL DA CONVERSA ---
 @csrf_exempt
 @require_POST
@@ -448,8 +471,10 @@ def chatbot_orchestrator(request):
                 session_id=session_id,
                 memoria=memoria_atual,
                 base_url=request.build_absolute_uri('/'),
-                chain_sintomas=chain_sintomas
+                chain_sintomas=chain_sintomas,
+                chain_extracao_dados=chain_extracao_dados,
             )
+            
             resultado = manager.processar(user_message, estado_atual)
             resposta_final = resultado.get("response_message")
             novo_estado = resultado.get("new_state")

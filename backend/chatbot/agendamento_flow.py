@@ -18,14 +18,13 @@ from agendamentos.services import criar_agendamento_e_pagamento_pendente
 
 
 class AgendamentoManager:
-    # ATUALIZAÇÃO: Recebemos a chain de sintomas no construtor
-    def __init__(self, session_id, memoria, base_url, chain_sintomas=None):
+    # ATUALIZAÇÃO: Recebemos a nova chain no construtor
+    def __init__(self, session_id, memoria, base_url, chain_sintomas=None, chain_extracao_dados=None):
         self.session_id = session_id
         self.memoria = memoria
         self.base_url = base_url.rstrip('/')
-        self.chain_sintomas = chain_sintomas # Armazenamos a chain de IA
-        self.api_key = os.getenv('API_KEY_CHATBOT')
-        self.headers = {'Api-Key': self.api_key}
+        self.chain_sintomas = chain_sintomas
+        self.chain_extracao_dados = chain_extracao_dados # <<-- Armazenamos a nova chain
 
     # --- MÉTODOS AUXILIARES DE BUSCA NO BANCO ---
     def _get_especialidades_from_db(self):
@@ -40,10 +39,6 @@ class AgendamentoManager:
     # --- ROTEADOR PRINCIPAL ---
     def processar(self, resposta_usuario, estado_atual):
         handlers = {
-            # Estados de Triagem
-            'triagem_awaiting_description': self.handle_awaiting_symptom_description, # <<-- NOVO ESTADO
-            
-            # Estados de Agendamento
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
             'agendamento_awaiting_procedure': self.handle_awaiting_procedure,
@@ -51,11 +46,10 @@ class AgendamentoManager:
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
             'agendamento_awaiting_slot_choice': self.handle_awaiting_slot_choice,
             'agendamento_awaiting_cpf': self.handle_awaiting_cpf,
-            'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
-            
-            # Estados de Cadastro
             'agendamento_awaiting_new_patient_nome': self.handle_awaiting_new_patient_nome,
+            'agendamento_awaiting_new_patient_nascimento': self.handle_awaiting_new_patient_nascimento, # <<-- NOVO ESTADO
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
+            'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
         }
         handler = handlers.get(estado_atual, self.handle_fallback)
         return handler(resposta_usuario)
@@ -277,10 +271,10 @@ class AgendamentoManager:
         }
     
     def handle_awaiting_cpf(self, resposta_usuario):
-        # ... (código existente sem alterações)
         cpf = re.sub(r'\D', '', resposta_usuario)
         if len(cpf) != 11:
             return {"response_message": "CPF inválido...", "new_state": "agendamento_awaiting_cpf", "memory_data": self.memoria}
+        
         self.memoria['cpf'] = cpf
         paciente_existe = Paciente.objects.filter(cpf=cpf).exists()
         if paciente_existe:
@@ -290,26 +284,64 @@ class AgendamentoManager:
             mensagem = f"Olá, {nome_paciente}! Encontrei seu cadastro. Vamos finalizar."
             return self.handle_awaiting_confirmation(mensagem)
         else:
-            return {"response_message": "Vi que você é novo por aqui! Qual seu nome completo?", "new_state": "agendamento_awaiting_new_patient_nome", "memory_data": self.memoria}
+            return {
+                "response_message": "Vi que você é novo por aqui! Para criar seu cadastro, qual seu nome completo?",
+                "new_state": "agendamento_awaiting_new_patient_nome",
+                "memory_data": self.memoria
+            }
 
     def handle_awaiting_new_patient_nome(self, resposta_usuario):
-        # ... (código existente sem alterações)
         self.memoria['nome_completo'] = resposta_usuario.strip().title()
-        return {"response_message": "Obrigado. Agora, seu melhor *e-mail*.", "new_state": "agendamento_awaiting_new_patient_email", "memory_data": self.memoria}
+        # MUDANÇA: AGORA PERGUNTA A DATA DE NASCIMENTO
+        return {
+            "response_message": f"Obrigado, {self.memoria['nome_completo']}. Agora, por favor, me informe sua *data de nascimento* (no formato DD/MM/AAAA).",
+            "new_state": "agendamento_awaiting_new_patient_nascimento",
+            "memory_data": self.memoria
+        }
+    # <<-- NOVO HANDLER PARA DATA DE NASCIMENTO -->>
+    def handle_awaiting_new_patient_nascimento(self, resposta_usuario):
+        try:
+            # Tenta validar e formatar a data
+            data_nasc_obj = datetime.strptime(resposta_usuario.strip(), '%d/%m/%Y')
+            self.memoria['data_nascimento'] = data_nasc_obj.strftime('%d/%m/%Y')
+            
+            # Pergunta o e-mail, que agora é o próximo passo
+            return {
+                "response_message": "Data anotada! Para finalizar o cadastro, qual o seu melhor *e-mail*?",
+                "new_state": "agendamento_awaiting_new_patient_email",
+                "memory_data": self.memoria
+            }
+        except ValueError:
+            # Se o formato for inválido, pede novamente
+            return {
+                "response_message": "Formato de data inválido. Por favor, use DD/MM/AAAA (ex: 25/12/1990).",
+                "new_state": "agendamento_awaiting_new_patient_nascimento",
+                "memory_data": self.memoria
+            }
 
     def handle_awaiting_new_patient_email(self, resposta_usuario):
-        # ... (código existente sem alterações)
         email = resposta_usuario.strip().lower()
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return {"response_message": "E-mail inválido...", "new_state": "agendamento_awaiting_new_patient_email", "memory_data": self.memoria}
+        
         self.memoria['email'] = email
         return self.handle_awaiting_confirmation("cadastro_concluido")
     
     def handle_awaiting_confirmation(self, resposta_usuario):
         try:
+            # Converte a data de nascimento de DD/MM/AAAA para o formato do banco
+            data_nascimento_str = self.memoria.get('data_nascimento')
+            data_nascimento_obj = None
+            if data_nascimento_str:
+                data_nascimento_obj = datetime.strptime(data_nascimento_str, '%d/%m/%Y').date()
+
             paciente, created = Paciente.objects.get_or_create(
                 cpf=self.memoria.get('cpf'),
-                defaults={'nome_completo': self.memoria.get('nome_completo', ''), 'email': self.memoria.get('email', '')}
+                defaults={
+                    'nome_completo': self.memoria.get('nome_completo', ''),
+                    'email': self.memoria.get('email', ''),
+                    'data_nascimento': data_nascimento_obj, # <<-- SALVA A DATA DE NASCIMENTO
+                }
             )
 
             dados_agendamento = {

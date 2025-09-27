@@ -65,7 +65,10 @@ export default function PainelRecepcaoPage() {
                 <AcoesRapidas onViewChange={setActiveView} />
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                    <PacientesDoDiaSidebar refreshTrigger={refreshSidebar} />
+                    <PacientesDoDiaSidebar 
+                        refreshTrigger={refreshSidebar} 
+                        medicoFiltro={medicoFiltro} // Passamos o filtro de médico como prop
+                    />
                 </Box>
             </Box>
             <Box sx={{ flexGrow: 1, minHeight: 0 }}>

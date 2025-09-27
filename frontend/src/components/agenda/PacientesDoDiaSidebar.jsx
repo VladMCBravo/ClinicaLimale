@@ -23,38 +23,38 @@ const statusMap = {
     'Não Compareceu': { icon: <PersonOffIcon />, color: 'text.secondary', title: 'Não Compareceu' }
 };
 
-export default function PacientesDoDiaSidebar({ refreshTrigger }) {
+export default function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
     const [pacientes, setPacientes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchPacientesDoDia = useCallback(async () => {
-    try {
-        // USA A NOVA FUNÇÃO DO SERVIÇO
-       const response = await agendamentoService.getAgendamentosHoje();
+        setIsLoading(true);
+        try {
+            // Usamos o medicoFiltro na chamada do serviço
+            const response = await agendamentoService.getAgendamentosHoje(medicoFiltro);
             
-            // --- ALTERAÇÃO PRINCIPAL: ORDENAÇÃO DOS DADOS NO FRONTEND ---
-            // Isso garante que o React renderize todos os itens na ordem cronológica correta.
             const dadosOrdenados = response.data.sort((a, b) => 
                 new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
             );
             setPacientes(dadosOrdenados);
-
         } catch (error) {
             console.error("Erro ao buscar pacientes do dia:", error);
-            setPacientes([]); // Limpa a lista em caso de erro
+            setPacientes([]);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    // MUDANÇA AQUI: Adicionamos medicoFiltro como dependência do useCallback
+    }, [medicoFiltro]);
 
     useEffect(() => {
         fetchPacientesDoDia();
-    }, [fetchPacientesDoDia, refreshTrigger]);
+    // MUDANÇA AQUI: Adicionamos medicoFiltro como dependência para refazer a busca quando ele mudar
+    }, [fetchPacientesDoDia, refreshTrigger, medicoFiltro]);
 
     return (
-        <Paper elevation={2} sx={{ p: 2, height: '100%', overflowY: 'auto' }}>
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', overflowY: 'auto' }}>
             <Typography variant="h6" gutterBottom>Pacientes do Dia</Typography>
-            {isLoading ? <CircularProgress /> : (
+            {isLoading ? <CircularProgress size={24} sx={{ display: 'block', margin: 'auto', mt: 2 }} /> : (
                 <List dense>
                     {pacientes.length > 0 ? pacientes.map(ag => {
                         const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status };

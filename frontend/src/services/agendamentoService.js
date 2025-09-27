@@ -14,13 +14,23 @@ const getAgendamentos = (medicoId, especialidadeId) => {
     return apiClient.get(url);
 };
 
-const getAgendamentosHoje = () => apiClient.get('/agendamentos/hoje/');
+const getAgendamentosHoje = (medicoId) => {
+    const params = new URLSearchParams();
+    if (medicoId) {
+        params.append('medico_id', medicoId);
+    }
+    const queryString = params.toString();
+    const url = `/agendamentos/hoje/${queryString ? `?${queryString}` : ''}`;
+    return apiClient.get(url);
+};
 const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
 const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
 const verificarCapacidade = (inicio, fim) => {
     const params = new URLSearchParams({ inicio, fim });
     return apiClient.get(`/agendamentos/verificar-capacidade/?${params.toString()}`);
 };
+
+
 
 const getModalData = () => {
     const fetchPacientes = apiClient.get('/pacientes/');
