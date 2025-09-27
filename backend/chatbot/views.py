@@ -8,6 +8,8 @@ import logging
 from datetime import datetime, time, timedelta
 from dateutil import parser
 from .services import buscar_precos_servicos # <<-- Adicione esta linha
+from typing import Optional
+from pydantic import BaseModel, Field
 
 from django.utils import timezone
 from django.http import JsonResponse
@@ -33,6 +35,7 @@ from langchain_core.output_parsers import JsonOutputParser
 
 # --- SEÇÃO DE IMPORTAÇÕES DO SEU PROJETO ---
 from .models import ChatMemory
+from .services import buscar_precos_servicos # <<-- Importação correta do serviço de preços
 from pacientes.models import Paciente
 from faturamento.models import Procedimento, Pagamento
 from agendamentos.serializers import AgendamentoWriteSerializer
@@ -361,143 +364,70 @@ class AgendamentoChatbotView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             # --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
-# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (VERSÃO FINAL E CORRIGIDA) ---
-prompt_roteador = ChatPromptTemplate.from_messages([
-    ("system", """
-    # MISSÃO
-    Você é um assistente de IA roteador. Sua função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome), se houver.
-    
-    # FORMATO DE SAÍDA OBRIGATÓRIO
-    Sua saída DEVE SER SEMPRE um objeto JSON único.
+# --- SEÇÃO COMPLETA E CORRIGIDA DAS IAs ---
 
-    # INTENÇÕES POSSÍVEIS
-    - "saudacao": Para saudações.
-    - "iniciar_agendamento": Para marcar uma consulta, exame ou ver horários.
-    - "buscar_preco": Para perguntar o preço ou valor de um serviço.
-    - "triagem_sintomas": Para descrever um problema de saúde ou sintoma.
-    """),
-    
-    # --- EXEMPLOS PRÁTICOS (FEW-SHOT) ---
-    ("human", "quanto custa a consulta de cardiologia?"),
-    ("ai", '{ "intent": "buscar_preco", "entity": "cardiologia" }'),
-    
-    ("human", "queria marcar um exame"),
-    ("ai", '{ "intent": "iniciar_agendamento", "entity": "exame" }'),
-    
-    ("human", "estou com dor de cabeça"),
-    ("ai", '{ "intent": "triagem_sintomas", "entity": "dor de cabeça" }'),
-    
-    ("human", "oi bom dia"),
-    ("ai", '{ "intent": "saudacao", "entity": null }'),
-    # --- FIM DOS EXEMPLOS ---
-
-    # Aqui entra a pergunta real do usuário
-    ("human", "{user_message}")
-])
-
+# A DEFINIÇÃO DO LLM (O "MOTOR") FICA AQUI, UMA ÚNICA VEZ
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", 
+    model="gemini-2.5-flash",
     temperature=0,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
-parser = JsonOutputParser()
-chain_roteadora = prompt_roteador | llm | parser
+
+# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
+class RoteadorOutput(BaseModel):
+    intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'triagem_sintomas'.")
+    entity: Optional[str] = Field(description="O serviço ou especialidade específica que o usuário mencionou, se houver.")
+
+parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
+prompt_roteador = ChatPromptTemplate.from_template(
+    """
+    # MISSÃO
+    Analise a mensagem do usuário para determinar a intenção e extrair a entidade. Responda APENAS com o objeto JSON formatado.
+    # INSTRUÇÕES DE FORMATAÇÃO
+    {format_instructions}
+    # MENSAGEM DO USUÁRIO
+    {user_message}
+    """,
+    partial_variables={"format_instructions": parser_roteador.get_format_instructions()},
+)
+chain_roteadora = prompt_roteador | llm | parser_roteador
 
 
-# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS (VERSÃO CORRIGIDA FINAL) ---
+# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS ---
 lista_especialidades_para_ia = "Cardiologia, Ginecologia, Neonatologia, Obstetrícia, Ortopedia, Pediatria, Reumatologia Pediátrica"
 
-# SUBSTITUA COMPLETAMENTE O PROMPT_SINTOMAS POR ESTE
-prompt_sintomas = ChatPromptTemplate.from_messages([
-    ("system", f"""
-    # MISSÃO
-    Você é um assistente de triagem médica. Sua função é analisar sintomas e sugerir a especialidade médica mais apropriada DENTRO DA LISTA DE OPÇÕES VÁLIDAS.
+class TriagemOutput(BaseModel):
+    especialidade_sugerida: str = Field(description=f"A especialidade sugerida. Deve ser uma das: {lista_especialidades_para_ia}, ou 'Clinico Geral' se os sintomas forem vagos.")
 
+parser_sintomas = JsonOutputParser(pydantic_object=TriagemOutput)
+prompt_sintomas = ChatPromptTemplate.from_template(
+    """
+    # MISSÃO
+    Você é um assistente de triagem médica. Analise os sintomas e sugira a especialidade mais apropriada.
     # REGRAS CRÍTICAS
     - JAMAIS forneça diagnósticos ou conselhos médicos.
-    - Se os sintomas forem muito vagos, responda com "Clinico Geral".
-
-    # ESPECIALIDADES VÁLIDAS
-    {lista_especialidades_para_ia}
-
-    # FORMATO DE SAÍDA OBRIGATÓRIO
-    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo apenas a chave "especialidade_sugerida".
-    """),
-    
-    # --- INÍCIO DO EXEMPLO PRÁTICO (FEW-SHOT) ---
-    # Aqui nós MOSTRAMOS para a IA o que esperamos
-    ("human", "Estou com o coração acelerado e dor no peito."),
-    ("ai", '{ "especialidade_sugerida": "Cardiologia" }'),
-    # --- FIM DO EXEMPLO ---
-    
-    # Aqui entra a pergunta real do usuário
-    ("human", "{sintomas_do_usuario}")
-])
-
-# O resto do seu arquivo (a definição da chain e do orquestrador) permanece exatamente o mesmo.
-chain_sintomas = prompt_sintomas | llm | parser
-def _buscar_preco_servico(base_url, entity):
-    logger.info(f"--- INICIANDO BUSCA DE PREÇO PARA: '{entity}' ---")
-    api_key = os.getenv('API_KEY_CHATBOT')
-    if not api_key:
-        logger.error("!!! ERRO CRÍTICO: API_KEY_CHATBOT não encontrada nas variáveis de ambiente.")
-        return "Desculpe, estou com um problema interno de configuração para buscar preços."
-    
-    headers = {'Api-Key': api_key}
-    
-    if not base_url.endswith('/'):
-        base_url += '/'
-
-    try:
-        url_especialidades = f"{base_url}api/chatbot/especialidades/"
-        logger.info(f"Chamando API de especialidades: {url_especialidades}")
-        resp_especialidades = requests.get(url_especialidades, headers=headers, timeout=10)
-        resp_especialidades.raise_for_status()
-        logger.info("Sucesso ao buscar especialidades.")
-        
-        url_procedimentos = f"{base_url}api/chatbot/procedimentos/"
-        logger.info(f"Chamando API de procedimentos: {url_procedimentos}")
-        resp_procedimentos = requests.get(url_procedimentos, headers=headers, timeout=10)
-        resp_procedimentos.raise_for_status()
-        logger.info("Sucesso ao buscar procedimentos.")
-
-        especialidades_data = resp_especialidades.json()
-        procedimentos_data = resp_procedimentos.json()
-        todos_os_servicos = especialidades_data + procedimentos_data
-        logger.info(f"Total de {len(todos_os_servicos)} serviços carregados para busca.")
-
-        servico_encontrado = next((s for s in todos_os_servicos if s['nome'].lower() == entity.lower()), None)
-        if not servico_encontrado:
-            servico_encontrado = next((s for s in todos_os_servicos if entity.lower() in s['nome'].lower()), None)
-
-        if servico_encontrado and servico_encontrado.get('valor'):
-            resultado = f"O valor para {servico_encontrado['nome']} é de R$ {servico_encontrado['valor']}."
-            logger.info(f"Preço encontrado: {resultado}")
-            return resultado
-        else:
-            logger.warning(f"Serviço '{entity}' não encontrado na lista de preços.")
-            return f"Não encontrei um preço para o serviço '{entity}'. Por favor, verifique o nome."
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"ERRO DE CONEXÃO ao chamar APIs de serviço: {e}")
-        return "Desculpe, estou com um problema para me conectar ao sistema de preços no momento."
-    except Exception as e:
-        logger.error(f"ERRO INESPERADO na busca de preço: {e}")
-        return "Ocorreu um erro inesperado ao buscar as informações de preço."
+    - Responda APENAS com o objeto JSON formatado.
+    # INSTRUÇÕES DE FORMATAÇÃO
+    {format_instructions}
+    # SINTOMAS DO USUÁRIO
+    {sintomas_do_usuario}
+    """,
+    partial_variables={"format_instructions": parser_sintomas.get_format_instructions()},
+)
+chain_sintomas = prompt_sintomas | llm | parser_sintomas
 
 # --- ORQUESTRADOR PRINCIPAL DA CONVERSA ---
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
     """
-    Esta view orquestra TODA a conversa.
-    VERSÃO REVISADA E CORRIGIDA com a lógica de buscar preço no lugar certo.
+    Esta view orquestra TODA a conversa, incluindo o gerenciamento de memória.
     """
     try:
         data = json.loads(request.body)
         user_message = data.get("message")
         session_id = data.get("sessionId")
-        
+
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
@@ -536,6 +466,7 @@ def chatbot_orchestrator(request):
             logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
+            
             logger.warning(f"Intenção Detectada: '{intent}'")
 
             if intent == "iniciar_agendamento":
@@ -544,11 +475,7 @@ def chatbot_orchestrator(request):
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
-            elif intent == "triagem_sintomas":
-                resposta_final = "Entendo sua preocupação. Para que eu possa te ajudar a identificar a especialidade mais adequada, pode me descrever um pouco melhor o que você está sentindo?"
-                novo_estado = 'triagem_awaiting_description'
-                nova_memoria = memoria_atual
-            # <<-- BLOCO DE BUSCAR PREÇO MOVIDO PARA AQUI DENTRO -->>
+
             elif intent == "buscar_preco":
                 entity = intent_data.get("entity")
                 resposta_acolhimento = (
@@ -569,8 +496,12 @@ def chatbot_orchestrator(request):
                 )
                 novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
+            
+            # Deixamos a triagem aqui para reativarmos no futuro
+            # elif intent == "triagem_sintomas":
+            #    ...
 
-            else: # Se a intenção não for clara
+            else:
                 resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
                 novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
