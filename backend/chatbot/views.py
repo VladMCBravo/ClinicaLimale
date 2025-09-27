@@ -435,6 +435,7 @@ def _buscar_preco_servico(base_url, entity):
 def chatbot_orchestrator(request):
     """
     Esta view orquestra TODA a conversa, incluindo o gerenciamento de memória.
+    VERSÃO ATUALIZADA com fluxo de Recepção Humanizado.
     """
     try:
         data = json.loads(request.body)
@@ -456,24 +457,20 @@ def chatbot_orchestrator(request):
         logger.warning(f"[DEBUG CHATBOT] Estado Carregado do BD: '{estado_atual}'")
         
         # --- LÓGICA PRINCIPAL ---
-        if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_')):
-            logger.warning(f"[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO '{estado_atual}'.")
-            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-            # --- ALTERAÇÃO PRINCIPAL AQUI ---
-            resultado = manager.processar(user_message, estado_atual)
-            # ----------------------------------
-            resposta_final = resultado.get("response_message")
-            novo_estado = resultado.get("new_state")
-            nova_memoria = resultado.get("memory_data")
-        
-        elif estado_atual == 'aguardando_nome':
-            nova_memoria = memoria_atual
-            nova_memoria['nome_usuario'] = user_message.strip().title() # title() é melhor que capitalize()
-            resposta_final = f"Prazer, {nova_memoria.get('nome_usuario', '')}! Como posso te ajudar hoje?"
-            novo_estado = 'inicio'
 
-        else: # O estado é 'inicio' ou um estado desconhecido, então a IA decide
-            logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVO FLUXO (IA Roteadora).")
+        if estado_atual == 'aguardando_nome':
+            nova_memoria = memoria_atual
+            nome_usuario = user_message.strip().title()
+            nova_memoria['nome_usuario'] = nome_usuario
+            
+            # MUDANÇA 1: A resposta agora é a pergunta aberta, como no prompt.
+            resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
+            # MUDANÇA 2: O novo estado é 'identificando_demanda', onde a IA vai agir.
+            novo_estado = 'identificando_demanda'
+
+        # MUDANÇA 3: NOVO ESTADO! A IA Roteadora agora age aqui, não mais no início.
+        elif estado_atual == 'identificando_demanda':
+            logger.warning("[DEBUG CHATBOT] Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
             entity = intent_data.get("entity")
@@ -481,26 +478,37 @@ def chatbot_orchestrator(request):
 
             if intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                # --- ALTERAÇÃO PRINCIPAL AQUI ---
-                # Forçamos o início do fluxo de agendamento
                 resultado = manager.processar(user_message, 'agendamento_inicio')
-                # ----------------------------------
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
-            elif intent == "saudacao":
-                if memoria_atual.get('nome_usuario'):
-                    resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}! Em que posso ajudar?"
-                    novo_estado = 'inicio'
-                else:
-                    resposta_final = "Olá! Sou Leônidas, assistente virtual da Clínica Limalé. Para começarmos, como posso te chamar?"
-                    novo_estado = 'aguardando_nome'
+            
+            # (Aqui podemos adicionar elif para 'buscar_preco', 'triagem_sintomas', etc. no futuro)
+            
+            else: # Se a intenção não for clara, pedimos para reformular.
+                resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
+                novo_estado = 'identificando_demanda' # Mantém no mesmo estado para nova tentativa
                 nova_memoria = memoria_atual
-            # ... (outras intenções, como buscar preço, poderiam vir aqui) ...
-            else:
-                resposta_final = "Desculpe, não entendi bem. Como posso te ajudar?"
-                novo_estado = 'inicio'
-                nova_memoria = memoria_atual
+
+        elif estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_')):
+            logger.warning(f"[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO '{estado_atual}'.")
+            manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+            resultado = manager.processar(user_message, estado_atual)
+            resposta_final = resultado.get("response_message")
+            novo_estado = resultado.get("new_state")
+            nova_memoria = resultado.get("memory_data")
+
+        else: # O estado é 'inicio' ou um estado desconhecido, então iniciamos a saudação.
+            # MUDANÇA 4: O fluxo de saudação original agora acontece aqui.
+            logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVA CONVERSA.")
+            # Se já conhecemos o usuário de uma conversa anterior, podemos ser mais diretos.
+            if memoria_atual.get('nome_usuario'):
+                resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}, bem-vindo(a) de volta à Clínica Limalé! Como posso te ajudar hoje?"
+                novo_estado = 'identificando_demanda'
+            else: # Primeira vez falando
+                resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência no seu atendimento.\nPode me passar seu nome?"
+                novo_estado = 'aguardando_nome'
+            nova_memoria = memoria_atual
         
         # Salva o novo estado e a memória
         logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
