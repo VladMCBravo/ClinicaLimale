@@ -24,6 +24,9 @@ export default function PainelRecepcaoPage() {
     // MUDANÇA 1: Novo estado para controlar o painel da lista de espera
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
+    // Precisamos do estado do AgendamentoModal aqui
+    const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
+    const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -43,8 +46,20 @@ export default function PainelRecepcaoPage() {
         setEspecialidadeFiltro(filtros.especialidadeId);
     };
 
-    // A função de salvar da agenda agora também atualiza a sidebar de pacientes
+    // NOVA FUNÇÃO para lidar com a seleção de um slot de horário
+    const handleSlotSelect = (data) => {
+        setAgendamentoInitialData({
+            start: data.data_hora_inicio.toDate(),
+            extendedProps: {
+                medico: data.medico.id,
+                especialidade: data.especialidade.id,
+            }
+        });
+        setIsAgendamentoModalOpen(true);
+    };
+
     const handleAgendaSave = () => {
+        setIsAgendamentoModalOpen(false); // Fecha o modal ao salvar
         fetchData(); 
         setRefreshSidebar(prev => prev + 1);
     }
@@ -67,47 +82,65 @@ export default function PainelRecepcaoPage() {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
 
+    // --- RENDERIZAÇÃO DA VISÃO ATIVA (ÁREA CENTRAL) ---
     const renderActiveView = () => {
         switch (activeView) {
-            case 'listaEspera':
-                return <ListaEspera />;
             case 'agenda':
-                return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleAgendaSave} />;
-            // Adicione outros casos aqui se precisar (ex: 'novoPaciente', 'verificarDisponibilidade')
+                return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />;
+            case 'novoPaciente':
+                return <FormularioPaciente onClose={() => setActiveView('agenda')} />;
+            case 'verificarDisponibilidade':
+                return <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} onClose={() => setActiveView('agenda')} />;
             default:
-                return <ListaEspera />;
+                return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />;
         }
     };
 
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
+            
+            {/* Coluna da Esquerda */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* PASSO 4: Passamos a função de abrir o modal para o AcoesRapidas */}
-                <AcoesRapidas onNovoPacienteClick={() => setIsPacienteModalOpen(true)} /> 
+                <AcoesRapidas 
+                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)} // Abre o modal de paciente
+                    onVerificarClick={() => setActiveView('verificarDisponibilidade')} // Muda a visão central
+                /> 
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                    <PacientesDoDiaSidebar refreshTrigger={refreshSidebar} medicoFiltro={medicoFiltro} />
+                    <PacientesDoDiaSidebar 
+                        refreshTrigger={refreshSidebar} 
+                        medicoFiltro={medicoFiltro}
+                    />
                 </Box>
             </Box>
 
+            {/* Coluna Central Dinâmica */}
             <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleAgendaSave} />
+                {renderActiveView()}
             </Box>
 
+            {/* Coluna da Direita */}
             <Box sx={{ flexShrink: 0 }}>
                 <BarraStatus data={data} onListaEsperaClick={() => setIsListaEsperaOpen(true)} />
             </Box>
             
+            {/* Elementos Flutuantes (Modais e Drawers) */}
             <Drawer anchor="right" open={isListaEsperaOpen} onClose={() => setIsListaEsperaOpen(false)}>
                 <Box sx={{ width: 400, p: 2 }}><ListaEspera /></Box>
             </Drawer>
 
-            {/* PASSO 5: Renderizamos o PacienteModal aqui, controlado pelo estado local */}
             <PacienteModal
                 open={isPacienteModalOpen}
-                onClose={handlePacienteModalClose}
-                onSave={handlePacienteModalSave}
-                pacienteParaEditar={null} // Passamos null pois é sempre para criar um novo paciente
+                onClose={() => setIsPacienteModalOpen(false)}
+                onSave={handleModalSave}
+                pacienteParaEditar={null}
+            />
+
+            <AgendamentoModal
+                open={isAgendamentoModalOpen}
+                onClose={() => setIsAgendamentoModalOpen(false)}
+                onSave={handleModalSave}
+                initialData={agendamentoInitialData}
             />
         </Box>
     );

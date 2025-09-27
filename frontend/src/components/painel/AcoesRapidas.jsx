@@ -22,7 +22,7 @@ export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, on
         <Button 
             variant="outlined" 
             startIcon={<EventAvailableIcon />}
-            // onClick={onVerificarClick} // Para uso futuro
+            onClick={onVerificarClick} // <-- CONECTANDO O BOTÃO
             size="small"
         >
           Verificar Disponibilidade

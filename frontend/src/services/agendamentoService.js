@@ -45,6 +45,19 @@ const getModalData = () => {
     return Promise.all([fetchPacientes, fetchProcedimentos, fetchMedicos, fetchEspecialidades]);
 };
 
+// ADICIONE A NOVA FUNÇÃO ABAIXO
+const verificarDisponibilidade = ({ data, medicoId, especialidadeId }) => {
+    const params = new URLSearchParams();
+    params.append('data', data); // Formato YYYY-MM-DD
+    if (medicoId) {
+        params.append('medico_id', medicoId);
+    }
+    if (especialidadeId) {
+        params.append('especialidade_id', especialidadeId);
+    }
+    return apiClient.get(`/horarios-disponiveis/?${params.toString()}`);
+};
+
 export const agendamentoService = {
     getAgendamentos,
     getAgendamentosHoje,
@@ -52,5 +65,6 @@ export const agendamentoService = {
     createAgendamento,
     updateAgendamento,
     getModalData,
-    verificarCapacidade,  
+    verificarCapacidade,
+    verificarDisponibilidade,  
 };
