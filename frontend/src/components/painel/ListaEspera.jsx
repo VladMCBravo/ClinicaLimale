@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { agendamentoService } from '../../services/agendamentoService';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar
 
 // Função para calcular o tempo de espera
 const calcularTempoEspera = (horaChegada) => {
@@ -42,9 +43,13 @@ export default function ListaEspera() {
         return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 4 }} />;
     }
 
+    // MUDANÇA: O retorno agora é um Box, não um Paper
     return (
-        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Lista de Espera</Typography>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">Lista de Espera</Typography>
+                {/* O botão de fechar pode ser útil, mas o Drawer já fecha ao clicar fora. É opcional. */}
+            </Box>
             {lista.length === 0 ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <Typography color="text.secondary">Nenhum paciente aguardando no momento.</Typography>
@@ -84,6 +89,6 @@ export default function ListaEspera() {
                     </Table>
                 </TableContainer>
             )}
-        </Paper>
+        </Box>
     );
 }

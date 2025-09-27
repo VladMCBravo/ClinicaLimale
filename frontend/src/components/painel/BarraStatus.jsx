@@ -5,16 +5,17 @@ import { Box, Paper, IconButton, Tooltip, Divider, Badge } from '@mui/material';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CakeIcon from '@mui/icons-material/Cake';
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'; // Ícone para a Lista de Espera
 import ForumIcon from '@mui/icons-material/Forum'; // Ícone para o Chatbot
 
 // Este componente recebe os dados do painel como props
-export default function BarraStatus({ data }) {
+export default function BarraStatus({ data, onListaEsperaClick }) {
     
     return (
         <Paper 
             variant="outlined" 
             sx={{ 
-                width: '60px', // Largura fixa e fina
+                width: '60px',
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
@@ -24,7 +25,6 @@ export default function BarraStatus({ data }) {
             }}
         >
             <Tooltip title={`Consultas Agendadas Hoje: ${data.agendamentos_hoje_count}`} placement="left">
-                {/* Usamos o Badge para mostrar o número diretamente no ícone */}
                 <IconButton>
                     <Badge badgeContent={data.agendamentos_hoje_count} color="primary">
                         <EventAvailableIcon />
@@ -48,13 +48,18 @@ export default function BarraStatus({ data }) {
             
             <Divider sx={{ width: '70%' }} />
 
+            {/* MUDANÇA AQUI: Ícone da Lista de Espera agora é um botão */}
+            <Tooltip title="Ver Lista de Espera" placement="left">
+                <IconButton onClick={onListaEsperaClick}>
+                    <PlaylistPlayIcon />
+                </IconButton>
+            </Tooltip>
+            
             <Tooltip title="Chat em tempo real" placement="left">
                 <IconButton>
                     <ForumIcon />
                 </IconButton>
             </Tooltip>
-            
-            {/* Espaço para futuros ícones */}
         </Paper>
     );
 }
