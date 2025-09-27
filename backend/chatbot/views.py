@@ -441,10 +441,6 @@ class AgendamentoChatbotView(APIView):
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
-    """
-    Esta view orquestra TODA a conversa.
-    VERSÃO FINAL COM LÓGICA CORRIGIDA.
-    """
     try:
         data = json.loads(request.body)
         user_message = data.get("message")
@@ -463,28 +459,20 @@ def chatbot_orchestrator(request):
         logger.warning(f"[DEBUG CHATBOT] Session ID: {session_id}, Estado: '{estado_atual}', Mensagem: '{user_message}'")
         
         # --- LÓGICA PRINCIPAL (ROTEAMENTO DA CONVERSA) ---
-
         if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_', 'cancelamento_', 'triagem_')):
             logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
             manager = AgendamentoManager(
-                session_id=session_id,
-                memoria=memoria_atual,
-                base_url=request.build_absolute_uri('/'),
-                chain_sintomas=chain_sintomas,
-                chain_extracao_dados=chain_extracao_dados
+                session_id=session_id, memoria=memoria_atual, base_url=request.build_absolute_uri('/'),
+                chain_sintomas=chain_sintomas, chain_extracao_dados=chain_extracao_dados
             )
             resultado = manager.processar(user_message, estado_atual)
-            resposta_final = resultado.get("response_message")
-            novo_estado = resultado.get("new_state")
-            nova_memoria = resultado.get("memory_data")
-
         elif estado_atual == 'aguardando_nome':
             nova_memoria = memoria_atual
             nome_usuario = user_message.strip().title()
             nova_memoria['nome_usuario'] = nome_usuario
             resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
             novo_estado = 'identificando_demanda'
-
+            resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": nova_memoria}
         elif estado_atual == 'identificando_demanda':
             logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
@@ -494,47 +482,23 @@ def chatbot_orchestrator(request):
             if intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message, 'agendamento_inicio')
-                resposta_final = resultado.get("response_message")
-                novo_estado = resultado.get("new_state")
-                nova_memoria = resultado.get("memory_data")
-            
             elif intent == "buscar_preco":
                 entity = intent_data.get("entity")
-                resposta_acolhimento = (
-                    "Claro! Vou te passar os valores. Mas antes, quero destacar que aqui na "
-                    "Clínica Limalé prezamos pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
-                )
+                resposta_acolhimento = "Claro! Vou te passar os valores. Mas antes, quero destacar que aqui na Clínica Limalé prezamos pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
                 servico = buscar_precos_servicos(entity)
-                
                 if servico:
                     resposta_preco = f"O valor para {servico['tipo']} de *{servico['nome']}* é de R$ {servico['valor']}."
                 else:
                     resposta_preco = f"Não encontrei um preço para '{entity}'. Posso listar nossos serviços e valores, se desejar."
-
-                resposta_final = (
-                    f"{resposta_acolhimento}{resposta_preco}\n\n"
-                    "Temos também um desconto de 5% para pagamentos via Pix realizados no momento do agendamento. "
-                    "Gostaria de agendar este ou algum outro serviço?"
-                )
-                novo_estado = 'identificando_demanda'
-                nova_memoria = memoria_atual
-
+                resposta_final = f"{resposta_acolhimento}{resposta_preco}\n\nTemos também um desconto de 5% para pagamentos via Pix. Gostaria de agendar?"
+                resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
             elif intent == "cancelar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message, 'cancelamento_inicio')
-                resposta_final = resultado.get("response_message")
-                novo_estado = resultado.get("new_state")
-                nova_memoria = resultado.get("memory_data")
-            
-            # elif intent == "triagem_sintomas": # Deixamos aqui para reativar no futuro
-            #    ...
-
-            else: # Se a intenção não for clara
-                resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
-                novo_estado = 'identificando_demanda'
-                nova_memoria = memoria_atual
-
-        else: # O estado é 'inicio' ou um estado desconhecido
+            else:
+                resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar, cancelar ou saber um preço?"
+                resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+        else: # O estado é 'inicio'
             logger.warning("Rota: INICIANDO NOVA CONVERSA.")
             if memoria_atual.get('nome_usuario'):
                 resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}, bem-vindo(a) de volta! Como posso te ajudar hoje?"
@@ -542,14 +506,16 @@ def chatbot_orchestrator(request):
             else:
                 resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência no seu atendimento.\nPode me passar seu nome?"
                 novo_estado = 'aguardando_nome'
-            nova_memoria = memoria_atual
-        
-        memoria_obj.state = novo_estado
-        memoria_obj.memory_data = nova_memoria
+            resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
+
+        # Unifica a atualização da memória e o envio da resposta
+        memoria_obj.state = resultado.get("new_state")
+        memoria_obj.memory_data = resultado.get("memory_data")
         memoria_obj.save()
 
-        logger.warning(f"Resposta Final Enviada: '{resposta_final[:100]}...'")
-        return JsonResponse({"response_message": resposta_final})
+        resposta_final_msg = resultado.get("response_message")
+        logger.warning(f"Resposta Final Enviada: '{resposta_final_msg[:100]}...'")
+        return JsonResponse({"response_message": resposta_final_msg})
 
     except Exception as e:
         logger.error(f"ERRO CRÍTICO no orquestrador do chatbot: {e}", exc_info=True)
