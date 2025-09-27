@@ -384,37 +384,38 @@ parser = JsonOutputParser()
 chain_roteadora = prompt_roteador | llm | parser
 
 
-# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS ---
+# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS (VERSÃO CORRIGIDA FINAL) ---
 lista_especialidades_para_ia = "Cardiologia, Ginecologia, Neonatologia, Obstetrícia, Ortopedia, Pediatria, Reumatologia Pediátrica"
 
-# SUBSTITUA SEU PROMPT ANTIGO POR ESTE
+# SUBSTITUA COMPLETAMENTE O PROMPT_SINTOMAS POR ESTE
 prompt_sintomas = ChatPromptTemplate.from_messages([
     ("system", f"""
     # MISSÃO
-    Você é um assistente de triagem médica virtual. Sua função é analisar a descrição de sintomas do usuário e sugerir a especialidade médica mais apropriada DENTRO DA LISTA DE OPÇÕES VÁLIDAS.
+    Você é um assistente de triagem médica. Sua função é analisar sintomas e sugerir a especialidade médica mais apropriada DENTRO DA LISTA DE OPÇÕES VÁLIDAS.
 
-    # REGRAS CRÍTICAS DE SEGURANÇA
-    - JAMAIS, em hipótese alguma, forneça diagnósticos, conselhos médicos, tratamentos ou nomes de medicamentos.
-    - Sua única saída deve ser a especialidade.
-    - Se os sintomas forem muito vagos ou fora das especialidades, responda com "Clinico Geral".
+    # REGRAS CRÍTICAS
+    - JAMAIS forneça diagnósticos ou conselhos médicos.
+    - Se os sintomas forem muito vagos, responda com "Clinico Geral".
 
     # ESPECIALIDADES VÁLIDAS
     {lista_especialidades_para_ia}
 
     # FORMATO DE SAÍDA OBRIGATÓRIO
     Sua saída DEVE SER SEMPRE um objeto JSON único, contendo apenas a chave "especialidade_sugerida".
-    
-    # Exemplo de texto de saída:
-    {{
-        "especialidade_sugerida": "Cardiologia"
-    }}
     """),
+    
+    # --- INÍCIO DO EXEMPLO PRÁTICO (FEW-SHOT) ---
+    # Aqui nós MOSTRAMOS para a IA o que esperamos
+    ("human", "Estou com o coração acelerado e dor no peito."),
+    ("ai", '{ "especialidade_sugerida": "Cardiologia" }'),
+    # --- FIM DO EXEMPLO ---
+    
+    # Aqui entra a pergunta real do usuário
     ("human", "{sintomas_do_usuario}")
 ])
 
-# GARANTIA: A chain_sintomas é a sequência completa
+# O resto do seu arquivo (a definição da chain e do orquestrador) permanece exatamente o mesmo.
 chain_sintomas = prompt_sintomas | llm | parser
-
 def _buscar_preco_servico(base_url, entity):
     logger.info(f"--- INICIANDO BUSCA DE PREÇO PARA: '{entity}' ---")
     api_key = os.getenv('API_KEY_CHATBOT')
