@@ -1,32 +1,37 @@
 // src/pages/PainelRecepcaoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, CircularProgress, Paper, Drawer } from '@mui/material';
+import { Box, CircularProgress, Drawer } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
-// Nossos componentes modulares
+// --- VERIFIQUE SE TODAS ESTAS IMPORTAÇÕES ESTÃO PRESENTES ---
 import AcoesRapidas from '../components/painel/AcoesRapidas';
 import BarraStatus from '../components/painel/BarraStatus';
 import FiltrosAgenda from '../components/painel/FiltrosAgenda';
-import AgendaPrincipal from '../components/agenda/AgendaPrincipal'; // A agenda unificada!
+import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
-import ListaEspera from '../components/painel/ListaEspera'; // <-- ADICIONE ESTA LINHA
-import PacienteModal from '../components/PacienteModal'; // <-- PASSO 1: IMPORTAR O MODAL EXISTENTE
+import ListaEspera from '../components/painel/ListaEspera';
+import PacienteModal from '../components/PacienteModal';
+import AgendamentoModal from '../components/AgendamentoModal';
+import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
+import FormularioPaciente from '../components/pacientes/FormularioPaciente';
 
 export default function PainelRecepcaoPage() {
+    // --- ESTADOS GERAIS ---
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeView, setActiveView] = useState('listaEspera');
+    const [activeView, setActiveView] = useState('agenda');
     const [refreshSidebar, setRefreshSidebar] = useState(0);
 
-    // Estados para os filtros
+    // --- ESTADOS DOS FILTROS ---
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
-    // MUDANÇA 1: Novo estado para controlar o painel da lista de espera
+
+    // --- ESTADOS DOS MODAIS E DRAWERS ---
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
-    // Precisamos do estado do AgendamentoModal aqui
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
+    // --- BUSCA DE DADOS ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -41,42 +46,30 @@ export default function PainelRecepcaoPage() {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // --- HANDLERS (FUNÇÕES DE CONTROLE) ---
     const handleFiltroChange = (filtros) => {
         setMedicoFiltro(filtros.medicoId);
         setEspecialidadeFiltro(filtros.especialidadeId);
     };
 
-    // NOVA FUNÇÃO para lidar com a seleção de um slot de horário
+    // FUNÇÃO QUE ESTAVA FALTANDO
+    const handleModalSave = () => {
+        setIsPacienteModalOpen(false);
+        setIsAgendamentoModalOpen(false);
+        fetchData(); 
+        setRefreshSidebar(prev => prev + 1);
+    };
+    
     const handleSlotSelect = (data) => {
         setAgendamentoInitialData({
             start: data.data_hora_inicio.toDate(),
             extendedProps: {
-                medico: data.medico.id,
-                especialidade: data.especialidade.id,
+                medico: data.medico?.id,
+                especialidade: data.especialidade?.id,
             }
         });
         setIsAgendamentoModalOpen(true);
     };
-
-    const handleAgendaSave = () => {
-        setIsAgendamentoModalOpen(false); // Fecha o modal ao salvar
-        fetchData(); 
-        setRefreshSidebar(prev => prev + 1);
-    }
-    
-    // PASSO 3: Criar as funções para abrir e fechar o modal
-    const handlePacienteModalClose = () => {
-        setIsPacienteModalOpen(false);
-    };
-
-    const handlePacienteModalSave = () => {
-        setIsPacienteModalOpen(false);
-        // Após salvar um novo paciente, atualizamos os dados do painel e da agenda
-        fetchData();
-        setRefreshSidebar(prev => prev + 1);
-        // (Opcional) Podemos forçar a agenda a recarregar também se necessário
-    };
-
 
     if (isLoading || !data) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -102,8 +95,8 @@ export default function PainelRecepcaoPage() {
             {/* Coluna da Esquerda */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <AcoesRapidas 
-                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)} // Abre o modal de paciente
-                    onVerificarClick={() => setActiveView('verificarDisponibilidade')} // Muda a visão central
+                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
+                    onVerificarClick={() => setActiveView('verificarDisponibilidade')}
                 /> 
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
