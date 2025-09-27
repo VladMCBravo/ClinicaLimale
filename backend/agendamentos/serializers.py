@@ -5,6 +5,8 @@ from .models import Agendamento
 from pacientes.models import Paciente
 from usuarios.models import CustomUser, Especialidade
 from faturamento.models import Procedimento
+from django.utils import timezone
+
 
 # --- Serializer para LEITURA (GET) ---
 # Mostra os dados de forma legível para o frontend
@@ -135,3 +137,43 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         
         # Se passou por todas as validações, retorna os dados
         return data
+
+# <<-- NOVA FUNÇÃO 1 -->>
+def listar_agendamentos_futuros(cpf):
+    """Busca no banco de dados todos os agendamentos futuros de um paciente."""
+    try:
+        paciente = Paciente.objects.get(cpf=cpf)
+        agora = timezone.now()
+        
+        agendamentos = Agendamento.objects.filter(
+            paciente=paciente,
+            data_hora_inicio__gte=agora,
+            status__in=['Agendado', 'Confirmado']
+        ).order_by('data_hora_inicio')
+        
+        return list(agendamentos)
+    except Paciente.DoesNotExist:
+        return []
+
+# <<-- NOVA FUNÇÃO 2 -->>
+def cancelar_agendamento_service(agendamento_id):
+    """Altera o status de um agendamento para 'Cancelado'."""
+    try:
+        agendamento = Agendamento.objects.get(id=agendamento_id)
+        
+        # Lógica de negócio: talvez não possa cancelar muito perto da data
+        # Por enquanto, vamos permitir o cancelamento a qualquer momento
+        
+        agendamento.status = 'Cancelado'
+        agendamento.save()
+        
+        # Opcional: cancelar também o pagamento associado
+        if hasattr(agendamento, 'pagamento'):
+            pagamento = agendamento.pagamento
+            pagamento.status = 'Cancelado'
+            pagamento.save()
+            # Aqui entraria a lógica de estorno, se aplicável
+            
+        return {"status": "sucesso", "mensagem": "Agendamento cancelado com sucesso."}
+    except Agendamento.DoesNotExist:
+        return {"status": "erro", "mensagem": "Agendamento não encontrado."}

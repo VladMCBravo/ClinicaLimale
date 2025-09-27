@@ -10,7 +10,13 @@ from django.utils import timezone
 # --- SEÇÃO DE IMPORTAÇÕES DOS SEUS APPS DJANGO ---
 from usuarios.models import Especialidade, CustomUser
 from faturamento.models import Procedimento
-from agendamentos.services import buscar_proximo_horario_disponivel, buscar_proximo_horario_procedimento
+from agendamentos.services import (
+    buscar_proximo_horario_disponivel, 
+    buscar_proximo_horario_procedimento,
+    criar_agendamento_e_pagamento_pendente,
+    listar_agendamentos_futuros,
+    cancelar_agendamento_service
+)
 from pacientes.models import Paciente
 from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.services import criar_agendamento_e_pagamento_pendente
@@ -67,6 +73,7 @@ class AgendamentoManager:
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
             'agendamento_awaiting_new_child_data': self.handle_awaiting_new_child_data,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
+            'agendamento_inicio': self.handle_inicio,
         }
         handler = handlers.get(estado_atual, self.handle_fallback)
         return handler(resposta_usuario)
@@ -305,3 +312,100 @@ class AgendamentoManager:
             return {"response_message": resposta_final, "new_state": "inicio", "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}}
         except Exception as e:
             return {"response_message": f"Desculpe, ocorreu um erro inesperado: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
+
+# ##################################################
+    # ### NOVOS HANDLERS PARA O FLUXO DE CANCELAMENTO ###
+    # ##################################################
+
+    def handle_cancelamento_inicio(self, resposta_usuario):
+        return {
+            "response_message": "Entendido. Para localizar seu agendamento, por favor, me informe o seu *CPF*.",
+            "new_state": "cancelamento_awaiting_cpf",
+            "memory_data": self.memoria
+        }
+
+    def handle_cancelamento_awaiting_cpf(self, resposta_usuario):
+        cpf = re.sub(r'\D', '', resposta_usuario)
+        if len(cpf) != 11:
+            return {
+                "response_message": "CPF inválido. Por favor, digite os 11 números.",
+                "new_state": "cancelamento_awaiting_cpf",
+                "memory_data": self.memoria
+            }
+
+        agendamentos = listar_agendamentos_futuros(cpf)
+
+        if not agendamentos:
+            return {
+                "response_message": "Não encontrei nenhum agendamento futuro registrado no seu CPF. Posso te ajudar com algo mais?",
+                "new_state": "inicio",
+                "memory_data": self.memoria
+            }
+        
+        # Guardamos os dados formatados na memória para os próximos passos
+        self.memoria['agendamentos_para_cancelar'] = [
+            {
+                "id": ag.id,
+                "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else ag.procedimento.descricao} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"
+            } for ag in agendamentos
+        ]
+
+        if len(agendamentos) == 1:
+            ag = self.memoria['agendamentos_para_cancelar'][0]
+            self.memoria['agendamento_selecionado_id'] = ag['id']
+            return {
+                "response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nVocê confirma o cancelamento? (Sim/Não)",
+                "new_state": "cancelamento_awaiting_confirmation",
+                "memory_data": self.memoria
+            }
+        else:
+            lista_texto = "\n".join([f"{i+1} - {ag['texto']}" for i, ag in enumerate(self.memoria['agendamentos_para_cancelar'])])
+            return {
+                "response_message": f"Encontrei os seguintes agendamentos no seu CPF:\n{lista_texto}\n\nQual o *número* do agendamento que você deseja cancelar?",
+                "new_state": "cancelamento_awaiting_choice",
+                "memory_data": self.memoria
+            }
+
+    def handle_cancelamento_awaiting_choice(self, resposta_usuario):
+        try:
+            escolha = int(resposta_usuario.strip()) - 1
+            agendamentos_lista = self.memoria.get('agendamentos_para_cancelar', [])
+            if 0 <= escolha < len(agendamentos_lista):
+                ag_selecionado = agendamentos_lista[escolha]
+                self.memoria['agendamento_selecionado_id'] = ag_selecionado['id']
+                return {
+                    "response_message": f"Você confirma o cancelamento do agendamento:\n• {ag_selecionado['texto']}\n\n(Sim/Não)",
+                    "new_state": "cancelamento_awaiting_confirmation",
+                    "memory_data": self.memoria
+                }
+            else:
+                raise ValueError("Escolha fora do intervalo")
+        except (ValueError, IndexError):
+            return {
+                "response_message": "Opção inválida. Por favor, digite apenas o número correspondente ao agendamento.",
+                "new_state": "cancelamento_awaiting_choice",
+                "memory_data": self.memoria
+            }
+
+    def handle_cancelamento_awaiting_confirmation(self, resposta_usuario):
+        resposta = resposta_usuario.lower()
+        if 'sim' in resposta:
+            agendamento_id = self.memoria.get('agendamento_selecionado_id')
+            resultado = cancelar_agendamento_service(agendamento_id)
+            return {
+                "response_message": resultado.get('mensagem', 'Ocorreu um erro ao cancelar.'),
+                "new_state": "inicio",
+                "memory_data": self.memoria
+            }
+        elif 'não' in resposta or 'nao' in resposta:
+            return {
+                "response_message": "Ok, o agendamento foi mantido. Posso ajudar com algo mais?",
+                "new_state": "inicio",
+                "memory_data": self.memoria
+            }
+        else:
+            return {
+                "response_message": "Não entendi. Por favor, responda com 'Sim' ou 'Não' para confirmar o cancelamento.",
+                "new_state": "cancelamento_awaiting_confirmation",
+                "memory_data": self.memoria
+            }

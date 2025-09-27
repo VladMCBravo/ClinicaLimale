@@ -375,8 +375,10 @@ llm = ChatGoogleGenerativeAI(
 
 # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
 class RoteadorOutput(BaseModel):
-    intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'triagem_sintomas'.")
+    # Adicione 'cancelar_agendamento' à lista de intenções possíveis
+    intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'triagem_sintomas', 'cancelar_agendamento'.")
     entity: Optional[str] = Field(description="O serviço ou especialidade específica que o usuário mencionou, se houver.")
+
 
 parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
 prompt_roteador = ChatPromptTemplate.from_template(
@@ -508,7 +510,15 @@ def chatbot_orchestrator(request):
                     "Clínica Limalé prezamos pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
                 )
                 servico = buscar_precos_servicos(entity)
-                
+            # <<-- NOVO BLOCO PARA CANCELAMENTO -->>
+            elif intent == "cancelar_agendamento":
+                # Apenas iniciamos o fluxo de cancelamento. O Manager cuidará do resto.
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message, 'cancelamento_inicio')
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
+                    
                 if servico:
                     resposta_preco = f"O valor para {servico['tipo']} de *{servico['nome']}* é de R$ {servico['valor']}."
                 else:
