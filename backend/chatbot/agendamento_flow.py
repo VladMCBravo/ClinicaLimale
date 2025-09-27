@@ -18,10 +18,12 @@ from agendamentos.services import criar_agendamento_e_pagamento_pendente
 
 
 class AgendamentoManager:
-    def __init__(self, session_id, memoria, base_url):
+    # ATUALIZAÇÃO: Recebemos a chain de sintomas no construtor
+    def __init__(self, session_id, memoria, base_url, chain_sintomas=None):
         self.session_id = session_id
         self.memoria = memoria
         self.base_url = base_url.rstrip('/')
+        self.chain_sintomas = chain_sintomas # Armazenamos a chain de IA
         self.api_key = os.getenv('API_KEY_CHATBOT')
         self.headers = {'Api-Key': self.api_key}
 
@@ -38,25 +40,110 @@ class AgendamentoManager:
     # --- ROTEADOR PRINCIPAL ---
     def processar(self, resposta_usuario, estado_atual):
         handlers = {
+            # Estados de Triagem
+            'triagem_awaiting_description': self.handle_awaiting_symptom_description, # <<-- NOVO ESTADO
+            
+            # Estados de Agendamento
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
-            'agendamento_awaiting_procedure': self.handle_awaiting_procedure, # <<-- NOVO ESTADO
+            'agendamento_awaiting_procedure': self.handle_awaiting_procedure,
             'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
             'agendamento_awaiting_slot_choice': self.handle_awaiting_slot_choice,
             'agendamento_awaiting_cpf': self.handle_awaiting_cpf,
+            'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
+            
+            # Estados de Cadastro
             'agendamento_awaiting_new_patient_nome': self.handle_awaiting_new_patient_nome,
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
-            'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
         }
         handler = handlers.get(estado_atual, self.handle_fallback)
         return handler(resposta_usuario)
+
 
     # --- HANDLERS DO FLUXO DE CONVERSA ---
     def handle_fallback(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
         return { "response_message": "Desculpe, me perdi. Vamos recomeçar.", "new_state": "inicio", "memory_data": {'nome_usuario': nome_usuario} }
+
+# <<-- NOVO HANDLER PARA PROCESSAR SINTOMAS -->>
+    def handle_awaiting_symptom_description(self, resposta_usuario):
+        print("[DEBUG] Chamando IA para analisar sintomas...")
+        if not self.chain_sintomas:
+            return {"response_message": "Desculpe, meu sistema de triagem está indisponível no momento. Vamos tentar agendar diretamente.", "new_state": "agendamento_inicio", "memory_data": self.memoria}
+
+        try:
+            resultado_ia = self.chain_sintomas.invoke({"sintomas_do_usuario": resposta_usuario})
+            especialidade_sugerida_nome = resultado_ia.get("especialidade_sugerida")
+            print(f"[DEBUG] IA sugeriu a especialidade: {especialidade_sugerida_nome}")
+
+            if not especialidade_sugerida_nome or especialidade_sugerida_nome == "Clinico Geral":
+                 return {"response_message": "Obrigado pela descrição. Nesses casos, o ideal é começar com uma avaliação mais geral. Vamos agendar uma consulta?", "new_state": "agendamento_inicio", "memory_data": self.memoria}
+
+            # Busca o objeto da especialidade no banco para pegar o ID
+            especialidade_obj = Especialidade.objects.filter(nome__iexact=especialidade_sugerida_nome).first()
+            if not especialidade_obj:
+                return {"response_message": f"Entendi. Para esses sintomas, o ideal seria um especialista em {especialidade_sugerida_nome}, mas não temos essa opção no momento. Gostaria de agendar outra consulta?", "new_state": "agendamento_inicio", "memory_data": self.memoria}
+
+            # Prepara uma explicação simples (pode ser melhorado no futuro)
+            explicacoes = {
+                "Cardiologia": "cuida de questões relacionadas ao coração.",
+                "Pediatria": "é focada na saúde de crianças e adolescentes.",
+                "Ginecologia": "cuida da saúde da mulher."
+            }
+            explicacao_simples = explicacoes.get(especialidade_obj.nome, f"cuida de casos de {especialidade_obj.nome.lower()}.")
+
+            resposta_inicial = (
+                f"Baseado no que você me contou, a especialidade mais indicada parece ser a *{especialidade_obj.nome}*. "
+                f"O profissional dessa área {explicacao_simples}\n\n"
+                "**Importante:** esta é apenas uma sugestão para facilitar seu agendamento e não substitui uma avaliação médica completa.\n\n"
+                "Já estou buscando os próximos horários disponíveis para você..."
+            )
+            
+            # JÁ TEMOS A ESPECIALIDADE, VAMOS PULAR DIRETO PARA A BUSCA DE HORÁRIOS
+            return self._iniciar_busca_de_horarios(especialidade_obj.id, especialidade_obj.nome, resposta_inicial)
+
+        except Exception as e:
+            print(f"ERRO na triagem de sintomas: {e}")
+            return {"response_message": "Obrigado pela descrição. Tive um problema ao analisar, mas podemos agendar uma consulta diretamente.", "new_state": "agendamento_inicio", "memory_data": self.memoria}
+
+
+    # <<-- NOVO MÉTODO REUTILIZÁVEL PARA BUSCAR HORÁRIOS -->>
+    def _iniciar_busca_de_horarios(self, especialidade_id, especialidade_nome, resposta_parcial=""):
+        self.memoria.update({'especialidade_id': especialidade_id, 'especialidade_nome': especialidade_nome})
+        medicos = self._get_medicos_from_db(especialidade_id=especialidade_id)
+        if not medicos:
+            return {"response_message": f"Não encontrei médicos disponíveis para {especialidade_nome} no momento.", "new_state": "inicio", "memory_data": self.memoria}
         
+        medico = medicos[0]
+        self.memoria.update({'medico_id': medico['id'], 'medico_nome': f"{medico['first_name']} {medico['last_name']}"})
+        
+        horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
+        if not horarios or not horarios.get('horarios_disponiveis'):
+            return {"response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {self.memoria['medico_nome']} para {especialidade_nome} nos próximos 90 dias.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+
+        self.memoria['horarios_ofertados'] = horarios
+        data_formatada = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
+        horarios_str = ", ".join(horarios['horarios_disponiveis'])
+        
+        mensagem_horarios = f"Para Dr(a). *{self.memoria['medico_nome']}*, encontrei os seguintes horários no dia *{data_formatada}*:\n\n*{horarios_str}*\n\nQual horário você prefere?"
+        
+        resposta_completa = f"{resposta_parcial}\n\n{mensagem_horarios}" if resposta_parcial else mensagem_horarios
+
+        return {"response_message": resposta_completa.strip(), "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+
+
+    # O handle_awaiting_specialty agora fica mais simples, apenas reutiliza a função acima
+    def handle_awaiting_specialty(self, resposta_usuario):
+        especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower() or esp['nome'].lower() in resposta_usuario.lower()), None)
+        if not especialidade_escolhida:
+            return {"response_message": "Não encontrei essa especialidade na lista. Por favor, digite um nome válido.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+
+        # APENAS CHAMA A FUNÇÃO REUTILIZÁVEL
+        self.memoria['tipo_agendamento'] = 'Consulta' # Garante o tipo correto
+        return self._iniciar_busca_de_horarios(especialidade_escolhida['id'], especialidade_escolhida['nome'])
+
+
     def handle_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', 'tudo bem')
         self.memoria.clear() 
@@ -74,6 +161,7 @@ class AgendamentoManager:
             "new_state": "agendamento_awaiting_type",
             "memory_data": self.memoria
         }
+    
     def handle_awaiting_type(self, resposta_usuario):
         escolha = resposta_usuario.lower()
         if 'consulta' in escolha:
