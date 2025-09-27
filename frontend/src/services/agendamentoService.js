@@ -23,6 +23,11 @@ const getAgendamentosHoje = (medicoId) => {
     const url = `/agendamentos/hoje/${queryString ? `?${queryString}` : ''}`;
     return apiClient.get(url);
 };
+// ADICIONE A NOVA FUNÇÃO ABAIXO
+const getListaEspera = () => {
+    return apiClient.get('/agendamentos/espera/');
+};
+
 const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
 const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
 const verificarCapacidade = (inicio, fim) => {
@@ -43,8 +48,9 @@ const getModalData = () => {
 export const agendamentoService = {
     getAgendamentos,
     getAgendamentosHoje,
+    getListaEspera,
     createAgendamento,
     updateAgendamento,
     getModalData,
-    verificarCapacidade,
+    verificarCapacidade,  
 };
