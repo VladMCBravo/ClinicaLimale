@@ -231,17 +231,50 @@ class AgendamentoManager:
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
     
     def handle_awaiting_slot_choice(self, resposta_usuario):
-        # ... (código existente sem alterações)
         try:
             horario_escolhido_str = datetime.strptime(resposta_usuario.strip(), '%H:%M').strftime('%H:%M')
         except ValueError:
             horario_escolhido_str = resposta_usuario.strip()
+
         horarios_ofertados = self.memoria.get('horarios_ofertados', {})
         lista_horarios_validos = horarios_ofertados.get('horarios_disponiveis', [])
+
         if horario_escolhido_str not in lista_horarios_validos:
-            return {"response_message": "Hum, não encontrei o horário na lista...", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
-        self.memoria['data_hora_inicio'] = f"{horarios_ofertados['data']}T{horario_escolhido_str}"
-        return {"response_message": "Perfeito! Para confirmar, informe seu *CPF*.", "new_state": "agendamento_awaiting_cpf", "memory_data": self.memoria}
+            horarios_validos_str = ", ".join(lista_horarios_validos)
+            return {
+                "response_message": f"Hum, não encontrei o horário '{resposta_usuario.strip()}' na lista. Por favor, escolha um destes: {horarios_validos_str}",
+                "new_state": "agendamento_awaiting_slot_choice",
+                "memory_data": self.memoria
+            }
+        
+        # O horário escolhido é válido, salvamos na memória
+        data_sugerida = horarios_ofertados['data']
+        self.memoria['data_hora_inicio'] = f"{data_sugerida}T{horario_escolhido_str}"
+        
+        # --- MUDANÇA AQUI: Mensagem de valorização ---
+        tipo_agendamento = self.memoria.get('tipo_agendamento')
+        
+        if tipo_agendamento == 'Consulta':
+            nome_medico = self.memoria.get('medico_nome', 'nosso especialista')
+            mensagem_valorizacao = (
+                f"Perfeito, horário anotado! Sua consulta será com Dr(a). *{nome_medico}*, "
+                "que é referência na área e muito elogiado(a) pelo cuidado e atenção com os pacientes."
+            )
+        else: # Procedimento
+            nome_procedimento = self.memoria.get('procedimento_nome', 'seu exame')
+            mensagem_valorizacao = (
+                f"Perfeito, seu horário para *{nome_procedimento}* está pré-agendado! Aqui na clínica, prezamos pela qualidade e precisão "
+                "em todos os nossos exames, realizados com equipamentos de última geração."
+            )
+        
+        # Unimos a valorização com a pergunta do CPF
+        resposta_final = f"{mensagem_valorizacao}\n\nPara confirmar seu agendamento, por favor, me informe seu *CPF*."
+
+        return {
+            "response_message": resposta_final,
+            "new_state": "agendamento_awaiting_cpf",
+            "memory_data": self.memoria
+        }
     
     def handle_awaiting_cpf(self, resposta_usuario):
         # ... (código existente sem alterações)
