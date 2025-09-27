@@ -1,7 +1,7 @@
 import os
 import requests
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- 1. IMPORTE SEUS MODELOS AQUI ---
 from usuarios.models import Especialidade, CustomUser # Assumindo o caminho dos seus apps
@@ -12,6 +12,7 @@ from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.services import criar_agendamento_e_pagamento_pendente
 from pacientes.models import Paciente
 from usuarios.models import CustomUser # Para buscar o usuário de serviço
+import json
 
 class AgendamentoManager:
     def __init__(self, session_id, memoria, base_url):
