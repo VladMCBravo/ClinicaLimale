@@ -360,53 +360,50 @@ class AgendamentoChatbotView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
+# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
 prompt_roteador = ChatPromptTemplate.from_messages([
     ("system", """
     # MISSÃO
-    Você é um assistente de IA roteador. Sua função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome).
+    Você é um assistente de IA roteador. Sua única função é analisar a mensagem do usuário para determinar a intenção principal.
     # FORMATO DE SAÍDA OBRIGATÓRIO
-    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent" e, se aplicável, a chave "entity". NADA MAIS.
+    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent".
     # INTENÇÕES POSSÍVEIS
     - "saudacao": Para saudações como "oi", "bom dia", "olá".
-    - "buscar_preco": Quando o usuário pergunta o preço ou valor de um serviço.
-    - "iniciar_agendamento": Quando o usuário explicitamente pede para marcar uma consulta, exame ou ver horários. (ex: "quero agendar", "marcar consulta", "ver horários").
-    - "triagem_sintomas": QUANDO O USUÁRIO DESCREVE UM PROBLEMA DE SAÚDE OU SINTOMA. (ex: "estou com dor de cabeça", "meu filho está com febre", "sinto enjoo").
+    - "iniciar_agendamento": Quando o usuário explicitamente pede para marcar uma consulta, exame ou ver horários.
+    - "triagem_sintomas": QUANDO O USUÁRIO DESCREVE UM PROBLEMA DE SAÚDE OU SINTOMA.
     """),
     ("human", "{user_message}")
 ])
+
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", # <-- MUDANÇA AQUI
+    model="gemini-2.5-flash", 
     temperature=0,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 parser = JsonOutputParser()
 chain_roteadora = prompt_roteador | llm | parser
 
-# --- NOVO: CÉREBRO DA IA DE TRIAGEM DE SINTOMAS ---
-# Adicione este novo cérebro de IA ao seu arquivo de views
+
+# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS ---
 lista_especialidades_para_ia = "Cardiologia, Ginecologia, Neonatologia, Obstetrícia, Ortopedia, Pediatria, Reumatologia Pediátrica"
 
 prompt_sintomas = ChatPromptTemplate.from_messages([
     ("system", f"""
     # MISSÃO
-    Você é um assistente de triagem médica virtual chamado Leônidas. Sua única função é analisar a descrição de sintomas do usuário e sugerir a especialidade médica mais apropriada DENTRO DA LISTA DE OPÇÕES VÁLIDAS.
-
-    # REGRAS CRÍTICAS DE SEGURANÇA
-    - JAMAIS, em hipótese alguma, forneça diagnósticos, conselhos médicos, tratamentos ou nomes de medicamentos.
-    - Sua única saída deve ser a especialidade.
-    - Se os sintomas forem muito vagos ou fora das especialidades, responda com "Clinico Geral".
-    - Sempre reforce que sua sugestão não substitui uma avaliação médica.
-
+    Você é um assistente de triagem médica. Sua função é analisar sintomas e sugerir a especialidade médica mais apropriada DENTRO DA LISTA DE OPÇÕES VÁLIDAS.
+    # REGRAS CRÍTICAS
+    - JAMAIS forneça diagnósticos, conselhos médicos ou tratamentos.
+    - Se os sintomas forem muito vagos, responda com "Clinico Geral".
     # ESPECIALIDADES VÁLIDAS
     {lista_especialidades_para_ia}
-
     # FORMATO DE SAÍDA OBRIGATÓRIO
-    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo apenas a chave "especialidade_sugerida".
+    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "especialidade_sugerida".
     Exemplo: {{"especialidade_sugerida": "Cardiologia"}}
     """),
     ("human", "{sintomas_do_usuario}")
 ])
 
+# GARANTIA: A chain_sintomas é a sequência completa
 chain_sintomas = prompt_sintomas | llm | parser
 
 def _buscar_preco_servico(base_url, entity):
@@ -458,68 +455,58 @@ def _buscar_preco_servico(base_url, entity):
         logger.error(f"ERRO INESPERADO na busca de preço: {e}")
         return "Ocorreu um erro inesperado ao buscar as informações de preço."
 
+# --- ORQUESTRADOR PRINCIPAL DA CONVERSA ---
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
     """
-    Esta view orquestra TODA a conversa, incluindo o gerenciamento de memória.
-    VERSÃO REVISADA E ORGANIZADA para clareza.
+    Esta view orquestra TODA a conversa.
+    VERSÃO FINAL COM TODAS AS IAs E FLUXOS CORRETAMENTE CONECTADOS.
     """
     try:
-        # 1. COLETA DE DADOS (sem alterações)
         data = json.loads(request.body)
         user_message = data.get("message")
         session_id = data.get("sessionId")
         
-        logger.warning(f"\n--- INÍCIO DA REQUISIÇÃO ---")
-        logger.warning(f"[DEBUG CHATBOT] Session ID: {session_id}, Mensagem: '{user_message}'")
-
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        # 2. GERENCIAMENTO DE MEMÓRIA (sem alterações)
         memoria_obj, created = ChatMemory.objects.get_or_create(
             session_id=session_id,
             defaults={'memory_data': {}, 'state': 'inicio'}
         )
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
-        logger.warning(f"[DEBUG CHATBOT] Estado Carregado do BD: '{estado_atual}'")
+        logger.warning(f"\n--- INÍCIO DA REQUISIÇÃO ---")
+        logger.warning(f"[DEBUG CHATBOT] Session ID: {session_id}, Estado: '{estado_atual}', Mensagem: '{user_message}'")
         
-        # --- 3. LÓGICA PRINCIPAL (ROTEAMENTO DA CONVERSA) ---
+        # --- LÓGICA PRINCIPAL (ROTEAMENTO DA CONVERSA) ---
 
-        # ROTA A: O usuário está em um fluxo ativo (agendamento, cadastro OU triagem)
-        # Esta é a mudança principal: unificamos todos os fluxos ativos aqui.
         if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_', 'triagem_')):
-            logger.warning(f"[DEBUG CHATBOT] Rota: CONTINUANDO FLUXO '{estado_atual}'.")
-            # Instanciamos o manager e já passamos o cérebro de sintomas, pois ele pode ser necessário.
+            logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
             manager = AgendamentoManager(
                 session_id=session_id,
                 memoria=memoria_atual,
                 base_url=request.build_absolute_uri('/'),
-                chain_sintomas=chain_sintomas # Passamos a chain de IA de sintomas
+                chain_sintomas=chain_sintomas # GARANTIA: Passando a chain completa
             )
             resultado = manager.processar(user_message, estado_atual)
             resposta_final = resultado.get("response_message")
             novo_estado = resultado.get("new_state")
             nova_memoria = resultado.get("memory_data")
 
-        # ROTA B: O bot acabou de pedir o nome do usuário
         elif estado_atual == 'aguardando_nome':
             nova_memoria = memoria_atual
             nome_usuario = user_message.strip().title()
             nova_memoria['nome_usuario'] = nome_usuario
-            
             resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
             novo_estado = 'identificando_demanda'
 
-        # ROTA C: O bot está esperando o usuário dizer o que quer fazer
         elif estado_atual == 'identificando_demanda':
-            logger.warning("[DEBUG CHATBOT] Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
+            logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
-            
-            logger.warning(f"[DEBUG CHATBOT] Intenção Detectada: '{intent}'")
+            logger.warning(f"Intenção Detectada: '{intent}'")
 
             if intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
@@ -527,37 +514,29 @@ def chatbot_orchestrator(request):
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
-
             elif intent == "triagem_sintomas":
-                # Apenas preparamos para o próximo passo. A ROTA A vai cuidar do processamento.
                 resposta_final = "Entendo sua preocupação. Para que eu possa te ajudar a identificar a especialidade mais adequada, pode me descrever um pouco melhor o que você está sentindo?"
                 novo_estado = 'triagem_awaiting_description'
                 nova_memoria = memoria_atual
-            
-            else: # Se a intenção não for clara
+            else:
                 resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
                 novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
-
-        # ROTA D: É uma conversa nova (estado 'inicio' ou desconhecido)
         else:
-            logger.warning("[DEBUG CHATBOT] Rota: INICIANDO NOVA CONVERSA.")
+            logger.warning("Rota: INICIANDO NOVA CONVERSA.")
             if memoria_atual.get('nome_usuario'):
-                resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}, bem-vindo(a) de volta à Clínica Limalé! Como posso te ajudar hoje?"
+                resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}, bem-vindo(a) de volta! Como posso te ajudar hoje?"
                 novo_estado = 'identificando_demanda'
             else:
                 resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência no seu atendimento.\nPode me passar seu nome?"
                 novo_estado = 'aguardando_nome'
             nova_memoria = memoria_atual
         
-        # 4. SALVAR O NOVO ESTADO E A MEMÓRIA (sem alterações)
-        logger.warning(f"[DEBUG CHATBOT] Estado a ser salvo no BD: '{novo_estado}'")
         memoria_obj.state = novo_estado
         memoria_obj.memory_data = nova_memoria
         memoria_obj.save()
 
-        # 5. ENVIAR A RESPOSTA FINAL (sem alterações)
-        logger.warning(f"[DEBUG CHATBOT] Resposta Final Enviada: '{resposta_final[:100]}...'")
+        logger.warning(f"Resposta Final Enviada: '{resposta_final[:100]}...'")
         return JsonResponse({"response_message": resposta_final})
 
     except Exception as e:
