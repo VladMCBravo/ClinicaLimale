@@ -8,6 +8,10 @@ from usuarios.models import Especialidade, CustomUser # Assumindo o caminho dos 
 from faturamento.models import Procedimento # Se precisar no futuro
 from agendamentos.services import buscar_proximo_horario_disponivel
 from pacientes.models import Paciente
+from agendamentos.serializers import AgendamentoWriteSerializer
+from agendamentos.services import criar_agendamento_e_pagamento_pendente
+from pacientes.models import Paciente
+from usuarios.models import CustomUser # Para buscar o usuário de serviço
 
 class AgendamentoManager:
     def __init__(self, session_id, memoria, base_url):
@@ -280,38 +284,67 @@ class AgendamentoManager:
 
 
     def handle_awaiting_confirmation(self, resposta_usuario):
-        # A lógica para montar os dados do agendamento está correta
-        dados_agendamento = {
-            "cpf": self.memoria.get('cpf'),
-            "data_hora_inicio": self.memoria.get('data_hora_inicio'),
-            "tipo_agendamento": self.memoria.get('tipo_agendamento'),
-            "especialidade_id": self.memoria.get('especialidade_id'),
-            "medico_id": self.memoria.get('medico_id'),
-            "modalidade": self.memoria.get('modalidade'),
-        }
-        
-        # A CORREÇÃO É AQUI: mude de _chamar_api para _chamar_api_externa
-        resultado = self._chamar_api_externa('agendamentos/criar', method='POST', data=dados_agendamento)
-        
-        if not resultado or 'error' in resultado:
-             return {"response_message": f"Houve um erro ao criar seu agendamento: {resultado.get('error', 'Tente novamente')}", "new_state": "inicio", "memory_data": self.memoria}
-        
-        # ... (o resto da função para montar a mensagem de sucesso continua igual) ...
-        agendamento_id = resultado.get('agendamento_id')
-        pagamento = resultado.get('dados_pagamento', {})
-        
-        resposta_final = f"Perfeito! Seu agendamento (ID: {agendamento_id}) foi pré-realizado e agora só falta o pagamento para confirmar.\n\n"
-        
-        if pagamento.get('tipo') == 'PIX':
-            resposta_final += "Aqui está o PIX para pagamento:\n\n"
-            resposta_final += f"*Copia e Cola:*\n`{pagamento.get('pix_copia_e_cola')}`"
-        elif pagamento.get('tipo') == 'CartaoCredito':
-             resposta_final += f"Acesse o link a seguir para pagar com cartão de crédito:\n{pagamento.get('link')}"
+        try:
+            # --- LÓGICA DE CRIAÇÃO DO AGENDAMENTO (AGORA INTERNA) ---
+            
+            # Monta os dados necessários para o serializer
+            dados_agendamento = {
+                'paciente': Paciente.objects.get(cpf=self.memoria.get('cpf')).id,
+                'data_hora_inicio': self.memoria.get('data_hora_inicio'),
+                # A duração da consulta agora é calculada com base no que definimos antes
+                'data_hora_fim': datetime.fromisoformat(self.memoria.get('data_hora_inicio')) + timedelta(minutes=50),
+                'status': 'Agendado',
+                'tipo_agendamento': self.memoria.get('tipo_agendamento'),
+                'especialidade': self.memoria.get('especialidade_id'),
+                'medico': self.memoria.get('medico_id'),
+                'modalidade': self.memoria.get('modalidade'),
+                'tipo_atendimento': 'Particular',
+            }
 
-        resposta_final += "\n\nObrigado por agendar conosco!"
-        
-        return {
-            "response_message": resposta_final,
-            "new_state": "inicio",
-            "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}
-        }
+            serializer = AgendamentoWriteSerializer(data=dados_agendamento)
+            if not serializer.is_valid():
+                # Se os dados forem inválidos por algum motivo, retorna erro
+                error_messages = json.dumps(serializer.errors)
+                return {"response_message": f"Desculpe, houve um erro ao validar os dados do agendamento: {error_messages}", "new_state": "inicio", "memory_data": self.memoria}
+
+            agendamento = serializer.save()
+            
+            # Precisamos de um usuário para registrar o pagamento
+            # Vamos pegar o primeiro superusuário como padrão
+            usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
+
+            # Chama o serviço de pagamento diretamente
+            criar_agendamento_e_pagamento_pendente(
+                agendamento, 
+                usuario_servico,
+                initiated_by_chatbot=True
+            )
+            
+            agendamento.refresh_from_db()
+
+            # --- MONTAGEM DA RESPOSTA DE SUCESSO ---
+            pagamento_associado = agendamento.pagamento
+            dados_pagamento = {}
+
+            if hasattr(pagamento_associado, 'pix_copia_e_cola') and pagamento_associado.pix_copia_e_cola:
+                dados_pagamento['tipo'] = 'PIX'
+                dados_pagamento['pix_copia_e_cola'] = pagamento_associado.pix_copia_e_cola
+            elif hasattr(pagamento_associado, 'link_pagamento') and pagamento_associado.link_pagamento:
+                dados_pagamento['tipo'] = 'CartaoCredito'
+                dados_pagamento['link'] = pagamento_associado.link_pagamento
+            
+            resposta_final = f"Perfeito! Seu agendamento (ID: {agendamento.id}) foi pré-realizado. Para confirmar, realize o pagamento.\n\n"
+            if dados_pagamento.get('tipo') == 'PIX':
+                resposta_final += f"PIX Copia e Cola:\n`{dados_pagamento.get('pix_copia_e_cola')}`"
+            elif dados_pagamento.get('tipo') == 'CartaoCredito':
+                resposta_final += f"Link para pagamento com cartão:\n{dados_pagamento.get('link')}"
+            
+            return {
+                "response_message": resposta_final,
+                "new_state": "inicio",
+                "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}
+            }
+
+        except Exception as e:
+            # Captura qualquer erro inesperado e informa o usuário
+            return {"response_message": f"Desculpe, ocorreu um erro inesperado ao finalizar seu agendamento: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
