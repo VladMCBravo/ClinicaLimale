@@ -13,6 +13,51 @@ from pacientes.models import Paciente
 
 logger = logging.getLogger(__name__)
 
+def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
+    """
+    Busca todos os horários disponíveis para um médico em uma data específica.
+    """
+    try:
+        medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
+    except CustomUser.DoesNotExist:
+        return []
+
+    # Parâmetros (pode ajustar conforme necessário)
+    DURACAO_CONSULTA_MINUTOS = 20
+    
+    # Encontra a jornada de trabalho do médico para o dia da semana da data selecionada
+    dia_da_semana = data_selecionada.weekday()
+    jornadas_do_dia = JornadaDeTrabalho.objects.filter(medico=medico, dia_da_semana=dia_da_semana)
+
+    if not jornadas_do_dia:
+        return []
+
+    # Busca todos os agendamentos já existentes para aquele médico NAQUELE DIA
+    agendamentos_existentes = Agendamento.objects.filter(
+        medico=medico,
+        data_hora_inicio__date=data_selecionada,
+        status__in=['Agendado', 'Confirmado']
+    )
+    
+    # Cria um conjunto com os horários de início já ocupados para uma busca rápida
+    horarios_ocupados = {ag.data_hora_inicio.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
+    
+    horarios_disponiveis = []
+    
+    # Itera sobre cada turno de trabalho do médico no dia (manhã, tarde, etc.)
+    for jornada in jornadas_do_dia:
+        horario_slot = timezone.make_aware(datetime.datetime.combine(data_selecionada, jornada.hora_inicio))
+        hora_fim_turno = jornada.hora_fim
+
+        while horario_slot.time() < hora_fim_turno:
+            # Verifica se o slot está no futuro e se não está na lista de ocupados
+            if horario_slot > timezone.now() and horario_slot not in horarios_ocupados:
+                horarios_disponiveis.append(horario_slot.strftime('%H:%M'))
+            
+            horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
+
+    return sorted(horarios_disponiveis)
+
 def buscar_proximo_horario_procedimento(procedimento_id):
     """
     Busca o próximo horário disponível para um procedimento específico.

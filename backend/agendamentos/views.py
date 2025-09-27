@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_datetime, parse_date
 from .models import Agendamento
 from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
 from django.utils import timezone
@@ -58,13 +58,48 @@ class AgendamentosNaoPagosListAPIView(generics.ListAPIView):
     def get_queryset(self):
         return Agendamento.objects.filter(pagamento__isnull=True).order_by('data_hora_inicio')
 
+# ALTERADA: Agora aceita o filtro por médico
 class AgendamentosHojeListView(generics.ListAPIView):
-    # ... (sem alterações nesta view)
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         hoje = timezone.localtime(timezone.now()).date()
-        return Agendamento.objects.filter(data_hora_inicio__date=hoje).order_by('data_hora_inicio')
+        queryset = Agendamento.objects.filter(data_hora_inicio__date=hoje).order_by('data_hora_inicio')
+        
+        # Lógica de filtro adicionada
+        medico_id = self.request.query_params.get('medico_id')
+        if medico_id:
+            queryset = queryset.filter(medico_id=medico_id)
+            
+        return queryset
+
+# --- NOVA VIEW PARA O VERIFICADOR DE DISPONIBILIDADE ---
+class HorariosDisponiveisAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        data_str = request.query_params.get('data')
+        medico_id = request.query_params.get('medico_id')
+        especialidade_id = request.query_params.get('especialidade_id')
+
+        if not data_str or not medico_id:
+            return Response(
+                {'detail': 'Parâmetros "data" e "medico_id" são obrigatórios.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            data_selecionada = parse_date(data_str)
+            if not data_selecionada:
+                raise ValueError
+        except ValueError:
+            return Response(
+                {'detail': 'Formato de data inválido. Use AAAA-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        horarios = services.buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id)
+        return Response(horarios, status=status.HTTP_200_OK)
 
 # --- VIEW PARA O CRON JOB EXTERNO (AGORA SEM ERROS) ---
 class EnviarLembretesCronView(APIView):

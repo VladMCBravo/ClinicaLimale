@@ -52,6 +52,79 @@ from usuarios.models import CustomUser, JornadaDeTrabalho
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+# --- SEÇÃO DAS INTELIGÊNCIAS ARTIFICIAIS (VERSÃO ÚNICA E CORRIGIDA) ---
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    temperature=0,
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
+
+# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
+class RoteadorOutput(BaseModel):
+    intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas'.")
+    entity: Optional[str] = Field(description="O serviço ou especialidade específica que o usuário mencionou, se houver.")
+
+parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
+prompt_roteador = ChatPromptTemplate.from_template(
+    """
+    # MISSÃO
+    Analise a mensagem do usuário para determinar a intenção e extrair a entidade. Responda APENAS com o objeto JSON formatado.
+    # INSTRUÇÕES DE FORMATAÇÃO
+    {format_instructions}
+    # MENSAGEM DO USUÁRIO
+    {user_message}
+    """,
+    partial_variables={"format_instructions": parser_roteador.get_format_instructions()},
+)
+chain_roteadora = prompt_roteador | llm | parser_roteador
+
+
+# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS ---
+lista_especialidades_para_ia = "Cardiologia, Ginecologia, Neonatologia, Obstetrícia, Ortopedia, Pediatria, Reumatologia Pediátrica"
+
+class TriagemOutput(BaseModel):
+    especialidade_sugerida: str = Field(description=f"A especialidade sugerida. Deve ser uma das: {lista_especialidades_para_ia}, ou 'Clinico Geral' se os sintomas forem vagos.")
+
+parser_sintomas = JsonOutputParser(pydantic_object=TriagemOutput)
+prompt_sintomas = ChatPromptTemplate.from_template(
+    """
+    # MISSÃO
+    Você é um assistente de triagem médica. Analise os sintomas e sugira a especialidade mais apropriada.
+    # REGRAS CRÍTICAS
+    - JAMAIS forneça diagnósticos ou conselhos médicos.
+    - Responda APENAS com o objeto JSON formatado.
+    # INSTRUÇÕES DE FORMATAÇÃO
+    {format_instructions}
+    # SINTOMAS DO USUÁRIO
+    {sintomas_do_usuario}
+    """,
+    partial_variables={"format_instructions": parser_sintomas.get_format_instructions()},
+)
+chain_sintomas = prompt_sintomas | llm | parser_sintomas
+
+
+# --- CÉREBRO 3: IA EXTRATORA DE DADOS DE PACIENTE ---
+class DadosPacienteOutput(BaseModel):
+    nome_completo: str = Field(description="O nome completo do paciente.")
+    data_nascimento: str = Field(description="A data de nascimento do paciente no formato DD/MM/AAAA.")
+    telefone_celular: str = Field(description="O número de telefone do paciente, incluindo DDD.")
+
+parser_extracao = JsonOutputParser(pydantic_object=DadosPacienteOutput)
+prompt_extracao = ChatPromptTemplate.from_template(
+    """
+    # MISSÃO
+    Extraia o nome completo, a data de nascimento e o telefone do texto.
+    # REGRAS
+    - A data de nascimento deve estar no formato DD/MM/AAAA.
+    # INSTRUÇÕES DE FORMATAÇÃO
+    {format_instructions}
+    # MENSAGEM DO USUÁRIO
+    {dados_do_usuario}
+    """,
+    partial_variables={"format_instructions": parser_extracao.get_format_instructions()},
+)
+chain_extracao_dados = prompt_extracao | llm | parser_extracao
 
 # ... (CadastrarPacienteView e ConsultarAgendamentosPacienteView não mudam) ...
 class CadastrarPacienteView(APIView):
@@ -363,90 +436,14 @@ class AgendamentoChatbotView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
-# --- SEÇÃO COMPLETA E CORRIGIDA DAS IAs ---
-
-# A DEFINIÇÃO DO LLM (O "MOTOR") FICA AQUI, UMA ÚNICA VEZ
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0,
-    google_api_key=os.getenv("GOOGLE_API_KEY")
-)
-
-# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
-class RoteadorOutput(BaseModel):
-    # Adicione 'cancelar_agendamento' à lista de intenções possíveis
-    intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'triagem_sintomas', 'cancelar_agendamento'.")
-    entity: Optional[str] = Field(description="O serviço ou especialidade específica que o usuário mencionou, se houver.")
-
-
-parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
-prompt_roteador = ChatPromptTemplate.from_template(
-    """
-    # MISSÃO
-    Analise a mensagem do usuário para determinar a intenção e extrair a entidade. Responda APENAS com o objeto JSON formatado.
-    # INSTRUÇÕES DE FORMATAÇÃO
-    {format_instructions}
-    # MENSAGEM DO USUÁRIO
-    {user_message}
-    """,
-    partial_variables={"format_instructions": parser_roteador.get_format_instructions()},
-)
-chain_roteadora = prompt_roteador | llm | parser_roteador
-
-
-# --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS ---
-lista_especialidades_para_ia = "Cardiologia, Ginecologia, Neonatologia, Obstetrícia, Ortopedia, Pediatria, Reumatologia Pediátrica"
-
-class TriagemOutput(BaseModel):
-    especialidade_sugerida: str = Field(description=f"A especialidade sugerida. Deve ser uma das: {lista_especialidades_para_ia}, ou 'Clinico Geral' se os sintomas forem vagos.")
-
-parser_sintomas = JsonOutputParser(pydantic_object=TriagemOutput)
-prompt_sintomas = ChatPromptTemplate.from_template(
-    """
-    # MISSÃO
-    Você é um assistente de triagem médica. Analise os sintomas e sugira a especialidade mais apropriada.
-    # REGRAS CRÍTICAS
-    - JAMAIS forneça diagnósticos ou conselhos médicos.
-    - Responda APENAS com o objeto JSON formatado.
-    # INSTRUÇÕES DE FORMATAÇÃO
-    {format_instructions}
-    # SINTOMAS DO USUÁRIO
-    {sintomas_do_usuario}
-    """,
-    partial_variables={"format_instructions": parser_sintomas.get_format_instructions()},
-)
-chain_sintomas = prompt_sintomas | llm | parser_sintomas
-
-# --- CÉREBRO 3: IA EXTRATORA DE DADOS DE PACIENTE ---
-class DadosPacienteOutput(BaseModel):
-    nome_completo: str = Field(description="O nome completo do paciente.")
-    data_nascimento: str = Field(description="A data de nascimento do paciente no formato DD/MM/AAAA.")
-    telefone_celular: str = Field(description="O número de telefone do paciente, incluindo DDD.")
-
-parser_extracao = JsonOutputParser(pydantic_object=DadosPacienteOutput)
-prompt_extracao = ChatPromptTemplate.from_template(
-    """
-    # MISSÃO
-    Você é um assistente de IA que extrai dados de um texto. Analise a mensagem do usuário e extraia o nome completo, a data de nascimento e o telefone.
-    # REGRAS
-    - A data de nascimento deve estar no formato DD/MM/AAAA. Se o usuário fornecer de outra forma, converta-a.
-    - O telefone deve conter o DDD.
-    # INSTRUÇÕES DE FORMATAÇÃO
-    {format_instructions}
-    # MENSAGEM DO USUÁRIO
-    {dados_do_usuario}
-    """,
-    partial_variables={"format_instructions": parser_extracao.get_format_instructions()},
-)
-chain_extracao_dados = prompt_extracao | llm | parser_extracao
-
+            # --- ORQUESTRADOR PRINCIPAL DA CONVERSA ---
 # --- ORQUESTRADOR PRINCIPAL DA CONVERSA ---
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
     """
-    Esta view orquestra TODA a conversa, incluindo o gerenciamento de memória.
+    Esta view orquestra TODA a conversa.
+    VERSÃO FINAL COM LÓGICA CORRIGIDA.
     """
     try:
         data = json.loads(request.body)
@@ -467,16 +464,15 @@ def chatbot_orchestrator(request):
         
         # --- LÓGICA PRINCIPAL (ROTEAMENTO DA CONVERSA) ---
 
-        if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_', 'triagem_')):
+        if estado_atual and estado_atual.startswith(('agendamento_', 'cadastro_', 'cancelamento_', 'triagem_')):
             logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
             manager = AgendamentoManager(
                 session_id=session_id,
                 memoria=memoria_atual,
                 base_url=request.build_absolute_uri('/'),
                 chain_sintomas=chain_sintomas,
-                chain_extracao_dados=chain_extracao_dados,
+                chain_extracao_dados=chain_extracao_dados
             )
-            
             resultado = manager.processar(user_message, estado_atual)
             resposta_final = resultado.get("response_message")
             novo_estado = resultado.get("new_state")
@@ -493,7 +489,6 @@ def chatbot_orchestrator(request):
             logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
-            
             logger.warning(f"Intenção Detectada: '{intent}'")
 
             if intent == "iniciar_agendamento":
@@ -502,7 +497,7 @@ def chatbot_orchestrator(request):
                 resposta_final = resultado.get("response_message")
                 novo_estado = resultado.get("new_state")
                 nova_memoria = resultado.get("memory_data")
-
+            
             elif intent == "buscar_preco":
                 entity = intent_data.get("entity")
                 resposta_acolhimento = (
@@ -510,15 +505,7 @@ def chatbot_orchestrator(request):
                     "Clínica Limalé prezamos pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
                 )
                 servico = buscar_precos_servicos(entity)
-            # <<-- NOVO BLOCO PARA CANCELAMENTO -->>
-            elif intent == "cancelar_agendamento":
-                # Apenas iniciamos o fluxo de cancelamento. O Manager cuidará do resto.
-                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message, 'cancelamento_inicio')
-                resposta_final = resultado.get("response_message")
-                novo_estado = resultado.get("new_state")
-                nova_memoria = resultado.get("memory_data")
-                    
+                
                 if servico:
                     resposta_preco = f"O valor para {servico['tipo']} de *{servico['nome']}* é de R$ {servico['valor']}."
                 else:
@@ -531,12 +518,18 @@ def chatbot_orchestrator(request):
                 )
                 novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
+
+            elif intent == "cancelar_agendamento":
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                resultado = manager.processar(user_message, 'cancelamento_inicio')
+                resposta_final = resultado.get("response_message")
+                novo_estado = resultado.get("new_state")
+                nova_memoria = resultado.get("memory_data")
             
-            # Deixamos a triagem aqui para reativarmos no futuro
-            # elif intent == "triagem_sintomas":
+            # elif intent == "triagem_sintomas": # Deixamos aqui para reativar no futuro
             #    ...
 
-            else:
+            else: # Se a intenção não for clara
                 resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
                 novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
