@@ -18,10 +18,13 @@ from agendamentos.services import criar_agendamento_e_pagamento_pendente
 
 
 class AgendamentoManager:
-    def __init__(self, session_id, memoria, base_url):
+    # O __INIT__ CORRETO E COMPLETO
+    def __init__(self, session_id, memoria, base_url, chain_sintomas=None, chain_extracao_dados=None):
         self.session_id = session_id
         self.memoria = memoria
         self.base_url = base_url.rstrip('/')
+        self.chain_sintomas = chain_sintomas
+        self.chain_extracao_dados = chain_extracao_dados
 
     # --- MÉTODOS AUXILIARES DE BUSCA NO BANCO ---
     def _get_especialidades_from_db(self):
@@ -49,6 +52,8 @@ class AgendamentoManager:
             'agendamento_awaiting_new_patient_phone': self.handle_awaiting_new_patient_phone,
             'agendamento_awaiting_new_patient_email': self.handle_awaiting_new_patient_email,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
+            # Adicione os estados de triagem aqui quando formos reativá-los
+            # 'triagem_awaiting_description': self.handle_awaiting_symptom_description,
         }
         handler = handlers.get(estado_atual, self.handle_fallback)
         return handler(resposta_usuario)
