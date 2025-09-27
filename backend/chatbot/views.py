@@ -7,6 +7,7 @@ import json
 import logging
 from datetime import datetime, time, timedelta
 from dateutil import parser
+from .services import buscar_precos_servicos # <<-- Adicione esta linha
 
 from django.utils import timezone
 from django.http import JsonResponse
@@ -359,18 +360,26 @@ class AgendamentoChatbotView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
-# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
+            # --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
+# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (VERSÃO APRIMORADA) ---
 prompt_roteador = ChatPromptTemplate.from_messages([
     ("system", """
     # MISSÃO
-    Você é um assistente de IA roteador. Sua única função é analisar a mensagem do usuário para determinar a intenção principal.
+    Você é um assistente de IA roteador. Sua função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome), se houver.
+    
     # FORMATO DE SAÍDA OBRIGATÓRIO
-    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent".
+    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent" e, se aplicável, a chave "entity".
+    
     # INTENÇÕES POSSÍVEIS
     - "saudacao": Para saudações como "oi", "bom dia", "olá".
     - "iniciar_agendamento": Quando o usuário explicitamente pede para marcar uma consulta, exame ou ver horários.
     - "triagem_sintomas": QUANDO O USUÁRIO DESCREVE UM PROBLEMA DE SAÚDE OU SINTOMA.
+    - "buscar_preco": Quando o usuário pergunta o preço ou valor de um serviço.
+    
+    # EXTRAÇÃO DE ENTIDADE PARA "buscar_preco"
+    - Se a intenção for "buscar_preco", extraia o nome do serviço ou especialidade para o campo "entity".
+    - Exemplo 1: "quanto custa a consulta de cardiologia?" -> {"intent": "buscar_preco", "entity": "cardiologia"}
+    - Exemplo 2: "qual o valor do ultrassom de mama?" -> {"intent": "buscar_preco", "entity": "ultrassom de mama"}
     """),
     ("human", "{user_message}")
 ])
@@ -471,7 +480,7 @@ def _buscar_preco_servico(base_url, entity):
 def chatbot_orchestrator(request):
     """
     Esta view orquestra TODA a conversa.
-    VERSÃO FINAL COM TODAS AS IAs E FLUXOS CORRETAMENTE CONECTADOS.
+    VERSÃO REVISADA E CORRIGIDA com a lógica de buscar preço no lugar certo.
     """
     try:
         data = json.loads(request.body)
@@ -498,7 +507,7 @@ def chatbot_orchestrator(request):
                 session_id=session_id,
                 memoria=memoria_atual,
                 base_url=request.build_absolute_uri('/'),
-                chain_sintomas=chain_sintomas # GARANTIA: Passando a chain completa
+                chain_sintomas=chain_sintomas
             )
             resultado = manager.processar(user_message, estado_atual)
             resposta_final = resultado.get("response_message")
@@ -528,11 +537,34 @@ def chatbot_orchestrator(request):
                 resposta_final = "Entendo sua preocupação. Para que eu possa te ajudar a identificar a especialidade mais adequada, pode me descrever um pouco melhor o que você está sentindo?"
                 novo_estado = 'triagem_awaiting_description'
                 nova_memoria = memoria_atual
-            else:
+            # <<-- BLOCO DE BUSCAR PREÇO MOVIDO PARA AQUI DENTRO -->>
+            elif intent == "buscar_preco":
+                entity = intent_data.get("entity")
+                resposta_acolhimento = (
+                    "Claro! Vou te passar os valores. Mas antes, quero destacar que aqui na "
+                    "Clínica Limalé prezamos pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
+                )
+                servico = buscar_precos_servicos(entity)
+                
+                if servico:
+                    resposta_preco = f"O valor para {servico['tipo']} de *{servico['nome']}* é de R$ {servico['valor']}."
+                else:
+                    resposta_preco = f"Não encontrei um preço para '{entity}'. Posso listar nossos serviços e valores, se desejar."
+
+                resposta_final = (
+                    f"{resposta_acolhimento}{resposta_preco}\n\n"
+                    "Temos também um desconto de 5% para pagamentos via Pix realizados no momento do agendamento. "
+                    "Gostaria de agendar este ou algum outro serviço?"
+                )
+                novo_estado = 'identificando_demanda'
+                nova_memoria = memoria_atual
+
+            else: # Se a intenção não for clara
                 resposta_final = "Desculpe, não entendi bem. Você gostaria de agendar uma consulta, um exame, ou saber um preço?"
                 novo_estado = 'identificando_demanda'
                 nova_memoria = memoria_atual
-        else:
+
+        else: # O estado é 'inicio' ou um estado desconhecido
             logger.warning("Rota: INICIANDO NOVA CONVERSA.")
             if memoria_atual.get('nome_usuario'):
                 resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}, bem-vindo(a) de volta! Como posso te ajudar hoje?"
