@@ -361,26 +361,37 @@ class AgendamentoChatbotView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             # --- CÉREBRO DA IA ROTEADORA (ORQUESTRADOR) ---
-# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (VERSÃO APRIMORADA) ---
+# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (VERSÃO FINAL E CORRIGIDA) ---
 prompt_roteador = ChatPromptTemplate.from_messages([
     ("system", """
     # MISSÃO
     Você é um assistente de IA roteador. Sua função é analisar a mensagem do usuário para determinar a intenção principal e extrair a entidade (serviço ou nome), se houver.
     
     # FORMATO DE SAÍDA OBRIGATÓRIO
-    Sua saída DEVE SER SEMPRE um objeto JSON único, contendo a chave "intent" e, se aplicável, a chave "entity".
-    
+    Sua saída DEVE SER SEMPRE um objeto JSON único.
+
     # INTENÇÕES POSSÍVEIS
-    - "saudacao": Para saudações como "oi", "bom dia", "olá".
-    - "iniciar_agendamento": Quando o usuário explicitamente pede para marcar uma consulta, exame ou ver horários.
-    - "triagem_sintomas": QUANDO O USUÁRIO DESCREVE UM PROBLEMA DE SAÚDE OU SINTOMA.
-    - "buscar_preco": Quando o usuário pergunta o preço ou valor de um serviço.
-    
-    # EXTRAÇÃO DE ENTIDADE PARA "buscar_preco"
-    - Se a intenção for "buscar_preco", extraia o nome do serviço ou especialidade para o campo "entity".
-    - Exemplo 1: "quanto custa a consulta de cardiologia?" -> {"intent": "buscar_preco", "entity": "cardiologia"}
-    - Exemplo 2: "qual o valor do ultrassom de mama?" -> {"intent": "buscar_preco", "entity": "ultrassom de mama"}
+    - "saudacao": Para saudações.
+    - "iniciar_agendamento": Para marcar uma consulta, exame ou ver horários.
+    - "buscar_preco": Para perguntar o preço ou valor de um serviço.
+    - "triagem_sintomas": Para descrever um problema de saúde ou sintoma.
     """),
+    
+    # --- EXEMPLOS PRÁTICOS (FEW-SHOT) ---
+    ("human", "quanto custa a consulta de cardiologia?"),
+    ("ai", '{ "intent": "buscar_preco", "entity": "cardiologia" }'),
+    
+    ("human", "queria marcar um exame"),
+    ("ai", '{ "intent": "iniciar_agendamento", "entity": "exame" }'),
+    
+    ("human", "estou com dor de cabeça"),
+    ("ai", '{ "intent": "triagem_sintomas", "entity": "dor de cabeça" }'),
+    
+    ("human", "oi bom dia"),
+    ("ai", '{ "intent": "saudacao", "entity": null }'),
+    # --- FIM DOS EXEMPLOS ---
+
+    # Aqui entra a pergunta real do usuário
     ("human", "{user_message}")
 ])
 
