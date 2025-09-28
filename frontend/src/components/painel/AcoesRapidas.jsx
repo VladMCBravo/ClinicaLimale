@@ -1,13 +1,12 @@
 // src/components/painel/AcoesRapidas.jsx
-import React from 'react'; // É importante ter o import do React
+import React from 'react';
 import { Button, Paper, Typography, Box } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import AddCardIcon from '@mui/icons-material/AddCard';
 
-// 1. Defina o componente como uma função normal (sem o export default aqui)
-function AcoesRapidas({ onNovoPacienteClick, onVerificarClick }) {
-  console.log("Renderizando AcoesRapidas..."); // Você pode usar isso para ver no console quando ele renderiza
+// Adicionamos 'onCaixaClick' às props
+function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, onCaixaClick }) {
   return (
     <Paper sx={{ p: 2 }} variant="outlined">
       <Typography variant="h6" gutterBottom>Ações Rápidas</Typography>
@@ -23,7 +22,7 @@ function AcoesRapidas({ onNovoPacienteClick, onVerificarClick }) {
         <Button 
             variant="outlined" 
             startIcon={<EventAvailableIcon />}
-            onClick={onVerificarClick}
+            onClick={onVerificarClick} // Mantemos a prop, mas a lógica no pai vai mudar
             size="small"
         >
           Verificar Disponibilidade
@@ -31,8 +30,8 @@ function AcoesRapidas({ onNovoPacienteClick, onVerificarClick }) {
          <Button 
             variant="outlined" 
             startIcon={<AddCardIcon />} 
-            onClick={onCaixaClick} // <-- CONECTANDO O BOTÃO
             color="secondary"
+            onClick={onCaixaClick} // Agora 'onCaixaClick' é uma prop válida
             size="small"
         >
           Lançamento no Caixa
@@ -42,5 +41,4 @@ function AcoesRapidas({ onNovoPacienteClick, onVerificarClick }) {
   );
 }
 
-// 2. Exporte a versão 'memorizada' do seu componente
 export default React.memo(AcoesRapidas);

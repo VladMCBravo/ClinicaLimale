@@ -13,25 +13,21 @@ import ListaEspera from '../components/painel/ListaEspera';
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
-import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal'; // <-- IMPORTE O NOVO MODAL
-
+import FormularioPaciente from '../components/pacientes/FormularioPaciente';
 
 export default function PainelRecepcaoPage() {
-    // --- ESTADOS GERAIS ---
+    // ESTADO 'activeView' E FUNÇÃO 'renderActiveView' REMOVIDOS
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshSidebar, setRefreshSidebar] = useState(0);
-
-    // --- ESTADOS DOS FILTROS ---
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
-
-    // --- ESTADOS DOS MODAIS E DRAWERS ---
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
-    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
+    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false); // Adicionado para o modal de caixa
+;
 
     // --- BUSCA DE DADOS ---
     const fetchData = useCallback(async () => {
@@ -47,28 +43,9 @@ export default function PainelRecepcaoPage() {
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
-
-    // --- HANDLERS (FUNÇÕES DE CONTROLE) ---
-    const handleFiltroChange = (filtros) => {
-        setMedicoFiltro(filtros.medicoId);
-        setEspecialidadeFiltro(filtros.especialidadeId);
-    };
-
-    const handleModalSave = () => {
-        setIsPacienteModalOpen(false);
-        setIsAgendamentoModalOpen(false);
-        fetchData(); 
-        setRefreshSidebar(prev => prev + 1);
-    };
-    
-    const handleSlotSelect = (data) => {
-        setAgendamentoInitialData({
-            start: data.data_hora_inicio.toDate(),
-            medico: data.medico,
-            especialidade: data.especialidade,
-        });
-        setIsAgendamentoModalOpen(true);
-    };
+    const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
+    const handleModalSave = () => { setIsPacienteModalOpen(false); setIsAgendamentoModalOpen(false); fetchData(); setRefreshSidebar(prev => prev + 1); };
+    const handleSlotSelect = (data) => { setAgendamentoInitialData({ start: data.data_hora_inicio.toDate(), medico: data.medico, especialidade: data.especialidade }); setIsAgendamentoModalOpen(true); };
 
     if (isLoading || !data) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -76,15 +53,13 @@ export default function PainelRecepcaoPage() {
 
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
-            
-            {/* Coluna da Esquerda */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <AcoesRapidas 
                     onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                    onVerificarClick={() => setActiveView('verificarDisponibilidade')}
-                    // Conecte o novo handler aqui
+                    // A função 'Verificar Disponibilidade' não faz mais nada, pois o componente já está na tela
+                    onVerificarClick={() => {}} 
                     onCaixaClick={() => setIsCaixaModalOpen(true)}
-                />
+                /> 
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                     <PacientesDoDiaSidebar 
@@ -94,7 +69,6 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Box>
 
-            {/* Coluna Central com Verificador e Agenda empilhados */}
             <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
@@ -102,7 +76,6 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Box>
 
-            {/* Coluna da Direita */}
             <Box sx={{ flexShrink: 0 }}>
                 <BarraStatus data={data} onListaEsperaClick={() => setIsListaEsperaOpen(true)} />
             </Box>
@@ -118,16 +91,16 @@ export default function PainelRecepcaoPage() {
                 onSave={handleModalSave}
                 pacienteParaEditar={null}
             />
-            <LancamentoCaixaModal 
-                open={isCaixaModalOpen}
-                onClose={() => setIsCaixaModalOpen(false)}
-            />
+
             <AgendamentoModal
                 open={isAgendamentoModalOpen}
                 onClose={() => setIsAgendamentoModalOpen(false)}
                 onSave={handleModalSave}
                 initialData={agendamentoInitialData}
             />
+            
+            {/* O modal de Lançamento no Caixa será controlado aqui também */}
+            {/* <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} /> */}
         </Box>
     );
 }
