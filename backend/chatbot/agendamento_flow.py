@@ -289,35 +289,47 @@ class AgendamentoManager:
             criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico, metodo_pagamento_escolhido=metodo_pagamento_escolhido, initiated_by_chatbot=True)
             agendamento.refresh_from_db()
             
+            # --- MUDANÇA AQUI: NOVA CONSTRUÇÃO DA MENSAGEM FINAL ---
             pagamento = agendamento.pagamento
-            tipo_servico = self.memoria.get('tipo_agendamento', 'Serviço')
-            nome_servico = self.memoria.get('especialidade_nome', '') if tipo_servico == 'Consulta' else self.memoria.get('procedimento_nome', '')
-            valor_original = pagamento.valor
-            resposta_final = (f"💳 *Pagamento - Clínica Limalé*\n\n"
-                            f"📋 *Dados do Agendamento:*\n"
-                            f"• *Nome:* {paciente.nome_completo}\n"
-                            f"• *CPF:* {self.memoria.get('cpf')} (Responsável)\n"
-                            f"• *Descrição:* {tipo_servico} - {nome_servico}\n"
-                            f"• *Valor:* R$ {valor_original:.2f}\n\n")
-            
+            nome_paciente = agendamento.paciente.nome_completo
+            data_agendamento = timezone.localtime(agendamento.data_hora_inicio).strftime('%d/%m/%Y')
+            hora_agendamento = timezone.localtime(agendamento.data_hora_inicio).strftime('%H:%M')
+
+            # 1. Monta a mensagem de confirmação padronizada
+            mensagem_confirmacao = (
+                f"✅ *Confirmação de Pré-Agendamento*\n\n"
+                f"Olá, {nome_paciente.split(' ')[0]}! Seu horário foi reservado com sucesso.\n"
+                f"*{agendamento.get_tipo_agendamento_display()} de {self.memoria.get('especialidade_nome') or self.memoria.get('procedimento_nome')}*\n"
+                f"🗓️ *Data:* {data_agendamento}\n"
+                f"⏰ *Hora:* {hora_agendamento}\n\n"
+            )
+
+            # 2. Monta a seção de pagamento
+            secao_pagamento = ""
             if metodo_pagamento_escolhido == 'PIX':
                 if hasattr(pagamento, 'pix_copia_e_cola') and pagamento.pix_copia_e_cola:
+                    valor_original = pagamento.valor
                     valor_com_desconto = valor_original * 0.95
-                    resposta_final += (f"Para confirmar, pague via PIX com *5% de desconto*.\n\n"
-                                     f"*Valor com desconto:* R$ {valor_com_desconto:.2f}\n"
-                                     f"*Chave PIX (Copia e Cola):*\n`{pagamento.pix_copia_e_cola}`\n\n"
-                                     "Após o pagamento, seu horário será confirmado.")
-                else:
-                    resposta_final += "Agendamento pré-realizado. Contate a clínica para o PIX."
+                    secao_pagamento = (
+                        f"Para confirmar definitivamente seu horário, realize o pagamento via PIX com *5% de desconto*.\n\n"
+                        f"*Valor com desconto:* R$ {valor_com_desconto:.2f}\n"
+                        f"*Chave PIX (Copia e Cola):*\n`{pagamento.pix_copia_e_cola}`\n\n"
+                        "Após o pagamento, seu horário será confirmado automaticamente. Obrigado!"
+                    )
             elif metodo_pagamento_escolhido == 'CartaoCredito':
                 if hasattr(pagamento, 'link_pagamento') and pagamento.link_pagamento:
-                    resposta_final += f"Pague com *Cartão de Crédito em até 3x*:\n{pagamento.link_pagamento}"
-                else:
-                    resposta_final += "Agendamento pré-realizado. O link para pagamento com cartão será enviado em breve."
+                    secao_pagamento = f"Clique no link abaixo para pagar com *Cartão de Crédito em até 3x* e confirmar seu horário:\n{pagamento.link_pagamento}"
+            
+            if not secao_pagamento: # Fallback
+                secao_pagamento = "Seu agendamento foi pré-realizado. Por favor, entre em contato com a clínica para finalizar o pagamento."
+
+            # 3. Junta tudo
+            resposta_final = f"{mensagem_confirmacao}{secao_pagamento}"
 
             return {"response_message": resposta_final, "new_state": "inicio", "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}}
         except Exception as e:
-            return {"response_message": f"Desculpe, ocorreu um erro inesperado: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
+            return {"response_message": f"Desculpe, ocorreu um erro inesperado ao finalizar seu agendamento: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
+
 
 # ##################################################
     # ### NOVOS HANDLERS PARA O FLUXO DE CANCELAMENTO ###
