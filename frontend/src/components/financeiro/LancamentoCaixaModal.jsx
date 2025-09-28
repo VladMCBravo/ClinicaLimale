@@ -3,10 +3,7 @@ import React, { useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, Button, Typography
 } from '@mui/material';
-
-// Por enquanto, vamos usar placeholders para o conteúdo das abas
-// const PagarAgendamentoTab = () => <Typography>Conteúdo da Aba Pagar Agendamento</Typography>;
-// const LancamentoAvulsoTab = () => <Typography>Conteúdo da Aba Lançamento Avulso</Typography>;
+import PagarAgendamentoTab from './PagarAgendamentoTab'; // <-- IMPORTE O NOVO COMPONENTE
 
 export default function LancamentoCaixaModal({ open, onClose }) {
     const [activeTab, setActiveTab] = useState(0);
@@ -26,27 +23,22 @@ export default function LancamentoCaixaModal({ open, onClose }) {
                     </Tabs>
                 </Box>
                 
-                {/* Conteúdo da Aba 1 */}
                 {activeTab === 0 && (
-                    <Box sx={{ p: 3 }}>
-                        <Typography>
-                            {/* Aqui entrará o componente PagarAgendamentoTab */}
-                            Funcionalidade para buscar paciente e listar débitos pendentes. (A ser desenvolvido)
-                        </Typography>
+                    <Box sx={{ p: 3, minHeight: '400px' }}>
+                        {/* SUBSTITUÍMOS O PLACEHOLDER PELO COMPONENTE REAL */}
+                        <PagarAgendamentoTab onClose={onClose} />
                     </Box>
                 )}
 
-                {/* Conteúdo da Aba 2 */}
                 {activeTab === 1 && (
-                    <Box sx={{ p: 3 }}>
+                    <Box sx={{ p: 3, minHeight: '400px' }}>
                         <Typography>
-                            {/* Aqui entrará o componente LancamentoAvulsoTab */}
                             Formulário para lançamentos de receitas/despesas avulsas. (A ser desenvolvido)
                         </Typography>
                     </Box>
                 )}
             </DialogContent>
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', borderTop: 1, borderColor: 'divider' }}>
                 <Button onClick={onClose}>Fechar</Button>
             </Box>
         </Dialog>

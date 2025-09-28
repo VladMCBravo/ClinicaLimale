@@ -18,7 +18,6 @@ const uploadTuss = (formData) => {
 };
 // --- Funções para Pagamentos Pendentes ---
 const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pendentes/');
-const updatePagamento = (id, data) => apiClient.patch(`/faturamento/pagamentos/${id}/`, data);
 
 // --- Funções para Despesas ---
 const getDespesas = () => apiClient.get('/faturamento/despesas/');
@@ -34,7 +33,16 @@ const getAgendamentosFaturaveis = (params) => apiClient.get('/faturamento/agenda
 const gerarLoteFaturamento = (data) => apiClient.post('/faturamento/gerar-lote/', data, { responseType: 'blob' });
 // --- NOVA FUNÇÃO PARA O DASHBOARD ---
 const getDashboardFinanceiro = () => apiClient.get('/faturamento/dashboard-financeiro/');
+// Busca as cobranças pendentes para um paciente específico
+const getCobrancasPendentes = (pacienteId) => {
+    return apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`);
+};
 
+// Atualiza um pagamento (ex: para marcar como 'Pago')
+const updatePagamento = (pagamentoId, data) => {
+    // Usamos PATCH para uma atualização parcial (apenas o status e forma de pagamento)
+    return apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data);
+};
 
 
 export const faturamentoService = {
@@ -46,6 +54,7 @@ export const faturamentoService = {
     uploadTuss,
     // Pagamentos
     getPagamentosPendentes,
+    getCobrancasPendentes,
     updatePagamento,
     // Despesas
     getDespesas,
