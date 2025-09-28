@@ -14,22 +14,26 @@ import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
 import FormularioPaciente from '../components/pacientes/FormularioPaciente';
+import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal'; // <-- ESTA LINHA ESTAVA FALTANDO
 
 export default function PainelRecepcaoPage() {
-    // ESTADO 'activeView' E FUNÇÃO 'renderActiveView' REMOVIDOS
+    // --- ESTADOS GERAIS ---
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshSidebar, setRefreshSidebar] = useState(0);
+
+    // --- ESTADOS DOS FILTROS ---
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
+
+    // --- ESTADOS DOS MODAIS E DRAWERS ---
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
-    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false); // Adicionado para o modal de caixa
-;
+    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
 
-    // --- BUSCA DE DADOS ---
+    // --- HANDLERS E FUNÇÕES ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -43,9 +47,27 @@ export default function PainelRecepcaoPage() {
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
-    const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
-    const handleModalSave = () => { setIsPacienteModalOpen(false); setIsAgendamentoModalOpen(false); fetchData(); setRefreshSidebar(prev => prev + 1); };
-    const handleSlotSelect = (data) => { setAgendamentoInitialData({ start: data.data_hora_inicio.toDate(), medico: data.medico, especialidade: data.especialidade }); setIsAgendamentoModalOpen(true); };
+
+    const handleFiltroChange = (filtros) => {
+        setMedicoFiltro(filtros.medicoId);
+        setEspecialidadeFiltro(filtros.especialidadeId);
+    };
+
+    const handleModalSave = () => {
+        setIsPacienteModalOpen(false);
+        setIsAgendamentoModalOpen(false);
+        fetchData(); 
+        setRefreshSidebar(prev => prev + 1);
+    };
+    
+    const handleSlotSelect = (data) => {
+        setAgendamentoInitialData({
+            start: data.data_hora_inicio.toDate(),
+            medico: data.medico,
+            especialidade: data.especialidade,
+        });
+        setIsAgendamentoModalOpen(true);
+    };
 
     if (isLoading || !data) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -53,11 +75,11 @@ export default function PainelRecepcaoPage() {
 
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
+            
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <AcoesRapidas 
                     onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                    // A função 'Verificar Disponibilidade' não faz mais nada, pois o componente já está na tela
-                    onVerificarClick={() => {}} 
+                    onVerificarClick={() => {}} // Ação desativada por enquanto
                     onCaixaClick={() => setIsCaixaModalOpen(true)}
                 /> 
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
@@ -80,7 +102,6 @@ export default function PainelRecepcaoPage() {
                 <BarraStatus data={data} onListaEsperaClick={() => setIsListaEsperaOpen(true)} />
             </Box>
             
-            {/* Elementos Flutuantes (Modais e Drawers) */}
             <Drawer anchor="right" open={isListaEsperaOpen} onClose={() => setIsListaEsperaOpen(false)}>
                 <Box sx={{ width: 400, p: 2 }}><ListaEspera /></Box>
             </Drawer>
@@ -99,7 +120,6 @@ export default function PainelRecepcaoPage() {
                 initialData={agendamentoInitialData}
             />
             
-            {/* MUDANÇA AQUI: A linha abaixo foi descomentada */}
             <LancamentoCaixaModal 
                 open={isCaixaModalOpen} 
                 onClose={() => setIsCaixaModalOpen(false)} 
