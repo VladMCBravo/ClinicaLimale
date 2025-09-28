@@ -99,8 +99,11 @@ export default function PainelRecepcaoPage() {
                 initialData={agendamentoInitialData}
             />
             
-            {/* O modal de Lançamento no Caixa será controlado aqui também */}
-            {/* <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} /> */}
+            {/* MUDANÇA AQUI: A linha abaixo foi descomentada */}
+            <LancamentoCaixaModal 
+                open={isCaixaModalOpen} 
+                onClose={() => setIsCaixaModalOpen(false)} 
+            />
         </Box>
     );
 }
