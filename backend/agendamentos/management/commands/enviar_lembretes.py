@@ -1,71 +1,77 @@
-# backend/agendamentos/management/commands/enviar_lembretes.py - VERSÃO CORRIGIDA
+# agendamentos/management/commands/enviar_lembretes.py
 
-import datetime
+# --- SEÇÃO DE IMPORTAÇÕES ---
+import os
+import requests
+from datetime import timedelta, datetime, time
 from django.core.management.base import BaseCommand
-from django.core.mail import send_mail
 from django.utils import timezone
 from agendamentos.models import Agendamento
 
 class Command(BaseCommand):
-    help = 'Envia emails de lembrete para agendamentos do próximo dia.'
+    help = 'Verifica agendamentos para o próximo dia e envia lembretes via WhatsApp.'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('Iniciando o envio de lembretes...'))
+        self.stdout.write(self.style.SUCCESS(f"[{timezone.localtime().strftime('%d/%m %H:%M')}] Iniciando o envio de lembretes..."))
         
-        # --- LÓGICA DE DATA CORRIGIDA E ROBUSTA ---
-        # 1. Pega a data/hora atual no fuso horário do projeto (ex: America/Sao_Paulo)
+        # --- LÓGICA DE DATA ROBUSTA ---
         agora = timezone.localtime(timezone.now())
-        
-        # 2. Calcula o início e o fim exatos de "amanhã"
-        amanha = agora.date() + datetime.timedelta(days=1)
-        inicio_de_amanha = timezone.make_aware(datetime.datetime.combine(amanha, datetime.time.min))
-        fim_de_amanha = timezone.make_aware(datetime.datetime.combine(amanha, datetime.time.max))
-        # ----------------------------------------------
+        amanha = agora.date() + timedelta(days=1)
+        inicio_de_amanha = timezone.make_aware(datetime.combine(amanha, time.min))
+        fim_de_amanha = timezone.make_aware(datetime.combine(amanha, time.max))
 
-        # 3. Busca agendamentos que estejam DENTRO deste intervalo de tempo
-        agendamentos_de_amanha = Agendamento.objects.filter(
+        # --- BUSCA AGENDAMENTOS ---
+        agendamentos_para_lembrar = Agendamento.objects.filter(
             data_hora_inicio__gte=inicio_de_amanha,
             data_hora_inicio__lte=fim_de_amanha,
-            status='Confirmado'
-        ).select_related('paciente')
+            status__in=['Agendado', 'Confirmado'] # Busca ambos os status
+        ).select_related('paciente') # Otimiza a busca do paciente
 
-        if not agendamentos_de_amanha.exists():
-            self.stdout.write(self.style.WARNING('Nenhum agendamento confirmado para amanhã. Nenhuma ação necessária.'))
+        if not agendamentos_para_lembrar.exists():
+            self.stdout.write(self.style.WARNING('Nenhum agendamento encontrado para amanhã.'))
             return
 
-        # 3. Itera sobre os agendamentos e envia um email para cada um
+        # --- CONFIGURAÇÃO DA API DE WHATSAPP ---
+        # A URL deve ser configurada nas suas variáveis de ambiente no Render
+        WEBHOOK_URL = os.getenv('WHATSAPP_LEMBRETE_WEBHOOK') 
+        
+        if not WEBHOOK_URL:
+            self.stdout.write(self.style.ERROR("ERRO: A variável de ambiente WHATSAPP_LEMBRETE_WEBHOOK não está configurada."))
+            return
+
         total_enviado = 0
-        for agendamento in agendamentos_de_amanha:
+        for agendamento in agendamentos_para_lembrar:
             paciente = agendamento.paciente
-            if paciente.email: # Apenas envia se o paciente tiver um email cadastrado
+            
+            if not paciente.telefone_celular:
+                self.stdout.write(self.style.NOTICE(f"  - Pulando Ag. ID {agendamento.id}: Paciente {paciente.nome_completo} sem telefone."))
+                continue
+
+            hora_formatada = timezone.localtime(agendamento.data_hora_inicio).strftime('%H:%M')
+            
+            # --- MENSAGEM DE LEMBRETE ---
+            mensagem = (
+                f"Olá, {paciente.nome_completo.split(' ')[0]}! Tudo bem?\n\n"
+                f"Passando para lembrar do seu agendamento na Clínica Limalé amanhã, às *{hora_formatada}*.\n\n"
+                "Caso precise reagendar ou cancelar, basta responder a esta mensagem.\n\n"
+                "Atenciosamente,\nEquipe Limalé"
+            )
+            
+            # O payload (corpo da requisição) pode variar dependendo da sua API (WAHA, Meta, etc.)
+            # Este é um exemplo comum:
+            payload = {
+                "chatId": f"{paciente.telefone_celular}@c.us", # O sufixo pode variar
+                "message": mensagem
+            }
+            
+            try:
+                # Dispara a mensagem para a API de WhatsApp
+                response = requests.post(WEBHOOK_URL, json=payload, timeout=15)
+                response.raise_for_status() # Lança um erro se a resposta for 4xx ou 5xx
                 
-                hora_local = timezone.localtime(agendamento.data_hora_inicio)
-                data_formatada = hora_local.strftime('%d/%m/%Y')
-                hora_formatada = hora_local.strftime('%H:%M')
+                self.stdout.write(self.style.SUCCESS(f"  - Lembrete enviado para {paciente.nome_completo} (Ag. ID {agendamento.id})."))
+                total_enviado += 1
+            except requests.exceptions.RequestException as e:
+                self.stdout.write(self.style.ERROR(f"  - Falha ao enviar para {paciente.nome_completo}: {e}"))
 
-                assunto = f"Lembrete de Consulta - Clínica Limalé"
-                mensagem = f"""
-                Olá, {paciente.nome_completo}!
-
-                Este é um lembrete da sua consulta amanhã, dia {data_formatada} às {hora_formatada}.
-
-                Se precisar reagendar, por favor, entre em contato.
-
-                Atenciosamente,
-                Clínica Limalé
-                """
-                
-                try:
-                    send_mail(
-                        subject=assunto,
-                        message=mensagem,
-                        from_email=None,  # Usa o DEFAULT_FROM_EMAIL do settings.py
-                        recipient_list=[paciente.email],
-                        fail_silently=False,
-                    )
-                    self.stdout.write(self.style.SUCCESS(f'Email enviado para: {paciente.email}'))
-                    total_enviado += 1
-                except Exception as e:
-                    self.stdout.write(self.style.ERROR(f'Falha ao enviar email para {paciente.email}: {e}'))
-
-        self.stdout.write(self.style.SUCCESS(f'Processo concluído. Total de {total_enviado} emails enviados.'))
+        self.stdout.write(self.style.SUCCESS(f'Processo concluído. Total de {total_enviado} lembretes enviados.'))
