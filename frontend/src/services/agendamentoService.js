@@ -55,7 +55,11 @@ const verificarDisponibilidade = ({ data, medicoId, especialidadeId }) => {
     if (especialidadeId) {
         params.append('especialidade_id', especialidadeId);
     }
-    return apiClient.get(`/horarios-disponiveis/?${params.toString()}`);
+    
+    // MUDANÇA AQUI: Adicionamos o prefixo 'agendamentos/'
+    const url = `/agendamentos/horarios-disponiveis/?${params.toString()}`;
+    
+    return apiClient.get(url);
 };
 
 export const agendamentoService = {
