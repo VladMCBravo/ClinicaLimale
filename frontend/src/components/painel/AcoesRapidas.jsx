@@ -1,12 +1,13 @@
 // src/components/painel/AcoesRapidas.jsx
-import React from 'react';
+import React from 'react'; // É importante ter o import do React
 import { Button, Paper, Typography, Box } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import AddCardIcon from '@mui/icons-material/AddCard';
 
-// O componente agora recebe props para cada ação específica
-export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, onCaixaClick }) {
+// 1. Defina o componente como uma função normal (sem o export default aqui)
+function AcoesRapidas({ onNovoPacienteClick, onVerificarClick }) {
+  console.log("Renderizando AcoesRapidas..."); // Você pode usar isso para ver no console quando ele renderiza
   return (
     <Paper sx={{ p: 2 }} variant="outlined">
       <Typography variant="h6" gutterBottom>Ações Rápidas</Typography>
@@ -14,7 +15,7 @@ export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, on
         <Button 
             variant="contained" 
             startIcon={<PersonAddIcon />}
-            onClick={onNovoPacienteClick} // <-- MUDANÇA: Chama a nova prop
+            onClick={onNovoPacienteClick}
             size="small"
         >
           Novo Paciente
@@ -22,7 +23,7 @@ export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, on
         <Button 
             variant="outlined" 
             startIcon={<EventAvailableIcon />}
-            onClick={onVerificarClick} // <-- CONECTANDO O BOTÃO
+            onClick={onVerificarClick}
             size="small"
         >
           Verificar Disponibilidade
@@ -31,7 +32,6 @@ export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, on
             variant="outlined" 
             startIcon={<AddCardIcon />} 
             color="secondary"
-            // onClick={onCaixaClick} // Para uso futuro
             size="small"
         >
           Lançamento no Caixa
@@ -40,3 +40,6 @@ export default function AcoesRapidas({ onNovoPacienteClick, onVerificarClick, on
     </Paper>
   );
 }
+
+// 2. Exporte a versão 'memorizada' do seu componente
+export default React.memo(AcoesRapidas);

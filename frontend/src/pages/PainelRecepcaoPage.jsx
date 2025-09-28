@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, CircularProgress, Drawer } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
-// --- VERIFIQUE SE TODAS ESTAS IMPORTAÇÕES ESTÃO PRESENTES ---
+// Importações
 import AcoesRapidas from '../components/painel/AcoesRapidas';
 import BarraStatus from '../components/painel/BarraStatus';
 import FiltrosAgenda from '../components/painel/FiltrosAgenda';
@@ -13,13 +13,11 @@ import ListaEspera from '../components/painel/ListaEspera';
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
-import FormularioPaciente from '../components/pacientes/FormularioPaciente';
 
 export default function PainelRecepcaoPage() {
     // --- ESTADOS GERAIS ---
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeView, setActiveView] = useState('agenda');
     const [refreshSidebar, setRefreshSidebar] = useState(0);
 
     // --- ESTADOS DOS FILTROS ---
@@ -31,6 +29,7 @@ export default function PainelRecepcaoPage() {
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
+
     // --- BUSCA DE DADOS ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -52,7 +51,6 @@ export default function PainelRecepcaoPage() {
         setEspecialidadeFiltro(filtros.especialidadeId);
     };
 
-    // FUNÇÃO QUE ESTAVA FALTANDO
     const handleModalSave = () => {
         setIsPacienteModalOpen(false);
         setIsAgendamentoModalOpen(false);
@@ -63,10 +61,8 @@ export default function PainelRecepcaoPage() {
     const handleSlotSelect = (data) => {
         setAgendamentoInitialData({
             start: data.data_hora_inicio.toDate(),
-            extendedProps: {
-                medico: data.medico?.id,
-                especialidade: data.especialidade?.id,
-            }
+            medico: data.medico,
+            especialidade: data.especialidade,
         });
         setIsAgendamentoModalOpen(true);
     };
@@ -75,29 +71,12 @@ export default function PainelRecepcaoPage() {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- RENDERIZAÇÃO DA VISÃO ATIVA (ÁREA CENTRAL) ---
-    const renderActiveView = () => {
-        switch (activeView) {
-            case 'agenda':
-                return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />;
-            case 'novoPaciente':
-                return <FormularioPaciente onClose={() => setActiveView('agenda')} />;
-            case 'verificarDisponibilidade':
-                return <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} onClose={() => setActiveView('agenda')} />;
-            default:
-                return <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />;
-        }
-    };
-
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
             
             {/* Coluna da Esquerda */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <AcoesRapidas 
-                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                    onVerificarClick={() => setActiveView('verificarDisponibilidade')}
-                /> 
+                <AcoesRapidas onNovoPacienteClick={() => setIsPacienteModalOpen(true)} /> 
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                     <PacientesDoDiaSidebar 
@@ -107,9 +86,12 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Box>
 
-            {/* Coluna Central Dinâmica */}
-            <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                {renderActiveView()}
+            {/* Coluna Central com Verificador e Agenda empilhados */}
+            <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
+                <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                    <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />
+                </Box>
             </Box>
 
             {/* Coluna da Direita */}

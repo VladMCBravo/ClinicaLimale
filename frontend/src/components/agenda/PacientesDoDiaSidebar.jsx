@@ -1,38 +1,34 @@
-// src/components/agenda/PacientesDoDiaSidebar.jsx - VERSÃO FINAL E COMPLETA
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Paper, List, ListItem, ListItemIcon, ListItemText, CircularProgress, Tooltip } from '@mui/material';
-import { agendamentoService } from '../../services/agendamentoService'; // <-- ADICIONADO
+import { agendamentoService } from '../../services/agendamentoService';
 
-// --- IMPORTAÇÃO COMPLETA DE ÍCONES ---
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'; // <-- ADICIONE ESTA IMPORTAÇÃO
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';      // Confirmado
-import CancelIcon from '@mui/icons-material/Cancel';                  // Cancelado
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';          // Status Desconhecido
-import StarIcon from '@mui/icons-material/Star';                      // Primeira Consulta
-import EventNoteIcon from '@mui/icons-material/EventNote';          // Agendado
-import DoneIcon from '@mui/icons-material/Done';                      // Realizado
-import PersonOffIcon from '@mui/icons-material/PersonOff';            // Não Compareceu
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import StarIcon from '@mui/icons-material/Star';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import DoneIcon from '@mui/icons-material/Done';
+import PersonOffIcon from '@mui/icons-material/PersonOff';
 
-// --- MAPEAMENTO DE STATUS COMPLETO E CORRETO ---
 const statusMap = {
     'Agendado': { icon: <EventNoteIcon />, color: 'info.main', title: 'Agendado' },
-    'Aguardando Pagamento': { icon: <HourglassEmptyIcon />, color: 'warning.main', title: 'Aguardando Pagamento' }, // <-- ADICIONE ESTA LINHA
+    'Aguardando Pagamento': { icon: <HourglassEmptyIcon />, color: 'warning.main', title: 'Aguardando Pagamento' },
     'Confirmado': { icon: <CheckCircleIcon />, color: 'success.main', title: 'Confirmado' },
     'Cancelado': { icon: <CancelIcon />, color: 'error.main', title: 'Cancelado' },
     'Realizado': { icon: <DoneIcon />, color: 'action.active', title: 'Realizado' },
     'Não Compareceu': { icon: <PersonOffIcon />, color: 'text.secondary', title: 'Não Compareceu' }
 };
 
-export default function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
+// 1. Definimos a função do componente
+function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
     const [pacientes, setPacientes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchPacientesDoDia = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Usamos o medicoFiltro na chamada do serviço
             const response = await agendamentoService.getAgendamentosHoje(medicoFiltro);
-            
             const dadosOrdenados = response.data.sort((a, b) => 
                 new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
             );
@@ -43,12 +39,10 @@ export default function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) 
         } finally {
             setIsLoading(false);
         }
-    // MUDANÇA AQUI: Adicionamos medicoFiltro como dependência do useCallback
     }, [medicoFiltro]);
 
     useEffect(() => {
         fetchPacientesDoDia();
-    // MUDANÇA AQUI: Adicionamos medicoFiltro como dependência para refazer a busca quando ele mudar
     }, [fetchPacientesDoDia, refreshTrigger, medicoFiltro]);
 
     return (
@@ -59,7 +53,7 @@ export default function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) 
                     {pacientes.length > 0 ? pacientes.map(ag => {
                         const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: 'text.secondary', title: ag.status };
                         return (
-                            <ListItem key={ag.id} sx={{ py: 0.5 }}> {/* Diminui o padding vertical */}
+                            <ListItem key={ag.id} sx={{ py: 0.5 }}>
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                     <Tooltip title={statusInfo.title}>
                                         {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color } })}
@@ -84,3 +78,6 @@ export default function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) 
         </Paper>
     );
 }
+
+// 2. Exportamos a versão "memorizada" do componente
+export default React.memo(PacientesDoDiaSidebar);

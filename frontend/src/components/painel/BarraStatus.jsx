@@ -1,16 +1,13 @@
-// src/components/painel/BarraStatus.jsx
-
 import React from 'react';
 import { Box, Paper, IconButton, Tooltip, Divider, Badge } from '@mui/material';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CakeIcon from '@mui/icons-material/Cake';
-import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'; // Ícone para a Lista de Espera
-import ForumIcon from '@mui/icons-material/Forum'; // Ícone para o Chatbot
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
+import ForumIcon from '@mui/icons-material/Forum';
 
-// Este componente recebe os dados do painel como props
-export default function BarraStatus({ data, onListaEsperaClick }) {
-    
+// 1. Definimos a função do componente
+function BarraStatus({ data, onListaEsperaClick }) {
     return (
         <Paper 
             variant="outlined" 
@@ -48,7 +45,6 @@ export default function BarraStatus({ data, onListaEsperaClick }) {
             
             <Divider sx={{ width: '70%' }} />
 
-            {/* MUDANÇA AQUI: Ícone da Lista de Espera agora é um botão */}
             <Tooltip title="Ver Lista de Espera" placement="left">
                 <IconButton onClick={onListaEsperaClick}>
                     <PlaylistPlayIcon />
@@ -63,3 +59,6 @@ export default function BarraStatus({ data, onListaEsperaClick }) {
         </Paper>
     );
 }
+
+// 2. Exportamos a versão "memorizada" do componente
+export default React.memo(BarraStatus);

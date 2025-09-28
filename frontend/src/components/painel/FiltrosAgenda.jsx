@@ -1,17 +1,16 @@
-// src/components/painel/FiltrosAgenda.jsx
 import React, { useState, useEffect } from 'react';
 import { Paper, Typography, Box, FormControl, InputLabel, Select, MenuItem, IconButton } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
-import apiClient from '../../api/axiosConfig'; // Usado para buscar médicos/especialidades
+import apiClient from '../../api/axiosConfig';
 
-export default function FiltrosAgenda({ onFiltroChange }) {
+// 1. Definimos a função do componente
+function FiltrosAgenda({ onFiltroChange }) {
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
 
     useEffect(() => {
-        // Busca os dados para preencher os filtros
         const fetchFiltroData = async () => {
             try {
                 const [medicosRes, especialidadesRes] = await Promise.all([
@@ -76,3 +75,6 @@ export default function FiltrosAgenda({ onFiltroChange }) {
         </Paper>
     );
 }
+
+// 2. Exportamos a versão "memorizada" do componente
+export default React.memo(FiltrosAgenda);

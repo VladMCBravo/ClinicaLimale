@@ -9,7 +9,8 @@ import apiClient from '../../api/axiosConfig';
 import { agendamentoService } from '../../services/agendamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export default function VerificadorDisponibilidade({ onSlotSelect, onClose }) {
+// Removido 'onClose' das props, pois o componente agora é fixo
+export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) {
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
     
@@ -61,58 +62,58 @@ export default function VerificadorDisponibilidade({ onSlotSelect, onClose }) {
     const handleSlotClick = (horario) => {
         const [hora, minuto] = horario.split(':');
         const dataHoraInicio = dataSelecionada.hour(hora).minute(minuto);
+        const medicoObj = medicos.find(m => m.id === medicoSelecionado) || null;
+        const especialidadeObj = especialidades.find(e => e.id === especialidadeSelecionada) || null;
+
         onSlotSelect({
-            medico: medicos.find(m => m.id === medicoSelecionado),
-            especialidade: especialidades.find(e => e.id === especialidadeSelecionada),
+            medico: medicoObj,
+            especialidade: especialidadeObj,
             data_hora_inicio: dataHoraInicio,
         });
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">Verificar Disponibilidade de Horários</Typography>
-                <Button onClick={onClose}>Voltar para Agenda</Button>
-            </Box>
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={4}>
-                    <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} />
+        <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
+            
+            <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={3}>
+                    <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                    <FormControl fullWidth>
+                <Grid item xs={12} sm={3}>
+                    <FormControl fullWidth size="small">
                         <InputLabel>Especialidade</InputLabel>
                         <Select value={especialidadeSelecionada} label="Especialidade" onChange={(e) => setEspecialidadeSelecionada(e.target.value)}>
                             {especialidades.map((esp) => (<MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>))}
                         </Select>
                     </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                     <FormControl fullWidth required>
+                <Grid item xs={12} sm={3}>
+                     <FormControl fullWidth required size="small">
                         <InputLabel>Médico</InputLabel>
                         <Select value={medicoSelecionado} label="Médico" onChange={(e) => setMedicoSelecionado(e.target.value)}>
                             {medicos.map((med) => (<MenuItem key={med.id} value={med.id}>{med.first_name} {med.last_name}</MenuItem>))}
                         </Select>
                     </FormControl>
                 </Grid>
+                <Grid item xs={12} sm={3}>
+                    <Button onClick={handleSearch} variant="contained" disabled={isLoading} fullWidth>
+                        {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
+                    </Button>
+                </Grid>
             </Grid>
 
-            <Button onClick={handleSearch} variant="contained" disabled={isLoading} sx={{ mb: 3 }}>
-                {isLoading ? <CircularProgress size={24} /> : 'Buscar Horários'}
-            </Button>
-
-            <Typography variant="overline">Horários Disponíveis</Typography>
-            <Paper variant="outlined" sx={{ flexGrow: 1, p: 2, overflowY: 'auto' }}>
-                {horarios.length > 0 ? (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {horarios.map((horario, index) => (
+            {/* A área de resultados aparece condicionalmente */}
+            {(isLoading || horarios.length > 0) && (
+                 <Box sx={{ mt: 2 }}>
+                    <Typography variant="overline">Horários Disponíveis</Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1, minHeight: '36px' }}>
+                        {isLoading ? <CircularProgress size={24} /> : horarios.map((horario, index) => (
                             <Chip key={index} label={horario} onClick={() => handleSlotClick(horario)} color="primary" sx={{ cursor: 'pointer' }}/>
                         ))}
                     </Box>
-                ) : (
-                    <Typography color="text.secondary">Nenhum horário disponível para a seleção.</Typography>
-                )}
-            </Paper>
+                </Box>
+            )}
         </Paper>
     );
-}
+}); // Envolvido com React.memo para performance
