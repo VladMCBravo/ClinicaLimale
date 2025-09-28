@@ -26,8 +26,45 @@ from .serializers import (
     PagamentoSerializer,  # O serializer principal para leitura
     PagamentoUpdateSerializer,  # <-- Vamos criar este serializer para atualização
     CategoriaDespesaSerializer, DespesaSerializer,
+    CobrancaPendenteSerializer, LancamentoAvulsoReceitaSerializer,
     ConvenioSerializer, PlanoConvenioSerializer, ProcedimentoSerializer
 )
+
+# <<< NOVA VIEW PARA BUSCAR COBRANÇAS DE UM PACIENTE (ABA 1) >>>
+class CobrancasPendentesPacienteAPIView(generics.ListAPIView):
+    serializer_class = CobrancaPendenteSerializer
+    permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
+
+    def get_queryset(self):
+        paciente_id = self.kwargs.get('paciente_id')
+        return Pagamento.objects.filter(
+            paciente_id=paciente_id,
+            status='Pendente',
+            agendamento__isnull=False # Apenas pagamentos ligados a agendamentos
+        ).order_by('agendamento__data_hora_inicio')
+
+
+# <<< NOVA VIEW PARA CRIAR LANÇAMENTOS AVULSOS (ABA 2) >>>
+class LancamentoAvulsoAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
+
+    def post(self, request, *args, **kwargs):
+        tipo = request.data.get('tipo') # Espera receber 'receita' ou 'despesa'
+
+        if tipo == 'receita':
+            serializer = LancamentoAvulsoReceitaSerializer(data=request.data)
+        elif tipo == 'despesa':
+            # Reutilizamos o serializer de despesa que já existe
+            serializer = DespesaSerializer(data=request.data)
+        else:
+            return Response({'error': 'O campo "tipo" é obrigatório e deve ser "receita" ou "despesa".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if serializer.is_valid():
+            # Associa o usuário logado ao registro
+            serializer.save(registrado_por=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # --- View de Pagamento (sem alterações, já estava boa) ---
 class PagamentoViewSet(viewsets.ModelViewSet):

@@ -30,6 +30,12 @@ class Pagamento(models.Model):
         blank=True
     )
     paciente = models.ForeignKey('pacientes.Paciente', on_delete=models.PROTECT)
+    descricao = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        help_text="Descrição para lançamentos avulsos ou observações."
+    )
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     forma_pagamento = models.CharField(max_length=20, choices=FORMA_PAGAMENTO_CHOICES, blank=True, null=True)
     data_pagamento = models.DateTimeField(blank=True, null=True)
@@ -46,7 +52,10 @@ class Pagamento(models.Model):
 
 
     def __str__(self):
-        return f"Pagamento de R$ {self.valor} para {self.paciente.nome_completo} ({self.status})"
+        if self.agendamento:
+            return f"Pagamento de R$ {self.valor} para {self.paciente.nome_completo} ({self.status})"
+        return f"Lançamento Avulso: {self.descricao} - R$ {self.valor} ({self.status})"
+
 
     def save(self, *args, **kwargs):
         if self.status == 'Pago' and self.data_pagamento is None:

@@ -54,3 +54,25 @@
 .fc-event.status-cancelado .fc-event-time {
     color: #e0e0e0 !important;
 }
+
+/* Diminui a fonte do título principal (Ex: "28 de set. – 4 de out. de 2025") */
+.fc .fc-toolbar-title {
+    font-size: 1.2rem !important; /* Ajuste o valor conforme necessário */
+}
+
+/* Diminui a fonte dos dias da semana (Ex: "dom. 28/09") */
+.fc-theme-standard .fc-scrollgrid th {
+    font-size: 0.8rem !important; /* Ajuste o valor conforme necessário */
+    padding: 4px 0 !important;
+}
+
+/* Diminui a fonte dos horários na lateral (Ex: "08:00") */
+.fc .fc-timegrid-slot-label {
+    font-size: 0.75rem !important; /* Ajuste o valor conforme necessário */
+}
+
+/* Opcional: Ajusta a fonte dos botões de navegação e visão */
+.fc .fc-button {
+    font-size: 0.8rem !important;
+    padding: 4px 8px !important;
+}

@@ -13,6 +13,8 @@ import ListaEspera from '../components/painel/ListaEspera';
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
+import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal'; // <-- IMPORTE O NOVO MODAL
+
 
 export default function PainelRecepcaoPage() {
     // --- ESTADOS GERAIS ---
@@ -28,6 +30,7 @@ export default function PainelRecepcaoPage() {
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
+    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
 
     // --- BUSCA DE DADOS ---
@@ -76,7 +79,12 @@ export default function PainelRecepcaoPage() {
             
             {/* Coluna da Esquerda */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <AcoesRapidas onNovoPacienteClick={() => setIsPacienteModalOpen(true)} /> 
+                <AcoesRapidas 
+                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
+                    onVerificarClick={() => setActiveView('verificarDisponibilidade')}
+                    // Conecte o novo handler aqui
+                    onCaixaClick={() => setIsCaixaModalOpen(true)}
+                />
                 <FiltrosAgenda onFiltroChange={handleFiltroChange} />
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                     <PacientesDoDiaSidebar 
@@ -110,7 +118,10 @@ export default function PainelRecepcaoPage() {
                 onSave={handleModalSave}
                 pacienteParaEditar={null}
             />
-
+            <LancamentoCaixaModal 
+                open={isCaixaModalOpen}
+                onClose={() => setIsCaixaModalOpen(false)}
+            />
             <AgendamentoModal
                 open={isAgendamentoModalOpen}
                 onClose={() => setIsAgendamentoModalOpen(false)}

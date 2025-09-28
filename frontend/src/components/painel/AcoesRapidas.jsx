@@ -31,6 +31,7 @@ function AcoesRapidas({ onNovoPacienteClick, onVerificarClick }) {
          <Button 
             variant="outlined" 
             startIcon={<AddCardIcon />} 
+            onClick={onCaixaClick} // <-- CONECTANDO O BOTÃO
             color="secondary"
             size="small"
         >
