@@ -4,6 +4,7 @@ import {
     Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, Button, Typography
 } from '@mui/material';
 import PagarAgendamentoTab from './PagarAgendamentoTab'; // <-- IMPORTE O NOVO COMPONENTE
+import LancamentoAvulsoTab from './LancamentoAvulsoTab'; // <-- IMPORTE O NOVO COMPONENTE
 
 export default function LancamentoCaixaModal({ open, onClose }) {
     const [activeTab, setActiveTab] = useState(0);
@@ -25,16 +26,14 @@ export default function LancamentoCaixaModal({ open, onClose }) {
                 
                 {activeTab === 0 && (
                     <Box sx={{ p: 3, minHeight: '400px' }}>
-                        {/* SUBSTITUÍMOS O PLACEHOLDER PELO COMPONENTE REAL */}
                         <PagarAgendamentoTab onClose={onClose} />
                     </Box>
                 )}
 
                 {activeTab === 1 && (
                     <Box sx={{ p: 3, minHeight: '400px' }}>
-                        <Typography>
-                            Formulário para lançamentos de receitas/despesas avulsas. (A ser desenvolvido)
-                        </Typography>
+                        {/* SUBSTITUÍMOS O PLACEHOLDER PELO COMPONENTE REAL */}
+                        <LancamentoAvulsoTab onClose={onClose} />
                     </Box>
                 )}
             </DialogContent>

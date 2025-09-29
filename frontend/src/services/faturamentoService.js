@@ -23,6 +23,10 @@ const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pend
 const getDespesas = () => apiClient.get('/faturamento/despesas/');
 const getCategoriasDespesa = () => apiClient.get('/faturamento/categorias-despesa/');
 const createDespesa = (data) => apiClient.post('/faturamento/despesas/', data);
+// Para o formulário de Lançamento Avulso
+const createLancamentoAvulso = (data) => {
+    return apiClient.post('/faturamento/lancamento-avulso/', data);
+};
 
 // --- Funções para Relatórios ---
 const getRelatorioFinanceiro = () => apiClient.get('/faturamento/relatorios/financeiro/');
@@ -60,6 +64,7 @@ export const faturamentoService = {
     getDespesas,
     getCategoriasDespesa,
     createDespesa,
+    createLancamentoAvulso,
     // Relatórios
     getRelatorioFinanceiro,
     // Faturamento
