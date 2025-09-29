@@ -4,17 +4,15 @@ import { Box, CircularProgress, Drawer } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
 // Importações
-import AcoesRapidas from '../components/painel/AcoesRapidas';
 import BarraStatus from '../components/painel/BarraStatus';
-import FiltrosAgenda from '../components/painel/FiltrosAgenda';
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import ListaEspera from '../components/painel/ListaEspera';
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
-import FormularioPaciente from '../components/pacientes/FormularioPaciente';
 import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal'; // <-- ESTA LINHA ESTAVA FALTANDO
+import ControlesAgenda from '../components/painel/ControlesAgenda';
 
 export default function PainelRecepcaoPage() {
     // --- ESTADOS GERAIS ---
@@ -76,13 +74,17 @@ export default function PainelRecepcaoPage() {
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
             
+            {/* Coluna da Esquerda agora mais compacta */}
             <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <AcoesRapidas 
+                
+                {/* SUBSTITUÍMOS OS DOIS COMPONENTES ANTIGOS PELO NOVO */}
+                <ControlesAgenda
                     onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                    onVerificarClick={() => {}} // Ação desativada por enquanto
                     onCaixaClick={() => setIsCaixaModalOpen(true)}
-                /> 
-                <FiltrosAgenda onFiltroChange={handleFiltroChange} />
+                    onFiltroChange={handleFiltroChange}
+                />
+                
+                {/* Este Box agora tem mais espaço vertical disponível */}
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                     <PacientesDoDiaSidebar 
                         refreshTrigger={refreshSidebar} 

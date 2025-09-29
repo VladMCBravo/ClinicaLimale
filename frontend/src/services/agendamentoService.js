@@ -56,7 +56,7 @@ const verificarDisponibilidade = ({ data, medicoId, especialidadeId }) => {
         params.append('especialidade_id', especialidadeId);
     }
     
-    // MUDANÇA AQUI: Adicionamos o prefixo 'agendamentos/'
+    /// A CORREÇÃO ESTÁ AQUI: 'disponiveis' em vez de 'disponisponiveis'
     const url = `/agendamentos/horarios-disponiveis/?${params.toString()}`;
     
     return apiClient.get(url);
