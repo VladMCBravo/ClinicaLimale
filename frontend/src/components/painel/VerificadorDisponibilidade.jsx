@@ -20,7 +20,7 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
     const [horarios, setHorarios] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
-    const [mensagemRetorno, setMensagemRetorno] = useState('');
+    const [mensagemRetorno, setMensagemRetorno] = useState('Selecione uma data e um médico para iniciar a busca.');
 
     useEffect(() => {
         const fetchFiltroData = async () => {
@@ -62,6 +62,7 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 setHorarios([]);
                 setMensagemRetorno(response.data.motivo || 'Nenhum horário disponível para a seleção.');
             }
+
         } catch (error) {
             showSnackbar('Erro ao buscar horários disponíveis.', 'error');
             setMensagemRetorno('Ocorreu um erro ao conectar com o servidor.');
@@ -84,69 +85,60 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
             
-            {/* O Grid principal agora divide o espaço em duas grandes colunas */}
-            <Grid container spacing={2}>
-
-                {/* --- Coluna de Filtros (7/12 do espaço) --- */}
-                <Grid item xs={12} md={7}>
-                    <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={4}>
-                            <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>Especialidade</InputLabel>
-                                <Select value={especialidadeSelecionada} label="Especialidade" onChange={(e) => setEspecialidadeSelecionada(e.target.value)}>
-                                    {especialidades.map((esp) => (<MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <FormControl fullWidth required size="small">
-                                <InputLabel>Médico</InputLabel>
-                                <Select value={medicoSelecionado} label="Médico" onChange={(e) => setMedicoSelecionado(e.target.value)}>
-                                    {medicos.map((med) => (<MenuItem key={med.id} value={med.id}>{med.first_name} {med.last_name}</MenuItem>))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12}>
-                            <Button onClick={handleSearch} variant="contained" disabled={isLoading} fullWidth>
-                                {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
-                            </Button>
-                        </Grid>
-                    </Grid>
+            <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={3}>
+                    <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
                 </Grid>
-
-                {/* --- Coluna de Resultados (5/12 do espaço) --- */}
-                <Grid item xs={12} md={5}>
-                    <Box sx={{ height: '100%' }}>
-                        <Typography variant="overline">Horários Disponíveis</Typography>
-                        <Paper variant="outlined" sx={{ p: 1, mt: 1, height: 'calc(100% - 24px)', overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
-                            {isLoading ? <CircularProgress size={24} /> : 
-                                horarios.length > 0 ? (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        {horarios.map((horario, index) => (
-                                            <Chip 
-                                                key={index} 
-                                                label={horario} 
-                                                onClick={() => handleSlotClick(horario)} 
-                                                color="primary" 
-                                                size="small" // <-- Chips menores
-                                                sx={{ cursor: 'pointer' }}
-                                            />
-                                        ))}
-                                    </Box>
-                                ) : (
-                                    <Typography color="text.secondary" variant="body2">{mensagemRetorno}</Typography>
-                                )
-                            }
-                        </Paper>
-                    </Box>
+                <Grid item xs={12} sm={3}>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Especialidade</InputLabel>
+                        <Select value={especialidadeSelecionada} label="Especialidade" onChange={(e) => setEspecialidadeSelecionada(e.target.value)}>
+                            {especialidades.map((esp) => (<MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                     <FormControl fullWidth required size="small">
+                        <InputLabel>Médico</InputLabel>
+                        <Select value={medicoSelecionado} label="Médico" onChange={(e) => setMedicoSelecionado(e.target.value)}>
+                            {medicos.map((med) => (<MenuItem key={med.id} value={med.id}>{med.first_name} {med.last_name}</MenuItem>))}
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                    <Button onClick={handleSearch} variant="contained" disabled={isLoading} fullWidth>
+                        {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
+                    </Button>
                 </Grid>
             </Grid>
+
+            {/* A área de resultados volta a ficar abaixo dos filtros */}
+            <Box sx={{ mt: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="overline">Horários Disponíveis</Typography>
+                <Paper variant="outlined" sx={{ flexGrow: 1, p: 2, overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
+                    {horarios.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {horarios.map((horario, index) => (
+                                <Chip 
+                                    key={index} 
+                                    label={horario} 
+                                    onClick={() => handleSlotClick(horario)} 
+                                    color="primary" 
+                                    size="small" // <-- MUDANÇA PRINCIPAL AQUI
+                                    sx={{ cursor: 'pointer' }}
+                                />
+                            ))}
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '40px' }}>
+                            {!isLoading && <Typography color="text.secondary">{mensagemRetorno}</Typography>}
+                        </Box>
+                    )}
+                </Paper>
+            </Box>
         </Paper>
     );
 });
