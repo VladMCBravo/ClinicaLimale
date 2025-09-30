@@ -86,9 +86,8 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+        <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
-            
             <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={3}>
                     <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
@@ -116,22 +115,34 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 </Grid>
             </Grid>
 
-            <Box sx={{ mt: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="overline">Horários Disponíveis</Typography>
-                <Paper variant="outlined" sx={{ flexGrow: 1, p: 2, overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
-                    {horarios.length > 0 ? (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {horarios.map((horario, index) => (
-                                <Chip key={index} label={horario} onClick={() => handleSlotClick(horario)} color="primary" sx={{ cursor: 'pointer', fontSize: '1rem', padding: '16px 8px' }}/>
-                            ))}
-                        </Box>
-                    ) : (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '40px' }}>
-                            {!isLoading && <Typography color="text.secondary">{mensagemRetorno}</Typography>}
-                        </Box>
-                    )}
-                </Paper>
-            </Box>
+             {/* A área de resultados aparece condicionalmente */}
+            {(isLoading || horarios.length > 0) && (
+                 <Box sx={{ mt: 2 }}>
+                    <Typography variant="overline">Horários Disponíveis</Typography>
+                    
+                    {/* ===== MUDANÇA PRINCIPAL AQUI ===== */}
+                    <Box 
+                        sx={{ 
+                            display: 'flex', 
+                            flexWrap: 'nowrap', // Impede que os itens quebrem para a linha de baixo
+                            gap: 1, 
+                            mt: 1,
+                            overflowX: 'auto', // Adiciona a barra de rolagem horizontal QUANDO necessário
+                            pb: 1, // Adiciona um padding inferior para a barra de rolagem não cortar os chips
+                        }}
+                    >
+                        {isLoading ? <CircularProgress size={24} /> : horarios.map((horario, index) => (
+                            <Chip 
+                                key={index} 
+                                label={horario} 
+                                onClick={() => handleSlotClick(horario)} 
+                                color="primary" 
+                                sx={{ cursor: 'pointer' }}
+                            />
+                        ))}
+                    </Box>
+                 </Box>
+            )}
         </Paper>
     );
 });
