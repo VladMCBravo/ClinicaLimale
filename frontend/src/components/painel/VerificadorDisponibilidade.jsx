@@ -12,16 +12,12 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) {
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
-    
     const [dataSelecionada, setDataSelecionada] = useState(dayjs());
     const [medicoSelecionado, setMedicoSelecionado] = useState('');
     const [especialidadeSelecionada, setEspecialidadeSelecionada] = useState('');
-    
     const [horarios, setHorarios] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
-
-    // CORREÇÃO: O estado da mensagem foi movido para DENTRO do componente.
     const [mensagemRetorno, setMensagemRetorno] = useState('Selecione uma data e um médico para iniciar a busca.');
 
     useEffect(() => {
@@ -55,9 +51,11 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 especialidadeId: especialidadeSelecionada,
             });
 
+            // LINHA DE DEBUG ADICIONADA AQUI
+            console.log("Resposta da API de horários:", response.data);
+
             if (response.data && response.data.status === 'sucesso') {
                 setHorarios(response.data.horarios);
-                // Se não houver horários, define uma mensagem amigável
                 if (response.data.horarios.length === 0) {
                     setMensagemRetorno('Não há horários disponíveis para esta seleção.');
                 }
@@ -91,7 +89,6 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
         <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
             
-            {/* CORREÇÃO: A Grid de filtros agora está corretamente estruturada */}
             <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={3}>
                     <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
@@ -119,7 +116,6 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 </Grid>
             </Grid>
 
-            {/* CORREÇÃO: A área de resultados agora fica fora da Grid de filtros */}
             <Box sx={{ mt: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                 <Typography variant="overline">Horários Disponíveis</Typography>
                 <Paper variant="outlined" sx={{ flexGrow: 1, p: 2, overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
