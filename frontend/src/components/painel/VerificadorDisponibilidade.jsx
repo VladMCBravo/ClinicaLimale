@@ -12,13 +12,15 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) {
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
+    
     const [dataSelecionada, setDataSelecionada] = useState(dayjs());
     const [medicoSelecionado, setMedicoSelecionado] = useState('');
     const [especialidadeSelecionada, setEspecialidadeSelecionada] = useState('');
+    
     const [horarios, setHorarios] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
-    const [mensagemRetorno, setMensagemRetorno] = useState('Selecione uma data e um médico para iniciar a busca.');
+    const [mensagemRetorno, setMensagemRetorno] = useState('');
 
     useEffect(() => {
         const fetchFiltroData = async () => {
@@ -51,9 +53,6 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 especialidadeId: especialidadeSelecionada,
             });
 
-            // LINHA DE DEBUG ADICIONADA AQUI
-            console.log("Resposta da API de horários:", response.data);
-
             if (response.data && response.data.status === 'sucesso') {
                 setHorarios(response.data.horarios);
                 if (response.data.horarios.length === 0) {
@@ -63,7 +62,6 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 setHorarios([]);
                 setMensagemRetorno(response.data.motivo || 'Nenhum horário disponível para a seleção.');
             }
-
         } catch (error) {
             showSnackbar('Erro ao buscar horários disponíveis.', 'error');
             setMensagemRetorno('Ocorreu um erro ao conectar com o servidor.');
@@ -88,61 +86,67 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
     return (
         <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
-            <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
-                    <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
+            
+            {/* O Grid principal agora divide o espaço em duas grandes colunas */}
+            <Grid container spacing={2}>
+
+                {/* --- Coluna de Filtros (7/12 do espaço) --- */}
+                <Grid item xs={12} md={7}>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={4}>
+                            <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Especialidade</InputLabel>
+                                <Select value={especialidadeSelecionada} label="Especialidade" onChange={(e) => setEspecialidadeSelecionada(e.target.value)}>
+                                    {especialidades.map((esp) => (<MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <FormControl fullWidth required size="small">
+                                <InputLabel>Médico</InputLabel>
+                                <Select value={medicoSelecionado} label="Médico" onChange={(e) => setMedicoSelecionado(e.target.value)}>
+                                    {medicos.map((med) => (<MenuItem key={med.id} value={med.id}>{med.first_name} {med.last_name}</MenuItem>))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Button onClick={handleSearch} variant="contained" disabled={isLoading} fullWidth>
+                                {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
+                            </Button>
+                        </Grid>
+                    </Grid>
                 </Grid>
-                <Grid item xs={12} sm={3}>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Especialidade</InputLabel>
-                        <Select value={especialidadeSelecionada} label="Especialidade" onChange={(e) => setEspecialidadeSelecionada(e.target.value)}>
-                            {especialidades.map((esp) => (<MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                     <FormControl fullWidth required size="small">
-                        <InputLabel>Médico</InputLabel>
-                        <Select value={medicoSelecionado} label="Médico" onChange={(e) => setMedicoSelecionado(e.target.value)}>
-                            {medicos.map((med) => (<MenuItem key={med.id} value={med.id}>{med.first_name} {med.last_name}</MenuItem>))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                    <Button onClick={handleSearch} variant="contained" disabled={isLoading} fullWidth>
-                        {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
-                    </Button>
+
+                {/* --- Coluna de Resultados (5/12 do espaço) --- */}
+                <Grid item xs={12} md={5}>
+                    <Box sx={{ height: '100%' }}>
+                        <Typography variant="overline">Horários Disponíveis</Typography>
+                        <Paper variant="outlined" sx={{ p: 1, mt: 1, height: 'calc(100% - 24px)', overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
+                            {isLoading ? <CircularProgress size={24} /> : 
+                                horarios.length > 0 ? (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {horarios.map((horario, index) => (
+                                            <Chip 
+                                                key={index} 
+                                                label={horario} 
+                                                onClick={() => handleSlotClick(horario)} 
+                                                color="primary" 
+                                                size="small" // <-- Chips menores
+                                                sx={{ cursor: 'pointer' }}
+                                            />
+                                        ))}
+                                    </Box>
+                                ) : (
+                                    <Typography color="text.secondary" variant="body2">{mensagemRetorno}</Typography>
+                                )
+                            }
+                        </Paper>
+                    </Box>
                 </Grid>
             </Grid>
-
-             {/* A área de resultados aparece condicionalmente */}
-            {(isLoading || horarios.length > 0) && (
-                 <Box sx={{ mt: 2 }}>
-                    <Typography variant="overline">Horários Disponíveis</Typography>
-                    
-                    {/* ===== MUDANÇA PRINCIPAL AQUI ===== */}
-                    <Box 
-                        sx={{ 
-                            display: 'flex', 
-                            flexWrap: 'nowrap', // Impede que os itens quebrem para a linha de baixo
-                            gap: 1, 
-                            mt: 1,
-                            overflowX: 'auto', // Adiciona a barra de rolagem horizontal QUANDO necessário
-                            pb: 1, // Adiciona um padding inferior para a barra de rolagem não cortar os chips
-                        }}
-                    >
-                        {isLoading ? <CircularProgress size={24} /> : horarios.map((horario, index) => (
-                            <Chip 
-                                key={index} 
-                                label={horario} 
-                                onClick={() => handleSlotClick(horario)} 
-                                color="primary" 
-                                sx={{ cursor: 'pointer' }}
-                            />
-                        ))}
-                    </Box>
-                 </Box>
-            )}
         </Paper>
     );
 });
