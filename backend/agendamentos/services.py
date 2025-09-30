@@ -15,31 +15,29 @@ logger = logging.getLogger(__name__)
 
 def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
     """
-    Busca todos os horários disponíveis para um médico em uma data específica.
-    VERSÃO COM DIAGNÓSTICOS.
+    Busca todos os horários disponíveis para um médico em uma data específica,
+    retornando um objeto estruturado com o motivo em caso de não haver horários.
     """
-    print(f"\n--- 1. BUSCANDO HORÁRIOS PARA DATA: {data_selecionada}, MEDICO_ID: {medico_id} ---")
-
     try:
         medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
-        print(f"--- 2. MÉDICO ENCONTRADO: {medico.get_full_name()} ---")
     except CustomUser.DoesNotExist:
-        print("--- ERRO: Médico com ID fornecido não foi encontrado ou não é um médico. ---")
-        return []
+        return {
+            "status": "erro", 
+            "horarios": [], 
+            "motivo": "O profissional selecionado não foi encontrado."
+        }
 
     DURACAO_CONSULTA_MINUTOS = 20
     
     dia_da_semana = data_selecionada.weekday()
-    print(f"--- 3. DIA DA SEMANA CALCULADO: {dia_da_semana} (Seg=0, Dom=6) ---")
-    
     jornadas_do_dia = JornadaDeTrabalho.objects.filter(medico=medico, dia_da_semana=dia_da_semana)
-    
-    # ESTE É O PONTO MAIS CRÍTICO A SER VERIFICADO
+
     if not jornadas_do_dia.exists():
-        print("--- ALERTA: NENHUMA JORNADA DE TRABALHO ENCONTRADA PARA ESTE MÉDICO NESTE DIA DA SEMANA. ---")
-        return []
-    
-    print(f"--- 4. JORNADAS DE TRABALHO ENCONTRADAS: {list(jornadas_do_dia)} ---")
+        return {
+            "status": "sem_jornada", 
+            "horarios": [], 
+            "motivo": "O profissional selecionado não atende neste dia da semana."
+        }
 
     agendamentos_existentes = Agendamento.objects.filter(
         medico=medico,
@@ -48,12 +46,10 @@ def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
     )
     
     horarios_ocupados = {ag.data_hora_inicio.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
-    print(f"--- 5. TOTAL DE HORÁRIOS JÁ OCUPADOS NO DIA: {len(horarios_ocupados)} ---")
     
     horarios_disponiveis = []
     
     for jornada in jornadas_do_dia:
-        print(f"--- 6. VERIFICANDO TURNO: Das {jornada.hora_inicio} às {jornada.hora_fim} ---")
         horario_slot = timezone.make_aware(datetime.datetime.combine(data_selecionada, jornada.hora_inicio))
         hora_fim_turno = jornada.hora_fim
 
@@ -63,8 +59,18 @@ def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
             
             horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
 
-    print(f"--- 7. TOTAL DE HORÁRIOS DISPONÍVEIS ENCONTRADOS: {len(horarios_disponiveis)} ---")
-    return sorted(horarios_disponiveis)
+    if not horarios_disponiveis:
+        return {
+            "status": "sem_horarios", 
+            "horarios": [], 
+            "motivo": "Não há mais horários disponíveis para este dia. Todos os horários já foram preenchidos."
+        }
+
+    return {
+        "status": "sucesso",
+        "horarios": sorted(horarios_disponiveis),
+        "motivo": None
+    }
 
 def buscar_proximo_horario_procedimento(procedimento_id):
     """

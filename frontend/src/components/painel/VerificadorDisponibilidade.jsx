@@ -9,7 +9,6 @@ import apiClient from '../../api/axiosConfig';
 import { agendamentoService } from '../../services/agendamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Removido 'onClose' das props, pois o componente agora é fixo
 export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) {
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
@@ -21,6 +20,9 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
     const [horarios, setHorarios] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
+
+    // CORREÇÃO: O estado da mensagem foi movido para DENTRO do componente.
+    const [mensagemRetorno, setMensagemRetorno] = useState('Selecione uma data e um médico para iniciar a busca.');
 
     useEffect(() => {
         const fetchFiltroData = async () => {
@@ -45,15 +47,28 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
         }
         setIsLoading(true);
         setHorarios([]);
+        setMensagemRetorno('Buscando...'); 
         try {
             const response = await agendamentoService.verificarDisponibilidade({
                 data: dataSelecionada.format('YYYY-MM-DD'),
                 medicoId: medicoSelecionado,
                 especialidadeId: especialidadeSelecionada,
             });
-            setHorarios(response.data);
+
+            if (response.data && response.data.status === 'sucesso') {
+                setHorarios(response.data.horarios);
+                // Se não houver horários, define uma mensagem amigável
+                if (response.data.horarios.length === 0) {
+                    setMensagemRetorno('Não há horários disponíveis para esta seleção.');
+                }
+            } else {
+                setHorarios([]);
+                setMensagemRetorno(response.data.motivo || 'Nenhum horário disponível para a seleção.');
+            }
+
         } catch (error) {
             showSnackbar('Erro ao buscar horários disponíveis.', 'error');
+            setMensagemRetorno('Ocorreu um erro ao conectar com o servidor.');
         } finally {
             setIsLoading(false);
         }
@@ -73,9 +88,10 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
             
+            {/* CORREÇÃO: A Grid de filtros agora está corretamente estruturada */}
             <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} sm={3}>
                     <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
@@ -103,17 +119,23 @@ export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) 
                 </Grid>
             </Grid>
 
-            {/* A área de resultados aparece condicionalmente */}
-            {(isLoading || horarios.length > 0) && (
-                 <Box sx={{ mt: 2 }}>
-                    <Typography variant="overline">Horários Disponíveis</Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1, minHeight: '36px' }}>
-                        {isLoading ? <CircularProgress size={24} /> : horarios.map((horario, index) => (
-                            <Chip key={index} label={horario} onClick={() => handleSlotClick(horario)} color="primary" sx={{ cursor: 'pointer' }}/>
-                        ))}
-                    </Box>
-                </Box>
-            )}
+            {/* CORREÇÃO: A área de resultados agora fica fora da Grid de filtros */}
+            <Box sx={{ mt: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="overline">Horários Disponíveis</Typography>
+                <Paper variant="outlined" sx={{ flexGrow: 1, p: 2, overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
+                    {horarios.length > 0 ? (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {horarios.map((horario, index) => (
+                                <Chip key={index} label={horario} onClick={() => handleSlotClick(horario)} color="primary" sx={{ cursor: 'pointer', fontSize: '1rem', padding: '16px 8px' }}/>
+                            ))}
+                        </Box>
+                    ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '40px' }}>
+                            {!isLoading && <Typography color="text.secondary">{mensagemRetorno}</Typography>}
+                        </Box>
+                    )}
+                </Paper>
+            </Box>
         </Paper>
     );
-}); // Envolvido com React.memo para performance
+});
