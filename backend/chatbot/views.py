@@ -63,26 +63,26 @@ llm = ChatGoogleGenerativeAI(
 
 # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
 class RoteadorOutput(BaseModel):
-    intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'pergunta_geral'.")
-    entity: Optional[str] = Field(description="O serviço ou especialidade específica que o usuário mencionou, se houver.")
+    intent: str = Field(description="A intenção do utilizador. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'pergunta_geral'.")
+    entity: Optional[str] = Field(description="O serviço ou especialidade específica que o utilizador mencionou, se houver.")
 
 parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
 prompt_roteador = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Analise a mensagem do usuário para determinar a intenção. Responda APENAS com o objeto JSON formatado.
+    Analise a mensagem do utilizador para determinar a intenção. Responda APENAS com o objeto JSON formatado.
 
     # INTENÇÕES POSSÍVEIS
     - 'saudacao': Cumprimentos gerais.
-    - 'iniciar_agendamento': O usuário quer marcar, agendar, ver horários.
-    - 'buscar_preco': O usuário quer saber o valor, preço.
-    - 'cancelar_agendamento': O usuário quer desmarcar ou cancelar.
-    - 'triagem_sintomas': O usuário descreve sintomas e não sabe qual especialista.
-    - 'pergunta_geral': Uma pergunta sobre a clínica que não se encaixa nas outras (ex: 'quais as especialidades?', 'aceita convênio?', 'parcela?').
+    - 'iniciar_agendamento': O utilizador quer marcar, agendar, ver horários.
+    - 'buscar_preco': O utilizador quer saber o valor, preço.
+    - 'cancelar_agendamento': O utilizador quer desmarcar ou cancelar.
+    - 'triagem_sintomas': O utilizador descreve sintomas e não sabe qual especialista.
+    - 'pergunta_geral': Uma pergunta sobre a clínica que não se encaixa nas outras (ex: 'quais as especialidades?', 'aceita convénio?', 'parcela?').
 
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
-    # MENSAGEM DO USUÁRIO
+    # MENSAGEM DO UTILIZADOR
     {user_message}
     """,
     partial_variables={"format_instructions": parser_roteador.get_format_instructions()},
@@ -106,7 +106,7 @@ prompt_sintomas = ChatPromptTemplate.from_template(
     - Responda APENAS com o objeto JSON formatado.
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
-    # SINTOMAS DO USUÁRIO
+    # SINTOMAS DO UTILIZADOR
     {sintomas_do_usuario}
     """,
     partial_variables={"format_instructions": parser_sintomas.get_format_instructions()},
@@ -129,7 +129,7 @@ prompt_extracao = ChatPromptTemplate.from_template(
     Extraia nome completo, data de nascimento, CPF, telefone e email do texto.
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
-    # MENSAGEM DO USUÁRIO
+    # MENSAGEM DO UTILIZADOR
     {dados_do_usuario}
     """,
     partial_variables={"format_instructions": parser_extracao.get_format_instructions()},
@@ -145,39 +145,39 @@ R: {lista_de_especialidades}
 R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
 
 **P: A consulta tem direito a retorno?**
-R: Sim, nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames que o médico solicitou, sem nenhum custo adicional.
+R: Sim, as nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames que o médico solicitou, sem nenhum custo adicional.
 
 **P: Vocês parcelam no cartão de crédito?**
 R: Sim, para pagamentos com cartão de crédito, feitos presencialmente na clínica, oferecemos parcelamento em até 3x sem juros para valores acima de R$ 400,00.
 
-**P: Vocês aceitam convênio ou plano de saúde?**
-R: No momento, nossos atendimentos são apenas na modalidade particular. Emitimos nota fiscal para que você possa solicitar reembolso junto ao seu plano de saúde, se ele oferecer essa opção.
+**P: Vocês aceitam convénio ou plano de saúde?**
+R: No momento, os nossos atendimentos são apenas na modalidade particular. Emitimos nota fiscal para que você possa solicitar reembolso junto ao seu plano de saúde, se ele oferecer essa opção.
 
 **P: Qual o endereço da clínica?**
 R: Estamos na Rua Orense, 41 – Sala 512, no Condomínio D Office, centro de Diadema/SP.
 """
 
 class FaqOutput(BaseModel):
-    resposta: str = Field(description="A resposta à pergunta do usuário, baseada estritamente na base de conhecimento.")
+    resposta: str = Field(description="A resposta à pergunta do utilizador, baseada estritamente na base de conhecimento.")
 
 parser_faq = JsonOutputParser(pydantic_object=FaqOutput)
 prompt_faq_template = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Você é a secretária Leonidas. Responda à pergunta do usuário usando APENAS a base de conhecimento.
+    Você é a secretária Leonidas. Responda à pergunta do utilizador usando APENAS a base de conhecimento.
     
     # BASE DE CONHECIMENTO (FAQ)
     {faq}
 
     # REGRAS CRÍTICAS
     - Se a resposta estiver na base, responda de forma clara.
-    - Se a resposta NÃO estiver na base, responda EXATAMENTE com: "Desculpe, não disponho dessa informação específica no momento. Posso te ajudar a agendar uma consulta/exame, consultar preços ou cancelar um agendamento?"
+    - Se a resposta NÃO estiver na base, responda EXATAMENTE com: "Desculpe, não disponho dessa informação específica no momento. Posso ajudar a agendar uma consulta/exame, consultar preços ou cancelar um agendamento?"
     - Responda APENAS com o objeto JSON formatado.
 
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
 
-    # PERGUNTA DO USUÁRIO
+    # PERGUNTA DO UTILIZADOR
     {pergunta_do_usuario}
     """,
     partial_variables={"format_instructions": parser_faq.get_format_instructions()},
@@ -304,7 +304,15 @@ class AgendamentoChatbotView(APIView):
         return Response({"sucesso": "Agendamento criado (lógica omitida para brevidade)"}, status=status.HTTP_201_CREATED)
 
 
-# --- ORQUESTRADOR PRINCIPAL DA CONVERSA (ATUALIZADO PARA TRIAGEM) ---
+# --- ORQUESTRADOR PRINCIPAL DA CONVERSA (REFINADO) ---
+try:
+    from .timeout_manager import TimeoutManager
+    from .context_manager import ContextManager
+    from .analytics import AnalyticsManager
+    REFINEMENTS_AVAILABLE = True
+except ImportError:
+    REFINEMENTS_AVAILABLE = False
+
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
@@ -316,12 +324,29 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
+        # Verifica timeout antes de processar
+        if REFINEMENTS_AVAILABLE:
+            timeout_result = TimeoutManager.verificar_timeout(session_id)
+            if timeout_result:
+                return JsonResponse({"response_message": timeout_result["message"]})
+
         memoria_obj, created = ChatMemory.objects.get_or_create(
             session_id=session_id,
-            defaults={'memory_data': {}, 'state': 'inicio'}
+            defaults={'memory_data': {}, 'state': 'inicio', 'previous_state': None}
         )
+        
+        # Registra início de conversa para analytics
+        if REFINEMENTS_AVAILABLE and created:
+            AnalyticsManager.registrar_inicio_conversa(session_id)
+        
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
+        
+        # Inicializa gerenciador de contexto
+        context_manager = None
+        if REFINEMENTS_AVAILABLE:
+            context_manager = ContextManager(memoria_atual)
+        
         logger.warning(f"\n--- INÍCIO REQ --- | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
         
         resultado = {}
@@ -333,78 +358,102 @@ def chatbot_orchestrator(request):
             
             if resposta_lower in ['sim', 's', 'continuar']:
                 novo_estado = memoria_obj.previous_state or 'identificando_demanda'
-                resultado = {"response_message": "Perfeito! Pode continuar de onde paramos.", "new_state": novo_estado, "memory_data": memoria_atual}
+                resultado = {"response_message": "Perfeito! Pode continuar de onde parámos.", "new_state": novo_estado, "memory_data": memoria_atual}
             elif resposta_lower in ['não', 'nao', 'n', 'encerrar']:
-                resultado = {"response_message": "Entendido. Estou encerrando. Se precisar, é só chamar!", "new_state": "inicio", "memory_data": {'nome_usuario': memoria_atual.get('nome_usuario')}}
+                resultado = {"response_message": "Entendido. Estou a encerrar. Se precisar, é só chamar!", "new_state": "inicio", "memory_data": {'nome_usuario': memoria_atual.get('nome_usuario')}}
             else:
                 estado_anterior = memoria_obj.previous_state or 'identificando_demanda'
                 memoria_obj.state = estado_anterior
                 estado_atual = estado_anterior
-                logger.warning(f"Usuário ignorou aviso e continuou. Retornando ao estado '{estado_atual}'.")
+                logger.warning(f"Utilizador ignorou aviso e continuou. A retornar ao estado '{estado_atual}'.")
         
         # --- FLUXO NORMAL DA CONVERSA ---
         if not resultado:
             if estado_atual and not estado_atual in ['inicio', 'aguardando_nome', 'identificando_demanda']:
-                logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
+                logger.warning(f"Rota: A CONTINUAR FLUXO '{estado_atual}'.")
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
                 resultado = manager.processar(user_message, estado_atual)
             
             elif estado_atual == 'identificando_demanda':
-                logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
-                intent_data = chain_roteadora.invoke({"user_message": user_message})
-                intent = intent_data.get("intent")
-                logger.warning(f"Intenção Detectada: '{intent}'")
-
-                if intent == "iniciar_agendamento":
-                    manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                    resultado = manager.processar(user_message, 'agendamento_inicio')
-                elif intent == "buscar_preco":
-                    # ... (lógica de buscar_preco) ...
-                    pass
-                elif intent == "cancelar_agendamento":
-                    manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                    resultado = manager.processar(user_message, 'cancelamento_inicio')
-                elif intent == "triagem_sintomas":
-                    manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
-                    resultado = manager.processar(user_message, 'triagem_processar_sintomas')
-                else: # 'pergunta_geral' ou fallback
-                    logger.warning("Rota: Acionando IA de FAQ.")
-                    
-                    # --- LÓGICA DE FAQ DINÂMICO ---
+                logger.warning("Rota: A IDENTIFICAR DEMANDA (IA Roteadora).")
+                
+                # --- LÓGICA DE FAQ INTELIGENTE ---
+                if 'especialidade' in user_message.lower():
+                    logger.warning("Rota: Pergunta sobre especialidades (resposta direta).")
                     especialidades_db = Especialidade.objects.all().order_by('nome')
                     lista_nomes = [esp.nome for esp in especialidades_db]
-                    faq_formatado = faq_base_de_conhecimento.format(lista_de_especialidades=f"Atendemos as seguintes especialidades: {', '.join(lista_nomes)}.")
-                    
-                    faq_data = chain_faq.invoke({
-                        "pergunta_do_usuario": user_message,
-                        "faq": faq_formatado
-                    })
-                    resposta_final = faq_data.get("resposta")
+                    resposta_final = f"Atendemos as seguintes especialidades:\n• " + "\n• ".join(lista_nomes)
                     resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                else:
+                    intent_data = chain_roteadora.invoke({"user_message": user_message})
+                    intent = intent_data.get("intent")
+                    logger.warning(f"Intenção Detetada: '{intent}'")
 
+                    if intent == "iniciar_agendamento":
+                        manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                        resultado = manager.processar(user_message, 'agendamento_inicio')
+                    elif intent == "cancelar_agendamento":
+                        manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                        resultado = manager.processar(user_message, 'cancelamento_inicio')
+                    elif intent == "triagem_sintomas":
+                        manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
+                        resultado = manager.processar(user_message, 'triagem_processar_sintomas')
+                    else: # 'pergunta_geral' ou fallback
+                        logger.warning("Rota: A acionar IA de FAQ.")
+                        faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message, "faq": faq_base_de_conhecimento})
+                        resposta_final = faq_data.get("resposta")
+                        resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
             else:
                 if estado_atual == 'aguardando_nome':
                     nome_usuario = user_message.strip().title().split(' ')[0]
                     memoria_atual['nome_usuario'] = nome_usuario
-                    resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
+                    resposta_final = f"Certo, {nome_usuario}. Pode contar-me como posso ajudar?"
                     novo_estado = 'identificando_demanda'
                     resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
                 else: # estado == 'inicio'
-                    logger.warning("Rota: INICIANDO NOVA CONVERSA.")
-                    resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência no seu atendimento.\nPode me passar seu nome?"
+                    logger.warning("Rota: A INICIAR NOVA CONVERSA.")
+                    resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência ao seu atendimento.\nPode dizer-me o seu nome?"
                     novo_estado = 'aguardando_nome'
                     resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
 
-        # Salva o novo estado e a memória no banco de dados
-        memoria_obj.state = resultado.get("new_state")
+        # Adiciona interação ao contexto
+        resposta_final_msg = resultado.get("response_message")
+        novo_estado = resultado.get("new_state")
+        if REFINEMENTS_AVAILABLE and context_manager:
+            context_manager.adicionar_interacao(user_message, resposta_final_msg, novo_estado)
+        
+        # Registra eventos importantes para analytics
+        if REFINEMENTS_AVAILABLE:
+            if novo_estado == 'agendamento_awaiting_confirmation':
+                AnalyticsManager.registrar_evento(session_id, 'pre_agendamento_completo')
+            elif 'especialidade' in resultado.get("memory_data", {}):
+                AnalyticsManager.registrar_evento(
+                    session_id, 
+                    'especialidade_selecionada',
+                    {'especialidade': resultado["memory_data"].get('especialidade_nome')}
+                )
+        
+        # Salva o novo estado e a memória na base de dados
+        memoria_obj.state = novo_estado
         memoria_obj.memory_data = resultado.get("memory_data")
         memoria_obj.previous_state = None if memoria_obj.state != 'awaiting_inactivity_response' else memoria_obj.previous_state
         memoria_obj.save()
+        
+        # Reseta timeout após atividade
+        if REFINEMENTS_AVAILABLE:
+            TimeoutManager.resetar_timeout(session_id)
 
-        resposta_final_msg = resultado.get("response_message")
         logger.warning(f"Resposta Final: '{str(resposta_final_msg)[:150]}...'")
         return JsonResponse({"response_message": resposta_final_msg})
 
     except Exception as e:
         logger.error(f"ERRO CRÍTICO no orquestrador: {e}", exc_info=True)
-        return JsonResponse({"error": "Ocorreu um erro interno. A equipe técnica foi notificada."}, status=500)
+        
+        # Registra erro para analytics
+        if REFINEMENTS_AVAILABLE:
+            try:
+                AnalyticsManager.registrar_erro(session_id, 'erro_orquestrador', str(e))
+            except:
+                pass  # Não falha se analytics falhar
+        
+        return JsonResponse({"error": "Ocorreu um erro interno. A equipa técnica já foi notificada."}, status=500)

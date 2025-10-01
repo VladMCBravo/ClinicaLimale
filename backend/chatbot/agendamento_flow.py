@@ -19,6 +19,9 @@ from agendamentos.services import (
 )
 from pacientes.models import Paciente
 from agendamentos.serializers import AgendamentoWriteSerializer
+# from .validators import ChatbotValidators
+# from .response_generator import ResponseGenerator
+# from .analytics import AnalyticsManager
 
 # --- SEÇÃO DE FUNÇÕES AUXILIARES DE VALIDAÇÃO ---
 def validar_cpf_formato(cpf_str: str) -> bool:
@@ -282,17 +285,23 @@ class AgendamentoManager:
         return {"response_message": resposta_final, "new_state": novo_estado, "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_adult_data(self, resposta_usuario):
+        # Primeiro tenta extrair com IA, depois com regex como fallback
         try:
             dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
         except Exception:
-            return {"response_message": "Não consegui processar. Por favor, tente enviar novamente, uma informação por linha.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            # Fallback: extração com regex (temporariamente desabilitado)
+            # dados_extraidos = ChatbotValidators.extrair_dados_texto(resposta_usuario)
+            # if not dados_extraidos:
+            return {"response_message": "Não consegui processar os dados. Por favor, envie as informações uma por linha.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
 
-        nome = dados_extraidos.get('nome_completo', '').strip()
+        # Validações aprimoradas
+        nome = dados_extraidos.get('nome_completo', dados_extraidos.get('nome', '')).strip()
         data_nasc = dados_extraidos.get('data_nascimento', '').strip()
         cpf = dados_extraidos.get('cpf', '').strip()
-        telefone = dados_extraidos.get('telefone_celular', '').strip()
+        telefone = dados_extraidos.get('telefone_celular', dados_extraidos.get('telefone', '')).strip()
         email = dados_extraidos.get('email', '').strip()
 
+        # Validações básicas (usando funções antigas temporariamente)
         if not (nome and len(nome.split()) > 1):
             return {"response_message": "Por favor, informe o seu nome completo (nome e apelido).", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_data_nascimento_formato(data_nasc):
@@ -303,14 +312,24 @@ class AgendamentoManager:
             return {"response_message": "O telefone é inválido. Use o formato +55 11 99999-9999.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_email_formato(email):
             return {"response_message": "O e-mail parece inválido. Por favor, verifique e envie novamente.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-
-        self.memoria['nome_completo'] = nome.title()
-        self.memoria['data_nascimento'] = data_nasc
-        self.memoria['cpf'] = re.sub(r'\D', '', cpf)
-        self.memoria['telefone_celular'] = re.sub(r'\D', '', telefone)
-        self.memoria['email'] = email
         
-        mensagem = (f"Ótimo, {nome.split(' ')[0]}! Como prefere pagar?\n1️⃣ - *PIX* (5% de desconto)\n2️⃣ - *Cartão de Crédito* (presencialmente)")
+        nome_formatado = nome.title()
+        cpf_formatado = cpf
+        tel_formatado = telefone
+        email_formatado = email
+
+        # Salva dados validados e formatados
+        self.memoria['nome_completo'] = nome_formatado
+        self.memoria['data_nascimento'] = data_nasc
+        self.memoria['cpf'] = re.sub(r'\D', '', cpf_formatado)
+        self.memoria['telefone_celular'] = re.sub(r'\D', '', tel_formatado)
+        self.memoria['email'] = email_formatado
+        
+        # Registra coleta de dados para analytics
+        # AnalyticsManager.registrar_evento(self.session_id, 'dados_coletados')
+        
+        primeiro_nome = nome_formatado.split(' ')[0]
+        mensagem = (f"Ótimo, {primeiro_nome}! Como prefere pagar?\n1️⃣ - *PIX* (5% de desconto)\n2️⃣ - *Cartão de Crédito* (presencialmente)")
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_child_data(self, resposta_usuario):

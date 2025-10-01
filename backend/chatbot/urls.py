@@ -14,6 +14,7 @@ from .views import (
     ListarEspecialidadesView,
     ListarMedicosPorEspecialidadeView,
 )
+from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
 
 urlpatterns = [
     # --- Gerenciamento de Memória ---
@@ -33,4 +34,7 @@ urlpatterns = [
     path('agendamentos/horarios-disponiveis/', ConsultarHorariosDisponiveisView.as_view(), name='chatbot_horarios_disponiveis'),
     path('agendamentos/criar/', AgendamentoChatbotView.as_view(), name='chatbot_criar_agendamento'),
     
+    # --- Dashboard e Monitoramento ---
+    path('dashboard/metricas/', ChatbotDashboardView.as_view(), name='chatbot_dashboard'),
+    path('dashboard/health/', ChatbotHealthCheckView.as_view(), name='chatbot_health'),
 ]
