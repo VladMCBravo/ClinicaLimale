@@ -167,6 +167,17 @@ class AgendamentoManager:
                 break
         
         return dados
+    
+    def _pedir_dados_individuais(self, resposta_usuario):
+        """Coleta dados um por vez quando extração automática falha"""
+        # Verifica se já tem alguns dados salvos
+        if not self.memoria.get('coletando_dados_individual'):
+            self.memoria['coletando_dados_individual'] = True
+            self.memoria['dados_coletados'] = {}
+            return {"response_message": "Vou coletar seus dados um por vez. Primeiro, qual é o seu nome completo?", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
+        
+        # Se chegou aqui, é porque já estava coletando
+        return {"response_message": "Por favor, me informe seu nome completo.", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
 
     def _iniciar_busca_de_horarios(self, especialidade_id, especialidade_nome):
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_id)
@@ -206,6 +217,11 @@ class AgendamentoManager:
             'agendamento_awaiting_slot_confirmation': self.handle_awaiting_slot_confirmation, # NOVO ESTADO
             'cadastro_awaiting_adult_data': self.handle_cadastro_awaiting_adult_data,
             'cadastro_awaiting_child_data': self.handle_cadastro_awaiting_child_data,
+            'cadastro_awaiting_nome': self.handle_cadastro_nome,
+            'cadastro_awaiting_cpf': self.handle_cadastro_cpf,
+            'cadastro_awaiting_data_nasc': self.handle_cadastro_data_nasc,
+            'cadastro_awaiting_telefone': self.handle_cadastro_telefone,
+            'cadastro_awaiting_email': self.handle_cadastro_email,
             'agendamento_awaiting_payment_choice': self.handle_awaiting_payment_choice,
             'agendamento_awaiting_installments': self.handle_awaiting_installments,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
@@ -381,21 +397,30 @@ class AgendamentoManager:
         return {"response_message": resposta_final, "new_state": novo_estado, "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_adult_data(self, resposta_usuario):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[CADASTRO] Recebido: '{resposta_usuario}'")
+        
         # Primeiro tenta extrair com IA, depois com regex como fallback
         dados_extraidos = {}
         
         if self.chain_extracao_dados:
             try:
                 dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
+                logger.warning(f"[CADASTRO] IA extraiu: {dados_extraidos}")
             except Exception as e:
+                logger.warning(f"[CADASTRO] Erro IA: {e}")
                 # Fallback: extração manual simples
                 dados_extraidos = self._extrair_dados_manual(resposta_usuario)
+                logger.warning(f"[CADASTRO] Manual extraiu: {dados_extraidos}")
         else:
             # Se não tem IA, usa extração manual
             dados_extraidos = self._extrair_dados_manual(resposta_usuario)
+            logger.warning(f"[CADASTRO] Manual extraiu (sem IA): {dados_extraidos}")
         
         if not dados_extraidos:
-            return {"response_message": "Não consegui processar os dados. Por favor, envie as informações uma por linha:\n\n• Nome completo\n• Data de nascimento (DD/MM/AAAA)\n• CPF (XXX.XXX.XXX-XX)\n• Telefone (+55 11 99999-9999)\n• Email", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            # Se não conseguiu extrair nada, pede dados um por vez
+            return self._pedir_dados_individuais(resposta_usuario)
 
         # Validações aprimoradas
         nome = dados_extraidos.get('nome_completo', dados_extraidos.get('nome', '')).strip()
@@ -432,6 +457,64 @@ class AgendamentoManager:
         # AnalyticsManager.registrar_evento(self.session_id, 'dados_coletados')
         
         primeiro_nome = nome_formatado.split(' ')[0]
+        mensagem = (
+            f"Ótimo, {primeiro_nome}! Como prefere pagar? 💳\n\n"
+            f"1️⃣ *PIX* - 5% de desconto 🎉\n"
+            f"2️⃣ *Cartão de Crédito* - Até 3x sem juros 💳\n\n"
+            f"Digite *1* para PIX ou *2* para Cartão."
+        )
+        return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+    
+    def handle_cadastro_nome(self, resposta_usuario):
+        nome = resposta_usuario.strip()
+        if len(nome.split()) < 2:
+            return {"response_message": "Por favor, informe seu nome completo (nome e sobrenome).", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados']['nome_completo'] = nome.title()
+        return {"response_message": "Perfeito! Agora me informe sua data de nascimento (DD/MM/AAAA):", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
+    
+    def handle_cadastro_data_nasc(self, resposta_usuario):
+        data = resposta_usuario.strip()
+        if not validar_data_nascimento_formato(data):
+            return {"response_message": "Data inválida. Use o formato DD/MM/AAAA (ex: 15/03/1990):", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados']['data_nascimento'] = data
+        return {"response_message": "Certo! Agora me informe seu CPF (apenas números ou com pontuação):", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+    
+    def handle_cadastro_cpf(self, resposta_usuario):
+        cpf = resposta_usuario.strip()
+        if not validar_cpf_formato(cpf):
+            return {"response_message": "CPF inválido. Digite apenas os 11 números ou no formato XXX.XXX.XXX-XX:", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados']['cpf'] = re.sub(r'\D', '', cpf)
+        return {"response_message": "Perfeito! Agora me informe seu telefone com DDD:", "new_state": "cadastro_awaiting_telefone", "memory_data": self.memoria}
+    
+    def handle_cadastro_telefone(self, resposta_usuario):
+        telefone = resposta_usuario.strip()
+        if not validar_telefone_formato(telefone):
+            return {"response_message": "Telefone inválido. Digite com DDD (ex: 11999998888 ou (11) 99999-8888):", "new_state": "cadastro_awaiting_telefone", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados']['telefone_celular'] = re.sub(r'\D', '', telefone)
+        return {"response_message": "Quase pronto! Por último, me informe seu email:", "new_state": "cadastro_awaiting_email", "memory_data": self.memoria}
+    
+    def handle_cadastro_email(self, resposta_usuario):
+        email = resposta_usuario.strip().lower()
+        if not validar_email_formato(email):
+            return {"response_message": "Email inválido. Digite um email válido (ex: seuemail@gmail.com):", "new_state": "cadastro_awaiting_email", "memory_data": self.memoria}
+        
+        # Transfere dados coletados para memória principal
+        dados = self.memoria['dados_coletados']
+        self.memoria['nome_completo'] = dados['nome_completo']
+        self.memoria['data_nascimento'] = dados['data_nascimento']
+        self.memoria['cpf'] = dados['cpf']
+        self.memoria['telefone_celular'] = dados['telefone_celular']
+        self.memoria['email'] = email
+        
+        # Limpa dados temporários
+        del self.memoria['coletando_dados_individual']
+        del self.memoria['dados_coletados']
+        
+        primeiro_nome = dados['nome_completo'].split(' ')[0]
         mensagem = (
             f"Ótimo, {primeiro_nome}! Como prefere pagar? 💳\n\n"
             f"1️⃣ *PIX* - 5% de desconto 🎉\n"
