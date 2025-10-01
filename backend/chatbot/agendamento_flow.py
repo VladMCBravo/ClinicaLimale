@@ -72,6 +72,43 @@ class AgendamentoManager:
             return Especialidade.objects.get(nome__iexact=nome_especialidade)
         except Especialidade.DoesNotExist:
             return None
+    
+    def _extrair_dados_manual(self, texto):
+        """Extração manual de dados como fallback"""
+        dados = {}
+        linhas = texto.split('\n')
+        
+        for linha in linhas:
+            linha = linha.strip()
+            if not linha:
+                continue
+            
+            # Procura por CPF
+            cpf_match = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', linha)
+            if cpf_match and 'cpf' not in dados:
+                dados['cpf'] = cpf_match.group()
+            
+            # Procura por telefone
+            tel_match = re.search(r'(\+55\s?)?\(?\d{2}\)?\s?9?\d{4}-?\d{4}', linha)
+            if tel_match and 'telefone_celular' not in dados:
+                dados['telefone_celular'] = tel_match.group()
+            
+            # Procura por email
+            email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', linha)
+            if email_match and 'email' not in dados:
+                dados['email'] = email_match.group()
+            
+            # Procura por data
+            data_match = re.search(r'\d{1,2}[/.-]\d{1,2}[/.-]\d{4}', linha)
+            if data_match and 'data_nascimento' not in dados:
+                dados['data_nascimento'] = data_match.group().replace('-', '/').replace('.', '/')
+            
+            # Se a linha não tem padrões específicos, pode ser nome
+            if not any([cpf_match, tel_match, email_match, data_match]) and 'nome_completo' not in dados:
+                if len(linha.split()) >= 2 and not any(char.isdigit() for char in linha):
+                    dados['nome_completo'] = linha
+        
+        return dados
 
     def _iniciar_busca_de_horarios(self, especialidade_id, especialidade_nome):
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_id)
@@ -112,6 +149,7 @@ class AgendamentoManager:
             'cadastro_awaiting_adult_data': self.handle_cadastro_awaiting_adult_data,
             'cadastro_awaiting_child_data': self.handle_cadastro_awaiting_child_data,
             'agendamento_awaiting_payment_choice': self.handle_awaiting_payment_choice,
+            'agendamento_awaiting_installments': self.handle_awaiting_installments,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
             'cancelamento_inicio': self.handle_cancelamento_inicio,
             'cancelamento_awaiting_cpf': self.handle_cancelamento_awaiting_cpf,
@@ -286,13 +324,21 @@ class AgendamentoManager:
 
     def handle_cadastro_awaiting_adult_data(self, resposta_usuario):
         # Primeiro tenta extrair com IA, depois com regex como fallback
-        try:
-            dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
-        except Exception:
-            # Fallback: extração com regex (temporariamente desabilitado)
-            # dados_extraidos = ChatbotValidators.extrair_dados_texto(resposta_usuario)
-            # if not dados_extraidos:
-            return {"response_message": "Não consegui processar os dados. Por favor, envie as informações uma por linha.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+        dados_extraidos = {}
+        
+        if self.chain_extracao_dados:
+            try:
+                dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
+            except Exception as e:
+                print(f"Erro na extração IA: {e}")
+                # Fallback: extração manual simples
+                dados_extraidos = self._extrair_dados_manual(resposta_usuario)
+        else:
+            # Se não tem IA, usa extração manual
+            dados_extraidos = self._extrair_dados_manual(resposta_usuario)
+        
+        if not dados_extraidos:
+            return {"response_message": "Não consegui processar os dados. Por favor, envie as informações uma por linha:\n\n• Nome completo\n• Data de nascimento (DD/MM/AAAA)\n• CPF (XXX.XXX.XXX-XX)\n• Telefone (+55 11 99999-9999)\n• Email", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
 
         # Validações aprimoradas
         nome = dados_extraidos.get('nome_completo', dados_extraidos.get('nome', '')).strip()
@@ -329,7 +375,12 @@ class AgendamentoManager:
         # AnalyticsManager.registrar_evento(self.session_id, 'dados_coletados')
         
         primeiro_nome = nome_formatado.split(' ')[0]
-        mensagem = (f"Ótimo, {primeiro_nome}! Como prefere pagar?\n1️⃣ - *PIX* (5% de desconto)\n2️⃣ - *Cartão de Crédito* (presencialmente)")
+        mensagem = (
+            f"Ótimo, {primeiro_nome}! Como prefere pagar? 💳\n\n"
+            f"1️⃣ *PIX* - 5% de desconto 🎉\n"
+            f"2️⃣ *Cartão de Crédito* - Até 3x sem juros 💳\n\n"
+            f"Digite *1* para PIX ou *2* para Cartão."
+        )
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_child_data(self, resposta_usuario):
@@ -339,15 +390,44 @@ class AgendamentoManager:
         return {"response_message": "Handler de criança a ser implementado.", "new_state": "inicio", "memory_data": self.memoria}
         
     def handle_awaiting_payment_choice(self, resposta_usuario):
-        escolha = resposta_usuario.lower()
-        metodo_pagamento = None
-        if 'pix' in escolha or '1' in escolha: metodo_pagamento = 'PIX'
-        elif 'cartão' in escolha or 'cartao' in escolha or '2' in escolha: metodo_pagamento = 'CartaoCredito'
+        escolha = resposta_usuario.lower().strip()
         
-        if not metodo_pagamento:
-            return {"response_message": "Não entendi. Responda com 'PIX' ou 'Cartão'.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+        if 'pix' in escolha or escolha == '1':
+            self.memoria['metodo_pagamento_escolhido'] = 'PIX'
+            return self.handle_awaiting_confirmation("confirmado")
         
-        self.memoria['metodo_pagamento_escolhido'] = metodo_pagamento
+        elif 'cartão' in escolha or 'cartao' in escolha or escolha == '2':
+            # Pergunta sobre parcelamento
+            mensagem_parcelamento = (
+                "Perfeito! Cartão de crédito selecionado. 💳\n\n"
+                "Como deseja pagar?\n\n"
+                "1️⃣ *À vista* (sem juros)\n"
+                "2️⃣ *2x sem juros*\n"
+                "3️⃣ *3x sem juros*\n\n"
+                "Digite o número da opção desejada."
+            )
+            self.memoria['metodo_pagamento_escolhido'] = 'CartaoCredito'
+            return {"response_message": mensagem_parcelamento, "new_state": "agendamento_awaiting_installments", "memory_data": self.memoria}
+        
+        else:
+            return {"response_message": "Não entendi. Por favor, digite *1* para PIX ou *2* para Cartão.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+    
+    def handle_awaiting_installments(self, resposta_usuario):
+        escolha = resposta_usuario.strip()
+        
+        if escolha == '1':
+            self.memoria['parcelas'] = 1
+            mensagem_confirmacao = "Perfeito! Pagamento à vista selecionado. 👍"
+        elif escolha == '2':
+            self.memoria['parcelas'] = 2
+            mensagem_confirmacao = "Perfeito! Pagamento em 2x sem juros selecionado. 👍"
+        elif escolha == '3':
+            self.memoria['parcelas'] = 3
+            mensagem_confirmacao = "Perfeito! Pagamento em 3x sem juros selecionado. 👍"
+        else:
+            return {"response_message": "Opção inválida. Digite *1* (à vista), *2* (2x) ou *3* (3x).", "new_state": "agendamento_awaiting_installments", "memory_data": self.memoria}
+        
+        # Continua para confirmação
         return self.handle_awaiting_confirmation("confirmado")
 
     def handle_awaiting_confirmation(self, resposta_usuario):
@@ -430,9 +510,19 @@ class AgendamentoManager:
                     "Após o pagamento, o seu horário será confirmado automaticamente."
                 )
             elif metodo_pagamento == 'CartaoCredito' and hasattr(pagamento, 'link_pagamento') and pagamento.link_pagamento:
-                secao_pagamento = f"Clique no link para pagar com *Cartão de Crédito* e confirmar o seu horário:\n{pagamento.link_pagamento}"
+                parcelas = self.memoria.get('parcelas', 1)
+                if parcelas == 1:
+                    texto_parcelas = "à vista"
+                else:
+                    texto_parcelas = f"em {parcelas}x sem juros"
+                secao_pagamento = f"Clique no link para pagar com *Cartão de Crédito {texto_parcelas}* e confirmar o seu horário:\n{pagamento.link_pagamento}"
             elif metodo_pagamento == 'CartaoCredito':
-                 secao_pagamento = "Confirmado! O pagamento com cartão será realizado no dia da consulta/exame. Por favor, chegue com 15 minutos de antecedência."
+                parcelas = self.memoria.get('parcelas', 1)
+                if parcelas == 1:
+                    texto_parcelas = "à vista"
+                else:
+                    texto_parcelas = f"em {parcelas}x sem juros"
+                secao_pagamento = f"Confirmado! O pagamento com cartão {texto_parcelas} será realizado no dia da consulta/exame. Por favor, chegue com 15 minutos de antecedência."
 
 
             resposta_final = f"{mensagem_confirmacao}{secao_pagamento}"
