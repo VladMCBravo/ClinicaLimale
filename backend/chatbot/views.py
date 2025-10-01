@@ -61,7 +61,7 @@ llm = ChatGoogleGenerativeAI(
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 
-# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (ATUALIZADO) ---
+# --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
 class RoteadorOutput(BaseModel):
     intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'saudacao', 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'pergunta_geral'.")
     entity: Optional[str] = Field(description="O serviço ou especialidade específica que o usuário mencionou, se houver.")
@@ -70,15 +70,15 @@ parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
 prompt_roteador = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Analise a mensagem do usuário para determinar a intenção e extrair a entidade. Responda APENAS com o objeto JSON formatado.
+    Analise a mensagem do usuário para determinar a intenção. Responda APENAS com o objeto JSON formatado.
 
     # INTENÇÕES POSSÍVEIS
-    - 'saudacao': Cumprimentos gerais como 'oi', 'boa tarde'.
-    - 'iniciar_agendamento': O usuário quer marcar, agendar, ver horários para uma consulta ou exame.
-    - 'buscar_preco': O usuário quer saber o valor, preço, quanto custa.
+    - 'saudacao': Cumprimentos gerais.
+    - 'iniciar_agendamento': O usuário quer marcar, agendar, ver horários.
+    - 'buscar_preco': O usuário quer saber o valor, preço.
     - 'cancelar_agendamento': O usuário quer desmarcar ou cancelar.
-    - 'triagem_sintomas': O usuário descreve um ou mais sintomas e não sabe qual especialista procurar.
-    - 'pergunta_geral': O usuário faz uma pergunta sobre a clínica que não se encaixa nas outras categorias (ex: 'tem retorno?', 'aceita convênio?', 'parcela?').
+    - 'triagem_sintomas': O usuário descreve sintomas e não sabe qual especialista.
+    - 'pergunta_geral': Uma pergunta sobre a clínica que não se encaixa nas outras (ex: 'quais as especialidades?', 'aceita convênio?', 'parcela?').
 
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
@@ -94,15 +94,15 @@ chain_roteadora = prompt_roteador | llm | parser_roteador
 lista_especialidades_para_ia = "Cardiologia, Ginecologia, Neonatologia, Obstetrícia, Ortopedia, Pediatria, Reumatologia Pediátrica"
 
 class TriagemOutput(BaseModel):
-    especialidade_sugerida: str = Field(description=f"A especialidade sugerida. Deve ser uma das: {lista_especialidades_para_ia}, ou 'Clinico Geral' se os sintomas forem vagos.")
+    especialidade_sugerida: str = Field(description=f"A especialidade sugerida. Deve ser uma das: {lista_especialidades_para_ia}, ou 'Nenhuma' se os sintomas forem vagos.")
 
 parser_sintomas = JsonOutputParser(pydantic_object=TriagemOutput)
 prompt_sintomas = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Você é um assistente de triagem médica. Analise os sintomas e sugira a especialidade mais apropriada.
+    Analise os sintomas e sugira a especialidade mais apropriada.
     # REGRAS CRÍTICAS
-    - JAMAIS forneça diagnósticos ou conselhos médicos.
+    - JAMAIS forneça diagnósticos.
     - Responda APENAS com o objeto JSON formatado.
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
@@ -114,22 +114,19 @@ prompt_sintomas = ChatPromptTemplate.from_template(
 chain_sintomas = prompt_sintomas | llm | parser_sintomas
 
 
-# --- CÉREBRO 3: IA EXTRATORA DE DADOS DE PACIENTE ---
+# --- CÉREBRO 3: IA EXTRATORA DE DADOS ---
 class DadosPacienteOutput(BaseModel):
     nome_completo: str = Field(description="O nome completo do paciente.")
-    data_nascimento: str = Field(description="A data de nascimento do paciente no formato DD/MM/AAAA.")
-    cpf: str = Field(description="O CPF do paciente no formato XXX.XXX.XXX-XX.")
-    telefone_celular: str = Field(description="O número de telefone do paciente, incluindo o código do país e DDD, no formato +55 11 99999-9999.")
+    data_nascimento: str = Field(description="A data de nascimento no formato DD/MM/AAAA.")
+    cpf: str = Field(description="O CPF no formato XXX.XXX.XXX-XX.")
+    telefone_celular: str = Field(description="O telefone no formato +55 11 99999-9999.")
+    email: str = Field(description="O email do paciente.")
 
 parser_extracao = JsonOutputParser(pydantic_object=DadosPacienteOutput)
 prompt_extracao = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Extraia o nome completo, a data de nascimento, o CPF e o telefone do texto do usuário.
-    # REGRAS
-    - A data de nascimento deve estar no formato DD/MM/AAAA.
-    - O CPF deve estar no formato XXX.XXX.XXX-XX.
-    - O telefone deve estar no formato +55 11 99999-9999.
+    Extraia nome completo, data de nascimento, CPF, telefone e email do texto.
     # INSTRUÇÕES DE FORMATAÇÃO
     {format_instructions}
     # MENSAGEM DO USUÁRIO
@@ -141,6 +138,9 @@ chain_extracao_dados = prompt_extracao | llm | parser_extracao
 
 # --- CÉREBRO 4: IA DE PERGUNTAS FREQUENTES (FAQ) ---
 faq_base_de_conhecimento = """
+**P: Quais são as especialidades que vocês atendem?**
+R: {lista_de_especialidades}
+
 **P: Qual o horário de atendimento da clínica?**
 R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
 
@@ -161,7 +161,7 @@ class FaqOutput(BaseModel):
     resposta: str = Field(description="A resposta à pergunta do usuário, baseada estritamente na base de conhecimento.")
 
 parser_faq = JsonOutputParser(pydantic_object=FaqOutput)
-prompt_faq = ChatPromptTemplate.from_template(
+prompt_faq_template = ChatPromptTemplate.from_template(
     """
     # MISSÃO
     Você é a secretária Leonidas. Responda à pergunta do usuário usando APENAS a base de conhecimento.
@@ -180,9 +180,9 @@ prompt_faq = ChatPromptTemplate.from_template(
     # PERGUNTA DO USUÁRIO
     {pergunta_do_usuario}
     """,
-    partial_variables={"format_instructions": parser_faq.get_format_instructions(), "faq": faq_base_de_conhecimento},
+    partial_variables={"format_instructions": parser_faq.get_format_instructions()},
 )
-chain_faq = prompt_faq | llm | parser_faq
+chain_faq = prompt_faq_template | llm | parser_faq
 
 
 # --- VIEWS DA API ---
@@ -336,21 +336,19 @@ def chatbot_orchestrator(request):
                 resultado = {"response_message": "Perfeito! Pode continuar de onde paramos.", "new_state": novo_estado, "memory_data": memoria_atual}
             elif resposta_lower in ['não', 'nao', 'n', 'encerrar']:
                 resultado = {"response_message": "Entendido. Estou encerrando. Se precisar, é só chamar!", "new_state": "inicio", "memory_data": {'nome_usuario': memoria_atual.get('nome_usuario')}}
-            else: # Assume que o usuário está continuando a conversa
+            else:
                 estado_anterior = memoria_obj.previous_state or 'identificando_demanda'
                 memoria_obj.state = estado_anterior
-                estado_atual = estado_anterior # Continua o fluxo normal
+                estado_atual = estado_anterior
                 logger.warning(f"Usuário ignorou aviso e continuou. Retornando ao estado '{estado_atual}'.")
         
         # --- FLUXO NORMAL DA CONVERSA ---
-        if not resultado: # Se a lógica de timeout não definiu um resultado
-            # Se já estamos em um fluxo, continuamos nele.
+        if not resultado:
             if estado_atual and not estado_atual in ['inicio', 'aguardando_nome', 'identificando_demanda']:
                 logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
                 resultado = manager.processar(user_message, estado_atual)
             
-            # Se estamos no início de uma conversa, identificamos a intenção.
             elif estado_atual == 'identificando_demanda':
                 logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
                 intent_data = chain_roteadora.invoke({"user_message": user_message})
@@ -371,14 +369,22 @@ def chatbot_orchestrator(request):
                     resultado = manager.processar(user_message, 'triagem_processar_sintomas')
                 else: # 'pergunta_geral' ou fallback
                     logger.warning("Rota: Acionando IA de FAQ.")
-                    faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message})
+                    
+                    # --- LÓGICA DE FAQ DINÂMICO ---
+                    especialidades_db = Especialidade.objects.all().order_by('nome')
+                    lista_nomes = [esp.nome for esp in especialidades_db]
+                    faq_formatado = faq_base_de_conhecimento.format(lista_de_especialidades=f"Atendemos as seguintes especialidades: {', '.join(lista_nomes)}.")
+                    
+                    faq_data = chain_faq.invoke({
+                        "pergunta_do_usuario": user_message,
+                        "faq": faq_formatado
+                    })
                     resposta_final = faq_data.get("resposta")
                     resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
 
-            # Se a conversa está começando agora.
             else:
                 if estado_atual == 'aguardando_nome':
-                    nome_usuario = user_message.strip().title()
+                    nome_usuario = user_message.strip().title().split(' ')[0]
                     memoria_atual['nome_usuario'] = nome_usuario
                     resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
                     novo_estado = 'identificando_demanda'
@@ -402,4 +408,3 @@ def chatbot_orchestrator(request):
     except Exception as e:
         logger.error(f"ERRO CRÍTICO no orquestrador: {e}", exc_info=True)
         return JsonResponse({"error": "Ocorreu um erro interno. A equipe técnica foi notificada."}, status=500)
-
