@@ -26,12 +26,19 @@ from agendamentos.serializers import AgendamentoWriteSerializer
 # --- SEÇÃO DE FUNÇÕES AUXILIARES DE VALIDAÇÃO ---
 def validar_cpf_formato(cpf_str: str) -> bool:
     if not isinstance(cpf_str, str): return False
-    return bool(re.match(r'^\d{3}\.\d{3}\.\d{3}-\d{2}$', cpf_str.strip()))
+    # Remove todos os caracteres não numéricos
+    numeros = re.sub(r'\D', '', cpf_str)
+    # CPF deve ter exatamente 11 dígitos
+    return len(numeros) == 11
 
 def validar_telefone_formato(tel_str: str) -> bool:
     if not isinstance(tel_str, str): return False
-    # Expressão regular aprimorada para aceitar espaços e traços opcionais
-    return bool(re.match(r'^\+55\s?\(?\d{2}\)?\s?9?\d{4}-?\d{4}$', tel_str.strip()))
+    # Remove todos os caracteres não numéricos
+    numeros = re.sub(r'\D', '', tel_str)
+    # Aceita telefones com 10 ou 11 dígitos (com ou sem código do país)
+    if numeros.startswith('55'):
+        numeros = numeros[2:]  # Remove código do país
+    return len(numeros) in [10, 11]
 
 def validar_data_nascimento_formato(data_str: str) -> bool:
     if not isinstance(data_str, str): return False
@@ -76,37 +83,88 @@ class AgendamentoManager:
     def _extrair_dados_manual(self, texto):
         """Extração manual de dados como fallback"""
         dados = {}
-        linhas = texto.split('\n')
         
+        # Trata o texto como uma única string também
+        texto_completo = texto.replace('\n', ' ')
+        
+        # Procura por CPF (mais flexível)
+        cpf_match = re.search(r'\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b', texto_completo)
+        if cpf_match:
+            cpf_raw = cpf_match.group()
+            # Formatar CPF
+            cpf_numeros = re.sub(r'\D', '', cpf_raw)
+            if len(cpf_numeros) == 11:
+                dados['cpf'] = f"{cpf_numeros[:3]}.{cpf_numeros[3:6]}.{cpf_numeros[6:9]}-{cpf_numeros[9:]}"
+        
+        # Procura por telefone (mais flexível)
+        tel_patterns = [
+            r'\+55\s?\(?\d{2}\)?\s?9?\d{4,5}[-\s]?\d{4}',
+            r'\(?\d{2}\)?\s?9?\d{4,5}[-\s]?\d{4}',
+            r'\d{2}\s?9?\d{4,5}[-\s]?\d{4}'
+        ]
+        for pattern in tel_patterns:
+            tel_match = re.search(pattern, texto_completo)
+            if tel_match:
+                tel_raw = tel_match.group()
+                # Limpar e formatar
+                tel_numeros = re.sub(r'\D', '', tel_raw)
+                if len(tel_numeros) >= 10:
+                    if not tel_raw.startswith('+55'):
+                        dados['telefone_celular'] = f"+55 {tel_raw}"
+                    else:
+                        dados['telefone_celular'] = tel_raw
+                break
+        
+        # Procura por email
+        email_match = re.search(r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b', texto_completo)
+        if email_match:
+            dados['email'] = email_match.group()
+        
+        # Procura por data
+        data_patterns = [
+            r'\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b',
+            r'\b\d{4}[/.-]\d{1,2}[/.-]\d{1,2}\b'
+        ]
+        for pattern in data_patterns:
+            data_match = re.search(pattern, texto_completo)
+            if data_match:
+                data_raw = data_match.group()
+                # Normalizar para DD/MM/AAAA
+                if '/' in data_raw:
+                    partes = data_raw.split('/')
+                elif '-' in data_raw:
+                    partes = data_raw.split('-')
+                else:
+                    partes = data_raw.split('.')
+                
+                if len(partes) == 3:
+                    if len(partes[0]) == 4:  # AAAA/MM/DD
+                        dados['data_nascimento'] = f"{partes[2]}/{partes[1]}/{partes[0]}"
+                    else:  # DD/MM/AAAA
+                        dados['data_nascimento'] = data_raw.replace('-', '/').replace('.', '/')
+                break
+        
+        # Procura por nome (mais inteligente)
+        linhas = texto.split('\n')
         for linha in linhas:
             linha = linha.strip()
-            if not linha:
+            if not linha or 'nome_completo' in dados:
                 continue
             
-            # Procura por CPF
-            cpf_match = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', linha)
-            if cpf_match and 'cpf' not in dados:
-                dados['cpf'] = cpf_match.group()
+            # Remove padrões conhecidos da linha
+            linha_limpa = linha
+            if cpf_match:
+                linha_limpa = linha_limpa.replace(cpf_match.group(), '')
+            if email_match:
+                linha_limpa = linha_limpa.replace(email_match.group(), '')
             
-            # Procura por telefone
-            tel_match = re.search(r'(\+55\s?)?\(?\d{2}\)?\s?9?\d{4}-?\d{4}', linha)
-            if tel_match and 'telefone_celular' not in dados:
-                dados['telefone_celular'] = tel_match.group()
+            # Remove números e caracteres especiais
+            linha_limpa = re.sub(r'[\d+()\-./]', '', linha_limpa).strip()
             
-            # Procura por email
-            email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', linha)
-            if email_match and 'email' not in dados:
-                dados['email'] = email_match.group()
-            
-            # Procura por data
-            data_match = re.search(r'\d{1,2}[/.-]\d{1,2}[/.-]\d{4}', linha)
-            if data_match and 'data_nascimento' not in dados:
-                dados['data_nascimento'] = data_match.group().replace('-', '/').replace('.', '/')
-            
-            # Se a linha não tem padrões específicos, pode ser nome
-            if not any([cpf_match, tel_match, email_match, data_match]) and 'nome_completo' not in dados:
-                if len(linha.split()) >= 2 and not any(char.isdigit() for char in linha):
-                    dados['nome_completo'] = linha
+            # Se sobrou algo que parece nome
+            if len(linha_limpa.split()) >= 2 and len(linha_limpa) > 5:
+                dados['nome_completo'] = linha_limpa
+                break
         
         return dados
 
@@ -330,7 +388,6 @@ class AgendamentoManager:
             try:
                 dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
             except Exception as e:
-                print(f"Erro na extração IA: {e}")
                 # Fallback: extração manual simples
                 dados_extraidos = self._extrair_dados_manual(resposta_usuario)
         else:
