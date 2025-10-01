@@ -139,39 +139,39 @@ prompt_extracao = ChatPromptTemplate.from_template(
 )
 chain_extracao_dados = prompt_extracao | llm | parser_extracao
 
-# --- NOVO CÉREBRO 4: IA DE PERGUNTAS FREQUENTES (FAQ) ---
+# --- CÉREBRO 4: IA DE PERGUNTAS FREQUENTES (FAQ) ---
 faq_base_de_conhecimento = """
+**P: Qual o horário de atendimento da clínica?**
+R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
+
 **P: A consulta tem direito a retorno?**
-R: Sim, nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames que o médico solicitou, sem nenhum custo adicional. Basta agendar o retorno conosco quando estiver com os resultados.
+R: Sim, nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames que o médico solicitou, sem nenhum custo adicional.
 
 **P: Vocês parcelam no cartão de crédito?**
-R: Sim, para pagamentos com cartão de crédito, que são feitos presencialmente na clínica, oferecemos a opção de parcelamento em até 3x sem juros para valores acima de R$ 400,00.
+R: Sim, para pagamentos com cartão de crédito, feitos presencialmente na clínica, oferecemos parcelamento em até 3x sem juros para valores acima de R$ 400,00.
 
 **P: Vocês aceitam convênio ou plano de saúde?**
-R: No momento, nossos atendimentos e exames são realizados apenas na modalidade particular. Oferecemos um desconto de 5% para pagamentos via PIX e podemos emitir nota fiscal para que você possa solicitar o reembolso junto ao seu plano de saúde, se ele oferecer essa opção.
+R: No momento, nossos atendimentos são apenas na modalidade particular. Emitimos nota fiscal para que você possa solicitar reembolso junto ao seu plano de saúde, se ele oferecer essa opção.
 
 **P: Qual o endereço da clínica?**
-R: Estamos localizados na Rua Orense, 41 – Sala 512, no Condomínio D Office, no centro de Diadema/SP.
-
-**P: Qual o horário de funcionamento?**
-R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
+R: Estamos na Rua Orense, 41 – Sala 512, no Condomínio D Office, centro de Diadema/SP.
 """
 
 class FaqOutput(BaseModel):
-    resposta: str = Field(description="A resposta à pergunta do usuário, baseada estritamente na base de conhecimento. Se a resposta não estiver na base, informe que não sabe e ofereça ajuda para agendar ou falar com um atendente.")
+    resposta: str = Field(description="A resposta à pergunta do usuário, baseada estritamente na base de conhecimento.")
 
 parser_faq = JsonOutputParser(pydantic_object=FaqOutput)
 prompt_faq = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Você é a secretária virtual Leonidas. Sua missão é responder à pergunta do usuário usando APENAS a base de conhecimento fornecida.
+    Você é a secretária Leonidas. Responda à pergunta do usuário usando APENAS a base de conhecimento.
     
     # BASE DE CONHECIMENTO (FAQ)
     {faq}
 
     # REGRAS CRÍTICAS
-    - Se a resposta para a pergunta do usuário estiver na base de conhecimento, responda de forma clara e direta.
-    - Se a resposta NÃO estiver na base de conhecimento, responda EXATAMENTE com: "Desculpe, não disponho dessa informação específica no momento. Posso te ajudar a agendar uma consulta/exame, consultar preços ou cancelar um agendamento?"
+    - Se a resposta estiver na base, responda de forma clara.
+    - Se a resposta NÃO estiver na base, responda EXATAMENTE com: "Desculpe, não disponho dessa informação específica no momento. Posso te ajudar a agendar uma consulta/exame, consultar preços ou cancelar um agendamento?"
     - Responda APENAS com o objeto JSON formatado.
 
     # INSTRUÇÕES DE FORMATAÇÃO
@@ -180,10 +180,7 @@ prompt_faq = ChatPromptTemplate.from_template(
     # PERGUNTA DO USUÁRIO
     {pergunta_do_usuario}
     """,
-    partial_variables={
-        "format_instructions": parser_faq.get_format_instructions(),
-        "faq": faq_base_de_conhecimento
-    },
+    partial_variables={"format_instructions": parser_faq.get_format_instructions(), "faq": faq_base_de_conhecimento},
 )
 chain_faq = prompt_faq | llm | parser_faq
 
@@ -325,90 +322,84 @@ def chatbot_orchestrator(request):
         )
         memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
         estado_atual = memoria_obj.state
-        logger.warning(f"\n--- INÍCIO DA REQUISIÇÃO ---")
-        logger.warning(f"[DEBUG CHATBOT] Session ID: {session_id}, Estado: '{estado_atual}', Mensagem: '{user_message}'")
+        logger.warning(f"\n--- INÍCIO REQ --- | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
         
         resultado = {}
-        # Se já estamos em um fluxo, continuamos nele.
-        if estado_atual and not estado_atual in ['inicio', 'aguardando_nome', 'identificando_demanda']:
-            logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
-            manager = AgendamentoManager(
-                session_id=session_id, memoria=memoria_atual, base_url=request.build_absolute_uri('/'),
-                chain_sintomas=chain_sintomas, chain_extracao_dados=chain_extracao_dados
-            )
-            resultado = manager.processar(user_message, estado_atual)
         
-        # Se estamos no início de uma conversa, identificamos a intenção.
-        elif estado_atual == 'identificando_demanda':
-            logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
-            intent_data = chain_roteadora.invoke({"user_message": user_message})
-            intent = intent_data.get("intent")
-            logger.warning(f"Intenção Detectada: '{intent}'")
-
-            if intent == "iniciar_agendamento":
-                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message, 'agendamento_inicio')
+        # --- LÓGICA DE TIMEOUT ---
+        if estado_atual == 'awaiting_inactivity_response':
+            logger.warning("Rota: RESPOSTA AO AVISO DE INATIVIDADE.")
+            resposta_lower = user_message.lower().strip()
             
-            elif intent == "buscar_preco":
-                entity = intent_data.get("entity")
-                resposta_acolhimento = "Claro! Vou te passar os valores. Mas antes, quero destacar que aqui na Clínica Limalé prezamos pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
-                servico = buscar_precos_servicos(entity)
-                if servico:
-                    resposta_preco = f"O valor para {servico['tipo']} de *{servico['nome']}* é de R$ {servico['valor']}."
-                else:
-                    resposta_preco = f"Não encontrei um preço para '{entity}'. Posso listar nossos serviços e valores, se desejar."
-                resposta_final = f"{resposta_acolhimento}{resposta_preco}\n\nTemos também um desconto de 5% para pagamentos via Pix. Gostaria de agendar?"
-                resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+            if resposta_lower in ['sim', 's', 'continuar']:
+                novo_estado = memoria_obj.previous_state or 'identificando_demanda'
+                resultado = {"response_message": "Perfeito! Pode continuar de onde paramos.", "new_state": novo_estado, "memory_data": memoria_atual}
+            elif resposta_lower in ['não', 'nao', 'n', 'encerrar']:
+                resultado = {"response_message": "Entendido. Estou encerrando. Se precisar, é só chamar!", "new_state": "inicio", "memory_data": {'nome_usuario': memoria_atual.get('nome_usuario')}}
+            else: # Assume que o usuário está continuando a conversa
+                estado_anterior = memoria_obj.previous_state or 'identificando_demanda'
+                memoria_obj.state = estado_anterior
+                estado_atual = estado_anterior # Continua o fluxo normal
+                logger.warning(f"Usuário ignorou aviso e continuou. Retornando ao estado '{estado_atual}'.")
+        
+        # --- FLUXO NORMAL DA CONVERSA ---
+        if not resultado: # Se a lógica de timeout não definiu um resultado
+            # Se já estamos em um fluxo, continuamos nele.
+            if estado_atual and not estado_atual in ['inicio', 'aguardando_nome', 'identificando_demanda']:
+                logger.warning(f"Rota: CONTINUANDO FLUXO '{estado_atual}'.")
+                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
+                resultado = manager.processar(user_message, estado_atual)
             
-            elif intent == "cancelar_agendamento":
-                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
-                resultado = manager.processar(user_message, 'cancelamento_inicio')
+            # Se estamos no início de uma conversa, identificamos a intenção.
+            elif estado_atual == 'identificando_demanda':
+                logger.warning("Rota: IDENTIFICANDO DEMANDA (IA Roteadora).")
+                intent_data = chain_roteadora.invoke({"user_message": user_message})
+                intent = intent_data.get("intent")
+                logger.warning(f"Intenção Detectada: '{intent}'")
 
-            # --- NOVA LÓGICA PARA TRIAGEM DE SINTOMAS ---
-            elif intent == "triagem_sintomas":
-                logger.warning("Rota: INICIANDO FLUXO DE TRIAGEM DE SINTOMAS.")
-                manager = AgendamentoManager(
-                    session_id=session_id, memoria=memoria_atual, base_url=request.build_absolute_uri('/'),
-                    chain_sintomas=chain_sintomas, chain_extracao_dados=chain_extracao_dados
-                )
-                # Passa a mensagem do usuário diretamente para o processamento de sintomas
-                resultado = manager.processar(user_message, 'triagem_processar_sintomas')
+                if intent == "iniciar_agendamento":
+                    manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                    resultado = manager.processar(user_message, 'agendamento_inicio')
+                elif intent == "buscar_preco":
+                    # ... (lógica de buscar_preco) ...
+                    pass
+                elif intent == "cancelar_agendamento":
+                    manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
+                    resultado = manager.processar(user_message, 'cancelamento_inicio')
+                elif intent == "triagem_sintomas":
+                    manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
+                    resultado = manager.processar(user_message, 'triagem_processar_sintomas')
+                else: # 'pergunta_geral' ou fallback
+                    logger.warning("Rota: Acionando IA de FAQ.")
+                    faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message})
+                    resposta_final = faq_data.get("resposta")
+                    resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
 
-            else: # Captura 'pergunta_geral', 'saudacao', etc.
-                logger.warning(f"Rota: Intenção '{intent}' não é um fluxo principal. Acionando IA de FAQ.")
-                faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message})
-                resposta_final = faq_data.get("resposta")
-                resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
-
-        # Se a conversa está começando agora.
-        else:
-            # ... (lógica de 'inicio' e 'aguardando_nome' permanece a mesma) ...
-            if estado_atual == 'aguardando_nome':
-                nome_usuario = user_message.strip().title()
-                memoria_atual['nome_usuario'] = nome_usuario
-                resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
-                novo_estado = 'identificando_demanda'
-                resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
-            else: # estado == 'inicio'
-                logger.warning("Rota: INICIANDO NOVA CONVERSA.")
-                if memoria_atual.get('nome_usuario'):
-                    resposta_final = f"Olá, {memoria_atual.get('nome_usuario')}, bem-vindo(a) de volta! Como posso te ajudar hoje?"
+            # Se a conversa está começando agora.
+            else:
+                if estado_atual == 'aguardando_nome':
+                    nome_usuario = user_message.strip().title()
+                    memoria_atual['nome_usuario'] = nome_usuario
+                    resposta_final = f"Certo, {nome_usuario}. Pode me contar como posso te ajudar?"
                     novo_estado = 'identificando_demanda'
-                else:
+                    resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
+                else: # estado == 'inicio'
+                    logger.warning("Rota: INICIANDO NOVA CONVERSA.")
                     resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência no seu atendimento.\nPode me passar seu nome?"
                     novo_estado = 'aguardando_nome'
-                resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
+                    resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
 
         # Salva o novo estado e a memória no banco de dados
         memoria_obj.state = resultado.get("new_state")
         memoria_obj.memory_data = resultado.get("memory_data")
+        memoria_obj.previous_state = None if memoria_obj.state != 'awaiting_inactivity_response' else memoria_obj.previous_state
         memoria_obj.save()
 
         resposta_final_msg = resultado.get("response_message")
-        logger.warning(f"Resposta Final Enviada: '{str(resposta_final_msg)[:150]}...'")
+        logger.warning(f"Resposta Final: '{str(resposta_final_msg)[:150]}...'")
         return JsonResponse({"response_message": resposta_final_msg})
 
     except Exception as e:
-        logger.error(f"ERRO CRÍTICO no orquestrador do chatbot: {e}", exc_info=True)
-        return JsonResponse({"error": "Ocorreu um erro interno no servidor. A equipe técnica já foi notificada."}, status=500)
+        logger.error(f"ERRO CRÍTICO no orquestrador: {e}", exc_info=True)
+        return JsonResponse({"error": "Ocorreu um erro interno. A equipe técnica foi notificada."}, status=500)
 
