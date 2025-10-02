@@ -409,94 +409,71 @@ class AgendamentoManager:
         return {"response_message": resposta_final, "new_state": novo_estado, "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_adult_data(self, resposta_usuario):
+        """ Esta função agora APENAS inicia a coleta sequencial de dados. """
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"[CADASTRO ADULTO] Iniciando. Mensagem recebida: '{resposta_usuario[:100]}...'")
-
-        # --- Etapa de Pré-processamento ---
-        linhas = resposta_usuario.strip().split('\n')
-        dados_preprocessados = []
-        numeros_encontrados = []
-        for linha in linhas:
-            linha_limpa = linha.strip()
-            numeros_linha = re.sub(r'[\s./-]', '', linha_limpa)
-            if "@" in linha_limpa and "." in linha_limpa:
-                dados_preprocessados.append(f"Email: {linha_limpa}")
-            elif re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', linha_limpa):
-                dados_preprocessados.append(f"Data de Nascimento: {linha_limpa}")
-            elif numeros_linha.isdigit():
-                numeros_encontrados.append(numeros_linha)
-            else:
-                dados_preprocessados.append(f"Nome Completo: {linha_limpa}")
-        if len(numeros_encontrados) >= 1:
-            # Assumimos o primeiro número de 11 dígitos como CPF e o segundo como telefone
-            cpf_achado = False
-            for num in numeros_encontrados:
-                if len(num) == 11 and not cpf_achado:
-                    dados_preprocessados.append(f"CPF: {num}")
-                    cpf_achado = True
-                elif len(num) >= 10:
-                    dados_preprocessados.append(f"Telefone: {num}")
-        texto_para_ia = "\n".join(dados_preprocessados)
-        logger.warning(f"[CADASTRO ADULTO] Texto pré-processado para IA: {texto_para_ia}")
-        # --- Fim do Pré-processamento ---
-
-        dados_extraidos = {}
-        # --- LÓGICA DE EXTRAÇÃO BLINDADA ---
-        if self.chain_extracao_dados:
-            try:
-                # A chamada de alto risco é isolada aqui
-                dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": texto_para_ia})
-                logger.warning(f"[CADASTRO ADULTO] IA extraiu com sucesso: {dados_extraidos}")
-            except Exception as e:
-                # Se a IA falhar por QUALQUER motivo, usamos o método manual como fallback
-                logger.error(f"[CADASTRO ADULTO] ERRO CRÍTICO na chamada da IA: {e}. Usando fallback manual.")
-                dados_extraidos = self._extrair_dados_manual(resposta_usuario)
-        else:
-            dados_extraidos = self._extrair_dados_manual(resposta_usuario)
-        # --- FIM DA LÓGICA BLINDADA ---
-
-        if not dados_extraidos or not any(dados_extraidos.values()):
-            logger.warning("[CADASTRO ADULTO] Nenhuma informação extraída. Solicitando dados individuais.")
-            return self._pedir_dados_individuais(resposta_usuario)
-
-        # O restante da lógica de validação
-        nome = (dados_extraidos.get('nome_completo') or dados_extraidos.get('nome') or '').strip()
-        data_nasc = (dados_extraidos.get('data_nascimento') or '').strip()
-        cpf = (dados_extraidos.get('cpf') or '').strip()
-        telefone = (dados_extraidos.get('telefone_celular') or dados_extraidos.get('telefone') or '').strip()
-        email = (dados_extraidos.get('email') or '').strip()
+        logger.warning("[CADASTRO ADULTO] Iniciando coleta sequencial de dados.")
         
-        logger.warning(f"[CADASTRO ADULTO] Dados brutos para validação: nome='{nome}', data='{data_nasc}', cpf='{cpf}', tel='{telefone}', email='{email}'")
         nome_usuario = self.memoria.get('nome_usuario', '')
+        # Limpa dados antigos caso o usuário esteja refazendo o processo
+        self.memoria['dados_coletados_temp'] = {} 
         
-        if not (nome and len(nome.split()) > 1):
-            logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Nome inválido -> '{nome}'")
-            return {"response_message": f"{nome_usuario}, por favor, informe o seu nome completo (nome e apelido).", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-        if not validar_data_nascimento_formato(data_nasc):
-            logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Data de nascimento inválida -> '{data_nasc}'")
-            return {"response_message": f"{nome_usuario}, a data de nascimento é inválida. Use o formato DD/MM/AAAA e não pode ser uma data futura.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-        if not validar_cpf_formato(cpf):
-            logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: CPF inválido -> '{cpf}'")
-            return {"response_message": f"O CPF é inválido, {nome_usuario}. Ele deve conter 11 dígitos. Use o formato XXX.XXX.XXX-XX se preferir.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-        if not validar_telefone_formato(telefone):
-            logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Telefone inválido -> '{telefone}'")
-            return {"response_message": f"O telefone é inválido, {nome_usuario}. Use o formato com DDD, por exemplo: 11 99999-9999.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-        if not validar_email_formato(email):
-            logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Email inválido -> '{email}'")
-            return {"response_message": f"O e-mail parece inválido, {nome_usuario}. Por favor, verifique e envie novamente.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+        mensagem = f"Entendido, {nome_usuario}. Para finalizar, preciso de alguns dados. Vamos fazer isso passo a passo.\n\nPrimeiro, qual o seu *nome completo*?"
+        return {"response_message": mensagem, "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
 
-        logger.warning("[CADASTRO ADULTO] SUCESSO: Todos os dados foram validados. Prosseguindo para pagamento.")
+    # 2. ADICIONE TODAS ESTAS NOVAS FUNÇÕES ABAIXO
+    def handle_cadastro_nome(self, resposta_usuario):
+        nome = resposta_usuario.strip()
+        if len(nome.split()) < 2:
+            return {"response_message": "Por favor, preciso do seu nome e sobrenome.", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
         
-        self.memoria['nome_completo'] = nome.title()
-        self.memoria['data_nascimento'] = data_nasc
-        self.memoria['cpf'] = re.sub(r'\D', '', cpf)
-        self.memoria['telefone_celular'] = re.sub(r'\D', '', telefone)
-        self.memoria['email'] = email
+        self.memoria['dados_coletados_temp']['nome_completo'] = nome.title()
+        return {"response_message": "Obrigado! Agora, qual a sua *data de nascimento* (no formato DD/MM/AAAA)?", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
+
+    def handle_cadastro_data_nasc(self, resposta_usuario):
+        data = resposta_usuario.strip()
+        if not validar_data_nascimento_formato(data):
+            return {"response_message": "Data inválida. Por favor, use o formato DD/MM/AAAA, por exemplo: 15/03/1990.", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
         
-        primeiro_nome = nome.title().split(' ')[0]
+        self.memoria['dados_coletados_temp']['data_nascimento'] = data
+        return {"response_message": "Perfeito. Agora, por favor, digite o seu *CPF*.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+
+    def handle_cadastro_cpf(self, resposta_usuario):
+        cpf = resposta_usuario.strip()
+        if not validar_cpf_formato(cpf):
+            return {"response_message": "CPF inválido. Por favor, digite os 11 números do seu CPF.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados_temp']['cpf'] = cpf
+        return {"response_message": "Certo. E qual o seu *telefone* com DDD?", "new_state": "cadastro_awaiting_telefone", "memory_data": self.memoria}
+
+    def handle_cadastro_telefone(self, resposta_usuario):
+        telefone = resposta_usuario.strip()
+        if not validar_telefone_formato(telefone):
+            return {"response_message": "Telefone inválido. Por favor, digite o número com DDD (ex: 11999998888).", "new_state": "cadastro_awaiting_telefone", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados_temp']['telefone_celular'] = telefone
+        return {"response_message": "Estamos quase no fim! Por último, qual o seu *e-mail*?", "new_state": "cadastro_awaiting_email", "memory_data": self.memoria}
+
+    def handle_cadastro_email(self, resposta_usuario):
+        email = resposta_usuario.strip().lower()
+        if not validar_email_formato(email):
+            return {"response_message": "Este e-mail não parece válido. Poderia verificar e digitar novamente?", "new_state": "cadastro_awaiting_email", "memory_data": self.memoria}
+        
+        self.memoria['dados_coletados_temp']['email'] = email
+        
+        # Agora que temos todos os dados, movemos para a memória principal
+        dados_coletados = self.memoria['dados_coletados_temp']
+        self.memoria['nome_completo'] = dados_coletados['nome_completo']
+        self.memoria['data_nascimento'] = dados_coletados['data_nascimento']
+        self.memoria['cpf'] = re.sub(r'\D', '', dados_coletados['cpf'])
+        self.memoria['telefone_celular'] = re.sub(r'\D', '', dados_coletados['telefone_celular'])
+        self.memoria['email'] = dados_coletados['email']
+        
+        del self.memoria['dados_coletados_temp'] # Limpa a memória temporária
+        
+        primeiro_nome = self.memoria['nome_completo'].split(' ')[0]
         mensagem = (
-            f"Ótimo, {primeiro_nome}! Seus dados foram recebidos. Aqui na Clínica Limalé, prezamos por um atendimento de excelência e o seu conforto é nossa prioridade.\n\n"
+            f"Excelente, {primeiro_nome}! Recebi todos os seus dados.\n\n"
             "Como prefere pagar para confirmar sua vaga? 💳\n\n"
             f"1️⃣ *PIX* - 5% de desconto 🎉\n"
             f"2️⃣ *Cartão de Crédito* - Até 3x sem juros 💳\n\n"
