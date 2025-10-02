@@ -116,11 +116,17 @@ chain_sintomas = prompt_sintomas | llm | parser_sintomas
 
 # --- CÉREBRO 3: IA EXTRATORA DE DADOS ---
 class DadosPacienteOutput(BaseModel):
+    # Mantenha nome_completo, data_nascimento e email como estão
     nome_completo: str = Field(description="O nome completo do paciente.")
     data_nascimento: str = Field(description="A data de nascimento no formato DD/MM/AAAA.")
-    cpf: str = Field(description="O CPF no formato XXX.XXX.XXX-XX.")
-    telefone_celular: str = Field(description="O telefone no formato +55 11 99999-9999.")
+    
+    # ALTERE AS LINHAS ABAIXO
+    cpf: str = Field(description="O CPF do paciente, contendo 11 dígitos. Extraia apenas os números se não houver formatação.")
+    telefone_celular: str = Field(description="O telefone celular com DDD. Extraia apenas os números se não houver formatação.")
+    # FIM DA ALTERAÇÃO
+    
     email: str = Field(description="O email do paciente.")
+
 
 parser_extracao = JsonOutputParser(pydantic_object=DadosPacienteOutput)
 prompt_extracao = ChatPromptTemplate.from_template(
