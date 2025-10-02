@@ -412,27 +412,71 @@ class AgendamentoManager:
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"[CADASTRO ADULTO] Iniciando. Mensagem recebida: '{resposta_usuario[:100]}...'")
+
+        # --- NOVA ETAPA DE PRÉ-PROCESSAMENTO ---
+        linhas = resposta_usuario.strip().split('\n')
+        dados_preprocessados = []
+        numeros_encontrados = []
+
+        for linha in linhas:
+            linha_limpa = linha.strip()
+            # Remove caracteres comuns de formatação para análise
+            numeros_linha = re.sub(r'[\s./-]', '', linha_limpa)
+
+            if "@" in linha_limpa and "." in linha_limpa:
+                dados_preprocessados.append(f"Email: {linha_limpa}")
+            elif re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', linha_limpa):
+                dados_preprocessados.append(f"Data de Nascimento: {linha_limpa}")
+            elif numeros_linha.isdigit():
+                numeros_encontrados.append(numeros_linha)
+            else: # Assumir que é o nome
+                dados_preprocessados.append(f"Nome Completo: {linha_limpa}")
         
+        # Heurística para diferenciar CPF de Telefone
+        if len(numeros_encontrados) == 2:
+            num1, num2 = numeros_encontrados[0], numeros_encontrados[1]
+            # Assumimos que o CPF pode ser mais "aleatório", enquanto telefones frequentemente começam com 9
+            if len(num1) == 11 and len(num2) == 11:
+                 # Se um começa com 9 e o outro não, é provável que o que começa com 9 seja o telefone
+                if num1.startswith('9') and not num2.startswith('9'):
+                    dados_preprocessados.append(f"Telefone: {num1}")
+                    dados_preprocessados.append(f"CPF: {num2}")
+                elif num2.startswith('9') and not num1.startswith('9'):
+                    dados_preprocessados.append(f"Telefone: {num2}")
+                    dados_preprocessados.append(f"CPF: {num1}")
+                else: # Se ambos ou nenhum começa com 9, fazemos um palpite
+                    dados_preprocessados.append(f"CPF: {num1}")
+                    dados_preprocessados.append(f"Telefone: {num2}")
+            elif len(num1) == 11:
+                dados_preprocessados.append(f"CPF: {num1}")
+            elif len(num2) == 11:
+                dados_preprocessados.append(f"CPF: {num2}")
+
+        elif len(numeros_encontrados) == 1 and len(numeros_encontrados[0]) == 11:
+             dados_preprocessados.append(f"CPF: {numeros_encontrados[0]}")
+
+
+        texto_para_ia = "\n".join(dados_preprocessados)
+        logger.warning(f"[CADASTRO ADULTO] Texto pré-processado para IA: {texto_para_ia}")
+        # --- FIM DO PRÉ-PROCESSAMENTO ---
+
         dados_extraidos = {}
-        # Etapa 1: Extração de Dados
         if self.chain_extracao_dados:
             try:
-                dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
+                # Usamos o texto pré-processado em vez da resposta bruta do usuário
+                dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": texto_para_ia})
                 logger.warning(f"[CADASTRO ADULTO] IA extraiu com sucesso: {dados_extraidos}")
             except Exception as e:
                 logger.error(f"[CADASTRO ADULTO] ERRO na extração com IA: {e}. Usando fallback manual.")
                 dados_extraidos = self._extrair_dados_manual(resposta_usuario)
-                logger.warning(f"[CADASTRO ADULTO] Fallback manual extraiu: {dados_extraidos}")
         else:
-            logger.warning("[CADASTRO ADULTO] IA de extração não disponível. Usando extração manual.")
             dados_extraidos = self._extrair_dados_manual(resposta_usuario)
-            logger.warning(f"[CADASTRO ADULTO] Manual extraiu: {dados_extraidos}")
-        
+
         if not dados_extraidos:
             logger.warning("[CADASTRO ADULTO] Nenhuma informação extraída. Solicitando dados individuais.")
             return self._pedir_dados_individuais(resposta_usuario)
 
-        # Etapa 2: Validação dos Dados
+        # O restante da lógica de validação continua a mesma...
         nome = (dados_extraidos.get('nome_completo') or dados_extraidos.get('nome') or '').strip()
         data_nasc = (dados_extraidos.get('data_nascimento') or '').strip()
         cpf = (dados_extraidos.get('cpf') or '').strip()
@@ -442,29 +486,25 @@ class AgendamentoManager:
         logger.warning(f"[CADASTRO ADULTO] Dados brutos para validação: nome='{nome}', data='{data_nasc}', cpf='{cpf}', tel='{telefone}', email='{email}'")
         nome_usuario = self.memoria.get('nome_usuario', '')
 
+        # ... (bloco de validações if not... permanece igual)
         if not (nome and len(nome.split()) > 1):
             logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Nome inválido -> '{nome}'")
             return {"response_message": f"{nome_usuario}, por favor, informe o seu nome completo (nome e apelido).", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-        
         if not validar_data_nascimento_formato(data_nasc):
             logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Data de nascimento inválida -> '{data_nasc}'")
             return {"response_message": f"{nome_usuario}, a data de nascimento é inválida. Use o formato DD/MM/AAAA e não pode ser uma data futura.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-
         if not validar_cpf_formato(cpf):
             logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: CPF inválido -> '{cpf}'")
             return {"response_message": f"O CPF é inválido, {nome_usuario}. Ele deve conter 11 dígitos. Use o formato XXX.XXX.XXX-XX se preferir.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-
         if not validar_telefone_formato(telefone):
             logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Telefone inválido -> '{telefone}'")
             return {"response_message": f"O telefone é inválido, {nome_usuario}. Use o formato com DDD, por exemplo: 11 99999-9999.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-
         if not validar_email_formato(email):
             logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Email inválido -> '{email}'")
             return {"response_message": f"O e-mail parece inválido, {nome_usuario}. Por favor, verifique e envie novamente.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
-        
+
         logger.warning("[CADASTRO ADULTO] SUCESSO: Todos os dados foram validados. Prosseguindo para pagamento.")
         
-        # Etapa 3: Salvar e Avançar
         self.memoria['nome_completo'] = nome.title()
         self.memoria['data_nascimento'] = data_nasc
         self.memoria['cpf'] = re.sub(r'\D', '', cpf)
