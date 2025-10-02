@@ -1,4 +1,4 @@
-# chatbot/agendamento_flow.py - VERSÃO MÍNIMA E ESTÁVEL
+# chatbot/agendamento_flow.py - VERSÃO FINAL CONSOLIDADA E CORRIGIDA
 
 import re
 from datetime import datetime, timedelta
@@ -9,14 +9,21 @@ import logging
 
 from usuarios.models import Especialidade, CustomUser
 from faturamento.models import Procedimento
-from agendamentos.services import buscar_proximo_horario_disponivel, criar_agendamento_e_pagamento_pendente
+from agendamentos.services import (
+    buscar_proximo_horario_disponivel,
+    buscar_proximo_horario_procedimento,
+    criar_agendamento_e_pagamento_pendente,
+    listar_agendamentos_futuros,
+    cancelar_agendamento_service
+)
 from pacientes.models import Paciente
 from agendamentos.serializers import AgendamentoWriteSerializer
 
 # --- FUNÇÕES DE VALIDAÇÃO ---
 def validar_cpf_formato(cpf_str: str) -> bool:
     if not isinstance(cpf_str, str): return False
-    return len(re.sub(r'\D', '', cpf_str)) == 11
+    numeros = re.sub(r'\D', '', cpf_str)
+    return len(numeros) == 11
 
 def validar_telefone_formato(tel_str: str) -> bool:
     if not isinstance(tel_str, str): return False
@@ -37,9 +44,12 @@ def validar_email_formato(email_str: str) -> bool:
 
 # --- CLASSE DA MÁQUINA DE ESTADOS ---
 class AgendamentoManager:
-    def __init__(self, session_id, memoria, base_url):
+    def __init__(self, session_id, memoria, base_url, chain_sintomas=None, chain_extracao_dados=None):
         self.session_id = session_id
         self.memoria = memoria
+        self.base_url = base_url.rstrip('/')
+        self.chain_sintomas = chain_sintomas
+        self.chain_extracao_dados = chain_extracao_dados
 
     def _get_especialidades_from_db(self):
         return list(Especialidade.objects.all().order_by('nome').values('id', 'nome'))
@@ -47,17 +57,28 @@ class AgendamentoManager:
     def _get_medicos_from_db(self, especialidade_id):
         return list(CustomUser.objects.filter(cargo='medico', especialidades__id=especialidade_id).values('id', 'first_name', 'last_name'))
 
+    def _get_procedimentos_from_db(self):
+        return list(Procedimento.objects.filter(ativo=True, valor_particular__gt=0).order_by('descricao').values('id', 'descricao'))
+
+    def _get_especialidade_por_nome(self, nome_especialidade):
+        try:
+            return Especialidade.objects.get(nome__iexact=nome_especialidade)
+        except Especialidade.DoesNotExist:
+            return None
+
     def _iniciar_busca_de_horarios(self, especialidade_id, especialidade_nome):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_id)
-        if not medicos: return {"response_message": f"Desculpe, não encontrei médicos para {especialidade_nome}.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+        if not medicos: return {"response_message": f"Desculpe, {nome_usuario}, não encontrei médicos para {especialidade_nome}.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
         medico = medicos[0]
         self.memoria.update({'medico_id': medico['id'], 'medico_nome': f"{medico['first_name']} {medico['last_name']}"})
         horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
-        if not horarios or not horarios.get('horarios_disponiveis'): return {"response_message": f"Infelizmente, não há horários online para Dr(a). {self.memoria['medico_nome']}.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+        if not horarios or not horarios.get('horarios_disponiveis'): return {"response_message": f"Infelizmente, {nome_usuario}, não há horários online para Dr(a). {self.memoria['medico_nome']}.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
         self.memoria['horarios_ofertados'] = horarios
         data_fmt = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
         horarios_fmt = "\n".join([f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]])
-        return {"response_message": f"Encontrei estes horários para Dr(a). *{self.memoria['medico_nome']}* no dia *{data_fmt}*:\n\n{horarios_fmt}\n\nQual deles prefere?", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+        mensagem = (f"Ótima escolha, {nome_usuario}! Encontrei estes horários para Dr(a). *{self.memoria['medico_nome']}* no dia *{data_fmt}*:\n\n{horarios_fmt}\n\nQual deles prefere?")
+        return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
     def processar(self, resposta, estado):
         handlers = {
@@ -69,15 +90,29 @@ class AgendamentoManager:
             'cadastro_awaiting_telefone': self.handle_cadastro_telefone, 'cadastro_awaiting_email': self.handle_cadastro_email,
             'agendamento_awaiting_payment_choice': self.handle_awaiting_payment_choice, 'agendamento_awaiting_installments': self.handle_awaiting_installments,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
+            'cancelamento_inicio': self.handle_cancelamento_inicio, 'cancelamento_awaiting_cpf': self.handle_cancelamento_awaiting_cpf,
+            'cancelamento_awaiting_choice': self.handle_cancelamento_awaiting_choice, 'cancelamento_awaiting_confirmation': self.handle_cancelamento_awaiting_confirmation,
         }
-        return handlers.get(estado, lambda r: {"response_message": "Estado desconhecido, reiniciando.", "new_state": "inicio", "memory_data": self.memoria})(resposta)
+        return handlers.get(estado, self.handle_fallback)(resposta)
 
+    def handle_fallback(self, r):
+        nome = self.memoria.get('nome_usuario', '')
+        self.memoria.clear(); self.memoria['nome_usuario'] = nome
+        return {"response_message": f"Desculpe, {nome}, me perdi. Vamos recomeçar?", "new_state": "inicio", "memory_data": self.memoria}
+    
     def handle_inicio(self, r):
-        return {"response_message": f"Vamos lá, {self.memoria['nome_usuario']}! O agendamento é para uma *Consulta*?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+        nome = self.memoria.get('nome_usuario', '')
+        self.memoria.clear(); self.memoria['nome_usuario'] = nome
+        return {"response_message": f"Vamos lá, {nome}! Quer agendar uma *Consulta* ou *Procedimento*?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_type(self, r):
-        self.memoria['tipo_agendamento'] = 'Consulta'
-        return {"response_message": "Será *Presencial* ou *Telemedicina*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        if 'consulta' in r.lower():
+            self.memoria['tipo_agendamento'] = 'Consulta'
+            return {"response_message": "Será *Presencial* ou *Telemedicina*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        elif 'procedimento' in r.lower():
+            # Lógica de procedimento pode ser adicionada aqui depois
+            return {"response_message": "Ainda não agendamos procedimentos por aqui, mas em breve teremos novidades! Gostaria de agendar uma consulta?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+        return {"response_message": "Não entendi. É 'Consulta' ou 'Procedimento'?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_modality(self, r):
         modalidade = "".join(r.strip().split()).capitalize()
@@ -188,3 +223,9 @@ class AgendamentoManager:
         except Exception as e:
             logger.error(f"ERRO INESPERADO NA CONFIRMAÇÃO: {str(e)}", exc_info=True)
             return {"response_message": f"Desculpe, ocorreu um erro ao finalizar: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
+
+    # Handlers de cancelamento apenas para constar no dicionário e não quebrar
+    def handle_cancelamento_inicio(self, r): return self.handle_fallback(r)
+    def handle_cancelamento_awaiting_cpf(self, r): return self.handle_fallback(r)
+    def handle_cancelamento_awaiting_choice(self, r): return self.handle_fallback(r)
+    def handle_cancelamento_awaiting_confirmation(self, r): return self.handle_fallback(r)
