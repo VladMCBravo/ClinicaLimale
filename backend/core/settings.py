@@ -29,6 +29,7 @@ CORS_ALLOW_CREDENTIALS = True
 # --- Configurações de Aplicações (Apps) ---
 INSTALLED_APPS = [
     # Apps do Django Core
+    'daphne', # <-- ADICIONE ESTA LINHA NO TOPO
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -36,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'whitenoise.runserver_nostatic', # Whitenoise para arquivos estáticos
     'django.contrib.staticfiles',
-
+      
     # Apps de Terceiros
     'rest_framework',
     'rest_framework.authtoken',
@@ -53,6 +54,7 @@ INSTALLED_APPS = [
     'faturamento',
     'dashboard',
     'chatbot',
+    'channels',
 ]
 
 # --- Configurações de Middleware ---
@@ -135,7 +137,17 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'nao-responda@suaclinica.com')
 
-# Mercado Pago
-MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
-# Adicione esta linha para ler a variável do Render
-CRONAGENDA_SECRET_KEY = os.getenv('CRONAGENDA_SECRET_KEY')
+# --- Configurações do Django Channels ---
+# Aponta para o arquivo de roteamento ASGI que vamos criar
+ASGI_APPLICATION = 'core.asgi.application'
+
+# Configura o Redis como o "message broker" para os WebSockets.
+# Ele permite que diferentes instâncias da sua aplicação se comuniquem.
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.environ.get('REDIS_HOST', '127.0.0.1'), 6379)],
+        },
+    },
+}
