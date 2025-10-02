@@ -170,36 +170,41 @@ class AgendamentoManager:
     
     def _pedir_dados_individuais(self, resposta_usuario):
         """Coleta dados um por vez quando extração automática falha"""
+        nome_usuario = self.memoria.get('nome_usuario', '')
         # Verifica se já tem alguns dados salvos
         if not self.memoria.get('coletando_dados_individual'):
             self.memoria['coletando_dados_individual'] = True
             self.memoria['dados_coletados'] = {}
-            return {"response_message": "Vou coletar seus dados um por vez. Primeiro, qual é o seu nome completo?", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
+            return {"response_message": f"Sem problemas, {nome_usuario}. Vou coletar seus dados um por vez. Primeiro, qual é o seu nome completo?", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
         
         # Se chegou aqui, é porque já estava coletando
-        return {"response_message": "Por favor, me informe seu nome completo.", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
+        return {"response_message": f"Por favor, {nome_usuario}, me informe seu nome completo.", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
 
     def _iniciar_busca_de_horarios(self, especialidade_id, especialidade_nome):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_id)
         if not medicos:
-            return {"response_message": f"Desculpe, não encontrei médicos para {especialidade_nome} no momento.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+            return {"response_message": f"Desculpe, {nome_usuario}, não encontrei médicos para {especialidade_nome} no momento.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
         
         medico = medicos[0]
         self.memoria.update({'medico_id': medico['id'], 'medico_nome': f"{medico['first_name']} {medico['last_name']}"})
         horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
         
         if not horarios or not horarios.get('horarios_disponiveis'):
-            return {"response_message": f"Infelizmente, não há horários online para Dr(a). {self.memoria['medico_nome']}.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+            return {"response_message": f"Infelizmente, {nome_usuario}, não há horários online para Dr(a). {self.memoria['medico_nome']}.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
         
         self.memoria['horarios_ofertados'] = horarios
         data_formatada = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
         horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]] # MOSTRANDO ATÉ 5
         horarios_str = "\n".join(horarios_formatados)
         
+        # MENSAGEM DE VALORIZAÇÃO HUMANIZADA
         mensagem = (
-            f"Temos estes próximos horários disponíveis com Dr(a). *{self.memoria['medico_nome']}* no dia *{data_formatada}*:\n\n"
+            f"Ótima escolha, {nome_usuario}! A especialidade de *{especialidade_nome}* é uma das nossas referências. "
+            f"O(A) Dr(a). *{self.memoria['medico_nome']}* é um(a) excelente profissional e tenho a certeza de que você estará em boas mãos.\n\n"
+            f"Encontrei estes próximos horários disponíveis no dia *{data_formatada}*:\n\n"
             f"{horarios_str}\n\n"
-            "Qual deles seria melhor para si? Se preferir outro dia ou turno, pode dizer-me."
+            "Qual deles seria melhor para você? Se preferir outro dia ou turno, pode me dizer."
         )
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
@@ -238,32 +243,33 @@ class AgendamentoManager:
     def handle_fallback(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
         self.memoria.clear(); self.memoria['nome_usuario'] = nome_usuario
-        return {"response_message": "Desculpe, perdi-me. Vamos recomeçar?", "new_state": "inicio", "memory_data": self.memoria}
+        return {"response_message": f"Desculpe, {nome_usuario}, perdi-me. Vamos recomeçar do início?", "new_state": "inicio", "memory_data": self.memoria}
 
     def handle_triagem_processar_sintomas(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         try:
             resultado_ia = self.chain_sintomas.invoke({"sintomas_do_usuario": resposta_usuario})
             especialidade_sugerida = resultado_ia.get('especialidade_sugerida')
 
             if not especialidade_sugerida or especialidade_sugerida == 'Nenhuma':
-                return {"response_message": "Com base no que me disse, não consegui identificar uma especialidade. Pode descrever os sintomas com mais detalhes?", "new_state": "triagem_processar_sintomas", "memory_data": self.memoria}
+                return {"response_message": f"{nome_usuario}, com base no que me disse, não consegui identificar uma especialidade. Pode descrever os sintomas com mais detalhes?", "new_state": "triagem_processar_sintomas", "memory_data": self.memoria}
 
             especialidade_obj = self._get_especialidade_por_nome(especialidade_sugerida)
             if not especialidade_obj:
-                 return {"response_message": f"Sugeri {especialidade_sugerida}, mas não encontrei na nossa lista de serviços. Vamos tentar de outra forma. Qual especialidade procura?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+                 return {"response_message": f"{nome_usuario}, sugeri {especialidade_sugerida}, mas não encontrei na nossa lista de serviços. Vamos tentar de outra forma. Qual especialidade você procura?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
             self.memoria.update({'especialidade_id': especialidade_obj.id, 'especialidade_nome': especialidade_obj.nome, 'tipo_agendamento': 'Consulta'})
             
             mensagem = (
-                f"Baseado no que me contou, a especialidade mais indicada seria *{especialidade_sugerida}*.\n"
+                f"Certo, {nome_usuario}. Baseado no que me contou, a especialidade mais indicada seria *{especialidade_sugerida}*.\n"
                 "Lembre-se que esta é uma sugestão e não substitui uma avaliação médica.\n\n"
-                "Vamos ver os horários disponíveis?"
+                "Vamos ver os horários disponíveis para você?"
             )
             # Transição direta para a busca de horários
             return self._iniciar_busca_de_horarios(especialidade_obj.id, especialidade_obj.nome)
 
         except Exception as e:
-            return {"response_message": f"Ocorreu um erro na triagem. Vamos tentar o agendamento normal.", "new_state": "agendamento_inicio", "memory_data": self.memoria}
+            return {"response_message": f"Ocorreu um erro na triagem, {nome_usuario}. Vamos tentar o agendamento normal.", "new_state": "agendamento_inicio", "memory_data": self.memoria}
     
     def handle_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', 'tudo bem')
@@ -271,54 +277,58 @@ class AgendamentoManager:
         return {"response_message": f"Vamos lá, {nome_usuario}! Gostaria de agendar uma *Consulta* ou um *Procedimento* (exames)?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_type(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         escolha = resposta_usuario.lower()
         if 'consulta' in escolha:
             self.memoria['tipo_agendamento'] = 'Consulta'
-            return { "response_message": "Entendido. O atendimento será *Presencial* ou por *Telemedicina*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria }
+            return { "response_message": f"Entendido, {nome_usuario}. O atendimento será *Presencial* ou por *Telemedicina*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria }
         elif 'procedimento' in escolha or 'exame' in escolha:
             self.memoria['tipo_agendamento'] = 'Procedimento'
             procedimentos = self._get_procedimentos_from_db()
-            if not procedimentos: return {"response_message": "Desculpe, não encontrei procedimentos disponíveis para agendamento online.", "new_state": "inicio", "memory_data": self.memoria}
+            if not procedimentos: return {"response_message": f"Desculpe, {nome_usuario}, não encontrei procedimentos disponíveis para agendamento online.", "new_state": "inicio", "memory_data": self.memoria}
             self.memoria['lista_procedimentos'] = procedimentos
             nomes_procedimentos = '\n'.join([f"• {proc['descricao']}" for proc in procedimentos])
-            return { "response_message": f"Certo, temos os seguintes procedimentos:\n\n{nomes_procedimentos}\n\nQual deles deseja agendar?", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria }
+            return { "response_message": f"Certo, {nome_usuario}. Temos os seguintes procedimentos:\n\n{nomes_procedimentos}\n\nQual deles você deseja agendar?", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria }
         else:
-            return { "response_message": "Não entendi. Por favor, diga 'Consulta' ou 'Procedimento'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria }
+            return { "response_message": f"Não entendi, {nome_usuario}. Por favor, diga 'Consulta' ou 'Procedimento'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria }
 
     def handle_awaiting_procedure(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         procedimento_escolhido = next((proc for proc in self.memoria.get('lista_procedimentos', []) if resposta_usuario.lower() in proc['descricao'].lower()), None)
-        if not procedimento_escolhido: return {"response_message": "Não encontrei esse procedimento na lista.", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria}
+        if not procedimento_escolhido: return {"response_message": f"{nome_usuario}, não encontrei esse procedimento na lista. Poderia verificar e me dizer novamente?", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria}
         self.memoria.update({'procedimento_id': procedimento_escolhido['id'], 'procedimento_nome': procedimento_escolhido['descricao']})
         
         horarios = buscar_proximo_horario_procedimento(procedimento_id=procedimento_escolhido['id'])
-        if not horarios or not horarios.get('horarios_disponiveis'): return {"response_message": f"Infelizmente, não há horários disponíveis para '{procedimento_escolhido['descricao']}'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+        if not horarios or not horarios.get('horarios_disponiveis'): return {"response_message": f"Infelizmente, {nome_usuario}, não há horários disponíveis para '{procedimento_escolhido['descricao']}'.", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
         
         self.memoria['horarios_ofertados'] = horarios
         data_formatada = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
         horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
         horarios_str = "\n".join(horarios_formatados)
         
-        mensagem_horarios = f"Encontrei os seguintes horários para o dia *{data_formatada}*:\n\n{horarios_str}\n\nQual horário prefere?"
+        mensagem_horarios = f"Perfeito, {nome_usuario}! Encontrei os seguintes horários para o dia *{data_formatada}*:\n\n{horarios_str}\n\nQual horário prefere?"
         return {"response_message": mensagem_horarios, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
     def handle_awaiting_modality(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         modalidade = "".join(resposta_usuario.strip().split()).capitalize()
-        if modalidade not in ['Presencial', 'Telemedicina']: return {"response_message": "Modalidade inválida. Responda com *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        if modalidade not in ['Presencial', 'Telemedicina']: return {"response_message": f"Modalidade inválida, {nome_usuario}. Responda com *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
         self.memoria['modalidade'] = modalidade
         especialidades = self._get_especialidades_from_db()
         self.memoria['lista_especialidades'] = especialidades
         nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in especialidades])
-        return {"response_message": f"Perfeito. Temos estas especialidades:\n\n{nomes_especialidades}\n\nQual delas deseja?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+        return {"response_message": f"Perfeito, {nome_usuario}. Temos estas especialidades:\n\n{nomes_especialidades}\n\nQual delas você deseja?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
     def handle_awaiting_specialty(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower() or esp['nome'].lower() in resposta_usuario.lower()), None)
         if not especialidade_escolhida:
-            return {"response_message": "Não encontrei essa especialidade na lista.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+            return {"response_message": f"Não encontrei essa especialidade na lista, {nome_usuario}. Pode verificar e tentar de novo?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
         
         self.memoria.update({'especialidade_id': especialidade_escolhida['id'], 'especialidade_nome': especialidade_escolhida['nome']})
         
         if 'pediatria' in especialidade_escolhida['nome'].lower() or 'neonatologia' in especialidade_escolhida['nome'].lower():
-            return {"response_message": "Entendido. A consulta é para si ou para uma criança?", "new_state": "agendamento_awaiting_patient_type", "memory_data": self.memoria}
+            return {"response_message": f"Entendido, {nome_usuario}. A consulta é para você ou para uma criança?", "new_state": "agendamento_awaiting_patient_type", "memory_data": self.memoria}
         else:
             self.memoria['agendamento_para_crianca'] = False
             return self._iniciar_busca_de_horarios(especialidade_escolhida['id'], especialidade_escolhida['nome'])
@@ -334,12 +344,13 @@ class AgendamentoManager:
         return self._iniciar_busca_de_horarios(especialidade_id, especialidade_nome)
 
     def handle_awaiting_slot_choice(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         horario_escolhido_str = resposta_usuario.strip()
         horarios_ofertados = self.memoria.get('horarios_ofertados', {})
         lista_horarios_validos = horarios_ofertados.get('horarios_disponiveis', [])
         
         if horario_escolhido_str not in lista_horarios_validos:
-            return {"response_message": f"Hum, não encontrei o horário '{horario_escolhido_str}' na lista. Por favor, escolha um dos horários que enviei.", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+            return {"response_message": f"Hum, {nome_usuario}, não encontrei o horário '{horario_escolhido_str}' na lista. Por favor, escolha um dos horários que enviei.", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
         data_str = horarios_ofertados['data']
         data_obj = datetime.strptime(data_str, '%Y-%m-%d').date()
@@ -349,22 +360,23 @@ class AgendamentoManager:
         self.memoria['data_hora_inicio'] = data_hora_inicio_aware.isoformat()
 
         return {
-            "response_message": f"Perfeito! Deseja confirmar o pré-agendamento para o dia {data_obj.strftime('%d/%m/%Y')} às {horario_escolhido_str}? (Sim/Não)",
+            "response_message": f"Perfeito, {nome_usuario}! Deseja confirmar o pré-agendamento para o dia {data_obj.strftime('%d/%m/%Y')} às {horario_escolhido_str}? (Sim/Não)",
             "new_state": "agendamento_awaiting_slot_confirmation",
             "memory_data": self.memoria
         }
 
     def handle_awaiting_slot_confirmation(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         resposta = resposta_usuario.lower()
         if 'sim' not in resposta:
             self.memoria.pop('data_hora_inicio', None)
             return {
-                "response_message": "Entendido, o pré-agendamento foi cancelado. Posso ajudar com outros horários ou algo mais?",
+                "response_message": f"Entendido, {nome_usuario}, o pré-agendamento foi cancelado. Posso ajudar com outros horários ou algo mais?",
                 "new_state": "identificando_demanda",
                 "memory_data": self.memoria
             }
 
-        mensagem_valorizacao = "Ótimo! Para continuarmos, preciso de alguns dados."
+        mensagem_valorizacao = f"Ótimo, {nome_usuario}! Para continuarmos com a sua reserva, preciso de alguns dados."
         
         if self.memoria.get('agendamento_para_crianca'):
             mensagem_coleta_dados = (
@@ -430,23 +442,25 @@ class AgendamentoManager:
         email = (dados_extraidos.get('email') or '').strip()
         
         logger.warning(f"[CADASTRO] Dados processados: nome='{nome}', data='{data_nasc}', cpf='{cpf}', tel='{telefone}', email='{email}'")
+        
+        nome_usuario = self.memoria.get('nome_usuario', '')
 
         # Validações básicas (usando funções antigas temporariamente)
         if not (nome and len(nome.split()) > 1):
             logger.warning(f"[CADASTRO] FALHOU: Nome inválido '{nome}'")
-            return {"response_message": "Por favor, informe o seu nome completo (nome e apelido).", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            return {"response_message": f"{nome_usuario}, por favor, informe o seu nome completo (nome e apelido).", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_data_nascimento_formato(data_nasc):
             logger.warning(f"[CADASTRO] FALHOU: Data inválida '{data_nasc}'")
-            return {"response_message": "A data de nascimento é inválida. Use o formato DD/MM/AAAA e não pode ser uma data futura.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            return {"response_message": f"{nome_usuario}, a data de nascimento é inválida. Use o formato DD/MM/AAAA e não pode ser uma data futura.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_cpf_formato(cpf):
             logger.warning(f"[CADASTRO] FALHOU: CPF inválido '{cpf}'")
-            return {"response_message": "O CPF é inválido. Use o formato XXX.XXX.XXX-XX.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            return {"response_message": f"O CPF é inválido, {nome_usuario}. Use o formato XXX.XXX.XXX-XX.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_telefone_formato(telefone):
             logger.warning(f"[CADASTRO] FALHOU: Telefone inválido '{telefone}'")
-            return {"response_message": "O telefone é inválido. Use o formato +55 11 99999-9999.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            return {"response_message": f"O telefone é inválido, {nome_usuario}. Use o formato +55 11 99999-9999.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_email_formato(email):
             logger.warning(f"[CADASTRO] FALHOU: Email inválido '{email}'")
-            return {"response_message": "O e-mail parece inválido. Por favor, verifique e envie novamente.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+            return {"response_message": f"O e-mail parece inválido, {nome_usuario}. Por favor, verifique e envie novamente.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         
         logger.warning(f"[CADASTRO] SUCESSO: Todos os dados válidos, prosseguindo para pagamento")
         
@@ -467,7 +481,8 @@ class AgendamentoManager:
         
         primeiro_nome = nome_formatado.split(' ')[0]
         mensagem = (
-            f"Ótimo, {primeiro_nome}! Como prefere pagar? 💳\n\n"
+            f"Ótimo, {primeiro_nome}! Seus dados foram recebidos. Aqui na Clínica Limalé, prezamos por um atendimento de excelência e o seu conforto é nossa prioridade.\n\n"
+            "Como prefere pagar para confirmar sua vaga? 💳\n\n"
             f"1️⃣ *PIX* - 5% de desconto 🎉\n"
             f"2️⃣ *Cartão de Crédito* - Até 3x sem juros 💳\n\n"
             f"Digite *1* para PIX ou *2* para Cartão."
@@ -525,7 +540,8 @@ class AgendamentoManager:
         
         primeiro_nome = dados['nome_completo'].split(' ')[0]
         mensagem = (
-            f"Ótimo, {primeiro_nome}! Como prefere pagar? 💳\n\n"
+            f"Ótimo, {primeiro_nome}! Seus dados foram recebidos. Aqui na Clínica Limalé, prezamos por um atendimento de excelência e o seu conforto é nossa prioridade.\n\n"
+            "Como prefere pagar para confirmar sua vaga? 💳\n\n"
             f"1️⃣ *PIX* - 5% de desconto 🎉\n"
             f"2️⃣ *Cartão de Crédito* - Até 3x sem juros 💳\n\n"
             f"Digite *1* para PIX ou *2* para Cartão."
@@ -539,6 +555,7 @@ class AgendamentoManager:
         return {"response_message": "Handler de criança a ser implementado.", "new_state": "inicio", "memory_data": self.memoria}
         
     def handle_awaiting_payment_choice(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         escolha = resposta_usuario.lower().strip()
         
         if 'pix' in escolha or escolha == '1':
@@ -548,7 +565,7 @@ class AgendamentoManager:
         elif 'cartão' in escolha or 'cartao' in escolha or escolha == '2':
             # Pergunta sobre parcelamento
             mensagem_parcelamento = (
-                "Perfeito! Cartão de crédito selecionado. 💳\n\n"
+                f"Perfeito, {nome_usuario}! Cartão de crédito selecionado. 💳\n\n"
                 "Como deseja pagar?\n\n"
                 "1️⃣ *À vista* (sem juros)\n"
                 "2️⃣ *2x sem juros*\n"
@@ -559,22 +576,20 @@ class AgendamentoManager:
             return {"response_message": mensagem_parcelamento, "new_state": "agendamento_awaiting_installments", "memory_data": self.memoria}
         
         else:
-            return {"response_message": "Não entendi. Por favor, digite *1* para PIX ou *2* para Cartão.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+            return {"response_message": f"Não entendi, {nome_usuario}. Por favor, digite *1* para PIX ou *2* para Cartão.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
     
     def handle_awaiting_installments(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         escolha = resposta_usuario.strip()
         
         if escolha == '1':
             self.memoria['parcelas'] = 1
-            mensagem_confirmacao = "Perfeito! Pagamento à vista selecionado. 👍"
         elif escolha == '2':
             self.memoria['parcelas'] = 2
-            mensagem_confirmacao = "Perfeito! Pagamento em 2x sem juros selecionado. 👍"
         elif escolha == '3':
             self.memoria['parcelas'] = 3
-            mensagem_confirmacao = "Perfeito! Pagamento em 3x sem juros selecionado. 👍"
         else:
-            return {"response_message": "Opção inválida. Digite *1* (à vista), *2* (2x) ou *3* (3x).", "new_state": "agendamento_awaiting_installments", "memory_data": self.memoria}
+            return {"response_message": f"Opção inválida, {nome_usuario}. Digite *1* (à vista), *2* (2x) ou *3* (3x).", "new_state": "agendamento_awaiting_installments", "memory_data": self.memoria}
         
         # Continua para confirmação
         return self.handle_awaiting_confirmation("confirmado")
@@ -656,8 +671,9 @@ class AgendamentoManager:
             
             mensagem_confirmacao = (
                 f"✅ *Confirmação de Pré-Agendamento*\n\n"
-                f"Olá, {nome_paciente_formatado}! O seu horário foi reservado com sucesso.\n"
+                f"Olá, {nome_paciente_formatado}! O seu horário foi reservado com sucesso.\n\n"
                 f"*{agendamento.get_tipo_agendamento_display()} de {self.memoria.get('especialidade_nome') or self.memoria.get('procedimento_nome')}*\n"
+                f"Com o(a) Dr(a). *{self.memoria.get('medico_nome')}*\n"
                 f"🗓️ *Data:* {data_agendamento_fmt}\n"
                 f"⏰ *Hora:* {hora_agendamento_fmt}\n\n"
             )
@@ -669,7 +685,7 @@ class AgendamentoManager:
                     f"Para confirmar, realize o pagamento via PIX com *5% de desconto*.\n\n"
                     f"*Valor com desconto:* R$ {valor_com_desconto:.2f}\n"
                     f"*Chave PIX (Copia e Cola):*\n`{pagamento.pix_copia_e_cola}`\n\n"
-                    "Após o pagamento, o seu horário será confirmado automaticamente."
+                    "Após o pagamento, o seu horário será confirmado automaticamente. Estamos ansiosos para recebê-lo(a)!"
                 )
             elif metodo_pagamento == 'CartaoCredito' and hasattr(pagamento, 'link_pagamento') and pagamento.link_pagamento:
                 parcelas = self.memoria.get('parcelas', 1)
@@ -696,26 +712,29 @@ class AgendamentoManager:
 
     # --- HANDLERS DO FLUXO DE CANCELAMENTO ---
     def handle_cancelamento_inicio(self, resposta_usuario):
-        return {"response_message": "Entendido. Para localizar o seu agendamento, por favor, informe-me o seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
+        nome_usuario = self.memoria.get('nome_usuario', '')
+        return {"response_message": f"Entendido, {nome_usuario}. Para localizar o seu agendamento, por favor, informe-me o seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_cpf(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         cpf = re.sub(r'\D', '', resposta_usuario)
         if len(cpf) != 11:
             return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
         agendamentos = listar_agendamentos_futuros(cpf)
         if not agendamentos:
-            return {"response_message": "Não encontrei agendamentos futuros no seu CPF. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
+            return {"response_message": f"Não encontrei agendamentos futuros no seu CPF, {nome_usuario}. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
         self.memoria['agendamentos_para_cancelar'] = [{"id": ag.id, "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else ag.procedimento.descricao} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"} for ag in agendamentos]
         
         if len(agendamentos) == 1:
             ag = self.memoria['agendamentos_para_cancelar'][0]
             self.memoria['agendamento_selecionado_id'] = ag['id']
-            return {"response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nConfirma o cancelamento? (Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
+            return {"response_message": f"Encontrei este agendamento, {nome_usuario}:\n• {ag['texto']}\n\nConfirma o cancelamento? (Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
         else:
             lista_texto = "\n".join([f"{i+1} - {ag['texto']}" for i, ag in enumerate(self.memoria['agendamentos_para_cancelar'])])
-            return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
+            return {"response_message": f"Encontrei estes agendamentos, {nome_usuario}:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_choice(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         try:
             escolha = int(resposta_usuario.strip()) - 1
             agendamentos_lista = self.memoria.get('agendamentos_para_cancelar', [])
@@ -726,16 +745,16 @@ class AgendamentoManager:
             else:
                 raise ValueError("Escolha fora do intervalo")
         except (ValueError, IndexError):
-            return {"response_message": "Opção inválida. Por favor, digite apenas o número correspondente.", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
+            return {"response_message": f"Opção inválida, {nome_usuario}. Por favor, digite apenas o número correspondente.", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_confirmation(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
         resposta = resposta_usuario.lower()
         if 'sim' in resposta:
             agendamento_id = self.memoria.get('agendamento_selecionado_id')
             resultado = cancelar_agendamento_service(agendamento_id)
             return {"response_message": resultado.get('mensagem', 'Ocorreu um erro.'), "new_state": "inicio", "memory_data": self.memoria}
         elif 'não' in resposta or 'nao' in resposta:
-            return {"response_message": "Ok, o agendamento foi mantido. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
+            return {"response_message": f"Ok, {nome_usuario}, o agendamento foi mantido. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
         else:
             return {"response_message": "Não entendi. Responda com 'Sim' ou 'Não'.", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
-

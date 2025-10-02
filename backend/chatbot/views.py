@@ -75,7 +75,7 @@ prompt_roteador = ChatPromptTemplate.from_template(
     # INTENÇÕES POSSÍVEIS
     - 'saudacao': Cumprimentos gerais.
     - 'iniciar_agendamento': O utilizador quer marcar, agendar, ver horários.
-    - 'buscar_preco': O utilizador quer saber o valor, preço.
+    - 'buscar_preco': O utilizador quer saber o valor, preço, quanto custa, quanto sai.
     - 'cancelar_agendamento': O utilizador quer desmarcar ou cancelar.
     - 'triagem_sintomas': O utilizador descreve sintomas e não sabe qual especialista.
     - 'pergunta_geral': Uma pergunta sobre a clínica que não se encaixa nas outras (ex: 'quais as especialidades?', 'aceita convénio?', 'parcela?').
@@ -303,6 +303,33 @@ class AgendamentoChatbotView(APIView):
         logger.warning("[DIAGNÓSTICO] Dados recebidos para criar agendamento: %s", dados)
         return Response({"sucesso": "Agendamento criado (lógica omitida para brevidade)"}, status=status.HTTP_201_CREATED)
 
+# --- NOVA FUNÇÃO AUXILIAR PARA RESPOSTA DE PREÇO HUMANIZADA ---
+def get_resposta_preco(nome_servico: str, nome_usuario: str = ""):
+    """
+    Busca o preço de um serviço e monta uma resposta humanizada.
+    """
+    servico_info = buscar_precos_servicos(nome_servico)
+    
+    # Mensagem de valorização da clínica
+    texto_base = (
+        f"Claro, {nome_usuario}! Antes de te passar os valores, quero destacar que aqui na Clínica Limalé prezamos "
+        "pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
+    )
+
+    if servico_info:
+        # Mensagem com o preço e benefícios
+        resposta_final = (
+            f"O serviço de *{servico_info['nome']}* tem o valor de *R$ {servico_info['valor']}*.\n"
+            "Também oferecemos um desconto de 5% para pagamentos via Pix realizados no momento do agendamento. "
+            "Assim, sua vaga já fica garantida!\n\nGostaria de agendar?"
+        )
+        return texto_base + resposta_final
+    else:
+        # Mensagem de fallback caso o serviço não seja encontrado
+        return (
+            f"{nome_usuario}, não encontrei um valor específico para o que você pediu. Nossas consultas particulares geralmente têm valores a partir de R$ 350,00. "
+            "Para qual especialidade você gostaria de saber o valor?"
+        )
 
 # --- ORQUESTRADOR PRINCIPAL DA CONVERSA (REFINADO) ---
 try:
@@ -387,9 +414,17 @@ def chatbot_orchestrator(request):
                 else:
                     intent_data = chain_roteadora.invoke({"user_message": user_message})
                     intent = intent_data.get("intent")
-                    logger.warning(f"Intenção Detetada: '{intent}'")
+                    entity = intent_data.get("entity") # Captura a entidade (ex: Cardiologia)
+                    logger.warning(f"Intenção Detetada: '{intent}', Entidade: '{entity}'")
+                    
+                    nome_usuario = memoria_atual.get('nome_usuario', '') # Recupera o nome para uso
 
-                    if intent == "iniciar_agendamento":
+                    if intent == "buscar_preco":
+                        logger.warning("Rota: A buscar preço.")
+                        resposta_final = get_resposta_preco(entity or user_message, nome_usuario)
+                        resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+
+                    elif intent == "iniciar_agendamento":
                         manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                         resultado = manager.processar(user_message, 'agendamento_inicio')
                     elif intent == "cancelar_agendamento":
