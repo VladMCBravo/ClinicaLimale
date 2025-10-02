@@ -571,23 +571,36 @@ class AgendamentoManager:
         return self.handle_awaiting_confirmation("confirmado")
 
     def handle_awaiting_confirmation(self, resposta_usuario):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"[CONFIRMACAO] Iniciando confirmação com memória: {self.memoria}")
+        
         try:
             cpf_limpo = self.memoria.get('cpf')
+            logger.warning(f"[CONFIRMACAO] CPF: {cpf_limpo}")
             
             # Garante que temos um paciente para associar ao agendamento
+            email_paciente = self.memoria.get('email', '')
+            if not email_paciente:
+                email_paciente = None  # Para evitar string vazia que pode causar erro de unique
+            
+            logger.warning(f"[CONFIRMACAO] Criando paciente com dados: nome={self.memoria.get('nome_completo')}, email={email_paciente}, tel={self.memoria.get('telefone_celular')}, data={self.memoria.get('data_nascimento')}")
+            
             paciente, created = Paciente.objects.get_or_create(
                 cpf=cpf_limpo,
                 defaults={
                     'nome_completo': self.memoria.get('nome_completo', ''),
-                    'email': self.memoria.get('email', ''),
+                    'email': email_paciente,
                     'telefone_celular': self.memoria.get('telefone_celular', ''),
                     'data_nascimento': datetime.strptime(self.memoria.get('data_nascimento'), '%d/%m/%Y').date()
                 }
             )
+            logger.warning(f"[CONFIRMACAO] Paciente {'criado' if created else 'encontrado'}: {paciente.id}")
             # Se o paciente já existia, atualiza os dados dele
             if not created:
                 paciente.nome_completo = self.memoria.get('nome_completo', paciente.nome_completo)
-                paciente.email = self.memoria.get('email', paciente.email)
+                if email_paciente:
+                    paciente.email = email_paciente
                 paciente.telefone_celular = self.memoria.get('telefone_celular', paciente.telefone_celular)
                 paciente.data_nascimento = datetime.strptime(self.memoria.get('data_nascimento'), '%d/%m/%Y').date()
                 paciente.save()
@@ -669,6 +682,7 @@ class AgendamentoManager:
             return {"response_message": resposta_final, "new_state": "inicio", "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}}
         
         except Exception as e:
+            logger.error(f"[CONFIRMACAO] ERRO: {str(e)}", exc_info=True)
             return {"response_message": f"Desculpe, ocorreu um erro inesperado ao finalizar o seu agendamento: {str(e)}", "new_state": "inicio", "memory_data": self.memoria}
 
     # --- HANDLERS DO FLUXO DE CANCELAMENTO ---
