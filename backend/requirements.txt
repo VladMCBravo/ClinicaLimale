@@ -1,4 +1,6 @@
 channels==4.3.1
+channels-redis==4.3.0
+daphne==4.1.0
 dj_database_url==3.0.1
 Django==5.0.7
 djangorestframework==3.16.1
