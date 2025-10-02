@@ -520,3 +520,21 @@ def chatbot_orchestrator(request):
                 pass  # Não falha se analytics falhar
         
         return JsonResponse({"error": "Ocorreu um erro interno. A equipa técnica já foi notificada."}, status=500)
+
+# NOVA VIEW DE DEBUG
+def debug_chatbot_module(request):
+    """
+    Esta view serve apenas para testar se os módulos do chatbot podem ser importados
+    sem causar um crash.
+    """
+    try:
+        from .agendamento_flow import AgendamentoManager
+        # Tenta instanciar a classe com valores vazios
+        manager = AgendamentoManager(session_id="debug", memoria={}, base_url="/")
+        return JsonResponse({"status": "sucesso", "message": "O módulo agendamento_flow.py foi importado e instanciado com sucesso."})
+    except Exception as e:
+        # Se qualquer erro acontecer durante a importação, ele será capturado aqui
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"ERRO DE DEBUG: Falha ao importar ou instanciar AgendamentoManager: {e}\n{error_details}")
+        return JsonResponse({"status": "ERRO", "message": str(e), "details": error_details}, status=500)

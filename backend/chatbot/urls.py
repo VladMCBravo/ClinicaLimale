@@ -13,12 +13,14 @@ from .views import (
     # --- NOVAS VIEWS IMPORTADAS ---
     ListarEspecialidadesView,
     ListarMedicosPorEspecialidadeView,
+    views,
 )
 from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
 
 urlpatterns = [
     # --- Gerenciamento de Memória ---
     path('orchestrator/', chatbot_orchestrator, name='chatbot_orchestrator'),
+    path('debug/', views.debug_chatbot_module, name='chatbot-debug'), # <-- ADICIONE ESTA LINHA
     path('pacientes/verificar-cpf/', VerificarPacienteCPFView.as_view(), name='verificar_paciente_cpf'),
     # --- Pacientes ---
     path('pacientes/cadastrar/', CadastrarPacienteView.as_view(), name='chatbot_cadastrar_paciente'),
