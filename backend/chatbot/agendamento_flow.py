@@ -422,12 +422,12 @@ class AgendamentoManager:
             # Se não conseguiu extrair nada, pede dados um por vez
             return self._pedir_dados_individuais(resposta_usuario)
 
-        # Validações aprimoradas
-        nome = dados_extraidos.get('nome_completo', dados_extraidos.get('nome', '')).strip()
-        data_nasc = dados_extraidos.get('data_nascimento', '').strip()
-        cpf = dados_extraidos.get('cpf', '').strip()
-        telefone = dados_extraidos.get('telefone_celular', dados_extraidos.get('telefone', '')).strip()
-        email = dados_extraidos.get('email', '').strip()
+        # Validações aprimoradas com proteção contra None
+        nome = (dados_extraidos.get('nome_completo') or dados_extraidos.get('nome') or '').strip()
+        data_nasc = (dados_extraidos.get('data_nascimento') or '').strip()
+        cpf = (dados_extraidos.get('cpf') or '').strip()
+        telefone = (dados_extraidos.get('telefone_celular') or dados_extraidos.get('telefone') or '').strip()
+        email = (dados_extraidos.get('email') or '').strip()
 
         # Validações básicas (usando funções antigas temporariamente)
         if not (nome and len(nome.split()) > 1):
