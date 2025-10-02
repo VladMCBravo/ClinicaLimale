@@ -7,7 +7,7 @@ import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
 import ForumIcon from '@mui/icons-material/Forum';
 
 // 1. Definimos a função do componente
-function BarraStatus({ data, onListaEsperaClick }) {
+function BarraStatus({ data, onListaEsperaClick, onChatClick }) {
     return (
         <Paper 
             variant="outlined" 
@@ -52,7 +52,8 @@ function BarraStatus({ data, onListaEsperaClick }) {
             </Tooltip>
             
             <Tooltip title="Chat em tempo real" placement="left">
-                <IconButton>
+                {/* 2. Adicione o evento onClick */}
+                <IconButton onClick={onChatClick}>
                     <ForumIcon />
                 </IconButton>
             </Tooltip>

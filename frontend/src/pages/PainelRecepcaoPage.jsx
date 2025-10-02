@@ -8,6 +8,7 @@ import BarraStatus from '../components/painel/BarraStatus';
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import ListaEspera from '../components/painel/ListaEspera';
+import ChatPanel from '../components/chat/ChatPanel'; // <-- IMPORTE SEU NOVO COMPONENTE
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
@@ -26,6 +27,7 @@ export default function PainelRecepcaoPage() {
 
     // --- ESTADOS DOS MODAIS E DRAWERS ---
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false); // <-- ADICIONE ESTA LINHA
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
@@ -101,13 +103,22 @@ export default function PainelRecepcaoPage() {
             </Box>
 
             <Box sx={{ flexShrink: 0 }}>
-                <BarraStatus data={data} onListaEsperaClick={() => setIsListaEsperaOpen(true)} />
+                <BarraStatus
+                    data={data}
+                    onListaEsperaClick={() => setIsListaEsperaOpen(false)}
+                    onChatClick={() => setIsChatOpen(true)} // <-- ADICIONE ESTA LINHA
+                />
             </Box>
             
             <Drawer anchor="right" open={isListaEsperaOpen} onClose={() => setIsListaEsperaOpen(false)}>
                 <Box sx={{ width: 400, p: 2 }}><ListaEspera /></Box>
             </Drawer>
-
+                {/* ADICIONE O NOVO DRAWER DO CHAT AQUI */}
+            <Drawer anchor="right" open={isChatOpen} onClose={() => setIsChatOpen(false)}>
+                <Box sx={{ width: 450, height: '100%' }}>
+                    <ChatPanel />
+                </Box>
+            </Drawer>
             <PacienteModal
                 open={isPacienteModalOpen}
                 onClose={() => setIsPacienteModalOpen(false)}
