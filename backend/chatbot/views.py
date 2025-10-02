@@ -404,13 +404,36 @@ def chatbot_orchestrator(request):
         if not resultado:
             if estado_atual and not estado_atual in ['inicio', 'aguardando_nome', 'identificando_demanda']:
                 logger.warning(f"Rota: A CONTINUAR FLUXO '{estado_atual}'.")
-                manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
+                
+                # --- NOVA LÓGICA DE INICIALIZAÇÃO CONDICIONAL ---
+                # Por padrão, não carregamos as IAs
+                manager_chain_sintomas = None
+                manager_chain_extracao = None
+
+                # Só carregamos as IAs se o estado atual exigir
+                if estado_atual == 'triagem_processar_sintomas':
+                    logger.warning("Carregando 'chain_sintomas' para o AgendamentoManager.")
+                    manager_chain_sintomas = chain_sintomas
+                elif estado_atual == 'cadastro_awaiting_adult_data':
+                    logger.warning("Carregando 'chain_extracao_dados' para o AgendamentoManager.")
+                    manager_chain_extracao = chain_extracao_dados
+
+                # Inicializamos o manager com as cadeias (ou None)
+                manager = AgendamentoManager(
+                    session_id, 
+                    memoria_atual, 
+                    request.build_absolute_uri('/'), 
+                    manager_chain_sintomas, 
+                    manager_chain_extracao
+                )
+                # --- FIM DA NOVA LÓGICA ---
+
                 resultado = manager.processar(user_message, estado_atual)
             
             elif estado_atual == 'identificando_demanda':
+                # (O restante desta seção 'elif' e 'else' permanece exatamente o mesmo)
                 logger.warning("Rota: A IDENTIFICAR DEMANDA (IA Roteadora).")
                 
-                # --- LÓGICA DE FAQ INTELIGENTE ---
                 if 'especialidade' in user_message.lower():
                     logger.warning("Rota: Pergunta sobre especialidades (resposta direta).")
                     especialidades_db = Especialidade.objects.all().order_by('nome')
@@ -420,16 +443,15 @@ def chatbot_orchestrator(request):
                 else:
                     intent_data = chain_roteadora.invoke({"user_message": user_message})
                     intent = intent_data.get("intent")
-                    entity = intent_data.get("entity") # Captura a entidade (ex: Cardiologia)
+                    entity = intent_data.get("entity")
                     logger.warning(f"Intenção Detetada: '{intent}', Entidade: '{entity}'")
                     
-                    nome_usuario = memoria_atual.get('nome_usuario', '') # Recupera o nome para uso
+                    nome_usuario = memoria_atual.get('nome_usuario', '')
 
                     if intent == "buscar_preco":
                         logger.warning("Rota: A buscar preço.")
                         resposta_final = get_resposta_preco(entity or user_message, nome_usuario)
                         resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
-
                     elif intent == "iniciar_agendamento":
                         manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                         resultado = manager.processar(user_message, 'agendamento_inicio')
@@ -439,7 +461,7 @@ def chatbot_orchestrator(request):
                     elif intent == "triagem_sintomas":
                         manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'), chain_sintomas, chain_extracao_dados)
                         resultado = manager.processar(user_message, 'triagem_processar_sintomas')
-                    else: # 'pergunta_geral' ou fallback
+                    else: 
                         logger.warning("Rota: A acionar IA de FAQ.")
                         faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message, "faq": faq_base_de_conhecimento})
                         resposta_final = faq_data.get("resposta")
@@ -451,7 +473,7 @@ def chatbot_orchestrator(request):
                     resposta_final = f"Certo, {nome_usuario}. Pode contar-me como posso ajudar?"
                     novo_estado = 'identificando_demanda'
                     resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
-                else: # estado == 'inicio'
+                else: 
                     logger.warning("Rota: A INICIAR NOVA CONVERSA.")
                     resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência ao seu atendimento.\nPode dizer-me o seu nome?"
                     novo_estado = 'aguardando_nome'
