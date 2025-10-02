@@ -1,14 +1,39 @@
+# Django Core
+Django==5.0.7
+dj_database_url==3.0.1
+
+# Django REST Framework
+djangorestframework==3.16.1
+djangorestframework_api_key==3.1.0
+
+# Django Channels (WebSocket)
 channels==4.3.1
 channels-redis==4.3.0
 daphne==4.1.0
-dj_database_url==3.0.1
-Django==5.0.7
-djangorestframework==3.16.1
-djangorestframework_api_key==3.1.0
+
+# Authentication & Authorization
+dj-rest-auth==6.0.0
+django-allauth==65.3.0
+
+# CORS & Static Files
+django-cors-headers==4.6.0
+whitenoise==6.8.2
+
+# AI & Language Models
 langchain_core==0.3.77
 langchain_google_genai==2.1.12
 pydantic==2.11.9
+
+# Utilities
 python-dotenv==1.1.1
 python_dateutil==2.9.0.post0
 Requests==2.32.5
+
+# PDF Generation
 xhtml2pdf==0.2.17
+
+# Database
+psycopg2-binary==2.9.10
+
+# Redis (for Channels)
+redis==5.2.1
