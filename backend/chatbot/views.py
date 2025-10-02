@@ -487,7 +487,16 @@ def chatbot_orchestrator(request):
                     else:
                         nome_usuario = nome_potencial.title().split(' ')[0]
                         memoria_atual['nome_usuario'] = nome_usuario
-                        resposta_final = f"Certo, {nome_usuario}. Pode contar-me como posso ajudar?"
+                        # --- INÍCIO DA ALTERAÇÃO ---
+                        resposta_final = (
+                            f"Prazer, {nome_usuario}! 😊\n\n"
+                            "Eu posso te ajudar com:\n\n"
+                            "• Agendamentos de consultas e exames\n"
+                            "• Informações sobre nossos serviços\n"
+                            "• Consultas de preços\n\n"
+                            "O que você gostaria de fazer hoje?"
+                        )
+                        # --- FIM DA ALTERAÇÃO ---
                         novo_estado = 'identificando_demanda'
                         resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
                     # --- FIM DA ALTERAÇÃO ---
