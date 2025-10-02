@@ -13,9 +13,9 @@ from .views import (
     # --- NOVAS VIEWS IMPORTADAS ---
     ListarEspecialidadesView,
     ListarMedicosPorEspecialidadeView,
-    views,
 )
 from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
+from . import views
 
 urlpatterns = [
     # --- Gerenciamento de Memória ---
