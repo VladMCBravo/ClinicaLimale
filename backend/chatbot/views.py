@@ -315,6 +315,22 @@ class AgendamentoChatbotView(APIView):
         logger.warning("[DIAGNÓSTICO] Dados recebidos para criar agendamento: %s", dados)
         return Response({"sucesso": "Agendamento criado (lógica omitida para brevidade)"}, status=status.HTTP_201_CREATED)
 
+class ListarConversasAtivasView(APIView):
+    # Adicione as permissões necessárias (ex: IsAuthenticated)
+    def get(self, request):
+        # Filtra conversas que foram atualizadas nos últimos X minutos e não estão resolvidas
+        # (você pode ajustar esta lógica)
+        conversas = ChatMemory.objects.filter(state__ne='inicio').order_by('-updated_at')[:10]
+
+        dados_formatados = [{
+            'session_id': c.session_id,
+            'last_update': c.updated_at,
+            'current_state': c.state,
+            'paciente_nome': c.memory_data.get('nome_usuario', 'Desconhecido')
+        } for c in conversas]
+
+        return Response(dados_formatados)
+
 # --- NOVA FUNÇÃO AUXILIAR PARA RESPOSTA DE PREÇO HUMANIZADA ---
 def get_resposta_preco(nome_servico: str, nome_usuario: str = ""):
     """

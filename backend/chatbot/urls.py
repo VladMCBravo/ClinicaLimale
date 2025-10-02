@@ -13,6 +13,7 @@ from .views import (
     # --- NOVAS VIEWS IMPORTADAS ---
     ListarEspecialidadesView,
     ListarMedicosPorEspecialidadeView,
+    ListarConversasAtivasView,
 )
 from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
 from . import views
@@ -39,4 +40,5 @@ urlpatterns = [
     # --- Dashboard e Monitoramento ---
     path('dashboard/metricas/', ChatbotDashboardView.as_view(), name='chatbot_dashboard'),
     path('dashboard/health/', ChatbotHealthCheckView.as_view(), name='chatbot_health'),
+    path('conversas-ativas/', ListarConversasAtivasView.as_view(), name='listar_conversas_ativas'),
 ]
