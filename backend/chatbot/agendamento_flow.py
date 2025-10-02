@@ -413,66 +413,50 @@ class AgendamentoManager:
         logger = logging.getLogger(__name__)
         logger.warning(f"[CADASTRO ADULTO] Iniciando. Mensagem recebida: '{resposta_usuario[:100]}...'")
 
-        # --- NOVA ETAPA DE PRÉ-PROCESSAMENTO ---
+        # --- Etapa de Pré-processamento (mantida da versão anterior) ---
         linhas = resposta_usuario.strip().split('\n')
         dados_preprocessados = []
         numeros_encontrados = []
-
         for linha in linhas:
             linha_limpa = linha.strip()
-            # Remove caracteres comuns de formatação para análise
             numeros_linha = re.sub(r'[\s./-]', '', linha_limpa)
-
             if "@" in linha_limpa and "." in linha_limpa:
                 dados_preprocessados.append(f"Email: {linha_limpa}")
             elif re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', linha_limpa):
                 dados_preprocessados.append(f"Data de Nascimento: {linha_limpa}")
             elif numeros_linha.isdigit():
                 numeros_encontrados.append(numeros_linha)
-            else: # Assumir que é o nome
+            else:
                 dados_preprocessados.append(f"Nome Completo: {linha_limpa}")
-        
-        # Heurística para diferenciar CPF de Telefone
-        if len(numeros_encontrados) == 2:
-            num1, num2 = numeros_encontrados[0], numeros_encontrados[1]
-            # Assumimos que o CPF pode ser mais "aleatório", enquanto telefones frequentemente começam com 9
-            if len(num1) == 11 and len(num2) == 11:
-                 # Se um começa com 9 e o outro não, é provável que o que começa com 9 seja o telefone
-                if num1.startswith('9') and not num2.startswith('9'):
-                    dados_preprocessados.append(f"Telefone: {num1}")
-                    dados_preprocessados.append(f"CPF: {num2}")
-                elif num2.startswith('9') and not num1.startswith('9'):
-                    dados_preprocessados.append(f"Telefone: {num2}")
-                    dados_preprocessados.append(f"CPF: {num1}")
-                else: # Se ambos ou nenhum começa com 9, fazemos um palpite
-                    dados_preprocessados.append(f"CPF: {num1}")
-                    dados_preprocessados.append(f"Telefone: {num2}")
-            elif len(num1) == 11:
-                dados_preprocessados.append(f"CPF: {num1}")
-            elif len(num2) == 11:
-                dados_preprocessados.append(f"CPF: {num2}")
-
-        elif len(numeros_encontrados) == 1 and len(numeros_encontrados[0]) == 11:
-             dados_preprocessados.append(f"CPF: {numeros_encontrados[0]}")
-
-
+        if len(numeros_encontrados) >= 1:
+            # Assumimos o primeiro número de 11 dígitos como CPF e o segundo como telefone
+            cpf_achado = False
+            for num in numeros_encontrados:
+                if len(num) == 11 and not cpf_achado:
+                    dados_preprocessados.append(f"CPF: {num}")
+                    cpf_achado = True
+                elif len(num) >= 10:
+                    dados_preprocessados.append(f"Telefone: {num}")
         texto_para_ia = "\n".join(dados_preprocessados)
         logger.warning(f"[CADASTRO ADULTO] Texto pré-processado para IA: {texto_para_ia}")
-        # --- FIM DO PRÉ-PROCESSAMENTO ---
+        # --- Fim do Pré-processamento ---
 
         dados_extraidos = {}
+        # --- LÓGICA DE EXTRAÇÃO BLINDADA ---
         if self.chain_extracao_dados:
             try:
-                # Usamos o texto pré-processado em vez da resposta bruta do usuário
+                # A chamada de alto risco é isolada aqui
                 dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": texto_para_ia})
                 logger.warning(f"[CADASTRO ADULTO] IA extraiu com sucesso: {dados_extraidos}")
             except Exception as e:
-                logger.error(f"[CADASTRO ADULTO] ERRO na extração com IA: {e}. Usando fallback manual.")
+                # Se a IA falhar por QUALQUER motivo, usamos o método manual como fallback
+                logger.error(f"[CADASTRO ADULTO] ERRO CRÍTICO na chamada da IA: {e}. Usando fallback manual.")
                 dados_extraidos = self._extrair_dados_manual(resposta_usuario)
         else:
             dados_extraidos = self._extrair_dados_manual(resposta_usuario)
+        # --- FIM DA LÓGICA BLINDADA ---
 
-        if not dados_extraidos:
+        if not dados_extraidos or not any(dados_extraidos.values()):
             logger.warning("[CADASTRO ADULTO] Nenhuma informação extraída. Solicitando dados individuais.")
             return self._pedir_dados_individuais(resposta_usuario)
 
@@ -485,7 +469,7 @@ class AgendamentoManager:
         
         logger.warning(f"[CADASTRO ADULTO] Dados brutos para validação: nome='{nome}', data='{data_nasc}', cpf='{cpf}', tel='{telefone}', email='{email}'")
         nome_usuario = self.memoria.get('nome_usuario', '')
-
+        
         # ... (bloco de validações if not... permanece igual)
         if not (nome and len(nome.split()) > 1):
             logger.error(f"[CADASTRO ADULTO] FALHA NA VALIDAÇÃO: Nome inválido -> '{nome}'")
