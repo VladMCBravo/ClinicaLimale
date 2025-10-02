@@ -14,7 +14,7 @@ export const useChatWebSocket = (sessionId) => {
 
         // Constrói a URL do WebSocket a partir do host do backend
         // Adapte 'api.suaclinica.com' para o seu domínio de produção
-        const backendHost = 'sua-api-no-render.onrender.com';
+        const backendHost = 'clinicalimale.onrender.com';
         const wsUrl = `wss://${backendHost}/ws/chat/${sessionId}/`;
 
         ws.current = new ReconnectingWebSocket(wsUrl);
