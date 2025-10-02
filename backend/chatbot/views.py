@@ -116,30 +116,37 @@ chain_sintomas = prompt_sintomas | llm | parser_sintomas
 
 # --- CÉREBRO 3: IA EXTRATORA DE DADOS ---
 class DadosPacienteOutput(BaseModel):
-    # Mantenha nome_completo, data_nascimento e email como estão
+    # ... (sem alterações dentro da classe) ...
     nome_completo: str = Field(description="O nome completo do paciente.")
     data_nascimento: str = Field(description="A data de nascimento no formato DD/MM/AAAA.")
-    
-    # ALTERE AS LINHAS ABAIXO
     cpf: str = Field(description="O CPF do paciente, contendo 11 dígitos. Extraia apenas os números se não houver formatação.")
     telefone_celular: str = Field(description="O telefone celular com DDD. Extraia apenas os números se não houver formatação.")
-    # FIM DA ALTERAÇÃO
-    
     email: str = Field(description="O email do paciente.")
 
 
 parser_extracao = JsonOutputParser(pydantic_object=DadosPacienteOutput)
+
+# --- INÍCIO DA ALTERAÇÃO ---
 prompt_extracao = ChatPromptTemplate.from_template(
     """
     # MISSÃO
-    Extraia nome completo, data de nascimento, CPF, telefone e email do texto.
-    # INSTRUÇÕES DE FORMATAÇÃO
+    Sua única tarefa é extrair as informações do texto do usuário e formatá-las como um objeto JSON.
+
+    # REGRAS CRÍTICAS
+    - Responda APENAS com o objeto JSON.
+    - NÃO inclua markdown (```json), explicações, ou qualquer outro texto antes ou depois do JSON.
+    - Se uma informação não for encontrada, retorne uma string vazia "" para aquele campo.
+
+    # INSTRUÇÕES DE FORMATAÇÃO JSON
     {format_instructions}
-    # MENSAGEM DO UTILIZADOR
+
+    # TEXTO DO USUÁRIO PARA ANÁLISE
     {dados_do_usuario}
     """,
     partial_variables={"format_instructions": parser_extracao.get_format_instructions()},
 )
+# --- FIM DA ALTERAÇÃO ---
+
 chain_extracao_dados = prompt_extracao | llm | parser_extracao
 
 # --- CÉREBRO 4: IA DE PERGUNTAS FREQUENTES (FAQ) ---
@@ -189,7 +196,6 @@ prompt_faq_template = ChatPromptTemplate.from_template(
     partial_variables={"format_instructions": parser_faq.get_format_instructions()},
 )
 chain_faq = prompt_faq_template | llm | parser_faq
-
 
 # --- VIEWS DA API ---
 # ... (todas as suas views da API permanecem as mesmas, sem alterações) ...
@@ -471,11 +477,20 @@ def chatbot_orchestrator(request):
                         resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
             else:
                 if estado_atual == 'aguardando_nome':
-                    nome_usuario = user_message.strip().title().split(' ')[0]
-                    memoria_atual['nome_usuario'] = nome_usuario
-                    resposta_final = f"Certo, {nome_usuario}. Pode contar-me como posso ajudar?"
-                    novo_estado = 'identificando_demanda'
-                    resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
+                    # --- INÍCIO DA ALTERAÇÃO ---
+                    nome_potencial = user_message.strip()
+                    # Simples verificação para não confundir comandos com nomes
+                    if len(nome_potencial.split()) > 3 or len(nome_potencial) > 50:
+                         resposta_final = "Por favor, me informe um nome válido para que eu possa te chamar assim."
+                         novo_estado = 'aguardando_nome'
+                         resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
+                    else:
+                        nome_usuario = nome_potencial.title().split(' ')[0]
+                        memoria_atual['nome_usuario'] = nome_usuario
+                        resposta_final = f"Certo, {nome_usuario}. Pode contar-me como posso ajudar?"
+                        novo_estado = 'identificando_demanda'
+                        resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
+                    # --- FIM DA ALTERAÇÃO ---
                 else: 
                     logger.warning("Rota: A INICIAR NOVA CONVERSA.")
                     resposta_final = "Olá, seja bem-vindo à Clínica Limalé.\nEu sou o Leônidas, e vou dar sequência ao seu atendimento.\nPode dizer-me o seu nome?"

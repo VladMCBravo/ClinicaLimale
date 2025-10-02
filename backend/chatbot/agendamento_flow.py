@@ -171,14 +171,15 @@ class AgendamentoManager:
     
     def handle_cadastro_awaiting_data(self, resposta_usuario):
         """
-        Este handler usa a IA para extrair os dados e depois valida o que foi extraído.
-        Se algo faltar, ele transiciona para `cadastro_awaiting_missing_field`.
+        Este handler usa a IA para extrair os dados. Se falhar, recorre
+        à coleta de dados um por um de forma segura.
         """
         logger.warning(f"Tentando extrair dados do texto: {resposta_usuario}")
         if not self.chain_extracao_dados:
             logger.error("A IA de extração de dados não foi inicializada!")
-            return {"response_message": "Desculpe, estou com um problema técnico para processar seus dados. Por favor, tente mais tarde.", "new_state": "inicio", "memory_data": self.memoria}
-            
+            # Fallback seguro se a chain não existir
+            return self._iniciar_coleta_manual()
+
         try:
             dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
             logger.warning(f"Dados extraídos pela IA: {dados_extraidos}")
@@ -190,8 +191,21 @@ class AgendamentoManager:
             return self._validar_e_coletar_proximo_campo(None)
 
         except Exception as e:
-            logger.error(f"Erro ao invocar a IA de extração: {e}", exc_info=True)
-            return {"response_message": "Tive um problema ao ler seus dados. Vamos tentar um por um. Primeiro, qual o *nome completo* do paciente?", "new_state": "cadastro_awaiting_missing_field", "memory_data": {"missing_field": "nome_completo"}}
+            # Se a IA ou o parser falharem, não quebre a aplicação.
+            logger.error(f"ERRO CRÍTICO ao invocar a IA de extração: {e}", exc_info=True)
+            # Inicia o fluxo de coleta de dados um por um como fallback.
+            return self._iniciar_coleta_manual()
+
+    def _iniciar_coleta_manual(self):
+        """Inicia o processo de coleta de dados campo por campo."""
+        self.memoria['dados_paciente'] = {} # Garante que a memória está limpa
+        self.memoria['missing_field'] = 'nome_completo'
+        return {
+            "response_message": "Tive um problema para ler todos os dados de uma vez. Vamos tentar um por um, ok? Para começar, qual o *nome completo* do paciente?",
+            "new_state": "cadastro_awaiting_missing_field",
+            "memory_data": self.memoria
+        }
+    # --- FIM DA ALTERAÇÃO ---
 
     def handle_cadastro_awaiting_missing_field(self, resposta_usuario):
         """
