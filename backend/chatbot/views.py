@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # --- SEÇÃO DAS INTELIGÊNCIAS ARTIFICIAIS ---
 # ... (Cérebros 1, 2, 3 e 4 permanecem os mesmos) ...
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-2.5-pro",
     temperature=0,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
