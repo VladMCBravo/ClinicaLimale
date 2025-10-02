@@ -428,18 +428,27 @@ class AgendamentoManager:
         cpf = (dados_extraidos.get('cpf') or '').strip()
         telefone = (dados_extraidos.get('telefone_celular') or dados_extraidos.get('telefone') or '').strip()
         email = (dados_extraidos.get('email') or '').strip()
+        
+        logger.warning(f"[CADASTRO] Dados processados: nome='{nome}', data='{data_nasc}', cpf='{cpf}', tel='{telefone}', email='{email}'")
 
         # Validações básicas (usando funções antigas temporariamente)
         if not (nome and len(nome.split()) > 1):
+            logger.warning(f"[CADASTRO] FALHOU: Nome inválido '{nome}'")
             return {"response_message": "Por favor, informe o seu nome completo (nome e apelido).", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_data_nascimento_formato(data_nasc):
+            logger.warning(f"[CADASTRO] FALHOU: Data inválida '{data_nasc}'")
             return {"response_message": "A data de nascimento é inválida. Use o formato DD/MM/AAAA e não pode ser uma data futura.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_cpf_formato(cpf):
+            logger.warning(f"[CADASTRO] FALHOU: CPF inválido '{cpf}'")
             return {"response_message": "O CPF é inválido. Use o formato XXX.XXX.XXX-XX.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_telefone_formato(telefone):
+            logger.warning(f"[CADASTRO] FALHOU: Telefone inválido '{telefone}'")
             return {"response_message": "O telefone é inválido. Use o formato +55 11 99999-9999.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
         if not validar_email_formato(email):
+            logger.warning(f"[CADASTRO] FALHOU: Email inválido '{email}'")
             return {"response_message": "O e-mail parece inválido. Por favor, verifique e envie novamente.", "new_state": "cadastro_awaiting_adult_data", "memory_data": self.memoria}
+        
+        logger.warning(f"[CADASTRO] SUCESSO: Todos os dados válidos, prosseguindo para pagamento")
         
         nome_formatado = nome.title()
         cpf_formatado = cpf
