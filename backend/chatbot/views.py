@@ -2,15 +2,12 @@
 
 import json
 import logging
-import os
-from dotenv import load_dotenv
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from .models import ChatMemory
 from .agendamento_flow import AgendamentoManager
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 @csrf_exempt
@@ -32,7 +29,6 @@ def chatbot_orchestrator(request):
         
         resultado = {}
         
-        # A lógica da IA foi removida para simplificar. O fluxo é direto.
         if estado_atual and estado_atual not in ['inicio', 'aguardando_nome']:
             manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
             resultado = manager.processar(user_message, estado_atual)
@@ -40,7 +36,6 @@ def chatbot_orchestrator(request):
             if estado_atual == 'aguardando_nome':
                 nome_usuario = user_message.strip().title().split(' ')[0]
                 memoria_atual['nome_usuario'] = nome_usuario
-                # Avança direto para o início do agendamento
                 manager = AgendamentoManager(session_id, memoria_atual, request.build_absolute_uri('/'))
                 resultado = manager.processar(user_message, 'agendamento_inicio')
             else: # estado 'inicio'
@@ -60,7 +55,6 @@ def chatbot_orchestrator(request):
         logger.error(f"!!!!!!!!!! ERRO NÃO CAPTURADO NO ORQUESTRADOR !!!!!!!!!!\n{error_details}")
         return JsonResponse({"error": f"Erro interno crítico: {e}"}, status=500)
 
-# VIEW DE DEBUG (MANTIDA PARA TESTES)
 def debug_chatbot_module(request):
     try:
         from .agendamento_flow import AgendamentoManager
@@ -69,5 +63,4 @@ def debug_chatbot_module(request):
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        logger.error(f"ERRO DE DEBUG: Falha ao importar AgendamentoManager: {e}\n{error_details}")
         return JsonResponse({"status": "ERRO", "message": str(e), "details": error_details}, status=500)

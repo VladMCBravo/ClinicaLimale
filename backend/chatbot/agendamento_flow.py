@@ -9,10 +9,7 @@ import logging
 
 from usuarios.models import Especialidade, CustomUser
 from faturamento.models import Procedimento
-from agendamentos.services import (
-    buscar_proximo_horario_disponivel,
-    criar_agendamento_e_pagamento_pendente
-)
+from agendamentos.services import buscar_proximo_horario_disponivel, criar_agendamento_e_pagamento_pendente
 from pacientes.models import Paciente
 from agendamentos.serializers import AgendamentoWriteSerializer
 
@@ -53,13 +50,10 @@ class AgendamentoManager:
     def _iniciar_busca_de_horarios(self, especialidade_id, especialidade_nome):
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_id)
         if not medicos: return {"response_message": f"Desculpe, não encontrei médicos para {especialidade_nome}.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
-        
         medico = medicos[0]
         self.memoria.update({'medico_id': medico['id'], 'medico_nome': f"{medico['first_name']} {medico['last_name']}"})
         horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
-        
         if not horarios or not horarios.get('horarios_disponiveis'): return {"response_message": f"Infelizmente, não há horários online para Dr(a). {self.memoria['medico_nome']}.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
-        
         self.memoria['horarios_ofertados'] = horarios
         data_fmt = datetime.strptime(horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
         horarios_fmt = "\n".join([f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]])
@@ -76,7 +70,7 @@ class AgendamentoManager:
             'agendamento_awaiting_payment_choice': self.handle_awaiting_payment_choice, 'agendamento_awaiting_installments': self.handle_awaiting_installments,
             'agendamento_awaiting_confirmation': self.handle_awaiting_confirmation,
         }
-        return handlers.get(estado, lambda r: {"response_message": "Estado desconhecido, reiniciando.", "new_state": "inicio"})(resposta)
+        return handlers.get(estado, lambda r: {"response_message": "Estado desconhecido, reiniciando.", "new_state": "inicio", "memory_data": self.memoria})(resposta)
 
     def handle_inicio(self, r):
         return {"response_message": f"Vamos lá, {self.memoria['nome_usuario']}! O agendamento é para uma *Consulta*?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
@@ -120,7 +114,7 @@ class AgendamentoManager:
     def handle_cadastro_nome(self, r):
         if len(r.strip().split()) < 2: return {"response_message": "Preciso do nome e sobrenome.", "new_state": "cadastro_awaiting_nome", "memory_data": self.memoria}
         self.memoria['dados_coletados_temp']['nome_completo'] = r.strip().title()
-        return {"response_message": "Agora, sua *data de nascimento* (DD/MM/AAAA)?", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
+        return {"response_message": "Obrigado! Agora, sua *data de nascimento* (DD/MM/AAAA)?", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
 
     def handle_cadastro_data_nasc(self, r):
         if not validar_data_nascimento_formato(r): return {"response_message": "Data inválida. Use DD/MM/AAAA.", "new_state": "cadastro_awaiting_data_nasc", "memory_data": self.memoria}
