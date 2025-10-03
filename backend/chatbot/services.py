@@ -63,41 +63,34 @@ def buscar_precos_servicos(nome_servico=None):
 
 # --- NOVA FUNÇÃO AUXILIAR PARA RESPOSTA DE PREÇO HUMANIZADA ---
 def get_resposta_preco(nome_servico: str, nome_usuario: str = ""):
-    """
-    Busca o preço de um serviço e monta uma resposta humanizada, alinhada com o marketing da clínica.
-    """
     try:
         from django.utils.html import escape
-        # Sanitização básica para segurança
         nome_usuario_seguro = escape(str(nome_usuario)[:50]) if nome_usuario else ""
         nome_servico_seguro_busca = escape(str(nome_servico)[:100]) if nome_servico else ""
-        
         servico_info = buscar_precos_servicos(nome_servico_seguro_busca)
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Erro em get_resposta_preco: {e}")
         return "Desculpe, não consegui consultar os preços no momento. Por favor, tente novamente."
-    
-    # Texto de valorização da clínica, exatamente como no prompt
+
     texto_base = (
-        f"Claro, {nome_usuario_seguro}! Antes de te passar os valores, quero destacar que aqui na Clínica Limalé prezamos "
-        "pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
+        f"Claro, {nome_usuario_seguro}! Antes do valor, quero que saiba que uma consulta aqui na Limalé é um investimento na sua saúde, com especialistas renomados e a tecnologia mais avançada.\n\n"
     )
 
     if servico_info:
+        # --- LINHAS QUE FALTAVAM ---
         nome_servico_seguro_display = escape(str(servico_info.get('nome', 'Serviço'))[:100])
         valor_seguro = escape(str(servico_info.get('valor', ''))[:20])
-        
-        # Monta a resposta final com os valores
+        # --- FIM DAS LINHAS QUE FALTAVAM ---
+
         resposta_final = (
-            f"O valor para *{nome_servico_seguro_display}* é de *R$ {valor_seguro}*.\n\n"
-            "Temos também um desconto de 5% para pagamentos via Pix realizados no momento do agendamento. "
-            "Assim, sua vaga já fica garantida!\n\nGostaria de agendar?"
+            f"O valor para a *{nome_servico_seguro_display}* é de *R$ {valor_seguro}*.\n\n"
+            "Para garantir seu horário com prioridade, oferecemos **5% de desconto** no pagamento via PIX realizado agora.\n\n"
+            "Gostaria de encontrar o melhor horário para você?"
         )
         return texto_base + resposta_final
     else:
-        # Fallback caso o serviço específico não seja encontrado
         return (
             f"{nome_usuario_seguro}, não encontrei um valor exato para '{nome_servico_seguro_busca}'.\n\n"
             "Nossas consultas particulares geralmente têm valores a partir de R$ 350,00. "
