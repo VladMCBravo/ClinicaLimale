@@ -142,11 +142,8 @@ EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'nao-responda@suaclinica.com')
 
 # --- Configurações do Django Channels ---
-# Aponta para o arquivo de roteamento ASGI que vamos criar
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Configura o Redis como o "message broker" para os WebSockets.
-# Ele permite que diferentes instâncias da sua aplicação se comuniquem.
 REDIS_URL = os.environ.get('REDIS_URL')
 
 if REDIS_URL:
@@ -154,7 +151,9 @@ if REDIS_URL:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': dj_redis_url.config(REDIS_URL),
+            'CONFIG': {
+                "hosts": [REDIS_URL],
+            },
         },
     }
 else:
