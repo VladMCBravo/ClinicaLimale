@@ -23,7 +23,17 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     estado_atual = memoria_obj.state
 
     logger.info(f"Processando no 'cérebro' central | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
-
+    
+    # --- VERIFICAÇÃO DE SAÚDE DA IA ---
+    if not chain_roteadora:
+        logger.error("A chain_roteadora não foi inicializada. Verifique a API Key e as configurações em chains.py.")
+        # Retorna uma mensagem de erro clara para o usuário e mantém o estado
+        return {
+            "response_message": "Desculpe, estou com um problema técnico para processar sua solicitação. A equipe de suporte já foi notificada. Por favor, tente novamente mais tarde.",
+            "new_state": estado_atual,
+            "memory_data": memoria_atual
+        }
+    
     resultado = {}
 
     # --- FLUXOS EM ANDAMENTO (Agendamento, Cancelamento, etc.) ---
