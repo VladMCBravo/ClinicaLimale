@@ -89,10 +89,27 @@ class AgendamentoManager:
     # --- INÍCIO DO FLUXO DE AGENDAMENTO ---
     def handle_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', 'tudo bem')
-        # Limpa memória, mas mantém o nome
+        # Limpa a memória de agendamentos anteriores, mas mantém o nome do usuário
+        memoria_antiga = self.memoria.copy()
         self.memoria.clear()
         self.memoria['nome_usuario'] = nome_usuario
-        return {"response_message": f"Vamos lá, {nome_usuario}! Quer agendar uma *Consulta* ou *Procedimento*?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+
+        # Adiciona a pergunta de acolhimento, conforme o prompt
+        # A resposta do usuário a esta pergunta pode ser usada futuramente para uma triagem mais inteligente
+        mensagem = (
+            f"Claro, {nome_usuario}! Posso te ajudar com isso. "
+            "Você pode me contar brevemente como está se sentindo ou o motivo da consulta?\n\n"
+            "Isso me ajuda a direcionar você para a especialidade correta."
+        )
+        
+        # O próximo estado pode ser um novo estado de "triagem" ou ir direto para a escolha do tipo
+        # Para simplificar, vamos assumir que após essa resposta, o bot perguntará sobre Consulta/Procedimento
+        # O ideal seria analisar a resposta com a `chain_sintomas`
+        self.memoria['passou_pelo_acolhimento'] = True # Flag para controle
+        
+        # Vamos pular direto para a pergunta de tipo de agendamento, pois a IA Roteadora já fez a intenção.
+        # A mensagem de acolhimento acima serve para humanizar.
+        return {"response_message": f"Vamos lá, {nome_usuario}! Você quer agendar uma *Consulta* ou um *Procedimento*?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_type(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')

@@ -27,8 +27,19 @@ export const useChatWebSocket = (sessionId) => {
 
         ws.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            // Adiciona a nova mensagem à lista de mensagens existentes
-            setMessages((prevMessages) => [...prevMessages, { author: 'bot', text: data.message }]);
+            
+            // --- PONTO DO REFINAMENTO ---
+            // Em vez de hardcoded 'bot', usamos os dados do backend.
+            // O backend envia um objeto 'message' que contém 'text' e 'author'.
+            const messagePayload = data.message; 
+
+            if (messagePayload && messagePayload.text) {
+                 setMessages((prevMessages) => [...prevMessages, { 
+                    author: messagePayload.author || 'paciente', // Usa o autor do backend ou 'paciente' como fallback
+                    text: messagePayload.text 
+                }]);
+            }
+            // --- FIM DO REFINAMENTO ---
         };
 
         ws.current.onclose = () => {
