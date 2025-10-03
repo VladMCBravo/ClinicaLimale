@@ -4,6 +4,7 @@ import os
 import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_redis_url # <-- ADICIONE ESTA IMPORTAÇÃO NO TOPO
 
 load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -146,11 +147,23 @@ ASGI_APPLICATION = 'core.asgi.application'
 
 # Configura o Redis como o "message broker" para os WebSockets.
 # Ele permite que diferentes instâncias da sua aplicação se comuniquem.
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(os.environ.get('REDIS_HOST', '127.0.0.1'), 6379)],
+REDIS_URL = os.environ.get('REDIS_URL')
+
+if REDIS_URL:
+    # Configuração para produção (Render)
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': dj_redis_url.config(REDIS_URL),
         },
-    },
-}
+    }
+else:
+    # Configuração para desenvolvimento (sua máquina local)
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [('127.0.0.1', 6379)],
+            },
+        },
+    }
