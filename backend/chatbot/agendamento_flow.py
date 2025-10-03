@@ -1,4 +1,4 @@
-# chatbot/agendamento_flow.py - VERSÃO FINAL E LIMPA
+# chatbot/agendamento_flow.py - VERSÃO COMPLETA E FINAL
 
 import re
 import json
@@ -168,7 +168,7 @@ class AgendamentoManager:
     def handle_cadastro_awaiting_missing_field(self, resposta_usuario):
         campo_faltante = self.memoria.get('missing_field')
         if campo_faltante:
-            self.memoria['dados_paciente'][campo_faltante] = resposta_usuario.strip()
+            self.memoria.setdefault('dados_paciente', {})[campo_faltante] = resposta_usuario.strip()
         return self._validar_e_coletar_proximo_campo()
 
     def _validar_e_coletar_proximo_campo(self):
@@ -201,5 +201,137 @@ class AgendamentoManager:
         mensagem = (f"Excelente, {primeiro_nome}! Recebi seus dados.\n\nComo prefere pagar? 💳\n\n1️⃣ *PIX* (5% de desconto)\n2️⃣ *Cartão de Crédito* (até 3x sem juros)")
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
-    # As funções de pagamento, confirmação final e cancelamento podem ser coladas aqui sem alterações
-    # ...
+    def handle_awaiting_payment_choice(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
+        escolha = resposta_usuario.lower().strip()
+        if 'pix' in escolha or escolha == '1':
+            self.memoria['metodo_pagamento_escolhido'] = 'PIX'
+            return self.handle_awaiting_confirmation("confirmado")
+        elif 'cartão' in escolha or 'cartao' in escolha or escolha == '2':
+            self.memoria['metodo_pagamento_escolhido'] = 'CartaoCredito'
+            return {"response_message": f"Perfeito! Cartão selecionado. Deseja pagar à vista ou parcelado em 2x ou 3x sem juros?", "new_state": "agendamento_awaiting_installments", "memory_data": self.memoria}
+        else:
+            return {"response_message": f"Não entendi. Digite *1* para PIX ou *2* para Cartão.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+
+    def handle_awaiting_installments(self, resposta_usuario):
+        escolha = resposta_usuario.strip()
+        if '2' in escolha: self.memoria['parcelas'] = 2
+        elif '3' in escolha: self.memoria['parcelas'] = 3
+        else: self.memoria['parcelas'] = 1
+        return self.handle_awaiting_confirmation("confirmado")
+
+    def handle_awaiting_confirmation(self, resposta_usuario):
+        try:
+            is_valid_cpf, _, cpf_fmt = self.validators.validar_cpf_completo(self.memoria.get('cpf', ''))
+            is_valid_tel, _, tel_fmt = self.validators.validar_telefone_brasileiro(self.memoria.get('telefone_celular', ''))
+            is_valid_email, _, email_fmt = self.validators.validar_email_avancado(self.memoria.get('email', ''))
+            is_valid_nome, _, nome_fmt = self.validators.validar_nome_completo(self.memoria.get('nome_completo', ''))
+            is_valid_date, _, data_obj = self.validators.validar_data_nascimento_avancada(self.memoria.get('data_nascimento', ''))
+            if not all([is_valid_cpf, is_valid_tel, is_valid_email, is_valid_nome, is_valid_date]):
+                logger.error(f"Erro de validação final antes de salvar. Dados: {self.memoria}")
+                return {"response_message": "Um ou mais dos seus dados parecem inválidos. Vamos recomeçar o cadastro.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+
+            cpf_limpo = re.sub(r'\D', '', cpf_fmt)
+            tel_limpo = re.sub(r'\D', '', tel_fmt)
+
+            paciente, created = Paciente.objects.get_or_create(cpf=cpf_limpo, defaults={
+                'nome_completo': nome_fmt, 'email': email_fmt, 'telefone_celular': tel_limpo, 'data_nascimento': data_obj
+            })
+            if not created:
+                paciente.nome_completo = nome_fmt
+                paciente.email = email_fmt
+                paciente.telefone_celular = tel_limpo
+                paciente.data_nascimento = data_obj
+                paciente.save()
+
+            dados_agendamento = {
+                'paciente': paciente.id, 'data_hora_inicio': self.memoria.get('data_hora_inicio'),
+                'status': 'Agendado', 'tipo_agendamento': 'Consulta', 'tipo_atendimento': 'Particular',
+                'especialidade': self.memoria.get('especialidade_id'), 'medico': self.memoria.get('medico_id'),
+                'modalidade': self.memoria.get('modalidade')
+            }
+            duracao = 50 
+            data_hora_inicio_obj = datetime.fromisoformat(self.memoria.get('data_hora_inicio'))
+            dados_agendamento['data_hora_fim'] = (data_hora_inicio_obj + timedelta(minutes=duracao)).isoformat()
+
+            serializer = AgendamentoWriteSerializer(data=dados_agendamento)
+            if not serializer.is_valid():
+                logger.error(f"[CONFIRMACAO] Erro de serialização: {json.dumps(serializer.errors)}")
+                return {"response_message": "Desculpe, tive um problema ao validar os dados do agendamento. A equipe técnica foi notificada.", "new_state": "inicio", "memory_data": self.memoria}
+
+            agendamento = serializer.save()
+            usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
+            metodo = self.memoria.get('metodo_pagamento_escolhido', 'PIX')
+
+            criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico, metodo_pagamento_escolhido=metodo, initiated_by_chatbot=True)
+            agendamento.refresh_from_db()
+
+            pagamento = agendamento.pagamento if hasattr(agendamento, 'pagamento') else None
+            nome_paciente_fmt = paciente.nome_completo.split(' ')[0]
+            data_fmt = timezone.localtime(agendamento.data_hora_inicio).strftime('%d/%m/%Y')
+            hora_fmt = timezone.localtime(agendamento.data_hora_inicio).strftime('%H:%M')
+
+            msg_confirmacao = (f"✅ *Agendamento Confirmado!*\n\nOlá, {nome_paciente_fmt}! Seu horário está garantido.\n\n*Consulta de {self.memoria.get('especialidade_nome')}*\nCom Dr(a). *{self.memoria.get('medico_nome')}*\n🗓️ *Data:* {data_fmt}\n⏰ *Hora:* {hora_fmt}\n\n")
+
+            secao_pagamento = ""
+            if pagamento:
+                if metodo == 'PIX' and pagamento.pix_copia_e_cola:
+                    valor_com_desconto = pagamento.valor * Decimal('0.95')
+                    secao_pagamento = (f"Para finalizar, pague R$ {valor_com_desconto:.2f} (com 5% de desconto) usando o Pix Copia e Cola em até 1 hora:\n`{pagamento.pix_copia_e_cola}`\n\nLembre-se de enviar o comprovante aqui mesmo para confirmar sua vaga.")
+                elif metodo == 'CartaoCredito' and pagamento.link_pagamento:
+                    secao_pagamento = f"Clique no link a seguir para pagar com Cartão de Crédito e garantir seu horário:\n{pagamento.link_pagamento}"
+            if not secao_pagamento:
+                secao_pagamento = "O pagamento será realizado na recepção da clínica no dia do seu atendimento."
+
+            return {"response_message": f"{msg_confirmacao}{secao_pagamento}", "new_state": "inicio", "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}}
+        except Exception as e:
+            logger.error(f"[CONFIRMACAO] ERRO INESPERADO: {str(e)}", exc_info=True)
+            return {"response_message": "Desculpe, ocorreu um erro inesperado ao finalizar o agendamento. A nossa equipe já foi notificada.", "new_state": "inicio", "memory_data": self.memoria}
+
+    def handle_cancelamento_inicio(self, resposta_usuario):
+        nome_usuario = self.memoria.get('nome_usuario', '')
+        return {"response_message": f"Entendido, {nome_usuario}. Para localizar seu agendamento, por favor, informe seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
+        
+    def handle_cancelamento_awaiting_cpf(self, resposta_usuario):
+        is_valid, _, cpf_limpo = self.validators.validar_cpf_completo(resposta_usuario)
+        if not is_valid:
+            return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
+        
+        agendamentos = listar_agendamentos_futuros(cpf_limpo)
+        if not agendamentos:
+            return {"response_message": "Não encontrei agendamentos futuros no seu CPF. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
+        
+        self.memoria['agendamentos_para_cancelar'] = [{"id": ag.id, "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else 'Serviço'} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"} for ag in agendamentos]
+        
+        if len(agendamentos) == 1:
+            ag = self.memoria['agendamentos_para_cancelar'][0]
+            self.memoria['agendamento_selecionado_id'] = ag['id']
+            return {"response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nConfirma o cancelamento? (Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
+        else:
+            lista_texto = "\n".join([f"{i+1} - {ag['texto']}" for i, ag in enumerate(self.memoria['agendamentos_para_cancelar'])])
+            return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
+
+    def handle_cancelamento_awaiting_choice(self, resposta_usuario):
+        try:
+            escolha = int(resposta_usuario.strip()) - 1
+            agendamentos_lista = self.memoria.get('agendamentos_para_cancelar', [])
+            if 0 <= escolha < len(agendamentos_lista):
+                ag_selecionado = agendamentos_lista[escolha]
+                self.memoria['agendamento_selecionado_id'] = ag_selecionado['id']
+                return {"response_message": f"Confirma o cancelamento de:\n• {ag_selecionado['texto']}\n\n(Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
+            else:
+                raise ValueError("Escolha fora do range")
+        except (ValueError, TypeError):
+            return {"response_message": "Opção inválida. Por favor, digite apenas o número.", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
+
+    def handle_cancelamento_awaiting_confirmation(self, resposta_usuario):
+        if 'sim' in resposta_usuario.lower():
+            try:
+                agendamento_id = self.memoria.get('agendamento_selecionado_id')
+                resultado = cancelar_agendamento_service(agendamento_id)
+                return {"response_message": resultado.get('mensagem', 'Agendamento cancelado.'), "new_state": "inicio", "memory_data": self.memoria}
+            except Exception as e:
+                logger.error(f"Erro ao cancelar agendamento: {e}")
+                return {"response_message": "Erro ao cancelar. Tente novamente.", "new_state": "inicio", "memory_data": self.memoria}
+        else:
+            return {"response_message": "Ok, o agendamento foi mantido. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
