@@ -206,30 +206,33 @@ class AgendamentoManager:
 
     def handle_cadastro_awaiting_data(self, resposta_usuario):
         """
-        Este handler usa a IA para extrair os dados. Se falhar, recorre
-        à coleta de dados um por um de forma segura.
+        Este handler usa a IA para extrair os dados.
+        (HOTFIX TEMPORÁRIO) Vamos pular a IA para evitar timeout e ir direto
+        para a coleta manual, que é mais estável.
         """
-        logger.warning(f"Tentando extrair dados do texto: {resposta_usuario}")
-        if not self.chain_extracao_dados:
-            logger.error("A IA de extração de dados não foi inicializada!")
-            # Fallback seguro se a chain não existir
-            return self._iniciar_coleta_manual()
+        logger.warning(f"Iniciando coleta de dados. A extração por IA está temporariamente desativada para evitar timeout.")
+        
+        # --- INÍCIO DO HOTFIX ---
+        # Em vez de chamar a IA, vamos direto para o fluxo manual.
+        # Guardamos a resposta do usuário caso ele tenha tentado enviar tudo de uma vez.
+        self.memoria['raw_user_data'] = resposta_usuario 
+        return self._iniciar_coleta_manual()
+        # --- FIM DO HOTFIX ---
 
-        try:
-            dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
-            logger.warning(f"Dados extraídos pela IA: {dados_extraidos}")
-
-            # Salva os dados extraídos na memória para validação
-            self.memoria['dados_paciente'] = dados_extraidos
-
-            # Inicia o processo de validação e coleta de campos faltantes
-            return self._validar_e_coletar_proximo_campo(None)
-
-        except Exception as e:
-            # Se a IA ou o parser falharem, não quebre a aplicação.
-            logger.error(f"ERRO CRÍTICO ao invocar a IA de extração: {e}", exc_info=True)
-            # Inicia o fluxo de coleta de dados um por um como fallback.
-            return self._iniciar_coleta_manual()
+        # CÓDIGO ORIGINAL (MANTENHA COMENTADO POR ENQUANTO)
+        # logger.warning(f"Tentando extrair dados do texto: {resposta_usuario}")
+        # if not self.chain_extracao_dados:
+        #     logger.error("A IA de extração de dados não foi inicializada!")
+        #     return self._iniciar_coleta_manual()
+        #
+        # try:
+        #     dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
+        #     logger.warning(f"Dados extraídos pela IA: {dados_extraidos}")
+        #     self.memoria['dados_paciente'] = dados_extraidos
+        #     return self._validar_e_coletar_proximo_campo(None)
+        # except Exception as e:
+        #     logger.error(f"ERRO CRÍTICO ao invocar a IA de extração: {e}", exc_info=True)
+        #     return self._iniciar_coleta_manual()
 
     def _iniciar_coleta_manual(self):
         """Inicia o processo de coleta de dados campo por campo."""
