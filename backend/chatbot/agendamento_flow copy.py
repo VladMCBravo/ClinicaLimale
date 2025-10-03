@@ -279,6 +279,7 @@ class AgendamentoManager:
             is_valid, mensagem_erro, _ = funcao_validacao(valor)
 
             if not is_valid:
+                # Se o campo é inválido, pede ao usuário
                 mensagens_pedido = {
                     'nome_completo': "Qual o *nome completo* do paciente?",
                     'data_nascimento': f"Hmm, a data de nascimento parece inválida. {mensagem_erro}. Qual a *data de nascimento* correta (DD/MM/AAAA)?",
@@ -286,24 +287,31 @@ class AgendamentoManager:
                     'telefone_celular': f"O telefone parece inválido. {mensagem_erro}. Qual o *celular com DDD*?",
                     'email': f"O e-mail parece inválido. {mensagem_erro}. Qual o *e-mail* correto?",
                 }
+
+                # Guarda qual campo estamos pedindo
                 self.memoria['missing_field'] = campo
+
                 return {
                     "response_message": mensagens_pedido[campo],
                     "new_state": "cadastro_awaiting_missing_field",
                     "memory_data": self.memoria
                 }
             else:
+                # Se o campo é válido, garante que ele está na memória principal
                 self.memoria[campo] = valor
 
+        # Se todos os campos passaram na validação
         self.memoria.pop('missing_field', None)
         self.memoria.pop('dados_paciente', None)
+
         primeiro_nome = self.memoria['nome_completo'].split(' ')[0]
         mensagem = (f"Excelente, {primeiro_nome}! Recebi seus dados.\n\nComo prefere pagar? 💳\n\n1️⃣ *PIX* (5% de desconto)\n2️⃣ *Cartão de Crédito* (até 3x sem juros)")
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
-    # --- FLUXO DE PAGAMENTO E CONFIRMAÇÃO ---
-    # A indentação correta (4 espaços) começa aqui.
+
+    # --- FLUXO DE PAGAMENTO E CONFIRMAÇÃO (sem alterações críticas) ---
     def handle_awaiting_payment_choice(self, resposta_usuario):
+        # (código original pode ser mantido)
         nome_usuario = self.memoria.get('nome_usuario', '')
         escolha = resposta_usuario.lower().strip()
         if 'pix' in escolha or escolha == '1':
@@ -316,6 +324,7 @@ class AgendamentoManager:
             return {"response_message": f"Não entendi, {nome_usuario}. Digite *1* para PIX ou *2* para Cartão.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
     def handle_awaiting_installments(self, resposta_usuario):
+        # (código original pode ser mantido)
         escolha = resposta_usuario.strip()
         if '2' in escolha: self.memoria['parcelas'] = 2
         elif '3' in escolha: self.memoria['parcelas'] = 3
@@ -323,7 +332,9 @@ class AgendamentoManager:
         return self.handle_awaiting_confirmation("confirmado")
 
     def handle_awaiting_confirmation(self, resposta_usuario):
+        # (código original pode ser mantido, com pequenas melhorias)
         try:
+            # Valida e limpa os dados antes de salvar
             try:
                 _, _, cpf_fmt = self.validators.validar_cpf_completo(self.memoria.get('cpf', ''))
                 _, _, tel_fmt = self.validators.validar_telefone_brasileiro(self.memoria.get('telefone_celular', ''))
@@ -343,6 +354,7 @@ class AgendamentoManager:
                 'data_nascimento': data_obj
             })
             if not created:
+                # Atualiza os dados se o paciente já existir
                 paciente.nome_completo = nome_fmt
                 paciente.email = email_fmt
                 paciente.telefone_celular = tel_limpo
@@ -355,7 +367,7 @@ class AgendamentoManager:
                 'especialidade': self.memoria.get('especialidade_id'), 'medico': self.memoria.get('medico_id'),
                 'modalidade': self.memoria.get('modalidade')
             }
-            duracao = 50
+            duracao = 50 # minutos
             data_hora_inicio_obj = datetime.fromisoformat(self.memoria.get('data_hora_inicio'))
             dados_agendamento['data_hora_fim'] = (data_hora_inicio_obj + timedelta(minutes=duracao)).isoformat()
 
@@ -392,7 +404,7 @@ class AgendamentoManager:
             logger.error(f"[CONFIRMACAO] ERRO INESPERADO: {str(e)}", exc_info=True)
             return {"response_message": f"Desculpe, ocorreu um erro inesperado ao finalizar o agendamento. A nossa equipe já foi notificada.", "new_state": "inicio", "memory_data": self.memoria}
 
-    # --- FLUXO DE CANCELAMENTO E TRIAGEM ---
+    # --- FLUXO DE CANCELAMENTO E TRIAGEM (sem alterações) ---
     def handle_cancelamento_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
         return {"response_message": f"Entendido, {nome_usuario}. Para localizar o seu agendamento, por favor, informe-me o seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
@@ -418,6 +430,7 @@ class AgendamentoManager:
             return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_choice(self, resposta_usuario):
+        # (código original pode ser mantido)
         try:
             escolha = int(resposta_usuario.strip()) - 1
             agendamentos_lista = self.memoria.get('agendamentos_para_cancelar', [])
@@ -432,6 +445,7 @@ class AgendamentoManager:
             return {"response_message": "Opção inválida. Por favor, digite apenas o número.", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_confirmation(self, resposta_usuario):
+        # (código original pode ser mantido)
         if 'sim' in resposta_usuario.lower():
             try:
                 agendamento_id = self.memoria.get('agendamento_selecionado_id')
@@ -451,6 +465,7 @@ class AgendamentoManager:
         especialidade_sugerida = resultado_ia.get('especialidade_sugerida', 'Nenhuma')
 
         if especialidade_sugerida != 'Nenhuma':
+            # Inicia o fluxo de agendamento já com a especialidade
             return self.handle_awaiting_specialty(especialidade_sugerida)
         else:
             return {"response_message": "Com base nos sintomas, não consegui identificar uma especialidade. Que tal agendar com um Clínico Geral para uma avaliação inicial?", "new_state": "identificando_demanda", "memory_data": self.memoria}
