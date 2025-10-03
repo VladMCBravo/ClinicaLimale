@@ -49,6 +49,7 @@ class AgendamentoManager:
     # --- LÓGICA PRINCIPAL DE PROCESSAMENTO ---
 
     def processar(self, resposta_usuario, estado_atual):
+        logger.warning(f"[DEBUG-FLOW] Manager.processar chamado com estado '{estado_atual}'.")
         # Mapeia o estado atual para a função de tratamento correspondente
         handlers = {
             # Fluxo de Agendamento
@@ -186,6 +187,7 @@ class AgendamentoManager:
         return {"response_message": f"Perfeito, {nome_usuario}! Confirmar pré-agendamento para {data_obj.strftime('%d/%m/%Y')} às {horario_str}? (Sim/Não)", "new_state": "agendamento_awaiting_slot_confirmation", "memory_data": self.memoria}
 
     def handle_awaiting_slot_confirmation(self, resposta_usuario):
+        logger.warning("[DEBUG-FLOW] Entrando em handle_awaiting_slot_confirmation.")
         nome_usuario = self.memoria.get('nome_usuario', '')
         if 'sim' not in resposta_usuario.lower():
             self.memoria.pop('data_hora_inicio', None)
@@ -200,11 +202,14 @@ class AgendamentoManager:
                     "• Celular com DDD\n"
                     "• E-mail\n\n"
                     "Pode enviar tudo de uma vez, eu consigo entender! 😉")
+        logger.warning("[DEBUG-FLOW] Saindo de handle_awaiting_slot_confirmation, novo estado será 'cadastro_awaiting_data'.")
         return {"response_message": mensagem, "new_state": "cadastro_awaiting_data", "memory_data": self.memoria}
+
 
     # --- NOVO FLUXO DE CADASTRO UNIFICADO ---
 
     def handle_cadastro_awaiting_data(self, resposta_usuario):
+        logger.warning("[DEBUG-FLOW] Entrando em handle_cadastro_awaiting_data.")
         """
         Este handler usa a IA para extrair os dados.
         (HOTFIX TEMPORÁRIO) Vamos pular a IA para evitar timeout e ir direto
@@ -212,29 +217,30 @@ class AgendamentoManager:
         """
         logger.warning(f"Iniciando coleta de dados. A extração por IA está temporariamente desativada para evitar timeout.")
         
-        # --- INÍCIO DO HOTFIX ---
-        # Em vez de chamar a IA, vamos direto para o fluxo manual.
-        # Guardamos a resposta do usuário caso ele tenha tentado enviar tudo de uma vez.
-        self.memoria['raw_user_data'] = resposta_usuario 
-        return self._iniciar_coleta_manual()
-        # --- FIM DO HOTFIX ---
-
-        # CÓDIGO ORIGINAL (MANTENHA COMENTADO POR ENQUANTO)
-        # logger.warning(f"Tentando extrair dados do texto: {resposta_usuario}")
-        # if not self.chain_extracao_dados:
-        #     logger.error("A IA de extração de dados não foi inicializada!")
-        #     return self._iniciar_coleta_manual()
-        #
-        # try:
-        #     dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
-        #     logger.warning(f"Dados extraídos pela IA: {dados_extraidos}")
-        #     self.memoria['dados_paciente'] = dados_extraidos
-        #     return self._validar_e_coletar_proximo_campo(None)
-        # except Exception as e:
-        #     logger.error(f"ERRO CRÍTICO ao invocar a IA de extração: {e}", exc_info=True)
-        #     return self._iniciar_coleta_manual()
+        
+         #CÓDIGO ORIGINAL (MANTENHA COMENTADO POR ENQUANTO)
+        logger.warning(f"Tentando extrair dados do texto: {resposta_usuario}")
+        if not self.chain_extracao_dados:
+            logger.error("[DEBUG-FLOW] ERRO FATAL: A IA de extração de dados (chain_extracao_dados) é None!")
+            return self._iniciar_coleta_manual()
+        
+        try:
+            logger.warning("[DEBUG-FLOW] Invocando a IA de extração de dados...")
+            dados_extraidos = self.chain_extracao_dados.invoke({"dados_do_usuario": resposta_usuario})
+            logger.warning(f"[DEBUG-FLOW] IA retornou com sucesso: {dados_extraidos}")
+            
+            self.memoria['dados_paciente'] = dados_extraidos
+            resultado_validacao = self._validar_e_coletar_proximo_campo(None)
+            logger.warning("[DEBUG-FLOW] Saindo de handle_cadastro_awaiting_data após validação.")
+            return resultado_validacao
+            
+        except Exception as e:
+            logger.error(f"[DEBUG-FLOW] A IA de extração FALHOU. A exceção foi capturada: {e}", exc_info=True)
+            logger.warning("[DEBUG-FLOW] Acionando _iniciar_coleta_manual como fallback.")
+            return self._iniciar_coleta_manual()
 
     def _iniciar_coleta_manual(self):
+        logger.warning("[DEBUG-FLOW] Entrando em _iniciar_coleta_manual (fallback).")
         """Inicia o processo de coleta de dados campo por campo."""
         self.memoria['dados_paciente'] = {} # Garante que a memória está limpa
         self.memoria['missing_field'] = 'nome_completo'
@@ -279,6 +285,7 @@ class AgendamentoManager:
             is_valid, mensagem_erro, _ = funcao_validacao(valor)
 
             if not is_valid:
+                # Se o campo é inválido, pede ao usuário
                 mensagens_pedido = {
                     'nome_completo': "Qual o *nome completo* do paciente?",
                     'data_nascimento': f"Hmm, a data de nascimento parece inválida. {mensagem_erro}. Qual a *data de nascimento* correta (DD/MM/AAAA)?",
@@ -286,24 +293,31 @@ class AgendamentoManager:
                     'telefone_celular': f"O telefone parece inválido. {mensagem_erro}. Qual o *celular com DDD*?",
                     'email': f"O e-mail parece inválido. {mensagem_erro}. Qual o *e-mail* correto?",
                 }
+
+                # Guarda qual campo estamos pedindo
                 self.memoria['missing_field'] = campo
+
                 return {
                     "response_message": mensagens_pedido[campo],
                     "new_state": "cadastro_awaiting_missing_field",
                     "memory_data": self.memoria
                 }
             else:
+                # Se o campo é válido, garante que ele está na memória principal
                 self.memoria[campo] = valor
 
+        # Se todos os campos passaram na validação
         self.memoria.pop('missing_field', None)
         self.memoria.pop('dados_paciente', None)
+
         primeiro_nome = self.memoria['nome_completo'].split(' ')[0]
         mensagem = (f"Excelente, {primeiro_nome}! Recebi seus dados.\n\nComo prefere pagar? 💳\n\n1️⃣ *PIX* (5% de desconto)\n2️⃣ *Cartão de Crédito* (até 3x sem juros)")
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
-    # --- FLUXO DE PAGAMENTO E CONFIRMAÇÃO ---
-    # A indentação correta (4 espaços) começa aqui.
+
+    # --- FLUXO DE PAGAMENTO E CONFIRMAÇÃO (sem alterações críticas) ---
     def handle_awaiting_payment_choice(self, resposta_usuario):
+        # (código original pode ser mantido)
         nome_usuario = self.memoria.get('nome_usuario', '')
         escolha = resposta_usuario.lower().strip()
         if 'pix' in escolha or escolha == '1':
@@ -316,6 +330,7 @@ class AgendamentoManager:
             return {"response_message": f"Não entendi, {nome_usuario}. Digite *1* para PIX ou *2* para Cartão.", "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
     def handle_awaiting_installments(self, resposta_usuario):
+        # (código original pode ser mantido)
         escolha = resposta_usuario.strip()
         if '2' in escolha: self.memoria['parcelas'] = 2
         elif '3' in escolha: self.memoria['parcelas'] = 3
@@ -323,7 +338,9 @@ class AgendamentoManager:
         return self.handle_awaiting_confirmation("confirmado")
 
     def handle_awaiting_confirmation(self, resposta_usuario):
+        # (código original pode ser mantido, com pequenas melhorias)
         try:
+            # Valida e limpa os dados antes de salvar
             try:
                 _, _, cpf_fmt = self.validators.validar_cpf_completo(self.memoria.get('cpf', ''))
                 _, _, tel_fmt = self.validators.validar_telefone_brasileiro(self.memoria.get('telefone_celular', ''))
@@ -343,6 +360,7 @@ class AgendamentoManager:
                 'data_nascimento': data_obj
             })
             if not created:
+                # Atualiza os dados se o paciente já existir
                 paciente.nome_completo = nome_fmt
                 paciente.email = email_fmt
                 paciente.telefone_celular = tel_limpo
@@ -355,7 +373,7 @@ class AgendamentoManager:
                 'especialidade': self.memoria.get('especialidade_id'), 'medico': self.memoria.get('medico_id'),
                 'modalidade': self.memoria.get('modalidade')
             }
-            duracao = 50
+            duracao = 50 # minutos
             data_hora_inicio_obj = datetime.fromisoformat(self.memoria.get('data_hora_inicio'))
             dados_agendamento['data_hora_fim'] = (data_hora_inicio_obj + timedelta(minutes=duracao)).isoformat()
 
@@ -392,7 +410,7 @@ class AgendamentoManager:
             logger.error(f"[CONFIRMACAO] ERRO INESPERADO: {str(e)}", exc_info=True)
             return {"response_message": f"Desculpe, ocorreu um erro inesperado ao finalizar o agendamento. A nossa equipe já foi notificada.", "new_state": "inicio", "memory_data": self.memoria}
 
-    # --- FLUXO DE CANCELAMENTO E TRIAGEM ---
+    # --- FLUXO DE CANCELAMENTO E TRIAGEM (sem alterações) ---
     def handle_cancelamento_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
         return {"response_message": f"Entendido, {nome_usuario}. Para localizar o seu agendamento, por favor, informe-me o seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
@@ -418,6 +436,7 @@ class AgendamentoManager:
             return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_choice(self, resposta_usuario):
+        # (código original pode ser mantido)
         try:
             escolha = int(resposta_usuario.strip()) - 1
             agendamentos_lista = self.memoria.get('agendamentos_para_cancelar', [])
@@ -432,6 +451,7 @@ class AgendamentoManager:
             return {"response_message": "Opção inválida. Por favor, digite apenas o número.", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_confirmation(self, resposta_usuario):
+        # (código original pode ser mantido)
         if 'sim' in resposta_usuario.lower():
             try:
                 agendamento_id = self.memoria.get('agendamento_selecionado_id')
@@ -451,6 +471,7 @@ class AgendamentoManager:
         especialidade_sugerida = resultado_ia.get('especialidade_sugerida', 'Nenhuma')
 
         if especialidade_sugerida != 'Nenhuma':
+            # Inicia o fluxo de agendamento já com a especialidade
             return self.handle_awaiting_specialty(especialidade_sugerida)
         else:
             return {"response_message": "Com base nos sintomas, não consegui identificar uma especialidade. Que tal agendar com um Clínico Geral para uma avaliação inicial?", "new_state": "identificando_demanda", "memory_data": self.memoria}

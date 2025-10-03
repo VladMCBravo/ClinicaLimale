@@ -217,42 +217,47 @@ except ImportError:
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
+    logger.warning("="*20 + " NOVA REQUISIÇÃO " + "="*20)
     try:
+        logger.warning("[DEBUG-VIEW] Orquestrador iniciado.")
         data = json.loads(request.body)
         user_message = data.get("message")
         session_id = data.get("sessionId")
+        logger.warning(f"[DEBUG-VIEW] Dados recebidos: message='{user_message[:50]}...', sessionId='{session_id}'")
+
 
         if not user_message or not session_id:
+            logger.error("[DEBUG-VIEW] Erro: message ou sessionId ausentes.")
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
 
-        # --- PONTO DA CORREÇÃO ---
-        # "Limpa" o session_id, substituindo qualquer caractere inválido por '_'
         session_id_sanitizado = re.sub(r'[^a-zA-Z0-9\-_.]', '_', session_id)
-        # --- FIM DA CORREÇÃO ---
-
-        # Usamos o session_id original para o banco de dados
-        memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
         
+        logger.warning("[DEBUG-VIEW] Enviando mensagem para o Channel Layer...")
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f'chat_{session_id_sanitizado}', # <-- USA A VERSÃO LIMPA AQUI
+            f'chat_{session_id_sanitizado}',
             {
                 'type': 'chat_message',
                 'message': {'text': user_message, 'author': 'paciente'}
             }
         )
+        logger.warning("[DEBUG-VIEW] Mensagem enviada para o Channel Layer com sucesso.")
 
+        memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
+        
         if memoria_obj.state == 'humano':
-            logger.info(f"Conversa {session_id} em modo 'humano'. Bot não responderá.")
+            logger.warning(f"[DEBUG-VIEW] Conversa {session_id} em modo 'humano'. Bot não responderá.")
             return JsonResponse({})
         
-        # Usamos o session_id original para a lógica do bot
+        logger.warning("[DEBUG-VIEW] Chamando o processar_mensagem_bot...")
         resultado = processar_mensagem_bot(session_id, user_message)
+        logger.warning(f"[DEBUG-VIEW] Resultado recebido do bot_logic: {resultado}")
         
+        logger.warning("[DEBUG-VIEW] Enviando JsonResponse de volta para o N8N.")
         return JsonResponse({"response_message": resultado.get("response_message")})
 
     except Exception as e:
-        logger.error(f"ERRO CRÍTICO no orquestrador: {e}", exc_info=True)
+        logger.error(f"[DEBUG-VIEW] ERRO CRÍTICO no orquestrador: {e}", exc_info=True)
         return JsonResponse({"error": "Ocorreu um erro interno."}, status=500)
 
 

@@ -21,7 +21,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     )
     memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
     estado_atual = memoria_obj.state
-
+    logger.warning(f"[DEBUG-LOGIC] Entrando em processar_mensagem_bot com estado '{estado_atual}'.")
     logger.info(f"Processando no 'cérebro' central | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
     
     # --- VERIFICAÇÃO DE SAÚDE DA IA ---
@@ -40,23 +40,22 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # Se a conversa já passou da identificação inicial, o AgendamentoManager assume.
     if estado_atual and estado_atual not in ['inicio', 'aguardando_nome', 'identificando_demanda']:
         try:
-            # Passa as chains de IA para o manager, para serem usadas nos estados corretos
-            manager_chain_sintomas = chain_sintomas if estado_atual == 'triagem_processar_sintomas' else None
-            manager_chain_extracao = chain_extracao_dados if estado_atual in ['cadastro_awaiting_data', 'cadastro_awaiting_missing_field'] else None
-
-            manager = AgendamentoManager(
-                session_id, memoria_atual, "", manager_chain_sintomas, manager_chain_extracao
-            )
+            logger.warning(f"[DEBUG-LOGIC] Delegando para AgendamentoManager com estado '{estado_atual}'.")
+            manager_chain_extracao = chain_extracao_dados if estado_atual == 'cadastro_awaiting_data' else None
+            manager = AgendamentoManager(session_id, memoria_atual, "", None, manager_chain_extracao)
             resultado = manager.processar(user_message, estado_atual)
+            logger.warning(f"[DEBUG-LOGIC] Resultado recebido do Manager: {resultado}")
         except Exception as e:
-            logger.error(f"Erro no AgendamentoManager: {e}", exc_info=True)
-            resultado = {"response_message": "Desculpe, ocorreu um erro inesperado. Vamos tentar de novo?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
-
+            logger.error(f"[DEBUG-LOGIC] Erro no AgendamentoManager: {e}", exc_info=True)
+            resultado = {"response_message": "Desculpe, ocorreu um erro inesperado...", "new_state": "identificando_demanda", "memory_data": memoria_atual}
+    
     # --- FLUXO DE IDENTIFICAÇÃO DA DEMANDA ---
     # Ocorre após o usuário informar o nome.
     elif estado_atual == 'identificando_demanda':
         try:
+            logger.warning("[DEBUG-LOGIC] Invocando chain_roteadora...")
             intent_data = chain_roteadora.invoke({"user_message": user_message})
+            logger.warning(f"[DEBUG-LOGIC] Roteador retornou: {intent_data}")
             intent = intent_data.get("intent")
             entity = intent_data.get("entity")
             nome_usuario = memoria_atual.get('nome_usuario', '')
@@ -86,7 +85,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
 
         except Exception as e:
-            logger.error(f"Erro na IA roteadora ou FAQ: {e}", exc_info=True)
+            logger.error(f"[DEBUG-LOGIC] Erro na IA roteadora: {e}", exc_info=True)
             resultado = {"response_message": "Desculpe, não consegui processar sua mensagem. Poderia repetir de outra forma?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
 
     # --- FLUXO INICIAL DA CONVERSA ---
@@ -109,11 +108,16 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
 
     # Salva o novo estado e a memória no banco de dados
     try:
-        if resultado: # Garante que só vai salvar se houver um resultado
+        if resultado:
+            logger.warning(f"[DEBUG-LOGIC] Tentando salvar no DB: novo estado='{resultado.get('new_state')}'")
             memoria_obj.state = resultado.get("new_state")
             memoria_obj.memory_data = resultado.get("memory_data")
             memoria_obj.save()
+            logger.warning("[DEBUG-LOGIC] Salvo no DB com sucesso.")
+        else:
+            logger.warning("[DEBUG-LOGIC] Nenhum resultado para salvar no DB.")
     except Exception as e:
-        logger.error(f"Erro crítico ao salvar a memória da sessão {session_id}: {e}", exc_info=True)
+        logger.error(f"[DEBUG-LOGIC] Erro crítico ao salvar a memória: {e}", exc_info=True)
 
+    logger.warning(f"[DEBUG-LOGIC] Retornando resultado final: {resultado}")
     return resultado
