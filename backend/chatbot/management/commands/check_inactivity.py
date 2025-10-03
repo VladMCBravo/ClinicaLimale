@@ -33,7 +33,7 @@ class Command(BaseCommand):
         expired_sessions = ChatMemory.objects.filter(
             state='awaiting_inactivity_response',
             updated_at__lt=reset_limit
-        )
+        ).only('id', 'session_id', 'memory_data')
 
         if not expired_sessions.exists():
             self.stdout.write("Nenhuma sessão expirada para resetar.")
@@ -64,7 +64,7 @@ class Command(BaseCommand):
         ).filter(
             updated_at__gte=warning_start_limit,
             updated_at__lt=warning_end_limit
-        )
+        ).only('id', 'session_id', 'state')
 
         if not inactive_sessions.exists():
             self.stdout.write("Nenhuma sessão inativa para avisar.")

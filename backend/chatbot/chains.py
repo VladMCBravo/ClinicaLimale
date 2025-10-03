@@ -1,13 +1,26 @@
 import os
+import logging
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
+logger = logging.getLogger(__name__)
+
 # --- CONFIGURAÇÃO E DEFINIÇÃO DOS "CÉREBROS" DE IA ---
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=os.getenv("GOOGLE_API_KEY"))
+# Validação da API key
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    logger.warning("GOOGLE_API_KEY não configurada - usando modo fallback")
+    llm = None
+else:
+    try:
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key)
+    except Exception as e:
+        logger.error(f"Erro ao inicializar LLM: {e}")
+        llm = None
 
 # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES ---
 class RoteadorOutput(BaseModel):

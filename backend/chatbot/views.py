@@ -59,35 +59,52 @@ logger = logging.getLogger(__name__)
 # ... (todas as suas views da API permanecem as mesmas, sem alterações) ...
 class CadastrarPacienteView(APIView):
     permission_classes = [HasAPIKey]
+
     def post(self, request):
-        cpf = request.data.get('cpf')
-        email = request.data.get('email')
-        if cpf:
-            cpf = re.sub(r'\D', '', cpf)
-        if Paciente.objects.filter(cpf=cpf).exists():
-            return Response({'error': 'Um paciente com este CPF já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
-        if email and Paciente.objects.filter(email=email).exists():
-            return Response({'error': 'Um paciente com este email já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
-        serializer = PacienteSerializer(data=request.data)
-        if serializer.is_valid():
-            paciente = serializer.save()
-            return Response(
-                {'sucesso': f"Paciente {paciente.nome_completo} cadastrado com sucesso!", "paciente_id": paciente.id},
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            cpf = request.data.get('cpf', '').strip()
+            email = request.data.get('email', '').strip()
+
+            if cpf:
+                cpf = re.sub(r'\D', '', cpf)
+                if len(cpf) != 11:
+                    return Response({'error': 'CPF deve ter 11 dígitos'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if Paciente.objects.filter(cpf=cpf).exists():
+                return Response({'error': 'Um paciente com este CPF já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
+
+            if email and Paciente.objects.filter(email=email).exists():
+                return Response({'error': 'Um paciente com este email já está cadastrado.'}, status=status.HTTP_409_CONFLICT)
+
+            serializer = PacienteSerializer(data=request.data)
+            if serializer.is_valid():
+                paciente = serializer.save()
+                return Response(
+                    {'sucesso': f"Paciente {escape(paciente.nome_completo)} cadastrado com sucesso!", "paciente_id": paciente.id},
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.error(f"Erro ao cadastrar paciente: {e}")
+            return Response({'error': 'Erro interno do servidor'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ConsultarAgendamentosPacienteView(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
-        cpf = request.query_params.get('cpf')
-        if cpf:
-            cpf = re.sub(r'\D', '', cpf)
-        if not cpf:
-            return Response({'error': 'O parâmetro "cpf" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            cpf = request.query_params.get('cpf', '').strip()
+            if cpf:
+                cpf = re.sub(r'\D', '', cpf)
+            if not cpf or len(cpf) != 11:
+                return Response({'error': 'CPF inválido'}, status=status.HTTP_400_BAD_REQUEST)
+
             paciente = Paciente.objects.get(cpf=cpf)
-            agendamentos = Agendamento.objects.filter(paciente=paciente, status__in=['Agendado', 'Confirmado']).order_by('data_hora_inicio')
+            agendamentos = Agendamento.objects.filter(
+                paciente=paciente,
+                status__in=['Agendado', 'Confirmado']
+            ).select_related('procedimento', 'especialidade').order_by('data_hora_inicio')[:50]
+
             dados_formatados = [
                 {
                     "id": ag.id,
@@ -99,35 +116,42 @@ class ConsultarAgendamentosPacienteView(APIView):
             ]
             return Response(dados_formatados)
         except Paciente.DoesNotExist:
-            return Response({"error": "Paciente com este CPF não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Paciente não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Erro ao consultar agendamentos: {e}")
+            return Response({'error': 'Erro interno'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerificarPacienteCPFView(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
-        cpf = request.query_params.get('cpf')
-        if not cpf:
-            return Response({'error': 'O parâmetro "cpf" é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
-        cpf_limpo = re.sub(r'\D', '', cpf)
-        paciente_existe = Paciente.objects.filter(cpf=cpf_limpo).exists()
-        if paciente_existe:
-            return Response({"status": "paciente_encontrado"})
-        else:
-            return Response({"status": "paciente_nao_encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            cpf = request.query_params.get('cpf', '').strip()
+            if not cpf:
+                return Response({'error': 'CPF obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            cpf_limpo = re.sub(r'\D', '', cpf)
+            if len(cpf_limpo) != 11:
+                return Response({'error': 'CPF inválido'}, status=status.HTTP_400_BAD_REQUEST)
+            paciente_existe = Paciente.objects.filter(cpf=cpf_limpo).exists()
+            return Response({"status": "paciente_encontrado" if paciente_existe else "paciente_nao_encontrado"})
+        except Exception as e:
+            logger.error(f"Erro ao verificar CPF: {e}")
+            return Response({'error': 'Erro interno'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class VerificarSegurancaView(APIView):
     permission_classes = [HasAPIKey]
     def post(self, request):
-        telefone = request.data.get('telefone_celular')
-        cpf = request.data.get('cpf')
-        if cpf:
-            cpf = re.sub(r'\D', '', cpf)
-        if not telefone or not cpf:
-            return Response({'error': 'Os campos "telefone_celular" e "cpf" são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
-        paciente_existe = Paciente.objects.filter(telefone_celular=telefone, cpf=cpf).exists()
-        if paciente_existe:
-            return Response({"status": "verificado"})
-        else:
-            return Response({"status": "dados_nao_conferem"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            telefone = request.data.get('telefone_celular', '').strip()
+            cpf = request.data.get('cpf', '').strip()
+            if cpf:
+                cpf = re.sub(r'\D', '', cpf)
+            if not telefone or not cpf or len(cpf) != 11:
+                return Response({'error': 'Dados inválidos'}, status=status.HTTP_400_BAD_REQUEST)
+            paciente_existe = Paciente.objects.filter(telefone_celular=telefone, cpf=cpf).exists()
+            return Response({"status": "verificado" if paciente_existe else "dados_nao_conferem"})
+        except Exception as e:
+            logger.error(f"Erro na verificação: {e}")
+            return Response({'error': 'Erro interno'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class ListarEspecialidadesView(generics.ListAPIView):
     permission_classes = [HasAPIKey]
@@ -158,11 +182,15 @@ class ListarProcedimentosView(generics.ListAPIView):
 class ConsultarHorariosDisponiveisView(APIView):
     permission_classes = [HasAPIKey]
     def get(self, request):
-        medico_id = request.query_params.get('medico_id')
-        if not medico_id:
-            return Response({"error": "O parâmetro 'medico_id' é obrigatório."}, status=400)
-        resultado = buscar_proximo_horario_disponivel(medico_id=medico_id)
-        return Response(resultado)
+        try:
+            medico_id = request.query_params.get('medico_id', '').strip()
+            if not medico_id or not medico_id.isdigit():
+                return Response({"error": "medico_id inválido"}, status=400)
+            resultado = buscar_proximo_horario_disponivel(medico_id=int(medico_id))
+            return Response(resultado)
+        except Exception as e:
+            logger.error(f"Erro ao consultar horários: {e}")
+            return Response({'error': 'Erro interno'}, status=500)
 
 class AgendamentoChatbotView(APIView):
     permission_classes = [HasAPIKey]
@@ -183,6 +211,9 @@ except ImportError:
     REFINEMENTS_AVAILABLE = False
 
 # --- ORQUESTRADOR PRINCIPAL DA CONVERSA (NOVA VERSÃO SIMPLIFICADA) ---
+    from django.utils.html import escape
+    from django.views.decorators.http import require_http_methods
+
 @csrf_exempt
 @require_POST
 def chatbot_orchestrator(request):
@@ -193,33 +224,29 @@ def chatbot_orchestrator(request):
 
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
-        # --- INÍCIO DA CORREÇÃO ---
-        # Sanitiza o session_id, substituindo qualquer caractere inválido por um underscore
+
+        # --- PONTO DA CORREÇÃO ---
+        # "Limpa" o session_id, substituindo qualquer caractere inválido por '_'
         session_id_sanitizado = re.sub(r'[^a-zA-Z0-9\-_.]', '_', session_id)
         # --- FIM DA CORREÇÃO ---
 
-        # Busca a memória da conversa para verificar o estado
+        # Usamos o session_id original para o banco de dados
         memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
         
-        # --- LÓGICA DE HANDOFF ---
-        # 1. Sempre retransmita a mensagem do paciente para a tela da recepção
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f'chat_{session_id}',
+            f'chat_{session_id_sanitizado}', # <-- USA A VERSÃO LIMPA AQUI
             {
                 'type': 'chat_message',
                 'message': {'text': user_message, 'author': 'paciente'}
             }
         )
 
-        # 2. Verifique se um humano já está no controle
         if memoria_obj.state == 'humano':
             logger.info(f"Conversa {session_id} em modo 'humano'. Bot não responderá.")
-            # Retorna uma resposta vazia para o N8N, pois o humano responderá por outra via
-            return JsonResponse({}) 
+            return JsonResponse({})
         
-        # 3. Se não for humano, deixa o bot trabalhar
-        logger.info(f"Conversa {session_id} em modo 'bot'. Acionando o cérebro central.")
+        # Usamos o session_id original para a lógica do bot
         resultado = processar_mensagem_bot(session_id, user_message)
         
         return JsonResponse({"response_message": resultado.get("response_message")})
@@ -233,22 +260,25 @@ def chatbot_orchestrator(request):
 # Todas as outras views que você já tinha continuam aqui, sem alterações.
 
 class ListarConversasAtivasView(APIView):
-    # Adicione a permissão se esta view for protegida
-    # permission_classes = [HasAPIKey] 
-    def get(self, request):
-        conversas = ChatMemory.objects.exclude(state='inicio').order_by('-updated_at')[:10]
-        dados_formatados = [{
-            'session_id': c.session_id,
-            'last_update': c.updated_at,
-            'current_state': c.state,
-            'paciente_nome': c.memory_data.get('nome_usuario', 'Desconhecido') if isinstance(c.memory_data, dict) else 'N/A'
-        } for c in conversas]
-        return Response(dados_formatados)
-
-class ListarEspecialidadesView(generics.ListAPIView):
     permission_classes = [HasAPIKey]
-    queryset = Especialidade.objects.all().order_by('nome')
-    serializer_class = EspecialidadeSerializer
+    def get(self, request):
+        try:
+            conversas = ChatMemory.objects.exclude(state='inicio').order_by('-updated_at')[:10]
+            dados_formatados = [{
+                'session_id': c.session_id,
+                'last_update': c.updated_at.isoformat(),
+                'current_state': c.state,
+                'paciente_nome': c.memory_data.get('nome_usuario', 'Desconhecido') if isinstance(c.memory_data, dict) else 'N/A'
+            } for c in conversas]
+            return Response(dados_formatados)
+        except Exception as e:
+            logger.error(f"Erro ao listar conversas: {e}")
+            return Response({'error': 'Erro interno'}, status=500)
+
+    class ListarEspecialidadesView(generics.ListAPIView):
+        permission_classes = [HasAPIKey]
+        queryset = Especialidade.objects.all().order_by('nome')
+        serializer_class = EspecialidadeSerializer
 
 # NOVA VIEW DE DEBUG
 def debug_chatbot_module(request):
@@ -259,7 +289,7 @@ def debug_chatbot_module(request):
     try:
         from .agendamento_flow import AgendamentoManager
         # Tenta instanciar a classe com valores vazios
-        manager = AgendamentoManager(session_id="debug", memoria={}, base_url="/")
+        manager = AgendamentoManager(session_id="debug", memoria={{}}, base_url="/")
         return JsonResponse({"status": "sucesso", "message": "O módulo agendamento_flow.py foi importado e instanciado com sucesso."})
     except Exception as e:
         # Se qualquer erro acontecer durante a importação, ele será capturado aqui

@@ -37,9 +37,9 @@ class Command(BaseCommand):
             self.style.SUCCESS(f'Iniciando limpeza do chatbot...')
         )
         
-        # Limpar memórias antigas
+        # Limpar memórias antigas - otimizado
         limite_memoria = timezone.now() - timedelta(days=dias_memoria)
-        memorias_antigas = ChatMemory.objects.filter(updated_at__lt=limite_memoria)
+        memorias_antigas = ChatMemory.objects.filter(updated_at__lt=limite_memoria).only('id')
         count_memorias = memorias_antigas.count()
         
         if dry_run:
@@ -50,9 +50,9 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f'Removidas {count_memorias} memórias antigas')
             )
         
-        # Limpar métricas antigas
+        # Limpar métricas antigas - otimizado
         limite_metricas = timezone.now() - timedelta(days=dias_metricas)
-        metricas_antigas = ChatbotMetrics.objects.filter(timestamp__lt=limite_metricas)
+        metricas_antigas = ChatbotMetrics.objects.filter(timestamp__lt=limite_metricas).only('id')
         count_metricas = metricas_antigas.count()
         
         if dry_run:

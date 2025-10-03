@@ -3,7 +3,7 @@
 from django.urls import path
 from .views import (
     chatbot_orchestrator,
-    VerificarPacienteCPFView, 
+    VerificarPacienteCPFView,
     AgendamentoChatbotView,
     VerificarSegurancaView,
     ListarProcedimentosView,
@@ -36,7 +36,7 @@ urlpatterns = [
     # --- Fluxo de Agendamento ---
     path('agendamentos/horarios-disponiveis/', ConsultarHorariosDisponiveisView.as_view(), name='chatbot_horarios_disponiveis'),
     path('agendamentos/criar/', AgendamentoChatbotView.as_view(), name='chatbot_criar_agendamento'),
-    
+
     # --- Dashboard e Monitoramento ---
     path('dashboard/metricas/', ChatbotDashboardView.as_view(), name='chatbot_dashboard'),
     path('dashboard/health/', ChatbotHealthCheckView.as_view(), name='chatbot_health'),
