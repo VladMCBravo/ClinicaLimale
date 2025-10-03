@@ -18,7 +18,10 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'clinicalimale.onrender.com']
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-
+# --- ADICIONE ESTA NOVA CONFIGURAÇÃO ABAIXO ---
+CSRF_TRUSTED_ORIGINS = [
+    'https://clinicalimale.onrender.com',
+]
 # MELHORIA: Usar regex para aceitar todas as URLs de preview da Vercel automaticamente.
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https?://localhost:\d+",  # Permite localhost em qualquer porta (3000, 5173, etc.)
