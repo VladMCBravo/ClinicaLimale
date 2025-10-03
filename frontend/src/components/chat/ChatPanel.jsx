@@ -22,7 +22,18 @@ function ChatWindow({ sessionId }) {
             </Typography>
             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
                 {messages.map((msg, index) => (
-                    <Paper key={index} sx={{ p: 1.5, mb: 1, bgcolor: msg.author === 'recepcao' ? 'primary.light' : 'grey.200' }}>
+                    <Paper 
+                        key={index} 
+                        sx={{ 
+                            p: 1.5, 
+                            mb: 1, 
+                            // Estilo dinâmico baseado no autor
+                            bgcolor: msg.author === 'recepcao' ? 'primary.light' : 'grey.200',
+                            ml: msg.author === 'recepcao' ? 'auto' : 0, // Alinha à direita se for da recepção
+                            mr: msg.author === 'paciente' ? 'auto' : 0, // Alinha à esquerda se for do paciente
+                            maxWidth: '80%',
+                        }}
+                    >
                         <Typography variant="body2">{msg.text}</Typography>
                     </Paper>
                 ))}
