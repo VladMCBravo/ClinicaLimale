@@ -1,3 +1,6 @@
+import re
+import os
+import requests
 import json
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -10,9 +13,18 @@ logger = logging.getLogger(__name__)
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.session_id = self.scope['url_route']['kwargs']['session_id']
-        self.room_group_name = f'chat_{self.session_id}'
+        session_id_original = self.scope['url_route']['kwargs']['session_id']
+        
+        # --- INÍCIO DA CORREÇÃO ---
+        # Aplica a mesma sanitização aqui
+        session_id_sanitizado = re.sub(r'[^a-zA-Z0-9\-_.]', '_', session_id_original)
+        # --- FIM DA CORREÇÃO ---
 
+        # Mantém o session_id original para lógica interna, se necessário
+        self.session_id = session_id_original 
+        # Usa o nome sanitizado para o grupo do Channels
+        self.room_group_name = f'chat_{session_id_sanitizado}' 
+        
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
         logger.info(f"WebSocket conectado para a recepção: {self.session_id}")

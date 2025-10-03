@@ -193,6 +193,10 @@ def chatbot_orchestrator(request):
 
         if not user_message or not session_id:
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
+        # --- INÍCIO DA CORREÇÃO ---
+        # Sanitiza o session_id, substituindo qualquer caractere inválido por um underscore
+        session_id_sanitizado = re.sub(r'[^a-zA-Z0-9\-_.]', '_', session_id)
+        # --- FIM DA CORREÇÃO ---
 
         # Busca a memória da conversa para verificar o estado
         memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
