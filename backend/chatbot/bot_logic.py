@@ -2,7 +2,8 @@ import logging
 from .models import ChatMemory
 from .agendamento_flow import AgendamentoManager
 # Importe os "cérebros" da IA que você definiu em views.py
-from .views import chain_roteadora, chain_sintomas, chain_extracao_dados, chain_faq, faq_base_de_conhecimento, get_resposta_preco
+from .chains import chain_roteadora, chain_sintomas, chain_extracao_dados, chain_faq, faq_base_de_conhecimento
+from .services import get_resposta_preco # Adicione esta linha
 from usuarios.models import Especialidade
 
 logger = logging.getLogger(__name__)

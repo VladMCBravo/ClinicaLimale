@@ -45,3 +45,31 @@ def buscar_precos_servicos(nome_servico=None):
             return s
 
     return None # Retorna None se não encontrar nada
+
+# --- NOVA FUNÇÃO AUXILIAR PARA RESPOSTA DE PREÇO HUMANIZADA ---
+def get_resposta_preco(nome_servico: str, nome_usuario: str = ""):
+    """
+    Busca o preço de um serviço e monta uma resposta humanizada.
+    """
+    servico_info = buscar_precos_servicos(nome_servico)
+    
+    # Mensagem de valorização da clínica
+    texto_base = (
+        f"Claro, {nome_usuario}! Antes de te passar os valores, quero destacar que aqui na Clínica Limalé prezamos "
+        "pelo acolhimento, qualidade no atendimento e um time altamente qualificado.\n\n"
+    )
+
+    if servico_info:
+        # Mensagem com o preço e benefícios
+        resposta_final = (
+            f"O serviço de *{servico_info['nome']}* tem o valor de *R$ {servico_info['valor']}*.\n"
+            "Também oferecemos um desconto de 5% para pagamentos via Pix realizados no momento do agendamento. "
+            "Assim, sua vaga já fica garantida!\n\nGostaria de agendar?"
+        )
+        return texto_base + resposta_final
+    else:
+        # Mensagem de fallback caso o serviço não seja encontrado
+        return (
+            f"{nome_usuario}, não encontrei um valor específico para o que você pediu. Nossas consultas particulares geralmente têm valores a partir de R$ 350,00. "
+            "Para qual especialidade você gostaria de saber o valor?"
+        )
