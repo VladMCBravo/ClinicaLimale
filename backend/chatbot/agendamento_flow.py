@@ -292,24 +292,31 @@ class AgendamentoManager:
         nome_usuario = self.memoria.get('nome_usuario', '')
         return {"response_message": f"Entendido, {nome_usuario}. Para localizar seu agendamento, por favor, informe seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
         
-    def handle_cancelamento_awaiting_cpf(self, resposta_usuario):
-        is_valid, _, cpf_limpo = self.validators.validar_cpf_completo(resposta_usuario)
+    # --- FUNÇÃO CORRIGIDA ---
+    def handle_cadastro_awaiting_cpf(self, resposta_usuario):
+        is_valid, mensagem_erro, _ = self.validators.validar_cpf_completo(resposta_usuario)
         if not is_valid:
-            return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
+            return {"response_message": f"O CPF parece inválido. {mensagem_erro}. Tente novamente.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+
+        # CORREÇÃO: Garante que estamos usando apenas os números para a busca
+        cpf_numeros = re.sub(r'\D', '', resposta_usuario)
         
-        agendamentos = listar_agendamentos_futuros(cpf_limpo)
-        if not agendamentos:
-            return {"response_message": "Não encontrei agendamentos futuros no seu CPF. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
-        
-        self.memoria['agendamentos_para_cancelar'] = [{"id": ag.id, "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else 'Serviço'} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"} for ag in agendamentos]
-        
-        if len(agendamentos) == 1:
-            ag = self.memoria['agendamentos_para_cancelar'][0]
-            self.memoria['agendamento_selecionado_id'] = ag['id']
-            return {"response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nConfirma o cancelamento? (Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
+        paciente = Paciente.objects.filter(cpf=cpf_numeros).first()
+        if paciente:
+            self.memoria.update({
+                'cpf': paciente.cpf, 'nome_completo': paciente.nome_completo,
+                'data_nascimento': paciente.data_nascimento.strftime('%d/%m/%Y') if paciente.data_nascimento else '',
+                'telefone_celular': paciente.telefone_celular, 'email': paciente.email
+            })
+            primeiro_nome = paciente.nome_completo.split(' ')[0]
+            mensagem = f"Que ótimo te ver de volta, {primeiro_nome}! Já encontrei seu cadastro. Estamos prontos para ir para o pagamento."
+            return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
         else:
-            lista_texto = "\n".join([f"{i+1} - {ag['texto']}" for i, ag in enumerate(self.memoria['agendamentos_para_cancelar'])])
-            return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
+            self.memoria['cpf'] = cpf_numeros
+            mensagem = "Entendido. Para seu primeiro agendamento, preciso de algumas informações rápidas. Vamos começar pelo seu *nome completo*, por favor."
+            self.memoria['dados_paciente'] = {'cpf': cpf_numeros}
+            self.memoria['missing_field'] = 'nome_completo'
+            return {"response_message": mensagem, "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_choice(self, resposta_usuario):
         try:

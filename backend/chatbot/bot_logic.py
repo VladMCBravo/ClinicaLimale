@@ -20,24 +20,18 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
 
     if not chain_roteadora:
         logger.error("A IA roteadora não foi inicializada. Verifique a API Key.")
-        return {
-            "response_message": "Desculpe, estou com um problema técnico. A equipe de suporte já foi notificada.",
-            "new_state": estado_atual, "memory_data": memoria_atual
-        }
+        return { "response_message": "Desculpe, estou com um problema técnico. A equipe de suporte já foi notificada.", "new_state": estado_atual, "memory_data": memoria_atual }
 
     resultado = {}
 
-    # Se a conversa já passou da identificação inicial, o AgendamentoManager assume.
     if estado_atual and estado_atual not in ['inicio', 'aguardando_nome', 'identificando_demanda']:
         try:
-            # CORREÇÃO CRÍTICA: A chamada para o Manager foi simplificada
             manager = AgendamentoManager(session_id, memoria_atual, "")
             resultado = manager.processar(user_message, estado_atual)
         except Exception as e:
             logger.error(f"Erro no AgendamentoManager: {e}", exc_info=True)
             resultado = {"response_message": "Desculpe, ocorreu um erro inesperado. Vamos tentar de novo?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
 
-    # Fluxo de identificação da demanda (após o usuário informar o nome)
     elif estado_atual == 'identificando_demanda':
         try:
             intent_data = chain_roteadora.invoke({"user_message": user_message})
@@ -48,16 +42,13 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             if intent == "buscar_preco":
                 resposta_final = get_resposta_preco(entity or user_message, nome_usuario)
                 resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
-            
             elif intent == "iniciar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, "")
                 resultado = manager.processar(user_message, 'agendamento_inicio')
-
             elif intent == "cancelar_agendamento":
                 manager = AgendamentoManager(session_id, memoria_atual, "")
                 resultado = manager.processar(user_message, 'cancelamento_inicio')
-
-            else: # Pergunta geral / FAQ
+            else:
                 faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message, "faq": faq_base_de_conhecimento})
                 resposta_final = faq_data.get("resposta", "Não consegui processar sua pergunta.")
                 resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
@@ -65,23 +56,16 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             logger.error(f"Erro na IA roteadora ou FAQ: {e}", exc_info=True)
             resultado = {"response_message": "Desculpe, não consegui processar sua mensagem. Poderia repetir?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
 
-    # Fluxo inicial da conversa
     else:
         if estado_atual == 'aguardando_nome':
             nome_usuario = user_message.strip().title().split(' ')[0]
             memoria_atual['nome_usuario'] = nome_usuario
-            # FRASE DE MARKETING CORRIGIDA
             resposta_final = f"Certo, {nome_usuario}. Como posso te direcionar ao melhor cuidado hoje?"
-            novo_estado = 'identificando_demanda'
-            resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": memoria_atual}
-        
+            resultado = {"response_message": resposta_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
         else: # estado 'inicio'
-            # FRASE DE MARKETING CORRIGIDA
             resposta_final = "Olá! Sou o Leônidas, assistente virtual da Clínica Limalé, e estou aqui para te proporcionar um atendimento de excelência. Para começarmos, qual o seu nome?"
-            novo_estado = 'aguardando_nome'
-            resultado = {"response_message": resposta_final, "new_state": novo_estado, "memory_data": {}}
+            resultado = {"response_message": resposta_final, "new_state": 'aguardando_nome', "memory_data": {}}
 
-    # Salva o novo estado e a memória no banco de dados
     try:
         if resultado:
             memoria_obj.state = resultado.get("new_state")
