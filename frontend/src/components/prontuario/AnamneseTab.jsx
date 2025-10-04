@@ -12,7 +12,7 @@ export default function AnamneseTab({ pacienteId }) {
   const [isEditing, setIsEditing] = useState(false);
 
   // 1. A URL agora é uma constante visível para todo o componente
-  const apiUrl = `/pacientes/${pacienteId}/anamnese/`;
+  const apiUrl = `/prontuario/pacientes/${pacienteId}/anamnese/`;
 
   // 2. A função de busca de dados volta para fora, envolvida em useCallback
   const fetchData = useCallback(async () => {
