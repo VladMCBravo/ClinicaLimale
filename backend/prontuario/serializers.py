@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado
-from .models import DocumentoPaciente
+from .models import DocumentoPaciente, OpcaoClinica
 
 # Serializer para o modelo Evolucao
 class EvolucaoSerializer(serializers.ModelSerializer):
@@ -79,4 +79,10 @@ class DocumentoPacienteSerializer(serializers.ModelSerializer):
         ]
         # Marcamos os campos que serão preenchidos automaticamente pela view
         read_only_fields = ['paciente', 'enviado_por']
+
+class OpcaoClinicaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OpcaoClinica
+        fields = ['id', 'descricao', 'especialidade', 'area_clinica']
+
 

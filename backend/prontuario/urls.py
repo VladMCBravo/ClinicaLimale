@@ -7,7 +7,8 @@ from .views import (
     PrescricaoListCreateAPIView, 
     AnamneseDetailAPIView,
     AtestadoListCreateAPIView,
-    DocumentoPacienteViewSet  # Importamos o ViewSet apenas uma vez
+    DocumentoPacienteViewSet,  # Importamos o ViewSet apenas uma vez
+    OpcaoClinicaListView,
 )
 
 # 1. Criamos um roteador para lidar com o DocumentoPacienteViewSet
@@ -25,6 +26,7 @@ urlpatterns = [
     path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='lista-prescricoes'),
     path('anamnese/', AnamneseDetailAPIView.as_view(), name='detalhe-anamnese'),
     path('atestados/', AtestadoListCreateAPIView.as_view(), name='lista-atestados'),
+    path('opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'), 
 ]
 
 # 4. Adicionamos as URLs que o roteador gerou ('documentos/') à nossa lista

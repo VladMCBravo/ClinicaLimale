@@ -79,3 +79,43 @@ class DocumentoPaciente(models.Model):
 
     def __str__(self):
         return f"{self.titulo} - {self.paciente.nome_completo}"
+
+class OpcaoClinica(models.Model):
+    """
+    Modelo para armazenar opções pré-definidas para o prontuário,
+    categorizadas por especialidade e área do prontuário.
+    """
+    ESPECIALIDADE_CHOICES = [
+        ('Cardiologia', 'Cardiologia'),
+        ('Ginecologia', 'Ginecologia'),
+        ('Neonatologia', 'Neonatologia'),
+        ('Obstetricia', 'Obstetrícia'),
+        ('Ortopedia', 'Ortopedia'),
+        ('Pediatria', 'Pediatria'),
+        ('Reumatologia', 'Reumatologia'),
+        ('Reumatologia Pediatrica', 'Reumatologia Pediátrica'),
+    ]
+
+    AREA_CHOICES = [
+        ('QUEIXA_PRINCIPAL', 'Queixa Principal'),
+        ('HDA', 'História da Doença Atual'),
+        ('HMP', 'História Médica Pregressa'),
+        ('EXAME_FISICO_GERAL', 'Exame Físico - Geral'),
+        ('EXAME_FISICO_CARDIO', 'Exame Físico - Cardiovascular'),
+        ('EXAME_FISICO_RESP', 'Exame Físico - Respiratório'),
+        ('EXAME_FISICO_ORTO', 'Exame Físico - Ortopédico'),
+        # Adicione outras áreas conforme a necessidade
+    ]
+
+    descricao = models.CharField(max_length=255, help_text="Ex: 'Dor precordial tipo aperto'")
+    especialidade = models.CharField(max_length=50, choices=ESPECIALIDADE_CHOICES, db_index=True)
+    area_clinica = models.CharField(max_length=50, choices=AREA_CHOICES, db_index=True, verbose_name="Área do Prontuário")
+
+    class Meta:
+        verbose_name = "Opção Clínica"
+        verbose_name_plural = "Opções Clínicas"
+        unique_together = ('descricao', 'especialidade', 'area_clinica') # Evita duplicatas
+        ordering = ['especialidade', 'area_clinica', 'descricao']
+
+    def __str__(self):
+        return f"[{self.especialidade} / {self.area_clinica}] {self.descricao}"

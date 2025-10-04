@@ -16,11 +16,11 @@ from xhtml2pdf import pisa
 from usuarios.permissions import IsMedicoResponsavelOrAdmin
 from .models import (
     Anamnese, Atestado, DocumentoPaciente, Evolucao, 
-    Paciente, Prescricao
+    Paciente, Prescricao, OpcaoClinica
 )
 from .serializers import (
     AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer,
-    EvolucaoSerializer, PrescricaoSerializer
+    EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
 )
 
 
@@ -168,3 +168,24 @@ class GerarAtestadoPDFView(APIView):
             return response
             
         return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
+
+class OpcaoClinicaListView(generics.ListAPIView):
+    """
+    View para listar as opções clínicas.
+    Permite filtrar por ?especialidade=Cardiologia e ?area_clinica=HDA
+    """
+    serializer_class = OpcaoClinicaSerializer
+    permission_classes = [IsAuthenticated] # Apenas usuários logados podem ver
+
+    def get_queryset(self):
+        queryset = OpcaoClinica.objects.all()
+        especialidade = self.request.query_params.get('especialidade')
+        area_clinica = self.request.query_params.get('area_clinica')
+
+        if especialidade:
+            queryset = queryset.filter(especialidade=especialidade)
+
+        if area_clinica:
+            queryset = queryset.filter(area_clinica=area_clinica)
+
+        return queryset
