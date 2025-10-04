@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Typography, CircularProgress, IconButton, Alert } from '@mui/material';
-import CloseIcon from '@mui/icons-to-do/Close';
+import CloseIcon from '@mui/icons-material/Close';
 
 // Importações do Cornerstone
 import cornerstone from 'cornerstone-core';
