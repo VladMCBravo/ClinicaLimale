@@ -1,4 +1,4 @@
-# chatbot/agendamento_flow.py - VERSÃO COMPLETA E FINAL
+# chatbot/agendamento_flow.py - VERSÃO FINALÍSSIMA E CORRIGIDA
 
 import re
 import json
@@ -144,11 +144,13 @@ class AgendamentoManager:
         return {"response_message": mensagem, "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_cpf(self, resposta_usuario):
-        is_valid, mensagem_erro, cpf_limpo = self.validators.validar_cpf_completo(resposta_usuario)
+        is_valid, mensagem_erro, _ = self.validators.validar_cpf_completo(resposta_usuario)
         if not is_valid:
             return {"response_message": f"O CPF parece inválido. {mensagem_erro}. Tente novamente.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
+        
+        cpf_numeros = re.sub(r'\D', '', resposta_usuario)
+        paciente = Paciente.objects.filter(cpf=cpf_numeros).first()
 
-        paciente = Paciente.objects.filter(cpf=cpf_limpo).first()
         if paciente:
             self.memoria.update({
                 'cpf': paciente.cpf, 'nome_completo': paciente.nome_completo,
@@ -159,9 +161,9 @@ class AgendamentoManager:
             mensagem = f"Que ótimo te ver de volta, {primeiro_nome}! Já encontrei seu cadastro. Estamos prontos para ir para o pagamento."
             return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
         else:
-            self.memoria['cpf'] = cpf_limpo
+            self.memoria['cpf'] = cpf_numeros
             mensagem = "Entendido. Para seu primeiro agendamento, preciso de algumas informações rápidas. Vamos começar pelo seu *nome completo*, por favor."
-            self.memoria['dados_paciente'] = {'cpf': cpf_limpo}
+            self.memoria['dados_paciente'] = {'cpf': cpf_numeros}
             self.memoria['missing_field'] = 'nome_completo'
             return {"response_message": mensagem, "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
 
@@ -187,7 +189,7 @@ class AgendamentoManager:
                 mensagens_pedido = {
                     'nome_completo': "Qual o *nome completo* do paciente?",
                     'data_nascimento': f"Hmm, a data parece inválida. {mensagem_erro}. Qual a data correta (DD/MM/AAAA)?",
-                    'cpf': "Já tenho um CPF, mas parece inválido. Por favor, digite o *CPF* correto (11 números).",
+                    'cpf': "O CPF que você informou parece inválido. Por favor, digite o *CPF* correto (11 números).",
                     'telefone_celular': f"O telefone parece inválido. {mensagem_erro}. Qual o *celular com DDD*?",
                     'email': f"O e-mail parece inválido. {mensagem_erro}. Qual o *e-mail* correto?",
                 }
@@ -202,7 +204,6 @@ class AgendamentoManager:
         return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
 
     def handle_awaiting_payment_choice(self, resposta_usuario):
-        nome_usuario = self.memoria.get('nome_usuario', '')
         escolha = resposta_usuario.lower().strip()
         if 'pix' in escolha or escolha == '1':
             self.memoria['metodo_pagamento_escolhido'] = 'PIX'
@@ -222,21 +223,20 @@ class AgendamentoManager:
 
     def handle_awaiting_confirmation(self, resposta_usuario):
         try:
+            # Validações dos dados da memória antes de salvar
             is_valid_cpf, _, cpf_fmt = self.validators.validar_cpf_completo(self.memoria.get('cpf', ''))
             is_valid_tel, _, tel_fmt = self.validators.validar_telefone_brasileiro(self.memoria.get('telefone_celular', ''))
             is_valid_email, _, email_fmt = self.validators.validar_email_avancado(self.memoria.get('email', ''))
             is_valid_nome, _, nome_fmt = self.validators.validar_nome_completo(self.memoria.get('nome_completo', ''))
             is_valid_date, _, data_obj = self.validators.validar_data_nascimento_avancada(self.memoria.get('data_nascimento', ''))
             if not all([is_valid_cpf, is_valid_tel, is_valid_email, is_valid_nome, is_valid_date]):
-                logger.error(f"Erro de validação final antes de salvar. Dados: {self.memoria}")
+                logger.error(f"Erro de validação final. Dados: {self.memoria}")
                 return {"response_message": "Um ou mais dos seus dados parecem inválidos. Vamos recomeçar o cadastro.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
 
             cpf_limpo = re.sub(r'\D', '', cpf_fmt)
             tel_limpo = re.sub(r'\D', '', tel_fmt)
 
-            paciente, created = Paciente.objects.get_or_create(cpf=cpf_limpo, defaults={
-                'nome_completo': nome_fmt, 'email': email_fmt, 'telefone_celular': tel_limpo, 'data_nascimento': data_obj
-            })
+            paciente, created = Paciente.objects.get_or_create(cpf=cpf_limpo, defaults={'nome_completo': nome_fmt, 'email': email_fmt, 'telefone_celular': tel_limpo, 'data_nascimento': data_obj})
             if not created:
                 paciente.nome_completo = nome_fmt
                 paciente.email = email_fmt
@@ -253,11 +253,10 @@ class AgendamentoManager:
             duracao = 50 
             data_hora_inicio_obj = datetime.fromisoformat(self.memoria.get('data_hora_inicio'))
             dados_agendamento['data_hora_fim'] = (data_hora_inicio_obj + timedelta(minutes=duracao)).isoformat()
-
             serializer = AgendamentoWriteSerializer(data=dados_agendamento)
             if not serializer.is_valid():
-                logger.error(f"[CONFIRMACAO] Erro de serialização: {json.dumps(serializer.errors)}")
-                return {"response_message": "Desculpe, tive um problema ao validar os dados do agendamento. A equipe técnica foi notificada.", "new_state": "inicio", "memory_data": self.memoria}
+                logger.error(f"Erro de serialização: {json.dumps(serializer.errors)}")
+                return {"response_message": "Desculpe, tive um problema ao validar os dados do agendamento.", "new_state": "inicio", "memory_data": self.memoria}
 
             agendamento = serializer.save()
             usuario_servico = CustomUser.objects.filter(is_superuser=True).first()
@@ -265,14 +264,12 @@ class AgendamentoManager:
 
             criar_agendamento_e_pagamento_pendente(agendamento, usuario_servico, metodo_pagamento_escolhido=metodo, initiated_by_chatbot=True)
             agendamento.refresh_from_db()
-
             pagamento = agendamento.pagamento if hasattr(agendamento, 'pagamento') else None
             nome_paciente_fmt = paciente.nome_completo.split(' ')[0]
             data_fmt = timezone.localtime(agendamento.data_hora_inicio).strftime('%d/%m/%Y')
             hora_fmt = timezone.localtime(agendamento.data_hora_inicio).strftime('%H:%M')
 
             msg_confirmacao = (f"✅ *Agendamento Confirmado!*\n\nOlá, {nome_paciente_fmt}! Seu horário está garantido.\n\n*Consulta de {self.memoria.get('especialidade_nome')}*\nCom Dr(a). *{self.memoria.get('medico_nome')}*\n🗓️ *Data:* {data_fmt}\n⏰ *Hora:* {hora_fmt}\n\n")
-
             secao_pagamento = ""
             if pagamento:
                 if metodo == 'PIX' and pagamento.pix_copia_e_cola:
@@ -282,41 +279,34 @@ class AgendamentoManager:
                     secao_pagamento = f"Clique no link a seguir para pagar com Cartão de Crédito e garantir seu horário:\n{pagamento.link_pagamento}"
             if not secao_pagamento:
                 secao_pagamento = "O pagamento será realizado na recepção da clínica no dia do seu atendimento."
-
             return {"response_message": f"{msg_confirmacao}{secao_pagamento}", "new_state": "inicio", "memory_data": {'nome_usuario': self.memoria.get('nome_usuario')}}
         except Exception as e:
-            logger.error(f"[CONFIRMACAO] ERRO INESPERADO: {str(e)}", exc_info=True)
-            return {"response_message": "Desculpe, ocorreu um erro inesperado ao finalizar o agendamento. A nossa equipe já foi notificada.", "new_state": "inicio", "memory_data": self.memoria}
+            logger.error(f"ERRO INESPERADO NA CONFIRMAÇÃO: {str(e)}", exc_info=True)
+            return {"response_message": "Desculpe, ocorreu um erro inesperado ao finalizar o agendamento.", "new_state": "inicio", "memory_data": self.memoria}
 
     def handle_cancelamento_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
         return {"response_message": f"Entendido, {nome_usuario}. Para localizar seu agendamento, por favor, informe seu *CPF*.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
-        
-    # --- FUNÇÃO CORRIGIDA ---
-    def handle_cadastro_awaiting_cpf(self, resposta_usuario):
-        is_valid, mensagem_erro, _ = self.validators.validar_cpf_completo(resposta_usuario)
+    
+    # CORREÇÃO: Adicionando a função que estava faltando
+    def handle_cancelamento_awaiting_cpf(self, resposta_usuario):
+        is_valid, _, cpf_limpo = self.validators.validar_cpf_completo(resposta_usuario)
         if not is_valid:
-            return {"response_message": f"O CPF parece inválido. {mensagem_erro}. Tente novamente.", "new_state": "cadastro_awaiting_cpf", "memory_data": self.memoria}
-
-        # CORREÇÃO: Garante que estamos usando apenas os números para a busca
-        cpf_numeros = re.sub(r'\D', '', resposta_usuario)
+            return {"response_message": "CPF inválido. Por favor, digite os 11 números.", "new_state": "cancelamento_awaiting_cpf", "memory_data": self.memoria}
         
-        paciente = Paciente.objects.filter(cpf=cpf_numeros).first()
-        if paciente:
-            self.memoria.update({
-                'cpf': paciente.cpf, 'nome_completo': paciente.nome_completo,
-                'data_nascimento': paciente.data_nascimento.strftime('%d/%m/%Y') if paciente.data_nascimento else '',
-                'telefone_celular': paciente.telefone_celular, 'email': paciente.email
-            })
-            primeiro_nome = paciente.nome_completo.split(' ')[0]
-            mensagem = f"Que ótimo te ver de volta, {primeiro_nome}! Já encontrei seu cadastro. Estamos prontos para ir para o pagamento."
-            return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+        agendamentos = listar_agendamentos_futuros(cpf_limpo)
+        if not agendamentos:
+            return {"response_message": "Não encontrei agendamentos futuros no seu CPF. Posso ajudar com mais alguma coisa?", "new_state": "inicio", "memory_data": self.memoria}
+        
+        self.memoria['agendamentos_para_cancelar'] = [{"id": ag.id, "texto": f"{ag.get_tipo_agendamento_display()} - {ag.especialidade.nome if ag.especialidade else 'Serviço'} em {timezone.localtime(ag.data_hora_inicio).strftime('%d/%m/%Y às %H:%M')}"} for ag in agendamentos]
+        
+        if len(agendamentos) == 1:
+            ag = self.memoria['agendamentos_para_cancelar'][0]
+            self.memoria['agendamento_selecionado_id'] = ag['id']
+            return {"response_message": f"Encontrei este agendamento:\n• {ag['texto']}\n\nConfirma o cancelamento? (Sim/Não)", "new_state": "cancelamento_awaiting_confirmation", "memory_data": self.memoria}
         else:
-            self.memoria['cpf'] = cpf_numeros
-            mensagem = "Entendido. Para seu primeiro agendamento, preciso de algumas informações rápidas. Vamos começar pelo seu *nome completo*, por favor."
-            self.memoria['dados_paciente'] = {'cpf': cpf_numeros}
-            self.memoria['missing_field'] = 'nome_completo'
-            return {"response_message": mensagem, "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
+            lista_texto = "\n".join([f"{i+1} - {ag['texto']}" for i, ag in enumerate(self.memoria['agendamentos_para_cancelar'])])
+            return {"response_message": f"Encontrei estes agendamentos:\n{lista_texto}\n\nQual o *número* do que deseja cancelar?", "new_state": "cancelamento_awaiting_choice", "memory_data": self.memoria}
 
     def handle_cancelamento_awaiting_choice(self, resposta_usuario):
         try:
