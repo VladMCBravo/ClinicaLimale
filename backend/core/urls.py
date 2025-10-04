@@ -29,4 +29,5 @@ urlpatterns = [
     path('api/atestados/<int:atestado_id>/pdf/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
     path('api/prescricoes/<int:prescricao_id>/pdf/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
     path('api/chatbot/', include('chatbot.urls')),
+    path('api/integracao/', include('integracao_dicom.urls')),
 ]

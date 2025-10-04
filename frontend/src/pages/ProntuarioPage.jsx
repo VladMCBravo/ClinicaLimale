@@ -9,6 +9,7 @@ import AnamneseTab from '../components/prontuario/AnamneseTab';
 import EvolucoesTab from '../components/prontuario/EvolucoesTab';
 import PrescricoesTab from '../components/prontuario/PrescricoesTab'; 
 import AtestadosTab from '../components/prontuario/AtestadosTab'; 
+import ExamesDicomTab from '../components/prontuario/ExamesDicomTab'; // <-- 1. IMPORTAR O NOVO COMPONENTE
 import AnexosTab from '../components/prontuario/AnexosTab';
 import PatientHeader from '../components/PatientHeader'; // NOVO: Importamos o novo componente
 
@@ -76,7 +77,8 @@ export default function ProntuarioPage() {
             <Tab label="Evoluções" />
             <Tab label="Prescrições" />
             <Tab label="Atestados" /> 
-            <Tab label="Anexos" /> 
+            <Tab label="Anexos" />
+            <Tab label="Exames de Imagem" /> {/* <-- 2. ADICIONAR A NOVA ABA */} 
           </Tabs>
         </Box>
         
@@ -94,6 +96,9 @@ export default function ProntuarioPage() {
         </TabPanel>
         <TabPanel value={activeTab} index={4}>
           <AnexosTab pacienteId={paciente.id} />
+        </TabPanel>
+        <TabPanel value={activeTab} index={5}>
+          <ExamesDicomTab pacienteId={paciente.id} />
         </TabPanel>
       </Paper>
     </Box>

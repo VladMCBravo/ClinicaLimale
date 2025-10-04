@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'dashboard',
     'chatbot',
     'channels',
+    'integracao_dicom',
 ]
 
 # --- Configurações de Middleware ---
