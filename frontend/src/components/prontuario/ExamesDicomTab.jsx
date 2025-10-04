@@ -1,7 +1,7 @@
 // src/components/prontuario/ExamesDicomTab.jsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import apiClient from '../../api/axiosConfig'; // Ajuste o caminho se necessário
+import apiClient from '../../api/axiosConfig';
 import { 
   Box, 
   Typography, 
@@ -9,20 +9,23 @@ import {
   List, 
   ListItem, 
   ListItemText,
-  Paper
+  Paper,
+  Divider
 } from '@mui/material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import DicomViewer from '../dicom/DicomViewer'; // <-- 1. IMPORTE O DICOM VIEWER
 
 export default function ExamesDicomTab({ pacienteId }) {
   const [exames, setExames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedExame, setSelectedExame] = useState(null); // <-- 2. ESTADO PARA O EXAME SELECIONADO
   const { showSnackbar } = useSnackbar();
 
   const fetchExames = useCallback(async () => {
     setIsLoading(true);
     try {
-      // ATENÇÃO: Este endpoint ainda precisa ser criado no Django!
-      const response = await apiClient.get(`/pacientes/${pacienteId}/exames_dicom/`);
+      // --- 3. AJUSTE A URL PARA A ROTA CORRETA ---
+      const response = await apiClient.get(`/integracao/pacientes/${pacienteId}/exames/`);
       setExames(response.data);
     } catch (error) {
       console.error("Erro ao buscar exames DICOM:", error);
@@ -36,10 +39,25 @@ export default function ExamesDicomTab({ pacienteId }) {
     fetchExames();
   }, [fetchExames]);
 
+  const handleSelectExame = (exame) => {
+    setSelectedExame(exame);
+  };
+
+  const handleCloseViewer = () => {
+    setSelectedExame(null);
+  };
+
   if (isLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>;
   }
+  
+  // --- 4. LÓGICA DE RENDERIZAÇÃO CONDICIONAL ---
+  if (selectedExame) {
+    // Se um exame estiver selecionado, mostre o viewer
+    return <DicomViewer exame={selectedExame} onClose={handleCloseViewer} />;
+  }
 
+  // Se nenhum exame estiver selecionado, mostre a lista
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>Exames de Imagem</Typography>
@@ -47,18 +65,19 @@ export default function ExamesDicomTab({ pacienteId }) {
         <Typography>Nenhum exame de imagem encontrado para este paciente.</Typography>
       ) : (
         <List>
-          {exames.map((exame) => (
-            <ListItem 
-              button 
-              key={exame.id} 
-              // No futuro, o onClick aqui abrirá o DicomViewer
-              onClick={() => alert(`Abrir exame: ${exame.study_description}`)}
-            >
-              <ListItemText 
-                primary={exame.study_description || "Exame sem descrição"}
-                secondary={`Data: ${new Date(exame.study_date).toLocaleDateString('pt-BR')}`} 
-              />
-            </ListItem>
+          {exames.map((exame, index) => (
+            <React.Fragment key={exame.id}>
+              <ListItem 
+                button 
+                onClick={() => handleSelectExame(exame)}
+              >
+                <ListItemText 
+                  primary={exame.study_description || "Exame sem descrição"}
+                  secondary={`Data: ${new Date(exame.study_date).toLocaleDateString('pt-BR')}`} 
+                />
+              </ListItem>
+              {index < exames.length - 1 && <Divider />}
+            </React.Fragment>
           ))}
         </List>
       )}
