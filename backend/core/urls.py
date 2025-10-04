@@ -4,11 +4,14 @@ from django.urls import path, include
 from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView
 # 1. IMPORTAMOS NOSSAS VIEWS CUSTOMIZADAS DE LOGIN E LOGOUT
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
-from .views import debug_env_view # <-- 1. Importe a nova view
+from .views import debug_env_view, list_urls_view # <-- 1. IMPORTE A NOVA VIEW 'list_urls_view'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
+    # --- 2. ADICIONE A NOVA ROTA DE DEPURAÇÃO AQUI ---
+    path('api/debug/urls/', list_urls_view, name='debug-urls'),
+
     # --- 2. REGISTRAMOS NOSSAS ROTAS DE AUTENTICAÇÃO DIRETAMENTE AQUI ---
     path('api/auth/login/', CustomAuthTokenLoginView.as_view(), name='custom_login'),
     path('api/auth/logout/', LogoutView.as_view(), name='custom_logout'),
