@@ -1,4 +1,5 @@
-// src/components/prontuario/EvolucoesTab.jsx
+// src/components/prontuario/EvolucoesTab.jsx - VERSÃO LIMPA E CORRIGIDA
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Button, CircularProgress, TextField, Typography, Paper, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -11,17 +12,19 @@ export default function EvolucoesTab({ pacienteId }) {
   const [formData, setFormData] = useState(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
 
+  const apiUrl = `/pacientes/${pacienteId}/prontuario/evolucoes/`; // URL CORRIGIDA
+
   const fetchEvolucoes = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/pacientes/${pacienteId}/evolucoes/`);
+      const response = await apiClient.get(apiUrl);
       setEvolucoes(response.data);
     } catch (error) {
       console.error("Erro ao buscar evoluções:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [pacienteId]);
+  }, [apiUrl]);
 
   useEffect(() => {
     fetchEvolucoes();
@@ -31,9 +34,9 @@ export default function EvolucoesTab({ pacienteId }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await apiClient.post(`/pacientes/${pacienteId}/evolucoes/`, formData);
-      setFormData(initialFormState); // Limpa o formulário
-      fetchEvolucoes(); // Recarrega a lista
+      await apiClient.post(apiUrl, formData);
+      setFormData(initialFormState);
+      fetchEvolucoes();
     } catch (error) {
       console.error("Erro ao salvar evolução:", error.response?.data);
     } finally {
@@ -45,7 +48,6 @@ export default function EvolucoesTab({ pacienteId }) {
 
   return (
     <Box>
-      {/* Formulário para Nova Evolução */}
       <Paper component="form" onSubmit={handleSave} elevation={2} sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Registrar Nova Evolução (S.O.A.P.)</Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -57,7 +59,6 @@ export default function EvolucoesTab({ pacienteId }) {
         </Box>
       </Paper>
 
-      {/* Lista de Evoluções Anteriores */}
       <Typography variant="h6" gutterBottom>Histórico de Evoluções</Typography>
       {evolucoes.length > 0 ? (
         evolucoes.map(evolucao => (

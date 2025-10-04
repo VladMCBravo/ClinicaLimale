@@ -18,7 +18,7 @@ export default function AtestadosTab({ pacienteId }) {
   const fetchAtestados = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/pacientes/${pacienteId}/atestados/`);
+      const response = await apiClient.get(`/pacientes/${pacienteId}/prontuario/atestados/`);
       setAtestados(response.data);
     } catch (error) {
       console.error("Erro ao buscar atestados:", error);
@@ -35,7 +35,7 @@ export default function AtestadosTab({ pacienteId }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await apiClient.post(`/pacientes/${pacienteId}/atestados/`, formData);
+      await apiClient.post(`/pacientes/${pacienteId}/prontuario/atestados/`, formData);
       setFormData(initialFormState); // Limpa o formulário
       fetchAtestados(); // Recarrega a lista
     } catch (error) {

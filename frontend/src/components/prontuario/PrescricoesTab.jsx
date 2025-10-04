@@ -17,7 +17,7 @@ export default function PrescricoesTab({ pacienteId }) {
   const fetchPrescricoes = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get(`/pacientes/${pacienteId}/prescricoes/`);
+      const response = await apiClient.get(`/pacientes/${pacienteId}/prontuario/prescricoes/`);
       setPrescricoes(response.data);
     } catch (error) {
       console.error("Erro ao buscar prescrições:", error);
@@ -50,7 +50,7 @@ export default function PrescricoesTab({ pacienteId }) {
     setIsLoading(true);
     const dataToSend = { itens: itens };
     try {
-      await apiClient.post(`/pacientes/${pacienteId}/prescricoes/`, dataToSend);
+      await apiClient.post(`/pacientes/${pacienteId}/prontuario/prescricoes/`, dataToSend);
       setItens([initialItemState]); // Limpa o formulário
       fetchPrescricoes(); // Recarrega a lista
     } catch (error) {

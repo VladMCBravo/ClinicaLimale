@@ -23,7 +23,7 @@ export default function AnexosTab({ pacienteId }) {
     const fetchDocumentos = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await apiClient.get(`/pacientes/${pacienteId}/documentos/`);
+            const response = await apiClient.get(`/pacientes/${pacienteId}/prontuario/documentos/`);
             setDocumentos(response.data);
         } catch (error) {
             console.error("Erro ao buscar documentos:", error);
@@ -55,7 +55,7 @@ export default function AnexosTab({ pacienteId }) {
         formData.append('descricao', descricao);
 
         try {
-            await apiClient.post(`/pacientes/${pacienteId}/documentos/`, formData, {
+            await apiClient.post(`/pacientes/${pacienteId}/prontuario/documentos/`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
             showSnackbar('Documento enviado com sucesso!', 'success');
