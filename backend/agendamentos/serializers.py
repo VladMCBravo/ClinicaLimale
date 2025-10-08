@@ -1,7 +1,7 @@
 # backend/agendamentos/serializers.py - VERSÃO FINAL E COMPLETA
 
 from rest_framework import serializers
-from .models import Agendamento
+from .models import Agendamento, Sala
 from pacientes.models import Paciente
 from usuarios.models import CustomUser, Especialidade
 from faturamento.models import Procedimento
@@ -20,6 +20,8 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True, default=None)
     procedimento_descricao = serializers.CharField(source='procedimento.descricao', read_only=True, default=None)
     plano_utilizado = serializers.CharField(source='plano_utilizado.nome', read_only=True, default=None)
+    # <<-- NOVO CAMPO PARA EXIBIÇÃO DA SALA -->>
+    sala_nome = serializers.CharField(source='sala.nome', read_only=True)
 
     class Meta:
         model = Agendamento
@@ -51,6 +53,8 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'data_atualizacao', # Adicionado para visualização
             'expira_em', # Adicionado para visualização
             'id_sala_telemedicina', # Adicionado para visualização
+            'sala', # <-- Adiciona o ID da sala
+            'sala_nome' # <-- Adiciona o nome da sala
         ]
 
     def get_primeira_consulta(self, obj):
@@ -67,6 +71,11 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
     medico = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.filter(cargo='medico'), required=False, allow_null=True)
     especialidade = serializers.PrimaryKeyRelatedField(queryset=Especialidade.objects.all(), required=False, allow_null=True)
     procedimento = serializers.PrimaryKeyRelatedField(queryset=Procedimento.objects.all(), required=False, allow_null=True)
+    # <<-- NOVO CAMPO OBRIGATÓRIO PARA ESCRITA -->>
+    # <<-- A MUDANÇA ESTÁ AQUI -->>
+    # A sala agora não é obrigatória por padrão, permitindo requisições do chatbot.
+    # A obrigatoriedade será verificada na lógica de validação abaixo.
+    sala = serializers.PrimaryKeyRelatedField(queryset=Sala.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = Agendamento
@@ -74,24 +83,24 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             'paciente', 'data_hora_inicio', 'data_hora_fim', 'status', 
             'plano_utilizado', 'tipo_atendimento', 'observacoes', 'modalidade',
             'tipo_visita', 'expira_em', 'tipo_agendamento', 'medico',
-            'especialidade', 'procedimento',
+            'especialidade', 'procedimento', 'sala'
         ]
-         
+                  
     def validate(self, data):
         """
-        Validação centralizada com a nova lógica de CAPACIDADE.
-        Permite até 3 consultas e 1 procedimento no mesmo intervalo de tempo.
+        Validação aprimorada:
+        1. A sala é OBRIGATÓRIA para usuários do sistema (recepção/admin).
+        2. A capacidade (3 consultas/1 proc) é verificada APENAS se uma sala for definida.
         """
-        # --- CONSTANTES DE CAPACIDADE ---
         CAPACIDADE_CONSULTAS = 3
         CAPACIDADE_PROCEDIMENTOS = 1
 
-        # --- DADOS DO AGENDAMENTO ATUAL ---
         tipo_agendamento_atual = data.get('tipo_agendamento')
         inicio = data.get('data_hora_inicio')
         fim = data.get('data_hora_fim')
+        sala_atual = data.get('sala')
 
-        # --- REGRAS DE NEGÓCIO (Consulta vs Procedimento) - MANTIDAS ---
+        # --- REGRAS DE NEGÓCIO (Consulta vs Procedimento) ---
         if tipo_agendamento_atual == 'Consulta':
             if not data.get('medico'):
                 raise serializers.ValidationError({"medico": "É necessário selecionar um médico para a consulta."})
@@ -105,38 +114,41 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             data['especialidade'] = None
             data['modalidade'] = 'Presencial'
         
-        # --- NOVA VALIDAÇÃO DE CAPACIDADE DE HORÁRIO ---
-        if not inicio or not fim:
-             raise serializers.ValidationError("As datas de início e fim são obrigatórias.")
+        # <<-- LÓGICA DE VALIDAÇÃO CONDICIONAL -->>
+        request = self.context.get('request')
+        usuario_logado = request.user if request and hasattr(request, 'user') else None
 
-        # 1. Busca todos os agendamentos que conflitam no mesmo horário
-        conflitos = Agendamento.objects.filter(
-            data_hora_inicio__lt=fim, 
-            data_hora_fim__gt=inicio
-        ).exclude(status='Cancelado')
+        # Passo 1: Verificar se a sala é obrigatória para este tipo de usuário.
+        if usuario_logado and hasattr(usuario_logado, 'cargo') and usuario_logado.cargo in ['recepcao', 'admin']:
+            if not sala_atual:
+                raise serializers.ValidationError({"sala": "A seleção da sala é obrigatória para agendamentos feitos pelo painel."})
 
-        # 2. Se estivermos atualizando, excluímos o próprio agendamento da contagem
-        if self.instance:
-            conflitos = conflitos.exclude(pk=self.instance.pk)
+        # Passo 2: Se uma sala foi informada, validar a capacidade.
+        if sala_atual:
+            conflitos = Agendamento.objects.filter(
+                data_hora_inicio__lt=fim, 
+                data_hora_fim__gt=inicio,
+                sala=sala_atual
+            ).exclude(status='Cancelado')
 
-        # 3. Contamos quantos agendamentos de cada tipo já existem no horário
-        consultas_no_horario = conflitos.filter(tipo_agendamento='Consulta').count()
-        procedimentos_no_horario = conflitos.filter(tipo_agendamento='Procedimento').count()
+            if self.instance:
+                conflitos = conflitos.exclude(pk=self.instance.pk)
 
-        # 4. Aplicamos a regra de capacidade
-        if tipo_agendamento_atual == 'Consulta':
-            if consultas_no_horario >= CAPACIDADE_CONSULTAS:
-                raise serializers.ValidationError(
-                    f"A capacidade máxima de {CAPACIDADE_CONSULTAS} consultas para este horário já foi atingida."
-                )
-        elif tipo_agendamento_atual == 'Procedimento':
-            if procedimentos_no_horario >= CAPACIDADE_PROCEDIMENTOS:
-                raise serializers.ValidationError(
-                    f"A capacidade máxima de {CAPACIDADE_PROCEDIMENTOS} procedimento(s) para este horário já foi atingida."
-                )
+            consultas_na_sala = conflitos.filter(tipo_agendamento='Consulta').count()
+            procedimentos_na_sala = conflitos.filter(tipo_agendamento='Procedimento').count()
+
+            if tipo_agendamento_atual == 'Consulta' and consultas_na_sala >= CAPACIDADE_CONSULTAS:
+                raise serializers.ValidationError(f"A capacidade máxima de {CAPACIDADE_CONSULTAS} consultas para esta sala e horário já foi atingida.")
+            elif tipo_agendamento_atual == 'Procedimento' and procedimentos_na_sala >= CAPACIDADE_PROCEDIMENTOS:
+                raise serializers.ValidationError(f"A capacidade máxima de {CAPACIDADE_PROCEDIMENTOS} procedimento(s) para esta sala e horário já foi atingida.")
         
-        # Se passou por todas as validações, retorna os dados
         return data
+    
+# --- Serializer simples para listar as salas ---
+class SalaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sala
+        fields = ['id', 'nome', 'descricao']
 
 # <<-- NOVA FUNÇÃO 1 -->>
 def listar_agendamentos_futuros(cpf):

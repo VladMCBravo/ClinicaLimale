@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser
 from django.utils.dateparse import parse_datetime, parse_date
-from .models import Agendamento
-from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer
+from .models import Agendamento, Sala
+from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer, SalaSerializer
 from django.utils import timezone
 from django.core.mail import send_mail
 from faturamento.models import Pagamento, Procedimento
@@ -20,28 +20,49 @@ from rest_framework_api_key.permissions import HasAPIKey
 # Importa a classe do nosso comando de cancelamento
 from .management.commands.cancelar_agendamentos_expirados import Command as CancelarAgendamentosCommand
 
-# --- CLASSE CORRIGIDA ---
+# <<-- NOVA VIEW PARA LISTAR AS SALAS -->>
+class SalaListView(generics.ListAPIView):
+    """
+    Endpoint para listar todas as salas de atendimento disponíveis.
+    """
+    permission_classes = [IsAuthenticated]
+    queryset = Sala.objects.all().order_by('nome')
+    serializer_class = SalaSerializer
+
+# --- CLASSE DE AGENDAMENTOS ALTERADA PARA FILTRAR POR SALA ---
 class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]
-    queryset = Agendamento.objects.all().select_related('paciente').order_by('data_hora_inicio')
+    serializer_class = AgendamentoSerializer # Default para GET
     
+    def get_queryset(self):
+        """
+        Adiciona a capacidade de filtrar agendamentos por sala.
+        """
+        queryset = Agendamento.objects.all().select_related(
+            'paciente', 'medico', 'especialidade', 'sala' # Adiciona 'sala' para otimizar a query
+        ).order_by('data_hora_inicio')
+        
+        # Filtro por sala (usado pelo FullCalendar para a visão de recursos)
+        sala_id = self.request.query_params.get('sala_id')
+        if sala_id:
+            queryset = queryset.filter(sala_id=sala_id)
+
+        # Filtros existentes (você pode adicionar outros aqui, como por data)
+        medico_id = self.request.query_params.get('medico_id')
+        if medico_id:
+            queryset = queryset.filter(medico_id=medico_id)
+            
+        return queryset
+
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return AgendamentoWriteSerializer
         return AgendamentoSerializer
     
     def perform_create(self, serializer):
-        """
-        Salva o agendamento e delega a criação do pagamento pendente para a camada de serviço.
-        """
-        # 1. Salva o agendamento através do serializer
         agendamento = serializer.save()
-        
-        # 2. Chama o serviço para executar as regras de negócio (criar o pagamento)
         services.criar_agendamento_e_pagamento_pendente(agendamento, self.request.user)
 
-        # E é isso! Todo o código antigo que estava aqui foi movido para services.py
-        # e deve ser removido desta função.
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]

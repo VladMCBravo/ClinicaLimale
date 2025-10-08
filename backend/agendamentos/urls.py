@@ -4,6 +4,7 @@ from django.urls import path
 from .views import (
     AgendamentoListCreateAPIView, 
     AgendamentoDetailAPIView,
+    SalaListView,
     AgendamentosNaoPagosListAPIView,
     AgendamentosHojeListView,
     EnviarLembretesCronView,
@@ -19,6 +20,7 @@ urlpatterns = [
     path('<int:pk>/', AgendamentoDetailAPIView.as_view(), name='detalhe-agendamento'),
     path('nao-pagos/', AgendamentosNaoPagosListAPIView.as_view(), name='lista-agendamentos-nao-pagos'),
     path('horarios-disponiveis/', HorariosDisponiveisAPIView.as_view(), name='horarios-disponiveis'),
+    path('salas/', SalaListView.as_view(), name='lista-salas'),
     path('hoje/', AgendamentosHojeListView.as_view(), name='lista-agendamentos-hoje'),
     path('cron/enviar-lembretes/', EnviarLembretesCronView.as_view(), name='cron-enviar-lembretes'),
     path('<int:agendamento_id>/criar-telemedicina/', CriarSalaTelemedicinaView.as_view(), name='criar-telemedicina'),
