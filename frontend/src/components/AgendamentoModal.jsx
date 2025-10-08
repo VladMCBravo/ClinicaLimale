@@ -16,7 +16,7 @@ const getInitialFormData = () => ({
     paciente: null, data_hora_inicio: null, data_hora_fim: null, status: 'Agendado',
     tipo_atendimento: 'Particular', plano_utilizado: null, observacoes: '',
     tipo_visita: 'Primeira Consulta', modalidade: 'Presencial', especialidade: null,
-    medico: null, procedimento: null,
+    medico: null, procedimento: null, sala: null // <-- NOVO CAMPO SALA
 });
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
@@ -29,15 +29,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [procedimentos, setProcedimentos] = useState([]);
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
+    const [salas, setSalas] = useState([]); // <-- NOVO ESTADO PARA SALAS
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
-
-    // --- ESTADOS DE CONTROLE DE CAPACIDADE ---
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
-    const [isSlotAvailable, setIsSlotAvailable] = useState(true); // Controla se o botão Salvar deve ser habilitado
+    const [isSlotAvailable, setIsSlotAvailable] = useState(true);
 
-
-    // Efeito para buscar dados gerais (pacientes, médicos, etc.)
+    // Efeito para buscar dados gerais (pacientes, médicos, salas, etc.)
     useEffect(() => {
         if (open) {
             agendamentoService.getModalData()
@@ -47,8 +45,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     setMedicos(medicosRes.data);
                     setEspecialidades(especialidadesRes.data);
                 }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
+            
+            // Busca as salas
+            agendamentoService.getSalas()
+                .then(response => setSalas(response.data))
+                .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
         }
     }, [open, showSnackbar]);
+
 
     // Efeito para preencher o formulário
     useEffect(() => {
@@ -74,6 +78,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 tipo_visita: dados.tipo_visita || 'Primeira Consulta',
                 modalidade: dados.modalidade || 'Presencial', // <-- Preenche a modalidade
                 especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
+                sala: salas.find(s => s.id === dados.sala) || null, // <-- Preenche a sala na edição
                 medico: medicos.find(m => m.id === dados.medico) || null,
                 procedimento: procedimentos.find(p => p.id === dados.procedimento) || null,
              });
@@ -83,10 +88,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             setFormData(prev => ({ 
                 ...prev, 
                 data_hora_inicio: startTime,
-                data_hora_fim: startTime.add(50, 'minute') // <-- PREENCHE AUTOMATICAMENTE AQUI TAMBÉM
+                data_hora_fim: startTime.add(50, 'minute'), // <-- PREENCHE AUTOMATICAMENTE AQUI TAMBÉM
+                // <<-- PRÉ-SELECIONA A SALA AO CLICAR NA AGENDA -->>
+                sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
             }));
         }
-    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades]);
+    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
     
     // --- NOVO EFEITO PARA VERIFICAR A CAPACIDADE DO HORÁRIO ---
     useEffect(() => {
@@ -167,6 +174,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         
         const submissionData = {
           ...formData,
+          sala: formData.sala?.id || null, // <-- ENVIA O ID DA SALA
           tipo_agendamento: tipoAgendamento,
           paciente: formData.paciente?.id || null,
           medico: formData.medico?.id || null,
@@ -186,7 +194,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             onSave();
         } catch (error) {
             const errorData = error.response?.data;
-            const errorMsg = typeof errorData === 'object' ? Object.values(errorData).flat()[0] : 'Erro ao salvar agendamento.';
+            let errorMsg = 'Erro ao salvar agendamento.';
+            if (typeof errorData === 'object' && errorData !== null) {
+                 // Pega a primeira mensagem de erro, seja de 'sala' ou de outro campo
+                 errorMsg = Object.values(errorData).flat()[0];
+            }
             showSnackbar(errorMsg, 'error');
         } finally {
             setIsSubmitting(false);
@@ -257,7 +269,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     {/* =============================================================== */}
                     <Grid item xs={12} md={7}> {/* <-- MUDANÇA DE 6 PARA 7 */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                            
+                            {/* <<-- NOVO CAMPO DE SELEÇÃO DE SALA -->> */}
+                            <FormControl fullWidth>
+                                <Autocomplete 
+                                    options={salas} 
+                                    getOptionLabel={(s) => s.nome || ''}
+                                    value={formData.sala} 
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))}
+                                    renderInput={(params) => (<TextField {...params} label="Sala *" size="small" />)} 
+                                />
+                            </FormControl>
                             <FormControl fullWidth>
                                 <Autocomplete 
                                     options={pacientes} 
@@ -352,7 +374,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             
             <DialogActions sx={{ p: '16px 24px' }}>
                 <Button onClick={onClose}>Cancelar</Button>
-                <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente || !isSlotAvailable}>
+                {/* A sala agora também é obrigatória para salvar */}
+                <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente || !isSlotAvailable || !formData.sala}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
                 </Button>
             </DialogActions>

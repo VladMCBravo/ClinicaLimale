@@ -6,6 +6,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list'; // <-- PASSO 1: IMPORTAR O PLUGIN DE LISTA
+import resourceTimelinePlugin from '@fullcalendar/resource-timeline'; // <-- PLUGIN DE RECURSOS
 import { useNavigate } from 'react-router-dom';
 import { Menu, Item, useContextMenu } from 'react-contexify';
 import 'react-contexify/dist/ReactContexify.css';
@@ -57,58 +58,105 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDateInfo, setSelectedDateInfo] = useState(null);
     const [editingEvent, setEditingEvent] = useState(null);
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const { show } = useContextMenu();
+    const [salas, setSalas] = useState([]);
+
+    // Busca as salas da API
+    useEffect(() => {
+        agendamentoService.getSalas()
+            .then(response => {
+                const salasFormatadas = response.data.map(sala => ({
+                    id: String(sala.id), // Garante que o ID seja uma string
+                    title: sala.nome
+                }));
+                setSalas(salasFormatadas);
+            })
+            .catch(error => console.error("Erro ao buscar salas:", error));
+    }, []);
+
+    // Busca os eventos (agendamentos)
+    const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
+        agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
+            .then(response => {
+                const eventosFormatados = response.data
+                    .filter(ag => ag.status !== 'Cancelado' && ag.sala) // <-- Garante que apenas agendamentos com sala apareçam na visão de recursos
+                    .map(ag => ({
+                        id: ag.id,
+                        title: ag.paciente_nome,
+                        start: ag.data_hora_inicio,
+                        end: ag.data_hora_fim,
+                        extendedProps: { ...ag },
+                        resourceId: String(ag.sala) // <-- MUDANÇA: Associa o evento a uma sala (recurso)
+                    }));
+                successCallback(eventosFormatados);
+            })
+            .catch(error => failureCallback(error));
+    }, [medicoFiltro, especialidadeFiltro]);
     
-    // ... Toda a lógica de handlers e hooks permanece a mesma ...
-    const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => { agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro).then(response => { const eventosFormatados = response.data.filter(ag => ag.status !== 'Cancelado').map(ag => ({ id: ag.id, title: ag.paciente_nome, start: ag.data_hora_inicio, end: ag.data_hora_fim, backgroundColor: statusColors[ag.status] || '#808080', borderColor: ag.tipo_agendamento === 'Consulta' ? '#1976d2' : '#9c27b0', extendedProps: { ...ag } })); successCallback(eventosFormatados); }).catch(error => failureCallback(error)); }, [medicoFiltro, especialidadeFiltro]);
-    useEffect(() => { if (calendarRef.current) { calendarRef.current.getApi().refetchEvents(); } }, [medicoFiltro, especialidadeFiltro]);
-    const handleDateClick = (arg) => { setEditingEvent(null); setSelectedDateInfo({ start: arg.date, end: arg.date }); setIsModalOpen(true); };
-    const handleEventClick = (clickInfo) => { const agendamento = clickInfo.event.extendedProps; if (user?.isMedico) { navigate(`/pacientes/${agendamento.paciente}/prontuario`); } else if (user?.isAdmin || user?.isRecepcao) { setSelectedDateInfo(null); setEditingEvent(clickInfo.event); setIsModalOpen(true); } };
-    const handleContextMenu = (event, agendamento) => { event.preventDefault(); const menuId = user.isMedico ? MENU_ID_MEDICO : MENU_ID_GESTAO; show({ event, id: menuId, props: { agendamento } }); };
-    const handleMenuAction = (action, agendamento) => { if (action === 'editarAgendamento') { const mockClickInfo = { event: { extendedProps: agendamento } }; handleEventClick(mockClickInfo); } else if (action === 'abrirProntuario') { navigate(`/pacientes/${agendamento.paciente}/prontuario`); } };
-    const handleCloseModal = () => { setIsModalOpen(false); setEditingEvent(null); setSelectedDateInfo(null); };
-    const handleSave = () => { handleCloseModal(); if (calendarRef.current) { calendarRef.current.getApi().refetchEvents(); } if (onSave) { onSave(); } };
+    // Atualiza a agenda quando filtros ou eventos são salvos
+    useEffect(() => {
+        if (calendarRef.current) {
+            calendarRef.current.getApi().refetchEvents();
+        }
+    }, [medicoFiltro, especialidadeFiltro, onSave]);
+
+    // Ao clicar em um espaço vazio na agenda
+    const handleDateClick = (arg) => {
+        setEditingEvent(null);
+        // <<-- MUDANÇA: Captura a sala (resource) que foi clicada -->>
+        setSelectedDateInfo({ start: arg.date, resource: arg.resource });
+        setIsModalOpen(true);
+    };
+
+    // Ao clicar em um evento existente
+    const handleEventClick = (clickInfo) => {
+        setSelectedDateInfo(null);
+        setEditingEvent(clickInfo.event);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingEvent(null);
+        setSelectedDateInfo(null);
+    };
+
+    const handleSave = () => {
+        handleCloseModal();
+        if (onSave) onSave();
+    };
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Paper sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }} variant="outlined">
                 <FullCalendar
                     ref={calendarRef}
-                    // PASSO 2: ADICIONAR O PLUGIN À LISTA
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                    // <<-- MUDANÇA: Adiciona o plugin de recursos -->>
+                    plugins={[resourceTimelinePlugin, dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                    schedulerLicenseKey="GPL-TO-REMOVE-THE-WARNING"
                     
-                    // PASSO 3: MUDAR A VISÃO INICIAL E OS BOTÕES
-                    initialView="timeGridWeek" // Mantemos a de semana como padrão geral
+                    // <<-- MUDANÇA: Define a visão por salas como inicial -->>
+                    initialView="resourceTimelineDay"
+                    
                     headerToolbar={{
                         left: 'prev,next today',
                         center: 'title',
-                        // MANTEMOS 'listDay' aqui, pois é o nome da *visão*
-                        right: 'dayGridMonth,timeGridWeek,listDay' 
+                        right: 'resourceTimelineDay,timeGridWeek,dayGridMonth'
                     }}
+                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', resourceTimelineDay: 'Salas' }}
                     
-                    // A MUDANÇA É AQUI:
-                    // Nós dizemos ao FullCalendar para usar o texto "Dia" para a visão 'list'.
-                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', list: 'Dia' }}
-
                     locale="pt-br"
                     height="100%"
                     events={fetchEvents}
-                    // O eventContent não é usado na visão de lista, mas mantemos para as outras visões
-                    eventContent={renderEventContent}
                     slotMinTime="08:00:00"
                     slotMaxTime="20:00:00"
-                    slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
                     allDaySlot={false}
                     dateClick={handleDateClick}
                     eventClick={handleEventClick}
-                    eventDidMount={(info) => {
-                        info.el.addEventListener('contextmenu', (e) => handleContextMenu(e, info.event.extendedProps));
-                    }}
                     nowIndicator={true}
-
-                    // REMOVEMOS AS PROPS DE EMPILHAMENTO, POIS NÃO SÃO NECESSÁRIAS AQUI
+                    
+                    // <<-- MUDANÇA: Fornece as salas para a agenda -->>
+                    resources={salas}
+                    resourceAreaHeaderContent="Salas"
                 />
             </Paper>
             <AgendamentoModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} initialData={selectedDateInfo} editingEvent={editingEvent} />

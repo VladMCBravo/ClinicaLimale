@@ -27,7 +27,10 @@ const getAgendamentosHoje = (medicoId) => {
 const getListaEspera = () => {
     return apiClient.get('/agendamentos/espera/');
 };
-
+// <<-- NOVA FUNÇÃO ADICIONADA AQUI -->>
+const getSalas = () => {
+    return apiClient.get('/agendamentos/salas/');
+};
 const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
 const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
 const verificarCapacidade = (inicio, fim) => {
@@ -66,6 +69,7 @@ export const agendamentoService = {
     getAgendamentos,
     getAgendamentosHoje,
     getListaEspera,
+    getSalas, // <-- Exporte a nova função
     createAgendamento,
     updateAgendamento,
     getModalData,
