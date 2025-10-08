@@ -18,6 +18,7 @@ import AgendaPage from './pages/AgendaPage';
 // REMOVA A LINHA ABAIXO, POIS NÃO SERÁ MAIS USADA DIRETAMENTE AQUI
 // import DashboardPage from './pages/DashboardPage'; 
 import PainelRecepcaoPage from './pages/PainelRecepcaoPage'; // <-- ADICIONE ESTA LINHA
+import DashboardGerencialPage from './pages/DashboardGerencialPage';
 import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
