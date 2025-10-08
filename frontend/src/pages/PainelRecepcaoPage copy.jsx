@@ -1,35 +1,39 @@
 // src/pages/PainelRecepcaoPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, CircularProgress, Drawer, Paper } from '@mui/material';
+import { Box, CircularProgress, Drawer } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
-// Componentes
+// Importações
 import BarraStatus from '../components/painel/BarraStatus';
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import ListaEspera from '../components/painel/ListaEspera';
-import ChatPanel from '../components/chat/ChatPanel';
+import ChatPanel from '../components/chat/ChatPanel'; // <-- IMPORTE SEU NOVO COMPONENTE
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
-import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal';
+import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal'; // <-- ESTA LINHA ESTAVA FALTANDO
 import ControlesAgenda from '../components/painel/ControlesAgenda';
 
 export default function PainelRecepcaoPage() {
-    // --- ESTADOS (sem alterações) ---
+    // --- ESTADOS GERAIS ---
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshSidebar, setRefreshSidebar] = useState(0);
+
+    // --- ESTADOS DOS FILTROS ---
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
+
+    // --- ESTADOS DOS MODAIS E DRAWERS ---
     const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
-    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false); // <-- ADICIONE ESTA LINHA
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
     const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
 
-    // --- FUNÇÕES (sem alterações) ---
+    // --- HANDLERS E FUNÇÕES ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -69,28 +73,20 @@ export default function PainelRecepcaoPage() {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
 
-    // ==================================================================
-    // === MUDANÇA PRINCIPAL: A ESTRUTURA DO LAYOUT FOI REORGANIZADA ===
-    // ==================================================================
     return (
         <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
             
-            {/* Coluna da Esquerda: O "Painel de Controle" completo */}
-            <Box sx={{ width: '350px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Coluna da Esquerda agora mais compacta */}
+            <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 
-                {/* 1. Controles de Ação Rápida e Filtros da Agenda */}
+                {/* SUBSTITUÍMOS OS DOIS COMPONENTES ANTIGOS PELO NOVO */}
                 <ControlesAgenda
                     onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
                     onCaixaClick={() => setIsCaixaModalOpen(true)}
                     onFiltroChange={handleFiltroChange}
                 />
                 
-                {/* 2. Verificador de Disponibilidade (agora mora aqui!) */}
-                {/* Ele se beneficia dos mesmos filtros e centraliza a busca de horários */}
-                <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
-
-                {/* 3. Lista de Pacientes do Dia */}
-                {/* Este componente agora ocupa o espaço restante, tornando a coluna rolável se necessário */}
+                {/* Este Box agora tem mais espaço vertical disponível */}
                 <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                     <PacientesDoDiaSidebar 
                         refreshTrigger={refreshSidebar} 
@@ -99,33 +95,48 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Box>
 
-            {/* Coluna Central: A Agenda como protagonista */}
-            {/* O verificador saiu de cima, dando 100% do espaço vertical para a agenda */}
-            <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />
+            <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
+                <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                    <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />
+                </Box>
             </Box>
 
-            {/* Barra Lateral Direita (sem alterações) */}
             <Box sx={{ flexShrink: 0 }}>
                 <BarraStatus
                     data={data}
-                    onListaEsperaClick={() => setIsListaEsperaOpen(true)} // Corrigido de false para true
-                    onChatClick={() => setIsChatOpen(true)}
+                    onListaEsperaClick={() => setIsListaEsperaOpen(false)}
+                    onChatClick={() => setIsChatOpen(true)} // <-- ADICIONE ESTA LINHA
                 />
             </Box>
             
-            {/* Modais e Drawers (sem alterações na lógica, apenas a correção no onClick acima) */}
             <Drawer anchor="right" open={isListaEsperaOpen} onClose={() => setIsListaEsperaOpen(false)}>
-                <Box sx={{ width: 400, p: 2, height: '100%' }}><ListaEspera /></Box>
+                <Box sx={{ width: 400, p: 2 }}><ListaEspera /></Box>
             </Drawer>
-
+                {/* ADICIONE O NOVO DRAWER DO CHAT AQUI */}
             <Drawer anchor="right" open={isChatOpen} onClose={() => setIsChatOpen(false)}>
-                <Box sx={{ width: 450, height: '100%' }}><ChatPanel /></Box>
+                <Box sx={{ width: 450, height: '100%' }}>
+                    <ChatPanel />
+                </Box>
             </Drawer>
+            <PacienteModal
+                open={isPacienteModalOpen}
+                onClose={() => setIsPacienteModalOpen(false)}
+                onSave={handleModalSave}
+                pacienteParaEditar={null}
+            />
 
-            <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={handleModalSave} />
-            <AgendamentoModal open={isAgendamentoModalOpen} onClose={() => setIsAgendamentoModalOpen(false)} onSave={handleModalSave} initialData={agendamentoInitialData}/>
-            <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} />
+            <AgendamentoModal
+                open={isAgendamentoModalOpen}
+                onClose={() => setIsAgendamentoModalOpen(false)}
+                onSave={handleModalSave}
+                initialData={agendamentoInitialData}
+            />
+            
+            <LancamentoCaixaModal 
+                open={isCaixaModalOpen} 
+                onClose={() => setIsCaixaModalOpen(false)} 
+            />
         </Box>
     );
 }
