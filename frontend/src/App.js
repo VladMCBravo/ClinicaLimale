@@ -42,6 +42,7 @@ function App() {
                 <Route path="/" element={<AgendaPage />} />
                 {/* A ROTA AGORA APONTA PARA O COMPONENTE CORRETO */}
                 <Route path="/painel" element={<PainelRecepcaoPage />} /> 
+                <Route path="/dashboard" element={<DashboardGerencialPage />} /> 
                 <Route path="/pacientes" element={<PacientesPage />} />
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
                 <Route path="/telemedicina" element={<TelemedicinaPage />} />
