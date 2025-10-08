@@ -1,131 +1,156 @@
-// src/pages/PainelRecepcaoPage.jsx
+// src/pages/PacientesPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, CircularProgress, Drawer, Paper } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
-
-// Componentes
-import BarraStatus from '../components/painel/BarraStatus';
-import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
-import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
-import ListaEspera from '../components/painel/ListaEspera';
-import ChatPanel from '../components/chat/ChatPanel';
+import { useAuth } from '../hooks/useAuth';
 import PacienteModal from '../components/PacienteModal';
-import AgendamentoModal from '../components/AgendamentoModal';
-import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
-import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal';
-import ControlesAgenda from '../components/painel/ControlesAgenda';
+import {
+  Box, Typography, Paper, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, CircularProgress, IconButton, Button, TextField
+} from '@mui/material';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useSnackbar } from '../contexts/SnackbarContext'; // Apenas um '../' agora
 
-export default function PainelRecepcaoPage() {
-    // --- ESTADOS (sem alterações) ---
-    const [data, setData] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [refreshSidebar, setRefreshSidebar] = useState(0);
-    const [medicoFiltro, setMedicoFiltro] = useState('');
-    const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
-    const [isListaEsperaOpen, setIsListaEsperaOpen] = useState(false);
-    const [isChatOpen, setIsChatOpen] = useState(false);
-    const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
-    const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
-    const [agendamentoInitialData, setAgendamentoInitialData] = useState(null);
-    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
+export default function PacientesPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showSnackbar } = useSnackbar();
+  
+  // --- ESTADOS ---
+  const [pacientes, setPacientes] = useState([]); // Guarda a lista completa original
+  const [filteredPacientes, setFilteredPacientes] = useState([]); // Guarda a lista filtrada para exibição
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pacienteParaEditar, setPacienteParaEditar] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(''); // Estado para o campo de busca
 
-    // --- FUNÇÕES (sem alterações) ---
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await apiClient.get('/dashboard/');
-            setData(response.data);
-        } catch (error) {
-            console.error("Erro ao carregar dados do painel:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => { fetchData(); }, [fetchData]);
-
-    const handleFiltroChange = (filtros) => {
-        setMedicoFiltro(filtros.medicoId);
-        setEspecialidadeFiltro(filtros.especialidadeId);
-    };
-
-    const handleModalSave = () => {
-        setIsPacienteModalOpen(false);
-        setIsAgendamentoModalOpen(false);
-        fetchData(); 
-        setRefreshSidebar(prev => prev + 1);
-    };
-    
-    const handleSlotSelect = (data) => {
-        setAgendamentoInitialData({
-            start: data.data_hora_inicio.toDate(),
-            medico: data.medico,
-            especialidade: data.especialidade,
-        });
-        setIsAgendamentoModalOpen(true);
-    };
-
-    if (isLoading || !data) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+  const fetchPacientes = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get('/pacientes/');
+      setPacientes(response.data);
+      setFilteredPacientes(response.data); // Inicialmente, a lista filtrada é igual à completa
+    } catch (error) {
+      console.error("Erro ao buscar pacientes:", error);
+      showSnackbar('Erro ao carregar a lista de pacientes.', 'error');
+    } finally {
+      setIsLoading(false);
     }
+  }, [showSnackbar]);
+  
+  useEffect(() => {
+    fetchPacientes();
+  }, [fetchPacientes]);
 
-    // ==================================================================
-    // === MUDANÇA PRINCIPAL: A ESTRUTURA DO LAYOUT FOI REORGANIZADA ===
-    // ==================================================================
-    return (
-        <Box sx={{ p: 3, backgroundColor: '#f4f6f8', height: 'calc(100vh - 64px)', display: 'flex', gap: 3, overflow: 'hidden' }}>
-            
-            {/* Coluna da Esquerda: O "Painel de Controle" completo */}
-            <Box sx={{ width: '350px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                
-                {/* 1. Controles de Ação Rápida e Filtros da Agenda */}
-                <ControlesAgenda
-                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                    onCaixaClick={() => setIsCaixaModalOpen(true)}
-                    onFiltroChange={handleFiltroChange}
-                />
-                
-                {/* 2. Verificador de Disponibilidade (agora mora aqui!) */}
-                {/* Ele se beneficia dos mesmos filtros e centraliza a busca de horários */}
-                <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
-
-                {/* 3. Lista de Pacientes do Dia */}
-                {/* Este componente agora ocupa o espaço restante, tornando a coluna rolável se necessário */}
-                <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                    <PacientesDoDiaSidebar 
-                        refreshTrigger={refreshSidebar} 
-                        medicoFiltro={medicoFiltro}
-                    />
-                </Box>
-            </Box>
-
-            {/* Coluna Central: A Agenda como protagonista */}
-            {/* O verificador saiu de cima, dando 100% do espaço vertical para a agenda */}
-            <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                <AgendaPrincipal medicoFiltro={medicoFiltro} especialidadeFiltro={especialidadeFiltro} onSave={handleModalSave} />
-            </Box>
-
-            {/* Barra Lateral Direita (sem alterações) */}
-            <Box sx={{ flexShrink: 0 }}>
-                <BarraStatus
-                    data={data}
-                    onListaEsperaClick={() => setIsListaEsperaOpen(true)} // Corrigido de false para true
-                    onChatClick={() => setIsChatOpen(true)}
-                />
-            </Box>
-            
-            {/* Modais e Drawers (sem alterações na lógica, apenas a correção no onClick acima) */}
-            <Drawer anchor="right" open={isListaEsperaOpen} onClose={() => setIsListaEsperaOpen(false)}>
-                <Box sx={{ width: 400, p: 2, height: '100%' }}><ListaEspera /></Box>
-            </Drawer>
-
-            <Drawer anchor="right" open={isChatOpen} onClose={() => setIsChatOpen(false)}>
-                <Box sx={{ width: 450, height: '100%' }}><ChatPanel /></Box>
-            </Drawer>
-
-            <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={handleModalSave} />
-            <AgendamentoModal open={isAgendamentoModalOpen} onClose={() => setIsAgendamentoModalOpen(false)} onSave={handleModalSave} initialData={agendamentoInitialData}/>
-            <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} />
-        </Box>
+  // --- EFEITO PARA FILTRAR A LISTA QUANDO O TERMO DE BUSCA MUDA ---
+  useEffect(() => {
+    const lowercasedFilter = searchTerm.toLowerCase();
+    const filteredData = pacientes.filter(item =>
+      (item.nome_completo && item.nome_completo.toLowerCase().includes(lowercasedFilter)) ||
+      (item.cpf && item.cpf.includes(lowercasedFilter)) // Assumindo que CPF não precisa de toLowerCase
     );
+    setFilteredPacientes(filteredData);
+  }, [searchTerm, pacientes]);
+
+
+  const handleOpenProntuario = (pacienteId) => {
+    navigate(`/pacientes/${pacienteId}/prontuario`);
+  };
+
+  const handleEdit = (paciente) => {
+    setPacienteParaEditar(paciente);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (pacienteId) => {
+    if (window.confirm('Tem certeza que deseja deletar este paciente? Esta ação não pode ser desfeita.')) {
+      try {
+        await apiClient.delete(`/pacientes/${pacienteId}/`);
+        showSnackbar('Paciente deletado com sucesso!', 'success');
+        fetchPacientes();
+      } catch (error) {
+        console.error("Erro ao deletar paciente:", error);
+        showSnackbar('Erro ao deletar paciente.', 'error');
+      }
+    }
+  };
+
+  const handleOpenNewModal = () => {
+    setPacienteParaEditar(null);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setPacienteParaEditar(null);
+  };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Paper sx={{ p: 2, margin: 'auto' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5">Gestão de Pacientes</Typography>
+        <Button variant="contained" color="primary" onClick={handleOpenNewModal}>
+          Novo Paciente
+        </Button>
+      </Box>
+
+      {/* --- CAMPO DE BUSCA ADICIONADO --- */}
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="Buscar paciente por nome ou CPF..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </Box>
+
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Nome Completo</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell align="right">Ações</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {/* --- A TABELA AGORA USA A LISTA FILTRADA --- */}
+            {filteredPacientes.map((paciente) => (
+              <TableRow key={paciente.id}>
+                <TableCell>{paciente.nome_completo}</TableCell>
+                <TableCell>{paciente.email}</TableCell>
+                <TableCell align="right">
+                  <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
+                  <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
+                  {user && user.isAdmin && (
+                      <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente">
+                          <DeleteIcon color="error" />
+                      </IconButton>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      
+      <PacienteModal 
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={fetchPacientes}
+        pacienteParaEditar={pacienteParaEditar}
+      />
+    </Paper>
+  );
 }
