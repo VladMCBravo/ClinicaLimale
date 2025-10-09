@@ -1,94 +1,64 @@
 // src/components/painel/ListaEspera.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    Paper, Typography, Box, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, CircularProgress, Button, Chip
+    Box, Paper, Typography, List, ListItem, ListItemButton,
+    ListItemIcon, ListItemText, CircularProgress, Divider
 } from '@mui/material';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { agendamentoService } from '../../services/agendamentoService';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar
 
-// Função para calcular o tempo de espera
-const calcularTempoEspera = (horaChegada) => {
-    const agora = new Date();
-    const chegada = new Date(horaChegada);
-    const diffMs = agora - chegada;
-    const diffMins = Math.round(diffMs / 60000);
-    return `${diffMins} min`;
-};
-
-export default function ListaEspera() {
+export default function ListaEspera({ onAgendamentoSelect, refreshTrigger }) {
     const [lista, setLista] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchListaEspera = useCallback(async () => {
-        // Não reseta o loading em atualizações automáticas para uma experiência mais suave
-        try {
-            const response = await agendamentoService.getListaEspera();
-            setLista(response.data);
-        } catch (error) {
-            console.error("Erro ao buscar lista de espera:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        fetchListaEspera(); // Busca inicial
-        const intervalId = setInterval(fetchListaEspera, 30000); // Atualiza a cada 30 segundos
-        return () => clearInterval(intervalId); // Limpa o intervalo quando o componente é desmontado
-    }, [fetchListaEspera]);
+        setIsLoading(true);
+        agendamentoService.getListaEspera()
+            .then(response => {
+                setLista(response.data);
+            })
+            .catch(error => {
+                console.error("Erro ao buscar lista de espera:", error);
+                setLista([]); // Limpa a lista em caso de erro
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    }, [refreshTrigger]); // Atualiza a lista quando o refreshTrigger mudar
 
-    if (isLoading) {
-        return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 4 }} />;
-    }
-
-    // MUDANÇA: O retorno agora é um Box, não um Paper
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Lista de Espera</Typography>
-                {/* O botão de fechar pode ser útil, mas o Drawer já fecha ao clicar fora. É opcional. */}
-            </Box>
-            {lista.length === 0 ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Typography color="text.secondary">Nenhum paciente aguardando no momento.</Typography>
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h6" gutterBottom>Lista de Espera</Typography>
+            <Divider sx={{ mb: 1 }} />
+            {isLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1 }}>
+                    <CircularProgress size={24} />
                 </Box>
             ) : (
-                <TableContainer>
-                    <Table stickyHeader size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Paciente</TableCell>
-                                <TableCell>Médico</TableCell>
-                                <TableCell>Horário</TableCell>
-                                <TableCell>Tempo de Espera</TableCell>
-                                <TableCell align="right">Ações</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {lista.map((ag) => (
-                                <TableRow key={ag.id} hover>
-                                    <TableCell>{ag.paciente_nome}</TableCell>
-                                    <TableCell>{ag.medico_nome}</TableCell>
-                                    <TableCell>{new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</TableCell>
-                                    <TableCell>
-                                        <Chip 
-                                            icon={<AccessTimeIcon />} 
-                                            label={calcularTempoEspera(ag.hora_chegada)} // Assumindo que a API retorna 'hora_chegada'
-                                            variant="outlined" 
-                                            size="small" 
+                <Box sx={{ overflowY: 'auto', flexGrow: 1 }}>
+                    {lista.length > 0 ? (
+                        <List dense>
+                            {lista.map(ag => (
+                                <ListItem key={ag.id} disablePadding>
+                                    <ListItemButton onClick={() => onAgendamentoSelect(ag)}>
+                                        <ListItemIcon sx={{ minWidth: 32 }}>
+                                            <EventBusyIcon color="warning" />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={ag.paciente_nome}
+                                            secondary={`Para: ${new Date(ag.data_hora_inicio).toLocaleDateString('pt-BR')} às ${new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
                                         />
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <Button size="small" variant="outlined">Iniciar Atendimento</Button>
-                                    </TableCell>
-                                </TableRow>
+                                    </ListItemButton>
+                                </ListItem>
                             ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                        </List>
+                    ) : (
+                        <Typography variant="body2" sx={{ textAlign: 'center', mt: 2, color: 'text.secondary' }}>
+                            Nenhum paciente aguardando no momento.
+                        </Typography>
+                    )}
+                </Box>
             )}
-        </Box>
+        </Paper>
     );
 }
