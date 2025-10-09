@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
+import { useAuth } from '../hooks/useAuth'; // 1. IMPORTE O useAuth
 import { Box, CircularProgress, Typography, Modal, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // Importe TODOS os seus componentes
+import AtendimentoCardiologia from '../components/prontuario/AtendimentoCardiologia';
+import AtendimentoGeral from '../components/prontuario/AtendimentoGeral';
 import PatientHeader from '../components/PatientHeader';
 import AlertasClinicos from '../components/prontuario/AlertasClinicos';
 import HistoricoConsultas from '../components/prontuario/HistoricoConsultas';
@@ -34,6 +37,7 @@ const modalStyle = {
 
 export default function ProntuarioPage() {
     const { pacienteId } = useParams();
+    const { user } = useAuth(); // 3. OBTENHA O USUÁRIO LOGADO
     const [paciente, setPaciente] = useState(null);
     const [anamnese, setAnamnese] = useState(undefined);
     const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +69,23 @@ export default function ProntuarioPage() {
         fetchAllData();
     }, [pacienteId, refreshKey]);
 
+    // 4. CRIE UMA FUNÇÃO PARA RENDERIZAR O COMPONENTE CERTO
+    const renderAtendimentoPorEspecialidade = () => {
+        // Usa a especialidade do usuário logado para decidir
+        const especialidade = user?.especialidade;
+
+        switch (especialidade) {
+            case 'Cardiologia':
+                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />;
+            // No futuro, adicionaremos outros casos aqui
+            // case 'Ginecologia':
+            //     return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />;
+            default:
+                // Para todas as outras especialidades, mostra o formulário geral
+                return <AtendimentoGeral pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />;
+        }
+    };
+
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
@@ -91,9 +112,8 @@ export default function ProntuarioPage() {
                             <AnamneseTab pacienteId={pacienteId} initialAnamnese={anamnese} onAnamneseSalva={forceRefresh} />
                         </AccordionDetails>
                     </Accordion>
-                    
-                    {/* O formulário de Atendimento/Evolução agora está sempre visível */}
-                    <AtendimentoTab pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />
+                    {/* 5. SUBSTITUA A CHAMADA DIRETA PELA NOVA FUNÇÃO */}
+                    {renderAtendimentoPorEspecialidade()}
                 </Box>
 
                 <Box sx={{ width: { xs: '100%', lg: '25%' }, order: { xs: 3, lg: 3 } }}>

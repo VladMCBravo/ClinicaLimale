@@ -1,4 +1,4 @@
-// src/components/prontuario/AtendimentoTab.jsx - VERSÃO COMPLETA E REVISADA
+// src/components/prontuario/AtendimentoCardiologia.jsx - VERSÃO FINAL COM LAYOUT DENSO
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -16,7 +16,7 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologia', onEvolucaoSalva }) {
+export default function AtendimentoCardiologia({ pacienteId, especialidade = 'Cardiologia', onEvolucaoSalva }) {
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showSnackbar } = useSnackbar();
