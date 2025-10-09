@@ -10,7 +10,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 
 const initialFormData = { queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '' };
 
-export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia' }) {
+export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia', onAnamneseSalva }) {
   const { showSnackbar } = useSnackbar();
   const [anamnese, setAnamnese] = useState(null);
   const [formData, setFormData] = useState(initialFormData);

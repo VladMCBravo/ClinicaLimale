@@ -6,10 +6,12 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // 1. ADICIONE ESTA LINHA DE IMPORTAÇÃO
 
 const initialItemState = { medicamento: '', dosagem: '', instrucoes: '' };
 
 export default function PrescricoesTab({ pacienteId }) {
+  const { showSnackbar } = useSnackbar(); // 2. ADICIONE ESTA LINHA PARA INICIALIZAR O HOOK
   const [prescricoes, setPrescricoes] = useState([]);
   const [itens, setItens] = useState([initialItemState]);
   const [isLoading, setIsLoading] = useState(true);
