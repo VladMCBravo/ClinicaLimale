@@ -13,7 +13,6 @@ import AtendimentoGeral from '../components/prontuario/AtendimentoGeral';
 import PatientHeader from '../components/PatientHeader';
 import AlertasClinicos from '../components/prontuario/AlertasClinicos';
 import HistoricoConsultas from '../components/prontuario/HistoricoConsultas';
-import AtendimentoTab from '../components/prontuario/AtendimentoTab';
 import PainelAcoes from '../components/prontuario/PainelAcoes';
 import AnamneseTab from '../components/prontuario/AnamneseTab';
 import PrescricoesTab from '../components/prontuario/PrescricoesTab';
