@@ -1,24 +1,21 @@
-// src/components/painel/ControlesAgenda.jsx - VERSÃO COM LÓGICA FUNCIONAL
+// src/components/painel/ControlesAgenda.jsx - VERSÃO FINAL UNIFICADA
 import React, { useState, useEffect } from 'react';
 import {
     Box, Paper, Typography, Autocomplete, TextField,
-    IconButton, Collapse
+    Button, Divider, IconButton
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import AddCardIcon from '@mui/icons-material/AddCard';
+import ClearIcon from '@mui/icons-material/Clear'; // Importado para o botão de limpar
 import { agendamentoService } from '../../services/agendamentoService';
 
-export default function ControlesAgenda({ onNovoPacienteClick, onFiltroChange }) {
-    // Estados para armazenar as listas vindas da API
+// <<-- A PROP 'onCaixaClick' FOI ADICIONADA DE VOLTA -->>
+export default function ControlesAgenda({ onNovoPacienteClick, onCaixaClick, onFiltroChange }) {
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
-    
-    // Estados para controlar os valores selecionados nos filtros
     const [especialidadeSelecionada, setEspecialidadeSelecionada] = useState(null);
     const [medicoSelecionado, setMedicoSelecionado] = useState(null);
 
-    const [filtrosVisiveis, setFiltrosVisiveis] = useState(true);
-
-    // Busca os dados para preencher os filtros quando o componente é montado
     useEffect(() => {
         agendamentoService.getModalData()
             .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
@@ -28,7 +25,6 @@ export default function ControlesAgenda({ onNovoPacienteClick, onFiltroChange })
             .catch(error => console.error("Erro ao carregar dados dos filtros:", error));
     }, []);
 
-    // Efeito que dispara a mudança para o componente pai sempre que um filtro é alterado
     useEffect(() => {
         onFiltroChange({
             especialidadeId: especialidadeSelecionada ? especialidadeSelecionada.id : '',
@@ -36,28 +32,59 @@ export default function ControlesAgenda({ onNovoPacienteClick, onFiltroChange })
         });
     }, [especialidadeSelecionada, medicoSelecionado, onFiltroChange]);
 
-    // Filtra a lista de médicos com base na especialidade selecionada
     const medicosFiltrados = especialidadeSelecionada
         ? medicos.filter(m => m.especialidades.includes(especialidadeSelecionada.id))
         : medicos;
 
     const handleEspecialidadeChange = (event, newValue) => {
         setEspecialidadeSelecionada(newValue);
-        // Limpa o filtro de médico se a especialidade mudar, pois o médico pode não pertencer à nova especialidade
         setMedicoSelecionado(null);
+    };
+    
+    // <<-- FUNÇÃO DE LIMPAR FILTROS ADICIONADA DE VOLTA -->>
+    const limparFiltros = () => {
+        setEspecialidadeSelecionada(null);
+        setMedicoSelecionado(null);
+        // O useEffect acima cuidará de notificar o componente pai
     };
 
     return (
         <Paper variant="outlined" sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="h6">Filtros da Agenda</Typography>
-                <IconButton size="small" onClick={() => setFiltrosVisiveis(!filtrosVisiveis)}>
-                    <CloseIcon />
-                </IconButton>
+            {/* <<-- BOTÕES DE AÇÃO RÁPIDA ADICIONADOS DE VOLTA -->> */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Button 
+                    variant="contained" 
+                    startIcon={<PersonAddIcon />}
+                    onClick={onNovoPacienteClick}
+                    size="small"
+                >
+                    Novo Paciente
+                </Button>
+                <Button 
+                    variant="outlined" 
+                    startIcon={<AddCardIcon />} 
+                    color="secondary"
+                    onClick={onCaixaClick}
+                    size="small"
+                >
+                    Lançamento no Caixa
+                </Button>
             </Box>
-            
-            <Collapse in={filtrosVisiveis}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Filtros da Agenda */}
+            <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontSize: '1rem' }}>Filtros da Agenda</Typography>
+                    {/* <<-- BOTÃO DE LIMPAR FILTROS ADICIONADO DE VOLTA -->> */}
+                    <Tooltip title="Limpar filtros">
+                        <IconButton onClick={limparFiltros} size="small">
+                            <ClearIcon />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Autocomplete
                         options={especialidades}
                         getOptionLabel={(option) => option.nome || ''}
@@ -75,7 +102,7 @@ export default function ControlesAgenda({ onNovoPacienteClick, onFiltroChange })
                         renderInput={(params) => <TextField {...params} label="Médico" size="small" />}
                     />
                 </Box>
-            </Collapse>
+            </Box>
         </Paper>
     );
 }
