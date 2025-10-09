@@ -122,24 +122,29 @@ class HorariosDisponiveisAPIView(APIView):
         horarios = services.buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id)
         return Response(horarios, status=status.HTTP_200_OK)
     
-# <<-- NOVA VIEW ADICIONADA AQUI -->>
+# <<-- CLASSE CORRIGIDA -->>
 class ListaEsperaListView(generics.ListAPIView):
     """
-    Endpoint para listar agendamentos que estão na lista de espera.
-    A regra de negócio aqui é: um agendamento está na espera se foi criado
-    (pelo chatbot, por exemplo) e ainda não tem uma sala alocada.
+    Endpoint para listar agendamentos na lista de espera.
+    Regra corrigida: Mostra todos os agendamentos SEM SALA a partir do
+    início do dia de hoje.
     """
     permission_classes = [IsAuthenticated]
     serializer_class = AgendamentoSerializer
 
     def get_queryset(self):
-        # Filtra por agendamentos futuros que estão com o campo 'sala' nulo.
+        # Pega a data de hoje no fuso horário local do servidor
+        hoje = timezone.localtime(timezone.now()).date()
+        # Define o ponto de partida como o início (00:00) do dia de hoje
+        inicio_do_dia_de_hoje = timezone.make_aware(datetime.datetime.combine(hoje, datetime.time.min))
+
+        # Filtra por agendamentos sem sala que são do dia de hoje em diante.
         return Agendamento.objects.filter(
             sala__isnull=True,
-            data_hora_inicio__gte=timezone.now()
+            data_hora_inicio__gte=inicio_do_dia_de_hoje
         ).order_by('data_hora_inicio')
-# --- VIEW PARA O CRON JOB EXTERNO (AGORA SEM ERROS) ---
-
+    
+# --- VIEW DE ENVIO DE LEMBRETES COM A CORREÇÃO DE FUSO HORÁRIO ---
 class EnviarLembretesCronView(APIView):
     permission_classes = [AllowAny]
 
