@@ -1,19 +1,17 @@
-# usuarios/models.py
+# usuarios/models.py - VERSÃO CORRIGIDA E LIMPA
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.conf import settings # Importe o settings
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
-# --- NOVO MODEL ADICIONADO AQUI ---
+# Este é o seu modelo de Especialidade. Ele está correto e é o que vamos usar.
 class Especialidade(models.Model):
-    nome = models.CharField(max_length=100, unique=True, verbose_name="Nome da Especialidade")
-
- # Para armazenar o valor da consulta particular.
+    nome = models.CharField(max_length=100, unique=True)
     valor_consulta = models.DecimalField(
         max_digits=10, 
         decimal_places=2,
-        null=True, # Importante para não dar erro nos dados que já existem
+        null=True,
         blank=True,
         verbose_name="Valor da Consulta Particular"
     )
@@ -34,12 +32,10 @@ class CustomUser(AbstractUser):
         ('recepcao', 'Recepção'),
     ]
     cargo = models.CharField(max_length=10, choices=CARGO_CHOICES, default='recepcao')
-    
-    # Campo para o CRM, que só será preenchido se o cargo for 'medico'.
     crm = models.CharField(max_length=20, blank=True, null=True, unique=True, verbose_name="CRM")
     
-    # --- NOVA LINHA ADICIONADA AQUI ---
-    # Ligamos as especialidades diretamente ao usuário, já que médicos são usuários.
+    # Esta relação ManyToMany que você já tinha é a forma correta e poderosa.
+    # Um médico pode ter múltiplas especialidades.
     especialidades = models.ManyToManyField(
         Especialidade, 
         blank=True, 
@@ -57,10 +53,10 @@ class JornadaDeTrabalho(models.Model):
         DOMINGO = 6, _('Domingo')
 
     medico = models.ForeignKey(
-        settings.AUTH_USER_MODEL, # Usar settings é a forma mais robusta
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='jornadas_de_trabalho',
-        limit_choices_to={'cargo': 'medico'} # Garante que só médicos possam ter jornada
+        limit_choices_to={'cargo': 'medico'}
     )
     dia_da_semana = models.IntegerField(choices=DiaSemana.choices)
     hora_inicio = models.TimeField()
@@ -72,6 +68,5 @@ class JornadaDeTrabalho(models.Model):
         unique_together = ('medico', 'dia_da_semana', 'hora_inicio')
 
     def __str__(self):
-        # Usar self.medico.get_full_name() é mais seguro caso o nome não esteja preenchido
         nome_medico = self.medico.get_full_name() or self.medico.username
         return f"{nome_medico} - {self.get_dia_da_semana_display()}: {self.hora_inicio.strftime('%H:%M')} às {self.hora_fim.strftime('%H:%M')}"
