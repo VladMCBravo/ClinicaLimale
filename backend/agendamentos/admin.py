@@ -1,7 +1,7 @@
 # Em: backend/agendamentos/admin.py - VERSÃO FINAL E CORRIGIDA
 
 from django.contrib import admin
-from .models import Agendamento
+from .models import Agendamento, Sala # <-- 1. IMPORTE O MODELO 'Sala'
 from django.utils import timezone
 
 @admin.register(Agendamento)
@@ -70,3 +70,16 @@ class AgendamentoAdmin(admin.ModelAdmin):
         return "N/A"
     horario_formatado.admin_order_field = 'data_hora_inicio'
     horario_formatado.short_description = 'Horário'
+
+    # Classe para customizar a exibição de Agendamentos (provavelmente já existe)
+@admin.register(Agendamento)
+class AgendamentoAdmin(admin.ModelAdmin):
+    list_display = ('paciente', 'data_hora_inicio', 'status', 'sala', 'medico')
+    list_filter = ('status', 'sala', 'medico')
+    search_fields = ('paciente__nome_completo',)
+
+# <<-- 2. ADICIONE ESTE BLOCO PARA REGISTRAR AS SALAS -->>
+@admin.register(Sala)
+class SalaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'nome')
+    search_fields = ('nome',)

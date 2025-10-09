@@ -10,6 +10,7 @@ import ListaEspera from '../components/painel/ListaEspera';
 import ControlesAgenda from '../components/painel/ControlesAgenda';
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
+import BarraIconesLateral from '../components/painel/BarraIconesLateral'; // <-- IMPORTE O NOVO COMPONENTE
 
 export default function PainelRecepcaoPage() {
     // ESTADOS GERAIS
@@ -68,44 +69,48 @@ export default function PainelRecepcaoPage() {
     };
 
     return (
-        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', gap: 2, p: 2, backgroundColor: '#f4f6f8' }}>
-            
-            {/* COLUNA DA ESQUERDA (SIDEBAR) */}
-            <Box sx={{ width: 350, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <ControlesAgenda onNovoPacienteClick={() => setIsPacienteModalOpen(true)} onFiltroChange={handleFiltroChange} />
-                <Box sx={{ flex: 1, minHeight: '300px' }}>
-                    <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
-                </Box>
-                <Box sx={{ flex: 1, minHeight: '200px' }}>
-                    <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
-                </Box>
+    // <<-- MUDANÇA: Adicionamos padding (p: 2) e um espaçamento (gap: 2) aqui -->>
+    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 2, gap: 2, backgroundColor: '#f4f6f8' }}>
+        
+        {/* COLUNA DA ESQUERDA (SIDEBAR) */}
+        <Box sx={{ width: 350, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <ControlesAgenda onNovoPacienteClick={() => setIsPacienteModalOpen(true)} onFiltroChange={handleFiltroChange} />
+            <Box sx={{ flex: 1, minHeight: '300px' }}>
+                <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
             </Box>
-
-            {/* COLUNA DIREITA (AGENDA PRINCIPAL) */}
-            <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                <AgendaPrincipal
-                    medicoFiltro={medicoFiltro}
-                    especialidadeFiltro={especialidadeFiltro}
-                    onDateClick={handleDateClick}
-                    onEventClick={handleEventClick}
-                    salas={salas}
-                />
+            <Box sx={{ flex: 1, minHeight: '200px' }}>
+                <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
             </Box>
+        </Box>
 
-            {/* MODAIS (controlados por esta página) */}
-            <PacienteModal
-                open={isPacienteModalOpen}
-                onClose={() => setIsPacienteModalOpen(false)}
-                onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }}
-                pacienteParaEditar={null}
-            />
-            <AgendamentoModal
-                open={isAgendamentoModalOpen}
-                onClose={handleCloseAgendamentoModal}
-                onSave={handleAgendamentoSave}
-                initialData={initialData}
-                editingEvent={editingEvent}
+        {/* ÁREA CENTRAL (AGENDA) - Não precisa mais de padding próprio */}
+        <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
+            <AgendaPrincipal
+                medicoFiltro={medicoFiltro}
+                especialidadeFiltro={especialidadeFiltro}
+                onDateClick={handleDateClick}
+                onEventClick={handleEventClick}
+                salas={salas}
             />
         </Box>
-    );
+        
+        {/* NOVA COLUNA DIREITA (BARRA DE ÍCONES) */}
+        <BarraIconesLateral />
+        
+        {/* MODAIS (controlados por esta página) */}
+        <PacienteModal
+            open={isPacienteModalOpen}
+            onClose={() => setIsPacienteModalOpen(false)}
+            onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }}
+            pacienteParaEditar={null}
+        />
+        <AgendamentoModal
+            open={isAgendamentoModalOpen}
+            onClose={handleCloseAgendamentoModal}
+            onSave={handleAgendamentoSave}
+            initialData={initialData}
+            editingEvent={editingEvent}
+        />
+    </Box>
+);  
 }
