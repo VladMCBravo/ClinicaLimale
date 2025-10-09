@@ -1,8 +1,8 @@
-// src/pages/ProntuarioPage.jsx - VERSÃO COM LAYOUT GRID CORRIGIDO
+// src/pages/ProntuarioPage.jsx - VERSÃO COM LAYOUT FLEXBOX
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
-import { Box, CircularProgress, Grid, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, Typography } from '@mui/material'; // Grid não é mais necessário aqui
 
 import PatientHeader from '../components/PatientHeader';
 import AlertasClinicos from '../components/prontuario/AlertasClinicos';
@@ -15,13 +15,13 @@ export default function ProntuarioPage() {
     const [paciente, setPaciente] = useState(null);
     const [anamnese, setAnamnese] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     useEffect(() => {
+        // ... (sua lógica de busca de dados continua a mesma)
         setIsLoading(true);
         const fetchPacienteData = apiClient.get(`/pacientes/${pacienteId}/`);
         const fetchAnamneseData = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
             .catch(err => (err.response && err.response.status === 404 ? { data: null } : Promise.reject(err)));
-
         Promise.all([fetchPacienteData, fetchAnamneseData])
             .then(([pacienteRes, anamneseRes]) => {
                 setPaciente(pacienteRes.data);
@@ -40,34 +40,37 @@ export default function ProntuarioPage() {
     }
 
     return (
-        <Box sx={{ flexGrow: 1 }}> 
+        <Box> 
             <PatientHeader paciente={paciente} />
 
-            {/* <<-- A CORREÇÃO PRINCIPAL ESTÁ AQUI -->> */}
-            {/* A propriedade "container" é a chave para o layout de colunas funcionar. */}
-            <Grid container spacing={2} sx={{ p: 2 }}>
-                
-                {/* === COLUNA DA ESQUERDA === */}
-                <Grid item xs={12} md={3}>
+            {/* <<-- ESTRUTURA DE LAYOUT CORRIGIDA COM FLEXBOX -->> */}
+            <Box sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', lg: 'row' }, // Empilha em telas pequenas, fica lado a lado em telas grandes
+                p: 2,
+                gap: 2,
+            }}>
+                {/* === COLUNA DA ESQUERDA (25% da largura) === */}
+                <Box sx={{ width: { xs: '100%', lg: '25%' }, flexShrink: 0 }}>
                     <Stack spacing={2}>
                         <AlertasClinicos anamnese={anamnese} />
                         <HistoricoConsultas pacienteId={pacienteId} />
                     </Stack>
-                </Grid>
+                </Box>
 
-                {/* === COLUNA CENTRAL === */}
-                <Grid item xs={12} md={6}>
+                {/* === COLUNA CENTRAL (50% da largura) === */}
+                <Box sx={{ width: { xs: '100%', lg: '50%' }, flexGrow: 1 }}>
                     <AtendimentoTab pacienteId={pacienteId} />
-                </Grid>
+                </Box>
 
-                {/* === COLUNA DA DIREITA === */}
-                <Grid item xs={12} md={3}>
+                {/* === COLUNA DA DIREITA (25% da largura) === */}
+                <Box sx={{ width: { xs: '100%', lg: '25%' }, flexShrink: 0 }}>
                     <PainelAcoes 
                         pacienteId={pacienteId}
                         // Futuramente: onNovaPrescricao={() => setIsPrescricaoModalOpen(true)}
                     />
-                </Grid>
-            </Grid>
+                </Box>
+            </Box>
         </Box>
     );
 }

@@ -11,16 +11,19 @@ from .views import (
     OpcaoClinicaListView
 )
 
+# O router é usado para ViewSets, como o de DocumentoPaciente
 router = DefaultRouter()
 router.register(r'documentos', DocumentoPacienteViewSet, basename='documento-paciente')
 
+# Lista de todas as URLs que este aplicativo 'prontuario' gerencia
 urlpatterns = [
+    # Rotas para os diferentes recursos do prontuário
     path('evolucoes/', EvolucaoListCreateAPIView.as_view(), name='lista-evolucoes'),
     path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='lista-prescricoes'),
-    path('anamnese/', AnamneseDetailAPIView.as_view(), name='detalhe-anamnese'),
     path('atestados/', AtestadoListCreateAPIView.as_view(), name='lista-atestados'),
+    path('anamnese/', AnamneseDetailAPIView.as_view(), name='detalhe-anamnese'),
     path('opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'),
 
-    # Inclui as rotas do ViewSet (ex: documentos/)
+    # Inclui as rotas geradas automaticamente pelo router para o ViewSet de documentos
     path('', include(router.urls)),
 ]
