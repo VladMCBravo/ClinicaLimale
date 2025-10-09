@@ -20,7 +20,7 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia' 
   const [selecoesHDA, setSelecoesHDA] = useState(new Set());
 
   // URL CORRIGIDA
-  const apiUrl = `/prontuario/pacientes/${pacienteId}/atestados/`;
+  const apiUrl = `/prontuario/pacientes/${pacienteId}/anamnese/`;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -47,7 +47,7 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia' 
     if (!especialidade) return;
     try {
       // URL CORRIGIDA
-      const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/atestados/`, {
+      const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
         params: { especialidade: especialidade, area_clinica: 'HDA' }
       });
       setOpcoesHDA(response.data);
