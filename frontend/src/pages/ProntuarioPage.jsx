@@ -1,9 +1,9 @@
-// src/pages/ProntuarioPage.jsx - VERSÃO REESTRUTURADA
+// src/pages/ProntuarioPage.jsx - VERSÃO COM PAINEL INTEGRADO
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
-import { Box, CircularProgress, Typography, Modal } from '@mui/material';
+import { Box, CircularProgress, Typography, Modal, Divider } from '@mui/material';
 
 // Importe TODOS os seus componentes
 import PatientHeader from '../components/PatientHeader';
@@ -11,12 +11,11 @@ import AlertasClinicos from '../components/prontuario/AlertasClinicos';
 import HistoricoConsultas from '../components/prontuario/HistoricoConsultas';
 import AtendimentoTab from '../components/prontuario/AtendimentoTab';
 import PainelAcoes from '../components/prontuario/PainelAcoes';
-import AnamneseTab from '../components/prontuario/AnamneseTab'; // <-- Importante
-import PrescricoesTab from '../components/prontuario/PrescricoesTab'; // <-- Importante
-import AtestadosTab from '../components/prontuario/AtestadosTab';   // <-- Importante
-import AnexosTab from '../components/prontuario/AnexosTab';       // <-- Importante
+import AnamneseTab from '../components/prontuario/AnamneseTab';
+import PrescricoesTab from '../components/prontuario/PrescricoesTab';
+import AtestadosTab from '../components/prontuario/AtestadosTab';
+import AnexosTab from '../components/prontuario/AnexosTab';
 
-// Estilo para os Modais
 const modalStyle = {
   position: 'absolute',
   top: '50%',
@@ -25,97 +24,97 @@ const modalStyle = {
   width: '80%',
   maxWidth: '800px',
   bgcolor: 'background.paper',
-  border: '2px solid #000',
+  border: '1px solid #000',
   boxShadow: 24,
   p: 4,
+  maxHeight: '90vh',
+  overflowY: 'auto'
 };
 
 export default function ProntuarioPage() {
     const { pacienteId } = useParams();
     const [paciente, setPaciente] = useState(null);
-    const [anamnese, setAnamnese] = useState(null);
-    const [precisaCriarAnamnese, setPrecisaCriarAnamnese] = useState(false);
+    const [anamnese, setAnamnese] = useState(undefined); // Inicia como undefined para diferenciar de 'null' (sem anamnese)
     const [isLoading, setIsLoading] = useState(true);
     const [refreshConsultas, setRefreshConsultas] = useState(0);
-
-    // Estados para controlar os modais
     const [modalContent, setModalContent] = useState(null);
 
     const handleOpenModal = (contentComponent) => setModalContent(contentComponent);
     const handleCloseModal = () => setModalContent(null);
 
-    // Função para recarregar a anamnese (será usada pelo AnamneseTab)
-    const fetchAnamnese = useCallback(async () => {
+    // Esta função será chamada pelo AnamneseTab quando for salva com sucesso
+    const recarregarAnamneseEAlertas = useCallback(async () => {
         try {
             const anamneseRes = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             setAnamnese(anamneseRes.data);
-            setPrecisaCriarAnamnese(false); // Já existe, não precisa criar
         } catch (err) {
-            if (err.response && err.response.status === 404) {
-                setAnamnese(null);
-                setPrecisaCriarAnamnese(true); // NÃO EXISTE, precisa criar
-            }
+            setAnamnese(null); // Define como null se não encontrar após a tentativa de salvar
         }
     }, [pacienteId]);
 
-
+    // Busca os dados iniciais do paciente e da anamnese
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchInitialData = async () => {
             setIsLoading(true);
             try {
-                const pacienteRes = await apiClient.get(`/pacientes/${pacienteId}/`);
+                const pacientePromise = apiClient.get(`/pacientes/${pacienteId}/`);
+                const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+
+                const [pacienteRes] = await Promise.all([pacientePromise]);
                 setPaciente(pacienteRes.data);
-                await fetchAnamnese(); // Tenta buscar a anamnese
+
+                try {
+                    const anamneseRes = await anamnesePromise;
+                    setAnamnese(anamneseRes.data);
+                } catch (anamneseErr) {
+                    if (anamneseErr.response && anamneseErr.response.status === 404) {
+                        setAnamnese(null); // Paciente existe, mas não tem anamnese
+                    }
+                }
             } catch (err) {
-                console.error("Erro ao buscar dados do paciente:", err);
+                console.error("Erro ao buscar dados do prontuário:", err);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchData();
-    }, [pacienteId, fetchAnamnese]);
+        fetchInitialData();
+    }, [pacienteId]);
 
-    if (isLoading) {
+
+    if (isLoading || paciente === null) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
-
-    if (!paciente) {
-        return <Typography sx={{ p: 3 }}>Paciente não encontrado.</Typography>;
-    }
     
-    // SE PRECISA CRIAR ANAMNESE, MOSTRA SÓ A TELA DE ANAMNESE
-    if (precisaCriarAnamnese) {
-        return (
-            <Box>
-                <PatientHeader paciente={paciente} />
-                <Box sx={{ p: 2 }}>
-                    <Typography variant="h5" color="error" gutterBottom>Primeiro Passo: Cadastrar Anamnese</Typography>
-                    <Typography paragraph>Este paciente ainda não possui uma anamnese. Por favor, preencha os dados abaixo para continuar.</Typography>
-                    {/* Passamos a função para recarregar os dados quando salvar */}
-                    <AnamneseTab pacienteId={pacienteId} onAnamneseSalva={fetchAnamnese} />
-                </Box>
-            </Box>
-        );
-    }
-
-    // SE A ANAMNESE JÁ EXISTE, MOSTRA O PAINEL COMPLETO
     return (
         <Box> 
             <PatientHeader paciente={paciente} />
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, p: 2, gap: 2 }}>
+                
                 {/* === COLUNA DA ESQUERDA === */}
-                <Box sx={{ width: { xs: '100%', lg: '25%' }, flexShrink: 0 }}>
+                <Box sx={{ width: { xs: '100%', lg: '25%' }, order: { xs: 2, lg: 1 } }}>
                     <AlertasClinicos anamnese={anamnese} />
                     <HistoricoConsultas pacienteId={pacienteId} key={refreshConsultas} />
                 </Box>
 
                 {/* === COLUNA CENTRAL === */}
-                <Box sx={{ width: { xs: '100%', lg: '50%' }, flexGrow: 1 }}>
-                    <AtendimentoTab pacienteId={pacienteId} onEvolucaoSalva={() => setRefreshConsultas(prev => prev + 1)} />
+                <Box sx={{ width: { xs: '100%', lg: '50%' }, order: { xs: 1, lg: 2 } }}>
+                    {/* Lógica de exibição: Se não houver anamnese, mostra o formulário dela. Se houver, mostra o atendimento. */}
+                    {anamnese === null && (
+                        <>
+                            <Typography variant="h6" color="primary" gutterBottom>Primeiro Passo: Cadastrar Anamnese</Typography>
+                            <AnamneseTab pacienteId={pacienteId} onAnamneseSalva={recarregarAnamneseEAlertas} />
+                            <Divider sx={{ my: 3 }} />
+                        </>
+                    )}
+                    
+                    {/* O AtendimentoTab só aparece se a anamnese já existir */}
+                    {anamnese && (
+                       <AtendimentoTab pacienteId={pacienteId} onEvolucaoSalva={() => setRefreshConsultas(prev => prev + 1)} />
+                    )}
                 </Box>
 
                 {/* === COLUNA DA DIREITA === */}
-                <Box sx={{ width: { xs: '100%', lg: '25%' }, flexShrink: 0 }}>
+                <Box sx={{ width: { xs: '100%', lg: '25%' }, order: { xs: 3, lg: 3 } }}>
                     <PainelAcoes 
                         onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
                         onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacienteId} />)}

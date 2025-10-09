@@ -60,9 +60,22 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia',
 
 
   useEffect(() => {
-    fetchData();
+    const fetchOpcoes = async () => {
+      if (!especialidade) return;
+      try {
+        const response = await apiClient.get(`/prontuario/opcoes-clinicas/`, {
+          params: { especialidade: especialidade, area_clinica: 'HDA' }
+        });
+        setOpcoesHDA(response.data);
+      } catch (error) {
+        console.error("Erro ao buscar opções clínicas:", error);
+        showSnackbar('Erro ao carregar opções de anamnese.', 'error');
+      }
+    };
+    
     fetchOpcoes();
-  }, [fetchData, fetchOpcoes]);
+  }, [especialidade, showSnackbar]); // A dependência agora é só em 'especialidade' e 'showSnackbar'
+
 
   const handleHdaCheckboxChange = (event) => {
     const opcaoId = parseInt(event.target.name, 10);
