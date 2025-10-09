@@ -1,39 +1,35 @@
-import React, { useState, useEffect } from 'react';
+// src/components/prontuario/AtendimentoTab.jsx
+
+import React, { useState, useEffect, useCallback } from 'react'; // Adicione useCallback
 import { Box, Button, CircularProgress, Grid, TextField, Typography, Paper, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologia' }) {
-    const [anamnese, setAnamnese] = useState(null);
+// Mantenha apenas o formulário da EVOLUÇÃO
+export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologia', onEvolucaoSalva }) {
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showSnackbar } = useSnackbar();
     const [opcoesHDA, setOpcoesHDA] = useState([]);
     const [selecoesHDA, setSelecoesHDA] = useState(new Set());
 
-    useEffect(() => {
-        apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
-            .then(res => {
-                setAnamnese(res.data);
-                setFormData(prev => ({
-                    ...prev,
-                    notas_subjetivas: `Queixa Principal: ${res.data.queixa_principal || ''}\n\nHDA: ${res.data.historia_doenca_atual || ''}`
-                }));
-            }).catch(err => {
-            // MUDANÇA AQUI: de console.error para showSnackbar
-            showSnackbar('Não foi possível carregar os dados da anamnese.', 'warning');
-            console.error("Anamnese não encontrada.", err); // O console.error pode ser mantido para debug
-        });
+    // REMOVA o useEffect que buscava a Anamnese.
+    // Vamos focar apenas em buscar as opções para a evolução atual.
+    const fetchOpcoes = useCallback(async () => {
+        try {
+            const response = await apiClient.get(`/prontuario/opcoes-clinicas/`, {
+                params: { especialidade: especialidade, area_clinica: 'HDA' }
+            });
+            setOpcoesHDA(response.data);
+        } catch (err) {
+            showSnackbar("Erro ao buscar opções clínicas.", 'error');
+        }
+    }, [especialidade, showSnackbar]);
 
-        apiClient.get(`/prontuario/pacientes/${pacienteId}/opcoes-clinicas/`, {
-        params: { especialidade: especialidade, area_clinica: 'HDA' }
-    }).then(res => setOpcoesHDA(res.data))
-      .catch(err => {
-          // MUDANÇA AQUI: de console.error para showSnackbar
-          showSnackbar('Erro ao buscar opções clínicas.', 'error');
-          console.error("Erro ao buscar opções clínicas:", err);
-      });
-}, [pacienteId, especialidade, showSnackbar]);
+    useEffect(() => {
+        fetchOpcoes();
+    }, [fetchOpcoes]);
+
 
     const handleHdaCheckboxChange = (event) => {
         const opcaoDescricao = event.target.name;
@@ -48,8 +44,8 @@ export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologi
         setSelecoesHDA(newSelecoes);
 
         const textoNarrativo = Array.from(newSelecoes).join('. ') + (newSelecoes.size > 0 ? '.' : '');
-        const queixaAtual = formData.notas_subjetivas?.split('\n\n')[0] || `Queixa Principal: ${anamnese?.queixa_principal || ''}`;
-        setFormData(prev => ({ ...prev, notas_subjetivas: `${queixaAtual}\n\nHDA: ${textoNarrativo}` }));
+        // Agora, ele apenas atualiza a parte da HDA no campo de notas subjetivas
+        setFormData(prev => ({ ...prev, notas_subjetivas: `HDA: ${textoNarrativo}` }));
     };
 
     const handleChange = (event) => {
@@ -62,8 +58,12 @@ export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologi
         try {
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, formData);
             showSnackbar('Evolução salva com sucesso!', 'success');
-            setFormData(prev => ({ ...prev, notas_objetivas: '', avaliacao: '', plano: '', pressao_arterial: '', frequencia_cardiaca: '', peso: '', altura: '', exames_complementares: '' })); 
+            // Limpa o formulário após salvar
+            setFormData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '', pressao_arterial: '', frequencia_cardiaca: '', peso: '', altura: '', exames_complementares: '' }); 
             setSelecoesHDA(new Set());
+            if(onEvolucaoSalva) {
+                onEvolucaoSalva(); // Notifica o painel principal que uma nova evolução foi salva
+            }
         } catch (error) {
             showSnackbar('Erro ao salvar evolução.', 'error');
         } finally {

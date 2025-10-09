@@ -90,7 +90,10 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia' 
         await apiClient.post(apiUrl, formData);
       }
       showSnackbar('Anamnese salva com sucesso!', 'success');
-      fetchData(); 
+      if (onAnamneseSalva) { // <-- ADICIONE ISSO
+        onAnamneseSalva();
+      }
+      fetchData();
     } catch (error) {
       console.error("Erro ao salvar anamnese:", error.response?.data || error.message);
       showSnackbar('Erro ao salvar anamnese.', 'error');
