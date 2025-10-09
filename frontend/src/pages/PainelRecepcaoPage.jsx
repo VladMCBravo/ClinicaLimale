@@ -83,7 +83,8 @@ export default function PainelRecepcaoPage() {
             </Box>
         </Box>
 
-        {/* ÁREA CENTRAL (AGENDA) - Não precisa mais de padding próprio */}
+        {/* ÁREA CENTRAL (AGENDA) */}
+        {/* <<-- AJUSTE AQUI: Adicione display: 'flex' -->> */}
         <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex' }}>
             <AgendaPrincipal
                 medicoFiltro={medicoFiltro}

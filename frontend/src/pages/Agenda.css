@@ -68,16 +68,16 @@
 /* ---------------------------------------------------- */
 
 
-/* --- AJUSTES DE FONTE (COMBINADOS E MANTIDOS) --- */
-/* Diminui a fonte do título principal */
+/* --- AJUSTES DE FONTE (VERSÃO MAIS COMPACTA) --- */
+/* Diminui a fonte do título principal (Ex: "8 de outubro de 2025") */
 .fc .fc-toolbar-title {
-    font-size: 1.2rem !important;
+    font-size: 1.1rem !important; /* <-- VALOR REDUZIDO */
 }
 
-/* Diminui a fonte dos dias da semana */
+/* Diminui a fonte dos dias da semana (Ex: "qua. 08/10") */
 .fc-theme-standard .fc-scrollgrid th {
-    font-size: 0.8rem !important;
-    padding: 4px 0 !important;
+    font-size: 0.75rem !important; /* <-- VALOR REDUZIDO */
+    padding: 2px 0 !important;
 }
 
 /* Diminui a fonte dos horários na lateral */
@@ -85,9 +85,9 @@
     font-size: 0.75rem !important;
 }
 
-/* Ajusta a fonte dos botões de navegação e visão */
+/* Ajusta a fonte dos botões de navegação e visão (Ex: Salas, Semana) */
 .fc .fc-button {
-    font-size: 0.8rem !important;
-    padding: 4px 8px !important;
+    font-size: 0.7rem !important;  /* <-- VALOR REDUZIDO */
+    padding: 4px 6px !important; /* <-- PADDING AJUSTADO */
 }
 /* ---------------------------------------------------- */
