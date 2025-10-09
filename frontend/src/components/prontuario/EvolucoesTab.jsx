@@ -4,10 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Button, CircularProgress, TextField, Typography, Paper, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // 1. IMPORTE O SNACKBAR
 
 const initialFormState = { notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' };
 
 export default function EvolucoesTab({ pacienteId }) {
+  const { showSnackbar } = useSnackbar(); // 2. INICIALIZE O HOOK
   const [evolucoes, setEvolucoes] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,11 +23,13 @@ export default function EvolucoesTab({ pacienteId }) {
       const response = await apiClient.get(apiUrl);
       setEvolucoes(response.data);
     } catch (error) {
+      // MUDANÇA AQUI
+      showSnackbar('Erro ao carregar histórico de evoluções.', 'error');
       console.error("Erro ao buscar evoluções:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl]);
+  }, [apiUrl, showSnackbar]);
 
   useEffect(() => {
     fetchEvolucoes();
@@ -36,9 +40,12 @@ export default function EvolucoesTab({ pacienteId }) {
     setIsLoading(true);
     try {
       await apiClient.post(apiUrl, formData);
+      showSnackbar('Evolução salva com sucesso!', 'success'); // Feedback de sucesso
       setFormData(initialFormState);
       fetchEvolucoes();
     } catch (error) {
+      // MUDANÇA AQUI
+      showSnackbar('Erro ao salvar evolução.', 'error');
       console.error("Erro ao salvar evolução:", error.response?.data);
     } finally {
       setIsLoading(false);

@@ -7,10 +7,12 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // 1. IMPORTE O SNACKBAR
 
 const initialFormState = { tipo_atestado: '', observacoes: '' };
 
 export default function AtestadosTab({ pacienteId }) {
+  const { showSnackbar } = useSnackbar(); // 2. INICIALIZE O HOOK
   const [atestados, setAtestados] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,11 +23,13 @@ export default function AtestadosTab({ pacienteId }) {
       const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/atestados/`);
       setAtestados(response.data);
     } catch (error) {
+      // MUDANÇA AQUI
+      showSnackbar('Erro ao buscar histórico de atestados.', 'error');
       console.error("Erro ao buscar atestados:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [pacienteId]);
+  }, [pacienteId, showSnackbar]);
 
   useEffect(() => {
     fetchAtestados();
@@ -36,9 +40,12 @@ export default function AtestadosTab({ pacienteId }) {
     setIsLoading(true);
     try {
       await apiClient.post(`/prontuario/pacientes/${pacienteId}/atestados/`, formData);
-      setFormData(initialFormState); // Limpa o formulário
-      fetchAtestados(); // Recarrega a lista
+      showSnackbar('Atestado salvo com sucesso!', 'success'); // Feedback de sucesso
+      setFormData(initialFormState);
+      fetchAtestados();
     } catch (error) {
+      // MUDANÇA AQUI
+      showSnackbar('Erro ao salvar atestado.', 'error');
       console.error("Erro ao salvar atestado:", error.response?.data);
     } finally {
       setIsLoading(false);

@@ -19,13 +19,21 @@ export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologi
                     ...prev,
                     notas_subjetivas: `Queixa Principal: ${res.data.queixa_principal || ''}\n\nHDA: ${res.data.historia_doenca_atual || ''}`
                 }));
-            }).catch(err => console.error("Anamnese não encontrada.", err));
+            }).catch(err => {
+            // MUDANÇA AQUI: de console.error para showSnackbar
+            showSnackbar('Não foi possível carregar os dados da anamnese.', 'warning');
+            console.error("Anamnese não encontrada.", err); // O console.error pode ser mantido para debug
+        });
 
         apiClient.get(`/prontuario/pacientes/${pacienteId}/opcoes-clinicas/`, {
-            params: { especialidade: especialidade, area_clinica: 'HDA' }
-        }).then(res => setOpcoesHDA(res.data))
-          .catch(err => console.error("Erro ao buscar opções clínicas:", err));
-    }, [pacienteId, especialidade]);
+        params: { especialidade: especialidade, area_clinica: 'HDA' }
+    }).then(res => setOpcoesHDA(res.data))
+      .catch(err => {
+          // MUDANÇA AQUI: de console.error para showSnackbar
+          showSnackbar('Erro ao buscar opções clínicas.', 'error');
+          console.error("Erro ao buscar opções clínicas:", err);
+      });
+}, [pacienteId, especialidade, showSnackbar]);
 
     const handleHdaCheckboxChange = (event) => {
         const opcaoDescricao = event.target.name;

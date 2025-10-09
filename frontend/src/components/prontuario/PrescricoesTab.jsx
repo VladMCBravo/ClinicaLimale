@@ -20,11 +20,13 @@ export default function PrescricoesTab({ pacienteId }) {
       const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/prescricoes/`);
       setPrescricoes(response.data);
     } catch (error) {
+      // MUDANÇA AQUI
+      showSnackbar('Erro ao carregar histórico de prescrições.', 'error');
       console.error("Erro ao buscar prescrições:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [pacienteId]);
+  }, [pacienteId, showSnackbar]); // 3. ADICIONE A DEPENDÊNCIA
 
   useEffect(() => {
     fetchPrescricoes();
@@ -51,9 +53,11 @@ export default function PrescricoesTab({ pacienteId }) {
     const dataToSend = { itens: itens };
     try {
       await apiClient.post(`/prontuario/pacientes/${pacienteId}/prescricoes/`, dataToSend);
+      showSnackbar('Prescrição salva com sucesso!', 'success'); // Feedback de sucesso
       setItens([initialItemState]); // Limpa o formulário
       fetchPrescricoes(); // Recarrega a lista
     } catch (error) {
+      showSnackbar('Erro ao salvar prescrição.', 'error');
       console.error("Erro ao salvar prescrição:", error.response?.data);
     } finally {
       setIsLoading(false);
