@@ -19,9 +19,10 @@ class PacienteSerializer(serializers.ModelSerializer):
             'id', 
             'nome_completo', 
             'data_nascimento',
-            'email',
-            'telefone_celular',
+            'genero', # <<-- CAMPO ADICIONADO AQUI
             'cpf',
+            'email',
+            'telefone_celular',            
             'peso',
             'altura',
             'plano_convenio',

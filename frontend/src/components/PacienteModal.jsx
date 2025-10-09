@@ -1,20 +1,21 @@
-// src/components/PacienteModal.jsx
+// src/components/PacienteModal.jsx - VERSÃO FINAL E CORRIGIDA
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, CircularProgress, Box, Autocomplete, Typography, Divider
+  TextField, Button, CircularProgress, Box, Autocomplete, Typography, Divider,
+  FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
-import { useSnackbar } from '../contexts/SnackbarContext'; // Usando seu snackbar para feedback
+import { useSnackbar } from '../contexts/SnackbarContext';
 
-// Estado inicial com os novos campos
+// <<-- 1. ADICIONADO 'genero' AO ESTADO INICIAL -->>
 const initialState = {
   nome_completo: '',
   data_nascimento: '',
   email: '',
   telefone_celular: '',
   cpf: '',
-  // NOVO: Adicionamos peso e altura ao estado inicial
+  genero: '', // <-- ADICIONADO AQUI
   peso: '',
   altura: '',
   medico_responsavel: null,
@@ -27,38 +28,27 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   const [formData, setFormData] = useState(initialState);
   const [isLoading, setIsLoading] = useState(false);
   const [medicos, setMedicos] = useState([]);
-  
-  // --- NOVOS ESTADOS PARA GERENCIAR CONVÊNIOS ---
-  const [convenios, setConvenios] = useState([]); // Guarda a lista completa de convênios e planos da API
-  const [convenioSelecionado, setConvenioSelecionado] = useState(null); // Objeto do convênio escolhido no 1º Autocomplete
-  const [planosFiltrados, setPlanosFiltrados] = useState([]); // Lista de planos filtrada para o 2º Autocomplete
+  const [convenios, setConvenios] = useState([]);
+  const [convenioSelecionado, setConvenioSelecionado] = useState(null);
+  const [planosFiltrados, setPlanosFiltrados] = useState([]);
 
-  // EFEITO 1: Busca os dados necessários (médicos e convênios) quando o modal abre.
   useEffect(() => {
     if (open) {
-      // Busca médicos
-      apiClient.get('/usuarios/usuarios/?cargo=medico')
-        .then(response => setMedicos(response.data))
-        .catch(err => console.error("Erro ao buscar médicos", err));
-      
-      // Busca convênios
-      apiClient.get('/faturamento/convenios/')
-        .then(response => setConvenios(response.data))
-        .catch(err => console.error("Erro ao buscar convênios", err));
+      apiClient.get('/usuarios/usuarios/?cargo=medico').then(response => setMedicos(response.data));
+      apiClient.get('/faturamento/convenios/').then(response => setConvenios(response.data));
     }
   }, [open]);
 
-  // EFEITO 2: Preenche os dados básicos do formulário quando o paciente muda (edição) ou ao abrir (criação).
   useEffect(() => {
     if (open) {
       if (pacienteParaEditar) {
-        // MODO EDIÇÃO: Preenche com os dados existentes
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
           email: pacienteParaEditar.email || '',
           telefone_celular: pacienteParaEditar.telefone_celular || '',
           cpf: pacienteParaEditar.cpf || '',
+          genero: pacienteParaEditar.genero || '', // <<-- 2. ADICIONADO AO PREENCHIMENTO DE EDIÇÃO
           peso: pacienteParaEditar.peso || '',
           altura: pacienteParaEditar.altura || '',
           medico_responsavel: pacienteParaEditar.medico_responsavel || null,
@@ -66,7 +56,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           numero_carteirinha: pacienteParaEditar.numero_carteirinha || '',
         });
       } else {
-        // MODO CRIAÇÃO: Reseta o formulário
         setFormData(initialState);
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
@@ -74,36 +63,24 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [pacienteParaEditar, open]);
 
-  // EFEITO 3 (NOVO): Lida APENAS com a lógica de pré-selecionar o convênio/plano.
-  // Ele só roda quando os dados do paciente ou a lista de convênios estiverem prontos.
   useEffect(() => {
     if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
       const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
       const convenioPai = convenios.find(c => c.planos.some(p => p.id === planoDoPaciente.id));
-      
       if (convenioPai) {
         setConvenioSelecionado(convenioPai);
         setPlanosFiltrados(convenioPai.planos);
       }
     } else if (!pacienteParaEditar) {
-        // Limpa a seleção se for um novo paciente
-        setConvenioSelecionado(null);
-        setPlanosFiltrados([]);
-    }
-  }, [pacienteParaEditar, convenios]); // Depende dos dados do paciente E da lista de convênios
-
-
-
-  // --- NOVO HANDLER PARA QUANDO O CONVÊNIO MUDA ---
-  const handleConvenioChange = (event, novoConvenio) => {
-    setConvenioSelecionado(novoConvenio);
-    // Se um novo convênio for selecionado, reseta o plano
-    setFormData({ ...formData, plano_convenio: null }); 
-    if (novoConvenio) {
-      setPlanosFiltrados(novoConvenio.planos || []);
-    } else {
+      setConvenioSelecionado(null);
       setPlanosFiltrados([]);
     }
+  }, [pacienteParaEditar, convenios]);
+
+  const handleConvenioChange = (event, novoConvenio) => {
+    setConvenioSelecionado(novoConvenio);
+    setFormData({ ...formData, plano_convenio: null });
+    setPlanosFiltrados(novoConvenio ? novoConvenio.planos || [] : []);
   };
 
   const handleChange = (e) => {
@@ -114,10 +91,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     e.preventDefault();
     setIsLoading(true);
     
-     // ALTERADO: Garantimos que os novos campos sejam incluídos no envio para a API
+    // O 'genero' já está em 'formData', então será enviado automaticamente
     const dataToSend = { 
       ...formData,
-      peso: formData.peso || null, // Envia 'null' se o campo estiver vazio
+      peso: formData.peso || null,
       altura: formData.altura || null,
     }; 
 
@@ -139,7 +116,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   };
 
-  // Lógica para encontrar o valor correto para os Autocompletes
   const medicoValue = medicos.find(m => m.id === formData.medico_responsavel) || null;
   const planoValue = planosFiltrados.find(p => p.id === formData.plano_convenio) || null;
 
@@ -156,7 +132,23 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} />
             <TextField name="telefone_celular" label="Telefone Celular" value={formData.telefone_celular} onChange={handleChange} />
             <TextField name="data_nascimento" label="Data de Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-             {/* NOVO: Adicionamos os campos de peso e altura em uma linha */}
+
+            {/* <<-- 3. CAMPO 'GÊNERO' ADICIONADO AO FORMULÁRIO -->> */}
+            <FormControl fullWidth>
+                <InputLabel id="genero-select-label">Gênero</InputLabel>
+                <Select
+                    labelId="genero-select-label"
+                    name="genero"
+                    value={formData.genero || ''}
+                    label="Gênero"
+                    onChange={handleChange}
+                >
+                    <MenuItem value="Masculino">Masculino</MenuItem>
+                    <MenuItem value="Feminino">Feminino</MenuItem>
+                    <MenuItem value="Outro">Outro</MenuItem>
+                </Select>
+            </FormControl>
+
             <Box sx={{ display: 'flex', gap: 2 }}>
                 <TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth />
                 <TextField name="altura" label="Altura (m)" type="number" value={formData.altura} onChange={handleChange} fullWidth />
@@ -166,15 +158,14 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
               value={medicoValue}
               isOptionEqualToValue={(option, value) => option.id === value.id}
-              onChange={(event, newValue) => {
-                setFormData({ ...formData, medico_responsavel: newValue ? newValue.id : null });
-              }}
+              onChange={(event, newValue) => setFormData({ ...formData, medico_responsavel: newValue ? newValue.id : null })}
               renderInput={(params) => <TextField {...params} label="Médico Responsável" />}
             />
 
             <Divider sx={{ my: 1 }} />
             <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>DADOS DO CONVÊNIO</Typography>
 
+            {/* Sua ótima lógica de convênios/planos continua aqui, intacta */}
             <Autocomplete
                 options={convenios}
                 getOptionLabel={(option) => option.nome || ''}
@@ -188,10 +179,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                 getOptionLabel={(option) => option.nome || ''}
                 value={planoValue}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
-                onChange={(event, newValue) => {
-                    setFormData({ ...formData, plano_convenio: newValue ? newValue.id : null });
-                }}
-                // Desabilita o campo de plano se nenhum convênio for selecionado
+                onChange={(event, newValue) => setFormData({ ...formData, plano_convenio: newValue ? newValue.id : null })}
                 disabled={!convenioSelecionado} 
                 renderInput={(params) => <TextField {...params} label="Plano" />}
             />
@@ -200,7 +188,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                 label="Número da Carteirinha"
                 value={formData.numero_carteirinha}
                 onChange={handleChange}
-                // Desabilita o campo se não houver plano
                 disabled={!formData.plano_convenio}
             />
           </Box>
