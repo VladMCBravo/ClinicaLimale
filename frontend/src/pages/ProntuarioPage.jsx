@@ -1,4 +1,4 @@
-// src/pages/ProntuarioPage.jsx - VERSÃO COM LAYOUT CORRIGIDO
+// src/pages/ProntuarioPage.jsx - VERSÃO COM LAYOUT GRID CORRIGIDO
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
@@ -43,10 +43,12 @@ export default function ProntuarioPage() {
         <Box sx={{ flexGrow: 1 }}> 
             <PatientHeader paciente={paciente} />
 
-            {/* O Grid container garante que os itens fiquem lado a lado em telas maiores */}
+            {/* <<-- A CORREÇÃO PRINCIPAL ESTÁ AQUI -->> */}
+            {/* A propriedade "container" é a chave para o layout de colunas funcionar. */}
             <Grid container spacing={2} sx={{ p: 2 }}>
+                
                 {/* === COLUNA DA ESQUERDA === */}
-                <Grid item xs={12} lg={3}> {/* Usando 'lg' para telas maiores */}
+                <Grid item xs={12} md={3}>
                     <Stack spacing={2}>
                         <AlertasClinicos anamnese={anamnese} />
                         <HistoricoConsultas pacienteId={pacienteId} />
@@ -54,12 +56,12 @@ export default function ProntuarioPage() {
                 </Grid>
 
                 {/* === COLUNA CENTRAL === */}
-                <Grid item xs={12} lg={6}>
+                <Grid item xs={12} md={6}>
                     <AtendimentoTab pacienteId={pacienteId} />
                 </Grid>
 
                 {/* === COLUNA DA DIREITA === */}
-                <Grid item xs={12} lg={3}>
+                <Grid item xs={12} md={3}>
                     <PainelAcoes 
                         pacienteId={pacienteId}
                         // Futuramente: onNovaPrescricao={() => setIsPrescricaoModalOpen(true)}

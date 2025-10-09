@@ -21,7 +21,7 @@ export default function AtendimentoTab({ pacienteId, especialidade = 'Cardiologi
                 }));
             }).catch(err => console.error("Anamnese não encontrada.", err));
 
-        apiClient.get(`/prontuario/opcoes-clinicas/`, {
+        apiClient.get(`/prontuario/pacientes/${pacienteId}/opcoes-clinicas/`, {
             params: { especialidade: especialidade, area_clinica: 'HDA' }
         }).then(res => setOpcoesHDA(res.data))
           .catch(err => console.error("Erro ao buscar opções clínicas:", err));
