@@ -23,26 +23,38 @@ export default function ProntuarioPage() {
     // (Futuramente, teremos os states para controlar os modais aqui)
     // const [isPrescricaoModalOpen, setIsPrescricaoModalOpen] = useState(false);
 
+    // <<-- SUBSTITUA TODO O SEU useEffect POR ESTE -->>
     useEffect(() => {
         setIsLoading(true);
+        
+        // A busca dos dados do paciente continua a mesma
         const fetchPacienteData = apiClient.get(`/pacientes/${pacienteId}/`);
-        const fetchAnamneseData = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
 
+        // AQUI ESTÁ A MUDANÇA: Tornamos a busca da anamnese mais robusta
+        const fetchAnamneseData = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
+            .catch(error => {
+                // Se o erro for um 404 (Não Encontrado), nós o tratamos como um "sucesso"
+                // e retornamos um objeto que simula uma resposta com dados nulos.
+                if (error.response && error.response.status === 404) {
+                    return { data: null }; // Isso evita que a página inteira quebre
+                }
+                // Se for qualquer outro erro, nós o relançamos para ser tratado abaixo
+                throw error;
+            });
+
+        // O Promise.all agora não falhará mais por um 404 na anamnese
         Promise.all([fetchPacienteData, fetchAnamneseData])
             .then(([pacienteRes, anamneseRes]) => {
                 setPaciente(pacienteRes.data);
-                setAnamnese(anamneseRes.data);
+                setAnamnese(anamneseRes.data); // Será os dados da anamnese ou 'null'
             })
             .catch(err => {
                 console.error("Erro ao buscar dados do prontuário:", err);
-                // Mesmo que a anamnese falhe (404), queremos mostrar os dados do paciente
-                if (err.response && err.response.config.url.includes('anamnese')) {
-                    setAnamnese(null); // Define anamnese como nula mas continua
-                    if (!paciente) setPaciente(err.response.data.paciente || null); // Tenta pegar o paciente do erro se possível
-                }
+                setPaciente(null); // Limpa o paciente em caso de erro real
             })
             .finally(() => setIsLoading(false));
-    }, [pacienteId, paciente]); // Adicionado 'paciente' para evitar loop se a primeira chamada falhar
+
+    }, [pacienteId]);
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
