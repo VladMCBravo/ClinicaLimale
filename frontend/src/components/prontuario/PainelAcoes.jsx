@@ -16,6 +16,15 @@ export default function PainelAcoes({ onNovaPrescricao, onEmitirAtestado, onAnex
             <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onAnexarDocumento} size="small">
                 Anexar Documento
             </Button>
+            <Button 
+                variant="contained" 
+                color="secondary" 
+                startIcon={<ImageIcon />} 
+                onClick={onVerExames} 
+                size="small"
+            >
+                Ver Exames de Imagem
+            </Button>
             <Divider sx={{ my: 1 }} />
             <Box><Typography variant="subtitle2">Prescrições Recentes:</Typography></Box>
             <Box><Typography variant="subtitle2">Anexos Recentes:</Typography></Box>

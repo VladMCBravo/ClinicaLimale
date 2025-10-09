@@ -16,7 +16,7 @@ import AnamneseTab from '../components/prontuario/AnamneseTab';
 import PrescricoesTab from '../components/prontuario/PrescricoesTab';
 import AtestadosTab from '../components/prontuario/AtestadosTab';
 import AnexosTab from '../components/prontuario/AnexosTab';
-
+import ExamesDicomTab from '../components/prontuario/ExamesDicomTab';
 const modalStyle = {
   position: 'absolute',
   top: '50%',
@@ -101,6 +101,8 @@ export default function ProntuarioPage() {
                         onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
                         onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacienteId} />)}
                         onAnexarDocumento={() => handleOpenModal(<AnexosTab pacienteId={pacienteId} />)}
+                        onVerExames={() => handleOpenModal(<ExamesDicomTab pacienteId={pacienteId} />)}
+
                     />
                 </Box>
             </Box>
