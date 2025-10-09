@@ -1,9 +1,10 @@
-// src/pages/ProntuarioPage.jsx - VERSÃO COM PAINEL INTEGRADO
+// src/pages/ProntuarioPage.jsx - VERSÃO FINAL COM LAYOUT DENSO
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
-import { Box, CircularProgress, Typography, Modal, Divider } from '@mui/material';
+import { Box, CircularProgress, Typography, Modal, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // Importe TODOS os seus componentes
 import PatientHeader from '../components/PatientHeader';
@@ -34,86 +35,67 @@ const modalStyle = {
 export default function ProntuarioPage() {
     const { pacienteId } = useParams();
     const [paciente, setPaciente] = useState(null);
-    const [anamnese, setAnamnese] = useState(undefined); // Inicia como undefined para diferenciar de 'null' (sem anamnese)
+    const [anamnese, setAnamnese] = useState(undefined);
     const [isLoading, setIsLoading] = useState(true);
-    const [refreshConsultas, setRefreshConsultas] = useState(0);
+    const [refreshKey, setRefreshKey] = useState(0); // Chave para forçar refresh
     const [modalContent, setModalContent] = useState(null);
 
     const handleOpenModal = (contentComponent) => setModalContent(contentComponent);
     const handleCloseModal = () => setModalContent(null);
 
-    // Esta função será chamada pelo AnamneseTab quando for salva com sucesso
-    const recarregarAnamneseEAlertas = useCallback(async () => {
-        try {
-            const anamneseRes = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
-            setAnamnese(anamneseRes.data);
-        } catch (err) {
-            setAnamnese(null); // Define como null se não encontrar após a tentativa de salvar
-        }
-    }, [pacienteId]);
+    const forceRefresh = () => setRefreshKey(prev => prev + 1);
 
-    // Busca os dados iniciais do paciente e da anamnese
     useEffect(() => {
-        const fetchInitialData = async () => {
+        const fetchAllData = async () => {
             setIsLoading(true);
             try {
                 const pacientePromise = apiClient.get(`/pacientes/${pacienteId}/`);
-                const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+                const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`).catch(() => ({ data: null }));
 
-                const [pacienteRes] = await Promise.all([pacientePromise]);
+                const [pacienteRes, anamneseRes] = await Promise.all([pacientePromise, anamnesePromise]);
+                
                 setPaciente(pacienteRes.data);
-
-                try {
-                    const anamneseRes = await anamnesePromise;
-                    setAnamnese(anamneseRes.data);
-                } catch (anamneseErr) {
-                    if (anamneseErr.response && anamneseErr.response.status === 404) {
-                        setAnamnese(null); // Paciente existe, mas não tem anamnese
-                    }
-                }
+                setAnamnese(anamneseRes.data);
             } catch (err) {
                 console.error("Erro ao buscar dados do prontuário:", err);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchInitialData();
-    }, [pacienteId]);
+        fetchAllData();
+    }, [pacienteId, refreshKey]);
 
-
-    if (isLoading || paciente === null) {
+    if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
-    
+
     return (
         <Box> 
             <PatientHeader paciente={paciente} />
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, p: 2, gap: 2 }}>
                 
-                {/* === COLUNA DA ESQUERDA === */}
                 <Box sx={{ width: { xs: '100%', lg: '25%' }, order: { xs: 2, lg: 1 } }}>
                     <AlertasClinicos anamnese={anamnese} />
-                    <HistoricoConsultas pacienteId={pacienteId} key={refreshConsultas} />
+                    <HistoricoConsultas pacienteId={pacienteId} key={`hist-${refreshKey}`} />
                 </Box>
 
-                {/* === COLUNA CENTRAL === */}
                 <Box sx={{ width: { xs: '100%', lg: '50%' }, order: { xs: 1, lg: 2 } }}>
-                    {/* Lógica de exibição: Se não houver anamnese, mostra o formulário dela. Se houver, mostra o atendimento. */}
-                    {anamnese === null && (
-                        <>
-                            <Typography variant="h6" color="primary" gutterBottom>Primeiro Passo: Cadastrar Anamnese</Typography>
-                            <AnamneseTab pacienteId={pacienteId} onAnamneseSalva={recarregarAnamneseEAlertas} />
-                            <Divider sx={{ my: 3 }} />
-                        </>
-                    )}
+                    {/* NOVO: Anamnese dentro de um Accordion (Sanfona) */}
+                    <Accordion defaultExpanded={!anamnese} sx={{ mb: 2 }}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                            <Typography variant="h6">Anamnese</Typography>
+                            {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            {/* Passamos os dados da anamnese para o componente filho */}
+                            <AnamneseTab pacienteId={pacienteId} initialAnamnese={anamnese} onAnamneseSalva={forceRefresh} />
+                        </AccordionDetails>
+                    </Accordion>
                     
-                    {/* O AtendimentoTab só aparece se a anamnese já existir */}
-                    {anamnese && (
-                       <AtendimentoTab pacienteId={pacienteId} onEvolucaoSalva={() => setRefreshConsultas(prev => prev + 1)} />
-                    )}
+                    {/* O formulário de Atendimento/Evolução agora está sempre visível */}
+                    <AtendimentoTab pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />
                 </Box>
 
-                {/* === COLUNA DA DIREITA === */}
                 <Box sx={{ width: { xs: '100%', lg: '25%' }, order: { xs: 3, lg: 3 } }}>
                     <PainelAcoes 
                         onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
@@ -123,11 +105,8 @@ export default function ProntuarioPage() {
                 </Box>
             </Box>
 
-            {/* Modal genérico para exibir os formulários */}
             <Modal open={!!modalContent} onClose={handleCloseModal}>
-                <Box sx={modalStyle}>
-                    {modalContent}
-                </Box>
+                <Box sx={modalStyle}>{modalContent}</Box>
             </Modal>
         </Box>
     );

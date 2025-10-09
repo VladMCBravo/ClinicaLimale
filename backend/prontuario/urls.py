@@ -7,8 +7,7 @@ from .views import (
     PrescricaoListCreateAPIView,
     AnamneseDetailAPIView,
     AtestadoListCreateAPIView,
-    DocumentoPacienteViewSet,
-    OpcaoClinicaListView
+    DocumentoPacienteViewSet
 )
 
 # O router é usado para ViewSets, como o de DocumentoPaciente
@@ -22,7 +21,6 @@ urlpatterns = [
     path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='lista-prescricoes'),
     path('atestados/', AtestadoListCreateAPIView.as_view(), name='lista-atestados'),
     path('anamnese/', AnamneseDetailAPIView.as_view(), name='detalhe-anamnese'),
-    path('opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'),
 
     # Inclui as rotas geradas automaticamente pelo router para o ViewSet de documentos
     path('', include(router.urls)),

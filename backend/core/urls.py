@@ -1,7 +1,7 @@
 # backend/core/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView
+from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView,OpcaoClinicaListView
 # 1. IMPORTAMOS NOSSAS VIEWS CUSTOMIZADAS DE LOGIN E LOGOUT
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
 from .views import debug_env_view, list_urls_view # <-- 1. IMPORTE A NOVA VIEW 'list_urls_view'
@@ -33,9 +33,10 @@ urlpatterns = [
     path('api/integracao/', include('integracao_dicom.urls')),
     # <<-- A LINHA QUE ESTÁ FALTANDO É ESTA -->>
     # Ela diz ao Django: "Qualquer URL que comece com 'api/prontuario/pacientes/<id_do_paciente>/'
-    # deve ser gerenciada pelo arquivo de URLs do app 'prontuario'".
+    # deve ser gerenciada pelo arquivo de URLs do app 'prontuario'.
     path('api/prontuario/pacientes/<int:paciente_id>/', include('prontuario.urls')),
-    
+    path('api/prontuario/opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'),
+
     # <<-- ADICIONE TAMBÉM AS ROTAS DE PDF QUE ESTÃO FORA DO PADRÃO -->>
     # O seu views.py tem rotas para gerar PDFs que não se encaixam no padrão acima
     path('api/prescricoes/<int:prescricao_id>/pdf/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
