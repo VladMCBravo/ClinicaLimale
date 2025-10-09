@@ -1,8 +1,9 @@
-// src/pages/ProntuarioPage.jsx - VERSÃO "SUPER PAINEL"
+// src/pages/ProntuarioPage.jsx - VERSÃO COM IMPORT CORRIGIDO
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import apiClient from '../api/axiosConfig';
-import { Box, CircularProgress, Grid, Stack } from '@mui/material';
+// <<-- A CORREÇÃO ESTÁ AQUI: Adicionando 'Typography' -->>
+import { Box, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 
 // Importe os novos componentes do painel
 import PatientHeader from '../components/PatientHeader';
@@ -32,16 +33,23 @@ export default function ProntuarioPage() {
                 setPaciente(pacienteRes.data);
                 setAnamnese(anamneseRes.data);
             })
-            .catch(err => console.error("Erro ao buscar dados do prontuário:", err))
+            .catch(err => {
+                console.error("Erro ao buscar dados do prontuário:", err);
+                // Mesmo que a anamnese falhe (404), queremos mostrar os dados do paciente
+                if (err.response && err.response.config.url.includes('anamnese')) {
+                    setAnamnese(null); // Define anamnese como nula mas continua
+                    if (!paciente) setPaciente(err.response.data.paciente || null); // Tenta pegar o paciente do erro se possível
+                }
+            })
             .finally(() => setIsLoading(false));
-    }, [pacienteId]);
+    }, [pacienteId, paciente]); // Adicionado 'paciente' para evitar loop se a primeira chamada falhar
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
     }
 
     if (!paciente) {
-        return <Typography>Paciente não encontrado.</Typography>;
+        return <Typography sx={{ p: 3 }}>Paciente não encontrado.</Typography>;
     }
 
     return (
