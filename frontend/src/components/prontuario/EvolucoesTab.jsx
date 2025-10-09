@@ -12,7 +12,8 @@ export default function EvolucoesTab({ pacienteId }) {
   const [formData, setFormData] = useState(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
 
-  const apiUrl = `/pacientes/${pacienteId}/prontuario/evolucoes/`; // URL CORRIGIDA
+  // A URL deve ser apenas o recurso, pois o ID do paciente já está no prefixo da rota principal
+  const apiUrl = `/prontuario/pacientes/${pacienteId}/evolucoes/`; // <-- Verifique e corrija se estiver diferente
 
   const fetchEvolucoes = useCallback(async () => {
     setIsLoading(true);

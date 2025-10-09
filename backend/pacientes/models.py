@@ -6,6 +6,7 @@ from usuarios.models import CustomUser
 
 
 class Paciente(models.Model):
+    # Dados Pessoais
     GENERO_CHOICES = [
         ('Masculino', 'Masculino'),
         ('Feminino', 'Feminino'),

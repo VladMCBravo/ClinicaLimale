@@ -10,6 +10,20 @@ class Evolucao(models.Model):
     notas_objetivas = models.TextField(verbose_name="Objetivo (O)")
     avaliacao = models.TextField(verbose_name="Avaliação (A)")
     plano = models.TextField(verbose_name="Plano (P)")
+    # Campos SOAP tradicionais (podem ser usados como resumo)
+    notas_subjetivas = models.TextField(blank=True, null=True, verbose_name="Subjetivo (Queixa Principal / HDA)")
+    notas_objetivas = models.TextField(blank=True, null=True, verbose_name="Ausculta Cardíaca/Pulmonar, Sinais, etc.")
+    avaliacao = models.TextField(blank=True, null=True, verbose_name="Diagnóstico / Hipóteses")
+    plano = models.TextField(blank=True, null=True, verbose_name="Plano Terapêutico / Condutas")
+
+    # <<-- NOVOS CAMPOS ESTRUTURADOS DO EXAME FÍSICO -->>
+    pressao_arterial = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pressão Arterial")
+    frequencia_cardiaca = models.PositiveIntegerField(blank=True, null=True, verbose_name="Frequência Cardíaca (bpm)")
+    peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, verbose_name="Peso (kg)")
+    altura = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, verbose_name="Altura (m)")
+    
+    # <<-- NOVOS CAMPOS PARA EXAMES E OUTROS -->>
+    exames_complementares = models.TextField(blank=True, null=True, verbose_name="ECG, Eco, Laboratoriais, etc.")
 
     class Meta:
         ordering = ['-data_atendimento']

@@ -14,6 +14,12 @@ class EvolucaoSerializer(serializers.ModelSerializer):
             'id', 'paciente', 'medico', 'data_atendimento',
             'notas_subjetivas', 'notas_objetivas', 'avaliacao', 'plano',
             'paciente_id'
+            # <<-- NOVOS CAMPOS ADICIONADOS -->>
+            'pressao_arterial',
+            'frequencia_cardiaca',
+            'peso',
+            'altura',
+            'exames_complementares'
         ]
 
 # Serializer para os Itens da Prescrição
