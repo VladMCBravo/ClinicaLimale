@@ -29,8 +29,15 @@ urlpatterns = [
     path('api/usuarios/', include('usuarios.urls')),
     path('api/faturamento/', include('faturamento.urls')),
     path('api/dashboard/', include('dashboard.urls')),
-    path('api/atestados/<int:atestado_id>/pdf/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
-    path('api/prescricoes/<int:prescricao_id>/pdf/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
     path('api/chatbot/', include('chatbot.urls')),
     path('api/integracao/', include('integracao_dicom.urls')),
+    # <<-- A LINHA QUE ESTÁ FALTANDO É ESTA -->>
+    # Ela diz ao Django: "Qualquer URL que comece com 'api/prontuario/pacientes/<id_do_paciente>/'
+    # deve ser gerenciada pelo arquivo de URLs do app 'prontuario'".
+    path('api/prontuario/pacientes/<int:paciente_id>/', include('prontuario.urls')),
+    
+    # <<-- ADICIONE TAMBÉM AS ROTAS DE PDF QUE ESTÃO FORA DO PADRÃO -->>
+    # O seu views.py tem rotas para gerar PDFs que não se encaixam no padrão acima
+    path('api/prescricoes/<int:prescricao_id>/pdf/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
+    path('api/atestados/<int:atestado_id>/pdf/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
 ]
