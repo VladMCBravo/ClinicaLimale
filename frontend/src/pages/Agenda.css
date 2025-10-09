@@ -1,18 +1,29 @@
-/* src/pages/Agenda.css */
+/* src/pages/Agenda.css - VERSÃO FINAL UNIFICADA */
 
-/* Altera a cor do dia de hoje no calendário */
-.fc .fc-daygrid-day.fc-day-today {
-    background-color: rgba(192, 164, 111, 0.15); /* Dourado bem clarinho */
+/* --- NOVO: FORÇA A AGENDA A OCUPAR TODO O ESPAÇO DISPONÍVEL --- */
+.fc {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+/* ----------------------------------------------------------------- */
+
+
+/* Altera a cor do dia de hoje no calendário (mantido e melhorado) */
+.fc .fc-daygrid-day.fc-day-today, .fc .fc-timegrid-col.fc-day-today {
+    background-color: rgba(192, 164, 111, 0.15) !important; /* Dourado bem clarinho */
 }
 
-/* Altera a cor dos botões (Mês, Semana, Dia, Hoje) */
+/* Altera a cor dos botões (Mês, Semana, Dia, Hoje) (mantido) */
 .fc .fc-button-primary {
     background-color: #1a233b; /* Azul escuro */
     border-color: #1a233b;
     color: #c9c8c8; /* Prata */
 }
 
-/* Cor dos botões quando ativos ou clicados */
+/* Cor dos botões quando ativos ou clicados (mantido) */
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active,
 .fc .fc-button-primary:hover {
@@ -21,29 +32,29 @@
     color: #fff;
 }
 
-/* Cor de fundo dos eventos (agendamentos) */
+/* Cor de fundo dos eventos (agendamentos) (mantido) */
 .fc-v-event, .fc-daygrid-event {
     background-color: #c0a46f; /* Dourado */
     border-color: #a88d5a !important; /* Dourado mais escuro (important para garantir) */
 }
 
-/* Garante a cor do texto e do tempo dentro do evento */
+/* Garante a cor do texto e do tempo dentro do evento (mantido) */
 .fc-event-title, .fc-event-time {
     color: #1a233b !important; /* Texto em azul escuro */
 }
 
-/* Opcional: Remove a borda azul de foco ao clicar em um evento */
+/* Opcional: Remove a borda azul de foco ao clicar em um evento (mantido) */
 .fc-v-event:focus, .fc-daygrid-event:focus {
     box-shadow: none;
 }
 
-/* Altera a cor do texto dentro dos eventos para melhor leitura */
+/* Altera a cor do texto dentro dos eventos para melhor leitura (mantido) */
 .fc-event-main {
     color: #1a233b !important; /* Texto em azul escuro */
     font-weight: 500;
 }
 
-/* Adicione no final do arquivo Agenda.css */
+/* --- SUA REGRA PARA EVENTOS CANCELADOS (MANTIDA) --- */
 .fc-event.status-cancelado {
     background-color: #9e9e9e !important; /* Cinza */
     border-color: #616161 !important;
@@ -54,25 +65,29 @@
 .fc-event.status-cancelado .fc-event-time {
     color: #e0e0e0 !important;
 }
+/* ---------------------------------------------------- */
 
-/* Diminui a fonte do título principal (Ex: "28 de set. – 4 de out. de 2025") */
+
+/* --- AJUSTES DE FONTE (COMBINADOS E MANTIDOS) --- */
+/* Diminui a fonte do título principal */
 .fc .fc-toolbar-title {
-    font-size: 1.2rem !important; /* Ajuste o valor conforme necessário */
+    font-size: 1.2rem !important;
 }
 
-/* Diminui a fonte dos dias da semana (Ex: "dom. 28/09") */
+/* Diminui a fonte dos dias da semana */
 .fc-theme-standard .fc-scrollgrid th {
-    font-size: 0.8rem !important; /* Ajuste o valor conforme necessário */
+    font-size: 0.8rem !important;
     padding: 4px 0 !important;
 }
 
-/* Diminui a fonte dos horários na lateral (Ex: "08:00") */
+/* Diminui a fonte dos horários na lateral */
 .fc .fc-timegrid-slot-label {
-    font-size: 0.75rem !important; /* Ajuste o valor conforme necessário */
+    font-size: 0.75rem !important;
 }
 
-/* Opcional: Ajusta a fonte dos botões de navegação e visão */
+/* Ajusta a fonte dos botões de navegação e visão */
 .fc .fc-button {
     font-size: 0.8rem !important;
     padding: 4px 8px !important;
 }
+/* ---------------------------------------------------- */
