@@ -1,8 +1,14 @@
 # backend/prontuario/serializers.py - VERSÃO CORRIGIDA
 
 from rest_framework import serializers
-from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado
+from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica
 from .models import DocumentoPaciente, OpcaoClinica
+
+class AnamneseGinecologicaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnamneseGinecologica
+        # Lista de todos os campos que criamos, exceto 'anamnese' que será tratado automaticamente
+        fields = ['dum', 'menarca_idade', 'gesta', 'para', 'abortos', 'antecedentes_ginecologicos', 'antecedentes_obstetricos']
 
 # Serializer para o modelo Evolucao
 class EvolucaoSerializer(serializers.ModelSerializer):
@@ -52,16 +58,37 @@ class PrescricaoSerializer(serializers.ModelSerializer):
 
 # Serializer para a Anamnese
 class AnamneseSerializer(serializers.ModelSerializer):
-    medico = serializers.StringRelatedField(read_only=True)
-    paciente = serializers.StringRelatedField(read_only=True)
+    # 2. Adicione o serializer aninhado aqui
+    ginecologica = AnamneseGinecologicaSerializer(required=False)
 
     class Meta:
         model = Anamnese
-        fields = [
-            'id', 'paciente', 'medico', 'data_criacao', 'data_atualizacao',
-            'queixa_principal', 'historia_doenca_atual', 'historico_medico_pregresso',
-            'historico_familiar', 'alergias', 'medicamentos_em_uso'
-        ]
+        # 3. Adicione 'ginecologica' à lista de campos
+        fields = ['id', 'paciente', 'queixa_principal', 'historia_doenca_atual', 'historico_medico_pregresso', 'ginecologica']
+
+    # 4. Adicione a lógica para criar/atualizar os dados aninhados
+    def create(self, validated_data):
+        ginecologica_data = validated_data.pop('ginecologica', None)
+        anamnese = Anamnese.objects.create(**validated_data)
+        if ginecologica_data:
+            AnamneseGinecologica.objects.create(anamnese=anamnese, **ginecologica_data)
+        return anamnese
+
+    def update(self, instance, validated_data):
+        ginecologica_data = validated_data.pop('ginecologica', None)
+        
+        # Atualiza a instância principal (Anamnese)
+        instance = super().update(instance, validated_data)
+
+        if ginecologica_data is not None:
+            # Tenta buscar os dados ginecológicos existentes, ou cria se não existirem
+            ginecologica_instance, created = AnamneseGinecologica.objects.get_or_create(anamnese=instance)
+            # Atualiza os campos do modelo aninhado
+            for attr, value in ginecologica_data.items():
+                setattr(ginecologica_instance, attr, value)
+            ginecologica_instance.save()
+            
+        return instance
 
 # Serializer para os Atestados
 class AtestadoSerializer(serializers.ModelSerializer):

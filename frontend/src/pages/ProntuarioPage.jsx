@@ -107,9 +107,15 @@ export default function ProntuarioPage() {
                             {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
                         </AccordionSummary>
                         <AccordionDetails>
-                            {/* Passamos os dados da anamnese para o componente filho */}
-                            <AnamneseTab pacienteId={pacienteId} initialAnamnese={anamnese} onAnamneseSalva={forceRefresh} />
-                        </AccordionDetails>
+        <AnamneseTab 
+            pacienteId={pacienteId} 
+            initialAnamnese={anamnese} 
+            onAnamneseSalva={forceRefresh}
+            
+            // ▼▼▼ ADICIONE ESTA LINHA ▼▼▼
+            especialidade={user?.especialidade}
+        />
+    </AccordionDetails>
                     </Accordion>
                     {/* 5. SUBSTITUA A CHAMADA DIRETA PELA NOVA FUNÇÃO */}
                     {renderAtendimentoPorEspecialidade()}

@@ -126,3 +126,25 @@ class OpcaoClinica(models.Model):
 
     def __str__(self):
         return f"[{self.especialidade} / {self.area_clinica}] {self.descricao}"
+
+class AnamneseGinecologica(models.Model):
+    # Relação um-para-um: Cada Anamnese pode ter no máximo uma extensão ginecológica.
+    anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='ginecologica')
+
+    # Campos específicos da Ginecologia
+    dum = models.DateField(null=True, blank=True, verbose_name="Data da Última Menstruação (DUM)")
+    menarca_idade = models.PositiveIntegerField(null=True, blank=True, verbose_name="Idade da Menarca")
+    
+    gesta = models.PositiveIntegerField(null=True, blank=True, verbose_name="Gesta (nº de gestações)")
+    para = models.PositiveIntegerField(null=True, blank=True, verbose_name="Para (nº de partos)")
+    abortos = models.PositiveIntegerField(null=True, blank=True, verbose_name="Abortos (nº)")
+
+    antecedentes_ginecologicos = models.TextField(null=True, blank=True, verbose_name="Antecedentes Ginecológicos")
+    antecedentes_obstetricos = models.TextField(null=True, blank=True, verbose_name="Antecedentes Obstétricos")
+    
+    def __str__(self):
+        return f"Dados Ginecológicos de {self.anamnese.paciente.nome_completo}"
+
+    class Meta:
+        verbose_name = "Anamnese Ginecológica"
+        verbose_name_plural = "Anamneses Ginecológicas"

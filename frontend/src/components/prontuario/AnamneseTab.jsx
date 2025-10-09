@@ -1,28 +1,30 @@
-// src/components/prontuario/AnamneseTab.jsx - VERSÃO FINAL E CORRETA
+// src/components/prontuario/AnamneseTab.jsx - VERSÃO COM CAMPOS DE GINECOLOGIA
 
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, Button, CircularProgress, TextField, Typography, 
-    Paper, FormGroup, FormControlLabel, Checkbox 
-} from '@mui/material';
+import { Box, Button, CircularProgress, TextField, Typography, Paper, FormGroup, FormControlLabel, Checkbox, Grid, Divider } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia', initialAnamnese, onAnamneseSalva }) {
+export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese, onAnamneseSalva }) {
   const { showSnackbar } = useSnackbar();
   
-  // O estado do formulário é a única fonte da verdade aqui.
-  // Ele começa com os dados recebidos da página principal (initialAnamnese) ou em branco.
-  const [formData, setFormData] = useState(initialAnamnese || { queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '' });
+  // O estado inicial agora inclui o objeto aninhado 'ginecologica'
+  const [formData, setFormData] = useState(initialAnamnese || { 
+      queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '',
+      ginecologica: {} // Inicia o objeto para os dados ginecológicos
+  });
   
   const [isSaving, setIsSaving] = useState(false);
   const [opcoesHDA, setOpcoesHDA] = useState([]);
   const [selecoesHDA, setSelecoesHDA] = useState(new Set());
   
-  // Apenas UM useEffect, muito mais simples!
   useEffect(() => {
-    // 1. Atualiza o formulário se a prop initialAnamnese mudar.
-    setFormData(initialAnamnese || { queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '' });
+    // Garante que o estado aninhado exista
+    const defaultData = { 
+        queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '',
+        ginecologica: {}
+    };
+    setFormData(initialAnamnese || defaultData);
 
     // 2. Busca as opções de checkbox.
     const fetchOpcoes = async () => {
@@ -44,7 +46,16 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia',
       [event.target.name]: event.target.value,
     });
   };
-
+// NOVO: Handler para os campos aninhados de ginecologia
+  const handleGinecoChange = (event) => {
+    setFormData(prev => ({
+        ...prev,
+        ginecologica: {
+            ...prev.ginecologica,
+            [event.target.name]: event.target.value
+        }
+    }));
+  };
   const handleHdaCheckboxChange = (event) => {
     const opcaoId = parseInt(event.target.name, 10);
     const isChecked = event.target.checked;
@@ -122,7 +133,7 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia',
           required 
           fullWidth 
         />
-      </Paper>
+      </Paper>      
       <TextField 
         label="História Médica Pregressa (HMP)" 
         name="historico_medico_pregresso" 
@@ -131,6 +142,31 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia',
         multiline 
         rows={4} 
       />
+      {especialidade === 'Ginecologia' && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2, borderColor: 'secondary.main' }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Anamnese Ginecológica e Obstétrica</Typography>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                    <TextField label="DUM (Última Menstruação)" name="dum" type="date" value={formData.ginecologica?.dum || ''} onChange={handleGinecoChange} InputLabelProps={{ shrink: true }} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <TextField label="Idade da Menarca" name="menarca_idade" type="number" value={formData.ginecologica?.menarca_idade || ''} onChange={handleGinecoChange} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={4} md={2}><TextField label="Gesta" name="gesta" type="number" value={formData.ginecologica?.gesta || ''} onChange={handleGinecoChange} fullWidth size="small" /></Grid>
+                <Grid item xs={12} sm={4} md={2}><TextField label="Para" name="para" type="number" value={formData.ginecologica?.para || ''} onChange={handleGinecoChange} fullWidth size="small" /></Grid>
+                <Grid item xs={12} sm={4} md={2}><TextField label="Abortos" name="abortos" type="number" value={formData.ginecologica?.abortos || ''} onChange={handleGinecoChange} fullWidth size="small" /></Grid>
+                
+                <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
+
+                <Grid item xs={12} sm={6}>
+                    <TextField label="Antecedentes Ginecológicos" name="antecedentes_ginecologicos" value={formData.ginecologica?.antecedentes_ginecologicos || ''} onChange={handleGinecoChange} multiline rows={4} fullWidth size="small" />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                    <TextField label="Antecedentes Obstétricos" name="antecedentes_obstetricos" value={formData.ginecologica?.antecedentes_obstetricos || ''} onChange={handleGinecoChange} multiline rows={4} fullWidth size="small" />
+                </Grid>
+            </Grid>
+        </Paper>
+      )}
       <Box>
         <Button variant="contained" onClick={handleSave} disabled={isSaving}>
           {isSaving ? <CircularProgress size={24} /> : (initialAnamnese ? 'Atualizar Anamnese' : 'Salvar Anamnese')}
