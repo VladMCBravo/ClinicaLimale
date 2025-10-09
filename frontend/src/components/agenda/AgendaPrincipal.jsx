@@ -6,7 +6,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
-import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
+import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid'; // <<-- MUDANÇA IMPORTANTE AQUI
 import { useNavigate } from 'react-router-dom'; // <-- Import necessário
 import { Menu, Item, useContextMenu } from 'react-contexify'; // <-- Imports necessários
 import 'react-contexify/dist/ReactContexify.css'; // <-- Import do CSS
@@ -120,15 +120,26 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
             <Paper sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }} variant="outlined">
                 <FullCalendar
                     ref={calendarRef}
-                    plugins={[resourceTimelinePlugin, dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                    // <<-- PLUGIN CORRIGIDO PARA VISÃO VERTICAL -->>
+                    plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     schedulerLicenseKey="GPL-TO-REMOVE-THE-WARNING"
-                    initialView="resourceTimelineDay"
+                    
+                    // <<-- VISÃO INICIAL CORRIGIDA PARA COLUNAS VERTICAIS -->>
+                    initialView="resourceTimeGridDay"
+                    
                     headerToolbar={{
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'resourceTimelineDay,timeGridWeek,dayGridMonth'
+                        // <<-- BOTÃO CORRIGIDO -->>
+                        right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth'
                     }}
-                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', resourceTimelineDay: 'Salas' }}
+                    buttonText={{
+                        today: 'Hoje',
+                        month: 'Mês',
+                        week: 'Semana',
+                        // <<-- TEXTO DO BOTÃO CORRIGIDO -->>
+                        resourceTimeGridDay: 'Salas' 
+                    }}
                     locale="pt-br"
                     height="100%"
                     events={fetchEvents}
@@ -150,8 +161,8 @@ export default function AgendaPrincipal({ medicoFiltro, especialidadeFiltro, onS
 
             <AgendamentoModal
                 open={isModalOpen}
-                onClose={handleCloseModal}
-                onSave={handleSave}
+                onClose={() => setIsModalOpen(false)}
+                onSave={onSave} // Ajuste para chamar a função onSave diretamente
                 initialData={selectedDateInfo}
                 editingEvent={editingEvent}
             />

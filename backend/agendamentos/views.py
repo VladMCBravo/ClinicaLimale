@@ -121,8 +121,25 @@ class HorariosDisponiveisAPIView(APIView):
 
         horarios = services.buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id)
         return Response(horarios, status=status.HTTP_200_OK)
+    
+# <<-- NOVA VIEW ADICIONADA AQUI -->>
+class ListaEsperaListView(generics.ListAPIView):
+    """
+    Endpoint para listar agendamentos que estão na lista de espera.
+    A regra de negócio aqui é: um agendamento está na espera se foi criado
+    (pelo chatbot, por exemplo) e ainda não tem uma sala alocada.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = AgendamentoSerializer
 
+    def get_queryset(self):
+        # Filtra por agendamentos futuros que estão com o campo 'sala' nulo.
+        return Agendamento.objects.filter(
+            sala__isnull=True,
+            data_hora_inicio__gte=timezone.now()
+        ).order_by('data_hora_inicio')
 # --- VIEW PARA O CRON JOB EXTERNO (AGORA SEM ERROS) ---
+
 class EnviarLembretesCronView(APIView):
     permission_classes = [AllowAny]
 
