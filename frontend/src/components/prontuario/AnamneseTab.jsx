@@ -46,8 +46,9 @@ export default function AnamneseTab({ pacienteId, especialidade = 'Cardiologia' 
   const fetchOpcoes = useCallback(async () => {
     if (!especialidade) return;
     try {
-      // URL CORRIGIDA
-      const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+      // ▼▼▼ MUDANÇA PRINCIPAL AQUI ▼▼▼
+      // A URL correta para buscar as opções clínicas, sem o ID do paciente.
+      const response = await apiClient.get(`/prontuario/opcoes-clinicas/`, {
         params: { especialidade: especialidade, area_clinica: 'HDA' }
       });
       setOpcoesHDA(response.data);
