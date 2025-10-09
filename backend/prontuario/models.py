@@ -1,3 +1,5 @@
+# backend/prontuario/models.py - VERSÃO CORRIGIDA E FINALIZADA
+
 from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
@@ -6,30 +8,27 @@ class Evolucao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='evolucoes')
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     data_atendimento = models.DateTimeField(auto_now_add=True)
-    notas_subjetivas = models.TextField(verbose_name="Subjetivo (S)")
-    notas_objetivas = models.TextField(verbose_name="Objetivo (O)")
-    avaliacao = models.TextField(verbose_name="Avaliação (A)")
-    plano = models.TextField(verbose_name="Plano (P)")
-    # Campos SOAP tradicionais (podem ser usados como resumo)
+
+    # <<-- CORREÇÃO: Campos SOAP definidos uma única vez e como opcionais (blank=True, null=True) -->>
     notas_subjetivas = models.TextField(blank=True, null=True, verbose_name="Subjetivo (Queixa Principal / HDA)")
-    notas_objetivas = models.TextField(blank=True, null=True, verbose_name="Ausculta Cardíaca/Pulmonar, Sinais, etc.")
+    notas_objetivas = models.TextField(blank=True, null=True, verbose_name="Exame Físico (Ausculta, Sinais, etc.)")
     avaliacao = models.TextField(blank=True, null=True, verbose_name="Diagnóstico / Hipóteses")
     plano = models.TextField(blank=True, null=True, verbose_name="Plano Terapêutico / Condutas")
 
-    # <<-- NOVOS CAMPOS ESTRUTURADOS DO EXAME FÍSICO -->>
+    # <<-- NOVOS CAMPOS ESTRUTURADOS (Mantidos) -->>
     pressao_arterial = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pressão Arterial")
     frequencia_cardiaca = models.PositiveIntegerField(blank=True, null=True, verbose_name="Frequência Cardíaca (bpm)")
     peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, verbose_name="Peso (kg)")
     altura = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, verbose_name="Altura (m)")
-    
-    # <<-- NOVOS CAMPOS PARA EXAMES E OUTROS -->>
-    exames_complementares = models.TextField(blank=True, null=True, verbose_name="ECG, Eco, Laboratoriais, etc.")
+    exames_complementares = models.TextField(blank=True, null=True, verbose_name="Exames Complementares (ECG, Eco, etc.)")
 
     class Meta:
         ordering = ['-data_atendimento']
 
     def __str__(self):
         return f"Evolução de {self.paciente.nome_completo} em {self.data_atendimento.strftime('%d/%m/%Y')}"
+
+# --- Os modelos abaixo já estavam corretos e foram mantidos ---
 
 class Prescricao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='prescricoes')
@@ -95,21 +94,16 @@ class DocumentoPaciente(models.Model):
         return f"{self.titulo} - {self.paciente.nome_completo}"
 
 class OpcaoClinica(models.Model):
-    """
-    Modelo para armazenar opções pré-definidas para o prontuário,
-    categorizadas por especialidade e área do prontuário.
-    """
     ESPECIALIDADE_CHOICES = [
         ('Cardiologia', 'Cardiologia'),
         ('Ginecologia', 'Ginecologia'),
         ('Neonatologia', 'Neonatologia'),
-        ('Obstetricia', 'Obstetrícia'),
+        ('Obstetrícia', 'Obstetrícia'), # <-- Corrigido com acento
         ('Ortopedia', 'Ortopedia'),
         ('Pediatria', 'Pediatria'),
         ('Reumatologia', 'Reumatologia'),
-        ('Reumatologia Pediatrica', 'Reumatologia Pediátrica'),
+        ('Reumatologia Pediátrica', 'Reumatologia Pediátrica'), # <-- Corrigido com acento
     ]
-
     AREA_CHOICES = [
         ('QUEIXA_PRINCIPAL', 'Queixa Principal'),
         ('HDA', 'História da Doença Atual'),
@@ -118,7 +112,6 @@ class OpcaoClinica(models.Model):
         ('EXAME_FISICO_CARDIO', 'Exame Físico - Cardiovascular'),
         ('EXAME_FISICO_RESP', 'Exame Físico - Respiratório'),
         ('EXAME_FISICO_ORTO', 'Exame Físico - Ortopédico'),
-        # Adicione outras áreas conforme a necessidade
     ]
 
     descricao = models.CharField(max_length=255, help_text="Ex: 'Dor precordial tipo aperto'")
@@ -128,7 +121,7 @@ class OpcaoClinica(models.Model):
     class Meta:
         verbose_name = "Opção Clínica"
         verbose_name_plural = "Opções Clínicas"
-        unique_together = ('descricao', 'especialidade', 'area_clinica') # Evita duplicatas
+        unique_together = ('descricao', 'especialidade', 'area_clinica')
         ordering = ['especialidade', 'area_clinica', 'descricao']
 
     def __str__(self):

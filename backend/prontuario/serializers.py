@@ -1,3 +1,5 @@
+# backend/prontuario/serializers.py - VERSÃO CORRIGIDA
+
 from rest_framework import serializers
 from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado
 from .models import DocumentoPaciente, OpcaoClinica
@@ -8,19 +10,22 @@ class EvolucaoSerializer(serializers.ModelSerializer):
     paciente = serializers.StringRelatedField(read_only=True)
     paciente_id = serializers.IntegerField(write_only=True)
 
+    # <<-- CORREÇÃO APLICADA AQUI -->>
     class Meta:
         model = Evolucao
+        # A lista 'fields' agora inclui corretamente todos os novos campos do modelo.
         fields = [
             'id', 'paciente', 'medico', 'data_atendimento',
             'notas_subjetivas', 'notas_objetivas', 'avaliacao', 'plano',
-            'paciente_id'
-            # <<-- NOVOS CAMPOS ADICIONADOS -->>
+            'paciente_id',
             'pressao_arterial',
             'frequencia_cardiaca',
             'peso',
             'altura',
             'exames_complementares'
         ]
+
+# --- Os serializers abaixo já estavam corretos e foram mantidos ---
 
 # Serializer para os Itens da Prescrição
 class ItemPrescricaoSerializer(serializers.ModelSerializer):
@@ -69,26 +74,17 @@ class AtestadoSerializer(serializers.ModelSerializer):
         fields = ['id', 'paciente', 'medico', 'data_emissao', 'tipo_atestado', 'tipo_atestado_display', 'observacoes']
 
 class DocumentoPacienteSerializer(serializers.ModelSerializer):
-    # Campo para mostrar o nome do usuário que fez o upload
     enviado_por_nome = serializers.CharField(source='enviado_por.get_full_name', read_only=True)
 
     class Meta:
         model = DocumentoPaciente
         fields = [
-            'id',
-            'paciente',
-            'titulo',
-            'arquivo',
-            'data_upload',
-            'enviado_por',
-            'enviado_por_nome'
+            'id', 'paciente', 'titulo', 'arquivo', 'data_upload',
+            'enviado_por', 'enviado_por_nome'
         ]
-        # Marcamos os campos que serão preenchidos automaticamente pela view
         read_only_fields = ['paciente', 'enviado_por']
 
 class OpcaoClinicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpcaoClinica
         fields = ['id', 'descricao', 'especialidade', 'area_clinica']
-
-
