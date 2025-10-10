@@ -175,13 +175,16 @@ class AgendamentoManager:
                 'telefone_celular': paciente.telefone_celular, 'email': paciente.email
             })
             primeiro_nome = paciente.nome_completo.split(' ')[0]
-            mensagem = f"Que ótimo te ver de volta, {primeiro_nome}! Já encontrei seu cadastro. Estamos prontos para ir para o pagamento."
-            return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
-        else:
-            self.memoria['cpf'] = cpf_numeros
-            mensagem = "Entendido. Para seu primeiro agendamento, preciso de algumas informações rápidas. Vamos começar pelo seu *nome completo*, por favor."
-            self.memoria['dados_paciente'] = {'cpf': cpf_numeros}
-            self.memoria['missing_field'] = 'nome_completo'
+             # --- INÍCIO DA CORREÇÃO ---
+            # Mensagem antiga: "Estamos prontos para ir para o pagamento."
+            # Mensagem nova (mais clara e proativa):
+            mensagem = (
+                f"Que ótimo te ver de volta, {primeiro_nome}! Já encontrei seu cadastro.\n\n"
+                "Para finalizar, como prefere pagar? 💳\n\n"
+                "1️⃣ *PIX* (5% de desconto)\n"
+                "2️⃣ *Cartão de Crédito* (até 3x sem juros)"
+            )
+            # --- FIM DA CORREÇÃO ---
             return {"response_message": mensagem, "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
 
     def handle_cadastro_awaiting_missing_field(self, resposta_usuario):
