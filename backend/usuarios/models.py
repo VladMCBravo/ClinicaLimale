@@ -26,6 +26,17 @@ class Especialidade(models.Model):
 
 
 class CustomUser(AbstractUser):
+    GENERO_CHOICES = [
+        ('M', 'Masculino'),
+        ('F', 'Feminino'),
+    ]
+    
+    genero = models.CharField(
+        max_length=1, 
+        choices=GENERO_CHOICES, 
+        null=True, 
+        blank=True
+    )
     CARGO_CHOICES = [
         ('admin', 'Administrador'),
         ('medico', 'Médico'),

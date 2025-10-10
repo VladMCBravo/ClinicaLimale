@@ -41,7 +41,21 @@ const Navbar = () => {
         // Fallback para outros cargos (se houver)
         return null;
     };
-
+    // NOVA FUNÇÃO PARA FORMATAR A SAUDAÇÃO
+    const formatarSaudacao = (user) => {
+        if (user.isMedico) {
+            if (user.genero === 'F') {
+                return 'Dra.';
+            }
+            if (user.genero === 'M') {
+                return 'Dr.';
+            }
+            // Fallback caso o gênero não esteja definido
+            return 'Dr(a).';
+        }
+        // Para outros cargos, não adiciona título
+        return '';
+    };
     return (
         <header className="main-header">
             <div className="nav-left">
@@ -74,21 +88,22 @@ const Navbar = () => {
 
             {user && (
                 <div className="nav-right">
-                    <span className="user-greeting">Olá, {user.first_name || ''}</span>
-                    <div className="user-actions">
+    <span className="user-greeting">
+        Olá, {formatarSaudacao(user)} {user.first_name || ''}
+    </span>
+    <div className="user-actions">
+        {/* Ícone de Configurações visível APENAS PARA ADMIN */}
+        {user.isAdmin && (
+            <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
+                <FaCog />
+            </IconButton>
+        )}
 
-                        {/* Ícone de Configurações visível APENAS PARA ADMIN */}
-                        {user.isAdmin && (
-                            <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
-                                <FaCog />
-                            </IconButton>
-                        )}
-
-                        <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
-                            <FaSignOutAlt />
-                        </IconButton>
-                    </div>
-                </div>
+        <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
+            <FaSignOutAlt />
+        </IconButton>
+    </div>
+</div>
             )}
         </header>
     );
