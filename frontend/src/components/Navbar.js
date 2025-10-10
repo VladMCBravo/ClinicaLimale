@@ -4,8 +4,14 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-    FaCalendarAlt, FaUserFriends, FaFileInvoiceDollar, FaCog, 
-    FaSignOutAlt, FaTachometerAlt, FaVideo,FaTachometerAlt, FaStethoscope
+    FaCalendarAlt,
+    FaUserFriends,
+    FaFileInvoiceDollar,
+    FaCog,
+    FaSignOutAlt,
+    FaTachometerAlt,
+    FaVideo,
+    FaStethoscope // Adicionamos o novo ícone aqui
 } from 'react-icons/fa';
 import { IconButton } from '@mui/material';
 import logoImage from '../assets/logo.png';
