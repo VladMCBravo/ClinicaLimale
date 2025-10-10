@@ -14,7 +14,7 @@ import MainLayout from './components/MainLayout';
 
 // Importe suas páginas
 import LoginPage from './pages/LoginPage';
-import PainelMedicoPage from './pages/PainelMedicoPage'; // ERA AgendaPage
+import PainelMedicoPage from './pages/PainelMedico/PainelMedicoPage'; 
 import PainelRecepcaoPage from './pages/PainelRecepcaoPage'; // <-- ADICIONE ESTA LINHA
 import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
