@@ -5,6 +5,7 @@ import apiClient from '../../api/axiosConfig';
 import { useAuth } from '../../hooks/useAuth';
 import { Box, CircularProgress, Typography, Modal, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 // Importe TODOS os seus componentes
 import PatientHeader from '../PatientHeader'; 
@@ -34,6 +35,7 @@ const modalStyle = {
 };
 
 export default function ProntuarioCompleto({ agendamento }) {  
+    const { showSnackbar } = useSnackbar();
     const { user } = useAuth();
     const [paciente, setPaciente] = useState(null);
     const [anamnese, setAnamnese] = useState(undefined);
