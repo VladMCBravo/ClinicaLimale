@@ -9,7 +9,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 // Importe TODOS os seus componentes
 import AtendimentoCardiologia from './AtendimentoCardiologia';
 import AtendimentoGeral from './AtendimentoGeral';
-import PatientHeader from './PatientHeader';
+import PatientHeader from '../PatientHeader'; 
 import AlertasClinicos from './AlertasClinicos';
 // HISTÓRICO DE CONSULTAS FOI REMOVIDO DAQUI
 import PainelAcoes from './PainelAcoes';
