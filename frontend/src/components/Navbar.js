@@ -5,7 +5,7 @@ import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
     FaCalendarAlt, FaUserFriends, FaFileInvoiceDollar, FaCog, 
-    FaSignOutAlt, FaTachometerAlt, FaVideo
+    FaSignOutAlt, FaTachometerAlt, FaVideo,FaTachometerAlt, FaStethoscope
 } from 'react-icons/fa';
 import { IconButton } from '@mui/material';
 import logoImage from '../assets/logo.png';
@@ -14,7 +14,27 @@ import './Navbar.css';
 const Navbar = () => {
     const { user, logout } = useAuth();
 
-    // Não precisamos mais de variáveis locais, pois o hook useAuth já nos dá as flags.
+    // Função auxiliar para criar o link principal dinâmico
+    const renderPrincipalLink = () => {
+        // Se for recepção ou admin, o link principal é "Painel"
+        if (user.isRecepcao || user.isAdmin) {
+            return (
+                <NavLink to="/painel">
+                    <FaTachometerAlt /> <span>Painel</span>
+                </NavLink>
+            );
+        }
+        // Se for médico, o link principal é "Atendimento"
+        if (user.isMedico) {
+            return (
+                <NavLink to="/" end>
+                    <FaStethoscope /> <span>Atendimento</span>
+                </NavLink>
+            );
+        }
+        // Fallback para outros cargos (se houver)
+        return null;
+    };
 
     return (
         <header className="main-header">
@@ -23,19 +43,8 @@ const Navbar = () => {
 
                 {user && (
                     <nav className="main-nav">
-                        {/* === NOVA ORDEM DOS LINKS ABAIXO === */}
-
-                        {/* Painel (Apenas Admin e Recepção) */}
-                        {(user.isAdmin || user.isRecepcao) && (
-                            <NavLink to="/painel">
-                                <FaTachometerAlt /> <span>Painel</span>
-                            </NavLink>
-                        )}
-                        
-                        {/* Agenda (Todos) */}
-                        <NavLink to="/" end>
-                            <FaCalendarAlt /> <span>Agenda</span>
-                        </NavLink>
+                        {/* RENDERIZA O LINK PRINCIPAL DINAMICAMENTE */}
+                        {renderPrincipalLink()}
 
                         {/* Telemedicina (Todos) */}
                         <NavLink to="/telemedicina">

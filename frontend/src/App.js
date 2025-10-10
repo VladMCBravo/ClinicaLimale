@@ -14,9 +14,7 @@ import MainLayout from './components/MainLayout';
 
 // Importe suas páginas
 import LoginPage from './pages/LoginPage';
-import AgendaPage from './pages/AgendaPage';
-// REMOVA A LINHA ABAIXO, POIS NÃO SERÁ MAIS USADA DIRETAMENTE AQUI
-// import DashboardPage from './pages/DashboardPage'; 
+import PainelMedicoPage from './pages/PainelMedicoPage'; // ERA AgendaPage
 import PainelRecepcaoPage from './pages/PainelRecepcaoPage'; // <-- ADICIONE ESTA LINHA
 import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
@@ -39,8 +37,9 @@ function App() {
             {/* Rotas Protegidas */}
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
-                <Route path="/" element={<AgendaPage />} />
-                {/* A ROTA AGORA APONTA PARA O COMPONENTE CORRETO */}
+                {/* A ROTA PRINCIPAL AGORA APONTA PARA O PAINEL DO MÉDICO */}
+                <Route path="/" element={<PainelMedicoPage />} />
+                {/* A ROTA /painel CONTINUA CORRETA PARA A RECEPÇÃO */}
                 <Route path="/painel" element={<PainelRecepcaoPage />} /> 
                 <Route path="/pacientes" element={<PacientesPage />} />
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />

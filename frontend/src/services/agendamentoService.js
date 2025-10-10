@@ -65,6 +65,11 @@ const verificarDisponibilidade = ({ data, medicoId, especialidadeId }) => {
     return apiClient.get(url);
 };
 
+const getMinhaAgenda = () => {
+    // Este endpoint deve corresponder ao que você criou no backend
+    return apiClient.get('/agendamentos/minha-agenda/'); 
+};
+
 export const agendamentoService = {
     getAgendamentos,
     getAgendamentosHoje,
@@ -74,5 +79,6 @@ export const agendamentoService = {
     updateAgendamento,
     getModalData,
     verificarCapacidade,
-    verificarDisponibilidade,  
+    verificarDisponibilidade,
+    getMinhaAgenda  
 };
