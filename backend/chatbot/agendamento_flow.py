@@ -186,7 +186,29 @@ class AgendamentoManager:
             )
             # --- FIM DA CORREÇÃO ---
             return {"response_message": mensagem, "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
-
+            # 4. LÓGICA PARA NOVO PACIENTE (A CORREÇÃO ESTÁ AQUI)
+        else:
+            # Guarda o CPF na memória
+            self.memoria['cpf'] = cpf_numeros
+            
+            # Prepara a memória para o próximo passo: coletar os dados do paciente
+            self.memoria['dados_paciente'] = {'cpf': cpf_numeros}
+            self.memoria['missing_field'] = 'nome_completo' # Define o primeiro campo a ser pedido
+            
+            # Monta a mensagem para iniciar o cadastro
+            mensagem = (
+                "Entendido. Vi que é seu primeiro agendamento conosco. "
+                "Para criar seu cadastro, preciso de algumas informações rápidas.\n\n"
+                "Vamos começar pelo seu *nome completo*, por favor."
+            )
+            
+            # Retorna a mensagem e o novo estado para continuar o cadastro
+            return {
+                "response_message": mensagem, 
+                "new_state": "cadastro_awaiting_missing_field", 
+                "memory_data": self.memoria
+            }
+        
     def handle_cadastro_awaiting_missing_field(self, resposta_usuario):
         campo_faltante = self.memoria.get('missing_field')
         if campo_faltante:

@@ -22,7 +22,7 @@ export default function PainelMedicoPage() {
 
       <Box sx={{ flexGrow: 1, minHeight: 0 }}>
         {agendamentoSelecionado ? (
-          <ProntuarioCompleto pacienteId={agendamentoSelecionado.paciente.id} />
+          <ProntuarioCompleto pacienteId={agendamentoSelecionado.paciente} />
         ) : (
           /* Mensagem de boas-vindas quando nenhum paciente está selecionado */
           <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
