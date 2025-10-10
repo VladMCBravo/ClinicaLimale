@@ -210,40 +210,72 @@ class AgendamentoManager:
             }
         
     def handle_cadastro_awaiting_missing_field(self, resposta_usuario):
-        campo_faltante = self.memoria.get('missing_field')
-        if campo_faltante:
-            self.memoria.setdefault('dados_paciente', {})[campo_faltante] = resposta_usuario.strip()
-        return self._validar_e_coletar_proximo_campo()
+        # Primeiro, pegamos o campo que estávamos esperando
+        campo_atual = self.memoria.get('missing_field')
+        
+        # Valida a resposta que o usuário acabou de dar para o campo esperado
+        if campo_atual:
+            # Pega a função de validação correta para o campo atual
+            funcoes_validacao = {
+                'nome_completo': self.validators.validar_nome_completo,
+                'data_nascimento': self.validators.validar_data_nascimento_avancada,
+                'telefone_celular': self.validators.validar_telefone_brasileiro,
+                'email': self.validators.validar_email_avancado,
+            }
+            funcao_validacao = funcoes_validacao.get(campo_atual)
 
-    def _validar_e_coletar_proximo_campo(self):
-        campos_a_validar = {
-            'nome_completo': self.validators.validar_nome_completo,
-            'data_nascimento': self.validators.validar_data_nascimento_avancada,
-            'cpf': self.validators.validar_cpf_completo,
-            'telefone_celular': self.validators.validar_telefone_brasileiro,
-            'email': self.validators.validar_email_avancado,
-        }
+            if funcao_validacao:
+                is_valid, mensagem_erro, valor_formatado = funcao_validacao(resposta_usuario.strip())
+                
+                # Se a resposta para o campo atual for inválida, pedimos de novo.
+                if not is_valid:
+                    return {"response_message": f"{mensagem_erro}. Por favor, tente novamente.", "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
+                
+                # Se for válida, salvamos o dado formatado na memória.
+                self.memoria.setdefault('dados_paciente', {})[campo_atual] = valor_formatado if valor_formatado is not None else resposta_usuario.strip()
+
+        # Depois de salvar, chamamos a função para pedir o PRÓXIMO campo.
+        return self._coletar_proximo_campo()
+
+    def _coletar_proximo_campo(self):
+        # Lista ordenada dos campos que precisamos
+        campos_necessarios = ['nome_completo', 'data_nascimento', 'telefone_celular', 'email']
         dados_paciente = self.memoria.get('dados_paciente', {})
-        for campo, funcao_validacao in campos_a_validar.items():
-            valor = dados_paciente.get(campo, "")
-            is_valid, mensagem_erro, _ = funcao_validacao(valor)
-            if not is_valid:
-                mensagens_pedido = {
-                    'nome_completo': "Qual o *nome completo* do paciente?",
-                    'data_nascimento': f"Hmm, a data parece inválida. {mensagem_erro}. Qual a data correta (DD/MM/AAAA)?",
-                    'cpf': "O CPF que você informou parece inválido. Por favor, digite o *CPF* correto (11 números).",
-                    'telefone_celular': f"O telefone parece inválido. {mensagem_erro}. Qual o *celular com DDD*?",
-                    'email': f"O e-mail parece inválido. {mensagem_erro}. Qual o *e-mail* correto?",
-                }
-                self.memoria['missing_field'] = campo
-                return {"response_message": mensagens_pedido[campo], "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
 
-        self.memoria.update(dados_paciente)
-        self.memoria.pop('missing_field', None)
-        self.memoria.pop('dados_paciente', None)
-        primeiro_nome = self.memoria['nome_completo'].split(' ')[0]
-        mensagem = (f"Excelente, {primeiro_nome}! Recebi seus dados.\n\nComo prefere pagar? 💳\n\n1️⃣ *PIX* (5% de desconto)\n2️⃣ *Cartão de Crédito* (até 3x sem juros)")
-        return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+        # Encontra o primeiro campo da lista que ainda não temos
+        proximo_campo_a_pedir = None
+        for campo in campos_necessarios:
+            if campo not in dados_paciente:
+                proximo_campo_a_pedir = campo
+                break
+        
+        # Se ainda falta algum campo, montamos a pergunta para ele
+        if proximo_campo_a_pedir:
+            mensagens_pedido = {
+                'nome_completo': "Vamos começar pelo seu *nome completo*, por favor.",
+                'data_nascimento': "Ótimo! Agora, qual sua *data de nascimento* (DD/MM/AAAA)?",
+                'telefone_celular': "Perfeito. E o seu *celular com DDD*?",
+                'email': "Estamos quase lá! Qual o seu *e-mail*?",
+            }
+            # Atualiza o campo que estamos esperando
+            self.memoria['missing_field'] = proximo_campo_a_pedir
+            return {"response_message": mensagens_pedido[proximo_campo_a_pedir], "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
+        
+        # Se não falta mais nenhum campo, o cadastro está completo!
+        else:
+            self.memoria.update(dados_paciente)
+            self.memoria.pop('missing_field', None)
+            self.memoria.pop('dados_paciente', None)
+            primeiro_nome = self.memoria['nome_completo'].split(' ')[0]
+            
+            mensagem = (
+                f"Excelente, {primeiro_nome}! Recebi seus dados.\n\n"
+                "Como prefere pagar? 💳\n\n"
+                "1️⃣ *PIX* (5% de desconto)\n"
+                "2️⃣ *Cartão de Crédito* (até 3x sem juros)"
+            )
+            return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
+
 
     def handle_awaiting_payment_choice(self, resposta_usuario):
         escolha = resposta_usuario.lower().strip()
