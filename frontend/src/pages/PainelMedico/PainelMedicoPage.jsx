@@ -1,7 +1,7 @@
 // src/pages/PainelMedico/PainelMedicoPage.jsx - VERSÃO SIMPLIFICADA
 
 import React, { useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import FilaDeAtendimento from './FilaDeAtendimento';
 // Importe o novo componente centralizado
 import ProntuarioCompleto from '../../components/prontuario/ProntuarioCompleto';
