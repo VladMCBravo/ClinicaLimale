@@ -28,9 +28,8 @@ urlpatterns = [
     path('api/agendamentos/', include('agendamentos.urls')),
     path('api/usuarios/', include('usuarios.urls')),
     path('api/faturamento/', include('faturamento.urls')),
-    path('api/dashboard/', include('dashboard.urls')),
     path('api/chatbot/', include('chatbot.urls')),
-    path('api/integracao/', include('integracao_dicom.urls')),
+    path('api/integracao/pacientes/<int:paciente_id>/', include('integracao_dicom.urls')),
     # <<-- A LINHA QUE ESTÁ FALTANDO É ESTA -->>
     # Ela diz ao Django: "Qualquer URL que comece com 'api/prontuario/pacientes/<id_do_paciente>/'
     # deve ser gerenciada pelo arquivo de URLs do app 'prontuario'.

@@ -17,11 +17,11 @@ router.register(r'documentos', DocumentoPacienteViewSet, basename='documento-pac
 # Lista de todas as URLs que este aplicativo 'prontuario' gerencia
 urlpatterns = [
     # Rotas para os diferentes recursos do prontuário
-    path('evolucoes/', EvolucaoListCreateAPIView.as_view(), name='lista-evolucoes'),
-    path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='lista-prescricoes'),
-    path('atestados/', AtestadoListCreateAPIView.as_view(), name='lista-atestados'),
     path('anamnese/', AnamneseDetailAPIView.as_view(), name='detalhe-anamnese'),
-
+    path('evolucoes/', EvolucaoListCreateAPIView.as_view(), name='listar-criar-evolucoes'),
+    path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='listar-criar-prescricoes'),
+    path('atestados/', AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
+    path('documentos/', DocumentoPacienteViewSet.as_view({'get': 'list', 'post': 'create'}), name='listar-criar-documentos'),
     # Inclui as rotas geradas automaticamente pelo router para o ViewSet de documentos
     path('', include(router.urls)),
 ]
