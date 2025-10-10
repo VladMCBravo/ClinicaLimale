@@ -10,6 +10,7 @@ from .views import (
     AgendamentosHojeListView,
     EnviarLembretesCronView,
     CriarSalaTelemedicinaView,
+    MinhaAgendaView,
     TelemedicinaListView,
     ExecutarCancelamentosExpiradosView,
     VerificarCapacidadeHorarioAPIView,
@@ -29,4 +30,5 @@ urlpatterns = [
     path('telemedicina/', TelemedicinaListView.as_view(), name='lista-telemedicina'),
     path('executar-cancelamentos/', ExecutarCancelamentosExpiradosView.as_view(), name='executar-cancelamentos'),
     path('verificar-capacidade/', VerificarCapacidadeHorarioAPIView.as_view(), name='verificar-capacidade'),
+    path('minha-agenda/', MinhaAgendaView.as_view(), name='minha-agenda'),
 ]
