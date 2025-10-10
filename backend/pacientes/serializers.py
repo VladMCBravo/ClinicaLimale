@@ -40,4 +40,8 @@ class PacienteSerializer(serializers.ModelSerializer):
         idade = hoje.year - obj.data_nascimento.year - ((hoje.month, hoje.day) < (obj.data_nascimento.month, obj.data_nascimento.day))
         return idade
 
-  
+class PacienteClinicalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Paciente
+        # Apenas campos clínicos, NUNCA cpf, telefone, etc.
+        fields = ['id', 'nome_completo', 'data_nascimento', 'genero', 'alergias'] 

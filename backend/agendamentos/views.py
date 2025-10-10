@@ -354,3 +354,15 @@ class VerificarCapacidadeHorarioAPIView(APIView):
             'consultas_agendadas': consultas_agendadas,
             'procedimentos_agendados': procedimentos_agendados
         }, status=status.HTTP_200_OK)
+
+class MinhaAgendaView(generics.ListAPIView):
+    serializer_class = AgendamentoSerializer # Ou um serializer específico
+    permission_classes = [IsAuthenticated] # Adicionar permissão IsMedico
+    def get_queryset(self):
+        # Retorna agendamentos do dia em diante para o médico logado
+        hoje = timezone.now().date()
+        return Agendamento.objects.filter(
+            medico=self.request.user, 
+            data_hora_inicio__date__gte=hoje,
+            status__in=['Agendado', 'Confirmado']
+        ).order_by('data_hora_inicio')

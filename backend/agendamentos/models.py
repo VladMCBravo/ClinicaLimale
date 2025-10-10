@@ -16,7 +16,15 @@ class Sala(models.Model):
     
 class Agendamento(models.Model):
     TIPO_ATENDIMENTO_CHOICES = [('Convenio', 'Convênio'), ('Particular', 'Particular')]
-    STATUS_CHOICES = [('Agendado', 'Agendado'), ('Confirmado', 'Confirmado'), ('Cancelado', 'Cancelado'), ('Realizado', 'Realizado'), ('Não Compareceu', 'Não Compareceu')]
+    STATUS_CHOICES = [
+    ('Agendado', 'Agendado'),
+    ('Confirmado', 'Confirmado'),
+    ('Aguardando', 'Aguardando na Recepção'), # NOVO
+    ('Em Atendimento', 'Em Atendimento'),   # NOVO
+    ('Realizado', 'Realizado'),
+    ('Cancelado', 'Cancelado'),
+    ('Não Compareceu', 'Não Compareceu')
+]
  # --- A DEFINIÇÃO QUE FALTAVA ESTÁ AQUI ---
     TIPO_AGENDAMENTO_CHOICES = [
         ('Consulta', 'Consulta'),
