@@ -38,6 +38,27 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
 
     logger.info(f"Processando | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
 
+    # --- NÍVEL ZERO: GARANTIR QUE TEMOS O NOME DO USUÁRIO ---
+    # Se não houver nome na memória, esta é a ÚNICA coisa que o bot fará.
+    if not nome_usuario:
+        # Se o bot não sabe o nome, mas ainda não perguntou, ele pergunta agora.
+        if estado_atual != 'aguardando_nome':
+            resultado = {"response_message": "Olá! Sou o Leônidas, e estou aqui para te ajudar. Para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
+        # Se ele já perguntou, ele pega a resposta como nome.
+        else:
+            nome_candidato = user_message.strip().title().split(' ')[0]
+            if len(nome_candidato) > 2:
+                memoria_atual['nome_usuario'] = nome_candidato
+                resultado = {"response_message": f"Prazer, {nome_candidato}! Como posso te direcionar ao melhor cuidado hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+            else:
+                resultado = {"response_message": "Não entendi bem. Por favor, qual o seu primeiro nome?", "new_state": 'aguardando_nome', "memory_data": {}}
+        
+        # Salva o resultado e encerra a execução aqui.
+        memoria_obj.state = resultado.get("new_state")
+        memoria_obj.memory_data = resultado.get("memory_data")
+        memoria_obj.save()
+        return resultado
+
     # --- NÍVEL 1: LÓGICA DE ESTADOS ESPECIAIS E CONTEXTUAIS ---
     if estado_atual == 'awaiting_inactivity_response':
         if 'sim' in resposta_lower:

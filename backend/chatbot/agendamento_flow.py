@@ -84,15 +84,22 @@ class AgendamentoManager:
         return {"response_message": f"Não entendi, {nome_usuario}. É 'Consulta' ou 'Procedimento'?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     def handle_awaiting_modality(self, resposta_usuario):
-        modalidade = "".join(resposta_usuario.strip().split()).capitalize()
-        if modalidade not in ['Presencial', 'Telemedicina']:
-            return {"response_message": "Modalidade inválida. É *Presencial* ou *Telemedicina*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        # <<< INÍCIO DA CORREÇÃO >>>
+        resposta_lower = resposta_usuario.lower()
 
-        self.memoria['modalidade'] = modalidade
+        if 'telemedicina' in resposta_lower:
+            self.memoria['modalidade'] = 'Telemedicina'
+        elif 'presencial' in resposta_lower:
+            self.memoria['modalidade'] = 'Presencial'
+        else:
+            return {"response_message": "Modalidade inválida. Por favor, escolha entre *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        # <<< FIM DA CORREÇÃO >>>
+
         especialidades = self._get_especialidades_from_db()
         self.memoria['lista_especialidades'] = especialidades
         nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in especialidades])
         return {"response_message": f"Perfeito. Qual das nossas especialidades você deseja?\n\n{nomes_especialidades}", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+
 
     def handle_awaiting_specialty(self, resposta_usuario):
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower()), None)
