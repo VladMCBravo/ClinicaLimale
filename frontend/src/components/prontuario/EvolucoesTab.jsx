@@ -10,6 +10,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 // Importe os formulários de atendimento que ele vai usar
 import AtendimentoGeral from './AtendimentoGeral';
 import AtendimentoCardiologia from './AtendimentoCardiologia';
+import AtendimentoPediatria from './AtendimentoPediatria'; 
 
 export default function EvolucoesTab({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
@@ -34,18 +35,21 @@ export default function EvolucoesTab({ pacienteId }) {
     }, [fetchEvolucoes]);
 
     // Função que decide qual formulário de atendimento renderizar
-    const renderAtendimentoForm = () => {
+        const renderAtendimentoForm = () => {
         const especialidadePrincipal = user?.especialidades_detalhes?.[0]?.nome;
 
         switch (especialidadePrincipal) {
             case 'Cardiologia':
                 return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} especialidade={especialidadePrincipal} />;
-            // Futuramente, adicione outros casos aqui
+            
+            // ▼▼▼ ADICIONE O NOVO CASO AQUI ▼▼▼
+            case 'Pediatria':
+                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+
             default:
                 return <AtendimentoGeral pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
         }
     };
-
     return (
         <Box>
             {/* O formulário de atendimento agora é renderizado aqui */}
