@@ -1,19 +1,17 @@
-// src/pages/PainelMedico/FilaDeAtendimento.jsx
+// src/pages/PainelMedico/FilaDeAtendimento.jsx - VERSÃO CORRIGIDA
 
 import React, { useState, useEffect } from 'react';
 import { Typography, Paper, List, ListItem, ListItemText, CircularProgress, ListItemButton } from '@mui/material';
-import { agendamentoService } from '../../services/agendamentoService'; // Importamos nosso service
+import { agendamentoService } from '../../services/agendamentoService';
 
 export default function FilaDeAtendimento({ onPacienteSelect }) {
     const [agendamentos, setAgendamentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Função para buscar os dados da API
         const fetchAgenda = async () => {
             setIsLoading(true);
             try {
-                // Usando a nova função do service que criamos no Passo 2
                 const response = await agendamentoService.getMinhaAgenda();
                 setAgendamentos(response.data);
             } catch (error) {
@@ -25,7 +23,7 @@ export default function FilaDeAtendimento({ onPacienteSelect }) {
         };
 
         fetchAgenda();
-    }, []); // O array vazio faz com que isso rode apenas uma vez, quando o componente é montado.
+    }, []);
 
     return (
         <Paper variant="outlined" sx={{ p: 2, height: '100%', overflowY: 'auto' }}>
@@ -39,12 +37,24 @@ export default function FilaDeAtendimento({ onPacienteSelect }) {
                             <ListItemButton onClick={() => onPacienteSelect(ag)}>
                                 <ListItemText 
                                     primary={ag.paciente_nome}
-                                    secondary={new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    secondary={
+                                        <>
+                                            {new Date(ag.data_hora_inicio).toLocaleDateString('pt-BR')}
+                                            {' - '}
+                                            {new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            <br />
+                                            <Typography component="span" variant="body2" color="text.secondary">
+                                                {ag.tipo_visita || 'Consulta'}
+                                            </Typography>
+                                        </>
+                                    }
                                 />
                             </ListItemButton>
                         </ListItem>
                     )) : (
-                        <ListItem><ListItemText primary="Nenhum agendamento para hoje." /></ListItem>
+                        <ListItem>
+                            <ListItemText primary="Nenhum agendamento para hoje." />
+                        </ListItem>
                     )}
                 </List>
             )}

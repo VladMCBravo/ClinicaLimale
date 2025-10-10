@@ -10,13 +10,13 @@ export default function PainelAcoes({ onNovaPrescricao, onEmitirAtestado, onAnex
     return (
         <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Ações Rápidas</Typography>
-            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onNovaPrescricao} size="small">
+            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onNovaPrescricao} size="small" sx={{ py: 0.5 }}>
                 Nova Prescrição
             </Button>
-            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onEmitirAtestado} size="small">
+            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onEmitirAtestado} size="small" sx={{ py: 0.5 }}>
                 Emitir Atestado
             </Button>
-            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onAnexarDocumento} size="small">
+            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={onAnexarDocumento} size="small" sx={{ py: 0.5 }}>
                 Anexar Documento
             </Button>
             

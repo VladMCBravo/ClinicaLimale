@@ -32,17 +32,17 @@ export default function AtendimentoGeral({ pacienteId, onEvolucaoSalva }) {
     return (
         <Paper component="form" onSubmit={handleSubmit} sx={{ p: 2, height: '100%' }}>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Evolução do Atendimento</Typography>
                     <TextField name="notas_subjetivas" label="Subjetivo (Queixa, HDA)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleChange} size="small" sx={{mt: 1}}/>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                     <TextField name="notas_objetivas" label="Objetivo (Exame Físico)" multiline rows={4} fullWidth value={formData.notas_objetivas || ''} onChange={handleChange} size="small" />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                     <TextField name="avaliacao" label="Avaliação / Hipóteses" multiline rows={3} fullWidth value={formData.avaliacao || ''} onChange={handleChange} size="small" />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                     <TextField name="plano" label="Plano / Conduta" multiline rows={3} fullWidth value={formData.plano || ''} onChange={handleChange} size="small" />
                 </Grid>
                 <Grid item xs={12} sx={{ textAlign: 'right' }}>

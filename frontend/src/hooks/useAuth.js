@@ -1,4 +1,4 @@
-// src/hooks/useAuth.js - VERSÃO MELHORADA COM LÓGICA DE LOGIN
+// src/hooks/useAuth.js - VERSÃO CORRIGIDA COM REDIRECIONAMENTO DINÂMICO
 
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -22,16 +22,12 @@ const getUserFromStorage = () => {
     return null;
 };
 
-
 export const useAuth = () => {
     const navigate = useNavigate();
-    // Usamos useState para que as mudanças no usuário sejam reativas em toda a aplicação
     const [user, setUser] = useState(getUserFromStorage());
 
-    // O useMemo agora depende do estado 'user'
     const memoizedUser = useMemo(() => user, [user]);
 
-    // LÓGICA DE LOGIN AGORA VIVE AQUI
     const login = useCallback(async (username, password) => {
         try {
             const response = await apiClient.post('/auth/login/', { username, password });
@@ -41,17 +37,24 @@ export const useAuth = () => {
                 sessionStorage.setItem('authToken', token);
                 sessionStorage.setItem('userData', JSON.stringify(userData));
                 
-                // Atualiza o estado interno do hook
-                setUser(getUserFromStorage());
+                // Atualiza o estado interno do hook para refletir o usuário logado
+                const loggedInUser = getUserFromStorage();
+                setUser(loggedInUser);
 
-                // Navega para o painel
-                navigate('/painel');
+                // --- CORREÇÃO APLICADA AQUI ---
+                // Verifica o cargo do usuário para decidir para onde navegar
+                if (loggedInUser.isMedico) {
+                    navigate('/'); // Navega para o Painel do Médico
+                } else {
+                    navigate('/painel'); // Navega para o Painel da Recepção/Admin
+                }
+                
                 return true; // Retorna sucesso
             }
-            return false; // Retorna falha se a resposta for incompleta
+            return false;
         } catch (error) {
             console.error("Erro no login:", error);
-            return false; // Retorna falha
+            return false;
         }
     }, [navigate]);
 
@@ -63,7 +66,7 @@ export const useAuth = () => {
             console.error("Erro no logout da API:", error);
         } finally {
             sessionStorage.clear();
-            setUser(null); // Limpa o estado
+            setUser(null);
             navigate('/login');
         }
     }, [navigate]);
