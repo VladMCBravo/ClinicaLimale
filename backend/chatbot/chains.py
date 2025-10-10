@@ -38,12 +38,14 @@ try:
     prompt_roteador = ChatPromptTemplate.from_template(
         """# MISSÃO
         Analise a mensagem e determine a intenção principal e a entidade.
-        # REGRAS DE ROTEAMENTO
+        
+        # REGRAS DE ROTEAMENTO (ATUALIZADAS)
+        - Se a mensagem contiver palavras como 'preço', 'valor', 'quanto custa', a intenção é SEMPRE 'buscar_preco', mesmo que mencione uma especialidade ou a palavra 'consulta'. Esta regra tem prioridade. Extraia o nome do serviço (ex: 'Ginecologia').
         - Se o usuário descreve um mal-estar ('sinto dor', 'estou com febre', 'dor de cabeça'), a intenção é 'triagem_sintomas'.
-        - Se o usuário quer marcar algo ('agendar', 'marcar consulta'), a intenção é 'iniciar_agendamento'.
-        - Se pergunta sobre valores ('preço', 'quanto custa', 'valor de exame'), a intenção é 'buscar_preco'. Extraia o nome do exame ou consulta.
+        - Se o usuário quer explicitamente marcar algo ('agendar', 'marcar consulta', 'quero um horário') e NÃO pergunta o preço, a intenção é 'iniciar_agendamento'.
         - Se quer desmarcar ('cancelar', 'não posso ir'), a intenção é 'cancelar_agendamento'.
         - Para perguntas sobre endereço, horário, telefone, convênios, a intenção é 'pergunta_geral'.
+
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}
         # MENSAGEM DO USUÁRIO
