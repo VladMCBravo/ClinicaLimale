@@ -54,7 +54,6 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         else:
             resultado = {"response_message": "Tudo bem. Se mudar de ideia, é só me dizer o que gostaria de fazer.", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
     
-    # Lógica para saudações simples
     elif not resultado and any(saudacao in resposta_lower for saudacao in ['oi', 'ola', 'olá', 'boa tarde', 'bom dia', 'boa noite']):
          if estado_atual in ['inicio', 'identificando_demanda']:
              resultado = {"response_message": f"Olá, {nome_usuario}! Como posso te ajudar hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
@@ -65,15 +64,27 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             intent_data = chain_roteadora.invoke({"user_message": user_message})
             intent = intent_data.get("intent")
             entity = intent_data.get("entity")
-            intencoes_de_reset = ['buscar_preco', 'cancelar_agendamento', 'pergunta_geral', 'triagem_sintomas', 'iniciar_agendamento']
+            intencoes_de_reset = ['buscar_preco', 'cancelar_agendamento', 'pergunta_geral', 'triagem_sintomas'] # REMOVEMOS 'iniciar_agendamento' DAQUI
 
-            if estado_atual in ['inicio', 'aguardando_nome'] or intent in intencoes_de_reset:
+            # <--- A MUDANÇA CRUCIAL ESTÁ AQUI ---
+            # Define os estados que fazem parte do fluxo de agendamento
+            estados_de_agendamento = ['agendamento_awaiting_type', 'agendamento_awaiting_modality', 'agendamento_awaiting_specialty']
+            
+            # A intenção de iniciar agendamento só reseta o fluxo se NÃO estivermos já em um
+            deve_resetar_pela_intencao = intent in intencoes_de_reset or \
+                                       (intent == 'iniciar_agendamento' and estado_atual not in estados_de_agendamento)
+            
+            if estado_atual in ['inicio', 'aguardando_nome'] or deve_resetar_pela_intencao:
+            # --- FIM DA MUDANÇA CRUCIAL ---
                 if estado_atual == 'inicio':
                     resultado = {"response_message": "Olá! Sou o Leônidas, e estou aqui para te ajudar. Para começar, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
                 elif estado_atual == 'aguardando_nome':
                     nome_usuario = user_message.strip().title().split(' ')[0]
-                    memoria_atual['nome_usuario'] = nome_usuario
-                    resultado = {"response_message": f"Certo, {nome_usuario}. Como posso te ajudar hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                    if len(nome_usuario) > 2: # Evita que 'Oi', 'Sim', etc. virem nome
+                        memoria_atual['nome_usuario'] = nome_usuario
+                        resultado = {"response_message": f"Certo, {nome_usuario}. Como posso te ajudar hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                    else:
+                        resultado = {"response_message": "Por favor, para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
                 elif intent == "buscar_preco":
                     resposta_final = get_resposta_preco(entity, nome_usuario)
                     resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
@@ -91,13 +102,11 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             logger.error(f"Erro na lógica principal ou IA: {e}", exc_info=True)
             resultado = {"response_message": "Desculpe, ocorreu um erro. Vamos tentar de novo?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
 
-    # --- PONTO DE SAÍDA ÚNICO: GARANTE QUE TUDO SEJA SALVO ---
-    if not resultado: # Fallback final para garantir que sempre haja uma resposta
+    if not resultado:
         resultado = {"response_message": "Não entendi muito bem. Poderia repetir?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
         
     memoria_obj.state = resultado.get("new_state")
     memoria_obj.memory_data = resultado.get("memory_data")
-    memoria_obj.save() # SALVA O ESTADO E ATUALIZA O 'updated_at' EM TODAS AS INTERAÇÕES
+    memoria_obj.save()
     
-    logger.warning(f"[DEBUG-VIEW] Resultado recebido do bot_logic: {resultado}")
     return resultado
