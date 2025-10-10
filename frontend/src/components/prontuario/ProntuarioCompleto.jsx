@@ -119,7 +119,7 @@ export default function ProntuarioCompleto({ pacienteId }) {
                 <Box sx={{ flex: 1, minWidth: '250px' }}>
                     <PainelAcoes 
                         onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
-                        onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacenteId} />)}
+                        onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacienteId} />)}
                         onAnexarDocumento={() => handleOpenModal(<AnexosTab pacienteId={pacienteId} />)}
                         onVerExames={() => handleOpenModal(<ExamesDicomTab pacienteId={pacienteId} />)}
                     />
