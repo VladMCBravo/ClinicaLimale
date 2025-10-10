@@ -3,7 +3,7 @@
 import re
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
 
@@ -230,10 +230,15 @@ class AgendamentoManager:
                 # Se a resposta para o campo atual for inválida, pedimos de novo.
                 if not is_valid:
                     return {"response_message": f"{mensagem_erro}. Por favor, tente novamente.", "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
+                # --- INÍCIO DA CORREÇÃO ---
+                valor_para_salvar = valor_formatado if valor_formatado is not None else resposta_usuario.strip()
                 
-                # Se for válida, salvamos o dado formatado na memória.
-                self.memoria.setdefault('dados_paciente', {})[campo_atual] = valor_formatado if valor_formatado is not None else resposta_usuario.strip()
-
+                # Se o valor validado for um objeto 'date', converta para string antes de salvar na memória JSON.
+                if isinstance(valor_para_salvar, date):
+                    valor_para_salvar = valor_para_salvar.strftime('%d/%m/%Y')
+                
+                self.memoria.setdefault('dados_paciente', {})[campo_atual] = valor_para_salvar
+                # --- FIM DA CORREÇÃO ---
         # Depois de salvar, chamamos a função para pedir o PRÓXIMO campo.
         return self._coletar_proximo_campo()
 
