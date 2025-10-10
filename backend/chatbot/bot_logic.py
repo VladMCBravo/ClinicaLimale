@@ -40,7 +40,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # --- NÍVEL 0: ONBOARDING (COLETA DO NOME) ---
     if not nome_usuario:
         if estado_atual != 'aguardando_nome':
-            resultado = {"response_message": "Olá! Sou o Leônidas, e estou aqui para te ajudar. Para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
+            resultado = {"response_message": "Olá, seja bem-vindo à Clínica Limalé. Sou o Leônidas, e vou dar sequência no seu atendimento. Para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
         else:
             nome_candidato = user_message.strip().title().split(' ')[0]
             if len(nome_candidato) > 2:
