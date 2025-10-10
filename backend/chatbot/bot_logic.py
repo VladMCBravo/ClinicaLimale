@@ -9,6 +9,38 @@ from usuarios.models import Especialidade
 
 logger = logging.getLogger(__name__)
 
+def get_reprompt_message(state: str, memory: dict) -> str:
+    """
+    Gera a mensagem de "re-pergunta" baseada no estado salvo, para que o usuário 
+    saiba como continuar a conversa após um timeout.
+    """
+    nome_usuario = memory.get('nome_usuario', '')
+
+    # Mapeia estados para as perguntas correspondentes
+    prompts = {
+        'agendamento_awaiting_type': f"Perfeito, {nome_usuario}! Nosso time está pronto para te atender. O agendamento será para uma *Consulta* ou *Procedimento*?",
+        'agendamento_awaiting_modality': "Ótimo. E você prefere o conforto da *Telemedicina* ou o atendimento *Presencial* em nossa clínica?",
+        'agendamento_awaiting_specialty': "Perfeito. Qual das nossas especialidades você deseja?",
+        'agendamento_awaiting_slot_confirmation': "Confirma o horário pré-reservado? (Sim/Não)",
+        'cadastro_awaiting_cpf': "Para agilizar e garantir a segurança do seu agendamento, por favor, me informe o seu *CPF* (apenas os números).",
+        'cadastro_awaiting_missing_field': f"Estávamos preenchendo seus dados de cadastro. O próximo campo é: *{memory.get('missing_field', '...')}*.",
+        'agendamento_awaiting_payment_choice': "Como prefere pagar? 💳\n\n1️⃣ *PIX* (5% de desconto)\n2️⃣ *Cartão de Crédito* (até 3x sem juros)",
+        'agendamento_awaiting_installments': "Deseja pagar à vista ou parcelado em 2x ou 3x sem juros?",
+        'cancelamento_awaiting_cpf': "Para localizar seu agendamento para cancelamento, por favor, informe seu *CPF*.",
+        'cancelamento_awaiting_choice': "Encontrei estes agendamentos. Qual o *número* do que deseja cancelar?",
+        'cancelamento_awaiting_confirmation': "Confirma o cancelamento deste agendamento? (Sim/Não)",
+    }
+
+    # Alguns estados têm prompts dinâmicos que dependem da memória
+    if state == 'agendamento_awaiting_slot_choice':
+        horarios = memory.get('horarios_ofertados', {})
+        data_formatada = horarios.get('data', 'uma data próxima')
+        medico_nome = memory.get('medico_nome', 'o médico')
+        return f"Encontrei alguns horários com Dr(a). {medico_nome} para o dia *{data_formatada}*. Qual deles prefere?"
+
+    # Retorna a pergunta do dicionário ou uma padrão
+    return prompts.get(state, f"Como posso te ajudar, {nome_usuario}?")
+
 def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     memoria_obj, _ = ChatMemory.objects.get_or_create(
         session_id=session_id,
@@ -24,17 +56,28 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     if estado_atual == 'awaiting_inactivity_response':
         resposta_lower = user_message.lower()
         
+        # --- INÍCIO DA MODIFICAÇÃO ---
         if 'sim' in resposta_lower:
-            # Restaura o estado anterior e avisa o usuário
+            # Restaura o estado anterior
             estado_anterior = memoria_obj.previous_state or 'identificando_demanda'
+            
+            # Pega a pergunta específica daquele estado usando nossa nova função
+            reprompt_message = get_reprompt_message(estado_anterior, memoria_atual)
+
+            # Constrói a mensagem final, combinando a saudação com a pergunta
+            mensagem_final = f"Ótimo! Continuando de onde paramos.\n\n{reprompt_message}"
+
+            # Salva o estado restaurado
             memoria_obj.state = estado_anterior
-            memoria_obj.previous_state = None # Limpa o estado anterior
+            memoria_obj.previous_state = None
             memoria_obj.save()
+            
             return {
-                "response_message": "Ótimo! Continuando de onde paramos.",
+                "response_message": mensagem_final,
                 "new_state": estado_anterior,
                 "memory_data": memoria_atual
             }
+        # --- FIM DA MODIFICAÇÃO ---
         elif 'não' in resposta_lower or 'nao' in resposta_lower:
             # Reseta a conversa
             nome_usuario = memoria_atual.get('nome_usuario', '')
