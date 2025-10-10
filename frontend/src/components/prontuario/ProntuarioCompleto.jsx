@@ -14,6 +14,7 @@ import AlertasClinicos from './AlertasClinicos';
 // HISTÓRICO DE CONSULTAS FOI REMOVIDO DAQUI
 import PainelAcoes from './PainelAcoes';
 import AnamneseTab from './AnamneseTab';
+import EvolucoesTab from './EvolucoesTab'; // Importe a EvolucoesTab
 import PrescricoesTab from './PrescricoesTab';
 import AtestadosTab from './AtestadosTab';
 import AnexosTab from './AnexosTab';
@@ -67,21 +68,7 @@ export default function ProntuarioCompleto({ pacienteId }) {
         };
         fetchAllData();
     }, [pacienteId, refreshKey]);
-
-    const renderAtendimentoPorEspecialidade = () => {
-        const especialidadePrincipal = user?.especialidades_detalhes?.[0]?.nome;
-
-        switch (especialidadePrincipal) {
-            case 'Cardiologia':
-                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} especialidade={especialidadePrincipal} />;
-            default:
-                return <AtendimentoGeral pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />;
-        }
-    };
-
-    if (isLoading) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
-    }
+    
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
@@ -111,8 +98,7 @@ export default function ProntuarioCompleto({ pacienteId }) {
                             />
                         </AccordionDetails>
                     </Accordion>
-                    
-                    {renderAtendimentoPorEspecialidade()}
+                    <EvolucoesTab pacienteId={pacienteId} />
                 </Box>
 
                 {/* COLUNA DA DIREITA PARA AÇÕES RÁPIDAS */}
