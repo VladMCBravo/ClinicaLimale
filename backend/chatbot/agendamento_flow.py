@@ -56,7 +56,17 @@ class AgendamentoManager:
 
     def handle_fallback(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
-        return {"response_message": f"Desculpe, {nome_usuario}, me perdi. Vamos recomeçar?", "new_state": "identificando_demanda", "memory_data": {'nome_usuario': nome_usuario}}
+        # MENSAGEM MAIS ÚTIL E GUIADA
+        mensagem = (
+            f"Peço desculpas, {nome_usuario}, parece que nos desviamos do assunto do agendamento. "
+            "Não entendi muito bem sua última mensagem.\n\n"
+            "Se quiser, podemos tentar novamente. Você gostaria de:\n"
+            "1. Agendar uma consulta\n"
+            "2. Saber o preço de um serviço\n"
+            "3. Cancelar um agendamento\n\n"
+            "Ou digite *'recomeçar'* a qualquer momento para voltar ao menu principal."
+        )
+        return {"response_message": mensagem, "new_state": "identificando_demanda", "memory_data": {'nome_usuario': nome_usuario}}
 
     def handle_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')

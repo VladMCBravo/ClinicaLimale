@@ -12,6 +12,7 @@ from .services import buscar_precos_servicos
 from typing import Optional
 from pydantic import BaseModel, Field
 from .bot_logic import processar_mensagem_bot # <-- IMPORTE A NOVA FUNÇÃO
+from .timeout_manager import TimeoutManager # <-- ADICIONE ESTA IMPORTAÇÃO
 from asgiref.sync import async_to_sync   # <--- ADICIONE ESTA LINHA
 from channels.layers import get_channel_layer # <--- ADICIONE ESTA LINHA
 
@@ -229,7 +230,17 @@ def chatbot_orchestrator(request):
         if not user_message or not session_id:
             logger.error("[DEBUG-VIEW] Erro: message ou sessionId ausentes.")
             return JsonResponse({"error": "message e sessionId são obrigatórios."}, status=400)
-
+        
+        # --- INÍCIO DO NOVO BLOCO DE TIMEOUT ---
+        # Verifica se houve timeout ANTES de processar a mensagem.
+        timeout_info = TimeoutManager.verificar_timeout(session_id)
+        if timeout_info:
+            logger.warning(f"[DEBUG-VIEW] Timeout detectado para a sessão {session_id}. Enviando aviso.")
+            # Se um timeout foi detectado, o manager já mudou o estado.
+            # Apenas enviamos a mensagem de aviso e paramos o fluxo aqui.
+            return JsonResponse({"response_message": timeout_info["message"]})
+        # --- FIM DO NOVO BLOCO DE TIMEOUT ---
+        
         session_id_sanitizado = re.sub(r'[^a-zA-Z0-9\-_.]', '_', session_id)
         
         logger.warning("[DEBUG-VIEW] Enviando mensagem para o Channel Layer...")
