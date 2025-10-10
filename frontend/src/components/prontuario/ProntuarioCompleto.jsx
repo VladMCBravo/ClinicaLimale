@@ -69,7 +69,15 @@ export default function ProntuarioCompleto({ agendamento }) {
         fetchAllData();
     }, [pacienteId, refreshKey]);
 
-    const handleStartTelemedicina = () => setIsTelemedicinaActive(true);
+    const handleStartTelemedicina = () => {
+        // Verifica se o link da sala foi criado previamente
+        if (agendamento && agendamento.link_telemedicina) {
+            setIsTelemedicinaActive(true);
+        } else {
+            // Avisa o médico que a sala ainda não foi preparada
+            showSnackbar('A sala de telemedicina ainda não foi criada. Peça para a recepção criá-la na aba Telemedicina.', 'warning');
+        }
+    };
     const handleCloseTelemedicina = () => setIsTelemedicinaActive(false);
 
     if (isLoading) {
@@ -77,20 +85,31 @@ export default function ProntuarioCompleto({ agendamento }) {
     }
 
     if (isTelemedicinaActive) {
-        // LAYOUT DE TELEMEDICINA (TELA DIVIDIDA)
-        return (
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <PatientHeader paciente={paciente} agendamento={agendamento} onStartTelemedicina={handleStartTelemedicina} />
-                <Box sx={{ display: 'flex', flexGrow: 1, gap: 2, p: 2, minHeight: 0 }}>
-                    <Box sx={{ flex: 1 }}>
-                        <VideoCallView roomUrl={agendamento.link_telemedicina} onClose={handleCloseTelemedicina} />
-                    </Box>
-                    <Box sx={{ flex: 1, overflowY: 'auto' }}>
-                        <EvolucoesTab pacienteId={pacienteId} />
-                    </Box>
+    // LAYOUT DE TELEMEDICINA (TELA DIVIDIDA)
+    return (
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <PatientHeader /*...*/ />
+            <Box sx={{ display: 'flex', flexGrow: 1, gap: 2, p: 2, minHeight: 0 }}>
+                <Box sx={{ flex: 1 }}>
+                    <VideoCallView roomUrl={agendamento.link_telemedicina} onClose={handleCloseTelemedicina} />
+                </Box>
+                {/* --- CORREÇÃO APLICADA AQUI --- */}
+                <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* 1. Adicionamos o Accordion da Anamnese */}
+                    <Accordion defaultExpanded={!anamnese}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                            <Typography variant="h6">Anamnese</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <AnamneseTab pacienteId={pacienteId} /*...*/ />
+                        </AccordionDetails>
+                    </Accordion>
+                    {/* 2. E mantemos a EvolucoesTab */}
+                    <EvolucoesTab pacienteId={pacienteId} />
                 </Box>
             </Box>
-        );
+        </Box>
+    );
     } else {
         // LAYOUT NORMAL
         return (
