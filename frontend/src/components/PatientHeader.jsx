@@ -1,44 +1,52 @@
-// src/components/PatientHeader.jsx
-// NOVO: Este é um componente totalmente novo.
+// src/components/PatientHeader.jsx - VERSÃO CORRETA E FINAL
 
 import React from 'react';
-import './PatientHeader.css'; // Criaremos este arquivo para o estilo
+import { Box, Typography, Button } from '@mui/material';
+import VideocamIcon from '@mui/icons-material/Videocam';
 
-const PatientHeader = ({ paciente }) => {
-  // Se os dados do paciente ainda não carregaram, não mostra nada
-  if (!paciente) {
-    return (
-        <div className="patient-header">
-            <h2 className="patient-name">Carregando...</h2>
-        </div>
-    );
-  }
-
-  // Função para calcular a idade a partir da data de nascimento
-  const calcularIdade = (dataNascimento) => {
-    // É importante que o backend envie a data de nascimento para isto funcionar
-    if (!dataNascimento) return 'N/A';
-    const hoje = new Date();
-    const nascimento = new Date(dataNascimento);
-    let idade = hoje.getFullYear() - nascimento.getFullYear();
-    const m = hoje.getMonth() - nascimento.getMonth();
-    if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
-      idade--;
+// O componente recebe 'paciente', 'agendamento' e a função 'onStartTelemedicina'
+export default function PatientHeader({ paciente, agendamento, onStartTelemedicina }) {
+    if (!paciente) {
+        return (
+            <Box sx={{ p: 2, borderBottom: '1px solid #eee' }}>
+                <Typography variant="h5">Carregando...</Typography>
+            </Box>
+        );
     }
-    return idade;
-  };
 
-  return (
-    <div className="patient-header">
-      <h2 className="patient-name">{paciente.nome_completo}</h2>
-      <div className="patient-vitals">
-        {/* Lembre-se de adicionar 'data_nascimento', 'peso' e 'altura' no seu serializer de Paciente no Django */}
-        <span><strong>Idade:</strong> {calcularIdade(paciente.data_nascimento)} anos</span>
-        <span><strong>Peso:</strong> {paciente.peso || 'N/A'} kg</span>
-        <span><strong>Altura:</strong> {paciente.altura || 'N/A'} m</span>
-      </div>
-    </div>
-  );
-};
+    const isTelemedicina = agendamento?.modalidade === 'Telemedicina';
 
-export default PatientHeader;
+    const calcularIdade = (dataNascimento) => {
+        if (!dataNascimento) return 'N/A';
+        const hoje = new Date();
+        const nascimento = new Date(dataNascimento);
+        let idade = hoje.getFullYear() - nascimento.getFullYear();
+        const m = hoje.getMonth() - nascimento.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+            idade--;
+        }
+        return idade;
+    };
+
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: '1px solid #eee' }}>
+            <Box>
+                <Typography variant="h5">{paciente.nome_completo}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Idade: {calcularIdade(paciente.data_nascimento)} anos  |  Peso: {paciente.peso || 'N/A'} kg  |  Altura: {paciente.altura || 'N/A'} m
+                </Typography>
+            </Box>
+            
+            {/* O botão de Telemedicina só aparece se o agendamento for dessa modalidade */}
+            {isTelemedicina && (
+                <Button 
+                    variant="contained" 
+                    startIcon={<VideocamIcon />}
+                    onClick={onStartTelemedicina}
+                >
+                    Iniciar Telemedicina
+                </Button>
+            )}
+        </Box>
+    );
+}

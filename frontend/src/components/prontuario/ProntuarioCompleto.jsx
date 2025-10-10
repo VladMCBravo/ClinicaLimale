@@ -1,4 +1,4 @@
-// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO COM LAYOUT REFINADO
+// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO CORRIGIDA E FINAL
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/axiosConfig';
@@ -7,14 +7,12 @@ import { Box, CircularProgress, Typography, Modal, Accordion, AccordionSummary, 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // Importe TODOS os seus componentes
-import AtendimentoCardiologia from './AtendimentoCardiologia';
-import AtendimentoGeral from './AtendimentoGeral';
 import PatientHeader from '../PatientHeader'; 
+import VideoCallView from '../telemedicina/VideoCallView';
 import AlertasClinicos from './AlertasClinicos';
-// HISTÓRICO DE CONSULTAS FOI REMOVIDO DAQUI
 import PainelAcoes from './PainelAcoes';
 import AnamneseTab from './AnamneseTab';
-import EvolucoesTab from './EvolucoesTab'; // Importe a EvolucoesTab
+import EvolucoesTab from './EvolucoesTab';
 import PrescricoesTab from './PrescricoesTab';
 import AtestadosTab from './AtestadosTab';
 import AnexosTab from './AnexosTab';
@@ -35,17 +33,19 @@ const modalStyle = {
     overflowY: 'auto'
 };
 
-export default function ProntuarioCompleto({ pacienteId }) { 
+export default function ProntuarioCompleto({ agendamento }) {  
     const { user } = useAuth();
     const [paciente, setPaciente] = useState(null);
     const [anamnese, setAnamnese] = useState(undefined);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [modalContent, setModalContent] = useState(null);
+    const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false);
+    
+    const pacienteId = agendamento?.paciente;
 
     const handleOpenModal = (contentComponent) => setModalContent(contentComponent);
     const handleCloseModal = () => setModalContent(null);
-
     const forceRefresh = () => setRefreshKey(prev => prev + 1);
 
     useEffect(() => {
@@ -68,53 +68,72 @@ export default function ProntuarioCompleto({ pacienteId }) {
         };
         fetchAllData();
     }, [pacienteId, refreshKey]);
-    
 
-    return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
-            <PatientHeader paciente={paciente} />
+    const handleStartTelemedicina = () => setIsTelemedicinaActive(true);
+    const handleCloseTelemedicina = () => setIsTelemedicinaActive(false);
 
-            {/* ALERTAS CLÍNICOS AGORA FICAM EM DESTAQUE LOGO ABAIXO DO CABEÇALHO */}
-            <Box sx={{ px: 2, pt: 1 }}>
-                <AlertasClinicos anamnese={anamnese} />
-            </Box>
+    if (isLoading) {
+        return <CircularProgress />;
+    }
 
-            {/* NOVO LAYOUT PRINCIPAL COM DUAS COLUNAS */}
-            <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
-                
-                {/* COLUNA CENTRAL (AGORA MAIOR) PARA ANAMNESE E EVOLUÇÃO */}
-                <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <Accordion defaultExpanded={!anamnese}>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography variant="h6">Anamnese</Typography>
-                            {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <AnamneseTab 
-                                pacienteId={pacienteId} 
-                                initialAnamnese={anamnese} 
-                                onAnamneseSalva={forceRefresh}
-                                especialidade={user?.especialidades_detalhes?.[0]?.nome}
-                            />
-                        </AccordionDetails>
-                    </Accordion>
-                    <EvolucoesTab pacienteId={pacienteId} />
-                </Box>
-
-                {/* COLUNA DA DIREITA PARA AÇÕES RÁPIDAS */}
-                <Box sx={{ flex: 1, minWidth: '250px' }}>
-                    <PainelAcoes 
-                        onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
-                        onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacienteId} />)}
-                        onAnexarDocumento={() => handleOpenModal(<AnexosTab pacienteId={pacienteId} />)}
-                        onVerExames={() => handleOpenModal(<ExamesDicomTab pacienteId={pacienteId} />)}
-                    />
+    if (isTelemedicinaActive) {
+        // LAYOUT DE TELEMEDICINA (TELA DIVIDIDA)
+        return (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <PatientHeader paciente={paciente} agendamento={agendamento} onStartTelemedicina={handleStartTelemedicina} />
+                <Box sx={{ display: 'flex', flexGrow: 1, gap: 2, p: 2, minHeight: 0 }}>
+                    <Box sx={{ flex: 1 }}>
+                        <VideoCallView roomUrl={agendamento.link_telemedicina} onClose={handleCloseTelemedicina} />
+                    </Box>
+                    <Box sx={{ flex: 1, overflowY: 'auto' }}>
+                        <EvolucoesTab pacienteId={pacienteId} />
+                    </Box>
                 </Box>
             </Box>
+        );
+    } else {
+        // LAYOUT NORMAL
+        return (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
+                {/* CORREÇÃO: Passando todas as props necessárias para o Header */}
+                <PatientHeader paciente={paciente} agendamento={agendamento} onStartTelemedicina={handleStartTelemedicina} />
 
-            <Modal open={!!modalContent} onClose={handleCloseModal}>
-                <Box sx={modalStyle}>{modalContent}</Box>
-            </Modal>
-        </Box>
-    );
+                <Box sx={{ px: 2, pt: 1 }}>
+                    <AlertasClinicos anamnese={anamnese} />
+                </Box>
+
+                <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
+                    <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                        <Accordion defaultExpanded={!anamnese}>
+                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                <Typography variant="h6">Anamnese</Typography>
+                                {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <AnamneseTab 
+                                    pacienteId={pacienteId} 
+                                    initialAnamnese={anamnese} 
+                                    onAnamneseSalva={forceRefresh}
+                                    especialidade={user?.especialidades_detalhes?.[0]?.nome}
+                                />
+                            </AccordionDetails>
+                        </Accordion>
+                        <EvolucoesTab pacienteId={pacienteId} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: '250px' }}>
+                        <PainelAcoes 
+                            onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
+                            onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacienteId} />)}
+                            onAnexarDocumento={() => handleOpenModal(<AnexosTab pacienteId={pacienteId} />)}
+                            onVerExames={() => handleOpenModal(<ExamesDicomTab pacienteId={pacienteId} />)}
+                        />
+                    </Box>
+                </Box>
+
+                <Modal open={!!modalContent} onClose={handleCloseModal}>
+                    <Box sx={modalStyle}>{modalContent}</Box>
+                </Modal>
+            </Box>
+        );
+    }
 }
