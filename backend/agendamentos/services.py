@@ -2,7 +2,7 @@
 
 import logging 
 from django.utils import timezone
-from datetime import timedelta, time
+from datetime import timedelta, time, date
 import datetime
 from usuarios.models import CustomUser, JornadaDeTrabalho
 from agendamentos.models import Agendamento
@@ -183,69 +183,66 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
 
     return agendamento
 
-def buscar_proximo_horario_disponivel(medico_id):
+def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None):
     """
-    Função centralizada que busca o próximo dia e horários disponíveis para um médico.
-    VERSÃO FINAL CORRIGIDA: Acessa os dados do turno como um dicionário.
+    Busca o próximo dia e horários disponíveis para um médico.
+    NOVA FUNCIONALIDADE: Aceita uma `data_inicial` para começar a busca a partir do dia seguinte.
     """
     try:
-        medico = CustomUser.objects.get(pk=medico_id, cargo='medico')
-    except CustomUser.DoesNotExist:
-        return {"data": None, "horarios_disponiveis": []}
+        medico = CustomUser.objects.get(id=medico_id, cargo='medico')
+        
+        # Define o ponto de partida da busca
+        if data_inicial:
+            data_de_busca = data_inicial + timedelta(days=1)
+        else:
+            data_de_busca = timezone.now().date()
 
-    DURACAO_CONSULTA_MINUTOS = 20
-    DIAS_PARA_BUSCA = 90
-    
-    jornadas = JornadaDeTrabalho.objects.filter(medico=medico)
-    horarios_de_trabalho = {}
-    for j in jornadas:
-        if j.dia_da_semana not in horarios_de_trabalho:
-            horarios_de_trabalho[j.dia_da_semana] = []
-        # Esta parte está correta, cria dicionários
-        horarios_de_trabalho[j.dia_da_semana].append({'inicio': j.hora_inicio, 'fim': j.hora_fim})
-
-    if not horarios_de_trabalho:
-        return {"data": None, "horarios_disponiveis": []}
-
-    hoje = timezone.localtime(timezone.now()).date()
-    data_fim_busca = hoje + timedelta(days=DIAS_PARA_BUSCA)
-    
-    agendamentos_existentes = Agendamento.objects.filter(
-        medico=medico,
-        data_hora_inicio__range=[
-            timezone.make_aware(datetime.datetime.combine(hoje, time.min)),
-            timezone.make_aware(datetime.datetime.combine(data_fim_busca, time.max))
-        ],
-        status__in=['Agendado', 'Confirmado']
-    ).values_list('data_hora_inicio', flat=True)
-
-    horarios_ocupados = {ag.astimezone(timezone.get_current_timezone()) for ag in agendamentos_existentes}
-
-    data_atual = hoje
-    while data_atual <= data_fim_busca:
-        dia_semana_atual = data_atual.weekday()
-        if dia_semana_atual in horarios_de_trabalho:
-            horarios_disponiveis_dia = []
-            for turno in horarios_de_trabalho[dia_semana_atual]:
-                # --- A CORREÇÃO ESTÁ AQUI ---
-                hora_inicio_turno = turno['inicio']
-                hora_fim_turno = turno['fim']
-                
-                horario_slot = timezone.make_aware(datetime.datetime.combine(data_atual, hora_inicio_turno))
-                while horario_slot.time() < hora_fim_turno:
-                # --- FIM DA CORREÇÃO ---
-                    if horario_slot > timezone.now() and horario_slot not in horarios_ocupados:
-                        horarios_disponiveis_dia.append(horario_slot.strftime('%H:%M'))
-                    horario_slot += timedelta(minutes=DURACAO_CONSULTA_MINUTOS)
+        # Loop para encontrar o próximo dia com jornada de trabalho (limite de 90 dias)
+        for i in range(90):
+            dia_da_semana = data_de_busca.weekday()
             
-            if horarios_disponiveis_dia:
-                return {
-                    "data": data_atual.strftime('%Y-%m-%d'),
-                    "horarios_disponiveis": sorted(horarios_disponiveis_dia)
-                }
-        data_atual += timedelta(days=1)
+            try:
+                jornada = JornadaDeTrabalho.objects.get(medico=medico, dia_da_semana=dia_da_semana, ativo=True)
+            except JornadaDeTrabalho.DoesNotExist:
+                data_de_busca += timedelta(days=1)
+                continue
 
-    return {"data": None, "horarios_disponiveis": []}
+            # Se encontrou jornada, busca agendamentos existentes para aquele dia
+            agendamentos_do_dia = Agendamento.objects.filter(
+                medico=medico,
+                data_hora_inicio__date=data_de_busca,
+                status__in=['Agendado', 'Confirmado']
+            ).values_list('data_hora_inicio', flat=True)
+
+            horarios_ocupados = {ag.time() for ag in agendamentos_do_dia}
+            
+            # Gera os slots disponíveis
+            horarios_disponiveis = []
+            intervalo = timedelta(minutes=jornada.intervalo_consulta)
+            slot_atual = jornada.hora_inicio
+            
+            while slot_atual < jornada.hora_fim:
+                if slot_atual not in horarios_ocupados:
+                    horarios_disponiveis.append(slot_atual.strftime('%H:%M'))
+                slot_atual = (timezone.datetime.combine(data_de_busca, slot_atual) + intervalo).time()
+
+            if horarios_disponiveis:
+                return {
+                    "data": data_de_busca.strftime('%Y-%m-%d'),
+                    "horarios_disponiveis": horarios_disponiveis
+                }
+
+            # Se não há horários, tenta o próximo dia
+            data_de_busca += timedelta(days=1)
+
+        # Se o loop terminar sem encontrar nada
+        return {"data": None, "horarios_disponiveis": []}
+
+    except CustomUser.DoesNotExist:
+        return {"error": "Médico não encontrado"}
+    except Exception as e:
+        # Adicione um log de erro aqui se desejar
+        return {"error": str(e)}
 
 def listar_agendamentos_futuros(cpf):
     """Busca no banco de dados todos os agendamentos futuros de um paciente."""

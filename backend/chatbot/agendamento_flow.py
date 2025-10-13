@@ -137,9 +137,56 @@ class AgendamentoManager:
     def handle_awaiting_slot_choice(self, resposta_usuario):
         horario_str = resposta_usuario.strip()
         horarios_ofertados = self.memoria.get('horarios_ofertados', {})
+        horarios_disponiveis = horarios_ofertados.get('horarios_disponiveis', [])
 
-        if horario_str not in horarios_ofertados.get('horarios_disponiveis', []):
-            return {"response_message": f"Hum, não encontrei '{horario_str}'. Por favor, escolha um dos horários da lista.", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+        # --- INÍCIO DA NOVA LÓGICA ---
+        
+        # 1. Verifica se o usuário escolheu um horário válido
+        if horario_str in horarios_disponiveis:
+            try:
+                data_obj = datetime.strptime(horarios_ofertados['data'], '%Y-%m-%d').date()
+                hora_obj = datetime.strptime(horario_str, '%H:%M').time()
+                self.memoria['data_hora_inicio'] = timezone.make_aware(datetime.combine(data_obj, hora_obj)).isoformat()
+            except (ValueError, TypeError) as e:
+                logger.error(f"Erro ao fazer parse da data/hora: {e}")
+                return {"response_message": "Erro ao processar horário. Tente novamente.", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+
+            return {"response_message": f"Perfeito! Seu horário com Dr(a). {self.memoria.get('medico_nome')} para *{data_obj.strftime('%d/%m/%Y')} às {horario_str}* está pré-reservado. Confirma? (Sim/Não)", "new_state": "agendamento_awaiting_slot_confirmation", "memory_data": self.memoria}
+
+        # 2. Verifica se o usuário está pedindo outra data/horário
+        palavras_chave_recusa = ['outro', 'outra', 'não posso', 'nao posso', 'diferente', 'próximo', 'proximo', 'data', 'dia']
+        if any(keyword in resposta_usuario.lower() for keyword in palavras_chave_recusa):
+            
+            data_recusada_str = horarios_ofertados.get('data')
+            if not data_recusada_str:
+                 return self.handle_fallback("Não encontrei data para recusar.") # Fallback de segurança
+
+            data_recusada_obj = datetime.strptime(data_recusada_str, '%Y-%m-%d').date()
+            
+            # Chama o serviço para buscar a PRÓXIMA data disponível
+            novos_horarios = buscar_proximo_horario_disponivel(
+                medico_id=self.memoria['medico_id'],
+                data_inicial=data_recusada_obj
+            )
+
+            if novos_horarios and novos_horarios.get('horarios_disponiveis'):
+                self.memoria['horarios_ofertados'] = novos_horarios
+                nova_data_formatada = datetime.strptime(novos_horarios['data'], '%Y-%m-%d').strftime('%d/%m/%Y')
+                novos_horarios_formatados = [f"• *{h}*" for h in novos_horarios['horarios_disponiveis'][:5]]
+                
+                mensagem = (
+                    f"Entendido. Encontrei uma nova data para você. Os próximos horários disponíveis são para o dia *{nova_data_formatada}*:\n\n" + 
+                    "\n".join(novos_horarios_formatados) + 
+                    "\n\nAlgum desses funciona para você?"
+                )
+                return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+            else:
+                return {"response_message": "Puxa, não encontrei mais horários disponíveis nos próximos 90 dias. Gostaria de tentar com outra especialidade?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+
+        # 3. Se não for nenhuma das anteriores, é uma resposta inválida
+        else:
+            return {"response_message": f"Hum, não encontrei '{horario_str}'. Por favor, escolha um dos horários da lista ou peça por *outra data*.", "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+        # --- FIM DA NOVA LÓGICA ---
         try:
             from dateutil.parser import parse
             data_obj = parse(horarios_ofertados['data']).date()
