@@ -72,6 +72,16 @@ class JornadaDeTrabalho(models.Model):
     dia_da_semana = models.IntegerField(choices=DiaSemana.choices)
     hora_inicio = models.TimeField()
     hora_fim = models.TimeField()
+    intervalo_consulta = models.IntegerField(
+        default=20,
+        verbose_name="Intervalo entre consultas (minutos)",
+        help_text="Tempo em minutos entre cada consulta"
+    )
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name="Ativo",
+        help_text="Define se esta jornada está ativa"
+    )
 
     class Meta:
         verbose_name = "Jornada de Trabalho"

@@ -222,9 +222,11 @@ def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None)
             slot_atual = jornada.hora_inicio
             
             while slot_atual < jornada.hora_fim:
-                if slot_atual not in horarios_ocupados:
+                # Verifica se o horário é no futuro (não no passado)
+                datetime_slot = timezone.make_aware(datetime.datetime.combine(data_de_busca, slot_atual))
+                if datetime_slot > timezone.now() and slot_atual not in horarios_ocupados:
                     horarios_disponiveis.append(slot_atual.strftime('%H:%M'))
-                slot_atual = (timezone.datetime.combine(data_de_busca, slot_atual) + intervalo).time()
+                slot_atual = (datetime.datetime.combine(data_de_busca, slot_atual) + intervalo).time()
 
             if horarios_disponiveis:
                 return {
