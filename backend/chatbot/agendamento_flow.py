@@ -37,6 +37,7 @@ class AgendamentoManager:
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
+            'agendamento_awaiting_procedure': self.handle_awaiting_procedure, # <<< CORREÇÃO APLICADA AQUI
             'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
             'agendamento_awaiting_slot_choice': self.handle_awaiting_slot_choice,
@@ -103,7 +104,6 @@ class AgendamentoManager:
         nome_usuario = self.memoria.get('nome_usuario', '')
         return {"response_message": f"Não entendi, {nome_usuario}. É 'Consulta' ou 'Procedimento'?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
-    # ADICIONE ESTA NOVA FUNÇÃO
     def handle_awaiting_procedure(self, resposta_usuario):
         procedimento_escolhido = next((proc for proc in self.memoria.get('lista_procedimentos', []) if resposta_usuario.lower() in proc['descricao'].lower()), None)
         
@@ -113,15 +113,24 @@ class AgendamentoManager:
         self.memoria.update({'procedimento_id': procedimento_escolhido['id'], 'procedimento_nome': procedimento_escolhido['descricao']})
         
         # Após escolher o procedimento, o fluxo continua pedindo a modalidade
-        return {"response_message": "Ótimo. E esse procedimento será realizado *Presencialmente* em nossa clínica?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        # Como procedimentos são presenciais, podemos pular a pergunta.
+        self.memoria['modalidade'] = 'Presencial'
+        
+        # O próximo passo é sempre pedir a especialidade
+        especialidades = self._get_especialidades_from_db()
+        self.memoria['lista_especialidades'] = especialidades
+        nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in especialidades])
+        
+        mensagem_pergunta = "Certo. A qual especialidade médica este procedimento está relacionado?"
 
-    # SUBSTITUA ESTA FUNÇÃO
+        return {"response_message": f"{mensagem_pergunta}\n\n{nomes_especialidades}", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+
     def handle_awaiting_modality(self, resposta_usuario):
         resposta_lower = resposta_usuario.lower()
 
-        # Para procedimentos, podemos forçar a modalidade Presencial se for uma regra de negócio
+        # Para procedimentos, a modalidade já foi definida como Presencial
         if self.memoria.get('tipo_agendamento') == 'Procedimento':
-            self.memoria['modalidade'] = 'Presencial'
+             pass # Não faz nada, pois já foi setado em handle_awaiting_procedure
         else: # Para consultas, permite a escolha
             if 'telemedicina' in resposta_lower:
                 self.memoria['modalidade'] = 'Telemedicina'
@@ -136,10 +145,9 @@ class AgendamentoManager:
         nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in especialidades])
         
         mensagem_pergunta = "Perfeito. Para qual das nossas especialidades você deseja o agendamento?"
-        if self.memoria.get('tipo_agendamento') == 'Procedimento':
-            mensagem_pergunta = "Certo. A qual especialidade médica este procedimento está relacionado?"
-
+        
         return {"response_message": f"{mensagem_pergunta}\n\n{nomes_especialidades}", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+
 
     def handle_awaiting_specialty(self, resposta_usuario):
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower()), None)

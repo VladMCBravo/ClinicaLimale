@@ -57,8 +57,8 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             'agendamento_awaiting_slot_confirmation', 'cadastro_awaiting_cpf',
             'cadastro_awaiting_missing_field', 'agendamento_awaiting_payment_choice',
             'agendamento_awaiting_installments', 'awaiting_inactivity_response',
-            'awaiting_schedule_confirmation'
-            'agendamento_awaiting_procedure'  # <<< ADICIONE ESTA LINHA
+            'awaiting_schedule_confirmation',  # <<< A VÍRGULA FOI ADICIONADA AQUI
+            'agendamento_awaiting_procedure'
         ]
 
         # NÍVEL 1: SE ESTAMOS EM UM FLUXO, A CONTINUAÇÃO É PRIORIDADE MÁXIMA
