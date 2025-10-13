@@ -22,7 +22,7 @@ if RENDER_EXTERNAL_HOSTNAME:
 # --- ADICIONE ESTA NOVA CONFIGURAÇÃO ABAIXO ---
 CSRF_TRUSTED_ORIGINS = [
     'https://clinicalimale.onrender.com',
-    'https://clinica-limale.vercel.app', # <-- Adicione a URL principal do seu front-end
+    'https://seu-frontend.vercel.app', # <-- Adicione a URL principal do seu front-end
     'https://*.vercel.app', # <-- Permite que os previews da Vercel funcionem
 ]
 # MELHORIA: Usar regex para aceitar todas as URLs de preview da Vercel automaticamente.
@@ -147,15 +147,15 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'nao-responda@suaclini
 # --- Configurações do Django Channels ---
 ASGI_APPLICATION = 'core.asgi.application'
 
-REDIS_URL = os.environ.get('REDIS_URL') # Esta linha já deve existir
-
-if REDIS_URL:
-    # Configuração para produção (Render) - VERSÃO CORRIGIDA
+# A lógica de fallback para desenvolvimento local continua perfeita.
+# Apenas a configuração de produção é refinada.
+if 'REDIS_URL' in os.environ:
+    # Configuração para produção (Render)
     CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [REDIS_URL],  # <-- VOLTAMOS A USAR A URL DIRETA
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [dj_redis_url.config(conn_max_age=600)], # <-- Alteração aqui
             },
         },
     }
