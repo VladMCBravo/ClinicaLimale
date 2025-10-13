@@ -154,13 +154,33 @@ class AgendamentoManager:
         if not medicos:
             return {"response_message": f"Desculpe, não encontrei médicos para {especialidade_nome} no momento.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
 
-        medico = medicos[0]
-        self.memoria.update({'medico_id': medico['id'], 'medico_nome': f"{medico['first_name']} {medico['last_name']}"})
-        horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
+        # Vamos iterar sobre os médicos se o primeiro não tiver agenda
+        for medico in medicos:
+            self.memoria.update({'medico_id': medico['id'], 'medico_nome': f"{medico['first_name']} {medico['last_name']}"})
+            
+            # 1. Tenta buscar horários a partir de hoje
+            horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
 
-        if not horarios or not horarios.get('horarios_disponiveis'):
-            medico_nome = self.memoria.get('medico_nome', 'médico')
-            return {"response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {medico_nome} nos próximos dias.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+            # 2. Se não encontrou NADA (nem para hoje, nem para o futuro), avisa e para.
+            if not horarios or not horarios.get('horarios_disponiveis'):
+                continue # Tenta o próximo médico
+
+            # 3. Se encontrou, formata a mensagem e retorna
+            self.memoria['horarios_ofertados'] = horarios
+            try:
+                from dateutil.parser import parse
+                data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
+            except (ValueError, TypeError):
+                data_formatada = horarios.get('data', 'Data inválida')
+            
+            horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
+            medico_nome_completo = f"Dr(a). {self.memoria['medico_nome']}"
+            mensagem = (f"Excelente escolha! Cuidar da saúde é fundamental. Encontrei estes horários com {medico_nome_completo}, que é uma referência na área, para o dia *{data_formatada}*:\n\n" + "\n".join(horarios_formatados) + "\n\nQual deles prefere?")
+            return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+
+        # Se o loop terminar e nenhum médico tiver agenda
+        medico_nome = self.memoria.get('medico_nome', 'o médico selecionado')
+        return {"response_message": f"Infelizmente, não há horários disponíveis para Dr(a). {medico_nome} nos próximos dias.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
 
         self.memoria['horarios_ofertados'] = horarios
         try:
@@ -271,25 +291,17 @@ class AgendamentoManager:
                 "1️⃣ *PIX* (5% de desconto)\n"
                 "2️⃣ *Cartão de Crédito* (até 3x sem juros)"
             )
-            # --- FIM DA CORREÇÃO ---
-            return {"response_message": mensagem, "new_state": "cadastro_awaiting_missing_field", "memory_data": self.memoria}
-            # 4. LÓGICA PARA NOVO PACIENTE (A CORREÇÃO ESTÁ AQUI)
+            return {"response_message": mensagem, "new_state": "agendamento_awaiting_payment_choice", "memory_data": self.memoria}
         else:
-            # Guarda o CPF na memória
+            # A lógica para novo paciente está correta e permanece a mesma.
             self.memoria['cpf'] = cpf_numeros
-            
-            # Prepara a memória para o próximo passo: coletar os dados do paciente
             self.memoria['dados_paciente'] = {'cpf': cpf_numeros}
-            self.memoria['missing_field'] = 'nome_completo' # Define o primeiro campo a ser pedido
-            
-            # Monta a mensagem para iniciar o cadastro
+            self.memoria['missing_field'] = 'nome_completo'
             mensagem = (
                 "Entendido. Vi que é seu primeiro agendamento conosco. "
                 "Para criar seu cadastro, preciso de algumas informações rápidas.\n\n"
                 "Vamos começar pelo seu *nome completo*, por favor."
             )
-            
-            # Retorna a mensagem e o novo estado para continuar o cadastro
             return {
                 "response_message": mensagem, 
                 "new_state": "cadastro_awaiting_missing_field", 

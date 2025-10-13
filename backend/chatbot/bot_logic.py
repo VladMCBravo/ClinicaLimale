@@ -58,6 +58,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             'cadastro_awaiting_missing_field', 'agendamento_awaiting_payment_choice',
             'agendamento_awaiting_installments', 'awaiting_inactivity_response',
             'awaiting_schedule_confirmation'
+            'agendamento_awaiting_procedure'  # <<< ADICIONE ESTA LINHA
         ]
 
         # NÍVEL 1: SE ESTAMOS EM UM FLUXO, A CONTINUAÇÃO É PRIORIDADE MÁXIMA
