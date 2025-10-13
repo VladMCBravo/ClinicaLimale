@@ -97,9 +97,17 @@ TEMPLATES = [
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600
+        conn_max_age=300,  # Reduzido para evitar conexões longas
+        conn_health_checks=True,  # Verifica saúde da conexão
     )
 }
+
+# Configurações adicionais para PostgreSQL/Supabase
+if 'postgresql' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': 10,
+        'options': '-c default_transaction_isolation=serializable'
+    }
 AUTH_USER_MODEL = 'usuarios.CustomUser'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
