@@ -1,4 +1,4 @@
-# chatbot/agendamento_flow.py - VERSÃO CORRIGIDA ALINHADA AO SISTEMA
+# chatbot/agendamento_flow.py - VERSÃO COM LÓGICA DE BUSCA AUTOMÁTICA
 
 import re
 import json
@@ -18,7 +18,6 @@ from agendamentos.services import (
     listar_agendamentos_futuros,
     cancelar_agendamento_service
 )
-# <<-- IMPORTAÇÃO ADICIONAL -->>
 from faturamento.models import Procedimento
 
 logger = logging.getLogger(__name__)
@@ -37,14 +36,12 @@ class AgendamentoManager:
         return list(CustomUser.objects.filter(cargo='medico', especialidades__id=especialidade_id).values('id', 'first_name', 'last_name'))
 
     def processar(self, resposta_usuario, estado_atual):
-        # <<< DICIONÁRIO DE HANDLERS ATUALIZADO >>>
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
             'agendamento_awaiting_procedure': self.handle_awaiting_procedure,
             'agendamento_awaiting_modality': self.handle_awaiting_modality,
             'agendamento_awaiting_specialty': self.handle_awaiting_specialty,
-            'agendamento_awaiting_doctor': self.handle_awaiting_doctor, # <-- Novo handler
             'agendamento_awaiting_slot_choice': self.handle_awaiting_slot_choice,
             'agendamento_awaiting_slot_confirmation': self.handle_awaiting_slot_confirmation,
             'cadastro_awaiting_cpf': self.handle_cadastro_awaiting_cpf,
@@ -157,43 +154,48 @@ class AgendamentoManager:
     def handle_awaiting_specialty(self, resposta_usuario):
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower()), None)
         if not especialidade_escolhida:
-            return {"response_message": "Não encontrei essa especialidade em nossa lista. Por favor, escolha uma das opções fornecidas.", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+            return {"response_message": "Não encontrei essa especialidade. Pode tentar de novo?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
         self.memoria.update({'especialidade_id': especialidade_escolhida['id'], 'especialidade_nome': especialidade_escolhida['nome']})
         
         medicos = self._get_medicos_from_db(especialidade_id=especialidade_escolhida['id'])
         if not medicos:
-            return {"response_message": f"Desculpe, não encontrei médicos disponíveis para {especialidade_escolhida['nome']} no momento. Gostaria de escolher outra especialidade?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+            return {"response_message": f"Desculpe, não encontrei médicos para {especialidade_escolhida['nome']} no momento. Gostaria de tentar outra especialidade?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
-        # Armazena a lista de médicos encontrados para validação futura
-        self.memoria['lista_medicos'] = medicos
-        
-        # Formata a lista de médicos para apresentar ao usuário
-        nomes_medicos = '\n'.join([f"• Dr(a). {medico['first_name']} {medico['last_name']}" for medico in medicos])
-        
-        mensagem = (
-            f"Ótimo! Para a especialidade de *{especialidade_escolhida['nome']}*, temos os seguintes profissionais:\n\n"
-            f"{nomes_medicos}\n\n"
-            "Com qual deles você gostaria de agendar?"
-        )
-        
-        return {"response_message": mensagem, "new_state": "agendamento_awaiting_doctor", "memory_data": self.memoria}
+        # Itera sobre todos os médicos da especialidade até encontrar um com horário
+        for medico in medicos:
+            horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
 
-    # <<< NOVA FUNÇÃO >>>
-    def handle_awaiting_doctor(self, resposta_usuario):
-        """
-        Processa a escolha do médico feita pelo usuário e inicia a busca de horários.
-        """
-        # Procura o médico escolhido na lista que salvamos na memória
-        medico_escolhido = next((med for med in self.memoria.get('lista_medicos', []) if resposta_usuario.lower() in f"{med['first_name']} {med['last_name']}".lower()), None)
+            # Se encontrou horários, para o loop e segue o fluxo
+            if horarios and horarios.get('horarios_disponiveis'):
+                self.memoria.update({
+                    'medico_id': medico['id'],
+                    'medico_nome': f"{medico['first_name']} {medico['last_name']}",
+                    'horarios_ofertados': horarios
+                })
+                
+                try:
+                    data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
+                except (ValueError, TypeError):
+                    data_formatada = horarios.get('data', 'Data inválida')
+                
+                horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
+                medico_nome_completo = f"Dr(a). {self.memoria['medico_nome']}"
+                
+                # Mensagem formatada como você solicitou
+                mensagem = (
+                    f"Excelente escolha! Cuidar da saúde é fundamental. Encontrei estes horários com {medico_nome_completo}, que é uma referência na área, para o dia *{data_formatada}*:\n\n"
+                    + "\n".join(horarios_formatados)
+                    + "\n\nQual deles prefere?"
+                )
+                return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
-        if not medico_escolhido:
-            return {"response_message": "Não encontrei este profissional na lista. Por favor, digite o nome como ele aparece nas opções.", "new_state": "agendamento_awaiting_doctor", "memory_data": self.memoria}
-
-        # Salva o médico escolhido e inicia a busca de horários para ele
-        self.memoria.update({'medico_id': medico_escolhido['id'], 'medico_nome': f"{medico_escolhido['first_name']} {medico_escolhido['last_name']}"})
-        
-        return self._buscar_e_apresentar_horarios(medico_escolhido['id'])
+        # Se o loop terminar e nenhum médico tiver agenda, retorna a mensagem de indisponibilidade
+        return {
+            "response_message": f"Infelizmente, não há horários disponíveis para a especialidade de {especialidade_escolhida['nome']} nos próximos dias. Gostaria de tentar outra especialidade?",
+            "new_state": "agendamento_awaiting_specialty",
+            "memory_data": self.memoria
+        }
 
     # <<< FUNÇÃO RENOMEADA E AJUSTADA (ANTIGA _iniciar_busca_de_horarios) >>>
     def _buscar_e_apresentar_horarios(self, medico_id):
