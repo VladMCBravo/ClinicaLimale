@@ -53,11 +53,13 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         
         estados_de_fluxo = [
             'agendamento_awaiting_type', 'agendamento_awaiting_modality',
-            'agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice',
+            'agendamento_awaiting_specialty',
+            'agendamento_awaiting_doctor', # <-- NOVO ESTADO ADICIONADO
+            'agendamento_awaiting_slot_choice',
             'agendamento_awaiting_slot_confirmation', 'cadastro_awaiting_cpf',
             'cadastro_awaiting_missing_field', 'agendamento_awaiting_payment_choice',
             'agendamento_awaiting_installments', 'awaiting_inactivity_response',
-            'awaiting_schedule_confirmation',  # <<< A VÍRGULA FOI ADICIONADA AQUI
+            'awaiting_schedule_confirmation',
             'agendamento_awaiting_procedure'
         ]
 
