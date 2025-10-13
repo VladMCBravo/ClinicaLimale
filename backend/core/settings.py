@@ -147,15 +147,15 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'nao-responda@suaclini
 # --- Configurações do Django Channels ---
 ASGI_APPLICATION = 'core.asgi.application'
 
-# A lógica de fallback para desenvolvimento local continua perfeita.
-# Apenas a configuração de produção é refinada.
-if 'REDIS_URL' in os.environ:
-    # Configuração para produção (Render)
+REDIS_URL = os.environ.get('REDIS_URL') # Esta linha já deve existir
+
+if REDIS_URL:
+    # Configuração para produção (Render) - VERSÃO CORRIGIDA
     CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [dj_redis_url.config(conn_max_age=600)], # <-- Alteração aqui
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [REDIS_URL],  # <-- VOLTAMOS A USAR A URL DIRETA
             },
         },
     }
