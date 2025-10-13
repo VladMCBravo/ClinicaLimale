@@ -4,7 +4,6 @@ import os
 import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
-import dj_redis_url # <-- ADICIONE ESTA IMPORTAÇÃO NO TOPO
 
 load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,8 +21,6 @@ if RENDER_EXTERNAL_HOSTNAME:
 # --- ADICIONE ESTA NOVA CONFIGURAÇÃO ABAIXO ---
 CSRF_TRUSTED_ORIGINS = [
     'https://clinicalimale.onrender.com',
-    'https://seu-frontend.vercel.app', # <-- Adicione a URL principal do seu front-end
-    'https://*.vercel.app', # <-- Permite que os previews da Vercel funcionem
 ]
 # MELHORIA: Usar regex para aceitar todas as URLs de preview da Vercel automaticamente.
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -155,12 +152,12 @@ if REDIS_URL:
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                "hosts": [REDIS_URL],  # Usa a URL direta, que é o correto.
+                "hosts": [REDIS_URL],
             },
         },
     }
 else:
-    # Configuração para desenvolvimento
+    # Configuração para desenvolvimento (sua máquina local)
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
