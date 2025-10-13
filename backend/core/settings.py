@@ -149,20 +149,18 @@ ASGI_APPLICATION = 'core.asgi.application'
 
 REDIS_URL = os.environ.get('REDIS_URL')
 
-# A lógica de fallback para desenvolvimento local continua perfeita.
-# Apenas a configuração de produção é refinada.
-if 'REDIS_URL' in os.environ:
+if REDIS_URL:
     # Configuração para produção (Render)
     CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [dj_redis_url.config(conn_max_age=600)], # <-- Alteração aqui
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [REDIS_URL],  # Usa a URL direta, que é o correto.
             },
         },
     }
 else:
-    # Configuração para desenvolvimento (sua máquina local)
+    # Configuração para desenvolvimento
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
