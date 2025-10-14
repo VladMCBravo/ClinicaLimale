@@ -5,6 +5,8 @@ from .models import ChatMemory
 from .agendamento_flow import AgendamentoManager
 from .chains import chain_roteadora, chain_sintomas, chain_faq, faq_base_de_conhecimento
 from .services import get_resposta_preco
+from .human_transfer import HumanTransferManager
+from .conversation_manager import ConversationManager
 from usuarios.models import Especialidade
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,34 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
 
     logger.info(f"Processando | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
 
+    # --- NÍVEL -1: VERIFICAÇÕES PRIORITÁRIAS (COMANDOS E TRANSFERÊNCIAS) ---
+    
+    # Verifica comandos de controle
+    comando = ConversationManager.detectar_comando(user_message)
+    if comando:
+        resultado = ConversationManager.processar_comando(comando, session_id, memoria_atual)
+        if resultado:
+            memoria_obj.state = resultado.get("new_state")
+            memoria_obj.memory_data = resultado.get("memory_data")
+            memoria_obj.save()
+            return resultado
+    
+    # Verifica solicitação de atendente humano
+    if HumanTransferManager.detectar_solicitacao_humano(user_message):
+        resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
+        memoria_obj.state = resultado.get("new_state")
+        memoria_obj.memory_data = resultado.get("memory_data")
+        memoria_obj.save()
+        return resultado
+    
+    # Verifica se usuário quer encerrar naturalmente
+    if estado_atual == 'identificando_demanda' and ConversationManager.detectar_encerramento(user_message):
+        resultado = ConversationManager.processar_encerramento(session_id, memoria_atual)
+        memoria_obj.state = resultado.get("new_state")
+        memoria_obj.memory_data = resultado.get("memory_data")
+        memoria_obj.save()
+        return resultado
+
     # --- NÍVEL 0: ONBOARDING (COLETA DO NOME) ---
     if not nome_usuario:
         if estado_atual != 'aguardando_nome':
@@ -59,14 +89,21 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             'cadastro_awaiting_missing_field', 'agendamento_awaiting_payment_choice',
             'agendamento_awaiting_installments', 'awaiting_inactivity_response',
             'awaiting_schedule_confirmation',
-            'agendamento_awaiting_procedure'
+            'agendamento_awaiting_procedure', 'aguardando_atendente_humano',
+            'cancelamento_awaiting_cpf', 'cancelamento_awaiting_choice', 'cancelamento_awaiting_confirmation'
         ]
 
         # NÍVEL 1: SE ESTAMOS EM UM FLUXO, A CONTINUAÇÃO É PRIORIDADE MÁXIMA
         if estado_atual in estados_de_fluxo:
             logger.warning(f"Priorizando continuação de fluxo no estado '{estado_atual}'.")
             # Para estados especiais que não estão no AgendamentoManager
-            if estado_atual == 'awaiting_inactivity_response':
+            if estado_atual == 'aguardando_atendente_humano':
+                if 'continuar' in user_message.lower():
+                    resultado = {"response_message": f"Perfeito, {nome_usuario}! Vamos continuar nosso atendimento. Como posso te ajudar?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
+                else:
+                    resultado = {"response_message": f"Entendido, {nome_usuario}. Nossa equipe entrará em contato em breve. Aguarde um momento.", "new_state": "aguardando_atendente_humano", "memory_data": memoria_atual}
+            
+            elif estado_atual == 'awaiting_inactivity_response':
                  if 'sim' in user_message.lower():
                      estado_anterior = memoria_obj.previous_state or 'identificando_demanda'
                      reprompt = get_reprompt_message(estado_anterior, memoria_atual)

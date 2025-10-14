@@ -30,7 +30,9 @@ ESTADOS = {
     'TIMEOUT': 'awaiting_inactivity_response',
     'AGENDAMENTO_INICIO': 'agendamento_inicio',
     'TRIAGEM_SINTOMAS': 'triagem_processar_sintomas',
-    'CANCELAMENTO': 'cancelamento_inicio'
+    'CANCELAMENTO': 'cancelamento_inicio',
+    'AGUARDANDO_HUMANO': 'aguardando_atendente_humano',
+    'CONVERSA_ENCERRADA': 'conversa_encerrada'
 }
 
 # Configurações de analytics
@@ -72,4 +74,20 @@ RECUPERACAO = {
         'cadastro_awaiting_adult_data',
         'triagem_processar_sintomas'
     ]
+}
+
+# Configurações de transferência humana
+TRANSFERENCIA_HUMANA = {
+    'timeout_resposta_minutos': 30,
+    'notificar_equipe': True,
+    'email_notificacao': 'atendimento@clinicalimale.com.br',
+    'whatsapp_notificacao': '11999999999'
+}
+
+# Comandos de controle disponíveis
+COMANDOS_CONTROLE = {
+    '#recomecar': 'Reinicia a conversa',
+    '#sair': 'Encerra a conversa',
+    '#ajuda': 'Mostra opções disponíveis',
+    'atendente': 'Transfere para atendimento humano'
 }

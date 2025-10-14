@@ -26,12 +26,12 @@ try:
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
 
     # Inicializa o modelo de linguagem
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0, google_api_key=api_key)
     logger.info("LLM (Gemini) inicializado com sucesso.")
 
     # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (MAIS INTELIGENTE) ---
     class RoteadorOutput(BaseModel):
-        intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'pergunta_geral'.")
+        intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'transferencia_humano', 'encerrar_conversa', 'pergunta_geral'.")
         entity: Optional[str] = Field(description="O serviço, especialidade ou sintoma específico que o usuário mencionou, se houver (ex: 'Cardiologia', 'Ecocardiograma', 'dor de cabeça').")
     
     parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
@@ -40,6 +40,8 @@ try:
         Analise a mensagem e determine a intenção principal e a entidade.
         
         # REGRAS DE ROTEAMENTO (ATUALIZADAS)
+        - Se mencionar 'atendente', 'humano', 'pessoa', 'falar com alguém', 'operador', 'secretária', a intenção é 'transferencia_humano'.
+        - Se mencionar 'tchau', 'obrigado', 'até logo', 'valeu', 'já resolvi', a intenção é 'encerrar_conversa'.
         - Se a mensagem contiver palavras como 'preço', 'valor', 'quanto custa', a intenção é SEMPRE 'buscar_preco', mesmo que mencione uma especialidade ou a palavra 'consulta'. Esta regra tem prioridade. Extraia o nome do serviço (ex: 'Ginecologia').
         - Se o usuário descreve um mal-estar ('sinto dor', 'estou com febre', 'dor de cabeça'), a intenção é 'triagem_sintomas'.
         - Se o usuário quer explicitamente marcar algo ('agendar', 'marcar consulta', 'quero um horário') e NÃO pergunta o preço, a intenção é 'iniciar_agendamento'.

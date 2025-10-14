@@ -17,6 +17,9 @@ class ChatMemory(models.Model):
     memory_data = models.JSONField(default=dict, validators=[validate_json_data])
     state = models.CharField(max_length=100, null=True, blank=True, default='inicio')
     previous_state = models.CharField(max_length=100, null=True, blank=True)
+    transferencia_solicitada = models.BooleanField(default=False)
+    atendimento_humano_ativo = models.BooleanField(default=False)
+    conversa_encerrada = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -33,6 +36,10 @@ class ChatMemory(models.Model):
         verbose_name = "Memória de Conversa"
         verbose_name_plural = "Memórias de Conversas"
         ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['transferencia_solicitada', 'updated_at']),
+            models.Index(fields=['conversa_encerrada', 'updated_at']),
+        ]
 
 class ChatbotMetrics(models.Model):
     """Modelo para armazenar métricas do chatbot"""
