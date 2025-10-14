@@ -26,11 +26,9 @@ class HumanTransferManager:
         """Processa a transferência para atendimento humano"""
         nome_usuario = memoria_atual.get('nome_usuario', '')
         
-        # Marca a sessão como necessitando atendimento humano
         try:
             memoria_obj = ChatMemory.objects.get(session_id=session_id)
-            memoria_obj.memory_data['transferencia_solicitada'] = True
-            memoria_obj.memory_data['motivo_transferencia'] = 'solicitacao_usuario'
+            memoria_obj.transferencia_solicitada = True # Atualizado para usar o campo do modelo
             memoria_obj.save()
             
             # Registra métrica
@@ -40,7 +38,7 @@ class HumanTransferManager:
                 dados_evento={'nome_usuario': nome_usuario}
             )
         except Exception as e:
-            logger.error(f"Erro ao marcar transferência: {e}")
+            logger.error(f"Erro ao marcar transferência e registrar métrica: {e}")
         
         mensagem = (
             f"Entendo perfeitamente, {nome_usuario}! 🤝\n\n"
