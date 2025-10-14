@@ -117,40 +117,29 @@ class AgendamentoManager:
         # Procedimentos são sempre presenciais
         self.memoria['modalidade'] = 'Presencial'
         
-        # Para procedimentos, buscar horários diretamente sem perguntar especialidade
-        # Busca todos os médicos disponíveis para o procedimento
-        medicos = list(CustomUser.objects.filter(cargo='medico').values('id', 'first_name', 'last_name'))
+        # Para procedimentos, buscar horários diretamente sem médico específico
+        from agendamentos.services import buscar_proximo_horario_procedimento
         
-        if not medicos:
-            return {"response_message": "Desculpe, não encontrei médicos disponíveis para este procedimento no momento.", "new_state": "agendamento_awaiting_procedure", "memory_data": self.memoria}
+        horarios = buscar_proximo_horario_procedimento(procedimento_escolhido['id'])
 
-        # Busca horários disponíveis iterando pelos médicos
-        for medico in medicos:
-            horarios = buscar_proximo_horario_disponivel(medico_id=medico['id'])
+        if horarios and horarios.get('horarios_disponiveis'):
+            self.memoria['horarios_ofertados'] = horarios
+            
+            try:
+                data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
+            except (ValueError, TypeError):
+                data_formatada = horarios.get('data', 'Data inválida')
+            
+            horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
+            
+            mensagem = (
+                f"Perfeito! Encontrei estes horários disponíveis para {procedimento_escolhido['descricao']} no dia *{data_formatada}*:\n\n"
+                + "\n".join(horarios_formatados)
+                + "\n\nQual deles prefere?"
+            )
+            return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
 
-            if horarios and horarios.get('horarios_disponiveis'):
-                self.memoria.update({
-                    'medico_id': medico['id'],
-                    'medico_nome': f"{medico['first_name']} {medico['last_name']}",
-                    'horarios_ofertados': horarios
-                })
-                
-                try:
-                    data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
-                except (ValueError, TypeError):
-                    data_formatada = horarios.get('data', 'Data inválida')
-                
-                horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
-                medico_nome_completo = f"Dr(a). {self.memoria['medico_nome']}"
-                
-                mensagem = (
-                    f"Perfeito! Encontrei estes horários disponíveis para {procedimento_escolhido['descricao']} com {medico_nome_completo} para o dia *{data_formatada}*:\n\n"
-                    + "\n".join(horarios_formatados)
-                    + "\n\nQual deles prefere?"
-                )
-                return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
-
-        # Se nenhum médico tiver horários disponíveis
+        # Se não há horários disponíveis
         return {
             "response_message": f"Infelizmente, não há horários disponíveis para {procedimento_escolhido['descricao']} nos próximos dias. Gostaria de tentar outro procedimento?",
             "new_state": "agendamento_awaiting_procedure",
@@ -533,15 +522,15 @@ class AgendamentoManager:
             dados_agendamento = {
                 'paciente': paciente.id, 'data_hora_inicio': self.memoria.get('data_hora_inicio'),
                 'status': 'Agendado', 'tipo_agendamento': tipo_agendamento, 'tipo_atendimento': 'Particular',
-                'medico': self.memoria.get('medico_id'),
                 'modalidade': self.memoria.get('modalidade')
             }
             
-            # Adiciona especialidade apenas se for consulta
+            # Adiciona especialidade e médico apenas se for consulta
             if tipo_agendamento == 'Consulta':
                 dados_agendamento['especialidade'] = self.memoria.get('especialidade_id')
+                dados_agendamento['medico'] = self.memoria.get('medico_id')
             
-            # Adiciona procedimento se for procedimento
+            # Adiciona procedimento se for procedimento (sem médico)
             if tipo_agendamento == 'Procedimento':
                 dados_agendamento['procedimento'] = self.memoria.get('procedimento_id')
             duracao = 50 
@@ -566,10 +555,10 @@ class AgendamentoManager:
             # Monta a mensagem baseada no tipo de agendamento
             if tipo_agendamento == 'Procedimento':
                 tipo_servico = f"*{self.memoria.get('procedimento_nome')}*"
+                msg_confirmacao = (f"✅ *Agendamento Confirmado!*\n\nOlá, {nome_paciente_fmt}! Seu horário está garantido.\n\n{tipo_servico}\n🗓️ *Data:* {data_fmt}\n⏰ *Hora:* {hora_fmt}\n\n")
             else:
                 tipo_servico = f"*Consulta de {self.memoria.get('especialidade_nome')}*"
-            
-            msg_confirmacao = (f"✅ *Agendamento Confirmado!*\n\nOlá, {nome_paciente_fmt}! Seu horário está garantido.\n\n{tipo_servico}\nCom Dr(a). *{self.memoria.get('medico_nome')}*\n🗓️ *Data:* {data_fmt}\n⏰ *Hora:* {hora_fmt}\n\n")
+                msg_confirmacao = (f"✅ *Agendamento Confirmado!*\n\nOlá, {nome_paciente_fmt}! Seu horário está garantido.\n\n{tipo_servico}\nCom Dr(a). *{self.memoria.get('medico_nome')}*\n🗓️ *Data:* {data_fmt}\n⏰ *Hora:* {hora_fmt}\n\n")
             secao_pagamento = ""
             if pagamento:
                 if metodo == 'PIX' and pagamento.pix_copia_e_cola:
