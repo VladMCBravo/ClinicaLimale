@@ -10,4 +10,4 @@ services:
       - key: DATABASE_URL
         value: postgresql://postgres:ClinicaLimale2025@clinica-db.cet68ewyqbo6.us-east-1.rds.amazonaws.com:5432/clinica_db
       - key: DJANGO_SETTINGS_MODULE
-        value: core.settings_aws
+        value: core.settings

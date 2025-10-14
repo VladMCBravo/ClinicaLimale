@@ -18,16 +18,37 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'clinicalimale.onrender.com']
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-# --- ADICIONE ESTA NOVA CONFIGURAÇÃO ABAIXO ---
 CSRF_TRUSTED_ORIGINS = [
     'https://clinicalimale.onrender.com',
+    'https://clinicalimale-dc0r.onrender.com',
 ]
-# MELHORIA: Usar regex para aceitar todas as URLs de preview da Vercel automaticamente.
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https?://localhost:\d+",  # Permite localhost em qualquer porta (3000, 5173, etc.)
-    r"^https?://.*\.vercel\.app$", # Permite seu domínio principal e qualquer preview (ex: clinica-limale-xxxxx.vercel.app)
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://clinicalimale-dc0r.onrender.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').lower() == 'true'
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_ALLOWED_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # --- Configurações de Aplicações (Apps) ---
 INSTALLED_APPS = [
