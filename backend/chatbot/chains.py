@@ -26,7 +26,7 @@ try:
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
 
     # Inicializa o modelo de linguagem
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0, google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key)
     logger.info("LLM (Gemini) inicializado com sucesso.")
 
     # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (MAIS INTELIGENTE) ---
