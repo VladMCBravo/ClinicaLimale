@@ -201,3 +201,8 @@ LOGGING = {
         },
     },
 }
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?://localhost:\d+",
+    r"^https?://.*\.vercel\.app$", 
+    r"^https?://.*\.onrender\.com$",
+]
