@@ -16,12 +16,20 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = [
     'localhost', 
     '127.0.0.1',
-    '.elasticbeanstalk.com',  # Para Elastic Beanstalk
-    '.amazonaws.com',         # Para outros serviços AWS
-    'clinicalimale.com',      # Seu domínio personalizado
+    'clinicalimale.onrender.com',  # Backend Render
+    '.elasticbeanstalk.com',
+    '.amazonaws.com',
+    'clinicalimale.com',
 ]
 
+# Render hostname
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 CSRF_TRUSTED_ORIGINS = [
+    'https://clinicalimale.onrender.com',
+    'https://clinicalimale-dc0r.onrender.com',
     'https://*.elasticbeanstalk.com',
     'https://clinicalimale.com',
     'https://*.amazonaws.com',
