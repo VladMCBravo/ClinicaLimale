@@ -1,0 +1,6 @@
+
+# Arquivos grandes
+*.zip
+*.sql
+backup_*
+
