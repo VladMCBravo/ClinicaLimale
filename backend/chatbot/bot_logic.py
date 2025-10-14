@@ -123,11 +123,19 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 manager = AgendamentoManager(session_id, memoria_atual, "")
                 resultado = manager.processar(user_message, estado_atual)
 
-        # NÍVEL 2: SE NÃO ESTAMOS EM UM FLUXO, USAMOS A IA PARA DESCOBRIR A INTENÇÃO
+        # NÍVEL 2: SE NÃO ESTAMOS EM UM FLUXO, USAMOS A IA COM CONTEXTO
         else:
-            logger.warning("Nenhum fluxo ativo. Usando IA Roteadora para nova intenção.")
+            logger.warning("Nenhum fluxo ativo. Usando IA Roteadora com contexto para nova intenção.")
             try:
-                intent_data = chain_roteadora.invoke({"user_message": user_message})
+                # --- NOVA LÓGICA DE CONTEXTO ---
+                historico = memoria_atual.get('historico_conversa', [])
+                historico_formatado = "\n".join(historico)
+
+                intent_data = chain_roteadora.invoke({
+                    "user_message": user_message,
+                    "historico_conversa": historico_formatado
+                })
+                # --- FIM DA NOVA LÓGICA ---
                 intent = intent_data.get("intent")
                 entity = intent_data.get("entity")
 
@@ -145,10 +153,18 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 logger.error(f"Erro na IA Roteadora: {e}", exc_info=True)
                 resultado = {"response_message": "Desculpe, não consegui processar sua mensagem.", "new_state": "identificando_demanda", "memory_data": memoria_atual}
 
-    # --- PONTO DE SAÍDA ÚNICO: GARANTE QUE TUDO SEJA SALVO ---
+    # --- PONTO DE SAÍDA ÚNICO: ATUALIZA A MEMÓRIA E O HISTÓRICO ---
     if not resultado:
         resultado = {"response_message": "Não entendi muito bem. Poderia repetir?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
         
+    # --- NOVA LÓGICA DE ATUALIZAÇÃO DE HISTÓRICO ---
+    historico = resultado.get("memory_data", {}).get('historico_conversa', [])
+    historico.append(f"Usuário: {user_message}")
+    historico.append(f"Bot: {resultado.get('response_message')}")
+    # Mantém apenas as últimas 6 trocas (3 perguntas, 3 respostas)
+    resultado['memory_data']['historico_conversa'] = historico[-6:]
+    # --- FIM DA NOVA LÓGICA ---
+
     memoria_obj.state = resultado.get("new_state")
     memoria_obj.memory_data = resultado.get("memory_data")
     memoria_obj.save()

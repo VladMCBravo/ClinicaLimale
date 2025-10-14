@@ -29,7 +29,7 @@ try:
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key)
     logger.info("LLM (Gemini) inicializado com sucesso.")
 
-    # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (MAIS INTELIGENTE) ---
+    # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (AGORA COM MEMÓRIA) ---
     class RoteadorOutput(BaseModel):
         intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'transferencia_humano', 'encerrar_conversa', 'pergunta_geral'.")
         entity: Optional[str] = Field(description="O serviço, especialidade ou sintoma específico que o usuário mencionou, se houver (ex: 'Cardiologia', 'Ecocardiograma', 'dor de cabeça').")
@@ -37,20 +37,25 @@ try:
     parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
     prompt_roteador = ChatPromptTemplate.from_template(
         """# MISSÃO
-        Analise a mensagem e determine a intenção principal e a entidade.
+        Sua principal missão é analisar a MENSAGEM ATUAL do usuário e, usando o HISTÓRICO DA CONVERSA como contexto, determinar a intenção principal e a entidade.
+
+        # HISTÓRICO DA CONVERSA (ÚLTIMAS MENSAGENS)
+        {historico_conversa}
         
-        # REGRAS DE ROTEAMENTO (ATUALIZADAS)
-        - Se mencionar 'atendente', 'humano', 'pessoa', 'falar com alguém', 'operador', 'secretária', a intenção é 'transferencia_humano'.
-        - Se mencionar 'tchau', 'obrigado', 'até logo', 'valeu', 'já resolvi', a intenção é 'encerrar_conversa'.
-        - Se a mensagem contiver palavras como 'preço', 'valor', 'quanto custa', a intenção é SEMPRE 'buscar_preco', mesmo que mencione uma especialidade ou a palavra 'consulta'. Esta regra tem prioridade. Extraia o nome do serviço (ex: 'Ginecologia').
-        - Se o usuário descreve um mal-estar ('sinto dor', 'estou com febre', 'dor de cabeça'), a intenção é 'triagem_sintomas'.
-        - Se o usuário quer explicitamente marcar algo ('agendar', 'marcar consulta', 'quero um horário') e NÃO pergunta o preço, a intenção é 'iniciar_agendamento'.
+        # REGRAS DE ROTEAMENTO E CONTEXTO
+        - Use o histórico para entender perguntas curtas. Exemplo: Se o histórico mostra que o assunto é preço, e a mensagem atual é apenas "E ginecologia?", a intenção é 'buscar_preco' e a entidade é 'Ginecologia'.
+        - Se mencionar 'atendente', 'humano', 'pessoa', a intenção é SEMPRE 'transferencia_humano', ignorando o contexto anterior.
+        - Se mencionar 'tchau', 'obrigado', 'valeu', a intenção é 'encerrar_conversa'.
+        - Se a mensagem contiver 'preço', 'valor', 'quanto custa', a intenção é 'buscar_preco'.
+        - Se descreve um mal-estar ('sinto dor', 'estou com febre'), a intenção é 'triagem_sintomas'.
+        - Se quer marcar algo ('agendar', 'marcar consulta') e não pergunta o preço, a intenção é 'iniciar_agendamento'.
         - Se quer desmarcar ('cancelar', 'não posso ir'), a intenção é 'cancelar_agendamento'.
-        - Para perguntas sobre endereço, horário, telefone, convênios, a intenção é 'pergunta_geral'.
+        - Para perguntas gerais (endereço, horário), a intenção é 'pergunta_geral'.
 
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}
-        # MENSAGEM DO USUÁRIO
+
+        # MENSAGEM ATUAL DO USUÁRIO (PARA ANÁLISE)
         {user_message}""",
         partial_variables={"format_instructions": parser_roteador.get_format_instructions()},
     )
