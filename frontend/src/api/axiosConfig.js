@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // FORÇANDO URL DO AWS BACKEND
-const API_BASE_URL = 'http://98.88.80.53:8000/api';
+const API_BASE_URL = 'https://clinicalimale.onrender.com/api';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
