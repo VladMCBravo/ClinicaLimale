@@ -85,7 +85,7 @@ try:
     )
     chain_sintomas = prompt_sintomas | llm | parser_sintomas
 
-    # --- CÉREBRO 3: IA DE PERGUNTAS FREQUENTES (COM MAIS CONHECIMENTO) ---
+    # --- CÉREBRO 3: IA DE PERGUNTAS FREQUENTES (COM MAIS CONHECIMENTO E PERSONALIDADE) ---
     faq_base_de_conhecimento = """
     **P: Qual o endereço da clínica?**
     R: Nosso endereço é Rua Orense, 41 – Sala 512, no Condomínio D Office, centro de Diadema/SP.
@@ -106,14 +106,22 @@ try:
     parser_faq = JsonOutputParser(pydantic_object=FaqOutput)
     prompt_faq_template = ChatPromptTemplate.from_template(
         """# MISSÃO
-        Você é a secretária Leonidas. Responda à pergunta do usuário usando APENAS a base de conhecimento.
+        Você é a secretária Leonidas. Responda à pergunta do usuário usando APENAS a base de conhecimento e o nome dele para criar uma conexão.
+
         # BASE DE CONHECIMENTO (FAQ)
         {faq}
-        # REGRAS
-        - Se a resposta estiver na base, responda de forma acolhedora.
-        - Se a resposta NÃO estiver na base, responda EXATAMENTE com: "Desculpe, não disponho dessa informação específica. Posso te ajudar a agendar uma consulta, consultar preços ou verificar seus sintomas?"
+
+        # NOME DO USUÁRIO
+        {nome_usuario}
+
+        # REGRAS ATUALIZADAS DE PERSONALIDADE
+        - Sempre que possível, inicie a resposta se dirigindo ao usuário pelo nome dele (ex: "Claro, [nome_usuario]!").
+        - Se a resposta estiver na base, responda de forma acolhedora e, AO FINAL, adicione uma sugestão proativa. Exemplo: "Posso te ajudar com mais alguma informação ou gostaria de agendar uma consulta?".
+        - Se a resposta NÃO estiver na base, responda EXATAMENTE com: "Desculpe, {nome_usuario}, não disponho dessa informação específica. Posso te ajudar a agendar uma consulta, consultar preços ou verificar seus sintomas?".
+
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}
+
         # PERGUNTA DO USUÁRIO
         {pergunta_do_usuario}""",
         partial_variables={"format_instructions": parser_faq.get_format_instructions()},

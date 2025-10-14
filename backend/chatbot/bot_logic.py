@@ -127,7 +127,6 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         else:
             logger.warning("Nenhum fluxo ativo. Usando IA Roteadora com contexto para nova intenção.")
             try:
-                # --- NOVA LÓGICA DE CONTEXTO ---
                 historico = memoria_atual.get('historico_conversa', [])
                 historico_formatado = "\n".join(historico)
 
@@ -135,23 +134,36 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                     "user_message": user_message,
                     "historico_conversa": historico_formatado
                 })
-                # --- FIM DA NOVA LÓGICA ---
+
                 intent = intent_data.get("intent")
                 entity = intent_data.get("entity")
 
                 if intent == "buscar_preco":
-                    resposta_final = get_resposta_preco(entity, nome_usuario)
+                    # --- LÓGICA DE RESPOSTA PROATIVA ---
+                    resposta_base = get_resposta_preco(entity, nome_usuario)
+                    # Adicionamos a camada de personalidade
+                    resposta_final = f"{resposta_base} Que tal aproveitarmos para já verificar os próximos horários disponíveis para {entity}, {nome_usuario}?"
                     resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
+
                 elif intent == "iniciar_agendamento":
                     manager = AgendamentoManager(session_id, memoria_atual, "")
                     resultado = manager.processar(user_message, 'agendamento_inicio')
+
                 # Adicione outros intents aqui (cancelar, triagem, etc.)
+
                 else: # pergunta_geral ou fallback
-                    faq_data = chain_faq.invoke({"pergunta_do_usuario": user_message, "faq": faq_base_de_conhecimento})
+                    # --- PASSANDO O NOME PARA A IA DO FAQ ---
+                    faq_data = chain_faq.invoke({
+                        "pergunta_do_usuario": user_message, 
+                        "faq": faq_base_de_conhecimento,
+                        "nome_usuario": nome_usuario  # Passamos o nome aqui
+                    })
                     resultado = {"response_message": faq_data.get("resposta"), "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+
             except Exception as e:
                 logger.error(f"Erro na IA Roteadora: {e}", exc_info=True)
-                resultado = {"response_message": "Desculpe, não consegui processar sua mensagem.", "new_state": "identificando_demanda", "memory_data": memoria_atual}
+                resultado = {"response_message": f"Desculpe, {nome_usuario}, não consegui processar sua mensagem. Poderia tentar de outra forma?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
+
 
     # --- PONTO DE SAÍDA ÚNICO: ATUALIZA A MEMÓRIA E O HISTÓRICO ---
     if not resultado:
