@@ -27,11 +27,10 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.amazonaws.com',
 ]
 
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https?://localhost:\d+",
-    r"^https?://.*\.amazonaws\.com$",
-    r"^https?://.*\.elasticbeanstalk\.com$",
-    r"^https?://.*\.vercel\.app$",
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://clinicalimale-dc0r.onrender.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -201,8 +200,4 @@ LOGGING = {
         },
     },
 }
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https?://localhost:\d+",
-    r"^https?://.*\.vercel\.app$", 
-    r"^https?://.*\.onrender\.com$",
-]
+
