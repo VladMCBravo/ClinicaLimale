@@ -8,7 +8,11 @@ db.sqlite3
 
 # Arquivos de ambiente
 .env
-*.env
+.env.local
+.env.development.local
+.env.test.local
+# Permitir .env.production para deploy
+# .env.production
 
 # Arquivos do Node.js e React
 /frontend/node_modules/

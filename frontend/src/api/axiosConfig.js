@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const apiClient = axios.create({
   // ESTA LINHA É A MAIS IMPORTANTE
-  baseURL: process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://98.88.80.53:8000/api',
 });
 
 // Interceptor para adicionar o token de autenticação em todas as requisições
