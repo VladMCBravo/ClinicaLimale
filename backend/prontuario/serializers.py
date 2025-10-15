@@ -14,8 +14,7 @@ class AnamneseGinecologicaSerializer(serializers.ModelSerializer):
 class EvolucaoSerializer(serializers.ModelSerializer):
     medico = serializers.StringRelatedField(read_only=True)
     paciente = serializers.StringRelatedField(read_only=True)
-    paciente_id = serializers.IntegerField(write_only=True)
-
+    
     # <<-- CORREÇÃO APLICADA AQUI -->>
     class Meta:
         model = Evolucao
