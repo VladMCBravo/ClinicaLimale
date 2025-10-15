@@ -117,14 +117,21 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             data['modalidade'] = 'Presencial'
             
             # <<-- NOVA REGRA: ALOCAR PROCEDIMENTO NA SALA 1 -->>
+            # Alinhando a busca com o nome correto do seu banco de dados.
             try:
-                sala_procedimento = Sala.objects.get(nome="Sala 1")
+                # Tenta primeiro o nome que sabemos que existe
+                sala_procedimento = Sala.objects.get(nome__iexact="Consultório 1")
                 data['sala'] = sala_procedimento
             except Sala.DoesNotExist:
-                # Erro importante: a Sala 1 DEVE existir no banco de dados.
-                raise serializers.ValidationError({
-                    "sala": "A 'Sala 1', necessária para procedimentos, não foi encontrada no sistema. Por favor, cadastre-a."
-                })
+                # Se falhar, tenta o nome alternativo
+                try:
+                    sala_procedimento = Sala.objects.get(nome__iexact="Sala 1")
+                    data['sala'] = sala_procedimento
+                except Sala.DoesNotExist:
+                    # Se ambos falharem, lança o erro.
+                    raise serializers.ValidationError({
+                        "sala": "A sala de procedimentos ('Consultório 1' ou 'Sala 1') não foi encontrada no sistema. Por favor, cadastre-a."
+                    })
             # <<-- FIM DA NOVA REGRA -->>
         
         # Pega o valor da sala APÓS a lógica de alocação de procedimento
