@@ -52,6 +52,11 @@ class CustomUser(AbstractUser):
         blank=True, 
         verbose_name="Especialidades do Profissional"
     )
+    
+    # <<-- ADICIONE ESTE MÉTODO AQUI -->>
+    def __str__(self):
+        # Tenta usar o nome completo; se não houver, usa o username.
+        return self.get_full_name() or self.username
 
 class JornadaDeTrabalho(models.Model):
     class DiaSemana(models.IntegerChoices):

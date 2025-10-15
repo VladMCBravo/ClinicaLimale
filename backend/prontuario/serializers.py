@@ -12,25 +12,31 @@ class AnamneseGinecologicaSerializer(serializers.ModelSerializer):
 
 # Serializer para o modelo Evolucao
 class EvolucaoSerializer(serializers.ModelSerializer):
-    medico = serializers.StringRelatedField(read_only=True)
-    paciente = serializers.StringRelatedField(read_only=True)
-    
-    # <<-- CORREÇÃO APLICADA AQUI -->>
+    # <<-- MUDANÇA 1: Seja mais explícito sobre o nome do médico -->>
+    # Em vez de depender do __str__, vamos pegar o nome diretamente.
+    # Isso cria um campo 'medico_nome' na sua API.
+    medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
+
     class Meta:
         model = Evolucao
-        # A lista 'fields' não precisa mais do 'paciente_id'.
-        # A view se encarregará de associar o paciente pela URL.
+        # <<-- MUDANÇA 2: Garanta que TODOS os campos necessários estejam na lista -->>
+        # Incluímos o novo 'medico_nome' e mantivemos os outros.
         fields = [
-            'id', 'paciente', 'medico', 'data_atendimento',
-            'notas_subjetivas', 'notas_objetivas', 'avaliacao', 'plano',
+            'id',
+            'medico_nome', # Usaremos este no frontend
+            'data_atendimento',
+            'notas_subjetivas',
+            'notas_objetivas',
+            'avaliacao',
+            'plano',
             'pressao_arterial',
             'frequencia_cardiaca',
             'peso',
             'altura',
             'exames_complementares'
         ]
-
-# --- Os serializers abaixo já estavam corretos e foram mantidos ---
+        # Adicione 'medico' aqui apenas para leitura, se precisar do ID dele
+        read_only_fields = ['id', 'medico_nome']
 
 # Serializer para os Itens da Prescrição
 class ItemPrescricaoSerializer(serializers.ModelSerializer):
