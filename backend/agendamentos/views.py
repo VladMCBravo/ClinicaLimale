@@ -141,6 +141,7 @@ class ListaEsperaListView(generics.ListAPIView):
         # Filtra por agendamentos sem sala que são do dia de hoje em diante.
         return Agendamento.objects.filter(
             sala__isnull=True,
+            modalidade='Presencial',  # <-- ESSA É A NOVA CONDIÇÃO
             data_hora_inicio__gte=inicio_do_dia_de_hoje
         ).order_by('data_hora_inicio')
     
