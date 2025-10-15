@@ -58,15 +58,31 @@ class PrescricaoSerializer(serializers.ModelSerializer):
 
 # Serializer para a Anamnese
 class AnamneseSerializer(serializers.ModelSerializer):
-    # 2. Adicione o serializer aninhado aqui
-    ginecologica = AnamneseGinecologicaSerializer(required=False)
+    ginecologica = AnamneseGinecologicaSerializer(required=False, allow_null=True)
+    medico = serializers.StringRelatedField(read_only=True) # Adicionado para visualização
+    paciente = serializers.StringRelatedField(read_only=True) # Adicionado para visualização
 
     class Meta:
         model = Anamnese
-        # 3. Adicione 'ginecologica' à lista de campos
-        fields = ['id', 'paciente', 'queixa_principal', 'historia_doenca_atual', 'historico_medico_pregresso', 'ginecologica']
+        fields = [
+            'id', 'paciente', 'medico', 'queixa_principal', 
+            'historia_doenca_atual', 'historico_medico_pregresso', 
+            'historico_familiar', 'alergias', 'medicamentos_em_uso',
+            'ginecologica'
+        ]
+        # <<-- CORREÇÃO APLICADA AQUI -->>
+        # Adiciona kwargs para tornar os campos de texto opcionais na API,
+        # assim como eles são no modelo (blank=True)
+        extra_kwargs = {
+            'queixa_principal': {'required': False, 'allow_blank': True},
+            'historia_doenca_atual': {'required': False, 'allow_blank': True},
+            'historico_medico_pregresso': {'required': False, 'allow_blank': True},
+            'historico_familiar': {'required': False, 'allow_blank': True},
+            'alergias': {'required': False, 'allow_blank': True},
+            'medicamentos_em_uso': {'required': False, 'allow_blank': True},
+        }
 
-    # 4. Adicione a lógica para criar/atualizar os dados aninhados
+    # A lógica de create e update continua a mesma
     def create(self, validated_data):
         ginecologica_data = validated_data.pop('ginecologica', None)
         anamnese = Anamnese.objects.create(**validated_data)
@@ -77,13 +93,10 @@ class AnamneseSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         ginecologica_data = validated_data.pop('ginecologica', None)
         
-        # Atualiza a instância principal (Anamnese)
         instance = super().update(instance, validated_data)
 
         if ginecologica_data is not None:
-            # Tenta buscar os dados ginecológicos existentes, ou cria se não existirem
             ginecologica_instance, created = AnamneseGinecologica.objects.get_or_create(anamnese=instance)
-            # Atualiza os campos do modelo aninhado
             for attr, value in ginecologica_data.items():
                 setattr(ginecologica_instance, attr, value)
             ginecologica_instance.save()

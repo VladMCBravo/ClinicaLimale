@@ -5,6 +5,7 @@ from io import BytesIO
 from django.contrib.staticfiles import finders
 from django.http import HttpResponse
 from django.template.loader import get_template
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from rest_framework import generics, status, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
@@ -35,8 +36,24 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
         return Evolucao.objects.filter(paciente__id=paciente_id).order_by('-data_atendimento')
 
     def perform_create(self, serializer):
-        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
-        serializer.save(medico=self.request.user, paciente=paciente)
+        try:
+            # Pega o ID do paciente da URL
+            paciente_id = self.kwargs.get('paciente_id')
+            
+            # Tenta encontrar o paciente no banco de dados
+            paciente = Paciente.objects.get(id=paciente_id)
+            
+            # Salva a evolução, associando o médico logado e o paciente encontrado
+            serializer.save(medico=self.request.user, paciente=paciente)
+
+        except Paciente.DoesNotExist:
+            # Se o paciente com aquele ID não existe, levanta um erro de validação
+            raise ValidationError({"detail": f"Paciente com ID {paciente_id} não encontrado."})
+        except Exception as e:
+            # Se qualquer outro erro inesperado acontecer, levanta um erro de validação com a mensagem do erro
+            # Isso transformará o erro 500 em um 400 com uma mensagem útil!
+            raise ValidationError({"detail": f"Ocorreu um erro interno ao salvar a evolução: {str(e)}"})
+
 
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
