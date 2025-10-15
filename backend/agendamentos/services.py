@@ -2,7 +2,7 @@
 
 import logging 
 from django.utils import timezone
-from datetime import timedelta, time, date
+from datetime import datetime,timedelta, time, date
 import datetime
 from .models import Agendamento, Sala
 from usuarios.models import CustomUser, JornadaDeTrabalho

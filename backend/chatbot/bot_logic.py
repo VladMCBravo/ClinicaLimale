@@ -79,24 +79,26 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             else:
                 resultado = {"response_message": "Não entendi bem. Por favor, qual o seu primeiro nome?", "new_state": 'aguardando_nome', "memory_data": {}}
     else:
-        # --- HIERARQUIA DE PROCESSAMENTO PARA USUÁRIOS CONHECIDOS ---
+        # ==================================================================
+        # --- HIERARQUIA DE PROCESSAMENTO (ESTRUTURA CORRIGIDA) ---
+        # ==================================================================
         
         estados_de_fluxo = [
             'agendamento_awaiting_type', 'agendamento_awaiting_modality',
-            'agendamento_awaiting_specialty',
-            'agendamento_awaiting_slot_choice',
+            'agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice',
             'agendamento_awaiting_slot_confirmation', 'cadastro_awaiting_cpf',
             'cadastro_awaiting_missing_field', 'agendamento_awaiting_payment_choice',
             'agendamento_awaiting_installments', 'awaiting_inactivity_response',
-            'awaiting_schedule_confirmation',
-            'agendamento_awaiting_procedure', 'aguardando_atendente_humano',
-            'cancelamento_awaiting_cpf', 'cancelamento_awaiting_choice', 'cancelamento_awaiting_confirmation'
+            'awaiting_schedule_confirmation', 'agendamento_awaiting_procedure', 
+            'aguardando_atendente_humano', 'cancelamento_awaiting_cpf', 
+            'cancelamento_awaiting_choice', 'cancelamento_awaiting_confirmation'
         ]
 
-        # NÍVEL 1: SE ESTAMOS EM UM FLUXO, A CONTINUAÇÃO É PRIORIDADE MÁXIMA
+        # NÍVEL 1: Verifica se estamos EM UM FLUXO.
         if estado_atual in estados_de_fluxo:
             logger.warning(f"Priorizando continuação de fluxo no estado '{estado_atual}'.")
-            # Para estados especiais que não estão no AgendamentoManager
+            
+            # --- Tratamento de casos especiais que NÃO estão no AgendamentoManager ---
             if estado_atual == 'aguardando_atendente_humano':
                 if 'continuar' in user_message.lower():
                     resultado = {"response_message": f"Perfeito, {nome_usuario}! Vamos continuar nosso atendimento. Como posso te ajudar?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
@@ -104,26 +106,31 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                     resultado = {"response_message": f"Entendido, {nome_usuario}. Nossa equipe entrará em contato em breve. Aguarde um momento.", "new_state": "aguardando_atendente_humano", "memory_data": memoria_atual}
             
             elif estado_atual == 'awaiting_inactivity_response':
-                 if 'sim' in user_message.lower():
-                     estado_anterior = memoria_obj.previous_state or 'identificando_demanda'
-                     reprompt = get_reprompt_message(estado_anterior, memoria_atual)
-                     resultado = {"response_message": f"Ótimo! Continuando de onde paramos.\n\n{reprompt}", "new_state": estado_anterior, "memory_data": memoria_atual}
-                 else:
-                     resultado = {"response_message": "Entendido. Quando precisar, é só chamar!", "new_state": 'inicio', "memory_data": {'nome_usuario': nome_usuario}}
+                if 'sim' in user_message.lower():
+                    # Após uma pausa, sempre voltamos ao menu principal para evitar confusão.
+                    memoria_atual.pop('tipo_agendamento', None)
+                    memoria_atual.pop('lista_procedimentos', None)
+                    resultado = {
+                        "response_message": f"Que bom que voltou, {nome_usuario}! Como posso te ajudar agora?", 
+                        "new_state": "identificando_demanda", 
+                        "memory_data": memoria_atual
+                    }
+                else:
+                    resultado = {"response_message": "Entendido. Quando precisar, é só chamar!", "new_state": 'inicio', "memory_data": {'nome_usuario': nome_usuario}}
             
             elif estado_atual == 'awaiting_schedule_confirmation':
-                 if 'sim' in user_message.lower():
-                     manager = AgendamentoManager(session_id, memoria_atual, "")
-                     resultado = manager.processar(user_message, 'agendamento_inicio')
-                 else:
-                     resultado = {"response_message": "Tudo bem. Se mudar de ideia, é só me dizer o que gostaria de fazer.", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                if 'sim' in user_message.lower():
+                    manager = AgendamentoManager(session_id, memoria_atual, "")
+                    resultado = manager.processar(user_message, 'agendamento_inicio')
+                else:
+                    resultado = {"response_message": "Tudo bem. Se mudar de ideia, é só me dizer o que gostaria de fazer.", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
             
-            # Para todos os outros estados de fluxo, usamos o AgendamentoManager
+            # --- Para todos os outros estados de fluxo, usamos o AgendamentoManager ---
             else:
                 manager = AgendamentoManager(session_id, memoria_atual, "")
                 resultado = manager.processar(user_message, estado_atual)
 
-        # NÍVEL 2: SE NÃO ESTAMOS EM UM FLUXO, USAMOS A IA COM CONTEXTO
+        # NÍVEL 2: Se NÃO estamos em um fluxo, usamos a IA Roteadora.
         else:
             logger.warning("Nenhum fluxo ativo. Usando IA Roteadora com contexto para nova intenção.")
             try:
@@ -139,9 +146,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 entity = intent_data.get("entity")
 
                 if intent == "buscar_preco":
-                    # --- LÓGICA DE RESPOSTA PROATIVA ---
                     resposta_base = get_resposta_preco(entity, nome_usuario)
-                    # Adicionamos a camada de personalidade
                     resposta_final = f"{resposta_base} Que tal aproveitarmos para já verificar os próximos horários disponíveis para {entity}, {nome_usuario}?"
                     resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
 
@@ -149,14 +154,11 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                     manager = AgendamentoManager(session_id, memoria_atual, "")
                     resultado = manager.processar(user_message, 'agendamento_inicio')
 
-                # Adicione outros intents aqui (cancelar, triagem, etc.)
-
                 else: # pergunta_geral ou fallback
-                    # --- PASSANDO O NOME PARA A IA DO FAQ ---
                     faq_data = chain_faq.invoke({
                         "pergunta_do_usuario": user_message, 
                         "faq": faq_base_de_conhecimento,
-                        "nome_usuario": nome_usuario  # Passamos o nome aqui
+                        "nome_usuario": nome_usuario
                     })
                     resultado = {"response_message": faq_data.get("resposta"), "new_state": 'identificando_demanda', "memory_data": memoria_atual}
 
@@ -164,18 +166,14 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 logger.error(f"Erro na IA Roteadora: {e}", exc_info=True)
                 resultado = {"response_message": f"Desculpe, {nome_usuario}, não consegui processar sua mensagem. Poderia tentar de outra forma?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
 
-
     # --- PONTO DE SAÍDA ÚNICO: ATUALIZA A MEMÓRIA E O HISTÓRICO ---
     if not resultado:
         resultado = {"response_message": "Não entendi muito bem. Poderia repetir?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
         
-    # --- NOVA LÓGICA DE ATUALIZAÇÃO DE HISTÓRICO ---
     historico = resultado.get("memory_data", {}).get('historico_conversa', [])
     historico.append(f"Usuário: {user_message}")
     historico.append(f"Bot: {resultado.get('response_message')}")
-    # Mantém apenas as últimas 6 trocas (3 perguntas, 3 respostas)
     resultado['memory_data']['historico_conversa'] = historico[-6:]
-    # --- FIM DA NOVA LÓGICA ---
 
     memoria_obj.state = resultado.get("new_state")
     memoria_obj.memory_data = resultado.get("memory_data")
