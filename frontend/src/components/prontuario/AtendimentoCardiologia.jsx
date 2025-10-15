@@ -147,13 +147,14 @@ export default function AtendimentoCardiologia({ pacienteId, especialidade = 'Ca
                     
                     <TextField name="notas_subjetivas" label="Descrição Narrativa (QP e HDA)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleFieldChange} size="small" />
                 </Grid>
-                
-                <Grid item xs={12}><Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Exame Físico</Typography></Grid>
-                <Grid item xs={6} sm={3}><TextField name="pressao_arterial" label="Pressão Arterial" fullWidth value={formData.pressao_arterial || ''} onChange={handleFieldChange} size="small" /></Grid>
-                <Grid item xs={6} sm={3}><TextField name="frequencia_cardiaca" label="FC" type="number" fullWidth value={formData.frequencia_cardiaca || ''} onChange={handleFieldChange} size="small" /></Grid>
-                <Grid item xs={6} sm={3}><TextField name="peso" label="Peso (kg)" type="number" fullWidth value={formData.peso || ''} onChange={handleFieldChange} size="small" /></Grid>
-                <Grid item xs={6} sm={3}><TextField name="altura" label="Altura (m)" type="number" fullWidth value={formData.altura || ''} onChange={handleFieldChange} size="small" /></Grid>
-                <Grid item xs={12}><TextField name="notas_objetivas" label="Descrição do Exame Físico (Ausculta, Sinais, etc.)" multiline rows={2} fullWidth value={formData.notas_objetivas || ''} onChange={handleFieldChange} size="small" /></Grid>
+                {/* ▼▼▼ CORREÇÃO DE LAYOUT APLICADA AQUI ▼▼▼ */}
+                <Grid item xs={12}><Typography variant="subtitle1" sx={{ fontWeight: 'bold', mt: 1 }}>Exame Físico</Typography></Grid>
+                {/* Cada campo agora ocupa a linha inteira */}
+                <Grid item xs={12}><TextField name="pressao_arterial" label="Pressão Arterial" fullWidth value={formData.pressao_arterial || ''} onChange={handleFieldChange} size="small" /></Grid>
+                <Grid item xs={12}><TextField name="frequencia_cardiaca" label="FC" type="number" fullWidth value={formData.frequencia_cardiaca || ''} onChange={handleFieldChange} size="small" /></Grid>
+                <Grid item xs={12}><TextField name="peso" label="Peso (kg)" type="number" fullWidth value={formData.peso || ''} onChange={handleFieldChange} size="small" /></Grid>
+                <Grid item xs={12}><TextField name="altura" label="Altura (m)" type="number" fullWidth value={formData.altura || ''} onChange={handleFieldChange} size="small" /></Grid>
+                <Grid item xs={12}><TextField name="notas_objetivas" label="Descrição do Exame Físico (Ausculta, Sinais, etc.)" multiline rows={3} fullWidth value={formData.notas_objetivas || ''} onChange={handleFieldChange} size="small" /></Grid>
                 
                 <Grid item xs={12}><Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Exames Complementares</Typography><TextField name="exames_complementares" label="Resultados de ECG, Eco, etc." multiline rows={2} fullWidth value={formData.exames_complementares || ''} onChange={handleFieldChange} size="small" /></Grid>
                 <Grid item xs={12}><Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Diagnóstico / Hipóteses</Typography><TextField name="avaliacao" multiline rows={2} fullWidth value={formData.avaliacao || ''} onChange={handleFieldChange} size="small" /></Grid>
