@@ -19,11 +19,11 @@ class EvolucaoSerializer(serializers.ModelSerializer):
     # <<-- CORREÇÃO APLICADA AQUI -->>
     class Meta:
         model = Evolucao
-        # A lista 'fields' agora inclui corretamente todos os novos campos do modelo.
+        # A lista 'fields' não precisa mais do 'paciente_id'.
+        # A view se encarregará de associar o paciente pela URL.
         fields = [
             'id', 'paciente', 'medico', 'data_atendimento',
             'notas_subjetivas', 'notas_objetivas', 'avaliacao', 'plano',
-            'paciente_id',
             'pressao_arterial',
             'frequencia_cardiaca',
             'peso',
