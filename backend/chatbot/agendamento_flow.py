@@ -36,6 +36,39 @@ class AgendamentoManager:
         return list(CustomUser.objects.filter(cargo='medico', especialidades__id=especialidade_id).values('id', 'first_name', 'last_name'))
 
     def processar(self, resposta_usuario, estado_atual):
+     # ==================================================================
+        #  INÍCIO DA NOVA LÓGICA DE INTERRUPÇÃO
+        # ==================================================================
+        # NÍVEL 1: Verifica interrupções ANTES de processar o estado atual.
+        msg_lower = resposta_usuario.lower().strip()
+
+        # Verificação de Cancelamento/Desistência (aplicável a qualquer estado do fluxo)
+        palavras_cancelar = ['não quero mais', 'nao quero mais', 'cancelar', 'deixa pra lá', 'deixa pra la', 'parar']
+        if any(palavra in msg_lower for palavra in palavras_cancelar):
+            nome_usuario = self.memoria.get('nome_usuario', '')
+            # Limpa a memória do agendamento, mantendo apenas o nome e o histórico
+            memoria_limpa = {
+                'nome_usuario': nome_usuario, 
+                'historico_conversa': self.memoria.get('historico_conversa', [])
+            }
+            return {
+                "response_message": f"Tudo bem, {nome_usuario}. O processo de agendamento foi cancelado. Se mudar de ideia ou precisar de outra coisa, é só me chamar!",
+                "new_state": "identificando_demanda",
+                "memory_data": memoria_limpa
+            }
+
+        # Verificação de Correção (Procedimento -> Consulta), como visto no log
+        if estado_atual == 'agendamento_awaiting_procedure' and 'consulta' in msg_lower:
+            logger.warning(f"CORREÇÃO DE FLUXO: Usuário mudou de 'Procedimento' para 'Consulta'. Reiniciando o passo de seleção.")
+            # O usuário estava no fluxo de procedimento, mas disse "consulta".
+            # Vamos reiniciar o fluxo de tipo de agendamento, tratando "consulta" como a nova resposta.
+            return self.handle_awaiting_type("consulta")
+        # ==================================================================
+        #  FIM DA NOVA LÓGICA DE INTERRUPÇÃO
+        # ==================================================================
+
+
+        # NÍVEL 2: Processamento normal do estado (se nenhuma interrupção foi detectada)
         handlers = {
             'agendamento_inicio': self.handle_inicio,
             'agendamento_awaiting_type': self.handle_awaiting_type,
