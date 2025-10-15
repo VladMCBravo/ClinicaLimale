@@ -77,5 +77,7 @@ class AgendamentoAdmin(admin.ModelAdmin):
 class SalaAdmin(admin.ModelAdmin):
     list_display = ('id', 'nome')
     search_fields = ('nome',)
+    ordering = ('nome',) # <-- ADICIONE ESTA LINHA para ordenar por nome
+
 
 # A segunda definição de AgendamentoAdmin foi REMOVIDA para corrigir o erro.
