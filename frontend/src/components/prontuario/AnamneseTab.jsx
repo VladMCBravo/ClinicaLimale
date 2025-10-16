@@ -31,29 +31,29 @@ const especialidadeFormKeyMap = {
 
 export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese, onAnamneseSalva }) {
   const { showSnackbar } = useSnackbar();
-
-  // O estado inicial agora é mais genérico.
-  // Os dados da especialidade serão aninhados sob uma chave dinâmica se necessário.
-  const [formData, setFormData] = useState(initialAnamnese || { 
+  
+  const defaultData = { 
       queixa_principal: '', 
       historia_doenca_atual: '', 
       historico_medico_pregresso: '',
-  });
-  
+  };
+
+  const [formData, setFormData] = useState(initialAnamnese || defaultData);
   const [isSaving, setIsSaving] = useState(false);
   const [opcoesHDA, setOpcoesHDA] = useState([]);
   const [selecoesHDA, setSelecoesHDA] = useState(new Set());
 
+  // Este hook agora tem a única responsabilidade de buscar dados.
   useEffect(() => {
-    const defaultData = { 
-        queixa_principal: '', 
-        historia_doenca_atual: '', 
-        historico_medico_pregresso: '',
-    };
+    // Quando o paciente mudar (initialAnamnese mudar), resete o formulário.
     setFormData(initialAnamnese || defaultData);
 
-    // Busca as opções de checkbox para HDA
     const fetchOpcoes = async () => {
+      // O if abaixo evita uma chamada de API desnecessária se não houver especialidade
+      if (!especialidade) {
+        setOpcoesHDA([]);
+        return;
+      }
       try {
         const response = await apiClient.get(`/prontuario/opcoes-clinicas/`, {
           params: { especialidade, area_clinica: 'HDA' }
@@ -61,11 +61,17 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
         setOpcoesHDA(response.data);
       } catch (error) {
         console.error('Erro ao carregar opções de anamnese:', error);
-        showSnackbar('Erro ao carregar opções de anamnese.', 'error');
       }
     };
     fetchOpcoes();
-  }, [initialAnamnese, especialidade, showSnackbar]);
+  }, [initialAnamnese, especialidade]); // Adicionada a dependência correta
+
+  // ▼▼▼ A FUNÇÃO FOI MOVIDA PARA CÁ (PARA O ESCOPO CORRETO) ▼▼▼
+  const handleClear = () => {
+    setFormData(defaultData);
+    setSelecoesHDA(new Set()); // Limpa os checkboxes também
+    showSnackbar('Campos limpos para um novo registro.', 'info');
+  };
 
   const handleFieldChange = (event) => {
     setFormData(prev => ({
@@ -160,6 +166,7 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
       handleFieldChange={handleFieldChange}
       handleHdaCheckboxChange={handleHdaCheckboxChange}
       handleSave={handleSave}
+      handleClear={handleClear} // <-- PASSE A FUNÇÃO AQUI
     >
       {/* Renderiza o componente da especialidade dinamicamente */}
       <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>

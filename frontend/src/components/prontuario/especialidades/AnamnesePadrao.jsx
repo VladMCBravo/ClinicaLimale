@@ -13,6 +13,7 @@ export default function AnamnesePadrao({
   handleFieldChange,
   handleHdaCheckboxChange,
   handleSave,
+  handleClear, // <-- RECEBA A NOVA PROP AQUI
   children // <-- AQUI ENTRARÃO OS CAMPOS DA ESPECIALIDADE
 }) {
   return (
@@ -62,9 +63,12 @@ export default function AnamnesePadrao({
       {/* Slot para os campos da especialidade */}
       {children}
 
-      <Box>
+      <Box sx={{ display: 'flex', gap: 2 }}>
         <Button variant="contained" onClick={handleSave} disabled={isSaving}>
           {isSaving ? <CircularProgress size={24} /> : (initialAnamnese ? 'Atualizar Anamnese' : 'Salvar Anamnese')}
+        </Button>
+        <Button variant="outlined" color="secondary" onClick={handleClear}>
+          Limpar Campos
         </Button>
       </Box>
     </Box>

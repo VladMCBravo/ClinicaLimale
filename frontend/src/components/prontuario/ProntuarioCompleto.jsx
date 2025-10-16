@@ -137,7 +137,7 @@ export default function ProntuarioCompleto({ agendamento }) {
                                     pacienteId={pacienteId} 
                                     initialAnamnese={anamnese} 
                                     onAnamneseSalva={forceRefresh}
-                                    especialidade={user?.especialidades_detalhes?.[0]?.nome}
+                                    especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
                                 />
                             </AccordionDetails>
                         </Accordion>
