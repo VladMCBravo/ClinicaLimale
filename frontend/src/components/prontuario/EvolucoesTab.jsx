@@ -7,11 +7,6 @@ import { useAuth } from '../../hooks/useAuth';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Importe os formulários de atendimento que ele vai usar
-import AtendimentoGeral from './AtendimentoGeral';
-import AtendimentoCardiologia from './AtendimentoCardiologia';
-import AtendimentoPediatria from './AtendimentoPediatria'; 
-
 export default function EvolucoesTab({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
     const { user } = useAuth(); // Pega o usuário para saber a especialidade
@@ -34,28 +29,10 @@ export default function EvolucoesTab({ pacienteId }) {
         fetchEvolucoes();
     }, [fetchEvolucoes]);
 
-    // Função que decide qual formulário de atendimento renderizar
-        const renderAtendimentoForm = () => {
-        const especialidadePrincipal = user?.especialidades_detalhes?.[0]?.nome;
-
-        switch (especialidadePrincipal) {
-            case 'Cardiologia':
-                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} especialidade={especialidadePrincipal} />;
-            
-            // ▼▼▼ ADICIONE O NOVO CASO AQUI ▼▼▼
-            case 'Pediatria':
-                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
-
-            default:
-                return <AtendimentoGeral pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
-        }
-    };
+    
     return (
         <Box>
-            {/* O formulário de atendimento agora é renderizado aqui */}
-            {renderAtendimentoForm()}
-
-            <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                 Histórico de Evoluções
             </Typography>
             {isLoading ? <CircularProgress /> : (
@@ -66,7 +43,7 @@ export default function EvolucoesTab({ pacienteId }) {
                                 <Typography sx={{ width: '33%', flexShrink: 0 }}>
                                     {new Date(evolucao.data_atendimento).toLocaleDateString('pt-BR')}
                                 </Typography>
-                                <Typography sx={{ color: 'text.secondary' }}>Dr(a). {evolucao.medico_nome}</Typography>
+                                <Typography sx={{ color: 'text.secondary' }}>Dr(a). {evolucao.medico_nome || 'Não informado'}</Typography>
                             </AccordionSummary>
                              <AccordionDetails>
                                 <Box>
