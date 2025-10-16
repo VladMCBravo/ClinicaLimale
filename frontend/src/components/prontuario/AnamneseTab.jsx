@@ -1,32 +1,47 @@
-// src/components/prontuario/AnamneseTab.jsx - VERSÃO COM CAMPOS DE GINECOLOGIA
+// src/components/prontuario/AnamneseTab.jsx - VERSÃO REATORADA E DINÂMICA
 
-import React, { useState, useEffect } from 'react';
-import { Box, Button, CircularProgress, TextField, Typography, Paper, FormGroup, FormControlLabel, Checkbox, Grid, Divider } from '@mui/material';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Box, CircularProgress } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import AnamnesePadrao from './especialidades/AnamnesePadrao';
+
+// Mapeia o nome da especialidade (string) para a importação dinâmica do componente
+const especialidadeComponentMap = {
+  'Cardiologia': lazy(() => import('./especialidades/AnamneseCardiologia')),
+  'Ginecologia': lazy(() => import('./especialidades/AnamneseGinecologia')),
+  'Neonatologia': lazy(() => import('./especialidades/AnamneseNeonatologia')),
+  'Ortopedia': lazy(() => import('./especialidades/AnamneseOrtopedia')),
+  'Pediatria': lazy(() => import('./especialidades/AnamnesePediatria')),
+  'Reumatologia': lazy(() => import('./especialidades/AnamneseReumatologia')),
+  'Reumatologia Pediátrica': lazy(() => import('./especialidades/AnamneseReumatologiaPediatrica')),
+  // Adicione outras especialidades aqui conforme necessário
+};
 
 export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese, onAnamneseSalva }) {
   const { showSnackbar } = useSnackbar();
-  
-  // O estado inicial agora inclui o objeto aninhado 'ginecologica'
+
+  // O estado inicial agora é mais genérico.
+  // Os dados da especialidade serão aninhados sob uma chave dinâmica se necessário.
   const [formData, setFormData] = useState(initialAnamnese || { 
-      queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '',
-      ginecologica: {} // Inicia o objeto para os dados ginecológicos
+      queixa_principal: '', 
+      historia_doenca_atual: '', 
+      historico_medico_pregresso: '',
   });
   
   const [isSaving, setIsSaving] = useState(false);
   const [opcoesHDA, setOpcoesHDA] = useState([]);
   const [selecoesHDA, setSelecoesHDA] = useState(new Set());
-  
+
   useEffect(() => {
-    // Garante que o estado aninhado exista
     const defaultData = { 
-        queixa_principal: '', historia_doenca_atual: '', historico_medico_pregresso: '',
-        ginecologica: {}
+        queixa_principal: '', 
+        historia_doenca_atual: '', 
+        historico_medico_pregresso: '',
     };
     setFormData(initialAnamnese || defaultData);
 
-    // 2. Busca as opções de checkbox.
+    // Busca as opções de checkbox para HDA
     const fetchOpcoes = async () => {
       try {
         const response = await apiClient.get(`/prontuario/opcoes-clinicas/`, {
@@ -34,6 +49,7 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
         });
         setOpcoesHDA(response.data);
       } catch (error) {
+        console.error('Erro ao carregar opções de anamnese:', error);
         showSnackbar('Erro ao carregar opções de anamnese.', 'error');
       }
     };
@@ -41,21 +57,29 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
   }, [initialAnamnese, especialidade, showSnackbar]);
 
   const handleFieldChange = (event) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [event.target.name]: event.target.value,
-    });
+    }));
   };
-// NOVO: Handler para os campos aninhados de ginecologia
-  const handleGinecoChange = (event) => {
+
+  // Handler genérico para os campos da especialidade.
+  // Ele espera que os campos da especialidade estejam em um objeto aninhado.
+  // Ex: para Ginecologia, o campo 'dum' estará em formData.ginecologica.dum
+  const handleSpecialtyChange = (event) => {
+    const { name, value } = event.target;
+    // Converte o nome da especialidade para a chave usada no estado (ex: "Reumatologia Pediátrica" -> "reumatologia_pediatrica")
+    const specialtyKey = especialidade.toLowerCase().replace(/\s+/g, '_');
+
     setFormData(prev => ({
         ...prev,
-        ginecologica: {
-            ...prev.ginecologica,
-            [event.target.name]: event.target.value
+        [specialtyKey]: {
+            ...prev[specialtyKey],
+            [name]: value
         }
     }));
   };
+
   const handleHdaCheckboxChange = (event) => {
     const opcaoId = parseInt(event.target.name, 10);
     const isChecked = event.target.checked;
@@ -80,98 +104,48 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
     setIsSaving(true);
     const apiUrl = `/prontuario/pacientes/${pacienteId}/anamnese/`;
     try {
-      if (initialAnamnese) { // Se existia uma anamnese, atualiza (PUT)
+      if (initialAnamnese) {
         await apiClient.put(apiUrl, formData);
-      } else { // Se não, cria uma nova (POST)
+      } else {
         await apiClient.post(apiUrl, formData);
       }
       showSnackbar('Anamnese salva com sucesso!', 'success');
       
-      // AVISA A PÁGINA PRINCIPAL para recarregar tudo!
       if (onAnamneseSalva) {
         onAnamneseSalva();
       }
     } catch (error) {
-      showSnackbar('Erro ao salvar anamnese.', 'error');
+      console.error("Erro ao salvar anamnese:", error.response?.data || error.message);
+      showSnackbar(`Erro ao salvar anamnese: ${error.response?.data?.detail || 'verifique o console'}`, 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Este componente agora é SEMPRE um formulário, sem modo de visualização.
-  return (
-    <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <TextField 
-        label="Queixa Principal (QP)" 
-        name="queixa_principal" 
-        value={formData.queixa_principal} 
-        onChange={handleFieldChange} 
-        multiline 
-        rows={3} 
-        required 
-      />
-      <Paper variant="outlined" sx={{ p: 2 }}>
-        <Typography variant="subtitle1" gutterBottom>Opções para História da Doença Atual (HDA)</Typography>
-        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          {opcoesHDA.length > 0 ? opcoesHDA.map((opcao) => (
-            <FormControlLabel
-              key={opcao.id}
-              control={
-                <Checkbox checked={selecoesHDA.has(opcao.id)} onChange={handleHdaCheckboxChange} name={String(opcao.id)} />
-              }
-              label={opcao.descricao}
-            />
-          )) : <Typography variant="body2" color="text.secondary">Nenhuma opção rápida encontrada para esta especialidade.</Typography>}
-        </FormGroup>
-        <TextField 
-          label="Texto da História da Doença Atual (HDA)" 
-          name="historia_doenca_atual" 
-          value={formData.historia_doenca_atual}
-          onChange={handleFieldChange}
-          multiline 
-          rows={6} 
-          required 
-          fullWidth 
-        />
-      </Paper>      
-      <TextField 
-        label="História Médica Pregressa (HMP)" 
-        name="historico_medico_pregresso" 
-        value={formData.historico_medico_pregresso}
-        onChange={handleFieldChange}
-        multiline 
-        rows={4} 
-      />
-      {especialidade === 'Ginecologia' && (
-        <Paper variant="outlined" sx={{ p: 2, mt: 2, borderColor: 'secondary.main' }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Anamnese Ginecológica e Obstétrica</Typography>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="DUM (Última Menstruação)" name="dum" type="date" value={formData.ginecologica?.dum || ''} onChange={handleGinecoChange} InputLabelProps={{ shrink: true }} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <TextField label="Idade da Menarca" name="menarca_idade" type="number" value={formData.ginecologica?.menarca_idade || ''} onChange={handleGinecoChange} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} sm={4} md={2}><TextField label="Gesta" name="gesta" type="number" value={formData.ginecologica?.gesta || ''} onChange={handleGinecoChange} fullWidth size="small" /></Grid>
-                <Grid item xs={12} sm={4} md={2}><TextField label="Para" name="para" type="number" value={formData.ginecologica?.para || ''} onChange={handleGinecoChange} fullWidth size="small" /></Grid>
-                <Grid item xs={12} sm={4} md={2}><TextField label="Abortos" name="abortos" type="number" value={formData.ginecologica?.abortos || ''} onChange={handleGinecoChange} fullWidth size="small" /></Grid>
-                
-                <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
+  // Seleciona o componente da especialidade com base na prop
+  const SpecialtyComponent = especialidadeComponentMap[especialidade] || null;
 
-                <Grid item xs={12} sm={6}>
-                    <TextField label="Antecedentes Ginecológicos" name="antecedentes_ginecologicos" value={formData.ginecologica?.antecedentes_ginecologicos || ''} onChange={handleGinecoChange} multiline rows={4} fullWidth size="small" />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField label="Antecedentes Obstétricos" name="antecedentes_obstetricos" value={formData.ginecologica?.antecedentes_obstetricos || ''} onChange={handleGinecoChange} multiline rows={4} fullWidth size="small" />
-                </Grid>
-            </Grid>
-        </Paper>
-      )}
-      <Box>
-        <Button variant="contained" onClick={handleSave} disabled={isSaving}>
-          {isSaving ? <CircularProgress size={24} /> : (initialAnamnese ? 'Atualizar Anamnese' : 'Salvar Anamnese')}
-        </Button>
-      </Box>
-    </Box>
+  return (
+    <AnamnesePadrao
+      formData={formData}
+      opcoesHDA={opcoesHDA}
+      selecoesHDA={selecoesHDA}
+      isSaving={isSaving}
+      initialAnamnese={initialAnamnese}
+      handleFieldChange={handleFieldChange}
+      handleHdaCheckboxChange={handleHdaCheckboxChange}
+      handleSave={handleSave}
+    >
+      {/* Renderiza o componente da especialidade dinamicamente */}
+      <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
+        {SpecialtyComponent ? (
+          <SpecialtyComponent formData={formData} onChange={handleSpecialtyChange} />
+        ) : (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            {/* <Typography variant="body2">Nenhum formulário de anamnese específico para esta especialidade.</Typography> */}
+          </Box>
+        )}
+      </Suspense>
+    </AnamnesePadrao>
   );
 }
