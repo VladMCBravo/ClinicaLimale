@@ -82,7 +82,9 @@ export default function ProntuarioCompleto({ agendamento }) {
     };
     const handleCloseTelemedicina = () => setIsTelemedicinaActive(false);
 
-    if (isLoading) {
+    // ▼▼▼ MUDANÇA CRÍTICA AQUI ▼▼▼
+    // Adicione a verificação "!user" para esperar o usuário ser carregado
+    if (isLoading || !user) {
         return <CircularProgress />;
     }
 
