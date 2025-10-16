@@ -15,8 +15,16 @@ class CustomAuthTokenLoginView(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
-        user_data = {'id': user.pk, 'username': user.username, 'first_name': user.first_name, 'last_name': user.last_name, 'cargo': user.cargo }
-        return Response({ 'token': token.key, 'user': user_data })
+        
+        # ▼▼▼ 2. A MÁGICA ACONTECE AQUI ▼▼▼
+        # Em vez de criar um dicionário manual, usamos o UserSerializer.
+        # Ele já sabe como buscar e formatar as especialidades.
+        user_serializer = UserSerializer(user, context={'request': request})
+        
+        return Response({
+            'token': token.key,
+            'user': user_serializer.data  # Usamos os dados do serializer
+        })
 
 class LogoutView(APIView):
     def post(self, request, *args, **kwargs):
