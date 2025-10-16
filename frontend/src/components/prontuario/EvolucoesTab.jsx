@@ -25,10 +25,18 @@ export default function EvolucoesTab({ pacienteId }) {
     const fetchEvolucoes = useCallback(async () => {
         if (!pacienteId) { setIsLoading(false); return; }
         setIsLoading(true);
-        try {
+       try {
             const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/`);
-            setEvolucoes(response.data);
-        } catch (error) { showSnackbar('Erro ao carregar histórico.', 'error'); } 
+            
+            // ▼▼▼ LINHA DE DEBUG ESSENCIAL ▼▼▼
+            console.log('DEBUG [EvolucoesTab]: Dados recebidos da API de evoluções:', response.data);
+
+            // Garante que o que estamos salvando é sempre um array.
+            setEvolucoes(Array.isArray(response.data) ? response.data : []);
+       } catch (error) { 
+            showSnackbar('Erro ao carregar histórico.', 'error'); 
+            setEvolucoes([]); // Em caso de erro, define um array vazio para não quebrar
+        } 
         finally { setIsLoading(false); }
     }, [pacienteId, showSnackbar]);
 
@@ -72,8 +80,11 @@ export default function EvolucoesTab({ pacienteId }) {
             <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
                 <Typography variant="h6" gutterBottom>Histórico de Consultas Anteriores</Typography>
                 {isLoading ? <CircularProgress /> : (
-                    evolucoes.length > 0 ? (
-                        evolucoes.map(evolucao => (
+                    // ▼▼▼ MUDANÇA DE SEGURANÇA AQUI ▼▼▼
+                    // O .filter(Boolean) remove quaisquer itens nulos ou indefinidos da lista antes de tentar renderizá-los.
+                    // Isso impede o crash.
+                    evolucoes && evolucoes.filter(Boolean).length > 0 ? (
+                        evolucoes.filter(Boolean).map(evolucao => (
                             <Accordion key={evolucao.id} sx={{ mt: 1 }}>
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                     <Typography sx={{ width: '40%', flexShrink: 0 }}>
