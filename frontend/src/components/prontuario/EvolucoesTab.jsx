@@ -1,4 +1,4 @@
-// src/components/prontuario/EvolucoesTab.jsx - VERSÃO RECONSTRUÍDA
+// src/components/prontuario/EvolucoesTab.jsx - VERSÃO FINAL E COMPLETA
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Paper } from '@mui/material';
@@ -7,9 +7,14 @@ import { useAuth } from '../../hooks/useAuth';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Importe os formulários de atendimento que ele vai usar
+// --- IMPORTE TODOS OS SEUS FORMULÁRIOS DE ATENDIMENTO AQUI ---
+import AtendimentoPediatria from './AtendimentoPediatria';
+import AtendimentoNeonatologia from './AtendimentoNeonatologia';
 import AtendimentoCardiologia from './AtendimentoCardiologia';
-// Adicione aqui outros formulários de atendimento, como AtendimentoPediatria, etc.
+import AtendimentoGinecologia from './AtendimentoGinecologia';
+import AtendimentoObstetricia from './AtendimentoObstetricia';
+import AtendimentoOrtopedia from './AtendimentoOrtopedia';
+import AtendimentoReumatologia from './AtendimentoReumatologia';
 
 export default function EvolucoesTab({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
@@ -18,46 +23,54 @@ export default function EvolucoesTab({ pacienteId }) {
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchEvolucoes = useCallback(async () => {
+        if (!pacienteId) { setIsLoading(false); return; }
         setIsLoading(true);
         try {
             const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/`);
             setEvolucoes(response.data);
-        } catch (error) {
-            showSnackbar('Erro ao carregar histórico de evoluções.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (error) { showSnackbar('Erro ao carregar histórico.', 'error'); } 
+        finally { setIsLoading(false); }
     }, [pacienteId, showSnackbar]);
 
-    useEffect(() => {
-        fetchEvolucoes();
-    }, [fetchEvolucoes]);
+    useEffect(() => { fetchEvolucoes(); }, [fetchEvolucoes]);
 
-    // Função que decide qual formulário de atendimento renderizar
+    // --- A LÓGICA DE DECISÃO AGORA ESTÁ COMPLETA ---
     const renderAtendimentoForm = () => {
-        const especialidadePrincipal = user?.especialidades_detalhes?.[0]?.nome;
+        const especialidade = user?.especialidades_detalhes?.[0]?.nome;
 
-        switch (especialidadePrincipal) {
-            case 'Cardiologia':
-                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} especialidade={especialidadePrincipal} />;
+        switch (especialidade) {
+            case 'Pediatria':
+                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
             
-            // case 'Pediatria':
-            //     return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+            case 'Neonatologia':
+                return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+
+            case 'Cardiologia':
+                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+
+            case 'Ginecologia':
+                return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+            
+            case 'Obstetricia':
+                return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+
+            case 'Ortopedia':
+                return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
+            
+            case 'Reumatologia':
+            case 'Reumatologia Pediátrica':
+                return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucaoSalva={fetchEvolucoes} />;
 
             default:
-                // Se não houver um formulário específico, não renderiza nada ou um genérico
-                return <Typography sx={{p: 2}}>Formulário de evolução para esta especialidade não implementado.</Typography>;
+                return null;
         }
     };
 
     return (
         <Box sx={{mt: 2}}>
-            {/* 1. RENDERIZA O FORMULÁRIO PARA A CONSULTA DE HOJE */}
             {renderAtendimentoForm()}
-
-            {/* 2. RENDERIZA O HISTÓRICO DE CONSULTAS PASSADAS */}
             <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-                <Typography variant="h6" gutterBottom>Histórico de Evoluções Anteriores</Typography>
+                <Typography variant="h6" gutterBottom>Histórico de Consultas Anteriores</Typography>
                 {isLoading ? <CircularProgress /> : (
                     evolucoes.length > 0 ? (
                         evolucoes.map(evolucao => (
@@ -69,14 +82,20 @@ export default function EvolucoesTab({ pacienteId }) {
                                     <Typography sx={{ color: 'text.secondary' }}>Dr(a). {evolucao.medico_nome}</Typography>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{evolucao.notas_subjetivas}</Typography>
-                                    {/* Adicione outros campos da evolução aqui se desejar */}
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Subjetivo:</Typography>
+                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{evolucao.notas_subjetivas || 'Não informado'}</Typography>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Objetivo:</Typography>
+                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{evolucao.notas_objetivas || 'Não informado'}</Typography>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Avaliação:</Typography>
+                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{evolucao.avaliacao || 'Não informado'}</Typography>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Plano:</Typography>
+                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{evolucao.plano || 'Não informado'}</Typography>
+                                    </Box>
                                 </AccordionDetails>
                             </Accordion>
                         ))
-                    ) : (
-                        <Typography>Nenhuma evolução registrada para este paciente.</Typography>
-                    )
+                    ) : ( <Typography>Nenhuma evolução anterior registrada.</Typography> )
                 )}
             </Paper>
         </Box>
