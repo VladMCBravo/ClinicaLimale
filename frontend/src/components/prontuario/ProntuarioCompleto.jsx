@@ -141,22 +141,24 @@ export default function ProntuarioCompleto({ agendamento }) {
 
                 <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
                     <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                        <Accordion defaultExpanded={!anamnese}>
-                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography variant="h6">Anamnese</Typography>
-                                {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <AnamneseTab 
-                                    pacienteId={pacienteId} 
-                                    initialAnamnese={anamnese} 
-                                    onAnamneseSalva={forceRefresh}
-                                    especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
-                                />
-                            </AccordionDetails>
-                        </Accordion>
-                        <EvolucoesTab pacienteId={pacienteId} />
-                    </Box>
+                        <Accordion defaultExpanded={!anamnese}> {/* Recolhe se a anamnese JÁ EXISTIR */}
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="h6">Anamnese</Typography>
+            {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
+        </AccordionSummary>
+        <AccordionDetails>
+            <AnamneseTab 
+                pacienteId={pacienteId} 
+                initialAnamnese={anamnese}  // <-- VOLTAMOS A PASSAR A ANAMNESE EXISTENTE
+                onAnamneseSalva={forceRefresh}
+                especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
+            />
+        </AccordionDetails>
+    </Accordion>
+
+    {/* A EvolucoesTab agora cuida de si mesma */}
+    <EvolucoesTab pacienteId={pacienteId} />
+</Box>
                     <Box sx={{ flex: 1, minWidth: '250px' }}>
                         <PainelAcoes 
                             onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
