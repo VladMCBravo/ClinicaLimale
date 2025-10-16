@@ -59,7 +59,9 @@ export default function ProntuarioCompleto({ agendamento }) {
                 const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`).catch(() => ({ data: null }));
 
                 const [pacienteRes, anamneseRes] = await Promise.all([pacientePromise, anamnesePromise]);
-                
+                // ▼▼▼ ADICIONE ESTA LINHA DE DEBUG ▼▼▼
+                console.log('DEBUG [ProntuarioCompleto]: Anamnese recebida da API:', anamneseRes.data);
+                console.log('DEBUG [ProntuarioCompleto]: Paciente recebido da API:', pacienteRes.data);
                 setPaciente(pacienteRes.data);
                 setAnamnese(anamneseRes.data);
             } catch (err) {

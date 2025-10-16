@@ -30,6 +30,9 @@ const especialidadeFormKeyMap = {
 };
 
 export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese, onAnamneseSalva }) {
+  // ▼▼▼ ADICIONE ESTA LINHA DE DEBUG ▼▼▼
+  console.log('DEBUG [AnamneseTab]: Prop initialAnamnese recebida:', initialAnamnese);
+  
   const { showSnackbar } = useSnackbar();
   
   const defaultData = { 
