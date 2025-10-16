@@ -32,7 +32,10 @@ export default function HistoricoConsultas({ pacienteId }) {
 </Box>
             <Divider />
             {isLoading ? <CircularProgress size={24} sx={{ my: 2 }} /> : (
-                <List dense>{evolucoes.length > 0 ? evolucoes.map(ev => (<ListItem key={ev.id}><ListItemText primary={`Em ${new Date(ev.data_atendimento).toLocaleDateString('pt-BR')}`} secondary={`com Dr(a). ${ev.medico}`} /></ListItem>)) : <Typography variant="body2" sx={{ mt: 2 }}>Nenhum registro anterior.</Typography>}</List>
+                <List dense>{evolucoes.length > 0 ? evolucoes.map(ev => (<ListItem key={ev.id}><ListItemText 
+    primary={`Em ${new Date(ev.data_atendimento).toLocaleDateString('pt-BR')}`}
+    secondary={`com Dr(a). ${ev.medico_nome || 'Não informado'}`} 
+/></ListItem>)) : <Typography variant="body2" sx={{ mt: 2 }}>Nenhum registro anterior.</Typography>}</List>
             )}
         </Paper>
     );

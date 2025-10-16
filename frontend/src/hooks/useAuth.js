@@ -48,6 +48,8 @@ export const useAuth = () => {
                 } else {
                     navigate('/painel'); // Navega para o Painel da Recepção/Admin
                 }
+                // ▼▼▼ ADICIONE ESTA LINHA ▼▼▼
+                window.location.reload(); // Força o recarregamento da página
                 
                 return true; // Retorna sucesso
             }
