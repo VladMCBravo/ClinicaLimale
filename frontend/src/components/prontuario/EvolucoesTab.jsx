@@ -51,7 +51,10 @@ export default function EvolucoesTab({ pacienteId }) {
         }
     };
     return (
-        <Box>           
+        <Box>
+            {/* O formulário de atendimento agora é renderizado aqui */}
+            {renderAtendimentoForm()}
+
             <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
                 Histórico de Evoluções
             </Typography>

@@ -101,13 +101,25 @@ export default function ProntuarioCompleto({ agendamento }) {
                 <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {/* 1. Adicionamos o Accordion da Anamnese */}
                     <Accordion defaultExpanded={!anamnese}>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography variant="h6">Anamnese</Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <AnamneseTab pacienteId={pacienteId} /*...*/ />
-                        </AccordionDetails>
-                    </Accordion>
+    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography variant="h6">Anamnese</Typography>
+        {/* A lógica para mostrar "(Pendente)" continua útil */}
+        {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
+    </AccordionSummary>
+    <AccordionDetails>
+        <AnamneseTab 
+            pacienteId={pacienteId} 
+            
+            // ▼▼▼ A MUDANÇA PRINCIPAL E DEFINITIVA ESTÁ AQUI ▼▼▼
+            // Forçamos o formulário a começar em branco passando 'null'.
+            // A anamnese antiga (se existir) será usada apenas para o futuro modal de histórico.
+            initialAnamnese={null} 
+            
+            onAnamneseSalva={forceRefresh}
+            especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
+        />
+    </AccordionDetails>
+</Accordion>
                     {/* 2. E mantemos a EvolucoesTab */}
                     <EvolucoesTab pacienteId={pacienteId} />
                 </Box>
