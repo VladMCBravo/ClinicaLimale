@@ -18,6 +18,17 @@ const especialidadeComponentMap = {
   // Adicione outras especialidades aqui conforme necessário
 };
 
+// Mapeia a especialidade para a chave usada no objeto formData
+const especialidadeFormKeyMap = {
+    'Cardiologia': 'cardiologica',
+    'Ginecologia': 'ginecologica',
+    'Neonatologia': 'neonatologia',
+    'Ortopedia': 'ortopedica',
+    'Pediatria': 'pediatrica',
+    'Reumatologia': 'reumatologia',
+    'Reumatologia Pediátrica': 'reumatologia_pediatrica',
+};
+
 export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese, onAnamneseSalva }) {
   const { showSnackbar } = useSnackbar();
 
@@ -64,20 +75,31 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
   };
 
   // Handler genérico para os campos da especialidade.
-  // Ele espera que os campos da especialidade estejam em um objeto aninhado.
-  // Ex: para Ginecologia, o campo 'dum' estará em formData.ginecologica.dum
+  // Lida com os dois padrões de chamada do onChange encontrados nos componentes filhos.
   const handleSpecialtyChange = (event) => {
     const { name, value } = event.target;
-    // Converte o nome da especialidade para a chave usada no estado (ex: "Reumatologia Pediátrica" -> "reumatologia_pediatrica")
-    const specialtyKey = especialidade.toLowerCase().replace(/\s+/g, '_');
+    const specialtyKey = especialidadeFormKeyMap[especialidade];
 
-    setFormData(prev => ({
+    if (!specialtyKey) return;
+
+    // Caso 1: O componente filho passa o objeto inteiro da especialidade.
+    // O 'name' do evento corresponde à chave da especialidade (ex: 'cardiologica').
+    if (name === specialtyKey) {
+      setFormData(prev => ({
+        ...prev,
+        [specialtyKey]: value,
+      }));
+    } else {
+      // Caso 2: O componente filho passa uma atualização de campo individual (ex: Reumatologia).
+      // O 'name' do evento é o nome do campo (ex: 'sintomas').
+      setFormData(prev => ({
         ...prev,
         [specialtyKey]: {
-            ...prev[specialtyKey],
-            [name]: value
-        }
-    }));
+          ...(prev[specialtyKey] || {}),
+          [name]: value,
+        },
+      }));
+    }
   };
 
   const handleHdaCheckboxChange = (event) => {

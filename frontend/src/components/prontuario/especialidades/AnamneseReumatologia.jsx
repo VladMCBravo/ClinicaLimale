@@ -123,7 +123,7 @@ export default function AnamneseReumatologia({ formData, onChange }) {
         <Grid item xs={12} sm={6}><TextField label="Boca" value={exameFisico.boca} onChange={(e) => handleExameFisicoChange('boca', e.target.value)} fullWidth size="small" /></Grid>
         <Grid item xs={12}><TextField label="Cardiopulmonar" value={exameFisico.cardiopulmonar} onChange={(e) => handleExameFisicoChange('cardiopulmonar', e.target.value)} fullWidth size="small" /></Grid>
         <Grid item xs={12}><TextField label="Abdome" value={exameFisico.abdominal} onChange={(e) => handleExameFisicoChange('abdominal', e.target.value)} fullWidth size="small" /></Grid>
-        <Grid item xs={12}><TextField label="Neurológico" value={exameFisico.neuro} onChange={(e) => handleExameFisicoChange('neuro',.target.value)} fullWidth size="small" /></Grid>
+        <Grid item xs={12}><TextField label="Neurológico" value={exameFisico.neuro} onChange={(e) => handleExameFisicoChange('neuro', e.target.value)} fullWidth size="small" /></Grid>
         <Grid item xs={12}>
             <Tooltip title="Descreva aqui o exame articular detalhado, incluindo contagem de articulações dolorosas e edemaciadas, deformidades e manobras.">
                 <TextField 
