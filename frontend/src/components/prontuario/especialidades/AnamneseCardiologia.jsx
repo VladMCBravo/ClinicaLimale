@@ -140,17 +140,6 @@ export default function AnamneseCardiologia({ formData, onChange }) {
         ))}
       </FormGroup>
       
-      <TextField
-        label="História da Doença Atual (HDA)"
-        name="hda"
-        value={cardiologicaData.hda || ''}
-        onChange={(e) => handleGenericChange('hda', e.target.value)}
-        multiline
-        rows={10}
-        fullWidth
-        sx={{ mb: 2 }}
-      />
-
       <Divider sx={{ my: 2 }} />
 
       <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Fatores de Risco</Typography>

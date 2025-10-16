@@ -174,16 +174,7 @@ export default function AnamnesePediatria({ formData, onChange }) {
           <FormControlLabel key={opt.id} control={<Checkbox checked={sintomas[opt.id] || false} onChange={handleSintomasChange} name={opt.id} />} label={opt.label} />
         ))}
       </FormGroup>
-      <TextField
-        label="História da Doença Atual (HDA)"
-        name="hda"
-        value={pediatricaData.hda || ''}
-        onChange={(e) => handleGenericChange('hda', e.target.value)}
-        multiline
-        rows={8}
-        fullWidth
-      />
-
+      
       <Divider sx={{ my: 2 }} />
 
       {/* Exame Físico */}

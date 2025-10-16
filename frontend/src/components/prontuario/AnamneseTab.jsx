@@ -82,24 +82,27 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
 
     if (!specialtyKey) return;
 
-    // Caso 1: O componente filho passa o objeto inteiro da especialidade.
-    // O 'name' do evento corresponde à chave da especialidade (ex: 'cardiologica').
-    if (name === specialtyKey) {
-      setFormData(prev => ({
+    // Lógica unificada para lidar com ambos os padrões de chamada do onChange
+    const specialtyData = name === specialtyKey 
+      ? value 
+      : { ...(formData[specialtyKey] || {}), [name]: value };
+
+    // Extrai o HDA gerado pelo componente da especialidade, se existir
+    const hdaFromSpecialty = specialtyData.hda;
+
+    setFormData(prev => {
+      // Mantém o texto HDA digitado manualmente se o HDA gerado for indefinido ou vazio
+      // e o usuário já tiver digitado algo.
+      const newHda = hdaFromSpecialty !== undefined && hdaFromSpecialty !== ''
+        ? hdaFromSpecialty
+        : prev.historia_doenca_atual;
+
+      return {
         ...prev,
-        [specialtyKey]: value,
-      }));
-    } else {
-      // Caso 2: O componente filho passa uma atualização de campo individual (ex: Reumatologia).
-      // O 'name' do evento é o nome do campo (ex: 'sintomas').
-      setFormData(prev => ({
-        ...prev,
-        [specialtyKey]: {
-          ...(prev[specialtyKey] || {}),
-          [name]: value,
-        },
-      }));
-    }
+        [specialtyKey]: specialtyData,
+        historia_doenca_atual: newHda,
+      };
+    });
   };
 
   const handleHdaCheckboxChange = (event) => {
