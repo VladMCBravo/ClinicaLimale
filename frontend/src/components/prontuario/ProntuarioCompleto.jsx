@@ -115,13 +115,17 @@ export default function ProntuarioCompleto({ agendamento }) {
                         </AccordionSummary>
                         <AccordionDetails>
                             <AnamneseTab 
-                                pacienteId={pacienteId} 
-                                initialAnamnese={anamnese}
-                                onAnamneseSalva={forceRefresh}
-                                especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
-                            />
-                        </AccordionDetails>
-                    </Accordion>
+            pacienteId={pacienteId} 
+            
+            // ▼▼▼ A CORREÇÃO FINAL ESTÁ AQUI ▼▼▼
+            // Ao passar 'null', forçamos o formulário a iniciar com os campos vazios.
+            initialAnamnese={null}
+            
+            onAnamneseSalva={forceRefresh}
+            especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
+        />
+    </AccordionDetails>
+</Accordion>
 
                     {/* 2. Evolução do Dia (Formulário limpo + Histórico) */}
                     <EvolucoesTab pacienteId={pacienteId} />
