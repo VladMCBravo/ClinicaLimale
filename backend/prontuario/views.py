@@ -54,7 +54,16 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
             # Isso transformará o erro 500 em um 400 com uma mensagem útil!
             raise ValidationError({"detail": f"Ocorreu um erro interno ao salvar a evolução: {str(e)}"})
 
-
+# ▼▼▼ ADICIONE ESTA NOVA CLASSE ▼▼▼
+class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View para buscar, atualizar ou deletar uma única Evolução pelo seu ID.
+    """
+    queryset = Evolucao.objects.all()
+    serializer_class = EvolucaoSerializer
+    permission_classes = [IsMedicoResponsavelOrAdmin]
+    # O lookup_field 'pk' é o padrão, então não precisamos declará-lo,
+    # mas o DRF usará o ID passado na URL (ex: /evolucoes/1/) para buscar no queryset.
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
