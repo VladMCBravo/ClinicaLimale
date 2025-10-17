@@ -28,16 +28,58 @@ class IsRecepcaoOrAdmin(permissions.BasePermission):
 
 class IsMedicoResponsavelOrAdmin(permissions.BasePermission):
     """
-    Permissão que verifica se o usuário é admin ou o médico responsável pelo paciente.
+    Permissão customizada que permite acesso a um objeto (Evolucao, Prescricao, etc.) se:
+    1. O usuário for Admin.
+    2. O usuário for o médico que criou o objeto (ex: a evolução).
+    3. O usuário for o médico responsável geral pelo paciente associado ao objeto.
     """
-    def has_object_permission(self, request, view, obj):
-        if request.user.cargo == 'admin':
+    def has_permission(self, request, view):
+        """
+        Esta verificação de nível de view é um passo inicial.
+        Ela garante que um médico só pode tentar acessar listas de um paciente
+        se ele for o médico responsável.
+        """
+        # Admins sempre têm permissão
+        if request.user and request.user.is_staff:
             return True
-        if request.user.cargo == 'medico':
-            # Assumindo que o objeto 'obj' é uma instância de Paciente ou tem um campo 'paciente'
-            paciente = obj if isinstance(obj, Paciente) else getattr(obj, 'paciente', None)
-            if paciente:
-                return paciente.medico_responsavel == request.user
+
+        # Se não for admin, deve ser um médico logado
+        if not (request.user and request.user.is_authenticated and request.user.cargo == 'medico'):
+            return False
+
+        paciente_id = view.kwargs.get('paciente_id')
+        if not paciente_id:
+            # Se a URL não tiver um paciente_id, não podemos verificar, então negamos.
+            return False
+
+        try:
+            paciente = Paciente.objects.get(pk=paciente_id)
+            return paciente.medico_responsavel == request.user
+        except Paciente.DoesNotExist:
+            return False
+
+
+    def has_object_permission(self, request, view, obj):
+        """
+        Esta verificação de nível de objeto é a principal e resolve o erro 403.
+        O 'obj' aqui é a instância específica da Evolucao.
+        """
+        # Admins sempre têm permissão
+        if request.user and request.user.is_staff:
+            return True
+
+        # ▼▼▼ A CORREÇÃO ESTÁ AQUI ▼▼▼
+        # Verificação 1: O usuário logado é o médico que criou este registro?
+        # O 'obj' é a Evolução, e ele tem um campo 'medico'.
+        if hasattr(obj, 'medico') and obj.medico == request.user:
+            return True
+
+        # Verificação 2: O usuário logado é o médico responsável pelo paciente deste registro?
+        if hasattr(obj, 'paciente') and hasattr(obj.paciente, 'medico_responsavel'):
+            if obj.paciente.medico_responsavel == request.user:
+                return True
+        
+        # Se nenhuma das condições acima for atendida, nega o acesso.
         return False
 
 class AllowRead_WriteRecepcaoAdmin(BasePermission):
