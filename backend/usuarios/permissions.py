@@ -2,7 +2,7 @@
 
 from rest_framework import permissions
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-from pacientes.models import Paciente # Importe o Paciente para a permissão original
+from pacientes.models import Paciente
 
 # --- PERMISSÕES ORIGINAIS RESTAURADAS PARA GARANTIR A ESTABILIDADE ---
 
@@ -24,7 +24,7 @@ class IsRecepcaoOrAdmin(permissions.BasePermission):
             return False
         return request.user.cargo in ['admin', 'recepcao']
 
-# ESTA CLASSE FOI RESTAURADA PARA NÃO QUEBRAR OUTROS APPS (COMO 'pacientes')
+# ESTA CLASSE É ESSENCIAL PARA OUTROS APPS E FOI RESTAURADA
 class IsMedicoResponsavelOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.cargo == 'admin':
@@ -40,7 +40,7 @@ class IsMedicoResponsavelOrAdmin(permissions.BasePermission):
                 return paciente.medico_responsavel == request.user
         return False
 
-# ESTA CLASSE FOI RESTAURADA PARA NÃO QUEBRAR OUTROS APPS (COMO 'pacientes')
+# ESTA CLASSE É ESSENCIAL PARA OUTROS APPS E FOI RESTAURADA
 class AllowRead_WriteRecepcaoAdmin(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -49,20 +49,25 @@ class AllowRead_WriteRecepcaoAdmin(BasePermission):
             return True
         return request.user.cargo in ['admin', 'recepcao']
 
-# --- NOVA PERMISSÃO, SEGURA E ESPECÍFICA APENAS PARA O PRONTUÁRIO (LGPD) ---
+
+# --- NOVA PERMISSÃO, SEGURA E APLICADA APENAS AO PRONTUÁRIO (LGPD) ---
 
 class CanViewProntuario(permissions.BasePermission):
     """
     Permissão restrita para prontuários. Acesso permitido APENAS para 'medico'.
     """
     def has_permission(self, request, view):
+        """
+        Bloqueia qualquer um que não seja médico de acessar as views do prontuário.
+        """
         if not request.user or not request.user.is_authenticated:
             return False
         return request.user.cargo == 'medico'
 
     def has_object_permission(self, request, view, obj):
         """
-        Permite que um médico veja o detalhe do histórico para garantir a continuidade
-        do cuidado do paciente. A verificação de cargo já foi feita.
+        Permite que um médico veja o detalhe de qualquer histórico para continuidade
+        do cuidado, uma vez que a verificação de cargo já passou.
         """
-        return request.user.cargo == 'medico'
+        # Se o código chegou aqui, o has_permission já garantiu que o usuário é médico.
+        return True

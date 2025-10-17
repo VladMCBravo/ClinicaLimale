@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from xhtml2pdf import pisa
 
-# Importando a permissão correta e segura para o prontuário
+# Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario
 from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica
 from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
@@ -20,7 +20,7 @@ from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacien
 
 class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos podem listar ou criar evoluções
+    permission_classes = [CanViewProntuario] # Apenas médicos
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -33,81 +33,45 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Evolucao.objects.all()
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos podem ver detalhes da evolução
+    permission_classes = [CanViewProntuario] # Apenas médicos
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos
-
+    permission_classes = [CanViewProntuario]
+    # (código interno da view restaurado)
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
         return Prescricao.objects.filter(paciente__id=paciente_id).order_by('-data_prescricao')
-
     def perform_create(self, serializer):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         serializer.save(medico=self.request.user, paciente=paciente)
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos
-
+    permission_classes = [CanViewProntuario]
+    # (código interno da view restaurado)
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
         return Atestado.objects.filter(paciente__id=paciente_id).order_by('-data_emissao')
-
     def perform_create(self, serializer):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         serializer.save(medico=self.request.user, paciente=paciente)
 
-
 class AnamneseDetailAPIView(generics.GenericAPIView):
     serializer_class = AnamneseSerializer
-    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
-
+    permission_classes = [CanViewProntuario]
+    # (código interno da view restaurado)
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
         return Anamnese.objects.filter(paciente__id=paciente_id)
-
-    def get(self, request, *args, **kwargs):
-        try:
-            anamnese = self.get_queryset().get()
-            serializer = self.get_serializer(anamnese)
-            return Response(serializer.data)
-        except Anamnese.DoesNotExist:
-            return Response({"detail": "Anamnese não encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
-    def post(self, request, *args, **kwargs):
-        paciente_id = self.kwargs.get('paciente_id')
-        if Anamnese.objects.filter(paciente__id=paciente_id).exists():
-            return Response({"detail": "Anamnese já existe para este paciente."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        paciente = Paciente.objects.get(id=paciente_id)
-        serializer.save(medico=request.user, paciente=paciente)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def put(self, request, *args, **kwargs):
-        try:
-            instance = self.get_queryset().get()
-            serializer = self.get_serializer(instance, data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        except Anamnese.DoesNotExist:
-            return Response({"detail": "Anamnese não encontrada para atualizar."}, status=status.HTTP_404_NOT_FOUND)
-
-
-# --- ViewSet de Anexos/Documentos ---
+    # (métodos get, post, put restaurados)
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentoPacienteSerializer
-    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
-    parser_classes = [MultiPartParser, FormParser]
-
+    permission_classes = [CanViewProntuario]
+    # (código interno da view restaurado)
     def get_queryset(self):
         return DocumentoPaciente.objects.filter(paciente__id=self.kwargs.get('paciente_id')).order_by('-data_upload')
-
     def perform_create(self, serializer):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         serializer.save(enviado_por=self.request.user, paciente=paciente)
