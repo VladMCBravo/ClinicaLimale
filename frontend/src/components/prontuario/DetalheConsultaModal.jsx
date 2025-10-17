@@ -19,7 +19,10 @@ export default function DetalheConsultaModal({ pacienteId, evolucaoId }) {
             console.log(`Buscando detalhes da consulta em: ${apiUrl}`);
 
             apiClient.get(apiUrl)
-                .then(res => setEvolucao(res.data))
+                .then(res => {
+                    console.log('Dados da evolução recebidos da API:', res.data);
+                    setEvolucao(res.data);
+                })
                 .catch(err => {
                     // 3. Log mais detalhado e notificação para o usuário
                     console.error("Erro ao buscar detalhe da evolução:", err.response?.data || err.message);

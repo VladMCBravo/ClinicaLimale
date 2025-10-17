@@ -57,14 +57,25 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         serializer.save(medico=self.request.user, paciente=paciente)
 
-class AnamneseDetailAPIView(generics.GenericAPIView):
+class AnamneseDetailAPIView(generics.RetrieveUpdateAPIView):
+    """
+    View para buscar (GET) ou atualizar (PUT/PATCH) a anamnese de um paciente.
+    Esta view substitui a GenericAPIView anterior para resolver o erro 405.
+    """
     serializer_class = AnamneseSerializer
     permission_classes = [CanViewProntuario]
-    # (código interno da view restaurado)
-    def get_queryset(self):
+
+    def get_object(self):
+        """
+        Busca e retorna a instância única da anamnese para o paciente da URL.
+        """
         paciente_id = self.kwargs.get('paciente_id')
-        return Anamnese.objects.filter(paciente__id=paciente_id)
-    # (métodos get, post, put restaurados)
+        try:
+            # .get() é usado aqui porque esperamos apenas uma anamnese por paciente
+            return Anamnese.objects.get(paciente__id=paciente_id)
+        except Anamnese.DoesNotExist:
+            # Se não existir, o DRF tratará isso e retornará um 404 Not Found.
+            return None
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentoPacienteSerializer
