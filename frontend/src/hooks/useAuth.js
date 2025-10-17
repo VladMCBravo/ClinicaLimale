@@ -7,11 +7,13 @@ import apiClient from '../api/axiosConfig';
 const getUserFromStorage = () => {
     try {
         const userDataString = sessionStorage.getItem('userData');
+        console.log('[DEBUG] Dados do usuário no sessionStorage:', userDataString); // DEBUG
         if (userDataString && userDataString !== 'undefined') {
             const userData = JSON.parse(userDataString);
             userData.isAdmin = userData.cargo === 'admin';
             userData.isRecepcao = userData.cargo === 'recepcao';
             userData.isMedico = userData.cargo === 'medico';
+            console.log('[DEBUG] Objeto do usuário processado:', userData); // DEBUG
             return userData;
         }
     } catch (error) {
@@ -30,9 +32,11 @@ export const useAuth = () => {
 
     const login = useCallback(async (username, password) => {
         try {
+            console.log('[DEBUG] Tentando fazer login com o usuário:', username); // DEBUG
             const response = await apiClient.post('/auth/login/', { username, password });
             const { token, user: userData } = response.data;
-
+            console.log('[DEBUG] Resposta da API de login:', response.data); // DEBUG
+            
             if (token && userData) {
                 sessionStorage.setItem('authToken', token);
                 sessionStorage.setItem('userData', JSON.stringify(userData));
@@ -44,8 +48,10 @@ export const useAuth = () => {
                 // --- CORREÇÃO APLICADA AQUI ---
                 // Verifica o cargo do usuário para decidir para onde navegar
                 if (loggedInUser.isMedico) {
+                    console.log('[DEBUG] Usuário é Médico. Redirecionando para /'); // DEBUG
                     navigate('/'); // Navega para o Painel do Médico
                 } else {
+                    console.log(`[DEBUG] Usuário é ${loggedInUser.cargo}. Redirecionando para /painel`); // DEBUG
                     navigate('/painel'); // Navega para o Painel da Recepção/Admin
                 }
                 // ▼▼▼ ADICIONE ESTA LINHA ▼▼▼
