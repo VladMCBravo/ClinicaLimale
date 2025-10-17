@@ -42,12 +42,34 @@ export default function DetalheConsultaModal({ pacienteId, evolucaoId }) {
     }
 
     return (
-        // O restante do seu componente JSX permanece o mesmo
         <Box>
             <Typography variant="h5" gutterBottom>
                 Detalhes da Consulta
             </Typography>
-            {/* ... o resto do seu JSX ... */}
+            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
+                Realizada em {new Date(evolucao.data_atendimento).toLocaleDateString('pt-BR')} com Dr(a). {evolucao.medico_nome}
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Subjetivo:</Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{evolucao.notas_subjetivas || 'Não informado'}</Typography>
+            </Paper>
+            
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Objetivo:</Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{evolucao.notas_objetivas || 'Não informado'}</Typography>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Avaliação:</Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{evolucao.avaliacao || 'Não informado'}</Typography>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Plano:</Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{evolucao.plano || 'Não informado'}</Typography>
+            </Paper>
         </Box>
     );
 }
