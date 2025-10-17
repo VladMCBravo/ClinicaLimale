@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from xhtml2pdf import pisa
 
 # Importações Locais (dos seus apps)
-from usuarios.permissions import IsMedicoResponsavelOrAdmin
+from usuarios.permissions import IsMedicoResponsavelOrAdmin, CanViewProntuario
 from .models import (
     Anamnese, Atestado, DocumentoPaciente, Evolucao, 
     Paciente, Prescricao, OpcaoClinica
@@ -61,13 +61,12 @@ class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     """
     queryset = Evolucao.objects.all()
     serializer_class = EvolucaoSerializer
-    permission_classes = [IsMedicoResponsavelOrAdmin]
-    # O lookup_field 'pk' é o padrão, então não precisamos declará-lo,
+    permission_classes = [CanViewProntuario]    # O lookup_field 'pk' é o padrão, então não precisamos declará-lo,
     # mas o DRF usará o ID passado na URL (ex: /evolucoes/1/) para buscar no queryset.
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    permission_classes = [CanViewProntuario]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -80,7 +79,7 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    permission_classes = [CanViewProntuario]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -93,7 +92,7 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
 
 class AnamneseDetailAPIView(generics.GenericAPIView):
     serializer_class = AnamneseSerializer
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    permission_classes = [CanViewProntuario]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')

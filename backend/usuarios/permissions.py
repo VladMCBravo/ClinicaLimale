@@ -83,3 +83,42 @@ class AllowRead_WriteRecepcaoAdmin(BasePermission):
             
         # Se for um método de escrita (POST, PUT, etc.), verifica o cargo.
         return request.user.cargo in ['admin', 'recepcao']
+
+# ▼▼▼ USE ESTA VERSÃO CORRETA DA CLASSE ▼▼▼
+class CanViewProntuario(permissions.BasePermission):
+    """
+    Permissão restrita para prontuários, seguindo a LGPD.
+    Acesso permitido APENAS para usuários com o cargo 'medico'.
+    """
+
+    def has_permission(self, request, view):
+        """
+        Permite acesso a listas (ex: /evolucoes/) SOMENTE se o usuário for um médico.
+        Bloqueia Admins e Recepção.
+        """
+        if not request.user or not request.user.is_authenticated:
+            return False
+        # A regra principal: o cargo DEVE ser 'medico'.
+        return request.user.cargo == 'medico'
+
+    def has_object_permission(self, request, view, obj):
+        """
+        Permite acesso a um objeto específico (ex: /evolucoes/1/) se o usuário for:
+        1. O médico que criou o registro.
+        2. O médico responsável pelo paciente do registro.
+        """
+        # A primeira verificação (se o usuário é médico) já foi feita pelo has_permission,
+        # mas adicionamos aqui por segurança extra.
+        if not request.user.cargo == 'medico':
+            return False
+
+        # Verificação 1: O usuário logado é o médico que criou este registro?
+        if hasattr(obj, 'medico') and obj.medico == request.user:
+            return True
+
+        # Verificação 2: O usuário logado é o médico responsável pelo paciente deste registro?
+        if hasattr(obj, 'paciente') and hasattr(obj.paciente, 'medico_responsavel'):
+            if obj.paciente.medico_responsavel == request.user:
+                return True
+        
+        return False
