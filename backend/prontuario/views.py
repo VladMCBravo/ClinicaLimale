@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from xhtml2pdf import pisa
 
 # Importando APENAS a permissão necessária para o prontuário
-from usuarios.permissions import CanViewProntuario
+from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
 from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica
 from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
 
@@ -68,7 +68,7 @@ class AnamneseDetailAPIView(generics.GenericAPIView):
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentoPacienteSerializer
-    permission_classes = [CanViewProntuario]
+    permission_classes = [IsMedicoResponsavelOrAdmin]
     # (código interno da view restaurado)
     def get_queryset(self):
         return DocumentoPaciente.objects.filter(paciente__id=self.kwargs.get('paciente_id')).order_by('-data_upload')

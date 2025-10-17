@@ -21,7 +21,7 @@ class IsMedicoUser(permissions.BasePermission):
         print(f"[DEBUG] Checking IsMedicoUser for user: {request.user.username} on path: {request.path}")
         return request.user and request.user.is_authenticated and request.user.cargo == 'medico'
 
-class IsRecepcaoOrAdmin(permissions._BasePermission):
+class IsRecepcaoOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         print(f"[DEBUG] Checking IsRecepcaoOrAdmin for user: {request.user.username} on path: {request.path}")
         if not request.user or not request.user.is_authenticated:
