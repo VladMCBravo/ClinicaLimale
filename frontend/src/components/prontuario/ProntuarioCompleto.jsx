@@ -1,4 +1,4 @@
-// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL CORRIGIDA
+// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL COM TODAS AS CORREÇÕES
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/axiosConfig';
@@ -28,7 +28,6 @@ const modalStyle = {
     maxHeight: '90vh', overflowY: 'auto'
 };
 
-// 1. O componente agora recebe as props para controlar o modal de histórico
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal }) {  
     const { showSnackbar } = useSnackbar();
     const { user } = useAuth();
@@ -37,8 +36,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false);
-    
-    // Estado para o modal de AÇÕES (o de histórico foi removido daqui)
     const [modalAcoes, setModalAcoes] = useState(null);
     
     const pacienteId = agendamento?.paciente;
@@ -75,13 +72,14 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
     const handleOpenAcoesModal = (content) => setModalAcoes(content);
     const handleCloseAcoesModal = () => setModalAcoes(null);
     
-    // 2. AS FUNÇÕES DUPLICADAS E O ESTADO DO MODAL DE HISTÓRICO FORAM REMOVIDOS DESTE ARQUIVO
+    // ▼▼▼ ALTERAÇÃO IMPORTANTE AQUI ▼▼▼
+    // Define a especialidade da consulta em um único lugar para garantir consistência.
+    const especialidadeDaConsulta = agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome;
 
     if (isLoading || !user) {
         return <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%'}}><CircularProgress /></Box>;
     }
 
-    // --- LAYOUT DE TELEMEDICINA (LIMPO E FUNCIONAL) ---
     if (isTelemedicinaActive) {
         return (
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -91,15 +89,16 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
                         <VideoCallView roomUrl={agendamento.link_telemedicina} onClose={handleCloseTelemedicina} />
                     </Box>
                     <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {/* Em telemedicina, o foco é a evolução do dia */}
-                        <EvolucoesTab pacienteId={pacienteId} />
+                        <EvolucoesTab 
+                            pacienteId={pacienteId} 
+                            especialidade={especialidadeDaConsulta} // Passa a especialidade correta
+                        />
                     </Box>
                 </Box>
             </Box>
         );
     } 
 
-   // --- LAYOUT DO PRONTUÁRIO (SEM A COLUNA ESQUERDA) ---
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
             <PatientHeader 
@@ -109,7 +108,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             />
             
             <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
-                {/* Coluna Central: Anamnese e Evolução do Dia */}
                 <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
                     <AlertasClinicos anamnese={anamnese} />
                     <Accordion defaultExpanded={!anamnese}>
@@ -121,14 +119,19 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
                                 pacienteId={pacienteId} 
                                 initialAnamnese={anamnese}
                                 onAnamneseSalva={forceRefresh}
-                                especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
+                                // ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
+                                especialidade={especialidadeDaConsulta}
                             />
                         </AccordionDetails>
                     </Accordion>
-                    <EvolucoesTab pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />
+                    <EvolucoesTab 
+                        pacienteId={pacienteId} 
+                        onEvolucaoSalva={forceRefresh}
+                        // ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
+                        especialidade={especialidadeDaConsulta}
+                    />
                 </Box>
 
-                {/* Coluna Direita: Ações Rápidas */}
                 <Box sx={{ flex: 1.5, minWidth: '280px' }}>
                     <PainelAcoes 
                         onNovaPrescricao={() => handleOpenAcoesModal(<PrescricoesTab pacienteId={pacienteId} />)}
@@ -139,12 +142,10 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
                 </Box>
             </Box>
 
-            {/* Modal para Ações Rápidas */}
             <Modal open={!!modalAcoes} onClose={handleCloseAcoesModal}>
                 <Box sx={modalStyle}>{modalAcoes}</Box>
             </Modal>
             
-            {/* 3. Modal para o Histórico de Consultas (agora controlado por props) */}
             <Modal open={!!modalHistoricoId} onClose={onCloseHistoricoModal}>
                 <Box sx={modalStyle}>
                     <DetalheConsultaModal pacienteId={pacienteId} evolucaoId={modalHistoricoId} />

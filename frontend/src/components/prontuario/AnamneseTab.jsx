@@ -30,28 +30,36 @@ const especialidadeFormKeyMap = {
 };
 
 export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese, onAnamneseSalva }) {
-  // ▼▼▼ ADICIONE ESTA LINHA DE DEBUG ▼▼▼
-  console.log('DEBUG [AnamneseTab]: Prop initialAnamnese recebida:', initialAnamnese);
-  
   const { showSnackbar } = useSnackbar();
   
   const defaultData = { 
       queixa_principal: '', 
       historia_doenca_atual: '', 
       historico_medico_pregresso: '',
+      // Garanta que as chaves de especialidade existam para evitar erros
+      cardiologica: {},
+      ginecologica: {},
+      pediatrica: {},
+      neonatologia: {},
+      ortopedica: {},
+      obstetricia: {},      
+      reumatologia_pediatrica: {},
+      
   };
 
-  const [formData, setFormData] = useState(initialAnamnese || defaultData);
+  // 1. O estado do formulário AGORA SEMPRE começa com os dados padrão (limpo).
+  const [formData, setFormData] = useState(defaultData);
   const [isSaving, setIsSaving] = useState(false);
   const [opcoesHDA, setOpcoesHDA] = useState([]);
   const [selecoesHDA, setSelecoesHDA] = useState(new Set());
 
   useEffect(() => {
-    setFormData(initialAnamnese || defaultData);
-    setSelecoesHDA(new Set()); // <-- ADICIONE ESTA LINHA para limpar os checkboxes
+    // 2. Limpa o formulário e as seleções explicitamente sempre que o paciente/anamnese inicial mudar.
+    // Isso garante a limpeza ao trocar de paciente.
+    setFormData(defaultData);
+    setSelecoesHDA(new Set());
 
     const fetchOpcoes = async () => {
-      // O if abaixo evita uma chamada de API desnecessária se não houver especialidade
       if (!especialidade) {
         setOpcoesHDA([]);
         return;
@@ -137,19 +145,19 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
     setIsSaving(true);
     const apiUrl = `/prontuario/pacientes/${pacienteId}/anamnese/`;
     try {
+      // 3. A lógica para decidir entre PUT e POST permanece a mesma e está correta.
+      // Se `initialAnamnese` foi passado, significa que já existe um registro para ATUALIZAR (PUT).
+      // Se não, um novo registro será CRIADO (POST).
       if (initialAnamnese) {
         await apiClient.put(apiUrl, formData);
       } else {
         await apiClient.post(apiUrl, formData);
       }
       showSnackbar('Anamnese salva com sucesso!', 'success');
-      
-      if (onAnamneseSalva) {
-        onAnamneseSalva();
-      }
+      if (onAnamneseSalva) onAnamneseSalva();
     } catch (error) {
       console.error("Erro ao salvar anamnese:", error.response?.data || error.message);
-      showSnackbar(`Erro ao salvar anamnese: ${error.response?.data?.detail || 'verifique o console'}`, 'error');
+      showSnackbar(`Erro ao salvar: ${error.response?.data?.detail || 'verifique o console'}`, 'error');
     } finally {
       setIsSaving(false);
     }

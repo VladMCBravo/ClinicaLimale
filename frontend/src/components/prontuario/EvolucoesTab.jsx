@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Box } from '@mui/material';
-import { useAuth } from '../../hooks/useAuth';
 
 // Importe TODOS os seus formulários
 import AtendimentoPediatria from './AtendimentoPediatria';
@@ -13,12 +12,10 @@ import AtendimentoObstetricia from './AtendimentoObstetricia';
 import AtendimentoOrtopedia from './AtendimentoOrtopedia';
 import AtendimentoReumatologia from './AtendimentoReumatologia';
 
-export default function EvolucoesTab({ pacienteId, onEvolucaoSalva }) {
-    const { user } = useAuth();
-
+// 1. Receba a 'especialidade' diretamente via props
+export default function EvolucoesTab({ pacienteId, onEvolucaoSalva, especialidade }) {
+    
     const renderAtendimentoForm = () => {
-        const especialidade = user?.especialidades_detalhes?.[0]?.nome;
-
         switch (especialidade) {
             case 'Pediatria': return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
             case 'Neonatologia': return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
