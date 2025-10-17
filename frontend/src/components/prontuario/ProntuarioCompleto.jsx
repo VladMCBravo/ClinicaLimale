@@ -1,4 +1,4 @@
-// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL E CORRIGIDA
+// src/components/prontuario/ProntuarioCompleto.jsx
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/axiosConfig';
@@ -10,14 +10,15 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 // Seus componentes
 import PatientHeader from '../PatientHeader'; 
 import VideoCallView from '../telemedicina/VideoCallView';
-import AlertasClinicos from './AlertasClinicos';
-import PainelAcoes from './PainelAcoes';
+import DetalheConsultaModal from './DetalheConsultaModal';
 import AnamneseTab from './AnamneseTab';
 import EvolucoesTab from './EvolucoesTab';
+import PainelAcoes from './PainelAcoes';
 import PrescricoesTab from './PrescricoesTab';
 import AtestadosTab from './AtestadosTab';
 import AnexosTab from './AnexosTab';
 import ExamesDicomTab from './ExamesDicomTab';
+import HistoricoConsultas from './HistoricoConsultas'; // 1. IMPORTE o componente de histórico
 
 const modalStyle = {
     position: 'absolute', top: '50%', left: '50%',
@@ -31,16 +32,17 @@ export default function ProntuarioCompleto({ agendamento }) {
     const { showSnackbar } = useSnackbar();
     const { user } = useAuth();
     const [paciente, setPaciente] = useState(null);
-    const [anamnese, setAnamnese] = useState(undefined);
+    const [anamnese, setAnamnese] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [modalContent, setModalContent] = useState(null);
-    const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false);
+    const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false); // Estado de telemedicina
     
-    const pacienteId = agendamento?.paciente;
+    // 2. ESTADOS PARA OS MODAIS (O de histórico foi corrigido)
+    const [modalAcoes, setModalAcoes] = useState(null);
+    const [modalHistoricoId, setModalHistoricoId] = useState(null); // <-- Estado para controlar o ID da evolução no modal
 
-    const handleOpenModal = (contentComponent) => setModalContent(contentComponent);
-    const handleCloseModal = () => setModalContent(null);
+    const pacienteId = agendamento?.paciente;
+    
     const forceRefresh = () => setRefreshKey(prev => prev + 1);
 
     useEffect(() => {
@@ -56,12 +58,13 @@ export default function ProntuarioCompleto({ agendamento }) {
                 setAnamnese(anamneseRes.data);
             } catch (err) {
                 console.error("Erro ao buscar dados do prontuário:", err);
+                showSnackbar('Erro ao carregar dados do paciente.', 'error');
             } finally {
                 setIsLoading(false);
             }
         };
         fetchAllData();
-    }, [pacienteId, refreshKey]);
+    }, [pacienteId, refreshKey, showSnackbar]);
 
     const handleStartTelemedicina = () => {
         if (agendamento?.link_telemedicina) {
@@ -72,8 +75,14 @@ export default function ProntuarioCompleto({ agendamento }) {
     };
     const handleCloseTelemedicina = () => setIsTelemedicinaActive(false);
 
+    // 3. FUNÇÕES PARA CONTROLAR OS MODAIS
+    const handleOpenAcoesModal = (content) => setModalAcoes(content);
+    const handleCloseAcoesModal = () => setModalAcoes(null);
+    const handleOpenHistoricoModal = (evolucaoId) => setModalHistoricoId(evolucaoId);
+    const handleCloseHistoricoModal = () => setModalHistoricoId(null);
+
     if (isLoading || !user) {
-        return <CircularProgress />;
+        return <Box sx={{display: 'flex', justifyContent: 'center', p: 4}}><CircularProgress /></Box>;
     }
 
     // --- LAYOUT DE TELEMEDICINA (LIMPO E FUNCIONAL) ---
@@ -94,56 +103,65 @@ export default function ProntuarioCompleto({ agendamento }) {
         );
     } 
 
-    // --- LAYOUT NORMAL (LIMPO E FUNCIONAL) ---
+    // --- 4. NOVO LAYOUT PRINCIPAL COM 3 COLUNAS ---
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
-            <PatientHeader paciente={paciente} agendamento={agendamento} onStartTelemedicina={handleStartTelemedicina} />
-
-            <Box sx={{ px: 2, pt: 1 }}>
-                <AlertasClinicos anamnese={anamnese} />
-            </Box>
-
+            <PatientHeader 
+                paciente={paciente} 
+                agendamento={agendamento} 
+                onStartTelemedicina={handleStartTelemedicina}
+            />
+            
             <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
-                {/* Coluna Central do Prontuário */}
-                <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    
-                    {/* 1. Anamnese (recolhida se já existir) */}
+                {/* Coluna Esquerda: Histórico */}
+                <Box sx={{ flex: 1.5, minWidth: '280px', display: 'flex', flexDirection: 'column' }}>
+                    <HistoricoConsultas 
+                        pacienteId={pacienteId}
+                        onConsultaClick={handleOpenHistoricoModal} // <-- Conecta o clique à abertura do modal
+                    />
+                </Box>
+
+                {/* Coluna Central: Anamnese e Evolução do Dia */}
+                <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+                    {/* Anamnese continua aqui, mas não é mais o único histórico visível */}
                     <Accordion defaultExpanded={!anamnese}>
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography variant="h6">Anamnese</Typography>
-                            {!anamnese && <Typography color="error" sx={{ml:1}}>(Pendente)</Typography>}
+                            <Typography variant="h6">Anamnese Geral</Typography>
                         </AccordionSummary>
                         <AccordionDetails>
                             <AnamneseTab 
-            pacienteId={pacienteId} 
-            
-            // ▼▼▼ A CORREÇÃO FINAL ESTÁ AQUI ▼▼▼
-            // Ao passar 'null', forçamos o formulário a iniciar com os campos vazios.
-            initialAnamnese={null}
-            
-            onAnamneseSalva={forceRefresh}
-            especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
-        />
-    </AccordionDetails>
-</Accordion>
-
-                    {/* 2. Evolução do Dia (Formulário limpo + Histórico) */}
-                    <EvolucoesTab pacienteId={pacienteId} />
+                                pacienteId={pacienteId} 
+                                initialAnamnese={anamnese}
+                                onAnamneseSalva={forceRefresh}
+                                especialidade={agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome}
+                            />
+                        </AccordionDetails>
+                    </Accordion>
+                    {/* Evolução do dia continua sendo o foco principal */}
+                    <EvolucoesTab pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />
                 </Box>
 
-                {/* Coluna Direita de Ações Rápidas */}
+                {/* Coluna Direita: Ações Rápidas */}
                 <Box sx={{ flex: 1, minWidth: '250px' }}>
                     <PainelAcoes 
-                        onNovaPrescricao={() => handleOpenModal(<PrescricoesTab pacienteId={pacienteId} />)}
-                        onEmitirAtestado={() => handleOpenModal(<AtestadosTab pacienteId={pacienteId} />)}
-                        onAnexarDocumento={() => handleOpenModal(<AnexosTab pacienteId={pacienteId} />)}
-                        onVerExames={() => handleOpenModal(<ExamesDicomTab pacienteId={pacienteId} />)}
+                        onNovaPrescricao={() => handleOpenAcoesModal(<PrescricoesTab pacienteId={pacienteId} />)}
+                        onEmitirAtestado={() => handleOpenAcoesModal(<AtestadosTab pacienteId={pacienteId} />)}
+                        onAnexarDocumento={() => handleOpenAcoesModal(<AnexosTab pacienteId={pacienteId} />)}
+                        onVerExames={() => handleOpenAcoesModal(<ExamesDicomTab pacienteId={pacienteId} />)}
                     />
                 </Box>
             </Box>
 
-            <Modal open={!!modalContent} onClose={handleCloseModal}>
-                <Box sx={modalStyle}>{modalContent}</Box>
+            {/* Modal para Ações Rápidas (sem alterações) */}
+            <Modal open={!!modalAcoes} onClose={handleCloseAcoesModal}>
+                <Box sx={modalStyle}>{modalAcoes}</Box>
+            </Modal>
+            
+            {/* 5. NOVO MODAL PARA O HISTÓRICO DE CONSULTAS */}
+            <Modal open={!!modalHistoricoId} onClose={handleCloseHistoricoModal}>
+                <Box sx={modalStyle}>
+                    <DetalheConsultaModal pacienteId={pacienteId} evolucaoId={modalHistoricoId} />
+                </Box>
             </Modal>
         </Box>
     );
