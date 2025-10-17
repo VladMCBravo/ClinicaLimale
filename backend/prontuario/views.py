@@ -1,4 +1,4 @@
-# backend/prontuario/views.py - VERSÃO FINAL E ESTÁVEL
+# backend/prontuario/views.py - VERSÃO FINAL COM PERMISSÕES CORRIGIDAS
 
 from io import BytesIO
 from django.contrib.staticfiles import finders
@@ -16,11 +16,11 @@ from usuarios.permissions import CanViewProntuario
 from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica
 from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
 
-# --- Views de CRUD do Prontuário ---
+# --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
 
 class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos
+    permission_classes = [CanViewProntuario] # Apenas médicos podem listar ou criar evoluções
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -33,12 +33,19 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Evolucao.objects.all()
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos
+    permission_classes = [CanViewProntuario] # Apenas médicos podem ver detalhes da evolução
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
     permission_classes = [CanViewProntuario] # Apenas médicos
-    # ... (resto da view igual)
+
+    def get_queryset(self):
+        paciente_id = self.kwargs.get('paciente_id')
+        return Prescricao.objects.filter(paciente__id=paciente_id).order_by('-data_prescricao')
+
+    def perform_create(self, serializer):
+        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        serializer.save(medico=self.request.user, paciente=paciente)
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
