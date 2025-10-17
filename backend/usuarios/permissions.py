@@ -4,23 +4,25 @@ from rest_framework import permissions
 from pacientes.models import Paciente
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
+# --- PERMISSÕES BÁSICAS POR CARGO ---
+
 class IsAdminUser(permissions.BasePermission):
+    """ Permite acesso apenas para usuários com cargo 'admin'. """
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.cargo == 'admin'
 
 class IsRecepcaoUser(permissions.BasePermission):
+    """ Permite acesso apenas para usuários com cargo 'recepcao'. """
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.cargo == 'recepcao'
 
 class IsMedicoUser(permissions.BasePermission):
+    """ Permite acesso apenas para usuários com cargo 'medico'. """
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and request.user.cargo == 'medico'
 
-# --- CLASSE QUE ESTAVA FALTANDO ---
 class IsRecepcaoOrAdmin(permissions.BasePermission):
-    """
-    Permissão customizada para permitir acesso apenas a administradores ou recepção.
-    """
+    """ Permite acesso para 'admin' ou 'recepcao'. Útil para agendamentos e pacientes. """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
@@ -94,29 +96,27 @@ class CanViewProntuario(permissions.BasePermission):
     def has_permission(self, request, view):
         """
         Permite acesso a listas (ex: /evolucoes/) SOMENTE se o usuário for um médico.
-        Bloqueia Admins e Recepção.
+        Esta regra bloqueia Admins e Recepção de verem qualquer dado do prontuário.
         """
         if not request.user or not request.user.is_authenticated:
             return False
-        # A regra principal: o cargo DEVE ser 'medico'.
         return request.user.cargo == 'medico'
 
     def has_object_permission(self, request, view, obj):
         """
-        Permite acesso a um objeto específico (ex: /evolucoes/1/) se o usuário for:
+        Permite acesso a um objeto específico (ex: /evolucoes/1/) se o médico logado for:
         1. O médico que criou o registro.
-        2. O médico responsável pelo paciente do registro.
+        2. O médico responsável geral pelo paciente do registro.
         """
-        # A primeira verificação (se o usuário é médico) já foi feita pelo has_permission,
-        # mas adicionamos aqui por segurança extra.
+        # A verificação de cargo já foi feita em has_permission, mas é bom reforçar.
         if not request.user.cargo == 'medico':
             return False
 
-        # Verificação 1: O usuário logado é o médico que criou este registro?
+        # Verifica se o médico logado é o autor do registro
         if hasattr(obj, 'medico') and obj.medico == request.user:
             return True
 
-        # Verificação 2: O usuário logado é o médico responsável pelo paciente deste registro?
+        # Verifica se o médico logado é o responsável pelo paciente
         if hasattr(obj, 'paciente') and hasattr(obj.paciente, 'medico_responsavel'):
             if obj.paciente.medico_responsavel == request.user:
                 return True

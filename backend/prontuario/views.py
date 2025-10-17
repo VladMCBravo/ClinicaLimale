@@ -29,44 +29,26 @@ from .serializers import (
 
 class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = EvolucaoSerializer
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
         return Evolucao.objects.filter(paciente__id=paciente_id).order_by('-data_atendimento')
 
     def perform_create(self, serializer):
-        try:
-            # Pega o ID do paciente da URL
-            paciente_id = self.kwargs.get('paciente_id')
-            
-            # Tenta encontrar o paciente no banco de dados
-            paciente = Paciente.objects.get(id=paciente_id)
-            
-            # Salva a evolução, associando o médico logado e o paciente encontrado
-            serializer.save(medico=self.request.user, paciente=paciente)
+        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        serializer.save(medico=self.request.user, paciente=paciente)
 
-        except Paciente.DoesNotExist:
-            # Se o paciente com aquele ID não existe, levanta um erro de validação
-            raise ValidationError({"detail": f"Paciente com ID {paciente_id} não encontrado."})
-        except Exception as e:
-            # Se qualquer outro erro inesperado acontecer, levanta um erro de validação com a mensagem do erro
-            # Isso transformará o erro 500 em um 400 com uma mensagem útil!
-            raise ValidationError({"detail": f"Ocorreu um erro interno ao salvar a evolução: {str(e)}"})
 
-# ▼▼▼ ADICIONE ESTA NOVA CLASSE ▼▼▼
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    View para buscar, atualizar ou deletar uma única Evolução pelo seu ID.
-    """
     queryset = Evolucao.objects.all()
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario]    # O lookup_field 'pk' é o padrão, então não precisamos declará-lo,
-    # mas o DRF usará o ID passado na URL (ex: /evolucoes/1/) para buscar no queryset.
+    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
+
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
-    permission_classes = [CanViewProntuario]
+    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -79,7 +61,7 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
-    permission_classes = [CanViewProntuario]
+    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -92,7 +74,7 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
 
 class AnamneseDetailAPIView(generics.GenericAPIView):
     serializer_class = AnamneseSerializer
-    permission_classes = [CanViewProntuario]
+    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
@@ -132,7 +114,7 @@ class AnamneseDetailAPIView(generics.GenericAPIView):
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentoPacienteSerializer
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    permission_classes = [CanViewProntuario]  # CORREÇÃO APLICADA
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
