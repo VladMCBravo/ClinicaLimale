@@ -46,10 +46,9 @@ export default function AnamneseTab({ pacienteId, especialidade, initialAnamnese
   const [opcoesHDA, setOpcoesHDA] = useState([]);
   const [selecoesHDA, setSelecoesHDA] = useState(new Set());
 
-  // Este hook agora tem a única responsabilidade de buscar dados.
   useEffect(() => {
-    // Quando o paciente mudar (initialAnamnese mudar), resete o formulário.
     setFormData(initialAnamnese || defaultData);
+    setSelecoesHDA(new Set()); // <-- ADICIONE ESTA LINHA para limpar os checkboxes
 
     const fetchOpcoes = async () => {
       // O if abaixo evita uma chamada de API desnecessária se não houver especialidade

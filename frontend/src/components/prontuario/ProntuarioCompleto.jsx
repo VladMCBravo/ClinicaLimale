@@ -1,4 +1,4 @@
-// src/components/prontuario/ProntuarioCompleto.jsx
+// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL CORRIGIDA
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/axiosConfig';
@@ -18,7 +18,7 @@ import PrescricoesTab from './PrescricoesTab';
 import AtestadosTab from './AtestadosTab';
 import AnexosTab from './AnexosTab';
 import ExamesDicomTab from './ExamesDicomTab';
-import HistoricoConsultas from './HistoricoConsultas'; // 1. IMPORTE o componente de histórico
+import AlertasClinicos from './AlertasClinicos';
 
 const modalStyle = {
     position: 'absolute', top: '50%', left: '50%',
@@ -28,19 +28,19 @@ const modalStyle = {
     maxHeight: '90vh', overflowY: 'auto'
 };
 
-export default function ProntuarioCompleto({ agendamento }) {  
+// 1. O componente agora recebe as props para controlar o modal de histórico
+export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal }) {  
     const { showSnackbar } = useSnackbar();
     const { user } = useAuth();
     const [paciente, setPaciente] = useState(null);
     const [anamnese, setAnamnese] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false); // Estado de telemedicina
+    const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false);
     
-    // 2. ESTADOS PARA OS MODAIS (O de histórico foi corrigido)
+    // Estado para o modal de AÇÕES (o de histórico foi removido daqui)
     const [modalAcoes, setModalAcoes] = useState(null);
-    const [modalHistoricoId, setModalHistoricoId] = useState(null); // <-- Estado para controlar o ID da evolução no modal
-
+    
     const pacienteId = agendamento?.paciente;
     
     const forceRefresh = () => setRefreshKey(prev => prev + 1);
@@ -50,10 +50,10 @@ export default function ProntuarioCompleto({ agendamento }) {
             if (!pacienteId) { setIsLoading(false); return; }
             setIsLoading(true);
             try {
-                const pacientePromise = apiClient.get(`/pacientes/${pacienteId}/`);
-                const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`).catch(() => ({ data: null }));
-                const [pacienteRes, anamneseRes] = await Promise.all([pacientePromise, anamnesePromise]);
-                
+                const [pacienteRes, anamneseRes] = await Promise.all([
+                    apiClient.get(`/pacientes/${pacienteId}/`),
+                    apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`).catch(() => ({ data: null }))
+                ]);
                 setPaciente(pacienteRes.data);
                 setAnamnese(anamneseRes.data);
             } catch (err) {
@@ -67,22 +67,18 @@ export default function ProntuarioCompleto({ agendamento }) {
     }, [pacienteId, refreshKey, showSnackbar]);
 
     const handleStartTelemedicina = () => {
-        if (agendamento?.link_telemedicina) {
-            setIsTelemedicinaActive(true);
-        } else {
-            showSnackbar('A sala de telemedicina ainda não foi criada.', 'warning');
-        }
+        if (agendamento?.link_telemedicina) setIsTelemedicinaActive(true);
+        else showSnackbar('A sala de telemedicina ainda não foi criada.', 'warning');
     };
     const handleCloseTelemedicina = () => setIsTelemedicinaActive(false);
 
-    // 3. FUNÇÕES PARA CONTROLAR OS MODAIS
     const handleOpenAcoesModal = (content) => setModalAcoes(content);
     const handleCloseAcoesModal = () => setModalAcoes(null);
-    const handleOpenHistoricoModal = (evolucaoId) => setModalHistoricoId(evolucaoId);
-    const handleCloseHistoricoModal = () => setModalHistoricoId(null);
+    
+    // 2. AS FUNÇÕES DUPLICADAS E O ESTADO DO MODAL DE HISTÓRICO FORAM REMOVIDOS DESTE ARQUIVO
 
     if (isLoading || !user) {
-        return <Box sx={{display: 'flex', justifyContent: 'center', p: 4}}><CircularProgress /></Box>;
+        return <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%'}}><CircularProgress /></Box>;
     }
 
     // --- LAYOUT DE TELEMEDICINA (LIMPO E FUNCIONAL) ---
@@ -103,7 +99,7 @@ export default function ProntuarioCompleto({ agendamento }) {
         );
     } 
 
-    // --- 4. NOVO LAYOUT PRINCIPAL COM 3 COLUNAS ---
+   // --- LAYOUT DO PRONTUÁRIO (SEM A COLUNA ESQUERDA) ---
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
             <PatientHeader 
@@ -113,17 +109,9 @@ export default function ProntuarioCompleto({ agendamento }) {
             />
             
             <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
-                {/* Coluna Esquerda: Histórico */}
-                <Box sx={{ flex: 1.5, minWidth: '280px', display: 'flex', flexDirection: 'column' }}>
-                    <HistoricoConsultas 
-                        pacienteId={pacienteId}
-                        onConsultaClick={handleOpenHistoricoModal} // <-- Conecta o clique à abertura do modal
-                    />
-                </Box>
-
                 {/* Coluna Central: Anamnese e Evolução do Dia */}
                 <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-                    {/* Anamnese continua aqui, mas não é mais o único histórico visível */}
+                    <AlertasClinicos anamnese={anamnese} />
                     <Accordion defaultExpanded={!anamnese}>
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                             <Typography variant="h6">Anamnese Geral</Typography>
@@ -137,12 +125,11 @@ export default function ProntuarioCompleto({ agendamento }) {
                             />
                         </AccordionDetails>
                     </Accordion>
-                    {/* Evolução do dia continua sendo o foco principal */}
                     <EvolucoesTab pacienteId={pacienteId} onEvolucaoSalva={forceRefresh} />
                 </Box>
 
                 {/* Coluna Direita: Ações Rápidas */}
-                <Box sx={{ flex: 1, minWidth: '250px' }}>
+                <Box sx={{ flex: 1.5, minWidth: '280px' }}>
                     <PainelAcoes 
                         onNovaPrescricao={() => handleOpenAcoesModal(<PrescricoesTab pacienteId={pacienteId} />)}
                         onEmitirAtestado={() => handleOpenAcoesModal(<AtestadosTab pacienteId={pacienteId} />)}
@@ -152,13 +139,13 @@ export default function ProntuarioCompleto({ agendamento }) {
                 </Box>
             </Box>
 
-            {/* Modal para Ações Rápidas (sem alterações) */}
+            {/* Modal para Ações Rápidas */}
             <Modal open={!!modalAcoes} onClose={handleCloseAcoesModal}>
                 <Box sx={modalStyle}>{modalAcoes}</Box>
             </Modal>
             
-            {/* 5. NOVO MODAL PARA O HISTÓRICO DE CONSULTAS */}
-            <Modal open={!!modalHistoricoId} onClose={handleCloseHistoricoModal}>
+            {/* 3. Modal para o Histórico de Consultas (agora controlado por props) */}
+            <Modal open={!!modalHistoricoId} onClose={onCloseHistoricoModal}>
                 <Box sx={modalStyle}>
                     <DetalheConsultaModal pacienteId={pacienteId} evolucaoId={modalHistoricoId} />
                 </Box>
