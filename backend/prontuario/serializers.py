@@ -1,14 +1,36 @@
 # backend/prontuario/serializers.py - VERSÃO CORRIGIDA
 
 from rest_framework import serializers
-from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica
+from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia
 from .models import DocumentoPaciente, OpcaoClinica
+
+# --- SERIALIZERS DE ESPECIALIDADES ---
 
 class AnamneseGinecologicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnamneseGinecologica
-        # Lista de todos os campos que criamos, exceto 'anamnese' que será tratado automaticamente
-        fields = ['dum', 'menarca_idade', 'gesta', 'para', 'abortos', 'antecedentes_ginecologicos', 'antecedentes_obstetricos']
+        exclude = ['anamnese', 'id'] # Exclui a chave estrangeira e o ID automático
+
+class AnamneseOrtopediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnamneseOrtopedia
+        exclude = ['anamnese', 'id']
+
+class AnamneseCardiologiaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnamneseCardiologia
+        exclude = ['anamnese', 'id']
+
+class AnamnesePediatriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnamnesePediatria
+        exclude = ['anamnese', 'id']
+
+class AnamneseNeonatologiaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnamneseNeonatologia
+        exclude = ['anamnese', 'id']
+
 
 # Serializer para o modelo Evolucao
 class EvolucaoSerializer(serializers.ModelSerializer):
@@ -64,48 +86,79 @@ class PrescricaoSerializer(serializers.ModelSerializer):
 # Serializer para a Anamnese
 class AnamneseSerializer(serializers.ModelSerializer):
     ginecologica = AnamneseGinecologicaSerializer(required=False, allow_null=True)
-    medico = serializers.StringRelatedField(read_only=True) # Adicionado para visualização
-    paciente = serializers.StringRelatedField(read_only=True) # Adicionado para visualização
-
+    ortopedica = AnamneseOrtopediaSerializer(required=False, allow_null=True)
+    cardiologica = AnamneseCardiologiaSerializer(required=False, allow_null=True)
+    pediatrica = AnamnesePediatriaSerializer(required=False, allow_null=True)
+    neonatologia = AnamneseNeonatologiaSerializer(required=False, allow_null=True)
+    
     class Meta:
         model = Anamnese
         fields = [
-            'id', 'paciente', 'medico', 'queixa_principal', 
-            'historia_doenca_atual', 'historico_medico_pregresso', 
+            'id', 'paciente', 'medico', 'queixa_principal',
+            'historia_doenca_atual', 'historico_medico_pregresso',
             'historico_familiar', 'alergias', 'medicamentos_em_uso',
-            'ginecologica'
+            # Adicionando os nomes das relações definidas nos modelos
+            'ginecologica', 'ortopedica', 'cardiologica', 'pediatrica', 'neonatologia'
+            # (Adicione 'reumatologia', etc. aqui)
         ]
-        # <<-- CORREÇÃO APLICADA AQUI -->>
-        # Adiciona kwargs para tornar os campos de texto opcionais na API,
-        # assim como eles são no modelo (blank=True)
-        extra_kwargs = {
-            'queixa_principal': {'required': False, 'allow_blank': True},
-            'historia_doenca_atual': {'required': False, 'allow_blank': True},
-            'historico_medico_pregresso': {'required': False, 'allow_blank': True},
-            'historico_familiar': {'required': False, 'allow_blank': True},
-            'alergias': {'required': False, 'allow_blank': True},
-            'medicamentos_em_uso': {'required': False, 'allow_blank': True},
-        }
+        extra_kwargs = { field: {'required': False, 'allow_blank': True, 'allow_null': True}
+                         for field in ['queixa_principal', 'historia_doenca_atual',
+                                       'historico_medico_pregresso', 'historico_familiar',
+                                       'alergias', 'medicamentos_em_uso'] }
 
-    # A lógica de create e update continua a mesma
     def create(self, validated_data):
+        # Separando os dados das especialidades
         ginecologica_data = validated_data.pop('ginecologica', None)
+        ortopedica_data = validated_data.pop('ortopedica', None)
+        cardiologica_data = validated_data.pop('cardiologica', None)
+        pediatrica_data = validated_data.pop('pediatrica', None)
+        neonatologia_data = validated_data.pop('neonatologia', None)
+        # (Adicione .pop() para Reumatologia, etc.)
+
+        # Cria a Anamnese principal
         anamnese = Anamnese.objects.create(**validated_data)
-        if ginecologica_data:
-            AnamneseGinecologica.objects.create(anamnese=anamnese, **ginecologica_data)
+
+        # Cria os registros das especialidades, se os dados foram enviados
+        if ginecologica_data: AnamneseGinecologica.objects.create(anamnese=anamnese, **ginecologica_data)
+        if ortopedica_data: AnamneseOrtopedia.objects.create(anamnese=anamnese, **ortopedica_data)
+        if cardiologica_data: AnamneseCardiologia.objects.create(anamnese=anamnese, **cardiologica_data)
+        if pediatrica_data: AnamnesePediatria.objects.create(anamnese=anamnese, **pediatrica_data)
+        if neonatologia_data: AnamneseNeonatologia.objects.create(anamnese=anamnese, **neonatologia_data)
+        # (Adicione create para Reumatologia, etc.)
+
         return anamnese
 
     def update(self, instance, validated_data):
+        # Separando os dados das especialidades
         ginecologica_data = validated_data.pop('ginecologica', None)
-        
+        ortopedica_data = validated_data.pop('ortopedica', None)
+        cardiologica_data = validated_data.pop('cardiologica', None)
+        pediatrica_data = validated_data.pop('pediatrica', None)
+        neonatologia_data = validated_data.pop('neonatologia', None)
+        # (Adicione .pop() para Reumatologia, etc.)
+
+        # Atualiza a Anamnese principal
         instance = super().update(instance, validated_data)
 
-        if ginecologica_data is not None:
-            ginecologica_instance, created = AnamneseGinecologica.objects.get_or_create(anamnese=instance)
-            for attr, value in ginecologica_data.items():
-                setattr(ginecologica_instance, attr, value)
-            ginecologica_instance.save()
-            
+        # Atualiza ou cria os registros das especialidades
+        specialty_data_map = {
+            'ginecologica': (AnamneseGinecologica, ginecologica_data),
+            'ortopedica': (AnamneseOrtopedia, ortopedica_data),
+            'cardiologica': (AnamneseCardiologia, cardiologica_data),
+            'pediatrica': (AnamnesePediatria, pediatrica_data),
+            'neonatologia': (AnamneseNeonatologia, neonatologia_data),
+            # (Adicione Reumatologia, etc.)
+        }
+
+        for field_name, (ModelClass, data) in specialty_data_map.items():
+            if data is not None:
+                obj, created = ModelClass.objects.get_or_create(anamnese=instance)
+                for attr, value in data.items():
+                    setattr(obj, attr, value)
+                obj.save()
+            elif hasattr(instance, field_name): # Se data é None, remove se existir
+                getattr(instance, field_name).delete()
+
         return instance
 
 # Serializer para os Atestados
