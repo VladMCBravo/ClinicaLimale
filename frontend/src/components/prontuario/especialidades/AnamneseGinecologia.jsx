@@ -1,6 +1,6 @@
 // src/components/prontuario/especialidades/AnamneseGinecologia.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider } from '@mui/material';
+import { Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio} from '@mui/material';
 
 const sintomasOptions = [
     { id: 'corrimento', label: 'Corrimento Vaginal' },
