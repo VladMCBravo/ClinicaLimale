@@ -23,7 +23,7 @@ export default function SalasPage() {
     const fetchSalas = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await agendamentosService.getSalas();
+            const response = await agendamentoService.getSalas();
             setSalas(response.data);
         } catch (error) {
             showSnackbar('Erro ao carregar salas.', 'error');
@@ -63,9 +63,9 @@ export default function SalasPage() {
             const dataToSend = { nome: formData.nome };
 
             if (itemParaEditar) {
-                await agendamentosService.updateSala(itemParaEditar.id, dataToSend);
+                await agendamentoService.updateSala(itemParaEditar.id, dataToSend);
             } else {
-                await agendamentosService.createSala(dataToSend);
+                await agendamentoService.createSala(dataToSend);
             }
             showSnackbar('Sala salva com sucesso!', 'success');
             handleCloseModal();
@@ -80,7 +80,7 @@ export default function SalasPage() {
     const handleDelete = async (id) => {
         if (window.confirm('Tem certeza que deseja deletar esta sala?')) {
             try {
-                await agendamentosService.deleteSala(id);
+                await agendamentoService.deleteSala(id);
                 showSnackbar('Sala deletada com sucesso!', 'success');
                 fetchSalas();
             } catch (error) {
