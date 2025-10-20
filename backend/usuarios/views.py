@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from .models import CustomUser, Especialidade
-from .serializers import UserSerializer, EspecialidadeSerializer
+from .models import CustomUser, Especialidade, JornadaDeTrabalho
+from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer
 
 # --- SUAS VIEWS DE AUTENTICAÇÃO (SEM MUDANÇAS) ---
 class CustomAuthTokenLoginView(ObtainAuthToken):
@@ -60,3 +60,22 @@ class EspecialidadeViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             self.permission_classes = [IsAdminUser]
         return super().get_permissions()
+
+# --- ADICIONE ESTE NOVO VIEWSET ---
+class JornadaTrabalhoViewSet(viewsets.ModelViewSet):
+    serializer_class = JornadaDeTrabalhoSerializer
+    permission_classes = [IsAdminUser] # Apenas Admin pode definir jornadas
+
+    def get_queryset(self):
+        """
+        Retorna todas as jornadas, com 'select_related' para otimizar
+        a busca pelo nome do médico.
+        """
+        queryset = JornadaDeTrabalho.objects.all().select_related('medico')
+        
+        # Permite filtrar por médico, ex: /api/jornadas/?medico_id=2
+        medico_id = self.request.query_params.get('medico_id')
+        if medico_id:
+            queryset = queryset.filter(medico_id=medico_id)
+            
+        return queryset.order_by('medico__first_name', 'dia_da_semana', 'hora_inicio')

@@ -1,7 +1,7 @@
 # backend/usuarios/serializers.py - VERSÃO FINAL E CORRIGIDA
 
 from rest_framework import serializers
-from .models import CustomUser, Especialidade
+from .models import CustomUser, Especialidade, JornadaDeTrabalho
 
 class EspecialidadeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -57,3 +57,24 @@ class UserSerializer(serializers.ModelSerializer):
             instance.especialidades.set(especialidades_data)
 
         return super().update(instance, validated_data)
+
+# --- ADICIONE ESTE NOVO SERIALIZER ---
+class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
+    # Para leitura (quando listamos), mostra o nome do médico
+    medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
+    # Para leitura (quando listamos), mostra o nome do dia
+    dia_da_semana_display = serializers.CharField(source='get_dia_da_semana_display', read_only=True)
+
+    # Para escrita (quando criamos/editamos), usa o ID
+    medico = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.filter(cargo='medico')
+    )
+    
+    class Meta:
+        model = JornadaDeTrabalho
+        fields = [
+            'id', 'medico', 'medico_nome', 'dia_da_semana', 
+            'dia_da_semana_display', 'hora_inicio', 'hora_fim', 
+            'intervalo_consulta', 'ativo'
+        ]
+        read_only_fields = ['medico_nome', 'dia_da_semana_display']

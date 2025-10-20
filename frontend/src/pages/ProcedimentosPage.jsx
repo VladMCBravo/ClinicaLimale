@@ -38,15 +38,15 @@ export default function ProcedimentosPage() {
     }, [fetchProcedimentos]);
 
     const handleOpenModal = (item = null) => {
-        setItemParaEditar(item);
-        if (item) {
-            // Confirme se os campos se chamam 'nome' e 'valor'
-            setFormData({ nome: item.nome, valor: item.valor || '' });
-        } else {
-            setFormData({ nome: '', valor: '' });
-        }
-        setIsModalOpen(true);
-    };
+    setItemParaEditar(item);
+    if (item) {
+        // --- MUDE AQUI ---
+        setFormData({ nome: item.descricao, valor: item.valor_particular || '' });
+    } else {
+        setFormData({ nome: '', valor: '' });
+    }
+    setIsModalOpen(true);
+};
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
@@ -63,12 +63,12 @@ export default function ProcedimentosPage() {
         try {
             // Confirme os nomes dos campos
             const dataToSend = {
-                nome: formData.nome,
-                valor: formData.valor ? parseFloat(formData.valor) : null
-            };
+            descricao: formData.nome, // O campo 'nome' do formulário vai para 'descricao' na API
+            valor_particular: formData.valor ? parseFloat(formData.valor) : null
+        };
 
-            if (itemParaEditar) {
-                await faturamentoService.updateProcedimento(itemParaEditar.id, dataToSend);
+        if (itemParaEditar) {
+            await faturamentoService.updateProcedimento(itemParaEditar.id, dataToSend);
             } else {
                 await faturamentoService.createProcedimento(dataToSend);
             }
@@ -115,13 +115,15 @@ export default function ProcedimentosPage() {
                     </TableHead>
                     <TableBody>
                         {procedimentos.map((item) => (
-                            <TableRow key={item.id} hover>
-                                <TableCell>{item.nome}</TableCell>
-                                <TableCell>
-                                    {/* Confirme se o campo é 'item.valor' */}
-                                    {item.valor ? `R$ ${parseFloat(item.valor).toFixed(2)}` : 'Não definido'}
-                                </TableCell>
-                                <TableCell align="right">
+                        <TableRow key={item.id} hover>
+                        {/* --- MUDE DE item.nome PARA item.descricao --- */}
+                        <TableCell>{item.descricao}</TableCell>
+            
+                        {/* --- MUDE DE item.valor PARA item.valor_particular (ou o nome correto) --- */}
+                        <TableCell>
+                        {item.valor_particular ? `R$ ${parseFloat(item.valor_particular).toFixed(2)}` : 'Não definido'}
+                        </TableCell>
+                        <TableCell align="right">
                                     <IconButton onClick={() => handleOpenModal(item)}><EditIcon /></IconButton>
                                     <IconButton onClick={() => handleDelete(item.id)}><DeleteIcon color="error" /></IconButton>
                                 </TableCell>
@@ -134,9 +136,12 @@ export default function ProcedimentosPage() {
             <Dialog open={isModalOpen} onClose={handleCloseModal} fullWidth maxWidth="sm">
                 <DialogTitle>{itemParaEditar ? 'Editar Procedimento' : 'Novo Procedimento'}</DialogTitle>
                 <DialogContent>
-                    <TextField
-                        autoFocus margin="dense" label="Nome do Procedimento" type="text" fullWidth
-                        variant="outlined" value={formData.nome}
+    <TextField
+        autoFocus margin="dense" 
+        // --- MUDE O LABEL ---
+        label="Nome do Procedimento (Descrição)" 
+        type="text" fullWidth
+        variant="outlined" value={formData.nome}
                         onChange={(e) => setFormData({...formData, nome: e.target.value})}
                         sx={{ mt: 1, mb: 2 }}
                     />

@@ -6,7 +6,8 @@ from .views import (
     CustomAuthTokenLoginView,
     LogoutView,
     CustomUserViewSet,
-    EspecialidadeViewSet
+    EspecialidadeViewSet,
+    JornadaTrabalhoViewSet
 )
 
 # O Router é a forma padrão do Django Rest Framework de criar
@@ -14,7 +15,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'usuarios', CustomUserViewSet, basename='usuario')
 router.register(r'especialidades', EspecialidadeViewSet, basename='especialidade')
-
+router.register(r'jornadas', JornadaTrabalhoViewSet, basename='jornada')
 # As urlpatterns agora incluem as rotas de autenticação
 # e todas as rotas geradas pelo router.
 urlpatterns = [
