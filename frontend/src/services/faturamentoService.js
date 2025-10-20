@@ -1,6 +1,11 @@
 // src/services/faturamentoService.js - VERSÃO COMPLETA E ATUALIZADA
-
 import apiClient from '../api/axiosConfig';
+
+
+// --- ADICIONE ESTAS DUAS FUNÇÕES ABAIXO ---
+const createProcedimento = (data) => apiClient.post('/faturamento/procedimentos/', data);
+const deleteProcedimento = (id) => apiClient.delete(`/faturamento/procedimentos/${id}/`);
+// --- FIM DA ADIÇÃO ---
 
 // --- Funções para Procedimentos e Preços (já existentes) ---
 const getProcedimentos = () => apiClient.get('/faturamento/procedimentos/');
@@ -52,6 +57,8 @@ const updatePagamento = (pagamentoId, data) => {
 export const faturamentoService = {
     // Procedimentos
     getProcedimentos,
+    createProcedimento,    // <-- Adicione esta linha
+    deleteProcedimento,
     updateProcedimento,
     definirPrecoConvenio,
     getPlanosConvenio,

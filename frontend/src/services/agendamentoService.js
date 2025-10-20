@@ -31,6 +31,19 @@ const getListaEspera = () => {
 const getSalas = () => {
     return apiClient.get('/agendamentos/salas/');
 };
+// --- ADICIONE ESTAS 3 FUNÇÕES ABAIXO ---
+const createSala = (data) => {
+    return apiClient.post('/agendamentos/salas/', data);
+};
+
+const updateSala = (id, data) => {
+    return apiClient.put(`/agendamentos/salas/${id}/`, data);
+};
+
+const deleteSala = (id) => {
+    return apiClient.delete(`/agendamentos/salas/${id}/`);
+};
+
 const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
 const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
 const verificarCapacidade = (inicio, fim) => {
@@ -75,6 +88,9 @@ export const agendamentoService = {
     getAgendamentosHoje,
     getListaEspera,
     getSalas, // <-- Exporte a nova função
+    createSala,
+    updateSala,
+    deleteSala,
     createAgendamento,
     updateAgendamento,
     getModalData,
