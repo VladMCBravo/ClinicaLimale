@@ -1,4 +1,4 @@
-// src/pages/ConfiguracoesPage.jsx - VERSÃO REVISADA
+// src/pages/ConfiguracoesPage.jsx - VERSÃO REVISADA E LIMPA
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Typography, Paper, Table, TableBody, TableCell, 
@@ -7,7 +7,7 @@ import {
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import UsuarioModal from '../components/configuracoes/UsuarioModal';
-import { Link as RouterLink } from 'react-router-dom';
+// import { Link as RouterLink } from 'react-router-dom'; // <-- NÃO PRECISA MAIS
 import EditIcon from '@mui/icons-material/Edit';
 
 export default function ConfiguracoesPage() {
@@ -57,68 +57,64 @@ export default function ConfiguracoesPage() {
     if (isLoading) return <CircularProgress />;
 
     return (
-        <Paper sx={{ p: 2, margin: 'auto' }}>
+        // O Paper foi removido, pois o Outlet no layout já está dentro de um <Box p={3}>
+        // Se preferir manter o Paper, pode deixar.
+        <>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5">Configurações Gerais</Typography> {/* Título ajustado para ser mais genérico */}
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button variant="outlined" component={RouterLink} to="/configuracoes/categorias-despesa">
-                        Categorias de Despesa
-                    </Button>
-                    <Button variant="outlined" component={RouterLink} to="/configuracoes/convenios">
-                        Convênios
-                    </Button>
-                    {/* --- BOTÃO NOVO ADICIONADO AQUI --- */}
-                    <Button variant="outlined" component={RouterLink} to="/configuracoes/especialidades">
-                        Especialidades
-                    </Button>
-                    <Button variant="contained" onClick={() => handleOpenModal()}> {/* Modificado */}
-                        Criar Novo Usuário
-                    </Button>
-                </Box>
+                {/* --- TÍTULO MUDADO --- */}
+                <Typography variant="h5">Gestão de Usuários</Typography>
+                
+                {/* --- BOTÕES DE NAVEGAÇÃO REMOVIDOS --- */}
+                
+                <Button variant="contained" onClick={() => handleOpenModal()}>
+                    Criar Novo Usuário
+                </Button>
             </Box>
-            {/* --- CORREÇÃO: A TABELA QUE ESTAVA FALTANDO FOI ADICIONADA AQUI --- */}
-            <TableContainer>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Nome Completo</TableCell>
-                            <TableCell>Usuário (Login)</TableCell>
-                            <TableCell>Cargo</TableCell>
-                            <TableCell align="center">Status (Ativo)</TableCell>
-                            <TableCell align="right">Ações</TableCell> {/* <-- NOVA COLUNA */}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {users.map((user) => (
-                            <TableRow key={user.id} hover>
-                                <TableCell>{user.first_name} {user.last_name}</TableCell>
-                                <TableCell>{user.username}</TableCell>
-                                <TableCell sx={{ textTransform: 'capitalize' }}>{user.cargo}</TableCell>
-                                <TableCell align="center">
-                                    <Switch
-                                        checked={user.is_active}
-                                        onChange={() => handleToggleActive(user)}
-                                        color="success"
-                                        title={user.is_active ? "Desativar usuário" : "Ativar usuário"}
-                                    />
-                                 </TableCell>
-                                <TableCell align="right"> {/* <-- CÉLULA COM O BOTÃO */}
-                                    <IconButton onClick={() => handleOpenModal(user)}>
-                                        <EditIcon />
-                                    </IconButton>
-                                </TableCell>
+            
+            <Paper> {/* Adicionei o Paper aqui para conter a tabela */}
+                <TableContainer>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Nome Completo</TableCell>
+                                <TableCell>Usuário (Login)</TableCell>
+                                <TableCell>Cargo</TableCell>
+                                <TableCell align="center">Status (Ativo)</TableCell>
+                                <TableCell align="right">Ações</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {users.map((user) => (
+                                <TableRow key={user.id} hover>
+                                    <TableCell>{user.first_name} {user.last_name}</TableCell>
+                                    <TableCell>{user.username}</TableCell>
+                                    <TableCell sx={{ textTransform: 'capitalize' }}>{user.cargo}</TableCell>
+                                    <TableCell align="center">
+                                        <Switch
+                                            checked={user.is_active}
+                                            onChange={() => handleToggleActive(user)}
+                                            color="success"
+                                            title={user.is_active ? "Desativar usuário" : "Ativar usuário"}
+                                        />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <IconButton onClick={() => handleOpenModal(user)}>
+                                            <EditIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
 
             <UsuarioModal 
                 open={isModalOpen}
                 onClose={handleCloseModal}
                 onSave={fetchUsers}
-                usuarioParaEditar={editingUser} // <-- NOVA PROP
+                usuarioParaEditar={editingUser}
             />
-        </Paper>
+        </>
     );
 }

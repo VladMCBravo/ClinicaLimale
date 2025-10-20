@@ -1,6 +1,6 @@
 // src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
 // --- 1. IMPORTE OS COMPONENTES NECESSÁRIOS ---
@@ -19,11 +19,15 @@ import PainelRecepcaoPage from './pages/PainelRecepcaoPage'; // <-- ADICIONE EST
 import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
+import ConfiguracoesLayout from './layouts/ConfiguracoesLayout'; // Importe o novo layout
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 import CategoriasDespesaPage from './pages/CategoriasDespesaPage';
 import ConveniosPage from './pages/ConveniosPage';
 import EspecialidadesPage from './pages/EspecialidadesPage';
 import TelemedicinaPage from './pages/TelemedicinaPage';
+import JornadaTrabalhoPage from './pages/JornadaTrabalhoPage';
+import ProcedimentosPage from './pages/ProcedimentosPage';
+import SalasPage from './pages/SalasPage';
 
 function App() {
   return (
@@ -45,10 +49,17 @@ function App() {
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
                 <Route path="/telemedicina" element={<TelemedicinaPage />} />
                 <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-                <Route path="/configuracoes/categorias-despesa" element={<CategoriasDespesaPage />} />
-                <Route path="/configuracoes/convenios" element={<ConveniosPage />} />
-                <Route path="/configuracoes/especialidades" element={<EspecialidadesPage />} />
+                <Route path="/configuracoes" element={<ConfiguracoesLayout />}>
+                {/* Redireciona /configuracoes para /configuracoes/usuarios */}
+                <Route index element={<Navigate to="usuarios" replace />} /> 
+                <Route path="usuarios" element={<ConfiguracoesPage />} />
+                <Route path="especialidades" element={<EspecialidadesPage />} />
+                <Route path="jornadas" element={<JornadaTrabalhoPage />} /> {/* <-- NOVO */}
+                <Route path="convenios" element={<ConveniosPage />} />
+                <Route path="categorias-despesa" element={<CategoriasDespesaPage />} />
+                <Route path="procedimentos" element={<ProcedimentosPage />} /> {/* <-- NOVO */}
+                <Route path="salas" element={<SalasPage />} /> {/* <-- NOVO */}
+                </Route> {/* <-- Esta linha (60) fecha o </ProtectedRoute> */}
               </Route>
             </Route>
           </Routes>
