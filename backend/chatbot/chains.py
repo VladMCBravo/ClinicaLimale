@@ -12,6 +12,23 @@ from langchain_core.runnables import Runnable # <--- Garanta que está importado
 
 logger = logging.getLogger(__name__)
 
+# --- DEFINIÇÃO DA BASE DE CONHECIMENTO (MOVIDA PARA FORA DO TRY) ---
+faq_base_de_conhecimento = """
+**P: Qual o endereço da clínica?**
+R: Nosso endereço é Rua Orense, 41 – Sala 512, no Condomínio D Office, centro de Diadema/SP.
+**P: Qual o horário de funcionamento?**
+R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
+**P: Vocês atendem adulto e criança?**
+R: Sim! Atendemos pacientes de todas as idades. Temos especialistas em Pediatria para as crianças e diversas outras especialidades para os adultos.
+**P: A consulta tem direito a retorno?**
+R: Sim, nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames solicitados, sem custo adicional.
+**P: Vocês aceitam convênio?**
+R: No momento, atendemos apenas na modalidade particular. Emitimos nota fiscal para que você possa solicitar reembolso junto ao seu plano de saúde.
+**P: Qual o telefone da clínica?**
+R: Você pode entrar em contato conosco pelo mesmo número de WhatsApp que está falando agora. Para outros assuntos, o telefone da recepção é (11) XXXX-XXXX.
+"""
+# --- FIM DA DEFINIÇÃO ---
+
 # --- CONFIGURAÇÃO E INICIALIZAÇÃO SEGURA DO "CÉREBRO" DE IA ---
 llm = None
 chain_roteadora: Optional[Runnable] = None
@@ -121,21 +138,7 @@ except Exception as e:
     # Garante que as chains sejam None se a inicialização falhar
     chain_roteadora = chain_sintomas = chain_faq = chain_triagem = None
 
-    # --- CÉREBRO 3: IA DE PERGUNTAS FREQUENTES (COM MAIS CONHECIMENTO E PERSONALIDADE) ---
-    faq_base_de_conhecimento = """
-    **P: Qual o endereço da clínica?**
-    R: Nosso endereço é Rua Orense, 41 – Sala 512, no Condomínio D Office, centro de Diadema/SP.
-    **P: Qual o horário de funcionamento?**
-    R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
-    **P: Vocês atendem adulto e criança?**
-    R: Sim! Atendemos pacientes de todas as idades. Temos especialistas em Pediatria para as crianças e diversas outras especialidades para os adultos.
-    **P: A consulta tem direito a retorno?**
-    R: Sim, nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames solicitados, sem custo adicional.
-    **P: Vocês aceitam convênio?**
-    R: No momento, atendemos apenas na modalidade particular. Emitimos nota fiscal para que você possa solicitar reembolso junto ao seu plano de saúde.
-    **P: Qual o telefone da clínica?**
-    R: Você pode entrar em contato conosco pelo mesmo número de WhatsApp que está falando agora. Para outros assuntos, o telefone da recepção é (11) XXXX-XXXX.
-    """
+   
     class FaqOutput(BaseModel):
         resposta: str = Field(description="A resposta à pergunta do usuário, baseada estritamente na base de conhecimento.")
     
@@ -163,6 +166,7 @@ except Exception as e:
         partial_variables={"format_instructions": parser_faq.get_format_instructions()},
     )
     chain_faq = prompt_faq_template | llm | parser_faq
+    logger.info("Chain FAQ inicializada.") # Adicionado log
 
 except Exception as e:
     logger.critical(f"FALHA CRÍTICA AO INICIALIZAR AS CHAINS DE IA: {e}", exc_info=True)
