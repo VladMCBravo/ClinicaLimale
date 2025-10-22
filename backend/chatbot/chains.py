@@ -1,32 +1,31 @@
-# chatbot/chains.py
+# Em chatbot/chains.py
 
+# --- ADICIONE ESTAS IMPORTAÇÕES NO INÍCIO DO ARQUIVO ---
 import os
 import logging
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Optional, Literal # <--- ADICIONE Literal
+from pydantic import BaseModel, Field # <--- Garanta que BaseModel e Field estão importados
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.runnables import Runnable
+from langchain_core.prompts import ChatPromptTemplate # <--- Garanta que está importado
+from langchain_core.output_parsers import JsonOutputParser # <--- Garanta que está importado
+from langchain_core.runnables import Runnable # <--- Garanta que está importado
 
 logger = logging.getLogger(__name__)
 
 # --- CONFIGURAÇÃO E INICIALIZAÇÃO SEGURA DO "CÉREBRO" DE IA ---
-
 llm = None
 chain_roteadora: Optional[Runnable] = None
 chain_sintomas: Optional[Runnable] = None
 chain_extracao_dados: Optional[Runnable] = None
 chain_faq: Optional[Runnable] = None
+chain_triagem: Optional[Runnable] = None # <--- NOVA CHAIN
 
 try:
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        # Lança um erro claro se a chave não estiver no ambiente
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
 
-    # Inicializa o modelo de linguagem
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro-latest", temperature=0, google_api_key=api_key) # Use o modelo mais recente
     logger.info("LLM (Gemini) inicializado com sucesso.")
 
     # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (AGORA COM MEMÓRIA) ---
@@ -63,27 +62,64 @@ try:
 
     # --- CÉREBRO 2: IA DE TRIAGEM DE SINTOMAS ---
     lista_especialidades_para_ia = "Cardiologia, Ginecologia, Ortopedia, Pediatria, Clínico Geral"
-    class TriagemOutput(BaseModel):
-        especialidade_sugerida: str = Field(description=f"A especialidade médica mais adequada. Deve ser uma das: {lista_especialidades_para_ia}, ou 'Nenhuma' se os sintomas forem muito vagos.")
-    
-    parser_sintomas = JsonOutputParser(pydantic_object=TriagemOutput)
-    prompt_sintomas = ChatPromptTemplate.from_template(
+    class TriagemFluxoOutput(BaseModel):
+        intent: Literal[
+            'continuacao',
+            'interrupcao_pergunta',
+            'interrupcao_preco',
+            'interrupcao_cancelamento_fluxo',
+            'transferencia_humano'
+            ] = Field(description="Classificação da mensagem. Deve ser 'continuacao', 'interrupcao_pergunta', 'interrupcao_preco', 'interrupcao_cancelamento_fluxo', 'transferencia_humano'.")
+        entity: Optional[str] = Field(description="A entidade específica se for uma interrupção (ex: 'Ecocardiograma', 'endereço', 'Cardiologia'). Preencha apenas se for uma interrupção relevante.")
+
+    parser_triagem = JsonOutputParser(pydantic_object=TriagemFluxoOutput)
+
+    # Este prompt é o "cérebro" que protege sua máquina de estados
+    prompt_triagem_template = ChatPromptTemplate.from_template(
         """# MISSÃO
-        Você é um assistente de triagem. Baseado nos sintomas, sugira a especialidade médica mais provável da lista. JAMAIS dê diagnósticos.
-        # REGRAS
-        - Dor no peito, palpitações, pressão alta -> Cardiologia.
-        - Dor de cabeça, febre, mal-estar geral -> Clínico Geral.
-        - Sintomas em crianças -> Pediatria.
-        - Dor nas costas, joelho, articulações -> Ortopedia.
-        - Questões femininas -> Ginecologia.
-        - Se não tiver certeza, sugira 'Clínico Geral'.
+        Você é um assistente de triagem de fluxo de conversa. Sua missão é analisar a MENSAGEM ATUAL do usuário e decidir se ela CONTINUA o fluxo de agendamento/cadastro/cancelamento atual ou se é uma INTERRUPÇÃO.
+
+        # CONTEXTO ATUAL DO FLUXO
+        - O bot está no estado: '{estado_atual}'
+        - O bot espera esta informação do usuário: '{input_esperado}'
+
+        # HISTÓRICO DA CONVERSA (Últimas mensagens)
+        {historico_conversa}
+
+        # MENSAGEM ATUAL DO USUÁRIO (Para análise)
+        {user_message}
+
+        # REGRAS DE CLASSIFICAÇÃO
+        1.  **'continuacao'**: A mensagem responde diretamente ao que foi pedido em '{input_esperado}'.
+            - Ex: Se o bot pediu especialidade, e o usuário diz 'Cardiologia'.
+            - Ex: Se o bot pediu confirmação (Sim/Não), e o usuário diz 'sim'.
+            - Ex: Se o bot pediu um horário da lista, e o usuário digita um horário válido.
+        2.  **'interrupcao_preco'**: A mensagem é uma NOVA pergunta sobre preço/valor/custo, ignorando o fluxo atual. A *entidade* deve ser o serviço perguntado.
+            - Ex: "E quanto custa o Ecocardiograma?" -> intent: 'interrupcao_preco', entity: 'Ecocardiograma'
+            - Ex: "Qual valor da consulta?" -> intent: 'interrupcao_preco', entity: 'Consulta'
+        3.  **'interrupcao_pergunta'**: A mensagem é uma pergunta geral (endereço, horário de funcionamento, convênio, médico específico, etc.) que NÃO é sobre preço e NÃO continua o fluxo. A *entidade* pode ser o tópico da pergunta.
+            - Ex: "Qual o endereço da clínica?" -> intent: 'interrupcao_pergunta', entity: 'endereço'
+            - Ex: "Vocês aceitam Unimed?" -> intent: 'interrupcao_pergunta', entity: 'Unimed'
+        4.  **'interrupcao_cancelamento_fluxo'**: O usuário demonstra explicitamente que quer PARAR o processo ATUAL ('deixa pra lá', 'não quero mais agendar', 'cancelar isso', 'mudei de ideia'). Não requer entidade.
+        5.  **'transferencia_humano'**: O usuário pede explicitamente para falar com um humano ('atendente', 'falar com alguém'). Não requer entidade. Ignora todo o resto se detectar isso.
+
+        # IMPORTANTE
+        - Analise a MENSAGEM ATUAL friamente. O histórico ajuda a entender o contexto, mas a classificação é sobre a *última* mensagem.
+        - Se a mensagem for ambígua ou não se encaixar claramente, priorize 'continuacao' se parecer minimamente relacionado ao input esperado, caso contrário, use 'interrupcao_pergunta'.
+
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}
-        # SINTOMAS DO USUÁRIO
-        {sintomas_do_usuario}""",
-        partial_variables={"format_instructions": parser_sintomas.get_format_instructions()},
+        """,
+        partial_variables={"format_instructions": parser_triagem.get_format_instructions()},
     )
-    chain_sintomas = prompt_sintomas | llm | parser_sintomas
+
+    chain_triagem = prompt_triagem_template | llm | parser_triagem
+    logger.info("Chain de Triagem de Fluxo inicializada.")
+
+except Exception as e:
+    logger.critical(f"FALHA CRÍTICA AO INICIALIZAR AS CHAINS DE IA: {e}", exc_info=True)
+    # Garante que as chains sejam None se a inicialização falhar
+    chain_roteadora = chain_sintomas = chain_faq = chain_triagem = None
 
     # --- CÉREBRO 3: IA DE PERGUNTAS FREQUENTES (COM MAIS CONHECIMENTO E PERSONALIDADE) ---
     faq_base_de_conhecimento = """

@@ -1,9 +1,25 @@
+# Configurações de Editor
+.vscode/
 
-# Arquivos grandes
-*.zip
-*.sql
-backup_*
+# Ambiente Python
+backend/venv/
+__pycache__/
+*.pyc
 
+# Ambiente Node
+# (Ignora 'node_modules' em qualquer pasta que esteja)
+node_modules/
+
+# Arquivos de Segredo e Banco de Dados Local
+.env
+db.sqlite3
+*.sqlite3
+
+# Arquivos de build do Render (ou similar)
+build/
+staticfiles/
+
+# Seus arquivos grandes (do seu arquivo original)
 *.zip
 *.sql
 backup_*
