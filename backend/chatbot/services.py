@@ -2,6 +2,12 @@
 
 from usuarios.models import Especialidade
 from faturamento.models import Procedimento
+from django.utils.html import escape
+import logging # Garanta que logging está importado
+
+# --- ADICIONE ESTA LINHA ---
+logger = logging.getLogger(__name__)
+# ---------------------------
 
 def buscar_precos_servicos(nome_servico=None):
     """
@@ -56,43 +62,57 @@ def buscar_precos_servicos(nome_servico=None):
         return None
     except Exception as e:
         from django.conf import settings
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Erro ao buscar preços: {e}")
         return []
 
-# --- NOVA FUNÇÃO AUXILIAR PARA RESPOSTA DE PREÇO HUMANIZADA ---
-def get_resposta_preco(nome_servico: str, nome_usuario: str = ""):
+# --- FUNÇÃO get_resposta_preco MODIFICADA ---
+def get_resposta_preco(nome_servico: str, memoria_atual: dict) -> str:
     try:
-        from django.utils.html import escape
+        nome_usuario = memoria_atual.get('nome_usuario', '') # Pega nome da memória
         nome_usuario_seguro = escape(str(nome_usuario)[:50]) if nome_usuario else ""
-        nome_servico_seguro_busca = escape(str(nome_servico)[:100]) if nome_servico else ""
-        servico_info = buscar_precos_servicos(nome_servico_seguro_busca)
+        nome_servico_seguro_busca = escape(str(nome_servico)[:100]).strip() if nome_servico else ""
+
+        servico_info = None
+        especialidade_contexto = memoria_atual.get('especialidade_nome') # Pega especialidade da memória
+
+        # --- LÓGICA MELHORADA ---
+        if nome_servico_seguro_busca.lower() == 'consulta':
+            if especialidade_contexto:
+                # Usa o logger definido globalmente
+                logger.info(f"Buscando preço de consulta para especialidade em contexto: {especialidade_contexto}")
+                servico_info = buscar_precos_servicos(especialidade_contexto)
+            else:
+                # Usa o logger definido globalmente
+                logger.info("Busca genérica de 'Consulta' sem especialidade em contexto.")
+                pass
+        else:
+            servico_info = buscar_precos_servicos(nome_servico_seguro_busca)
+        # --- FIM DA LÓGICA MELHORADA ---
+
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
+        # Usa o logger definido globalmente
         logger.error(f"Erro em get_resposta_preco: {e}")
-        return "Desculpe, não consegui consultar os preços no momento. Por favor, tente novamente."
+        return f"Desculpe, {nome_usuario_seguro}, não consegui consultar os preços no momento. Por favor, tente novamente."
 
     texto_base = (
-        f"Claro, {nome_usuario_seguro}! Antes do valor, quero que saiba que uma consulta aqui na Limalé é um investimento na sua saúde, com especialistas renomados e a tecnologia mais avançada.\n\n"
+        # Removido texto introdutório para deixar a resposta mais direta após interrupção
+        # f"Claro, {nome_usuario_seguro}! Antes do valor, quero que saiba que uma consulta aqui na Limalé é um investimento na sua saúde...\n\n"
+        "" 
     )
 
-    if servico_info:
-        # --- LINHAS QUE FALTAVAM ---
+    if servico_info and 'valor' in servico_info:
         nome_servico_seguro_display = escape(str(servico_info.get('nome', 'Serviço'))[:100])
         valor_seguro = escape(str(servico_info.get('valor', ''))[:20])
-        # --- FIM DAS LINHAS QUE FALTAVAM ---
 
         resposta_final = (
-            f"O valor para a *{nome_servico_seguro_display}* é de *R$ {valor_seguro}*.\n\n"
-            "Para garantir seu horário com prioridade, oferecemos **5% de desconto** no pagamento via PIX realizado agora.\n\n"
-            "Gostaria de encontrar o melhor horário para você?"
+            f"Certo, {nome_usuario_seguro}! O valor para *{nome_servico_seguro_display}* é de *R$ {valor_seguro}*.\n\n"
+            "Oferecemos **5% de desconto** no pagamento via PIX realizado antecipadamente."
+            # Removida pergunta sobre agendar aqui, pois será feita no bot_logic
         )
         return texto_base + resposta_final
     else:
+        # Resposta genérica (se não achou ou se pediu 'consulta' sem contexto)
         return (
-            f"{nome_usuario_seguro}, não encontrei um valor exato para '{nome_servico_seguro_busca}'.\n\n"
-            "Nossas consultas particulares geralmente têm valores a partir de R$ 350,00. "
-            "Para qual especialidade você gostaria de saber o valor?"
+            f"{nome_usuario_seguro}, nossas consultas particulares geralmente têm valores a partir de R$ 350,00. "
+            f"Se você me disser para qual *especialidade* deseja saber o valor, posso te informar o preço exato."
         )

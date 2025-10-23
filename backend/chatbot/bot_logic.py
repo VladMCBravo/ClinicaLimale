@@ -106,14 +106,38 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # --- NÍVEL 0: ONBOARDING (COLETA DO NOME) ---
     if not nome_usuario:
         if estado_atual != 'aguardando_nome':
-            resultado = {"response_message": "Olá, seja bem-vindo à Clínica Limalé. Sou o Leônidas, e vou dar sequência no seu atendimento. Para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
+             resultado = {"response_message": "Olá, seja bem-vindo à Clínica Limalé. Sou o Leônidas, e vou dar sequência no seu atendimento. Para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
         else:
-            nome_candidato = user_message.strip().title().split(' ')[0]
-            if len(nome_candidato) > 2:
-                memoria_atual['nome_usuario'] = nome_candidato
-                resultado = {"response_message": f"Prazer, {nome_candidato}! Como posso te direcionar ao melhor cuidado hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
-            else:
-                resultado = {"response_message": "Não entendi bem. Por favor, qual o seu primeiro nome?", "new_state": 'aguardando_nome', "memory_data": {}}
+             # --- LÓGICA DE EXTRAÇÃO DE NOME MELHORADA ---
+             nome_candidato = None
+             msg_lower = user_message.lower().strip()
+             
+             # Tenta padrões comuns
+             padroes = [
+                 r"me chamo (\w+)", 
+                 r"meu nome é (\w+)", 
+                 r"sou o? (\w+)"
+             ]
+             import re # Garanta que 're' está importado no início do arquivo
+             for padrao in padroes:
+                 match = re.search(padrao, msg_lower)
+                 if match:
+                     nome_candidato = match.group(1).title()
+                     break
+             
+             # Se não achou em padrões, pega a última palavra (ou a única)
+             if not nome_candidato:
+                  partes = user_message.strip().title().split(' ')
+                  if partes:
+                      nome_candidato = partes[-1] # Pega a última palavra
+
+             # Validação simples (pelo menos 3 letras)
+             if nome_candidato and len(nome_candidato) >= 3 and nome_candidato.isalpha():
+                 memoria_atual['nome_usuario'] = nome_candidato
+                 resultado = {"response_message": f"Prazer, {nome_candidato}! Como posso te direcionar ao melhor cuidado hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+             else:
+                 resultado = {"response_message": "Não entendi bem. Por favor, qual o seu primeiro nome?", "new_state": 'aguardando_nome', "memory_data": {}}
+             # --- FIM DA LÓGICA MELHORADA ---
     else:
         # ==================================================================
         # --- HIERARQUIA DE PROCESSAMENTO (ESTRUTURA CORRIGIDA) ---
@@ -217,7 +241,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 # Salva o estado atual para poder voltar DEPOIS de responder o preço
                 memoria_atual['previous_state'] = estado_atual
 
-                resposta_base = get_resposta_preco(entity_triagem, nome_usuario)
+                resposta_base = get_resposta_preco(entity_triagem, memoria_atual) # <--- Linha Corrigida (passa memoria_atual)
                 # MODIFICADO: Pergunta se quer CONTINUAR o fluxo ANTERIOR
                 resposta_final = (
                     f"{resposta_base}\n\n"
@@ -276,7 +300,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
 
                 if intent == "buscar_preco":
                      # MODIFICADO: Pergunta se quer AGENDAR APÓS o preço.
-                     resposta_base = get_resposta_preco(entity, nome_usuario)
+                     resposta_base = get_resposta_preco(entity, memoria_atual) # <--- Linha Corrigida (passa memoria_atual)
                      # Pergunta se quer agendar o item específico que teve o preço consultado
                      resposta_final = f"{resposta_base}\n\nQue tal aproveitarmos para já verificar os próximos horários disponíveis para {entity}, {nome_usuario}? (Sim/Não)"
                      memoria_atual['entidade_agendar'] = entity # Salva o que agendar
