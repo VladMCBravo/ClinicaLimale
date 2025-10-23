@@ -15,6 +15,7 @@ from xhtml2pdf import pisa
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
 from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Evolucao, Prescricao, OpcaoClinica
 from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
+from usuarios.permissions import CanViewProntuario # Verifique se esta permissão está correta
 
 # --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
 
@@ -194,3 +195,15 @@ class GerarEvolucaoPDFView(APIView):
             return response
             
         return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
+
+# --- ADICIONE ESTA CLASSE ---
+class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View para Ver, Atualizar ou Deletar UMA evolução específica.
+    Usada pelo modal de histórico.
+    """
+    queryset = Evolucao.objects.all()
+    serializer_class = EvolucaoSerializer
+    permission_classes = [CanViewProntuario] # Apenas médicos podem ver/editar
+    lookup_field = 'pk' # Informa que o <int:pk> da URL é o ID
+# --- FIM DA CLASSE ---
