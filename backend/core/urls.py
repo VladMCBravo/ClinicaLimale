@@ -1,7 +1,7 @@
 # backend/core/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView,OpcaoClinicaListView
+from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView,OpcaoClinicaListView, GerarEvolucaoPDFView
 # 1. IMPORTAMOS NOSSAS VIEWS CUSTOMIZADAS DE LOGIN E LOGOUT
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
 from .views import debug_env_view, list_urls_view # <-- 1. IMPORTE A NOVA VIEW 'list_urls_view'
@@ -40,4 +40,5 @@ urlpatterns = [
     # O seu views.py tem rotas para gerar PDFs que não se encaixam no padrão acima
     path('api/prescricoes/<int:prescricao_id>/pdf/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
     path('api/atestados/<int:atestado_id>/pdf/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
+    path('api/pdf/evolucao/<int:evolucao_id>/', GerarEvolucaoPDFView.as_view(), name='gerar-evolucao-pdf'), # <-- NOVA ROTA
 ]

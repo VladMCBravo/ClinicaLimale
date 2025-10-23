@@ -39,18 +39,11 @@ chain_classifica_modalidade: Optional[Runnable] = None # <-- Adicionado aqui
 
 # --- BLOCO TRY...EXCEPT ÚNICO PARA INICIALIZAÇÃO ---
 try:
-    logger.info("Tentando ler a GOOGLE_API_KEY do ambiente...")
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        logger.error("ERRO CRÍTICO: Variável de ambiente GOOGLE_API_KEY não encontrada!")
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
-    else:
-        # Mostra apenas os primeiros/últimos caracteres por segurança
-        logger.info(f"GOOGLE_API_KEY encontrada (início/fim): {api_key[:5]}...{api_key[-4:]}")
 
-    # --- INICIALIZAÇÃO DO LLM (CORRIGIDO MODELO) ---
-    logger.info("Tentando inicializar o LLM ChatGoogleGenerativeAI com gemini-1.5-pro-latest...")
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key) # <-- MODELO CORRIGIDO
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key) # Use o modelo mais recente
     logger.info("LLM (Gemini) inicializado com sucesso.")
 
     # --- CHAIN ROTEADORA (COM MÚLTIPLAS ENTIDADES) ---

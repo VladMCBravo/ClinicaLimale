@@ -13,7 +13,7 @@ from xhtml2pdf import pisa
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
-from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica
+from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Evolucao, Prescricao, OpcaoClinica
 from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
 
 # --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
@@ -159,3 +159,38 @@ class OpcaoClinicaListView(generics.ListAPIView):
             queryset = queryset.filter(area_clinica=area_clinica)
 
         return queryset
+
+# --- ADICIONE ESTA NOVA CLASSE ---
+class GerarEvolucaoPDFView(APIView):
+    permission_classes = [IsAuthenticated] # Ou [CanViewProntuario] se preferir
+
+    def get(self, request, evolucao_id, *args, **kwargs):
+        try:
+            evolucao = Evolucao.objects.get(pk=evolucao_id)
+        except Evolucao.DoesNotExist:
+            return HttpResponse("Evolução não encontrada.", status=404)
+        
+        # Logo da clínica (você já usa isso)
+        logo_path = finders.find('images/logo.png') 
+        
+        # Nome do novo template que criaremos
+        template = get_template('pdfs/evolucao_template.html') 
+        
+        context = {
+            'evolucao': evolucao,
+            'paciente': evolucao.paciente,
+            'medico': evolucao.medico,
+            'logo_path': logo_path
+        }
+        html = template.render(context)
+        
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result, link_callback=lambda uri, rel: logo_path)
+        
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            # Nome do arquivo que será baixado
+            response['Content-Disposition'] = f'filename="evolucao_{evolucao.paciente.nome_completo}_{evolucao.id}.pdf"'
+            return response
+            
+        return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)

@@ -1,156 +1,125 @@
-// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL COM TODAS AS CORREÇÕES
+// Crie este arquivo em: src/components/prontuario/ProntuarioCompleto.jsx
 
-import React, { useState, useEffect } from 'react';
-import apiClient from '../../api/axiosConfig';
-import { useAuth } from '../../hooks/useAuth';
-import { Box, CircularProgress, Typography, Modal, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import React, { useState, Suspense, lazy } from 'react';
+import { Box, Tabs, Tab, CircularProgress, Paper, Typography } from '@mui/material';
 
-// Seus componentes
-import PatientHeader from '../PatientHeader'; 
-import VideoCallView from '../telemedicina/VideoCallView';
-import DetalheConsultaModal from './DetalheConsultaModal';
-import AnamneseTab from './AnamneseTab';
-import EvolucoesTab from './EvolucoesTab';
-import PainelAcoes from './PainelAcoes';
-import PrescricoesTab from './PrescricoesTab';
-import AtestadosTab from './AtestadosTab';
-import AnexosTab from './AnexosTab';
-import ExamesDicomTab from './ExamesDicomTab';
-import AlertasClinicos from './AlertasClinicos';
+// 1. Importe os componentes que serão o CONTEÚDO de cada aba.
+// Usamos lazy loading (carregamento sob demanda) para performance.
+const AnamneseTab = lazy(() => import('./AnamneseTab')); //
+const PrescricoesTab = lazy(() => import('./PrescricoesTab')); //
+const AtestadosTab = lazy(() => import('./AtestadosTab')); //
 
-const modalStyle = {
-    position: 'absolute', top: '50%', left: '50%',
-    transform: 'translate(-50%, -50%)', width: '80%',
-    maxWidth: '800px', bgcolor: 'background.paper',
-    border: '1px solid #000', boxShadow: 24, p: 4,
-    maxHeight: '90vh', overflowY: 'auto'
-};
+// 2. Vamos criar o "loader" da aba de Evolução no próximo passo. Por enquanto, vamos importá-lo.
+const EvolucaoTab = lazy(() => import('./EvolucaoTab')); 
 
-export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal }) {  
-    const { showSnackbar } = useSnackbar();
-    const { user } = useAuth();
-    const [paciente, setPaciente] = useState(null);
-    const [anamnese, setAnamnese] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [refreshKey, setRefreshKey] = useState(0);
-    const [isTelemedicinaActive, setIsTelemedicinaActive] = useState(false);
-    const [modalAcoes, setModalAcoes] = useState(null);
-    
-    const pacienteId = agendamento?.paciente;
-    
-    const forceRefresh = () => setRefreshKey(prev => prev + 1);
+// (Vamos criar um componente simples para Documentos também)
+const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 
-    useEffect(() => {
-        const fetchAllData = async () => {
-            if (!pacienteId) { setIsLoading(false); return; }
-            setIsLoading(true);
-            try {
-                const [pacienteRes, anamneseRes] = await Promise.all([
-                    apiClient.get(`/pacientes/${pacienteId}/`),
-                    apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`).catch(() => ({ data: null }))
-                ]);
-                setPaciente(pacienteRes.data);
-                setAnamnese(anamneseRes.data);
-            } catch (err) {
-                console.error("Erro ao buscar dados do prontuário:", err);
-                showSnackbar('Erro ao carregar dados do paciente.', 'error');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchAllData();
-    }, [pacienteId, refreshKey, showSnackbar]);
-
-    const handleStartTelemedicina = () => {
-        if (agendamento?.link_telemedicina) setIsTelemedicinaActive(true);
-        else showSnackbar('A sala de telemedicina ainda não foi criada.', 'warning');
-    };
-    const handleCloseTelemedicina = () => setIsTelemedicinaActive(false);
-
-    const handleOpenAcoesModal = (content) => setModalAcoes(content);
-    const handleCloseAcoesModal = () => setModalAcoes(null);
-    
-    // ▼▼▼ ALTERAÇÃO IMPORTANTE AQUI ▼▼▼
-    // Define a especialidade da consulta em um único lugar para garantir consistência.
-    const especialidadeDaConsulta = agendamento?.especialidade_nome || user?.especialidades_detalhes?.[0]?.nome;
-
-    if (isLoading || !user) {
-        return <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%'}}><CircularProgress /></Box>;
-    }
-
-    if (isTelemedicinaActive) {
-        return (
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <PatientHeader paciente={paciente} agendamento={agendamento} onStartTelemedicina={() => {}} isTelemedicinaActive={true} />
-                <Box sx={{ display: 'flex', flexGrow: 1, gap: 2, p: 2, minHeight: 0 }}>
-                    <Box sx={{ flex: 1 }}>
-                        <VideoCallView roomUrl={agendamento.link_telemedicina} onClose={handleCloseTelemedicina} />
-                    </Box>
-                    <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <EvolucoesTab 
-                            pacienteId={pacienteId} 
-                            especialidade={especialidadeDaConsulta} // Passa a especialidade correta
-                        />
-                    </Box>
-                </Box>
-            </Box>
-        );
-    } 
-
-    return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}> 
-            <PatientHeader 
-                paciente={paciente} 
-                agendamento={agendamento} 
-                onStartTelemedicina={handleStartTelemedicina}
-            />
-            
-            <Box sx={{ display: 'flex', flexGrow: 1, p: 2, gap: 2, minHeight: 0 }}>
-                <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-                    <AlertasClinicos anamnese={anamnese} />
-                    <Accordion defaultExpanded={!anamnese}>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Typography variant="h6">Anamnese Geral</Typography>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <AnamneseTab 
-                                pacienteId={pacienteId} 
-                                initialAnamnese={anamnese}
-                                onAnamneseSalva={forceRefresh}
-                                // ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
-                                especialidade={especialidadeDaConsulta}
-                            />
-                        </AccordionDetails>
-                    </Accordion>
-                    <EvolucoesTab 
-                        pacienteId={pacienteId} 
-                        onEvolucaoSalva={forceRefresh}
-                        // ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
-                        especialidade={especialidadeDaConsulta}
-                    />
-                </Box>
-
-                <Box sx={{ flex: 1.5, minWidth: '280px' }}>
-                    <PainelAcoes 
-                        onNovaPrescricao={() => handleOpenAcoesModal(<PrescricoesTab pacienteId={pacienteId} />)}
-                        onEmitirAtestado={() => handleOpenAcoesModal(<AtestadosTab pacienteId={pacienteId} />)}
-                        onAnexarDocumento={() => handleOpenAcoesModal(<AnexosTab pacienteId={pacienteId} />)}
-                        onVerExames={() => handleOpenAcoesModal(<ExamesDicomTab pacienteId={pacienteId} />)}
-                    />
-                </Box>
-            </Box>
-
-            <Modal open={!!modalAcoes} onClose={handleCloseAcoesModal}>
-                <Box sx={modalStyle}>{modalAcoes}</Box>
-            </Modal>
-            
-            <Modal open={!!modalHistoricoId} onClose={onCloseHistoricoModal}>
-                <Box sx={modalStyle}>
-                    <DetalheConsultaModal pacienteId={pacienteId} evolucaoId={modalHistoricoId} />
-                </Box>
-            </Modal>
+// Componente auxiliar para renderizar o conteúdo da aba (padrão do Material-UI)
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`prontuario-tabpanel-${index}`}
+      aria-labelledby={`prontuario-tab-${index}`}
+      {...other}
+      style={{ height: '100%' }} // Garante que o painel ocupe a altura
+    >
+      {value === index && (
+        // O padding é aplicado aqui para que o conteúdo não cole nas bordas
+        <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, height: '100%' }}>
+          {children}
         </Box>
+      )}
+    </div>
+  );
+}
+
+// Este é o componente principal que será chamado pelo PainelMedicoPage
+export default function ProntuarioCompleto({ agendamento }) {
+  const [tabIndex, setTabIndex] = useState(0); // A aba "Evolução" (index 0) será a padrão
+
+  const handleChange = (event, newIndex) => {
+    setTabIndex(newIndex);
+  };
+
+  // Extrai os dados do agendamento
+  const pacienteId = agendamento?.paciente;
+  const especialidade = agendamento?.especialidade?.nome || 'ClinicaGeral';
+
+  // Se nenhum paciente estiver selecionado, exibe uma mensagem
+  if (!agendamento) {
+    return (
+      <Paper sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography variant="h6" color="text.secondary">
+          Selecione um paciente na fila para iniciar o atendimento
+        </Typography>
+      </Paper>
     );
+  }
+
+  return (
+    // Paper (fundo branco) que contém as abas e o conteúdo
+    <Paper elevation={2} sx={{ 
+      width: '100%', 
+      height: '100%', // Ocupa toda a altura da coluna da direita
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden' // Impede o scroll no container
+    }}>
+
+      {/* 1. As Abas de Navegação */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+        <Tabs value={tabIndex} onChange={handleChange} aria-label="Abas do Prontuário" variant="scrollable" scrollButtons="auto">
+          <Tab label="Evolução" id="prontuario-tab-0" />
+          <Tab label="Anamnese" id="prontuario-tab-1" />
+          <Tab label="Prescrições" id="prontuario-tab-2" />
+          <Tab label="Atestados" id="prontuario-tab-3" />
+          <Tab label="Documentos" id="prontuario-tab-4" />
+        </Tabs>
+      </Box>
+
+      {/* 2. O Conteúdo das Abas (que terá seu próprio scroll) */}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
+          
+          <TabPanel value={tabIndex} index={0}>
+            <EvolucaoTab 
+              pacienteId={pacienteId} 
+              especialidade={especialidade}
+              // Passaremos a prop para recarregar o histórico quando salvar
+              // onEvolucaoSalva={...} 
+            />
+          </TabPanel>
+          
+          <TabPanel value={tabIndex} index={1}>
+            <AnamneseTab 
+              pacienteId={pacienteId} 
+              especialidade={especialidade}
+              // Você buscará a anamnese inicial dentro deste componente
+              // initialAnamnese={...} 
+              // onAnamneseSalva={...}
+            />
+          </TabPanel>
+
+          <TabPanel value={tabIndex} index={2}>
+            <PrescricoesTab pacienteId={pacienteId} />
+          </TabPanel>
+
+          <TabPanel value={tabIndex} index={3}>
+            <AtestadosTab pacienteId={pacienteId} />
+          </TabPanel>
+
+          <TabPanel value={tabIndex} index={4}>
+            {/* Você precisará criar este componente `DocumentosTab` */}
+            {/* <DocumentosTab pacienteId={pacienteId} /> */}
+            <Typography>Área de Documentos</Typography>
+          </TabPanel>
+
+        </Suspense>
+      </Box>
+    </Paper>
+  );
 }
