@@ -1,4 +1,4 @@
-// src/components/prontuario/EvolucoesTab.jsx - VERSÃO ATUALIZADA
+// src/components/prontuario/EvolucoesTab.jsx - VERSÃO CORRIGIDA
 
 import React from 'react';
 import { Box } from '@mui/material';
@@ -11,30 +11,26 @@ import AtendimentoGinecologia from './AtendimentoGinecologia';
 import AtendimentoObstetricia from './AtendimentoObstetricia';
 import AtendimentoOrtopedia from './AtendimentoOrtopedia';
 import AtendimentoReumatologia from './AtendimentoReumatologia';
-
-// 1. ADICIONE A IMPORTAÇÃO DO NOVO COMPONENTE GENÉRICO
 import AtendimentoGenerico from './AtendimentoGenerico';
 
+// 1. A prop recebida é 'onEvolucoesSalva' (plural)
 export default function EvolucoesTab({ pacienteId, onEvolucoesSalva, especialidade }) {
     
     const renderAtendimentoForm = () => {
-        // O seu switch case está perfeito.
         switch (especialidade) {
-            case 'Pediatria': return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            case 'Neonatologia': return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            case 'Cardiologia': return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            case 'Ginecologia': return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            case 'Obstetricia': return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            case 'Ortopedia': return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            case 'Reumatologia Pediátrica': return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
+            // 2. CORREÇÃO: Use 'onEvolucoesSalva' (plural) em todos os componentes filhos
+            case 'Pediatria': return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Neonatologia': return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Cardiologia': return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Ginecologia': return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Obstetricia': return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Ortopedia': return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Reumatologia Pediátrica': return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
             
-            // 2. ALTERE O "default"
-            // Em vez de 'null', retornamos o formulário Genérico.
-            // Passamos a 'especialidade' para ele exibir o título correto.
             default: 
                 return <AtendimentoGenerico 
                           pacienteId={pacienteId} 
-                          onEvolucaoSalva={onEvolucaoSalva} 
+                          onEvolucaoSalva={onEvolucoesSalva} // <-- CORREÇÃO AQUI TAMBÉM
                           especialidade={especialidade} 
                        />;
         }
