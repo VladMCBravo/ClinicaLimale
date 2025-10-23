@@ -6,6 +6,7 @@ import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
+from django.db.models import Q # <-- ADICIONE ESTA LINHA
 from dateutil.parser import parse
 from .chains import chain_classifica_modalidade # <-- IMPORTAÇÃO CORRETA
 from .validators import ChatbotValidators
@@ -86,8 +87,44 @@ class AgendamentoManager: # <-- INÍCIO DA CLASSE
             "new_state": "agendamento_awaiting_specialty",
             "memory_data": self.memoria
         }
-    # --- FIM DAS FUNÇÕES AUXILIARES ---
+    
+    def _find_and_present_slots_for_doctor(self, medico_id):
+        # Indentado corretamente
+        """
+        Função auxiliar: Busca horários para um médico específico JÁ DEFINIDO na memória
+        e retorna a resposta formatada para o usuário.
+        """
+        medico_nome = self.memoria.get('medico_nome', 'o profissional selecionado')
+        nome_usuario = self.memoria.get('nome_usuario', '')
 
+        horarios = buscar_proximo_horario_disponivel(medico_id=medico_id)
+
+        if horarios and horarios.get('horarios_disponiveis'):
+            self.memoria['horarios_ofertados'] = horarios
+            try:
+                data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
+            except (ValueError, TypeError):
+                data_formatada = horarios.get('data', 'Data inválida')
+
+            horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
+            medico_nome_completo = f"Dr(a). {medico_nome}"
+
+            mensagem = (
+                f"Ótimo! Encontrei estes horários com {medico_nome_completo} para o dia *{data_formatada}*:\n\n"
+                + "\n".join(horarios_formatados)
+                + "\n\nQual deles prefere?"
+            )
+            return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
+        else:
+            self.memoria.pop('medico_id', None); self.memoria.pop('medico_nome', None)
+            self.memoria.pop('especialidade_id', None); self.memoria.pop('especialidade_nome', None)
+            return {
+                "response_message": f"Infelizmente, {nome_usuario}, Dr(a). {medico_nome} não possui horários disponíveis nos próximos dias. Gostaria de tentar com outra especialidade ou médico?",
+                "new_state": "identificando_demanda",
+                "memory_data": self.memoria
+            }
+    # --- FIM DAS FUNÇÕES AUXILIARES ---
+    
     def processar(self, resposta_usuario, estado_atual):
         # NÍVEL 1: Verifica interrupções ANTES de processar o estado atual.
         msg_lower = resposta_usuario.lower().strip()
@@ -153,84 +190,104 @@ class AgendamentoManager: # <-- INÍCIO DA CLASSE
         }
         return {"response_message": mensagem, "new_state": "identificando_demanda", "memory_data": memoria_limpa}
 
-    # --- MÉTODO handle_inicio CORRIGIDO E INDENTADO ---
+    # --- MÉTODO handle_inicio FINAL E INDENTADO ---
     def handle_inicio(self, resposta_usuario):
+        # Indentado corretamente
         nome_usuario = self.memoria.get('nome_usuario', '')
         entidade_inicial = self.memoria.pop('entidade_inicial_agendamento', None)
         modalidade_inicial = self.memoria.get('modalidade')
+        medico_pref_nome = self.memoria.get('medico_preferencia')
+
         chaves_para_manter = ['nome_usuario', 'historico_conversa']
-        if modalidade_inicial:
-             chaves_para_manter.append('modalidade')
-        
+        if modalidade_inicial: chaves_para_manter.append('modalidade')
+        if medico_pref_nome: chaves_para_manter.append('medico_preferencia')
+
         self.memoria = {k: v for k, v in self.memoria.items() if k in chaves_para_manter}
         self.memoria['nome_usuario'] = nome_usuario
 
-        logger.info(f"AgendamentoManager: handle_inicio - Entidade:'{entidade_inicial}', Modalidade:'{modalidade_inicial}'")
+        logger.info(f"AgendamentoManager: handle_inicio - Entidade:'{entidade_inicial}', Modalidade:'{modalidade_inicial}', MedicoPref:'{medico_pref_nome}'")
 
+        # --- LÓGICA PRIORIZADA: TENTAR AGENDAR COM MÉDICO ESPECÍFICO ---
+        if medico_pref_nome:
+            logger.info(f"Tentando encontrar médico por preferência: '{medico_pref_nome}'")
+            nome_busca = re.sub(r'^(dr|dra)\.?\s+', '', medico_pref_nome, flags=re.IGNORECASE).strip()
+            medicos_encontrados = list(CustomUser.objects.filter(
+                Q(cargo='medico', is_active=True) &
+                (Q(first_name__icontains=nome_busca) | Q(last_name__icontains=nome_busca))
+            ).prefetch_related('especialidades'))
+
+            if len(medicos_encontrados) == 1:
+                medico = medicos_encontrados[0]
+                medico_nome_completo = f"{medico.first_name} {medico.last_name}"
+                logger.info(f"Médico encontrado: {medico_nome_completo} (ID: {medico.id})")
+                especialidades_medico = list(medico.especialidades.all())
+
+                if len(especialidades_medico) == 1:
+                    especialidade = especialidades_medico[0]
+                    logger.info(f"Médico atende apenas em: {especialidade.nome}")
+                    self.memoria['tipo_agendamento'] = 'Consulta'
+                    self.memoria['medico_id'] = medico.id
+                    self.memoria['medico_nome'] = medico_nome_completo
+                    self.memoria['especialidade_id'] = especialidade.id
+                    self.memoria['especialidade_nome'] = especialidade.nome
+                    self.memoria.pop('medico_preferencia', None)
+                    if modalidade_inicial:
+                        logger.info(f"Modalidade '{modalidade_inicial}' já definida. Buscando horários para médico específico.")
+                        return self._find_and_present_slots_for_doctor(medico.id)
+                    else:
+                        logger.info("Modalidade não definida. Perguntando modalidade.")
+                        return {"response_message": f"Encontrei Dr(a). *{medico_nome_completo}*, que atende em *{especialidade.nome}*. Para sua consulta, prefere *Telemedicina* ou *Presencial*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+                elif len(especialidades_medico) > 1:
+                    logger.info(f"Médico atende em múltiplas especialidades: {[e.nome for e in especialidades_medico]}")
+                    self.memoria['tipo_agendamento'] = 'Consulta'; self.memoria['medico_id'] = medico.id; self.memoria['medico_nome'] = medico_nome_completo
+                    self.memoria['lista_especialidades'] = [{'id': e.id, 'nome': e.nome} for e in especialidades_medico]
+                    self.memoria.pop('medico_preferencia', None)
+                    nomes_especialidades = '\n'.join([f"• {e.nome}" for e in especialidades_medico])
+                    return {"response_message": f"Encontrei Dr(a). *{medico_nome_completo}*. Ele(a) atende nas seguintes especialidades:\n\n{nomes_especialidades}\n\nPara qual delas você gostaria de agendar?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
+                else: logger.warning(f"Médico {medico_nome_completo} sem especialidades.")
+            elif len(medicos_encontrados) > 1:
+                 logger.warning(f"Nome '{medico_pref_nome}' corresponde a múltiplos médicos.")
+                 nomes_medicos = [f"Dr(a). {m.first_name} {m.last_name}" for m in medicos_encontrados]
+                 return {"response_message": f"Encontrei mais de um profissional com nome similar a '{medico_pref_nome}':\n\n" + "\n".join(nomes_medicos) + "\n\nPoderia me dizer o nome completo ou a especialidade desejada?", "new_state": "identificando_demanda", "memory_data": self.memoria}
+            else: logger.warning(f"Nenhum médico encontrado para '{medico_pref_nome}'.")
+            self.memoria.pop('medico_preferencia', None) # Limpa pref inválida se não achou ou teve erro
+
+        # --- LÓGICA SECUNDÁRIA: SE NÃO ACHOU MÉDICO, TENTA POR ENTIDADE ---
         if entidade_inicial:
             entidade_lower = entidade_inicial.lower()
-
             especialidade = Especialidade.objects.filter(nome__iexact=entidade_lower).first()
             if especialidade:
                 logger.info(f"Entidade inicial '{entidade_inicial}' reconhecida como Especialidade.")
-                self.memoria['tipo_agendamento'] = 'Consulta'
-                self.memoria['especialidade_id'] = especialidade.id
-                self.memoria['especialidade_nome'] = especialidade.nome
-
-                # --- LÓGICA INTELIGENTE APRIMORADA ---
-                # Verifica se a modalidade JÁ foi definida (pelo roteador)
+                self.memoria['tipo_agendamento'] = 'Consulta'; self.memoria['especialidade_id'] = especialidade.id; self.memoria['especialidade_nome'] = especialidade.nome
                 if modalidade_inicial:
-                    logger.info(f"Modalidade '{modalidade_inicial}' já definida. Pulando pergunta de modalidade.")
-                    # PULA a pergunta de modalidade E VAI DIRETO buscar horários
-                    return self._find_and_present_slots_for_specialty() 
+                    logger.info(f"Modalidade '{modalidade_inicial}' já definida. Pulando pergunta.")
+                    return self._find_and_present_slots_for_specialty()
                 else:
-                    # Se a modalidade NÃO foi definida, pergunta normalmente
-                    return {
-                        "response_message": f"Entendido, {nome_usuario}. Você deseja agendar uma consulta de *{especialidade.nome}*. Prefere *Telemedicina* ou *Presencial*?",
-                        "new_state": "agendamento_awaiting_modality",
-                        "memory_data": self.memoria
-                    }
-                # --- FIM DA LÓGICA APRIMORADA ---
+                    logger.info("Modalidade não definida. Perguntando.")
+                    return {"response_message": f"Entendido, {nome_usuario}. Você deseja agendar uma consulta de *{especialidade.nome}*. Prefere *Telemedicina* ou *Presencial*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
 
             procedimento = Procedimento.objects.filter(descricao__iexact=entidade_lower, ativo=True, valor_particular__gt=0).exclude(descricao__iexact='consulta').first()
             if procedimento:
-                logger.info(f"Entidade inicial '{entidade_inicial}' reconhecida como Procedimento: {procedimento.descricao}")
-                self.memoria['tipo_agendamento'] = 'Procedimento'
-                self.memoria['procedimento_id'] = procedimento.id
-                self.memoria['procedimento_nome'] = procedimento.descricao
-                self.memoria['modalidade'] = 'Presencial'
-
+                logger.info(f"Entidade inicial '{entidade_inicial}' reconhecida como Procedimento.")
+                self.memoria['tipo_agendamento'] = 'Procedimento'; self.memoria['procedimento_id'] = procedimento.id; self.memoria['procedimento_nome'] = procedimento.descricao; self.memoria['modalidade'] = 'Presencial'
                 logger.info(f"Pulando para busca de horários do procedimento ID {procedimento.id}")
                 horarios = buscar_proximo_horario_procedimento(procedimento.id)
-
                 if horarios and horarios.get('horarios_disponiveis'):
                     self.memoria['horarios_ofertados'] = horarios
-                    try:
-                        data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
-                    except (ValueError, TypeError):
-                        data_formatada = horarios.get('data', 'Data inválida')
+                    try: data_formatada = parse(horarios['data']).strftime('%d/%m/%Y')
+                    except: data_formatada = horarios.get('data', 'Data inválida')
                     horarios_formatados = [f"• *{h}*" for h in horarios['horarios_disponiveis'][:5]]
-                    mensagem = (
-                        f"Entendido, {nome_usuario}. Encontrei estes horários para *{procedimento.descricao}* no dia *{data_formatada}*:\n\n"
-                        + "\n".join(horarios_formatados)
-                        + "\n\nQual deles prefere?"
-                    )
+                    mensagem = (f"Entendido, {nome_usuario}. Encontrei estes horários para *{procedimento.descricao}* no dia *{data_formatada}*:\n\n" + "\n".join(horarios_formatados) + "\n\nQual deles prefere?")
                     return {"response_message": mensagem, "new_state": "agendamento_awaiting_slot_choice", "memory_data": self.memoria}
                 else:
-                    return {
-                        "response_message": f"Entendido, {nome_usuario}. Você deseja agendar *{procedimento.descricao}*. Infelizmente, não há horários disponíveis nos próximos dias. Gostaria de tentar agendar uma consulta ou verificar outro procedimento?",
-                        "new_state": "identificando_demanda",
-                        "memory_data": self.memoria
-                    }
+                    return {"response_message": f"Entendido, {nome_usuario}. Você deseja agendar *{procedimento.descricao}*. Infelizmente, não há horários disponíveis.", "new_state": "identificando_demanda", "memory_data": self.memoria}
 
-            logger.warning(f"Entidade inicial '{entidade_inicial}' não reconhecida como especialidade ou procedimento válido.")
+            if not self.memoria.get('medico_id'): logger.warning(f"Entidade inicial '{entidade_inicial}' não reconhecida.")
 
-        logger.info("Nenhuma entidade inicial válida. Iniciando fluxo padrão.")
-        return {
-            "response_message": f"Perfeito, {nome_usuario}! Nosso time está pronto para te atender. O agendamento será para uma *Consulta* ou *Procedimento*?",
-            "new_state": "agendamento_awaiting_type",
-            "memory_data": self.memoria
-        }
+        # --- LÓGICA PADRÃO ---
+        mensagem_inicial = f"Perfeito, {nome_usuario}! O agendamento será para uma *Consulta* ou *Procedimento*?"
+        logger.info("Nenhuma entidade/médico válido fornecido inicialmente. Iniciando fluxo padrão.")
+        return {"response_message": mensagem_inicial, "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
 
     # --- RESTANTE DOS MÉTODOS handle_... (INDENTADOS CORRETAMENTE) ---
     def handle_awaiting_type(self, resposta_usuario):
