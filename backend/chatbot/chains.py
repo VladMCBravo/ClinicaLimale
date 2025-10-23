@@ -47,8 +47,13 @@ try:
 
     # --- CÉREBRO 1: IA ROTEADORA DE INTENÇÕES (AGORA COM MEMÓRIA) ---
     class RoteadorOutput(BaseModel):
-        intent: str = Field(description="A intenção do usuário. Deve ser uma das: 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'triagem_sintomas', 'transferencia_humano', 'encerrar_conversa', 'pergunta_geral'.")
-        entity: Optional[str] = Field(description="O serviço, especialidade ou sintoma específico que o usuário mencionou, se houver (ex: 'Cardiologia', 'Ecocardiograma', 'dor de cabeça').")
+        intent: str = Field(description="A intenção principal. Ex: 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'pergunta_geral', etc.")
+        entity: Optional[str] = Field(description="A entidade principal (especialidade, procedimento, tópico da pergunta). Ex: 'Cardiologia', 'Ultrassonografia de mama'.")
+        # --- NOVOS CAMPOS OPCIONAIS ---
+        modalidade: Optional[Literal['Telemedicina', 'Presencial']] = Field(description="Se o usuário especificou a modalidade preferida.")
+        medico_preferencia: Optional[str] = Field(description="Se o usuário mencionou um nome de médico específico.")
+        dia_preferencia: Optional[str] = Field(description="Se o usuário mencionou um dia da semana, data ou período (ex: 'segunda', 'amanhã', 'semana que vem', 'dia 25').")
+        hora_preferencia: Optional[str] = Field(description="Se o usuário mencionou um horário ou período do dia (ex: '09:00', 'manhã', 'fim da tarde').")
     
     parser_roteador = JsonOutputParser(pydantic_object=RoteadorOutput)
     prompt_roteador = ChatPromptTemplate.from_template(
@@ -58,7 +63,18 @@ try:
         # HISTÓRICO DA CONVERSA (ÚLTIMAS MENSAGENS)
         {historico_conversa}
         
-        # REGRAS DE ROTEAMENTO E CONTEXTO
+        # REGRAS DE ROTEAMENTO E EXTRAÇÃO
+        - Priorize intenções como 'transferencia_humano' ou 'encerrar_conversa'.
+        - Intenção 'buscar_preco': extraia o serviço (entidade).
+        - Intenção 'iniciar_agendamento':
+            - Extraia a especialidade ou procedimento principal como 'entity'.
+            - SE MENCIONADO, extraia 'modalidade' ('Telemedicina' ou 'Presencial').
+            - SE MENCIONADO, extraia o nome do médico em 'medico_preferencia'.
+            - SE MENCIONADO, extraia a preferência de dia/data em 'dia_preferencia'.
+            - SE MENCIONADO, extraia a preferência de hora/período em 'hora_preferencia'.
+        - Exemplo: "Quero agendar telemedicina com Dr. Ricardo na segunda de manhã" -> intent='iniciar_agendamento', entity='Consulta', modalidade='Telemedicina', medico_preferencia='Dr. Ricardo', dia_preferencia='segunda', hora_preferencia='manhã'.
+        - Exemplo: "Agendar ultrassom de mama presencial semana que vem" -> intent='iniciar_agendamento', entity='Ultrassom de mama', modalidade='Presencial', dia_preferencia='semana que vem'.
+        - Para outras intenções ('pergunta_geral', 'triagem_sintomas'), foque na 'intent' e 'entity'.
         - Use o histórico para entender perguntas curtas. Exemplo: Se o histórico mostra que o assunto é preço, e a mensagem atual é apenas "E ginecologia?", a intenção é 'buscar_preco' e a entidade é 'Ginecologia'.
         - Se mencionar 'atendente', 'humano', 'pessoa', a intenção é SEMPRE 'transferencia_humano', ignorando o contexto anterior.
         - Se mencionar 'tchau', 'obrigado', 'valeu', a intenção é 'encerrar_conversa'.

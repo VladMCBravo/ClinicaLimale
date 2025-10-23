@@ -216,15 +216,44 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                          resultado = {"response_message": "Entendido. Quando precisar, é só chamar!", "new_state": 'encerrado', "memory_data": {'nome_usuario': nome_usuario}} # Limpa memória, muda estado
 
                 # ADICIONADO: Lógica para confirmar continuação após interrupção
+                # --- LÓGICA CORRIGIDA para confirmar continuação OU iniciar novo fluxo ---
                 elif estado_atual == 'awaiting_schedule_confirmation':
-                    estado_anterior = memoria_atual.pop('previous_state', 'identificando_demanda') # Recupera e remove estado anterior
+                    nome_usuario = memoria_atual.get('nome_usuario', '') 
+                    
                     if 'sim' in user_message.lower():
-                         # Usuário quer continuar. Volta para o estado anterior e envia um reprompt.
-                         reprompt = get_reprompt_message(estado_anterior, memoria_atual)
-                         resultado = {"response_message": f"Ótimo! Continuando de onde paramos:\n\n{reprompt}", "new_state": estado_anterior, "memory_data": memoria_atual}
+                        # Usuário quer continuar/agendar. Verificamos COMO chegamos aqui.
+                        
+                        # CENÁRIO 1: Voltando de uma interrupção (temos previous_state)
+                        if 'previous_state' in memoria_atual:
+                            estado_anterior = memoria_atual.pop('previous_state') # Recupera e remove
+                            logger.info(f"Retomando fluxo do estado anterior: {estado_anterior}")
+                            reprompt = get_reprompt_message(estado_anterior, memoria_atual)
+                            resultado = {"response_message": f"Ótimo! Continuando de onde paramos:\n\n{reprompt}", "new_state": estado_anterior, "memory_data": memoria_atual}
+                        
+                        # CENÁRIO 2: Iniciando agendamento após sugestão (temos entidade_agendar)
+                        elif 'entidade_agendar' in memoria_atual:
+                            entidade = memoria_atual.pop('entidade_agendar') 
+                            logger.info(f"Iniciando novo fluxo de agendamento para entidade: {entidade}")
+                            memoria_atual['entidade_inicial_agendamento'] = entidade 
+                            manager = AgendamentoManager(session_id, memoria_atual, "")
+                            # ***** CORREÇÃO AQUI *****
+                            # Atribui o retorno do manager diretamente a 'resultado'
+                            resultado = manager.processar("iniciar com entidade", 'agendamento_inicio') 
+                            # ***** FIM DA CORREÇÃO *****
+                        
+                        # CENÁRIO 3: Fallback (não deveria acontecer, mas por segurança)
+                        else:
+                            logger.warning("Estado awaiting_schedule_confirmation sem previous_state nem entidade_agendar. Indo para identificando_demanda.")
+                            resultado = {"response_message": f"Entendido, {nome_usuario}. Como posso te ajudar agora?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+
                     else:
-                         # Usuário não quer continuar. Volta ao menu principal.
-                         resultado = {"response_message": "Tudo bem. Se mudar de ideia, é só me dizer o que gostaria de fazer.", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                         # Usuário não quer continuar/agendar. Volta ao menu principal.
+                         logger.info("Usuário recusou a continuação/agendamento.")
+                         # Limpa 'previous_state' e 'entidade_agendar' se existirem, para não confundir fluxos futuros
+                         memoria_atual.pop('previous_state', None)
+                         memoria_atual.pop('entidade_agendar', None)
+                         resultado = {"response_message": "Tudo bem. Se mudar de ideia ou precisar de outra coisa, é só me dizer!", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                # --- FIM DA LÓGICA CORRIGIDA ---
 
                 # --- Para todos os outros estados de fluxo mapeados, usamos o AgendamentoManager ---
                 elif estado_atual in MAPA_ESTADOS_INPUT: # Garante que só chame o manager para estados mapeados
@@ -285,78 +314,89 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         # NÍVEL 2: Se NÃO estamos em um fluxo, usamos a IA Roteadora.
         else:
             logger.warning("Nenhum fluxo ativo. Usando IA Roteadora com contexto para nova intenção.")
+            # --- BLOCO TRY...EXCEPT CORRIGIDO ---
             try:
+                # Pega histórico para a chain roteadora
                 historico = memoria_atual.get('historico_conversa', [])
-                historico_formatado = "\n".join(historico)
+                # Usa histórico mais curto para prompts, evitando excesso de tokens
+                historico_formatado_roteador = "\n".join(historico[-4:]) 
 
+                # Chama a chain roteadora para obter intenção e entidades
                 intent_data = chain_roteadora.invoke({
                     "user_message": user_message,
-                    "historico_conversa": historico_formatado
+                    "historico_conversa": historico_formatado_roteador # Usa histórico curto
                 })
 
                 intent = intent_data.get("intent")
                 entity = intent_data.get("entity")
                 logger.info(f"Roteador: Intenção='{intent}', Entidade='{entity}'")
 
+                # Salva a entidade principal para uso futuro (handle_inicio)
+                memoria_atual['entidade_inicial_agendamento'] = entity
+
+                # Salva outras entidades extraídas se existirem
+                modalidade = intent_data.get("modalidade")
+                medico = intent_data.get("medico_preferencia")
+                dia = intent_data.get("dia_preferencia")
+                hora = intent_data.get("hora_preferencia")
+
+                if modalidade: memoria_atual['modalidade'] = modalidade
+                if medico: memoria_atual['medico_preferencia'] = medico
+                if dia: memoria_atual['dia_preferencia'] = dia
+                if hora: memoria_atual['hora_preferencia'] = hora
+                logger.info(f"Roteador extraiu também: Mod={modalidade}, Med={medico}, Dia={dia}, Hora={hora}")
+
+                # --- Lógica de Roteamento Baseada na Intenção ---
                 if intent == "buscar_preco":
-                     # MODIFICADO: Pergunta se quer AGENDAR APÓS o preço.
-                     resposta_base = get_resposta_preco(entity, memoria_atual) # <--- Linha Corrigida (passa memoria_atual)
-                     # Pergunta se quer agendar o item específico que teve o preço consultado
-                     resposta_final = f"{resposta_base}\n\nQue tal aproveitarmos para já verificar os próximos horários disponíveis para {entity}, {nome_usuario}? (Sim/Não)"
-                     memoria_atual['entidade_agendar'] = entity # Salva o que agendar
-                     resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
+                    resposta_base = get_resposta_preco(entity, memoria_atual) # Passa memoria_atual
+                    resposta_final = f"{resposta_base}\n\nQue tal aproveitarmos para já verificar os próximos horários disponíveis para {entity}, {nome_usuario}? (Sim/Não)"
+                    memoria_atual['entidade_agendar'] = entity # Salva para confirmar agendamento
+                    resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
 
                 elif intent == "iniciar_agendamento":
-                     manager = AgendamentoManager(session_id, memoria_atual, "")
-                     # ADICIONADO: Passa a entidade (se houver) para o início do fluxo
-                     # O AgendamentoManager precisará ser adaptado para usar essa entidade inicial, se possível
-                     memoria_atual['entidade_inicial_agendamento'] = entity
-                     resultado = manager.processar(user_message, 'agendamento_inicio') # Inicia o fluxo padrão
+                    manager = AgendamentoManager(session_id, memoria_atual, "")
+                    # O handle_inicio agora usará 'entidade_inicial_agendamento' e outras infos salvas
+                    resultado = manager.processar(user_message, 'agendamento_inicio')
 
-                 # ADICIONADO: Lógica para Cancelamento (se roteador detectar)
                 elif intent == "cancelar_agendamento":
-                     manager = AgendamentoManager(session_id, memoria_atual, "")
-                     resultado = manager.processar(user_message, 'cancelamento_inicio')
+                    manager = AgendamentoManager(session_id, memoria_atual, "")
+                    resultado = manager.processar(user_message, 'cancelamento_inicio')
 
-                 # ADICIONADO: Tratamento de Sintomas (se roteador detectar)
                 elif intent == "triagem_sintomas":
-                      if not chain_sintomas:
-                           raise ValueError("Chain de Sintomas não inicializada.")
-                      sintomas_data = chain_sintomas.invoke({"sintomas_do_usuario": user_message})
-                      especialidade = sintomas_data.get("especialidade_sugerida", "Clínico Geral")
-                      if especialidade != 'Nenhuma':
-                           msg = (f"Entendo seus sintomas, {nome_usuario}. Com base no que me disse, "
-                                  f"a especialidade mais indicada parece ser *{especialidade}*. \n\n"
-                                  f"Gostaria de verificar os horários disponíveis para {especialidade}? (Sim/Não)")
-                           memoria_atual['entidade_agendar'] = especialidade # Salva para agendar
-                           resultado = {"response_message": msg, "new_state": "awaiting_schedule_confirmation", "memory_data": memoria_atual}
-                      else:
-                           msg = (f"Compreendo, {nome_usuario}. Seus sintomas parecem gerais. Recomendo passar por um *Clínico Geral* para uma avaliação inicial.\n\n"
-                                  f"Gostaria de agendar com nosso Clínico Geral? (Sim/Não)")
-                           memoria_atual['entidade_agendar'] = "Clínico Geral"
-                           resultado = {"response_message": msg, "new_state": "awaiting_schedule_confirmation", "memory_data": memoria_atual}
+                    if not chain_sintomas: raise ValueError("Chain de Sintomas não inicializada.")
+                    sintomas_data = chain_sintomas.invoke({"sintomas_do_usuario": user_message})
+                    especialidade = sintomas_data.get("especialidade_sugerida", "Clínico Geral")
+                    entidade_para_agendar = especialidade if especialidade != 'Nenhuma' else "Clínico Geral"
+                    msg = (f"Entendo seus sintomas, {nome_usuario}. "
+                           f"A especialidade mais indicada parece ser *{entidade_para_agendar}*. "
+                           f"Gostaria de verificar os horários disponíveis? (Sim/Não)")
+                    memoria_atual['entidade_agendar'] = entidade_para_agendar
+                    resultado = {"response_message": msg, "new_state": "awaiting_schedule_confirmation", "memory_data": memoria_atual}
 
-                 # ADICIONADO: Transferência Humana pelo Roteador
                 elif intent == "transferencia_humano":
-                      resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
-                      memoria_obj.transferencia_solicitada = True
+                    resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
+                    memoria_obj.transferencia_solicitada = True
 
-                 # ADICIONADO: Encerramento pelo Roteador
                 elif intent == "encerrar_conversa":
-                      resultado = ConversationManager.processar_encerramento(session_id, memoria_atual)
-                      memoria_obj.conversa_encerrada = True # Marca no objeto DB
+                    resultado = ConversationManager.processar_encerramento(session_id, memoria_atual)
+                    memoria_obj.conversa_encerrada = True
 
                 else: # pergunta_geral ou fallback do roteador
-                     faq_data = chain_faq.invoke({
-                         "pergunta_do_usuario": user_message,
-                         "faq": faq_base_de_conhecimento,
-                         "nome_usuario": nome_usuario
-                     })
-                     resultado = {"response_message": faq_data.get("resposta"), "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+                    if not chain_faq: raise ValueError("Chain FAQ não inicializada.") # Garante que existe
+                    faq_data = chain_faq.invoke({
+                        "pergunta_do_usuario": user_message,
+                        "faq": faq_base_de_conhecimento,
+                        "nome_usuario": nome_usuario
+                    })
+                    resposta = faq_data.get("resposta", f"Desculpe {nome_usuario}, não encontrei informações sobre isso.")
+                    resultado = {"response_message": resposta, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
 
+            # --- CLÁUSULA EXCEPT CORRIGIDA E INDENTADA ---
             except Exception as e:
-                 logger.error(f"Erro na IA Roteadora ou processamento de intenção: {e}", exc_info=True)
-                 resultado = {"response_message": f"Desculpe, {nome_usuario}, não consegui processar sua mensagem. Poderia tentar de outra forma?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
+                logger.error(f"Erro na IA Roteadora ou processamento de intenção no Nível 2: {e}", exc_info=True)
+                # Mensagem de erro genérica, mas mantém o usuário no início
+                resultado = {"response_message": f"Desculpe, {nome_usuario}, tive um problema para entender sua solicitação. Poderia tentar de outra forma?", "new_state": "identificando_demanda", "memory_data": memoria_atual}
+            # --- FIM DO BLOCO TRY...EXCEPT CORRIGIDO ---
 
     # --- PONTO DE SAÍDA ÚNICO: ATUALIZA A MEMÓRIA E O HISTÓRICO ---
     if not resultado: # Fallback geral se nada acima gerar um resultado
