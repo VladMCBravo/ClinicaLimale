@@ -104,11 +104,62 @@ class AgendamentoManager:
         )
         return {"response_message": mensagem, "new_state": "identificando_demanda", "memory_data": {'nome_usuario': nome_usuario}}
 
+    # --- ADICIONE ESTA LINHA ---
     def handle_inicio(self, resposta_usuario):
+    # ---------------------------
+        # AGORA, INDENTE TODO O BLOCO ABAIXO (até a próxima def)
         nome_usuario = self.memoria.get('nome_usuario', '')
-        self.memoria.clear()
+        entidade_inicial = self.memoria.pop('entidade_inicial_agendamento', None) # Pega e remove a entidade inicial
+
+        # Limpa memória de agendamentos anteriores, mas mantém nome e histórico
+        chaves_para_manter = ['nome_usuario', 'historico_conversa']
+        self.memoria = {k: v for k, v in self.memoria.items() if k in chaves_para_manter}
+        # Garante que nome_usuario seja reinserido se foi limpo acidentalmente
         self.memoria['nome_usuario'] = nome_usuario
-        return {"response_message": f"Perfeito, {nome_usuario}! Nosso time está pronto para te atender. O agendamento será para uma *Consulta* ou *Procedimento*?", "new_state": "agendamento_awaiting_type", "memory_data": self.memoria}
+
+        logger.info(f"AgendamentoManager: handle_inicio - Entidade inicial detectada: '{entidade_inicial}'")
+
+        # --- LÓGICA INTELIGENTE ---
+        if entidade_inicial:
+            entidade_lower = entidade_inicial.lower()
+
+            # 1. Verifica se é uma ESPECIALIDADE conhecida
+            especialidade = Especialidade.objects.filter(nome__iexact=entidade_lower).first()
+            if especialidade:
+                logger.info(f"Entidade inicial '{entidade_inicial}' reconhecida como Especialidade: {especialidade.nome}")
+                self.memoria['tipo_agendamento'] = 'Consulta'
+                self.memoria['especialidade_id'] = especialidade.id
+                self.memoria['especialidade_nome'] = especialidade.nome
+
+                # PULA a pergunta "Consulta ou Procedimento?" e "Qual especialidade?"
+                # Vai direto para a próxima pergunta necessária: Modalidade
+                return {
+                    "response_message": f"Entendido, {nome_usuario}. Você deseja agendar uma consulta de *{especialidade.nome}*. Prefere *Telemedicina* ou *Presencial*?",
+                    "new_state": "agendamento_awaiting_modality",
+                    "memory_data": self.memoria
+                }
+
+            # 2. Verifica se é um PROCEDIMENTO conhecido
+            procedimento = Procedimento.objects.filter(descricao__iexact=entidade_lower, ativo=True, valor_particular__gt=0).exclude(descricao__iexact='consulta').first()
+            if procedimento:
+                # ... (resto do código do if procedimento) ...
+                 return { # (indentação correta)
+                    "response_message": f"Entendido, {nome_usuario}. Você deseja agendar *{procedimento.descricao}*. Infelizmente, não há horários disponíveis nos próximos dias. Gostaria de tentar agendar uma consulta ou verificar outro procedimento?",
+                    "new_state": "identificando_demanda", # Volta ao início se não achar horário
+                    "memory_data": self.memoria
+                }
+
+            # 3. Se não reconheceu a entidade inicial
+            logger.warning(f"Entidade inicial '{entidade_inicial}' não reconhecida como especialidade ou procedimento válido.")
+            # Cai para a lógica padrão abaixo
+
+        # --- LÓGICA PADRÃO (se nenhuma entidade inicial foi fornecida ou reconhecida) ---
+        logger.info("Nenhuma entidade inicial válida. Iniciando fluxo padrão.")
+        return {
+            "response_message": f"Perfeito, {nome_usuario}! Nosso time está pronto para te atender. O agendamento será para uma *Consulta* ou *Procedimento*?",
+            "new_state": "agendamento_awaiting_type",
+            "memory_data": self.memoria # Usa a memória já parcialmente limpa
+            } # <-- FIM DO BLOCO INDENTADO
 
     def handle_awaiting_type(self, resposta_usuario):
         resposta_lower = resposta_usuario.lower()
