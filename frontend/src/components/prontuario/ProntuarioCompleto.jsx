@@ -10,8 +10,7 @@ const PrescricoesTab = lazy(() => import('./PrescricoesTab')); //
 const AtestadosTab = lazy(() => import('./AtestadosTab')); //
 
 // 2. Vamos criar o "loader" da aba de Evolução no próximo passo. Por enquanto, vamos importá-lo.
-const EvolucaoTab = lazy(() => import('./EvolucaoTab')); 
-
+const EvolucoesTab = lazy(() => import('./EvolucoesTab')); // <-- Adicione o "s"
 // (Vamos criar um componente simples para Documentos também)
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 
