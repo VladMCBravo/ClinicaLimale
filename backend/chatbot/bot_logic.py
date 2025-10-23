@@ -162,6 +162,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 try:
                     # Garante que temos a chain_triagem inicializada
                     if not chain_triagem:
+                        logger.error("CRÍTICO: chain_triagem é None! Falha na inicialização da IA.")
                         raise ValueError("Chain de Triagem não inicializada.")
 
                     input_esperado = MAPA_ESTADOS_INPUT.get(estado_atual, "Uma resposta específica do usuário.")

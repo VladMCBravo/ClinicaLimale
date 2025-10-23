@@ -39,15 +39,22 @@ chain_classifica_modalidade: Optional[Runnable] = None # <-- Adicionado aqui
 
 # --- BLOCO TRY...EXCEPT ÚNICO PARA INICIALIZAÇÃO ---
 try:
+    logger.info("Tentando ler a GOOGLE_API_KEY do ambiente...")
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
+        logger.error("ERRO CRÍTICO: Variável de ambiente GOOGLE_API_KEY não encontrada!")
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
+    else:
+        # Mostra apenas os primeiros/últimos caracteres por segurança
+        logger.info(f"GOOGLE_API_KEY encontrada (início/fim): {api_key[:5]}...{api_key[-4:]}")
 
     # --- INICIALIZAÇÃO DO LLM (CORRIGIDO MODELO) ---
+    logger.info("Tentando inicializar o LLM ChatGoogleGenerativeAI com gemini-1.5-pro-latest...")
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key) # <-- MODELO CORRIGIDO
     logger.info("LLM (Gemini) inicializado com sucesso.")
 
     # --- CHAIN ROTEADORA (COM MÚLTIPLAS ENTIDADES) ---
+    logger.info("Definindo Chain Roteadora...")
     class RoteadorOutput(BaseModel):
         intent: str = Field(description="A intenção principal. Ex: 'iniciar_agendamento', 'buscar_preco', 'cancelar_agendamento', 'pergunta_geral', 'transferencia_humano', 'encerrar_conversa', 'triagem_sintomas'.")
         entity: Optional[str] = Field(description="A entidade principal (especialidade, procedimento, tópico da pergunta). Ex: 'Cardiologia', 'Ultrassonografia de mama'.")
@@ -92,8 +99,8 @@ try:
         partial_variables={"format_instructions": parser_roteador.get_format_instructions()},
     )
     chain_roteadora = prompt_roteador | llm | parser_roteador
-    logger.info("Chain Roteadora inicializada.")
-
+    logger.info("Chain Roteadora definida com sucesso.")
+    
     # --- CHAIN DE TRIAGEM DE SINTOMAS (Se existir - Exemplo) ---
     class SintomaOutput(BaseModel): ...
     parser_sintomas = JsonOutputParser(...)
@@ -102,6 +109,7 @@ try:
     logger.info("Chain de Sintomas inicializada.")
 
     # --- CHAIN DE FAQ ---
+    logger.info("Definindo Chain FAQ...")
     class FaqOutput(BaseModel):
         resposta: str = Field(description="A resposta à pergunta do usuário, baseada estritamente na base de conhecimento.")
 
@@ -129,9 +137,10 @@ try:
         partial_variables={"format_instructions": parser_faq.get_format_instructions()},
     )
     chain_faq = prompt_faq_template | llm | parser_faq
-    logger.info("Chain FAQ inicializada.")
+    logger.info("Chain FAQ definida com sucesso.")
 
     # --- CHAIN DE TRIAGEM DE FLUXO ---
+    logger.info("Definindo Chain de Triagem de Fluxo...")
     class TriagemFluxoOutput(BaseModel):
         intent: Literal[
             'continuacao',
@@ -173,9 +182,10 @@ try:
         partial_variables={"format_instructions": parser_triagem.get_format_instructions()},
     )
     chain_triagem = prompt_triagem_template | llm | parser_triagem
-    logger.info("Chain de Triagem de Fluxo inicializada.")
+    logger.info("Chain de Triagem de Fluxo definida com sucesso.")
 
     # --- CHAIN DE CLASSIFICAÇÃO DE MODALIDADE ---
+    logger.info("Definindo Chain de Classificação de Modalidade...")
     class ClassificaModalidadeOutput(BaseModel):
         modalidade_escolhida: Literal['Telemedicina', 'Presencial', 'Indefinido'] = Field(description="A modalidade escolhida pelo usuário ou 'Indefinido' se não for claro.")
 
@@ -200,10 +210,14 @@ try:
         partial_variables={"format_instructions": parser_modalidade.get_format_instructions()},
     )
     chain_classifica_modalidade = prompt_modalidade | llm | parser_modalidade
-    logger.info("Chain de Classificação de Modalidade inicializada.")
+    logger.info("Chain de Classificação de Modalidade definida com sucesso.")
 
-# --- BLOCO EXCEPT ÚNICO CORRIGIDO ---
+    logger.info("Todas as chains de IA foram definidas com sucesso.")
+
+# --- BLOCO EXCEPT ÚNICO COM LOG DETALHADO ---
 except Exception as e:
-    logger.critical(f"FALHA CRÍTICA AO INICIALIZAR UMA OU MAIS CHAINS DE IA: {e}", exc_info=True)
-    # Define TODAS as chains como None em caso de qualquer erro na inicialização
-    chain_roteadora = chain_sintomas = chain_faq = chain_triagem = chain_classifica_modalidade = None # <-- CORRIGIDO
+    # LOG DETALHADO DO ERRO
+    logger.critical(f"FALHA CRÍTICA AO INICIALIZAR UMA OU MAIS CHAINS DE IA: {type(e).__name__} - {e}", exc_info=True)
+    # Define TODAS as chains como None para indicar falha
+    chain_roteadora = chain_sintomas = chain_faq = chain_triagem = chain_classifica_modalidade = None
+    logger.warning("Todas as variáveis de chain foram definidas como None devido à falha na inicialização.")
