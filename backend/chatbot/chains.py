@@ -102,11 +102,11 @@ try:
     logger.info("Chain Roteadora definida com sucesso.")
     
     # --- CHAIN DE TRIAGEM DE SINTOMAS (Se existir - Exemplo) ---
-    class SintomaOutput(BaseModel): ...
-    parser_sintomas = JsonOutputParser(...)
-    prompt_sintomas = ChatPromptTemplate.from_template(...)
-    chain_sintomas = prompt_sintomas | llm | parser_sintomas
-    logger.info("Chain de Sintomas inicializada.")
+    #class SintomaOutput(BaseModel): ...
+    #parser_sintomas = JsonOutputParser(...)
+    #prompt_sintomas = ChatPromptTemplate.from_template(...)
+    #chain_sintomas = prompt_sintomas | llm | parser_sintomas
+    #logger.info("Chain de Sintomas inicializada.")
 
     # --- CHAIN DE FAQ ---
     logger.info("Definindo Chain FAQ...")
@@ -219,5 +219,5 @@ except Exception as e:
     # LOG DETALHADO DO ERRO
     logger.critical(f"FALHA CRÍTICA AO INICIALIZAR UMA OU MAIS CHAINS DE IA: {type(e).__name__} - {e}", exc_info=True)
     # Define TODAS as chains como None para indicar falha
-    chain_roteadora = chain_sintomas = chain_faq = chain_triagem = chain_classifica_modalidade = None
-    logger.warning("Todas as variáveis de chain foram definidas como None devido à falha na inicialização.")
+    chain_roteadora = chain_faq = chain_triagem = chain_classifica_modalidade = None # <-- chain_sintomas removida daqui
+    logger.warning("Variáveis de chain (exceto sintomas) foram definidas como None...")
