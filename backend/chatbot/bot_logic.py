@@ -271,12 +271,13 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 memoria_atual['previous_state'] = estado_atual
 
                 resposta_base = get_resposta_preco(entity_triagem, memoria_atual) # <--- Linha Corrigida (passa memoria_atual)
-                # MODIFICADO: Pergunta se quer CONTINUAR o fluxo ANTERIOR
+                # --- MENSAGEM SUAVIZADA ---
                 resposta_final = (
                     f"{resposta_base}\n\n"
-                    f"Aliás, {nome_usuario}, estávamos tratando de outra coisa. "
-                    f"Gostaria de continuar de onde paramos? (Sim/Não)"
+                    # f"Aliás, {nome_usuario}, estávamos tratando de outra coisa. " # <-- REMOVIDO
+                    f"Podemos continuar com o agendamento de onde paramos, {nome_usuario}? (Sim/Não)" # <-- SUGESTÃO
                 )
+                # --- FIM DA MENSAGEM ---
                 # MODIFICADO: Muda para um estado que espera a confirmação de continuação
                 resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
 
@@ -291,11 +292,13 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 })
                 resposta_faq = faq_data.get("resposta", f"Desculpe {nome_usuario}, não encontrei essa informação.")
 
-                # Responde à pergunta e pergunta se quer continuar o fluxo anterior
+                # --- MENSAGEM SUAVIZADA ---
                 resposta_final = (
                     f"{resposta_faq}\n\n"
-                    f"Posso te ajudar com mais alguma coisa ou gostaria de continuar o que estávamos fazendo antes? (Sim/Não)"
+                    # f"Posso te ajudar com mais alguma coisa ou gostaria de continuar o que estávamos fazendo antes? (Sim/Não)" # <-- REMOVIDO/REFORMULADO
+                    f"Podemos continuar com o processo anterior, {nome_usuario}? (Sim/Não)" # <-- SUGESTÃO
                 )
+                # --- FIM DA MENSAGEM ---
                 resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
 
             elif intent_triagem == 'interrupcao_cancelamento_fluxo':

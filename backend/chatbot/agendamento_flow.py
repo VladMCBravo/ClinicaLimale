@@ -156,27 +156,40 @@ class AgendamentoManager:
     def handle_inicio(self, resposta_usuario):
         nome_usuario = self.memoria.get('nome_usuario', '')
         entidade_inicial = self.memoria.pop('entidade_inicial_agendamento', None)
-
+        modalidade_inicial = self.memoria.get('modalidade')
         chaves_para_manter = ['nome_usuario', 'historico_conversa']
+        if modalidade_inicial:
+             chaves_para_manter.append('modalidade')
+        
         self.memoria = {k: v for k, v in self.memoria.items() if k in chaves_para_manter}
         self.memoria['nome_usuario'] = nome_usuario
 
-        logger.info(f"AgendamentoManager: handle_inicio - Entidade inicial detectada: '{entidade_inicial}'")
+        logger.info(f"AgendamentoManager: handle_inicio - Entidade:'{entidade_inicial}', Modalidade:'{modalidade_inicial}'")
 
         if entidade_inicial:
             entidade_lower = entidade_inicial.lower()
 
             especialidade = Especialidade.objects.filter(nome__iexact=entidade_lower).first()
             if especialidade:
-                logger.info(f"Entidade inicial '{entidade_inicial}' reconhecida como Especialidade: {especialidade.nome}")
+                logger.info(f"Entidade inicial '{entidade_inicial}' reconhecida como Especialidade.")
                 self.memoria['tipo_agendamento'] = 'Consulta'
                 self.memoria['especialidade_id'] = especialidade.id
                 self.memoria['especialidade_nome'] = especialidade.nome
-                return {
-                    "response_message": f"Entendido, {nome_usuario}. Você deseja agendar uma consulta de *{especialidade.nome}*. Prefere *Telemedicina* ou *Presencial*?",
-                    "new_state": "agendamento_awaiting_modality",
-                    "memory_data": self.memoria
-                }
+
+                # --- LÓGICA INTELIGENTE APRIMORADA ---
+                # Verifica se a modalidade JÁ foi definida (pelo roteador)
+                if modalidade_inicial:
+                    logger.info(f"Modalidade '{modalidade_inicial}' já definida. Pulando pergunta de modalidade.")
+                    # PULA a pergunta de modalidade E VAI DIRETO buscar horários
+                    return self._find_and_present_slots_for_specialty() 
+                else:
+                    # Se a modalidade NÃO foi definida, pergunta normalmente
+                    return {
+                        "response_message": f"Entendido, {nome_usuario}. Você deseja agendar uma consulta de *{especialidade.nome}*. Prefere *Telemedicina* ou *Presencial*?",
+                        "new_state": "agendamento_awaiting_modality",
+                        "memory_data": self.memoria
+                    }
+                # --- FIM DA LÓGICA APRIMORADA ---
 
             procedimento = Procedimento.objects.filter(descricao__iexact=entidade_lower, ativo=True, valor_particular__gt=0).exclude(descricao__iexact='consulta').first()
             if procedimento:
