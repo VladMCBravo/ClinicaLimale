@@ -6,7 +6,7 @@ from .agendamento_flow import AgendamentoManager
 # MODIFICADO: Importa a nova chain e garante que as outras continuem
 from .chains import (
     chain_roteadora, chain_sintomas, chain_faq, faq_base_de_conhecimento,
-    chain_triagem # <--- ADICIONADO
+    chain_triagem, chain_classifica_modalidade
 )
 from .services import get_resposta_preco
 from .human_transfer import HumanTransferManager
@@ -274,8 +274,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 # --- MENSAGEM SUAVIZADA ---
                 resposta_final = (
                     f"{resposta_base}\n\n"
-                    # f"Aliás, {nome_usuario}, estávamos tratando de outra coisa. " # <-- REMOVIDO
-                    f"Podemos continuar com o agendamento de onde paramos, {nome_usuario}? (Sim/Não)" # <-- SUGESTÃO
+                    f"Podemos continuar com o agendamento de onde paramos, {nome_usuario}? (Sim/Não)" # <-- Verifica se está assim
                 )
                 # --- FIM DA MENSAGEM ---
                 # MODIFICADO: Muda para um estado que espera a confirmação de continuação
@@ -295,8 +294,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 # --- MENSAGEM SUAVIZADA ---
                 resposta_final = (
                     f"{resposta_faq}\n\n"
-                    # f"Posso te ajudar com mais alguma coisa ou gostaria de continuar o que estávamos fazendo antes? (Sim/Não)" # <-- REMOVIDO/REFORMULADO
-                    f"Podemos continuar com o processo anterior, {nome_usuario}? (Sim/Não)" # <-- SUGESTÃO
+                    f"Podemos continuar com o processo anterior, {nome_usuario}? (Sim/Não)" # <-- Verifica se está assim
                 )
                 # --- FIM DA MENSAGEM ---
                 resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}

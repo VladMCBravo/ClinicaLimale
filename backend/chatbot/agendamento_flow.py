@@ -1,4 +1,4 @@
-# chatbot/agendamento_flow.py - VERSÃO COM LÓGICA DE BUSCA AUTOMÁTICA E INTELIGÊNCIA DE FLUXO
+# chatbot/agendamento_flow.py - VERSÃO COM LÓGICA DE BUSCA AUTOMÁTICA E INTELIGÊNCIA DE FLUXO (INDENTAÇÃO CORRIGIDA)
 
 import re
 import json
@@ -7,9 +7,9 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
 from dateutil.parser import parse
-
+from .chains import chain_classifica_modalidade # <-- IMPORTAÇÃO CORRETA
 from .validators import ChatbotValidators
-from usuarios.models import Especialidade, CustomUser # <-- IMPORTAÇÃO GARANTIDA
+from usuarios.models import Especialidade, CustomUser
 from pacientes.models import Paciente
 from agendamentos.serializers import AgendamentoWriteSerializer
 from agendamentos.services import (
@@ -17,25 +17,26 @@ from agendamentos.services import (
     criar_agendamento_e_pagamento_pendente,
     listar_agendamentos_futuros,
     cancelar_agendamento_service,
-    buscar_proximo_horario_procedimento # <-- IMPORTAÇÃO GARANTIDA
+    buscar_proximo_horario_procedimento
 )
-from faturamento.models import Procedimento # <-- IMPORTAÇÃO GARANTIDA
+from faturamento.models import Procedimento
 
 logger = logging.getLogger(__name__)
 
-class AgendamentoManager:
+class AgendamentoManager: # <-- INÍCIO DA CLASSE
+    # --- TUDO ABAIXO DEVE ESTAR INDENTADO ---
     def __init__(self, session_id, memoria, base_url, **kwargs):
         self.session_id = session_id
         self.memoria = memoria
         self.base_url = base_url.rstrip('/')
         self.validators = ChatbotValidators()
 
-    # --- INÍCIO DAS FUNÇÕES AUXILIARES (INDENTADAS CORRETAMENTE) ---
+    # --- INÍCIO DAS FUNÇÕES AUXILIARES ---
     def _get_especialidades_from_db(self):
         return list(Especialidade.objects.all().order_by('nome').values('id', 'nome'))
 
     def _get_medicos_from_db(self, especialidade_id):
-        return list(CustomUser.objects.filter(cargo='medico', is_active=True, especialidades__id=especialidade_id).values('id', 'first_name', 'last_name')) # Adicionado is_active=True
+        return list(CustomUser.objects.filter(cargo='medico', is_active=True, especialidades__id=especialidade_id).values('id', 'first_name', 'last_name'))
 
     def _find_and_present_slots_for_specialty(self):
         """
@@ -298,24 +299,38 @@ class AgendamentoManager:
 
     # --- MÉTODO handle_awaiting_modality CORRIGIDO E INDENTADO ---
     def handle_awaiting_modality(self, resposta_usuario):
-        resposta_lower = resposta_usuario.lower()
+        # --- LÓGICA DE CLASSIFICAÇÃO USANDO IA ---
         nome_usuario = self.memoria.get('nome_usuario', '')
 
-        if self.memoria.get('tipo_agendamento') != 'Procedimento':
-            if 'telemedicina' in resposta_lower:
-                self.memoria['modalidade'] = 'Telemedicina'
-            elif 'presencial' in resposta_lower:
-                self.memoria['modalidade'] = 'Presencial'
-            else:
-                return {"response_message": f"Não entendi a modalidade, {nome_usuario}. Por favor, escolha entre *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+        if self.memoria.get('tipo_agendamento') == 'Consulta':
+            try:
+                if not chain_classifica_modalidade:
+                     raise ValueError("Chain de Classificação de Modalidade não inicializada.")
 
+                resultado_classificacao = chain_classifica_modalidade.invoke({
+                    "resposta_usuario": resposta_usuario
+                })
+                modalidade_detectada = resultado_classificacao.get('modalidade_escolhida')
+                logger.info(f"Classificação de Modalidade: Detectado '{modalidade_detectada}' para resposta '{resposta_usuario}'")
+
+                if modalidade_detectada == 'Telemedicina':
+                    self.memoria['modalidade'] = 'Telemedicina'
+                elif modalidade_detectada == 'Presencial':
+                    self.memoria['modalidade'] = 'Presencial'
+                else:
+                    return {"response_message": f"Não entendi bem sua preferência, {nome_usuario}. Por favor, confirme se prefere *Presencial* ou *Telemedicina*.", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+
+            except Exception as e:
+                 logger.error(f"Erro ao classificar modalidade com IA: {e}. Repetindo pergunta.", exc_info=True)
+                 return {"response_message": f"Desculpe, {nome_usuario}, tive um problema para entender. Poderia confirmar se prefere *Presencial* ou *Telemedicina*?", "new_state": "agendamento_awaiting_modality", "memory_data": self.memoria}
+
+        # O restante da função continua igual: verifica se especialidade já existe ou pergunta
         if self.memoria.get('especialidade_id'):
             logger.info(f"Especialidade '{self.memoria.get('especialidade_nome')}' já definida. Pulando para busca de horários.")
             return self._find_and_present_slots_for_specialty()
         else:
             logger.info("Especialidade ainda não definida. Solicitando ao usuário.")
             especialidades = self._get_especialidades_from_db()
-            # Verifica se a lista de especialidades está vazia
             if not especialidades:
                  logger.error("Nenhuma especialidade encontrada no banco de dados.")
                  return {"response_message": f"Desculpe, {nome_usuario}, não consegui carregar a lista de especialidades no momento. Por favor, tente novamente mais tarde ou entre em contato com a recepção.", "new_state": "identificando_demanda", "memory_data": self.memoria}
@@ -325,8 +340,13 @@ class AgendamentoManager:
             mensagem_pergunta = "Perfeito. Para qual das nossas especialidades você deseja o agendamento?"
             return {"response_message": f"{mensagem_pergunta}\n\n{nomes_especialidades}", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
-    # --- MÉTODO handle_awaiting_specialty CORRIGIDO E INDENTADO ---
     def handle_awaiting_specialty(self, resposta_usuario):
+        # --- INTELIGÊNCIA: Verifica se já temos a especialidade ---
+        if self.memoria.get('especialidade_id'):
+            logger.info(f"Especialidade '{self.memoria.get('especialidade_nome')}' já em memória. Pulando pergunta e buscando horários.")
+            return self._find_and_present_slots_for_specialty()
+        # --- FIM DA VERIFICAÇÃO ---
+
         nome_usuario = self.memoria.get('nome_usuario', '')
         especialidade_escolhida = next((esp for esp in self.memoria.get('lista_especialidades', []) if resposta_usuario.lower() in esp['nome'].lower()), None)
 
@@ -337,9 +357,6 @@ class AgendamentoManager:
         self.memoria.update({'especialidade_id': especialidade_escolhida['id'], 'especialidade_nome': especialidade_escolhida['nome']})
         logger.info(f"Especialidade '{especialidade_escolhida['nome']}' selecionada pelo usuário.")
         return self._find_and_present_slots_for_specialty()
-
-    # --- REMOVIDO _buscar_e_apresentar_horarios (agora é _find_and_present_slots_for_specialty) ---
-    # --- REMOVIDO _iniciar_busca_de_horarios (lógica movida ou simplificada) ---
 
     def handle_awaiting_slot_choice(self, resposta_usuario):
         # ... (código existente sem alterações, mas garantido que está indentado) ...
