@@ -1,20 +1,21 @@
-// Crie este arquivo em: src/components/prontuario/ProntuarioCompleto.jsx
+// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINALIZADA
 
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy, useEffect } from 'react'; // 1. Adicione 'useEffect'
 import { Box, Tabs, Tab, CircularProgress, Paper, Typography } from '@mui/material';
+import ModalHistoricoEvolucao from './ModalHistoricoEvolucao';
 
-// 1. Importe os componentes que serão o CONTEÚDO de cada aba.
-// Usamos lazy loading (carregamento sob demanda) para performance.
-const AnamneseTab = lazy(() => import('./AnamneseTab')); //
-const PrescricoesTab = lazy(() => import('./PrescricoesTab')); //
-const AtestadosTab = lazy(() => import('./AtestadosTab')); //
+// 2. Imports para buscar dados
+import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// 2. Vamos criar o "loader" da aba de Evolução no próximo passo. Por enquanto, vamos importá-lo.
-const EvolucoesTab = lazy(() => import('./EvolucoesTab')); // <-- Adicione o "s"
-// (Vamos criar um componente simples para Documentos também)
+// Imports dos componentes das abas
+const AnamneseTab = lazy(() => import('./AnamneseTab')); 
+const PrescricoesTab = lazy(() => import('./PrescricoesTab'));
+const AtestadosTab = lazy(() => import('./AtestadosTab')); 
+const EvolucaoTab = lazy(() => import('./EvolucoesTab')); // Nome da var e do arquivo batendo
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 
-// Componente auxiliar para renderizar o conteúdo da aba (padrão do Material-UI)
+// Componente auxiliar para renderizar o conteúdo da aba
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
@@ -24,10 +25,9 @@ function TabPanel(props) {
       id={`prontuario-tabpanel-${index}`}
       aria-labelledby={`prontuario-tab-${index}`}
       {...other}
-      style={{ height: '100%' }} // Garante que o painel ocupe a altura
+      style={{ height: '100%' }}
     >
       {value === index && (
-        // O padding é aplicado aqui para que o conteúdo não cole nas bordas
         <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, height: '100%' }}>
           {children}
         </Box>
@@ -36,19 +36,52 @@ function TabPanel(props) {
   );
 }
 
-// Este é o componente principal que será chamado pelo PainelMedicoPage
-export default function ProntuarioCompleto({ agendamento }) {
-  const [tabIndex, setTabIndex] = useState(0); // A aba "Evolução" (index 0) será a padrão
+// 3. Receba a nova prop 'onEvolucaoSalva' que virá do PainelMedicoPage
+export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
+  const [tabIndex, setTabIndex] = useState(0); 
+  const { showSnackbar } = useSnackbar(); // 4. Adicione o Snackbar
 
+  // 5. Lógica para buscar a Anamnese
+  const [anamneseData, setAnamneseData] = useState(null);
+  const [isLoadingAnamnese, setIsLoadingAnamnese] = useState(false);
+
+  const pacienteId = agendamento?.paciente;
+  const especialidade = agendamento?.especialidade?.nome || 'ClinicaGeral';
+
+  // 6. Hook para buscar a anamnese do paciente
+  useEffect(() => {
+    // Reseta os dados ao trocar de paciente (quando 'agendamento' muda)
+    setAnamneseData(null); 
+    if (pacienteId) {
+      setIsLoadingAnamnese(true);
+      // Busca a anamnese
+      apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
+        .then(res => {
+          setAnamneseData(res.data);
+        })
+        .catch(err => {
+          // Um 404 aqui é normal (paciente sem anamnese ainda), não mostre erro
+          if (err.response && err.response.status !== 404) {
+            showSnackbar('Erro ao buscar anamnese.', 'error');
+          }
+        })
+        .finally(() => setIsLoadingAnamnese(false));
+    }
+  }, [pacienteId, showSnackbar]); // Depende do pacienteId
+
+  // 7. Função para recarregar a anamnese após salvar
+  const handleAnamneseSalva = () => {
+    setIsLoadingAnamnese(true);
+    apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
+      .then(res => setAnamneseData(res.data))
+      .catch(err => showSnackbar('Erro ao recarregar anamnese.', 'error'))
+      .finally(() => setIsLoadingAnamnese(false));
+  };
+  
   const handleChange = (event, newIndex) => {
     setTabIndex(newIndex);
   };
 
-  // Extrai os dados do agendamento
-  const pacienteId = agendamento?.paciente;
-  const especialidade = agendamento?.especialidade?.nome || 'ClinicaGeral';
-
-  // Se nenhum paciente estiver selecionado, exibe uma mensagem
   if (!agendamento) {
     return (
       <Paper sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -60,16 +93,15 @@ export default function ProntuarioCompleto({ agendamento }) {
   }
 
   return (
-    // Paper (fundo branco) que contém as abas e o conteúdo
     <Paper elevation={2} sx={{ 
       width: '100%', 
-      height: '100%', // Ocupa toda a altura da coluna da direita
+      height: '100%',
       display: 'flex', 
       flexDirection: 'column',
-      overflow: 'hidden' // Impede o scroll no container
+      overflow: 'hidden'
     }}>
 
-      {/* 1. As Abas de Navegação */}
+      {/* Abas de Navegação (sem alteração) */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         <Tabs value={tabIndex} onChange={handleChange} aria-label="Abas do Prontuário" variant="scrollable" scrollButtons="auto">
           <Tab label="Evolução" id="prontuario-tab-0" />
@@ -80,7 +112,7 @@ export default function ProntuarioCompleto({ agendamento }) {
         </Tabs>
       </Box>
 
-      {/* 2. O Conteúdo das Abas (que terá seu próprio scroll) */}
+      {/* 8. SEU CÓDIGO, AGORA PREENCHIDO */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
           
@@ -88,19 +120,20 @@ export default function ProntuarioCompleto({ agendamento }) {
             <EvolucaoTab 
               pacienteId={pacienteId} 
               especialidade={especialidade}
-              // Passaremos a prop para recarregar o histórico quando salvar
-              // onEvolucaoSalva={...} 
+              onEvolucoesSalva={onEvolucaoSalva} // Passa a prop recebida
             />
           </TabPanel>
           
           <TabPanel value={tabIndex} index={1}>
-            <AnamneseTab 
-              pacienteId={pacienteId} 
-              especialidade={especialidade}
-              // Você buscará a anamnese inicial dentro deste componente
-              // initialAnamnese={...} 
-              // onAnamneseSalva={...}
-            />
+            {/* Só renderiza a anamnese se o carregamento tiver terminado */}
+            {!isLoadingAnamnese ? (
+              <AnamneseTab 
+                pacienteId={pacienteId} 
+                especialidade={especialidade}
+                initialAnamnese={anamneseData} // Passa os dados buscados (ou null)
+                onAnamneseSalva={handleAnamneseSalva} // Passa a função de recarregar
+              />
+            ) : <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
           </TabPanel>
 
           <TabPanel value={tabIndex} index={2}>
@@ -112,13 +145,20 @@ export default function ProntuarioCompleto({ agendamento }) {
           </TabPanel>
 
           <TabPanel value={tabIndex} index={4}>
-            {/* Você precisará criar este componente `DocumentosTab` */}
-            {/* <DocumentosTab pacienteId={pacienteId} /> */}
-            <Typography>Área de Documentos</Typography>
+            {/* Substitui a <Typography> pelo componente real */}
+            <DocumentosTab pacienteId={pacienteId} />
           </TabPanel>
 
         </Suspense>
       </Box>
+
+      {/* Modal (sem alteração) */}
+      {modalHistoricoId && (
+        <ModalHistoricoEvolucao 
+          evolucaoId={modalHistoricoId}
+          onClose={onCloseHistoricoModal}
+        />
+      )}
     </Paper>
   );
 }

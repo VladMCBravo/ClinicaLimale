@@ -606,28 +606,37 @@ class AgendamentoManager: # <-- INÍCIO DA CLASSE
              mensagem_pergunta = "Perfeito. Para qual das nossas especialidades você deseja o agendamento?"
              return {"response_message": f"{mensagem_pergunta}\n\n{nomes_especialidades}", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
-    def handle_awaiting_specialty(self, resposta_usuario):
+    def handle_awaiting_specialty(self, resposta_usuario): # <-- Nível de indentação da função
+        # --- Bloco de Código da Função ---
+        # TODO o código aqui deve estar indentado UM NÍVEL a mais
         nome_usuario = self.memoria.get('nome_usuario', '')
-        # Se viemos do fluxo de médico com múltiplas especialidades, a lista é restrita
         lista_disponivel = self.memoria.get('lista_especialidades', self._get_especialidades_from_db())
-
         especialidade_escolhida = next((esp for esp in lista_disponivel if resposta_usuario.lower() in esp['nome'].lower()), None)
 
-        if not especialidade_escolhida:
+        if not especialidade_escolhida: # <-- Mesmo nível de indentação que nome_usuario
             nomes_especialidades = '\n'.join([f"• {esp['nome']}" for esp in lista_disponivel])
             return {"response_message": f"Não encontrei '{resposta_usuario}', {nome_usuario}. Escolha uma da lista:\n\n{nomes_especialidades}", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria}
 
+        # Linhas abaixo também devem estar no mesmo nível que 'if not especialidade_escolhida:'
         self.memoria.update({'especialidade_id': especialidade_escolhida['id'], 'especialidade_nome': especialidade_escolhida['nome']})
         logger.info(f"Especialidade '{especialidade_escolhida['nome']}' selecionada.")
 
-        # Verifica se já tínhamos um médico preferido (do handle_inicio)
-        if self.memoria.get('medico_id'):
-             logger.info(f"Médico ID {self.memoria['medico_id']} já definido. Buscando horários específicos.")
-             return self._find_and_present_slots_for_doctor(self.memoria['medico_id'])
+        # --- NOVA LÓGICA: PERGUNTA A MODALIDADE AQUI ---
+        if self.memoria.get('modalidade'):
+             logger.info(f"Modalidade '{self.memoria.get('modalidade')}' já definida. Buscando horários.")
+             if self.memoria.get('medico_id'):
+                 return self._find_and_present_slots_for_doctor(self.memoria['medico_id'])
+             else:
+                 return self._find_and_present_slots_for_specialty()
         else:
-             # Se não, busca horários para a especialidade (encontrando o melhor médico)
-             logger.info("Médico não definido. Buscando horários para especialidade.")
-             return self._find_and_present_slots_for_specialty()
+             logger.info("Modalidade não definida. Perguntando modalidade.")
+             return {
+                 "response_message": f"Entendido: *{especialidade_escolhida['nome']}*. Agora, prefere *Telemedicina* ou *Presencial*?",
+                 "new_state": "agendamento_awaiting_modality",
+                 "memory_data": self.memoria
+             }
+        # --- FIM DA NOVA LÓGICA ---
+        # --- Fim do Bloco de Código da Função ---
 
     def handle_awaiting_slot_choice(self, resposta_usuario):
         horario_str = resposta_usuario.strip()

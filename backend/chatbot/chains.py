@@ -197,7 +197,10 @@ try:
         - Se a resposta indicar claramente preferência por atendimento online, remoto, à distância, virtual, classifique como 'Telemedicina'.
         - Se a resposta indicar claramente preferência por ir à clínica, atendimento físico, local, aí, classifique como 'Presencial'.
         - Se a resposta for ambígua, confusa, ou não responder à pergunta (ex: perguntar o preço de novo), classifique como 'Indefinido'.
-
+        - Se a resposta indicar preferência por online, remoto, à distância, virtual, vídeo, videochamada, classifique como 'Telemedicina'. # <-- Mais exemplos
+        - Se a resposta indicar preferência por ir à clínica, físico, local, aí, pessoalmente, classifique como 'Presencial'. # <-- Mais exemplos
+        - Se a resposta for ambígua ou não responder, classifique como 'Indefinido'.
+        
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}""",
         partial_variables={"format_instructions": parser_modalidade.get_format_instructions()},
