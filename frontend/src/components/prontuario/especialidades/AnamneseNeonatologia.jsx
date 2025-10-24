@@ -1,6 +1,6 @@
 // src/components/prontuario/especialidades/AnamneseNeonatologia.jsx
 import React from 'react';
-import { Paper, Typography, Grid, TextField, Divider, FormGroup, FormControlLabel, Checkbox, RadioGroup, Radio } from '@mui/material';
+import { Paper, Typography, Grid, TextField, Divider, FormGroup, FormControlLabel, Checkbox, RadioGroup, Radio,FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 
 const sorologiasOptions = [
   { id: 'vdrl', label: 'VDRL' },
@@ -59,10 +59,43 @@ export default function AnamneseNeonatologia({ formData, onChange }) {
       {/* Dados do Parto */}
       <Typography variant="body1" sx={{ mb: 1, fontWeight: 'medium' }}>Dados do Parto</Typography>
       <Grid container spacing={2}>
-        <Grid item xs={6} sm={4}><TextField label="Tipo de Parto" name="tipo_parto" value={neoData.tipo_parto || ''} onChange={(e) => handleGenericChange('tipo_parto', e.target.value)} fullWidth size="small" /></Grid>
+        <Grid item xs={6} sm={4}>
+    <FormControl fullWidth size="small">
+        <InputLabel id="neo-tipo-parto-label">Tipo de Parto</InputLabel>
+        <Select
+            labelId="neo-tipo-parto-label"
+            label="Tipo de Parto"
+            name="tipo_parto"
+            value={neoData.tipo_parto || ''}
+            onChange={(e) => handleGenericChange('tipo_parto', e.target.value)}
+        >
+            <MenuItem value="Normal">Normal</MenuItem>
+            <MenuItem value="Cesárea Eletiva">Cesárea Eletiva</MenuItem>
+            <MenuItem value="Cesárea Urgência">Cesárea Urgência</MenuItem>
+            <MenuItem value="Fórceps">Fórceps</MenuItem>
+        </Select>
+    </FormControl>
+</Grid>
         <Grid item xs={6} sm={4}><TextField label="Idade Gestacional" name="idade_gestacional" value={neoData.idade_gestacional || ''} onChange={(e) => handleGenericChange('idade_gestacional', e.target.value)} fullWidth size="small" placeholder="Ex: 39s 2d"/></Grid>
         <Grid item xs={12} sm={4}><TextField label="Bolsa Rota" name="bolsa_rota" value={neoData.bolsa_rota || ''} onChange={(e) => handleGenericChange('bolsa_rota', e.target.value)} fullWidth size="small" placeholder="Ex: 2h antes do parto"/></Grid>
-        <Grid item xs={12}><TextField label="Líquido Amniótico" name="liquido_amniotico" value={neoData.liquido_amniotico || ''} onChange={(e) => handleGenericChange('liquido_amniotico', e.target.value)} fullWidth size="small" placeholder="Ex: Claro, Meconial (fluido, espesso)"/></Grid>
+        <Grid item xs={12}>
+    <FormControl fullWidth size="small">
+        <InputLabel id="liquido-label">Líquido Amniótico</InputLabel>
+        <Select
+            labelId="liquido-label"
+            label="Líquido Amniótico"
+            name="liquido_amniotico"
+            value={neoData.liquido_amniotico || ''}
+            onChange={(e) => handleGenericChange('liquido_amniotico', e.target.value)}
+        >
+            <MenuItem value="Claro">Claro</MenuItem>
+            <MenuItem value="Meconial Fluido">Meconial Fluido</MenuItem>
+            <MenuItem value="Meconial Espesso">Meconial Espesso</MenuItem>
+            <MenuItem value="Sanguinolento">Sanguinolento</MenuItem>
+            <MenuItem value="Outro">Outro</MenuItem>
+        </Select>
+    </FormControl>
+</Grid>
       </Grid>
 
       <Divider sx={{ my: 2 }} />
