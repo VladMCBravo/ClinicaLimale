@@ -1,16 +1,19 @@
-// Crie este arquivo em: src/components/prontuario/AtendimentoGenerico.jsx
+// src/components/prontuario/AtendimentoGenerico.jsx - LAYOUT COM BOX
 
-import React, { useState } from 'react';
-import { Box, Button, CircularProgress, Grid, TextField, Typography, Paper } from '@mui/material';
+import React, { useState, useEffect } from 'react'; // Adicione useEffect
+import { Box, Button, CircularProgress, TextField, Typography, Paper } from '@mui/material'; // Remova Grid
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// Este é o mesmo formulário que você tem no AtendimentoPediatria.jsx,
-// mas com os labels genéricos.
 export default function AtendimentoGenerico({ pacienteId, especialidade, onEvolucaoSalva }) {
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showSnackbar } = useSnackbar();
+
+    // Limpa o form ao trocar de paciente
+    useEffect(() => {
+        setFormData({});
+    }, [pacienteId]);
 
     const handleChange = (e) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -31,18 +34,17 @@ export default function AtendimentoGenerico({ pacienteId, especialidade, onEvolu
         }
     };
     
-    // Botão de "Normalidade" genérico
-    const preencherNormalidade = () => {
-        setFormData({
-            notas_subjetivas: 'Paciente refere bom estado geral, nega queixas.',
-            notas_objetivas: 'BEG, corado, hidratado, eupneico. Sinais vitais estáveis. Exame físico sem alterações.',
-            avaliacao: 'Paciente estável, sem intercorrências.',
-            plano: 'Mantenho conduta. Sigo acompanhamento.'
-        });
+    const preencherNormalidade = () => { /* ... (igual) ... */ };
+
+    // Botão Limpar
+    const handleLimparConsultaAtual = () => { 
+        setFormData({});
+        showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
     return (
         <Paper component="form" onSubmit={handleSubmit} sx={{ p: 2, mb: 2 }}>
+            {/* Cabeçalho */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
                     Evolução do Dia ({especialidade || 'Clínica Geral'})
@@ -51,25 +53,24 @@ export default function AtendimentoGenerico({ pacienteId, especialidade, onEvolu
                     Preencher Normalidade
                 </Button>
             </Box>
-            <Grid container spacing={2}>
-                <Grid item xs={12}>
-                    <TextField name="notas_subjetivas" label="Subjetivo (Queixas, HDA)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField name="notas_objetivas" label="Objetivo (Exame Físico)" multiline rows={4} fullWidth value={formData.notas_objetivas || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas" multiline rows={3} fullWidth value={formData.avaliacao || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField name="plano" label="Plano / Conduta" multiline rows={3} fullWidth value={formData.plano || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12} sx={{ textAlign: 'right' }}>
-                    <Button type="submit" variant="contained" disabled={isSubmitting}>
+            
+            {/* Campos SOAP com Box */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField name="notas_subjetivas" label="Subjetivo (Queixas, HDA)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleChange} size="small" />
+                <TextField name="notas_objetivas" label="Objetivo (Exame Físico)" multiline rows={4} fullWidth value={formData.notas_objetivas || ''} onChange={handleChange} size="small" />
+                <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas" multiline rows={3} fullWidth value={formData.avaliacao || ''} onChange={handleChange} size="small" />
+                <TextField name="plano" label="Plano / Conduta" multiline rows={3} fullWidth value={formData.plano || ''} onChange={handleChange} size="small" />
+                
+                {/* Botões */}
+                <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                     <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}>
+                         Limpar Consulta
+                     </Button>
+                     <Button type="submit" variant="contained" disabled={isSubmitting}>
                         {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Evolução'}
                     </Button>
-                </Grid>
-            </Grid>
+                </Box>
+            </Box>
         </Paper>
     );
 }

@@ -131,7 +131,25 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             plano: 'Manter acompanhamento regular. Orientações gerais.'
         });
     };
-
+    const handleLimparConsultaAtual = () => {
+    // Limpa apenas os dados da consulta atual (sintomas, exame físico atual e SOAP)
+    setAnamneseData(prev => ({ ...prev, sintomas: {} })); 
+    setExameFisicoData(prev => ({ 
+        ...anamneseData.cardiologica, // Mantém dados carregados do histórico?
+        pa: '', fc: '', // Limpa vitais
+        // Limpa checkboxes qualitativos
+        acv_brnf: false, acv_sopros: false, pulsos_cheios: false, 
+        pulsos_diminuidos: false, sem_edema: false, com_edema: false, 
+        ictus_normal: false 
+    }));
+    setSoapData({
+        notas_subjetivas: '',
+        notas_objetivas: 'PA: \nFC: \n', // Pode manter um template base
+        avaliacao: '',
+        plano: ''
+    });
+    showSnackbar('Campos da consulta atual limpos.', 'info');
+};
     // --- handleSubmit CORRIGIDO ---
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -216,19 +234,25 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                 <Divider sx={{ my: 2 }} />
 
                 {/* Campos de Texto do Histórico */}
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                        <TextField label="Medicamentos em Uso (Contínuo)" name="medicamentos_em_uso" multiline rows={3} fullWidth size="small"
-                            value={anamneseData.cardiologica.medicamentos_em_uso || ''}
-                            onChange={(e) => handleCardiologicaChange('medicamentos_em_uso', e.target.value)} />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <TextField label="Histórico Familiar Relevante" name="historico_familiar" multiline rows={3} fullWidth size="small"
-                            value={anamneseData.cardiologica.historico_familiar || ''}
-                            onChange={(e) => handleCardiologicaChange('historico_familiar', e.target.value)}
-                            placeholder="Ex: Pai IAM aos 50a" />
-                    </Grid>
-                </Grid>
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+    <TextField 
+        label="Medicamentos em Uso (Contínuo)" 
+        name="medicamentos_em_uso" 
+        multiline rows={3} fullWidth size="small"
+        value={anamneseData.cardiologica.medicamentos_em_uso || ''}
+        onChange={(e) => handleCardiologicaChange('medicamentos_em_uso', e.target.value)} 
+        sx={{ flex: 1 }} // Ocupa metade do espaço em telas maiores
+    />
+    <TextField 
+        label="Histórico Familiar Relevante" 
+        name="historico_familiar" 
+        multiline rows={3} fullWidth size="small"
+        value={anamneseData.cardiologica.historico_familiar || ''}
+        onChange={(e) => handleCardiologicaChange('historico_familiar', e.target.value)}
+        placeholder="Ex: Pai IAM aos 50a" 
+        sx={{ flex: 1 }} // Ocupa metade do espaço em telas maiores
+    />
+</Box>
             </Paper>
 
             {/* EVOLUÇÃO (CONSULTA ATUAL) */}
@@ -269,10 +293,13 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                   <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                   <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
                   <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                     <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
-                        {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
-                     </Button>
-                  </Box>
+     <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}>
+         Limpar Consulta
+     </Button>
+     <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
+         {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
+     </Button>
+ </Box>
                </Box>
             </Paper>
         </Paper>
