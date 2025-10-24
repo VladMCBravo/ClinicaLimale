@@ -18,28 +18,29 @@ const EvolucaoTab = lazy(() => import('./EvolucoesTab'));
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
 
-// Componente auxiliar TabPanel
+// --- COMPONENTE TabPanel CORRIGIDO ---
+// Garante que painéis inativos não ocupem espaço
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
     <div
       role="tabpanel"
-      hidden={value !== index}
+      // Usa 'hidden' para esconder, mas garante que não ocupe espaço se não for o ativo
+      style={{ display: value !== index ? 'none' : 'block', height: '100%' }} 
       id={`prontuario-tabpanel-${index}`}
       aria-labelledby={`prontuario-tab-${index}`}
       {...other}
-      // Garante que o painel tente ocupar o espaço disponível
-      style={{ height: '100%', display: 'flex', flexDirection: 'column' }} 
     >
+      {/* Renderiza o conteúdo APENAS se for o índice ativo */}
       {value === index && (
-        // Box interno para padding e scroll, se necessário
-        <Box sx={{ p: { xs: 1, sm: 2 }, flexGrow: 1, overflowY: 'auto' }}>
+        <Box sx={{ p: { xs: 1, sm: 2 }, height: '100%' }}> {/* Mantém padding e altura */}
           {children}
         </Box>
       )}
     </div>
   );
 }
+// --- FIM DO TabPanel ---
 
 // Recebe a prop 'onEvolucaoSalva' do PainelMedicoPage
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
@@ -204,43 +205,31 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
                 )}
             </Box>
         )}
-        {/* 6. CONTEÚDO DAS ABAS (com Suspense) */}
-        {/* Este Box ocupa o espaço restante e permite scroll interno */}
-        <Box sx={{ flexGrow: 1, overflowY: 'auto' }}> 
+        {/* --- CONTEÚDO DAS ABAS (COM LAYOUT CORRIGIDO) --- */}
+        {/* Este Box ocupa o espaço restante E permite scroll INTERNO APENAS do conteúdo ativo */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', position: 'relative' }}> {/* Adicionado position relative */}
           <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
             
-            {/* Aba 0: Atendimento */}
+            {/* Usamos a função TabPanel corrigida para cada aba */}
             <TabPanel value={tabIndex} index={0}>
-              <EvolucaoTab 
-                pacienteId={pacienteId} 
-                especialidade={especialidade}
-                onEvolucoesSalva={onEvolucaoSalva} 
-              />
+              <EvolucaoTab pacienteId={pacienteId} especialidade={especialidade} onEvolucoesSalva={onEvolucaoSalva} />
             </TabPanel>
-            
-            {/* Aba 1: Prescrições */}
             <TabPanel value={tabIndex} index={1}>
               <PrescricoesTab pacienteId={pacienteId} />
             </TabPanel>
-
-            {/* Aba 2: Atestados */}
             <TabPanel value={tabIndex} index={2}>
               <AtestadosTab pacienteId={pacienteId} />
             </TabPanel>
-
-            {/* Aba 3: Documentos */}
             <TabPanel value={tabIndex} index={3}>
               <DocumentosTab pacienteId={pacienteId} />
             </TabPanel>
-            
-            {/* Aba 4: Ver Exames */}
             <TabPanel value={tabIndex} index={4}>
-              {/* Usamos o componente real */}
               <ExamesDicomTab pacienteId={pacienteId} />
             </TabPanel>
 
           </Suspense>
         </Box>
+        {/* --- FIM DO CONTEÚDO DAS ABAS --- */}
       </Box>
 
       {/* Modal de Histórico */}

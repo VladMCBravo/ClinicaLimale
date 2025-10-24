@@ -160,7 +160,20 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
             plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
         });
     };
-
+    const handleLimparConsultaAtual = () => {
+    // Limpa apenas os dados da consulta atual (sintomas e SOAP)
+    setAnamneseData(prev => ({ ...prev, sintomas: {} })); 
+    setSoapData({
+        notas_subjetivas: '',
+        // Mantém um texto padrão no objetivo ou limpa também
+        notas_objetivas: 'BEG, corado, hidratado, eupneico...', 
+        avaliacao: '',
+        plan: ''
+    });
+    // Você pode limpar o exameFisicoData também se preferir
+    // setExameFisicoData({}); 
+    showSnackbar('Campos da consulta atual limpos.', 'info');
+};
     // Submit (Salva AMBOS os formulários)
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -242,9 +255,25 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                                 <MenuItem value="Não sabe">Não sabe</MenuItem>
                             </Select>
                        </FormControl>
-                       <TextField label="Idade Gestacional" name="idade_gestacional" placeholder="semanas" type="number" 
-                           value={anamneseData.pediatrica.idade_gestacional || ''} 
-                           onChange={(e) => handlePediatricaChange('idade_gestacional', e.target.value)} fullWidth size="small" />
+                       <FormControl fullWidth size="small">
+                        <InputLabel id="idade-gestacional-label">Idade Gestacional</InputLabel>
+                        <Select
+                            labelId="idade-gestacional-label"
+                            label="Idade Gestacional"
+                            name="idade_gestacional"
+                            value={anamneseData.pediatrica.idade_gestacional || ''}
+                            onChange={(e) => handlePediatricaChange('idade_gestacional', e.target.value)}
+                    >
+                        {/* Adicione opções relevantes */}
+                        <MenuItem value="A termo">A termo ({'>='} 37 sem)</MenuItem>
+    <MenuItem value="Pré-termo tardio">Pré-termo tardio (34 a 36+6 sem)</MenuItem>
+    <MenuItem value="Pré-termo moderado">Pré-termo moderado (32 a 33+6 sem)</MenuItem>
+    <MenuItem value="Muito pré-termo">Muito pré-termo (28 a 31+6 sem)</MenuItem>
+    <MenuItem value="Pré-termo extremo">Pré-termo extremo ({'<'} 28 sem)</MenuItem>
+    <MenuItem value="Pós-termo">Pós-termo ({'>='} 42 sem)</MenuItem>
+    <MenuItem value="Não sabe">Não sabe</MenuItem>
+</Select>
+                        </FormControl>
                    </Box>
                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                         <TextField label="Peso ao nascer" placeholder="gramas" name="peso_nascimento" type="number" 
@@ -376,6 +405,14 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                      <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
                         {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
                      </Button>
+                  <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}>
+                        Limpar Consulta
+                        </Button>
+                        <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
+                        {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
+                        </Button>
+                    </Box>
                   </Box>
                </Box>
             </Paper>
