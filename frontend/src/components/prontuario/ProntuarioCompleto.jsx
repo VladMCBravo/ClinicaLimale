@@ -46,7 +46,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   const [tabIndex, setTabIndex] = useState(0); // Aba "Atendimento" como padrão
   const { showSnackbar } = useSnackbar();
   const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); // Estado do painel de vídeo
-
+  const [criandoSala, setCriandoSala] = useState(false);
   const pacienteId = agendamento?.paciente;
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
 
@@ -59,15 +59,50 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
     setTabIndex(newIndex);
   };
   
-  // Handler para o botão de Telemedicina
+  // --- FUNÇÃO DO BOTÃO TELEMEDICINA ATUALIZADA ---
   const handleToggleTelemedicina = () => {
+    // Se o painel já está visível, apenas esconda
+    if (telemedicinaVisivel) {
+      setTelemedicinaVisivel(false);
+      return;
+    }
+
+    // Se não for agendamento de telemedicina, avise
     if (agendamento?.modalidade !== 'Telemedicina') {
         showSnackbar('Este agendamento não é de telemedicina.', 'warning');
         return;
     }
-    setTelemedicinaVisivel(!telemedicinaVisivel);
-    // Adicionar lógica de conexão/desconexão do vídeo aqui se necessário
+    
+    // Mostra o painel de vídeo (placeholder)
+    setTelemedicinaVisivel(true);
+
+    // Lógica para ABRIR/CRIAR a sala (adaptada do TelemedicinaPage.jsx)
+    if (agendamento.link_telemedicina) {
+      // Se já tem link, abre em nova aba
+      window.open(agendamento.link_telemedicina, '_blank');
+    } else {
+      // Se não tem link, chama a API para criar
+      setCriandoSala(true);
+      apiClient.post(`/agendamentos/${agendamento.id}/criar-telemedicina/`)
+        .then(response => {
+          showSnackbar('Sala criada! Abrindo em nova aba...', 'success');
+          // ATENÇÃO: Precisamos atualizar o 'agendamento' no PainelMedicoPage para ter o link
+          // Por enquanto, apenas abrimos o link recebido
+          window.open(response.data.roomUrl, '_blank');
+          // Idealmente: chamar uma função passada por prop para atualizar o agendamento no pai
+          // ex: onAgendamentoUpdate({ ...agendamento, link_telemedicina: response.data.roomUrl });
+        })
+        .catch(err => {
+          console.error("Erro ao criar sala:", err);
+          showSnackbar('Erro ao criar a sala de telemedicina.', 'error');
+          setTelemedicinaVisivel(false); // Esconde o painel se falhar
+        })
+        .finally(() => {
+          setCriandoSala(false);
+        });
+    }
   };
+  // --- FIM DA FUNÇÃO ---
 
   if (!agendamento) {
     return (
@@ -107,16 +142,16 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           <Tab label="Ver Exames" id="prontuario-tab-4" /> {/* Nova Aba */}
         </Tabs>
         
-        {/* 4. BOTÃO DE TELEMEDICINA */}
-        <Tooltip title="Iniciar/Encerrar Telemedicina">
+        {/* BOTÃO DE TELEMEDICINA (com loading) */}
+        <Tooltip title={telemedicinaVisivel ? "Fechar Painel de Vídeo" : "Iniciar Telemedicina"}>
           <span> 
             <IconButton 
               onClick={handleToggleTelemedicina} 
-              color={telemedicinaVisivel ? "secondary" : "primary"} // Cor muda se ativo
-              disabled={agendamento?.modalidade !== 'Telemedicina'}
-              size="small" // Deixa o botão um pouco menor
+              color={telemedicinaVisivel ? "secondary" : "primary"}
+              disabled={agendamento?.modalidade !== 'Telemedicina' || criandoSala}
+              size="small"
             >
-              <VideocamIcon />
+              {criandoSala ? <CircularProgress size={20} color="inherit" /> : <VideocamIcon />}
             </IconButton>
           </span>
         </Tooltip>

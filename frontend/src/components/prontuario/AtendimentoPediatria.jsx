@@ -41,33 +41,47 @@ const sintomaTemplates = {
   prostracao: "Prostração / Sonolência. Hipoativo, pouca aceitação de líquidos.",
   exantema: "Exantema: Início há X dias. (macular/papular). Local: ",
 };
-// (Você pode usar seus templates mais completos do AnamnesePediatria.jsx)
+// NOVO: Opções para o Exame Físico detalhado
+const exameFisicoQualitativoOptions = [
+    { id: 'estado_geral_bom', label: 'Bom', group: 'estado_geral', template: "BEG (Bom Estado Geral)." },
+    { id: 'estado_geral_regular', label: 'Regular', group: 'estado_geral', template: "REG (Regular Estado Geral)." },
+    { id: 'estado_geral_ruim', label: 'Ruim', group: 'estado_geral', template: "MEG (Mau Estado Geral)." },
+    { id: 'corado', label: 'Corado', group: 'pele', template: "Corado." },
+    { id: 'hidratado', label: 'Hidratado', group: 'pele', template: "Hidratado." },
+    { id: 'eupneico', label: 'Eupneico', group: 'respiratorio', template: "Eupneico, FR=___." },
+    { id: 'oroscopia_normal', label: 'Normal', group: 'oroscopia', template: "Oroscopia sem alterações." },
+    { id: 'oroscopia_hiperemia', label: 'Hiperemia', group: 'oroscopia', template: "Oroscopia: Hiperemia de orofaringe." },
+    { id: 'acv_brnf', label: 'BRNF s/ sopros', group: 'cardiaco', template: "ACV: BRNF em 2T, sem sopros." },
+    { id: 'ar_mv_presente', label: 'MV presente s/ RA', group: 'respiratorio', template: "AR: MV presente universalmente, sem ruídos adventícios." },
+    { id: 'abdome_flacido', label: 'Flácido/Indolor', group: 'abdome', template: "Abdome: Flácido, indolor à palpação, RHA+." },
+    // Adicione mais opções conforme a imagem
+];
+// --- FIM DAS OPÇÕES ---
 
 export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Estado para os campos da Anamnese (Histórico)
+    // Estado para Anamnese (Histórico)
     const [anamneseData, setAnamneseData] = useState({ pediatrica: {}, dnpm: {}, sintomas: {} });
+    // NOVO: Estado para Exame Físico Detalhado
+    const [exameFisicoData, setExameFisicoData] = useState({});
     
-    // Estado para os campos do SOAP (Evolução)
-    const [soapData, setSoapData] = useState({
-        notas_subjetivas: '',
-        notas_objetivas: 'BEG, corado, hidratado, eupneico. Oroscopia sem alterações. ACV: BRNF 2T, sem sopros. AR: MVU presente, sem RA. Abdome: Flácido, indolor, RHA+.',
-        avaliacao: '',
-        plano: ''
-    });
+    // Estado para SOAP (Evolução)
+    const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // Carrega a anamnese histórica UMA VEZ quando o componente carrega
+    // Carrega anamnese histórica
     useEffect(() => {
+        // ... (lógica igual à anterior para buscar anamnese) ...
         apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
             .then(res => {
-                // Preenche os campos de histórico
                 setAnamneseData({
                     pediatrica: res.data.pediatrica || {},
                     dnpm: res.data.pediatrica?.dnpm || {},
-                    sintomas: {}, // Sintomas sempre começam zerados
+                    sintomas: {}, 
                 });
+                // NOVO: Pré-preenche Exame Físico se houver dados na anamnese
+                setExameFisicoData(res.data.pediatrica || {});
             })
             .catch(err => {
                 // 404 é normal, só significa que não há histórico
@@ -85,7 +99,17 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
             .map(opt => sintomaTemplates[opt.id])
             .join('\n');
     }, [anamneseData.sintomas]);
-
+// NOVO: Gerador de Exame Físico (Objetivo)
+    const generateExameFisico = useCallback(() => {
+        let texto = `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\n`;
+        
+        const achados = exameFisicoQualitativoOptions
+            .filter(opt => exameFisicoData[opt.id])
+            .map(opt => opt.template)
+            .join(" ");
+        
+        return texto + (achados || "Nenhuma observação selecionada.");
+    }, [exameFisicoData]);
     // Efeito que ATUALIZA o SOAP quando os checkboxes mudam
     useEffect(() => {
         const hdaText = generateHda();
@@ -94,7 +118,11 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
             notas_subjetivas: hdaText || (prev.notas_subjetivas || '')
         }));
     }, [anamneseData.sintomas, generateHda]);
-
+    // NOVO: Efeito que atualiza notas_objetivas
+    useEffect(() => {
+        const exameText = generateExameFisico();
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    }, [exameFisicoData, generateExameFisico]);
 
     // Handlers para os campos
     const handleSoapChange = (e) => {
@@ -115,13 +143,29 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
         const { name, checked } = event.target;
         setAnamneseData(prev => ({ ...prev, dnpm: { ...prev.dnpm, [name]: checked } }));
     };
-
+    // NOVO: Handler para Exame Físico (inputs e checkboxes)
+    const handleExameChange = (event) => {
+        const { name, value, type, checked } = event.target;
+        setExameFisicoData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
     // Botão de Normalidade (Agora preenche o SOAP)
     const preencherNormalidade = () => {
-        setAnamneseData(prev => ({ ...prev, sintomas: {} })); // Limpa sintomas
+        setAnamneseData(prev => ({ ...prev, sintomas: {} })); 
+        // NOVO: Marca checkboxes normais do exame
+        setExameFisicoData(prev => ({
+            ...prev, // Mantém peso/altura digitados
+            estado_geral_bom: true, estado_geral_regular: false, estado_geral_ruim: false,
+            corado: true, hidratado: true, eupneico: true,
+            oroscopia_normal: true, oroscopia_hiperemia: false,
+            acv_brnf: true, ar_mv_presente: true, abdome_flacido: true,
+        }));
+        // Atualiza SOAP com texto normal
         setSoapData({
             notas_subjetivas: 'Mãe nega queixas. Criança ativa, reativa, alimentando-se bem (SME), diurese e evacuações presentes.',
-            notas_objetivas: 'BEG, corado, hidratado, eupneico. Fontanela normotensa. Oroscopia sem alterações. Ausculta cardíaca e pulmonar normais. Abdome flácido, indolor.',
+            notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Corado. Hidratado. Eupneico, FR=___. Oroscopia sem alterações. ACV: BRNF em 2T, sem sopros. AR: MV presente universalmente, sem ruídos adventícios. Abdome: Flácido, indolor à palpação, RHA+.`,
             avaliacao: 'Criança hígida, sem sinais de alarme. Desenvolvimento adequado para a idade.',
             plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
         });
