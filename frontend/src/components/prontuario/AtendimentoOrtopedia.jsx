@@ -5,7 +5,7 @@ import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, 
     Box, Button, CircularProgress 
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext'; // Corrija adicionando a barra "/"
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
 // --- OPÇÕES (Ortopedia - Baseado em AnamneseOrtopedia.jsx) ---
