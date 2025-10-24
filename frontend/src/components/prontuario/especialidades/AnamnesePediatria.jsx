@@ -1,6 +1,6 @@
 // src/components/prontuario/especialidades/AnamnesePediatria.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,FormControl, InputLabel, Select, MenuItem,Box } from '@mui/material';
 
 const dnpmOptions = [
   { id: 'sustenta_cabeca', label: 'Sustenta a cabeça (~3m)' },
