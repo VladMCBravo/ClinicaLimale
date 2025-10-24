@@ -1,22 +1,22 @@
-// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL (VISÃO DO USUÁRIO)
+// src/components/prontuario/ProntuarioCompleto.jsx - VÍDEO INTEGRADO
 
 import React, { useState, Suspense, lazy, useEffect } from 'react';
 import { 
     Box, Tabs, Tab, CircularProgress, Paper, Typography, 
-    IconButton, Tooltip // 1. Imports para o botão
+    IconButton, Tooltip, Link // Adicione Link
 } from '@mui/material';
-import VideocamIcon from '@mui/icons-material/Videocam'; // Ícone Telemedicina
+import VideocamIcon from '@mui/icons-material/Videocam'; 
+import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar painel
 import ModalHistoricoEvolucao from './ModalHistoricoEvolucao';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// --- Imports dos Componentes das Abas ---
+// --- Imports das Abas ---
 const PrescricoesTab = lazy(() => import('./PrescricoesTab'));
 const AtestadosTab = lazy(() => import('./AtestadosTab')); 
-const EvolucaoTab = lazy(() => import('./EvolucoesTab')); // O "Super-Formulário" (Atendimento)
+const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
-// 2. Importamos o componente real da aba de Exames
-const ExamesDicomTab = lazy(() => import('./ExamesDicomTab')); //
+const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
 
 // Componente auxiliar TabPanel
 function TabPanel(props) {
@@ -43,27 +43,30 @@ function TabPanel(props) {
 
 // Recebe a prop 'onEvolucaoSalva' do PainelMedicoPage
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
-  const [tabIndex, setTabIndex] = useState(0); // Aba "Atendimento" como padrão
+  const [tabIndex, setTabIndex] = useState(0); 
   const { showSnackbar } = useSnackbar();
-  const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); // Estado do painel de vídeo
+  // 1. RESTAURAMOS o estado do painel de vídeo
+  const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); 
   const [criandoSala, setCriandoSala] = useState(false);
+  // NOVO: Estado para guardar o link da sala (para o iframe)
+  const [linkSalaAtual, setLinkSalaAtual] = useState(agendamento?.link_telemedicina || null); 
+
   const pacienteId = agendamento?.paciente;
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
-
-  // Reseta a telemedicina ao trocar de paciente
+  // Atualiza o link e reseta visibilidade ao trocar de agendamento
   useEffect(() => {
     setTelemedicinaVisivel(false);
+    setLinkSalaAtual(agendamento?.link_telemedicina || null);
   }, [agendamento]);
 
-  const handleChange = (event, newIndex) => {
-    setTabIndex(newIndex);
-  };
+  const handleChange = (event, newIndex) => { setTabIndex(newIndex); };
   
-  // --- FUNÇÃO DO BOTÃO TELEMEDICINA ATUALIZADA ---
+  // --- FUNÇÃO DO BOTÃO TELEMEDICINA CORRIGIDA ---
   const handleToggleTelemedicina = () => {
-    // Se o painel já está visível, apenas esconda
+    // Se está visível, apenas esconde
     if (telemedicinaVisivel) {
       setTelemedicinaVisivel(false);
+      // Aqui você adicionaria a lógica para DESCONECTAR da sala Daily.co se necessário
       return;
     }
 
@@ -73,34 +76,31 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
         return;
     }
     
-    // Mostra o painel de vídeo (placeholder)
+    // Mostra o painel (ainda vazio ou com texto)
     setTelemedicinaVisivel(true);
 
-    // Lógica para ABRIR/CRIAR a sala (adaptada do TelemedicinaPage.jsx)
-    if (agendamento.link_telemedicina) {
-      // Se já tem link, abre em nova aba
-      window.open(agendamento.link_telemedicina, '_blank');
-    } else {
-      // Se não tem link, chama a API para criar
-      setCriandoSala(true);
-      apiClient.post(`/agendamentos/${agendamento.id}/criar-telemedicina/`)
-        .then(response => {
-          showSnackbar('Sala criada! Abrindo em nova aba...', 'success');
-          // ATENÇÃO: Precisamos atualizar o 'agendamento' no PainelMedicoPage para ter o link
-          // Por enquanto, apenas abrimos o link recebido
-          window.open(response.data.roomUrl, '_blank');
-          // Idealmente: chamar uma função passada por prop para atualizar o agendamento no pai
-          // ex: onAgendamentoUpdate({ ...agendamento, link_telemedicina: response.data.roomUrl });
-        })
-        .catch(err => {
-          console.error("Erro ao criar sala:", err);
-          showSnackbar('Erro ao criar a sala de telemedicina.', 'error');
-          setTelemedicinaVisivel(false); // Esconde o painel se falhar
-        })
-        .finally(() => {
-          setCriandoSala(false);
-        });
+    // Se já temos o link, não faz nada (o iframe vai carregar)
+    if (linkSalaAtual) {
+        return; 
     }
+
+    // Se NÃO tem link, chama a API para criar
+    setCriandoSala(true);
+    apiClient.post(`/agendamentos/${agendamento.id}/criar-telemedicina/`)
+      .then(response => {
+        const roomUrl = response.data.roomUrl;
+        showSnackbar('Sala criada com sucesso!', 'success');
+        setLinkSalaAtual(roomUrl); // Guarda o link para o iframe
+        // Idealmente, notificar o componente pai para atualizar o 'agendamento'
+      })
+      .catch(err => {
+        console.error("Erro ao criar sala:", err);
+        showSnackbar('Erro ao criar a sala de telemedicina.', 'error');
+        setTelemedicinaVisivel(false); // Esconde o painel se falhar
+      })
+      .finally(() => {
+        setCriandoSala(false);
+      });
   };
   // --- FIM DA FUNÇÃO ---
 
@@ -142,15 +142,17 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           <Tab label="Ver Exames" id="prontuario-tab-4" /> {/* Nova Aba */}
         </Tabs>
         
-        {/* BOTÃO DE TELEMEDICINA (com loading) */}
+        {/* BOTÃO DE TELEMEDICINA */}
         <Tooltip title={telemedicinaVisivel ? "Fechar Painel de Vídeo" : "Iniciar Telemedicina"}>
           <span> 
             <IconButton 
               onClick={handleToggleTelemedicina} 
               color={telemedicinaVisivel ? "secondary" : "primary"}
+              // Desabilita se não for telemedicina OU se estiver criando a sala
               disabled={agendamento?.modalidade !== 'Telemedicina' || criandoSala}
               size="small"
             >
+              {/* Mostra loading OU o ícone */}
               {criandoSala ? <CircularProgress size={20} color="inherit" /> : <VideocamIcon />}
             </IconButton>
           </span>
@@ -158,27 +160,50 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
       </Box>
 
       {/* --- ÁREA DE CONTEÚDO (Vídeo + Abas) --- */}
-      {/* Usamos flexbox column para empilhar o vídeo e o conteúdo da aba */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
         
-        {/* 5. PAINEL DE VÍDEO (Condicional) */}
+        {/* 2. PAINEL DE VÍDEO (RESTAURADO e com iframe/link) */}
         {telemedicinaVisivel && (
             <Box sx={{ 
-                height: '40vh', // Altura relativa à tela
-                minHeight: '250px', // Altura mínima
-                backgroundColor: 'grey.900', // Fundo escuro
+                height: '40vh', 
+                minHeight: '250px', 
+                backgroundColor: 'grey.900', 
                 color: 'white',
                 display: 'flex',
+                flexDirection: 'column', // Para o botão fechar
                 alignItems: 'center',
                 justifyContent: 'center',
+                position: 'relative', // Para posicionar o botão fechar
                 flexShrink: 0, 
                 mb: 1 
             }}>
-                <Typography>Área da Telemedicina</Typography>
-                {/* Integrar o componente de vídeo aqui */}
+                {/* Botão para fechar o painel */}
+                <IconButton 
+                    onClick={() => setTelemedicinaVisivel(false)} 
+                    sx={{position: 'absolute', top: 5, right: 5, color: 'white', zIndex: 1}}
+                    size="small"
+                >
+                    <CloseIcon fontSize="small"/>
+                </IconButton>
+                
+                {/* Conteúdo do painel: Loading, Iframe ou Mensagem */}
+                {criandoSala ? (
+                    <CircularProgress color="inherit" />
+                ) : linkSalaAtual ? (
+                    // Exemplo com IFRAME - pode precisar de ajustes
+                    <iframe 
+                        src={linkSalaAtual} 
+                        allow="camera; microphone; fullscreen; speaker; display-capture"
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        title="Sala de Telemedicina"
+                    ></iframe>
+                    // Alternativa: Mostrar apenas o link
+                    // <Link href={linkSalaAtual} target="_blank" color="inherit">Abrir sala em nova aba</Link>
+                ) : (
+                    <Typography>Erro ao carregar link da sala.</Typography>
+                )}
             </Box>
         )}
-
         {/* 6. CONTEÚDO DAS ABAS (com Suspense) */}
         {/* Este Box ocupa o espaço restante e permite scroll interno */}
         <Box sx={{ flexGrow: 1, overflowY: 'auto' }}> 
