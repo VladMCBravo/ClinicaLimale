@@ -2,10 +2,13 @@
 
 import logging 
 from django.utils import timezone
-from datetime import datetime,timedelta, time
+from datetime import date,datetime,timedelta,time
+from django.utils import timezone
+from dateutil.parser import parse
+from django.db.models import Q # Necessário para bloqueios
 from .models import Agendamento, Sala
 from usuarios.models import CustomUser, JornadaDeTrabalho
-from agendamentos.models import Agendamento
+from agendamentos.models import Agendamento, BloqueioAgenda
 from faturamento.models import Pagamento
 from django.contrib.auth import get_user_model
 from faturamento.services.inter_service import gerar_cobranca_pix, gerar_link_pagamento_cartao
@@ -177,69 +180,142 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
 
     return agendamento
 
-def buscar_proximo_horario_disponivel(medico_id: int):
+def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None) -> dict:
     """
-    Busca os próximos horários livres para um MÉDICO específico.
-    Esta função é usada para CONSULTAS (Presenciais e Telemedicina).
-    A lógica verifica apenas a agenda do médico, pois:
-    - Para Telemedicina, a sala não importa.
-    - Para Presencial, a recepcionista alocará a sala posteriormente.
+    Busca o próximo dia útil com horários disponíveis para um médico,
+    a partir de uma data inicial (ou de hoje se não especificada).
+    Verifica Jornada, Agendamentos e Bloqueios.
+    Retorna um dicionário com a data e a lista de horários, ou {} se não encontrar.
     """
     try:
-        medico = CustomUser.objects.get(id=medico_id, cargo='medico')
+        medico = CustomUser.objects.get(id=medico_id, cargo='medico', is_active=True) # Garante que está ativo
         jornadas = JornadaDeTrabalho.objects.filter(medico=medico).order_by('dia_da_semana')
         if not jornadas.exists():
-            return None
+            logger.warning(f"Médico {medico_id} não possui jornada de trabalho cadastrada.")
+            return {} # Retorna vazio se não tem jornada
 
         agora = timezone.localtime(timezone.now())
-        
-        for i in range(90): # Busca nos próximos 90 dias
-            data_atual = agora.date() + timedelta(days=i)
+
+        # Define a data de início da busca
+        if data_inicial:
+             # Garante que data_inicial seja um objeto date e não seja no passado
+             if isinstance(data_inicial, datetime): inicio_busca = data_inicial.date()
+             elif isinstance(data_inicial, date): inicio_busca = data_inicial
+             else:
+                  try: inicio_busca = parse(str(data_inicial)).date()
+                  except: inicio_busca = agora.date() # Fallback para hoje
+             # Garante que a busca não comece antes de hoje
+             inicio_busca = max(inicio_busca, agora.date())
+        else:
+            inicio_busca = agora.date() # Início padrão: HOJE
+
+        limite_busca = inicio_busca + timedelta(days=90)
+        data_atual = inicio_busca
+
+        while data_atual <= limite_busca:
             dia_semana_py = data_atual.weekday() # Segunda=0, Domingo=6
-            
-            # Converte para o padrão do Django (Domingo=1, Sábado=7)
+
+            # MANTÉM A SUA LÓGICA DE CONVERSÃO para o padrão Django
             dia_semana_django = (dia_semana_py + 2) % 7
             if dia_semana_django == 0: dia_semana_django = 7
 
             jornada_do_dia = jornadas.filter(dia_da_semana=dia_semana_django).first()
-            if not jornada_do_dia:
+
+            # Pula se não trabalha no dia OU se os horários não estão definidos
+            if not jornada_do_dia or not jornada_do_dia.hora_inicio or not jornada_do_dia.hora_fim:
+                data_atual += timedelta(days=1)
                 continue
 
-            horarios_disponiveis = []
-            hora_inicio = jornada_do_dia.hora_inicio
-            hora_fim = jornada_do_dia.hora_fim
-            
-            slot_atual = datetime.combine(data_atual, hora_inicio)
-            
-            while slot_atual.time() < hora_fim:
-                # O slot só é válido se for no futuro
-                if timezone.make_aware(slot_atual) > agora:
-                    # Verifica se o MÉDICO tem conflito de agendamento
-                    conflito_medico = Agendamento.objects.filter(
-                        medico=medico,
-                        status__in=['Agendado', 'Confirmado', 'Realizado'],
-                        data_hora_inicio__lt=timezone.make_aware(slot_atual + timedelta(minutes=50)),
-                        data_hora_fim__gt=timezone.make_aware(slot_atual)
-                    ).exists()
+            # Gera horários possíveis (a cada 30 min)
+            intervalo_minutos = 30
+            horarios_possiveis = []
+            try:
+                 hora_corrente_dt = datetime.combine(data_atual, jornada_do_dia.hora_inicio)
+                 fim_expediente_dt = datetime.combine(data_atual, jornada_do_dia.hora_fim)
+                 # Garante que os horários sejam conscientes do fuso horário
+                 hora_corrente = timezone.make_aware(hora_corrente_dt)
+                 fim_expediente = timezone.make_aware(fim_expediente_dt)
+            except ValueError: # Caso hora_inicio/hora_fim sejam inválidos no DB
+                 logger.error(f"Horário inválido na jornada do médico {medico_id} para data {data_atual}")
+                 data_atual += timedelta(days=1)
+                 continue # Pula este dia
 
-                    if not conflito_medico:
-                        horarios_disponiveis.append(slot_atual.strftime('%H:%M'))
-                
-                slot_atual += timedelta(minutes=30) # Próximo slot a cada 30 min
+            while hora_corrente < fim_expediente:
+                horarios_possiveis.append(hora_corrente)
+                hora_corrente += timedelta(minutes=intervalo_minutos)
 
-            if horarios_disponiveis:
+            if not horarios_possiveis: # Se não gerou horários (ex: fim < inicio)
+                 data_atual += timedelta(days=1)
+                 continue
+
+            # Busca agendamentos E bloqueios para otimizar a consulta ao DB
+            inicio_dia_aware = horarios_possiveis[0]
+            fim_dia_aware = timezone.make_aware(datetime.combine(data_atual, time.max)) # Fim do dia aware
+
+            agendamentos_dia = Agendamento.objects.filter(
+                medico=medico,
+                status__in=['Agendado', 'Confirmado', 'Realizado'],
+                data_hora_inicio__gte=inicio_dia_aware, # Otimiza: só busca a partir do início do expediente
+                data_hora_inicio__lt=fim_dia_aware     # Otimiza: só busca até o fim do dia
+            ).values_list('data_hora_inicio', 'data_hora_fim') # Pega início e fim
+
+            bloqueios_dia = BloqueioAgenda.objects.filter(
+                medico=medico,
+                data_fim__gt=inicio_dia_aware, # O bloqueio termina depois do início do expediente
+                data_inicio__lt=fim_dia_aware  # O bloqueio começa antes do fim do dia
+            ).values_list('data_inicio', 'data_fim')
+
+            # Cria um conjunto de slots ocupados (considerando duração de 50 min para agendamentos)
+            slots_ocupados = set()
+            duracao_consulta = timedelta(minutes=50) # Duração padrão
+            # Adiciona slots ocupados por agendamentos
+            for inicio, fim in agendamentos_dia:
+                 slot = inicio
+                 # Adiciona o slot de início e slots intermediários se a duração for maior que o intervalo
+                 while slot < fim:
+                      slots_ocupados.add(slot)
+                      slot += timedelta(minutes=intervalo_minutos) # Marca todos os intervalos que o agendamento cobre
+
+            # Adiciona slots ocupados por bloqueios
+            for inicio, fim in bloqueios_dia:
+                 slot = inicio
+                 # Garante que o slot inicial esteja alinhado com nossos intervalos (opcional, mas seguro)
+                 minuto_inicial = (slot.minute // intervalo_minutos) * intervalo_minutos
+                 slot = slot.replace(minute=minuto_inicial, second=0, microsecond=0)
+                 # Ajusta para o próximo slot se o início do bloqueio for depois do início do slot
+                 if inicio > slot: slot += timedelta(minutes=intervalo_minutos)
+
+                 while slot < fim:
+                      slots_ocupados.add(slot)
+                      slot += timedelta(minutes=intervalo_minutos)
+
+            # Filtra horários disponíveis
+            horarios_disponiveis_formatados = []
+            for horario in horarios_possiveis:
+                 # Verifica se o horário é futuro E não está ocupado
+                 if horario >= agora and horario not in slots_ocupados:
+                      horarios_disponiveis_formatados.append(horario.strftime('%H:%M'))
+
+            if horarios_disponiveis_formatados:
                 return {
                     "data": data_atual.strftime('%Y-%m-%d'),
-                    "horarios_disponiveis": horarios_disponiveis
+                    "horarios_disponiveis": horarios_disponiveis_formatados
                 }
-        return None
+
+            # Se não encontrou, tenta o próximo dia
+            data_atual += timedelta(days=1)
+
+        # Se saiu do loop sem encontrar nada
+        logger.warning(f"Nenhum horário encontrado para médico {medico_id} nos próximos 90 dias a partir de {inicio_busca}.")
+        return {} # Retorna dicionário vazio
 
     except CustomUser.DoesNotExist:
         logger.error(f"Médico com id={medico_id} não encontrado.")
-        return None
+        return {}
     except Exception as e:
         logger.error(f"Erro ao buscar horários para médico {medico_id}: {e}", exc_info=True)
-        return None
+        return {}
+    # --- FIM DA VERSÃO FINAL ---
 
 
 def listar_agendamentos_futuros(cpf):
