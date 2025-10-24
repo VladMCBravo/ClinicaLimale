@@ -56,9 +56,8 @@ export default function AtestadosTab({ pacienteId }) {
     try {
         // Usa apiClient para fazer a requisição (envia o token)
         const response = await apiClient.get(
-            // ATENÇÃO: Verifique se esta URL bate EXATAMENTE com a sua URL principal do backend
-            `api/atestados/${atestadoId}/pdf/`, 
-            { responseType: 'blob' } // Pede a resposta como arquivo binário
+            `/api/atestados/${atestadoId}/pdf/`, // <-- Adicione a '/' no início
+            { responseType: 'blob' }
         );
         // Cria uma URL temporária para o blob
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));

@@ -70,8 +70,7 @@ export default function PrescricoesTab({ pacienteId }) {
     try {
         // Usa apiClient para fazer a requisição (envia o token)
         const response = await apiClient.get(
-            // ATENÇÃO: Verifique se esta URL bate EXATAMENTE com a sua URL principal do backend
-            `api/prescricoes/${prescricaoId}/pdf/`, 
+            `/api/prescricoes/${prescricaoId}/pdf/`, // <-- Adicione a '/' no início
             { responseType: 'blob' } 
         );
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));

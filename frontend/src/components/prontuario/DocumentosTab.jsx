@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'; // Adicione useCallback
 import {
     Box, Button, CircularProgress, TextField, Typography, Paper,
-    List, ListItem, ListItemText, ListItemAvatar, Avatar, IconButton // Imports do Material UI
+    List, ListItem, ListItemText, ListItemAvatar, Avatar, IconButton, Tooltip // Imports do Material UI
 } from '@mui/material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'; // Ícones
 import DownloadIcon from '@mui/icons-material/Download';
