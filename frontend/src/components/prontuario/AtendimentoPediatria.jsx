@@ -102,6 +102,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
 
     return (
         <Paper component="form" onSubmit={handleSubmit} sx={{ p: 2, mb: 2 }}>
+            {/* O cabeçalho com o botão 'Preencher Normalidade' está correto */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
                     Evolução do Dia (Pediatria/Neonatologia)
@@ -111,7 +112,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                 </Button>
             </Box>
             
-            {/* 6. Adicionamos os checkboxes de Sintomas (Queixa) */}
+            {/* Os checkboxes 'Queixa Atual (S)' estão corretos */}
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Queixa Atual (S)</Typography>
             <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
                 {sintomasOptions.map(opt => (
@@ -119,26 +120,48 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                 ))}
             </FormGroup>
 
-            {/* --- AQUI ESTÁ A CORREÇÃO DE LAYOUT (xs={12}) --- */}
-            <Grid container spacing={2} sx={{mt: 1}}>
-                <Grid item xs={12}>
-                    <TextField name="notas_subjetivas" label="Subjetivo (HDA gerada pelos cliques)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField name="notas_objetivas" label="Objetivo (Exame Físico)" multiline rows={4} fullWidth value={formData.notas_objetivas || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas" multiline rows={3} fullWidth value={formData.avaliacao || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField name="plano" label="Plano / Conduta" multiline rows={3} fullWidth value={formData.plano || ''} onChange={handleChange} size="small" />
-                </Grid>
-                <Grid item xs={12} sx={{ textAlign: 'right' }}>
+            {/* --- AQUI ESTÁ A CORREÇÃO DE LAYOUT: Trocamos <Grid> por <Box> --- */}
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column', // Força os campos a ficarem um embaixo do outro
+                gap: 2, // Adiciona espaçamento (o 'spacing={2}' do Grid)
+                mt: 1  // Adiciona a margem
+            }}>
+                <TextField 
+                    name="notas_subjetivas" 
+                    label="Subjetivo (HDA gerada pelos cliques)" 
+                    multiline rows={4} fullWidth 
+                    value={formData.notas_subjetivas || ''} 
+                    onChange={handleChange} size="small" 
+                />
+                <TextField 
+                    name="notas_objetivas" 
+                    label="Objetivo (Exame Físico)" 
+                    multiline rows={4} fullWidth 
+                    value={formData.notas_objetivas || ''} 
+                    onChange={handleChange} size="small" 
+                />
+                <TextField 
+                    name="avaliacao" 
+                    label="Avaliação / Hipóteses Diagnósticas" 
+                    multiline rows={3} fullWidth 
+                    value={formData.avaliacao || ''} 
+                    onChange={handleChange} size="small" 
+                />
+                <TextField 
+                    name="plano" 
+                    label="Plano / Conduta" 
+                    multiline rows={3} fullWidth 
+                    value={formData.plano || ''} 
+                    onChange={handleChange} size="small" 
+                />
+                <Box sx={{ textAlign: 'right' }}>
                     <Button type="submit" variant="contained" disabled={isSubmitting}>
                         {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Evolução'}
                     </Button>
-                </Grid>
-            </Grid>
+                </Box>
+            </Box>
+            {/* --- FIM DA CORREÇÃO DE LAYOUT --- */}
         </Paper>
     );
 }

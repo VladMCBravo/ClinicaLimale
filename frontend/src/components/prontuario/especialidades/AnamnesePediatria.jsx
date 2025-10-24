@@ -124,42 +124,43 @@ export default function AnamnesePediatria({ formData, onChange }) {
 
       {/* Histórico Gestacional e Nascimento */}
       <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }}>Histórico Gestacional e Nascimento</Typography>
-<Grid container spacing={2} sx={{ mt: 0.5 }}>
-    {/* Linha 1 */}
-    <Grid item xs={12} sm={6}>
-        <FormControl fullWidth size="small">
-            <InputLabel id="tipo-parto-label">Tipo de Parto</InputLabel>
-            <Select
-                labelId="tipo-parto-label"
-                label="Tipo de Parto"
-                name="tipo_parto"
-                value={pediatricaData.tipo_parto || ''}
-                onChange={(e) => handleGenericChange('tipo_parto', e.target.value)}
-            >
-                <MenuItem value="Normal">Normal</MenuItem>
-                <MenuItem value="Cesárea">Cesárea</MenuItem>
-                <MenuItem value="Fórceps">Fórceps</MenuItem>
-                <MenuItem value="Não sabe">Não sabe</MenuItem>
-            </Select>
-        </FormControl>
-    </Grid>
-    <Grid item xs={12} sm={6}>
-        <TextField label="Idade Gestacional" name="idade_gestacional" placeholder="semanas" type="number" value={pediatricaData.idade_gestacional || ''} onChange={(e) => handleGenericChange('idade_gestacional', e.target.value)} fullWidth size="small" />
-    </Grid>
-    
-    {/* Linha 2 */}
-    <Grid item xs={12} sm={6}>
-        <TextField label="Peso ao nascer" placeholder="gramas" name="peso_nascimento" type="number" value={pediatricaData.peso_nascimento || ''} onChange={(e) => handleGenericChange('peso_nascimento', e.target.value)} fullWidth size="small" />
-    </Grid>
-    <Grid item xs={12} sm={6}>
-        <TextField label="APGAR (1º/5º)" name="apgar" value={pediatricaData.apgar || ''} onChange={(e) => handleGenericChange('apgar', e.target.value)} fullWidth size="small" />
-    </Grid>
+      <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          
+          {/* Linha 1 */}
+          <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small">
+                  <InputLabel id="tipo-parto-label">Tipo de Parto</InputLabel>
+                  <Select
+                      labelId="tipo-parto-label"
+                      label="Tipo de Parto"
+                      name="tipo_parto"
+                      value={pediatricaData.tipo_parto || ''}
+                      onChange={(e) => handleGenericChange('tipo_parto', e.target.value)}
+                  >
+                      <MenuItem value="Normal">Normal</MenuItem>
+                      <MenuItem value="Cesárea">Cesárea</MenuItem>
+                      <MenuItem value="Fórceps">Fórceps</MenuItem>
+                      <MenuItem value="Não sabe">Não sabe</MenuItem>
+                  </Select>
+              </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+              <TextField label="Idade Gestacional" name="idade_gestacional" placeholder="semanas" type="number" value={pediatricaData.idade_gestacional || ''} onChange={(e) => handleGenericChange('idade_gestacional', e.target.value)} fullWidth size="small" />
+          </Grid>
+          
+          {/* Linha 2 */}
+          <Grid item xs={12} sm={6}>
+              <TextField label="Peso ao nascer" placeholder="gramas" name="peso_nascimento" type="number" value={pediatricaData.peso_nascimento || ''} onChange={(e) => handleGenericChange('peso_nascimento', e.target.value)} fullWidth size="small" />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+              <TextField label="APGAR (1º/5º)" name="apgar" value={pediatricaData.apgar || ''} onChange={(e) => handleGenericChange('apgar', e.target.value)} fullWidth size="small" />
+          </Grid>
 
-    {/* Linha 3 */}
-    <Grid item xs={12}>
-        <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={pediatricaData.intercorrencias_gestacao_parto || ''} onChange={(e) => handleGenericChange('intercorrencias_gestacao_parto', e.target.value)} multiline rows={2} fullWidth size="small" />
-    </Grid>
-</Grid>
+          {/* Linha 3 */}
+          <Grid item xs={12}>
+              <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={pediatricaData.intercorrencias_gestacao_parto || ''} onChange={(e) => handleGenericChange('intercorrencias_gestacao_parto', e.target.value)} multiline rows={2} fullWidth size="small" />
+          </Grid>
+      </Grid>
 
       <Divider sx={{ my: 2 }} />
 
