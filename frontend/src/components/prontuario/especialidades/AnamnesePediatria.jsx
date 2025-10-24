@@ -122,49 +122,73 @@ export default function AnamnesePediatria({ formData, onChange }) {
     <Paper variant="outlined" sx={{ p: 2, mt: 2, borderColor: 'primary.main' }}>
       <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Anamnese Pediátrica</Typography>
 
-      {/* Histórico Gestacional e Nascimento */}
+      {/* --- 2. CORREÇÃO DE LAYOUT: Trocamos <Grid> por <Box> --- */}
       <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }}>Histórico Gestacional e Nascimento</Typography>
-      <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          
-          {/* Linha 1 */}
-          <Grid item xs={12} sm={6}>
-              <FormControl fullWidth size="small">
-                  <InputLabel id="tipo-parto-label">Tipo de Parto</InputLabel>
-                  <Select
-                      labelId="tipo-parto-label"
-                      label="Tipo de Parto"
-                      name="tipo_parto"
-                      value={pediatricaData.tipo_parto || ''}
-                      onChange={(e) => handleGenericChange('tipo_parto', e.target.value)}
-                  >
-                      <MenuItem value="Normal">Normal</MenuItem>
-                      <MenuItem value="Cesárea">Cesárea</MenuItem>
-                      <MenuItem value="Fórceps">Fórceps</MenuItem>
-                      <MenuItem value="Não sabe">Não sabe</MenuItem>
-                  </Select>
-              </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-              <TextField label="Idade Gestacional" name="idade_gestacional" placeholder="semanas" type="number" value={pediatricaData.idade_gestacional || ''} onChange={(e) => handleGenericChange('idade_gestacional', e.target.value)} fullWidth size="small" />
-          </Grid>
-          
-          {/* Linha 2 */}
-          <Grid item xs={12} sm={6}>
-              <TextField label="Peso ao nascer" placeholder="gramas" name="peso_nascimento" type="number" value={pediatricaData.peso_nascimento || ''} onChange={(e) => handleGenericChange('peso_nascimento', e.target.value)} fullWidth size="small" />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-              <TextField label="APGAR (1º/5º)" name="apgar" value={pediatricaData.apgar || ''} onChange={(e) => handleGenericChange('apgar', e.target.value)} fullWidth size="small" />
-          </Grid>
+      
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1.5 }}>
+        
+        {/* Linha 1 */}
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+            <FormControl fullWidth size="small" sx={{ flex: 1 }}>
+                <InputLabel id="tipo-parto-label">Tipo de Parto</InputLabel>
+                <Select
+                    labelId="tipo-parto-label"
+                    label="Tipo de Parto"
+                    name="tipo_parto"
+                    value={pediatricaData.tipo_parto || ''}
+                    onChange={(e) => handleGenericChange('tipo_parto', e.target.value)}
+                >
+                    <MenuItem value="Normal">Normal</MenuItem>
+                    <MenuItem value="Cesárea">Cesárea</MenuItem>
+                    <MenuItem value="Fórceps">Fórceps</MenuItem>
+                    <MenuItem value="Não sabe">Não sabe</MenuItem>
+                </Select>
+            </FormControl>
+            <TextField 
+                label="Idade Gestacional" 
+                name="idade_gestacional" 
+                placeholder="semanas" 
+                type="number" 
+                value={pediatricaData.idade_gestacional || ''} 
+                onChange={(e) => handleGenericChange('idade_gestacional', e.target.value)} 
+                fullWidth size="small" sx={{ flex: 1 }}
+            />
+        </Box>
+        
+        {/* Linha 2 */}
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+            <TextField 
+                label="Peso ao nascer" 
+                placeholder="gramas" 
+                name="peso_nascimento" 
+                type="number" 
+                value={pediatricaData.peso_nascimento || ''} 
+                onChange={(e) => handleGenericChange('peso_nascimento', e.target.value)} 
+                fullWidth size="small" sx={{ flex: 1 }}
+            />
+            <TextField 
+                label="APGAR (1º/5º)" 
+                name="apgar" 
+                value={pediatricaData.apgar || ''} 
+                onChange={(e) => handleGenericChange('apgar', e.target.value)} 
+                fullWidth size="small" sx={{ flex: 1 }}
+            />
+        </Box>
 
-          {/* Linha 3 */}
-          <Grid item xs={12}>
-              <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={pediatricaData.intercorrencias_gestacao_parto || ''} onChange={(e) => handleGenericChange('intercorrencias_gestacao_parto', e.target.value)} multiline rows={2} fullWidth size="small" />
-          </Grid>
-      </Grid>
+        {/* Linha 3 */}
+        <TextField 
+            label="Intercorrências na gestação ou parto" 
+            name="intercorrencias_gestacao_parto" 
+            value={pediatricaData.intercorrencias_gestacao_parto || ''} 
+            onChange={(e) => handleGenericChange('intercorrencias_gestacao_parto', e.target.value)} 
+            multiline rows={2} fullWidth size="small" 
+        />
+      </Box>
+      {/* --- FIM DA CORREÇÃO --- */}
 
       <Divider sx={{ my: 2 }} />
 
-      {/* Aleitamento e Vacinação */}
+      {/* Aleitamento e Vacinação (Este Grid estava funcionando, mantivemos) */}
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6}>
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Aleitamento</Typography>
@@ -207,7 +231,7 @@ export default function AnamnesePediatria({ formData, onChange }) {
       
       <Divider sx={{ my: 2 }} />
 
-      {/* Exame Físico */}
+      {/* Exame Físico (Este Grid também estava funcionando, mantivemos) */}
       <Typography variant="body1" sx={{ mt: 2, mb: 1, fontWeight: 'medium' }}>Exame Físico</Typography>
       <Grid container spacing={2}>
         <Grid item xs={6} sm={3}><TextField label="Peso (kg)" name="peso" value={pediatricaData.peso || ''} onChange={(e) => handleGenericChange('peso', e.target.value)} fullWidth size="small" /></Grid>
@@ -216,12 +240,11 @@ export default function AnamnesePediatria({ formData, onChange }) {
         <Grid item xs={6} sm={3}><TextField label="T (°C)" name="temperatura" value={pediatricaData.temperatura || ''} onChange={(e) => handleGenericChange('temperatura', e.target.value)} fullWidth size="small" /></Grid>
         <Grid item xs={12}><TextField label="Estado Geral / Nível de Consciência" name="estado_geral" value={pediatricaData.estado_geral || ''} onChange={(e) => handleGenericChange('estado_geral', e.target.value)} fullWidth size="small" placeholder="Ex: BEG, ativo, reativo, corado, hidratado..."/></Grid>
         <Grid item xs={12}><TextField label="Oroscopia" name="oroscopia" value={pediatricaData.oroscopia || ''} onChange={(e) => handleGenericChange('oroscopia', e.target.value)} fullWidth size="small" placeholder="Ex: Hiperemia, placas..."/></Grid>
-        <Grid item xs={12}><TextField label="Ausculta Respiratória" name="ausculta_resp" value={pediatricaData.ausculta_resp || ''} onChange={(e) => handleGenericChange('ausculta_resp', e.target.value)} fullWidth size="small" placeholder="Ex: MVU presente, sem RA..."/></Grid>
-        <Grid item xs={12}><TextField label="Ausculta Cardíaca" name="ausculta_card" value={pediatricaData.ausculta_card || ''} onChange={(e) => handleGenericChange('ausculta_card', e.target.value)} fullWidth size="small" placeholder="Ex: BRNF em 2T, sem sopros..."/></Grid>
-        <Grid item xs={12}><TextField label="Abdome" name="abdome" value={pediatricaData.abdome || ''} onChange={(e) => handleGenericChange('abdome', e.target.value)} fullWidth size="small" placeholder="Ex: Flácido, indolor, RHA+..."/></Grid>
-        <Grid item xs={12}><TextField label="Pele e fâneros" name="pele_faneros" value={pediatricaData.pele_faneros || ''} onChange={(e) => handleGenericChange('pele_faneros', e.target.value)} fullWidth size="small" placeholder="Ex: Presença de exantema, petéquias..."/></Grid>
+        <Grid item xs={12}><TextField label="Ausculta Respiratória" name="ausculta_resp" value={pediatricaData.ausculta_resp || ''} onChange={(e) => handleGenericChange('ausculta_resp', e.g.value)} fullWidth size="small" placeholder="Ex: MVU presente, sem RA..."/></Grid>
+        <Grid item xs={12}><TextField label="Ausculta Cardíaca" name="ausculta_card" value={pediatricaData.ausculta_card || ''} onChange={(e) => handleGenericChange('ausculta_card', e.g.value)} fullWidth size="small" placeholder="Ex: BRNF em 2T, sem sopros..."/></Grid>
+        <Grid item xs={12}><TextField label="Abdome" name="abdome" value={pediatricaData.abdome || ''} onChange={(e) => handleGenericChange('abdome', e.g.value)} fullWidth size="small" placeholder="Ex: Flácido, indolor, RHA+..."/></Grid>
+        <Grid item xs={12}><TextField label="Pele e fâneros" name="pele_faneros" value={pediatricaData.pele_faneros || ''} onChange={(e) => handleGenericChange('pele_faneros', e.g.value)} fullWidth size="small" placeholder="Ex: Presença de exantema, petéquias..."/></Grid>
       </Grid>
-
     </Paper>
   );
 }
