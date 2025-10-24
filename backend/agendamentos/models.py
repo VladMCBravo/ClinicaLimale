@@ -81,3 +81,29 @@ class Agendamento(models.Model):
         data_formatada = hora_local.strftime('%d/%m/%Y às %H:%M')
         # Adiciona o nome da sala na representação do objeto
         return f"{self.paciente.nome_completo} em {self.sala.nome if self.sala else 'Sala não definida'} - {data_formatada}"
+
+# --- ADICIONE ESTE MODELO ---
+class BloqueioAgenda(models.Model):
+    """Representa um período de bloqueio na agenda de um médico."""
+    medico = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='bloqueios',
+        limit_choices_to={'cargo': 'medico'}
+    )
+    data_inicio = models.DateTimeField(verbose_name="Início do Bloqueio")
+    data_fim = models.DateTimeField(verbose_name="Fim do Bloqueio")
+    motivo = models.CharField(max_length=255, blank=True, null=True, help_text="Ex: Férias, Congresso, Almoço")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        inicio_fmt = timezone.localtime(self.data_inicio).strftime('%d/%m/%Y %H:%M')
+        fim_fmt = timezone.localtime(self.data_fim).strftime('%H:%M')
+        return f"Bloqueio Dr(a). {self.medico.get_full_name()} - {inicio_fmt} a {fim_fmt}"
+
+    class Meta:
+        verbose_name = "Bloqueio de Agenda"
+        verbose_name_plural = "Bloqueios de Agenda"
+        ordering = ['data_inicio']
+
+# --- FIM DO NOVO MODELO ---

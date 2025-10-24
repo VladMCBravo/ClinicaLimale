@@ -46,7 +46,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   const [isLoadingAnamnese, setIsLoadingAnamnese] = useState(false);
 
   const pacienteId = agendamento?.paciente;
-  const especialidade = agendamento?.especialidade?.nome || 'ClinicaGeral';
+  const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
 
   // 6. Hook para buscar a anamnese do paciente
   useEffect(() => {
