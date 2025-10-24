@@ -400,11 +400,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                   <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
-                  
-                  <Box sx={{ textAlign: 'right', mt: 1 }}>
-                     <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
-                        {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
-                     </Button>
+                  <Box>                
                   <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                         <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}>
                         Limpar Consulta

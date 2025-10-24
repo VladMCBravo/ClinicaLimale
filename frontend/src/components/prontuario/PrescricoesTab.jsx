@@ -68,19 +68,20 @@ export default function PrescricoesTab({ pacienteId }) {
   
   const handleGerarPdf = async (prescricaoId) => {
     try {
-        // Chame a API para obter o PDF como um blob
+        // Usa apiClient para fazer a requisição (envia o token)
         const response = await apiClient.get(
-            `/prontuario/prescricoes/${prescricaoId}/gerar-pdf/`, // Use a URL relativa da sua API
-            { responseType: 'blob' } // Peça para o Axios tratar a resposta como um arquivo
+            // ATENÇÃO: Verifique se esta URL bate EXATAMENTE com a sua URL principal do backend
+            `api/prescricoes/${prescricaoId}/pdf/`, 
+            { responseType: 'blob' } 
         );
-        // Crie uma URL temporária para o blob e abra em uma nova aba
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
         window.open(fileURL, '_blank');
+        setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
     } catch (error) {
-        console.error("Erro ao gerar PDF:", error);
-        // Adicione um showSnackbar aqui para o usuário
+        console.error("Erro ao gerar PDF da prescrição:", error);
+        showSnackbar('Erro ao gerar PDF da prescrição.', 'error'); // Adicione feedback de erro
     }
-};
+  };
 
 
   if (isLoading && prescricoes.length === 0) return <CircularProgress />;

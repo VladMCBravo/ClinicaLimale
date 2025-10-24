@@ -52,10 +52,24 @@ export default function AtestadosTab({ pacienteId }) {
     }
   };
   
-  const handleGerarPdf = (atestadoId) => {
-    // Constrói a URL completa usando a baseURL do apiClient
-    const pdfUrl = `${apiClient.defaults.baseURL}/atestados/${atestadoId}/pdf/`;
-    window.open(pdfUrl, '_blank');
+  const handleGerarPdf = async (atestadoId) => {
+    try {
+        // Usa apiClient para fazer a requisição (envia o token)
+        const response = await apiClient.get(
+            // ATENÇÃO: Verifique se esta URL bate EXATAMENTE com a sua URL principal do backend
+            `api/atestados/${atestadoId}/pdf/`, 
+            { responseType: 'blob' } // Pede a resposta como arquivo binário
+        );
+        // Cria uma URL temporária para o blob
+        const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+        // Abre essa URL em nova aba
+        window.open(fileURL, '_blank');
+        // Limpa a URL temporária depois de um tempo (opcional, boa prática)
+        setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
+    } catch (error) {
+        console.error("Erro ao gerar PDF do atestado:", error);
+        showSnackbar('Erro ao gerar PDF do atestado.', 'error');
+    }
   };
 
   if (isLoading && atestados.length === 0) return <CircularProgress />;
