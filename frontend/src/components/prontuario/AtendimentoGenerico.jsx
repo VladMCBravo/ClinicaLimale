@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'; // Adicione useEffect
 import { Box, Button, CircularProgress, TextField, Typography, Paper } from '@mui/material'; // Remova Grid
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
 import apiClient from '../../api/axiosConfig';
 
 export default function AtendimentoGenerico({ pacienteId, especialidade, onEvolucaoSalva }) {

@@ -5,7 +5,7 @@ import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,
     FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress 
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
 import apiClient from '../../api/axiosConfig';
 
 // --- OPÇÕES E TEMPLATES ---

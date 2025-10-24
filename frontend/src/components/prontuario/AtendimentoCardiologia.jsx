@@ -5,7 +5,7 @@ import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, 
     Box, Button, CircularProgress 
 } from '@mui/material'; // Removido imports não usados (Radio, Select, etc.)
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
 import apiClient from '../../api/axiosConfig';
 
 // --- OPÇÕES E TEMPLATES (Cardiologia - Adaptado do seu AnamneseCardiologia.jsx) ---

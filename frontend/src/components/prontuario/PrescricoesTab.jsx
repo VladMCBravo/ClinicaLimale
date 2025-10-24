@@ -6,7 +6,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
-import { useSnackbar } from '../../contexts/SnackbarContext'; // 1. ADICIONE ESTA LINHA DE IMPORTAÇÃO
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
 
 const initialItemState = { medicamento: '', dosagem: '', instrucoes: '' };
 

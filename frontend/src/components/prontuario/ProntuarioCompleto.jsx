@@ -9,7 +9,7 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar painel
 import ModalHistoricoEvolucao from './ModalHistoricoEvolucao';
 import apiClient from '../../api/axiosConfig';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
 
 // --- Imports das Abas ---
 const PrescricoesTab = lazy(() => import('./PrescricoesTab'));

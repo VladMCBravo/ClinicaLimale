@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'; // <-- SINTAXE CORRIGIDA
 import { Box, Button, CircularProgress, Grid, TextField, Typography, Paper } from '@mui/material'; // <-- SINTAXE CORRIGIDA
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
 import apiClient from '../../api/axiosConfig';
 
 export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva }) {
