@@ -1,21 +1,24 @@
-// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINALIZADA
+// src/components/prontuario/ProntuarioCompleto.jsx - VERSÃO FINAL (VISÃO DO USUÁRIO)
 
-import React, { useState, Suspense, lazy, useEffect } from 'react'; // 1. Adicione 'useEffect'
-import { Box, Tabs, Tab, CircularProgress, Paper, Typography } from '@mui/material';
+import React, { useState, Suspense, lazy, useEffect } from 'react';
+import { 
+    Box, Tabs, Tab, CircularProgress, Paper, Typography, 
+    IconButton, Tooltip // 1. Imports para o botão
+} from '@mui/material';
+import VideocamIcon from '@mui/icons-material/Videocam'; // Ícone Telemedicina
 import ModalHistoricoEvolucao from './ModalHistoricoEvolucao';
-
-// 2. Imports para buscar dados
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Imports dos componentes das abas
-const AnamneseTab = lazy(() => import('./AnamneseTab')); 
+// --- Imports dos Componentes das Abas ---
 const PrescricoesTab = lazy(() => import('./PrescricoesTab'));
 const AtestadosTab = lazy(() => import('./AtestadosTab')); 
-const EvolucaoTab = lazy(() => import('./EvolucoesTab')); // Nome da var e do arquivo batendo
+const EvolucaoTab = lazy(() => import('./EvolucoesTab')); // O "Super-Formulário" (Atendimento)
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
+// 2. Importamos o componente real da aba de Exames
+const ExamesDicomTab = lazy(() => import('./ExamesDicomTab')); //
 
-// Componente auxiliar para renderizar o conteúdo da aba
+// Componente auxiliar TabPanel
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
@@ -25,10 +28,12 @@ function TabPanel(props) {
       id={`prontuario-tabpanel-${index}`}
       aria-labelledby={`prontuario-tab-${index}`}
       {...other}
-      style={{ height: '100%' }}
+      // Garante que o painel tente ocupar o espaço disponível
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }} 
     >
       {value === index && (
-        <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, height: '100%' }}>
+        // Box interno para padding e scroll, se necessário
+        <Box sx={{ p: { xs: 1, sm: 2 }, flexGrow: 1, overflowY: 'auto' }}>
           {children}
         </Box>
       )}
@@ -36,50 +41,32 @@ function TabPanel(props) {
   );
 }
 
-// 3. Receba a nova prop 'onEvolucaoSalva' que virá do PainelMedicoPage
+// Recebe a prop 'onEvolucaoSalva' do PainelMedicoPage
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
-  const [tabIndex, setTabIndex] = useState(0); 
-  const { showSnackbar } = useSnackbar(); // 4. Adicione o Snackbar
-
-  // 5. Lógica para buscar a Anamnese
-  const [anamneseData, setAnamneseData] = useState(null);
-  const [isLoadingAnamnese, setIsLoadingAnamnese] = useState(false);
+  const [tabIndex, setTabIndex] = useState(0); // Aba "Atendimento" como padrão
+  const { showSnackbar } = useSnackbar();
+  const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); // Estado do painel de vídeo
 
   const pacienteId = agendamento?.paciente;
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
 
-  // 6. Hook para buscar a anamnese do paciente
+  // Reseta a telemedicina ao trocar de paciente
   useEffect(() => {
-    // Reseta os dados ao trocar de paciente (quando 'agendamento' muda)
-    setAnamneseData(null); 
-    if (pacienteId) {
-      setIsLoadingAnamnese(true);
-      // Busca a anamnese
-      apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
-        .then(res => {
-          setAnamneseData(res.data);
-        })
-        .catch(err => {
-          // Um 404 aqui é normal (paciente sem anamnese ainda), não mostre erro
-          if (err.response && err.response.status !== 404) {
-            showSnackbar('Erro ao buscar anamnese.', 'error');
-          }
-        })
-        .finally(() => setIsLoadingAnamnese(false));
-    }
-  }, [pacienteId, showSnackbar]); // Depende do pacienteId
+    setTelemedicinaVisivel(false);
+  }, [agendamento]);
 
-  // 7. Função para recarregar a anamnese após salvar
-  const handleAnamneseSalva = () => {
-    setIsLoadingAnamnese(true);
-    apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
-      .then(res => setAnamneseData(res.data))
-      .catch(err => showSnackbar('Erro ao recarregar anamnese.', 'error'))
-      .finally(() => setIsLoadingAnamnese(false));
-  };
-  
   const handleChange = (event, newIndex) => {
     setTabIndex(newIndex);
+  };
+  
+  // Handler para o botão de Telemedicina
+  const handleToggleTelemedicina = () => {
+    if (agendamento?.modalidade !== 'Telemedicina') {
+        showSnackbar('Este agendamento não é de telemedicina.', 'warning');
+        return;
+    }
+    setTelemedicinaVisivel(!telemedicinaVisivel);
+    // Adicionar lógica de conexão/desconexão do vídeo aqui se necessário
   };
 
   if (!agendamento) {
@@ -98,61 +85,105 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
       height: '100%',
       display: 'flex', 
       flexDirection: 'column',
-      overflow: 'hidden'
+      overflow: 'hidden' // Impede o scroll no Paper principal
     }}>
 
-      {/* Abas de Navegação (sem alteração) */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+      {/* --- CABEÇALHO COM ABAS E BOTÃO TELEMEDICINA --- */}
+      <Box sx={{ 
+          borderBottom: 1, 
+          borderColor: 'divider', 
+          flexShrink: 0,
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          pr: 1 
+      }}>
         <Tabs value={tabIndex} onChange={handleChange} aria-label="Abas do Prontuário" variant="scrollable" scrollButtons="auto">
-          <Tab label="Evolução" id="prontuario-tab-0" />
-          <Tab label="Anamnese" id="prontuario-tab-1" />
-          <Tab label="Prescrições" id="prontuario-tab-2" />
-          <Tab label="Atestados" id="prontuario-tab-3" />
-          <Tab label="Documentos" id="prontuario-tab-4" />
+          {/* 3. ABAS ATUALIZADAS */}
+          <Tab label="Atendimento" id="prontuario-tab-0" /> 
+          <Tab label="Prescrições" id="prontuario-tab-1" />
+          <Tab label="Atestados" id="prontuario-tab-2" />
+          <Tab label="Documentos" id="prontuario-tab-3" />
+          <Tab label="Ver Exames" id="prontuario-tab-4" /> {/* Nova Aba */}
         </Tabs>
+        
+        {/* 4. BOTÃO DE TELEMEDICINA */}
+        <Tooltip title="Iniciar/Encerrar Telemedicina">
+          <span> 
+            <IconButton 
+              onClick={handleToggleTelemedicina} 
+              color={telemedicinaVisivel ? "secondary" : "primary"} // Cor muda se ativo
+              disabled={agendamento?.modalidade !== 'Telemedicina'}
+              size="small" // Deixa o botão um pouco menor
+            >
+              <VideocamIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Box>
 
-      {/* 8. SEU CÓDIGO, AGORA PREENCHIDO */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-        <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-          
-          <TabPanel value={tabIndex} index={0}>
-            <EvolucaoTab 
-              pacienteId={pacienteId} 
-              especialidade={especialidade}
-              onEvolucoesSalva={onEvolucaoSalva} // Passa a prop recebida
-            />
-          </TabPanel>
-          
-          <TabPanel value={tabIndex} index={1}>
-            {/* Só renderiza a anamnese se o carregamento tiver terminado */}
-            {!isLoadingAnamnese ? (
-              <AnamneseTab 
+      {/* --- ÁREA DE CONTEÚDO (Vídeo + Abas) --- */}
+      {/* Usamos flexbox column para empilhar o vídeo e o conteúdo da aba */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
+        
+        {/* 5. PAINEL DE VÍDEO (Condicional) */}
+        {telemedicinaVisivel && (
+            <Box sx={{ 
+                height: '40vh', // Altura relativa à tela
+                minHeight: '250px', // Altura mínima
+                backgroundColor: 'grey.900', // Fundo escuro
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0, 
+                mb: 1 
+            }}>
+                <Typography>Área da Telemedicina</Typography>
+                {/* Integrar o componente de vídeo aqui */}
+            </Box>
+        )}
+
+        {/* 6. CONTEÚDO DAS ABAS (com Suspense) */}
+        {/* Este Box ocupa o espaço restante e permite scroll interno */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto' }}> 
+          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
+            
+            {/* Aba 0: Atendimento */}
+            <TabPanel value={tabIndex} index={0}>
+              <EvolucaoTab 
                 pacienteId={pacienteId} 
                 especialidade={especialidade}
-                initialAnamnese={anamneseData} // Passa os dados buscados (ou null)
-                onAnamneseSalva={handleAnamneseSalva} // Passa a função de recarregar
+                onEvolucoesSalva={onEvolucaoSalva} 
               />
-            ) : <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
-          </TabPanel>
+            </TabPanel>
+            
+            {/* Aba 1: Prescrições */}
+            <TabPanel value={tabIndex} index={1}>
+              <PrescricoesTab pacienteId={pacienteId} />
+            </TabPanel>
 
-          <TabPanel value={tabIndex} index={2}>
-            <PrescricoesTab pacienteId={pacienteId} />
-          </TabPanel>
+            {/* Aba 2: Atestados */}
+            <TabPanel value={tabIndex} index={2}>
+              <AtestadosTab pacienteId={pacienteId} />
+            </TabPanel>
 
-          <TabPanel value={tabIndex} index={3}>
-            <AtestadosTab pacienteId={pacienteId} />
-          </TabPanel>
+            {/* Aba 3: Documentos */}
+            <TabPanel value={tabIndex} index={3}>
+              <DocumentosTab pacienteId={pacienteId} />
+            </TabPanel>
+            
+            {/* Aba 4: Ver Exames */}
+            <TabPanel value={tabIndex} index={4}>
+              {/* Usamos o componente real */}
+              <ExamesDicomTab pacienteId={pacienteId} />
+            </TabPanel>
 
-          <TabPanel value={tabIndex} index={4}>
-            {/* Substitui a <Typography> pelo componente real */}
-            <DocumentosTab pacienteId={pacienteId} />
-          </TabPanel>
-
-        </Suspense>
+          </Suspense>
+        </Box>
       </Box>
 
-      {/* Modal (sem alteração) */}
+      {/* Modal de Histórico */}
       {modalHistoricoId && (
         <ModalHistoricoEvolucao 
           evolucaoId={modalHistoricoId}
