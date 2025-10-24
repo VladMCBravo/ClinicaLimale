@@ -119,18 +119,18 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                 ))}
             </FormGroup>
 
-            {/* AQUI ESTÁ A CORREÇÃO DE LAYOUT */}
+            {/* --- AQUI ESTÁ A CORREÇÃO DE LAYOUT (xs={12}) --- */}
             <Grid container spacing={2} sx={{mt: 1}}>
-                <Grid item xs={12}> {/* <-- xs={12} faz ocupar a linha inteira */}
+                <Grid item xs={12}>
                     <TextField name="notas_subjetivas" label="Subjetivo (HDA gerada pelos cliques)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleChange} size="small" />
                 </Grid>
-                <Grid item xs={12}> {/* <-- xs={12} faz ocupar a linha inteira */}
+                <Grid item xs={12}>
                     <TextField name="notas_objetivas" label="Objetivo (Exame Físico)" multiline rows={4} fullWidth value={formData.notas_objetivas || ''} onChange={handleChange} size="small" />
                 </Grid>
-                <Grid item xs={12}> {/* <-- xs={12} faz ocupar a linha inteira */}
+                <Grid item xs={12}>
                     <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas" multiline rows={3} fullWidth value={formData.avaliacao || ''} onChange={handleChange} size="small" />
                 </Grid>
-                <Grid item xs={12}> {/* <-- xs={12} faz ocupar a linha inteira */}
+                <Grid item xs={12}>
                     <TextField name="plano" label="Plano / Conduta" multiline rows={3} fullWidth value={formData.plano || ''} onChange={handleChange} size="small" />
                 </Grid>
                 <Grid item xs={12} sx={{ textAlign: 'right' }}>
