@@ -10,7 +10,9 @@ from .views import (
     AtestadoListCreateAPIView,
     DocumentoPacienteViewSet,
     MarcoDNPMListCreateView,       # <-- ADICIONE O NOVO IMPORT
-    VacinaPacienteListCreateView   # <-- ADICIONE O NOVO IMPORT
+    VacinaPacienteListCreateView,
+    MarcoDNPMDetailView,         # <-- ADICIONE O NOVO IMPORT
+    VacinaPacienteDetailView     # <-- ADICIONE O NOVO IMPORT
 )
 
 # O router é usado para ViewSets, como o de DocumentoPaciente
@@ -27,9 +29,12 @@ urlpatterns = [
     path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='listar-criar-prescricoes'),
     path('atestados/', AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
     path('documentos/', DocumentoPacienteViewSet.as_view({'get': 'list', 'post': 'create'}), name='listar-criar-documentos'),
-    # --- INÍCIO DAS NOVAS ADIÇÕES ---
+    # --- Rotas de DNPM ---
     path('marcos-dnpm/', MarcoDNPMListCreateView.as_view(), name='listar-criar-marcos-dnpm'),
+    path('marcos-dnpm/<int:pk>/', MarcoDNPMDetailView.as_view(), name='detalhe-marco-dnpm'), # <-- NOVA ROTA
+
+    # --- Rotas de Vacina ---
     path('vacinas/', VacinaPacienteListCreateView.as_view(), name='listar-criar-vacinas'),
-    # --- FIM DAS NOVAS ADIÇÕES ---
+    path('vacinas/<int:pk>/', VacinaPacienteDetailView.as_view(), name='detalhe-vacina'), # <-- NOVA ROTA
     path('', include(router.urls)),
 ]

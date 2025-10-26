@@ -13,8 +13,15 @@ from xhtml2pdf import pisa
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
-from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Evolucao, Prescricao, OpcaoClinica, MarcoDNPM, VacinaPaciente
-from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer, MarcoDNPMSerializer, VacinaPacienteSerializer
+from .models import (
+    Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, 
+    Evolucao, Prescricao, OpcaoClinica,
+    MarcoDNPM, VacinaPaciente 
+)
+from .serializers import (
+    AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, 
+    EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer,
+    MarcoDNPMSerializer, VacinaPacienteSerializer)
 from usuarios.permissions import CanViewProntuario # Verifique se esta permissão está correta
 
 # --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
@@ -240,4 +247,27 @@ class VacinaPacienteListCreateView(generics.ListCreateAPIView):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         serializer.save(paciente=paciente)
         
+# --- FIM DAS NOVAS ADIÇÕES ---
+# --- INÍCIO DAS NOVAS ADIÇÕES ---
+
+class MarcoDNPMDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View para Ver (GET), Atualizar (PATCH/PUT) ou Deletar (DELETE)
+    UM marco de DNPM específico.
+    """
+    queryset = MarcoDNPM.objects.all()
+    serializer_class = MarcoDNPMSerializer
+    permission_classes = [CanViewProntuario]
+    lookup_field = 'pk' # Informa que o <int:pk> da URL é o ID
+
+class VacinaPacienteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View para Ver (GET), Atualizar (PATCH/PUT) ou Deletar (DELETE)
+    UMA vacina específica do paciente.
+    """
+    queryset = VacinaPaciente.objects.all()
+    serializer_class = VacinaPacienteSerializer
+    permission_classes = [CanViewProntuario]
+    lookup_field = 'pk'
+
 # --- FIM DAS NOVAS ADIÇÕES ---
