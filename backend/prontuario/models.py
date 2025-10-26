@@ -271,3 +271,72 @@ class AnamneseNeonatologia(models.Model):
     class Meta:
         verbose_name = "Anamnese Neonatal"
         verbose_name_plural = "Anamneses Neonatais"
+
+# --- INÍCIO DAS NOVAS ADIÇÕES ---
+
+class MarcoDNPM(models.Model):
+    """
+    Armazena o registro longitudinal de CADA marco de desenvolvimento
+    atingido pelo paciente. (Refere-se à Aba 3)
+    """
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='marcos_dnpm')
+    medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Identificador do marco (ex: 'senta_com_apoio')
+    marco_id = models.CharField(max_length=100, db_index=True)
+    
+    # Descrição amigável (ex: 'Senta com apoio (~6m)')
+    marco_descricao = models.CharField(max_length=255)
+    
+    # Idade-chave do marco (ex: '6m')
+    idade_marco = models.CharField(max_length=10)
+    
+    alcançado = models.BooleanField(default=False)
+    data_registro = models.DateTimeField(auto_now_add=True)
+    observacao = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['paciente', 'data_registro']
+        verbose_name = "Marco de DNPM"
+        verbose_name_plural = "Marcos de DNPM"
+
+    def __str__(self):
+        return f"{self.paciente.nome_completo} - {self.marco_descricao} (Alcançado: {self.alcançado})"
+
+
+class VacinaPaciente(models.Model):
+    """
+    Armazena o registro longitudinal de CADA vacina do paciente.
+    (Refere-se à Aba 4 - Caderneta de Vacinação)
+    """
+    STATUS_CHOICES = [
+        ('Pendente', 'Pendente'),
+        ('Aplicada', 'Aplicada'),
+        ('Atrasada', 'Atrasada'),
+        ('Não se aplica', 'Não se aplica'),
+    ]
+
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='vacinas')
+    
+    # Nome da vacina (ex: 'Pentavalente')
+    nome_vacina = models.CharField(max_length=100, db_index=True)
+    
+    # Idade recomendada (ex: '2m', 'Ao Nascer')
+    idade_recomendada = models.CharField(max_length=20)
+    
+    # Dose (ex: '1ª Dose', 'Reforço')
+    dose = models.CharField(max_length=50)
+    
+    data_aplicacao = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pendente')
+    observacao = models.TextField(blank=True, null=True, help_text="Ex: Rede privada, lote, etc.")
+
+    class Meta:
+        ordering = ['paciente', 'idade_recomendada', 'nome_vacina']
+        verbose_name = "Vacina do Paciente"
+        verbose_name_plural = "Vacinas do Paciente"
+
+    def __str__(self):
+        return f"{self.paciente.nome_completo} - {self.nome_vacina} ({self.dose}) - {self.status}"
+
+# --- FIM DAS NOVAS ADIÇÕES ---

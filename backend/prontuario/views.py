@@ -13,8 +13,8 @@ from xhtml2pdf import pisa
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
-from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Evolucao, Prescricao, OpcaoClinica
-from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer
+from .models import Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Evolucao, Prescricao, OpcaoClinica, MarcoDNPM, VacinaPaciente
+from .serializers import AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer, MarcoDNPMSerializer, VacinaPacienteSerializer
 from usuarios.permissions import CanViewProntuario # Verifique se esta permissão está correta
 
 # --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
@@ -207,3 +207,37 @@ class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [CanViewProntuario] # Apenas médicos podem ver/editar
     lookup_field = 'pk' # Informa que o <int:pk> da URL é o ID
 # --- FIM DA CLASSE ---
+
+# --- INÍCIO DAS NOVAS ADIÇÕES ---
+
+class MarcoDNPMListCreateView(generics.ListCreateAPIView):
+    """
+    View para listar (GET) e criar (POST) marcos de DNPM para um paciente.
+    """
+    serializer_class = MarcoDNPMSerializer
+    permission_classes = [CanViewProntuario]
+
+    def get_queryset(self):
+        paciente_id = self.kwargs.get('paciente_id')
+        return MarcoDNPM.objects.filter(paciente__id=paciente_id).order_by('data_registro')
+
+    def perform_create(self, serializer):
+        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        serializer.save(medico=self.request.user, paciente=paciente)
+
+class VacinaPacienteListCreateView(generics.ListCreateAPIView):
+    """
+    View para listar (GET) e criar (POST) vacinas para um paciente.
+    """
+    serializer_class = VacinaPacienteSerializer
+    permission_classes = [CanViewProntuario] # Ou outra permissão se a recepção puder editar
+
+    def get_queryset(self):
+        paciente_id = self.kwargs.get('paciente_id')
+        return VacinaPaciente.objects.filter(paciente__id=paciente_id).order_by('id') # Pode ordenar como preferir
+
+    def perform_create(self, serializer):
+        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        serializer.save(paciente=paciente)
+        
+# --- FIM DAS NOVAS ADIÇÕES ---

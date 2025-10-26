@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia
-from .models import DocumentoPaciente, OpcaoClinica
+from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 
@@ -186,3 +186,29 @@ class OpcaoClinicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpcaoClinica
         fields = ['id', 'descricao', 'especialidade', 'area_clinica']
+
+# --- INÍCIO DAS NOVAS ADIÇÕES ---
+
+class MarcoDNPMSerializer(serializers.ModelSerializer):
+    medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
+
+    class Meta:
+        model = MarcoDNPM
+        fields = [
+            'id', 'paciente', 'medico', 'medico_nome', 'marco_id', 
+            'marco_descricao', 'idade_marco', 'alcançado', 
+            'data_registro', 'observacao'
+        ]
+        read_only_fields = ['paciente', 'medico', 'medico_nome', 'data_registro']
+
+
+class VacinaPacienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VacinaPaciente
+        fields = [
+            'id', 'paciente', 'nome_vacina', 'idade_recomendada', 
+            'dose', 'data_aplicacao', 'status', 'observacao'
+        ]
+        read_only_fields = ['paciente']
+
+# --- FIM DAS NOVAS ADIÇÕES ---

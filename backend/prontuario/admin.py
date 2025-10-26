@@ -8,7 +8,16 @@ from .models import (
     Anamnese, 
     Atestado,
     DocumentoPaciente,  # <-- Modelo importado
-    OpcaoClinica        # <-- Modelo importado
+    OpcaoClinica,
+    # --- ADIÇÕES DE IMPORTAÇÃO ---
+    AnamnesePediatria,
+    AnamneseGinecologica,
+    AnamneseOrtopedia,
+    AnamneseCardiologia,
+    AnamneseNeonatologia,
+    MarcoDNPM,
+    VacinaPaciente
+    # --- FIM DAS ADIÇÕES ---
 )
 
 # --- Configurações Específicas ---
@@ -57,3 +66,28 @@ class OpcaoClinicaAdmin(admin.ModelAdmin):
     list_display = ('descricao', 'especialidade', 'area_clinica')
     list_filter = ('especialidade', 'area_clinica')
     search_fields = ('descricao',)
+
+# --- INÍCIO DAS NOVAS ADIÇÕES ---
+
+# Registrando os novos modelos longitudinais
+@admin.register(MarcoDNPM)
+class MarcoDNPMAdmin(admin.ModelAdmin):
+    list_display = ('paciente', 'marco_descricao', 'alcançado', 'data_registro')
+    list_filter = ('alcançado', 'idade_marco')
+    search_fields = ('paciente__nome_completo', 'marco_descricao')
+
+@admin.register(VacinaPaciente)
+class VacinaPacienteAdmin(admin.ModelAdmin):
+    list_display = ('paciente', 'nome_vacina', 'dose', 'status', 'data_aplicacao')
+    list_filter = ('status', 'nome_vacina')
+    search_fields = ('paciente__nome_completo',)
+
+# Registrando as anamneses de especialidade (opcional, mas recomendado)
+@admin.register(AnamnesePediatria)
+class AnamnesePediatriaAdmin(admin.ModelAdmin):
+     list_display = ('anamnese',)
+     search_fields = ('anamnese__paciente__nome_completo',)
+
+# (Você pode descomentar o @admin.register acima e adicionar para as outras especialidades)
+
+# --- FIM DAS NOVAS ADIÇÕES ---

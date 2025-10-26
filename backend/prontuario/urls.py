@@ -8,7 +8,9 @@ from .views import (
     PrescricaoListCreateAPIView,
     AnamneseDetailAPIView,
     AtestadoListCreateAPIView,
-    DocumentoPacienteViewSet
+    DocumentoPacienteViewSet,
+    MarcoDNPMListCreateView,       # <-- ADICIONE O NOVO IMPORT
+    VacinaPacienteListCreateView   # <-- ADICIONE O NOVO IMPORT
 )
 
 # O router é usado para ViewSets, como o de DocumentoPaciente
@@ -25,6 +27,9 @@ urlpatterns = [
     path('prescricoes/', PrescricaoListCreateAPIView.as_view(), name='listar-criar-prescricoes'),
     path('atestados/', AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
     path('documentos/', DocumentoPacienteViewSet.as_view({'get': 'list', 'post': 'create'}), name='listar-criar-documentos'),
-    # Inclui as rotas geradas automaticamente pelo router para o ViewSet de documentos
+    # --- INÍCIO DAS NOVAS ADIÇÕES ---
+    path('marcos-dnpm/', MarcoDNPMListCreateView.as_view(), name='listar-criar-marcos-dnpm'),
+    path('vacinas/', VacinaPacienteListCreateView.as_view(), name='listar-criar-vacinas'),
+    # --- FIM DAS NOVAS ADIÇÕES ---
     path('', include(router.urls)),
 ]
