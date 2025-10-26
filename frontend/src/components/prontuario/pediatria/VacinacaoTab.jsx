@@ -7,8 +7,8 @@ import {
     TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
     TextField, MenuItem, Select, FormControl, InputLabel
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext';
-import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
+import apiClient from '../../../api/axiosConfig'
 
 // 1. Dados da tabela, baseados no PNI 2025 do seu PDF
 const pniSchedule = [

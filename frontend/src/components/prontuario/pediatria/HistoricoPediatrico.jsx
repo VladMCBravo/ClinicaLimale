@@ -6,8 +6,8 @@ import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,
     FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext';
-import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
+import apiClient from '../../../api/axiosConfig';
 
 // Estas são as opções de DNPM simples que você usava,
 // Vamos mantê-las aqui por enquanto, antes de mover para a Aba 3.

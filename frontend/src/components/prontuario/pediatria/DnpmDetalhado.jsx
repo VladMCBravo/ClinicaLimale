@@ -7,8 +7,8 @@ import {
     TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
     Checkbox, TextField
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext';
-import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
+import apiClient from '../../../api/axiosConfig'
 
 // 1. Dados da tabela, baseados no PDF (pág. 2)
 // Usamos o 'id' como chave única para a API
