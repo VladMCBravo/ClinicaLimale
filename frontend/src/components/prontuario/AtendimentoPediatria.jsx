@@ -60,9 +60,8 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
     // Estado para SOAP (Evolução)
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // Carrega anamnese histórica
+    // --- 1. CARREGA ANAMNESE HISTÓRICA ---
     useEffect(() => {
-        // ... (lógica igual à anterior para buscar anamnese) ...
         apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
             .then(res => {
                 setAnamneseData({
@@ -70,15 +69,32 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
                     dnpm: res.data.pediatrica?.dnpm || {},
                     sintomas: {}, 
                 });
-                // NOVO: Pré-preenche Exame Físico se houver dados na anamnese
-                setExameFisicoData(res.data.pediatrica || {});
             })
             .catch(err => {
-                // 404 é normal, só significa que não há histórico
                 if (err.response && err.response.status !== 404) {
                     showSnackbar('Erro ao carregar histórico de anamnese.', 'error');
                 }
             });
+    }, [pacienteId, showSnackbar]);
+
+    // --- 2. CARREGA DADOS VITAIS DO PACIENTE (Peso e Altura) ---
+    useEffect(() => {
+        if (pacienteId) {
+            apiClient.get(`/pacientes/${pacienteId}/`)
+                .then(res => {
+                    // Popula os campos de exame físico com os dados mais recentes do paciente
+                    setExameFisicoData(prev => ({
+                        ...prev, // Mantém dados já existentes (ex: temperatura digitada)
+                        peso: res.data.peso || '',
+                        altura: res.data.altura || '', // Já vem em CM do backend
+                        // 'pc' não é mais buscado do cadastro principal
+                    }));
+                })
+                .catch(err => {
+                    console.error("Erro ao carregar dados do paciente:", err);
+                    showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
+                });
+        }
     }, [pacienteId, showSnackbar]);
 
 
@@ -174,24 +190,25 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
     // setExameFisicoData({}); 
     showSnackbar('Campos da consulta atual limpos.', 'info');
 };
-    // Submit (Salva AMBOS os formulários)
+    // --- 3. SUBMIT (Salva Evolução, Anamnese e VITAIS Pesso/Altura) ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         
-        // 1. Salva a EVOLUÇÃO (SOAP)
+        // 1. Prepara os dados vitais para salvar no Paciente (APENAS Peso e Altura)
+        const vitaisData = {
+            peso: exameFisicoData.peso || null,
+            altura: exameFisicoData.altura || null,
+            // 'perimetro_cefalico' (pc) não é enviado de volta ao cadastro
+        };
+
+        // 2. Salva a EVOLUÇÃO (SOAP)
+        // O PC digitado será salvo aqui, dentro de 'notas_objetivas' (via generateExameFisico)
         try {
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            // Limpa o SOAP para a próxima
-            setSoapData({
-                notas_subjetivas: '',
-                notas_objetivas: 'BEG, corado, hidratado, eupneico. Oroscopia sem alterações. ACV: BRNF 2T, sem sopros. AR: MVU presente, sem RA. Abdome: Flácido, indolor, RHA+.',
-                avaliacao: '',
-                plano: ''
-            });
-            setAnamneseData(prev => ({ ...prev, sintomas: {} })); // Limpa checkboxes
+            // ... (Limpa o SOAP para a próxima)
             if(onEvolucaoSalva) onEvolucaoSalva();
 
         } catch (error) {
@@ -200,21 +217,13 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
             return; // Para se a evolução falhar
         }
 
-        // 2. Salva a ANAMNESE (Histórico) - (POST ou PUT)
+        // 3. Salva a ANAMNESE (Histórico)
         try {
-            // Prepara os dados da anamnese para salvar
             const anamnesePayload = {
-                ...anamneseData.pediatrica, // Campos como tipo_parto, etc.
+                ...anamneseData.pediatrica,
                 dnpm: anamneseData.dnpm,
-                // Não salvamos 'sintomas' no histórico, apenas na evolução
             };
-
-            // Tenta dar PUT (atualizar) se já existe, ou POST (criar) se for a primeira vez
-            // (Esta lógica depende do seu AnamneseSerializer no backend)
-            // Vamos simplificar e usar o POST (que o AnamneseTab usava)
             
-            // ATENÇÃO: Esta parte depende da sua view de Anamnese (PUT ou POST)
-            // Vamos assumir que a view de Anamnese aceita um POST para criar/atualizar
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
                 pediatrica: anamnesePayload
             });
@@ -222,6 +231,15 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
 
         } catch (error) {
             showSnackbar('Erro ao salvar histórico de anamnese.', 'error');
+        } 
+        
+        // 4. ATUALIZA OS VITAIS (Peso/Altura) DO PACIENTE
+        try {
+            // Usamos PATCH para atualizar apenas os campos de vitais no Paciente
+            await apiClient.patch(`/pacientes/${pacienteId}/`, vitaisData);
+            showSnackbar('Peso e Altura do paciente atualizados.', 'info');
+        } catch (error) {
+             showSnackbar('Erro ao atualizar peso/altura do paciente.', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -348,13 +366,16 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva }) {
 
                {/* Exame Físico Detalhado (O) */}
                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
+               
                {/* Inputs Dados Vitais */}
                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                    <TextField label="Peso (kg)" name="peso" value={exameFisicoData.peso || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                    <TextField label="Altura (cm)" name="altura" value={exameFisicoData.altura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
+                   {/* Este campo "pc" está ligado ao 'exameFisicoData' do React, 
+                     e NÃO mais ao 'models.py' do Django. Está correto.
+                   */}
                    <TextField label="PC (cm)" name="pc" value={exameFisicoData.pc || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                    <TextField label="T (°C)" name="temperatura" value={exameFisicoData.temperatura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
-                   {/* Adicione outros vitais aqui (FC, FR, PA, SpO2) */}
                </Box>
                {/* Checkboxes Achados Qualitativos */}
                <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>

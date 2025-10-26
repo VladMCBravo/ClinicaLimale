@@ -27,10 +27,10 @@ class Paciente(models.Model):
     data_nascimento = models.DateField()
     cpf = models.CharField(max_length=14, unique=True)
     genero = models.CharField(max_length=20, choices=GENERO_CHOICES, blank=True)
-    # NOVO: Adicionamos os campos de peso e altura aqui.
-    # Usamos blank=True e null=True para torná-los opcionais.
+    # Dados VITAIS mais recentes (aferidos na recepção ou última consulta)
     peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Peso em kg")
-    altura = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, help_text="Altura em metros")
+    altura = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Altura em cm")
+    # O perimetro_cefalico FOI REMOVIDO DAQUI
 
     # Informações de Contato
     telefone_celular = models.CharField(max_length=20)
@@ -42,7 +42,10 @@ class Paciente(models.Model):
     bairro = models.CharField(max_length=100, blank=True)
     cidade = models.CharField(max_length=100, blank=True)
     estado = models.CharField(max_length=2, blank=True)
-
+    # --- NOVOS CAMPOS: RESPONSÁVEL (Opcional) ---
+    nome_responsavel = models.CharField(max_length=255, blank=True, help_text="Nome do responsável (se o paciente for menor)")
+    cpf_responsavel = models.CharField(max_length=14, blank=True, help_text="CPF do responsável")
+    telefone_responsavel = models.CharField(max_length=20, blank=True, help_text="Telefone do responsável (se diferente do principal)")
     
     # Usamos uma string para referenciar o modelo de outro app
     plano_convenio = models.ForeignKey(

@@ -25,12 +25,29 @@ class PacienteSerializer(serializers.ModelSerializer):
             'telefone_celular',            
             'peso',
             'altura',
+            # --- NOVOS CAMPOS: ENDEREÇO ---
+            'cep',
+            'endereco',
+            'numero',
+            'complemento',
+            'bairro',
+            'cidade',
+            'estado',
+            
+            # --- NOVOS CAMPOS: RESPONSÁVEL ---
+            'nome_responsavel',
+            'cpf_responsavel',
+            'telefone_responsavel',
+
+            # Dados do Convênio
             'plano_convenio',
             'numero_carteirinha',
             'medico_responsavel',
+            
+            # Campos Read-only
             'plano_convenio_detalhes',
             'idade',
-            'total_consultas', # <-- O campo permanece aqui, mas agora é mais simples
+            'total_consultas',
         ]
 
     def get_idade(self, obj):

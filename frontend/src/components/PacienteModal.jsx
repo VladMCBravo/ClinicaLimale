@@ -8,19 +8,32 @@ import {
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
-// <<-- 1. ADICIONADO 'genero' AO ESTADO INICIAL -->>
+// <<-- 1. REMOVIDO 'perimetro_cefalico' DO ESTADO INICIAL -->>
 const initialState = {
   nome_completo: '',
   data_nascimento: '',
   email: '',
   telefone_celular: '',
   cpf: '',
-  genero: '', // <-- ADICIONADO AQUI
+  genero: '',
   peso: '',
   altura: '',
+  // perimetro_cefalico: '', // <-- REMOVIDO
   medico_responsavel: null,
   plano_convenio: null,
   numero_carteirinha: '',
+  // Campos de Endereço
+  cep: '',
+  endereco: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  estado: '',
+  // Campos de Responsável
+  nome_responsavel: '',
+  cpf_responsavel: '',
+  telefone_responsavel: '',
 };
 
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
@@ -48,12 +61,25 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           email: pacienteParaEditar.email || '',
           telefone_celular: pacienteParaEditar.telefone_celular || '',
           cpf: pacienteParaEditar.cpf || '',
-          genero: pacienteParaEditar.genero || '', // <<-- 2. ADICIONADO AO PREENCHIMENTO DE EDIÇÃO
+          genero: pacienteParaEditar.genero || '',
           peso: pacienteParaEditar.peso || '',
           altura: pacienteParaEditar.altura || '',
+          // perimetro_cefalico: pacienteParaEditar.perimetro_cefalico || '', // <-- REMOVIDO
           medico_responsavel: pacienteParaEditar.medico_responsavel || null,
           plano_convenio: pacienteParaEditar.plano_convenio || null,
           numero_carteirinha: pacienteParaEditar.numero_carteirinha || '',
+          // Endereço
+          cep: pacienteParaEditar.cep || '',
+          endereco: pacienteParaEditar.endereco || '',
+          numero: pacienteParaEditar.numero || '',
+          complemento: pacienteParaEditar.complemento || '',
+          bairro: pacienteParaEditar.bairro || '',
+          cidade: pacienteParaEditar.cidade || '',
+          estado: pacienteParaEditar.estado || '',
+          // Responsável
+          nome_responsavel: pacienteParaEditar.nome_responsavel || '',
+          cpf_responsavel: pacienteParaEditar.cpf_responsavel || '',
+          telefone_responsavel: pacienteParaEditar.telefone_responsavel || '',
         });
       } else {
         setFormData(initialState);
@@ -126,14 +152,13 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
             
-            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>DADOS PESSOAIS</Typography>
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>DADOS DO PACIENTE</Typography>
             <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} required />
             <TextField name="email" label="Email" type="email" value={formData.email} onChange={handleChange} />
-            <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} />
-            <TextField name="telefone_celular" label="Telefone Celular" value={formData.telefone_celular} onChange={handleChange} />
+            <TextField name="cpf" label="CPF (do paciente, se tiver)" value={formData.cpf} onChange={handleChange} />
+            <TextField name="telefone_celular" label="Telefone Celular (Contato)" value={formData.telefone_celular} onChange={handleChange} />
             <TextField name="data_nascimento" label="Data de Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} />
 
-            {/* <<-- 3. CAMPO 'GÊNERO' ADICIONADO AO FORMULÁRIO -->> */}
             <FormControl fullWidth>
                 <InputLabel id="genero-select-label">Gênero</InputLabel>
                 <Select
@@ -149,10 +174,15 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                 </Select>
             </FormControl>
 
+            {/* <<-- 4. SEÇÃO DE VITAIS SEM O PC -->> */}
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold', mt: 1 }}>DADOS VITAIS (Opcional)</Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
                 <TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth />
-                <TextField name="altura" label="Altura (m)" type="number" value={formData.altura} onChange={handleChange} fullWidth />
+                {/* --- CORREÇÃO DE LABEL AQUI --- */}
+                <TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth />
+                {/* O campo PC foi removido daqui */}
             </Box>
+            
             <Autocomplete
               options={medicos}
               getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
@@ -162,9 +192,31 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               renderInput={(params) => <TextField {...params} label="Médico Responsável" />}
             />
 
+            {/* <<-- 5. NOVA SEÇÃO: DADOS DO RESPONSÁVEL -->> */}
+            <Divider sx={{ my: 1 }} />
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>DADOS DO RESPONSÁVEL (Opcional)</Typography>
+            <TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} />
+            <TextField name="cpf_responsavel" label="CPF do Responsável" value={formData.cpf_responsavel} onChange={handleChange} />
+            <TextField name="telefone_responsavel" label="Telefone do Responsável" value={formData.telefone_responsavel} onChange={handleChange} />
+
+            {/* <<-- 6. NOVA SEÇÃO: ENDEREÇO (Opcional) -->> */}
+            <Divider sx={{ my: 1 }} />
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>ENDEREÇO (Opcional)</Typography>
+            <TextField name="cep" label="CEP" value={formData.cep} onChange={handleChange} />
+            <TextField name="endereco" label="Endereço" value={formData.endereco} onChange={handleChange} />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField name="numero" label="Número" value={formData.numero} onChange={handleChange} fullWidth />
+                <TextField name="complemento" label="Complemento" value={formData.complemento} onChange={handleChange} fullWidth />
+            </Box>
+            <TextField name="bairro" label="Bairro" value={formData.bairro} onChange={handleChange} />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField name="cidade" label="Cidade" value={formData.cidade} onChange={handleChange} fullWidth />
+                <TextField name="estado" label="Estado (UF)" value={formData.estado} onChange={handleChange} fullWidth inputProps={{ maxLength: 2 }} />
+            </Box>
+
+
             <Divider sx={{ my: 1 }} />
             <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>DADOS DO CONVÊNIO</Typography>
-
             {/* Sua ótima lógica de convênios/planos continua aqui, intacta */}
             <Autocomplete
                 options={convenios}
