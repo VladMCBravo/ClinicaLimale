@@ -94,6 +94,7 @@ export default function HistoricoCardiologia({ pacienteId }) {
     // 4. JSX (Formulário do Histórico)
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
+            {/* ... (Título e Fatores de Risco - sem alterações) ... */}
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                 Histórico Cardiológico (Anamnese)
             </Typography>
@@ -109,32 +110,36 @@ export default function HistoricoCardiologia({ pacienteId }) {
                     />
                 ))}
             </FormGroup>
-            
+
             <Divider sx={{ my: 2 }} />
 
-            {/* Campos de Texto do Histórico */}
-            <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                    <TextField label="Medicamentos Cardiológicos em Uso" name="medicamentos_em_uso" multiline rows={4} fullWidth size="small"
+            {/* --- CORREÇÃO DE LAYOUT AQUI --- */}
+            {/* Usamos Grid container ainda, mas cada item ocupa 12 colunas (largura total) */}
+            <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Histórico Detalhado</Typography>
+            <Grid container spacing={2} sx={{mt: 0.5}}>
+                {/* Cada Grid item agora tem apenas xs={12} */}
+                <Grid item xs={12}>
+                    <TextField label="Medicamentos Cardiológicos em Uso" name="medicamentos_em_uso" multiline rows={3} fullWidth size="small"
                         value={anamneseData.medicamentos_em_uso || ''} onChange={handleChange} />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                    <TextField label="Histórico Familiar Relevante" name="historico_familiar" multiline rows={4} fullWidth size="small"
+                <Grid item xs={12}>
+                    <TextField label="Histórico Familiar Relevante" name="historico_familiar" multiline rows={3} fullWidth size="small"
                         value={anamneseData.historico_familiar || ''} onChange={handleChange} placeholder="Ex: Pai IAM aos 50a" />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                    <TextField label="Cirurgias Prévias / Intervenções" name="cirurgias_cardiacas_previas" multiline rows={4} fullWidth size="small"
+                <Grid item xs={12}>
+                    <TextField label="Cirurgias Prévias / Intervenções" name="cirurgias_cardiacas_previas" multiline rows={3} fullWidth size="small"
                         value={anamneseData.cirurgias_cardiacas_previas || ''} onChange={handleChange} placeholder="Ex: Angioplastia com stent 2020" />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                    <TextField label="Outras Comorbidades" name="comorbidades_outras" multiline rows={4} fullWidth size="small"
+                <Grid item xs={12}>
+                    <TextField label="Outras Comorbidades" name="comorbidades_outras" multiline rows={3} fullWidth size="small"
                         value={anamneseData.comorbidades_outras || ''} onChange={handleChange} placeholder="Ex: DRC estágio 3, DPOC" />
                 </Grid>
             </Grid>
+            {/* --- FIM DA CORREÇÃO --- */}
 
             <Divider sx={{ my: 2 }} />
-            
-            {/* Hábitos de Vida */}
+
+            {/* Hábitos de Vida (já estavam corretos, mas mantidos para contexto) */}
             <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }}>Hábitos de Vida</Typography>
             <Grid container spacing={2} sx={{mt: 0.5}}>
                 <Grid item xs={12} md={4}>
@@ -151,6 +156,7 @@ export default function HistoricoCardiologia({ pacienteId }) {
                 </Grid>
             </Grid>
 
+            {/* Botão Salvar */}
             <Box sx={{ textAlign: 'right', mt: 3 }}>
                 <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
