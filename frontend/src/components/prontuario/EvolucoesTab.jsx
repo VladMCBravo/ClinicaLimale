@@ -1,44 +1,47 @@
-// src/components/prontuario/EvolucoesTab.jsx - VERSÃO CORRIGIDA
+// src/components/prontuario/EvolucoesTab.jsx
+// ESTE É O COMPONENTE "ROTEADOR"
 
-import React from 'react';
-import { Box } from '@mui/material';
+import React, { Suspense, lazy } from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
-// Importe TODOS os seus formulários
-import AtendimentoPediatria from './AtendimentoPediatria';
-import AtendimentoNeonatologia from './AtendimentoNeonatologia';
-import AtendimentoCardiologia from './AtendimentoCardiologia';
-import AtendimentoGinecologia from './AtendimentoGinecologia';
-import AtendimentoObstetricia from './AtendimentoObstetricia';
-import AtendimentoOrtopedia from './AtendimentoOrtopedia';
-import AtendimentoReumatologia from './AtendimentoReumatologia';
-import AtendimentoGenerico from './AtendimentoGenerico';
+// Importa os formulários de especialidade com lazy loading
+const AtendimentoPediatria = lazy(() => import('./AtendimentoPediatria'));
+const AtendimentoCardiologia = lazy(() => import('./AtendimentoCardiologia'));
+// const AtendimentoGinecologia = lazy(() => import('./AtendimentoGinecologia')); // (Futuro)
+// const AtendimentoClinicaGeral = lazy(() => import('./AtendimentoClinicaGeral')); // (Futuro)
 
-// 1. A prop recebida é 'onEvolucoesSalva' (plural)
-export default function EvolucoesTab({ pacienteId, onEvolucoesSalva, especialidade }) {
+// Componente "Fallback" genérico
+const GenericFallback = ({ especialidadeNome }) => (
+    <Paper sx={{ p: 2, textAlign: 'center' }}>
+        <Typography variant="h6">Prontuário (Em Desenvolvimento)</Typography>
+        <Typography>Especialidade: {especialidadeNome}</Typography>
+        <Typography color="text.secondary">Formulário específico não implementado.</Typography>
+    </Paper>
+);
+
+export default function EvolucaoTab({ pacienteId, especialidade, onEvolucoesSalva }) {
     
-    const renderAtendimentoForm = () => {
+    // Função para renderizar o componente da especialidade correta
+    const renderEspecialidadeComponent = () => {
         switch (especialidade) {
-            // 2. CORREÇÃO: Use 'onEvolucoesSalva' (plural) em todos os componentes filhos
-            case 'Pediatria': return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
-            case 'Neonatologia': return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
-            case 'Cardiologia': return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
-            case 'Ginecologia': return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
-            case 'Obstetricia': return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
-            case 'Ortopedia': return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
-            case 'Reumatologia Pediátrica': return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Pediatria':
+                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            case 'Cardiologia':
+                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            // case 'Ginecologia':
+            //     return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
             
-            default: 
-                return <AtendimentoGenerico 
-                          pacienteId={pacienteId} 
-                          onEvolucaoSalva={onEvolucoesSalva} // <-- CORREÇÃO AQUI TAMBÉM
-                          especialidade={especialidade} 
-                       />;
+            // Caso padrão (Clínica Geral ou outros)
+            // case 'Clínica Médica':
+            //     return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            default:
+                return <GenericFallback especialidadeNome={especialidade} />;
         }
     };
 
     return (
-        <Box>
-            {renderAtendimentoForm()}
-        </Box>
+        <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
+            {renderEspecialidadeComponent()}
+        </Suspense>
     );
 }

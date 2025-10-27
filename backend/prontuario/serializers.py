@@ -19,6 +19,18 @@ class AnamneseOrtopediaSerializer(serializers.ModelSerializer):
 class AnamneseCardiologiaSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnamneseCardiologia
+        # Apenas os campos que existem no modelo
+        fields = [
+            'fatores_risco',
+            'comorbidades_outras',
+            'cirurgias_cardiacas_previas',
+            'medicamentos_em_uso',
+            'historico_familiar',
+            'habito_tabagismo',
+            'habito_etilismo',
+            'habito_atividade_fisica',
+        ]
+        # Excluímos 'anamnese' e 'id' do payload
         exclude = ['anamnese', 'id']
 
 class AnamnesePediatriaSerializer(serializers.ModelSerializer):
