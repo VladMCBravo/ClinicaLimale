@@ -2,7 +2,8 @@
 // ESTE É O COMPONENTE "ROTEADOR"
 
 import React, { Suspense, lazy } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+// --- CORREÇÃO AQUI ---
+import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // Importa os formulários de especialidade com lazy loading
 const AtendimentoPediatria = lazy(() => import('./AtendimentoPediatria'));
@@ -12,6 +13,7 @@ const AtendimentoCardiologia = lazy(() => import('./AtendimentoCardiologia'));
 
 // Componente "Fallback" genérico
 const GenericFallback = ({ especialidadeNome }) => (
+    // --- ESTA LINHA CAUSOU O ERRO ---
     <Paper sx={{ p: 2, textAlign: 'center' }}>
         <Typography variant="h6">Prontuário (Em Desenvolvimento)</Typography>
         <Typography>Especialidade: {especialidadeNome}</Typography>
@@ -25,16 +27,17 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucoesSalv
     const renderEspecialidadeComponent = () => {
         switch (especialidade) {
             case 'Pediatria':
-                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
             case 'Cardiologia':
-                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
             // case 'Ginecologia':
-            //     return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            //     return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
             
             // Caso padrão (Clínica Geral ou outros)
             // case 'Clínica Médica':
-            //     return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+            //     return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
             default:
+                // Passamos o nome da especialidade para o fallback
                 return <GenericFallback especialidadeNome={especialidade} />;
         }
     };

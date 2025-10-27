@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoCardiologia.jsx
-// VERSÃO REATORADA COM ABAS (Modelo Pediatria)
+// VERSÃO REATORADA COM ABAS (Modelo Pediatria) - COM CORREÇÃO DE PROPS
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
@@ -22,9 +22,7 @@ const sintomaTemplates = {
   dor_toracica: "Dor torácica: Início/Tipo/Local/Irradiação/Intensidade/Fatores.",
   dispneia: "Dispneia: CF (I-IV)/Ortopneia(S/N)/DPN(S/N).",
   palpitacoes: "Palpitações: Início/Ritmo/Duração/Frequência/Fatores.",
-  // ... (outros templates)
 };
-// EXAME FÍSICO EXPANDIDO (Baseado na pesquisa)
 const exameFisicoQualitativoOptions = [
     { id: 'ictus_normal', label: 'Ictus Normo', group: 'inspecao', template: "Ictus cordis não visível/palpável ou em LHE 5º EIC." },
     { id: 'ictus_desviado', label: 'Ictus Desviado', group: 'inspecao', template: "Ictus cordis desviado para ___." },
@@ -41,7 +39,6 @@ const exameFisicoQualitativoOptions = [
     { id: 'sem_edema', label: 'Sem Edema MMII', group: 'vascular', template: "MMII sem edema, panturrilhas livres." },
     { id: 'com_edema', label: 'Edema MMII', group: 'vascular', template: "MMII com edema ___ /4+." },
 ];
-
 // --- FIM OPÇÕES ---
 
 // Helper TabPanel
@@ -54,32 +51,29 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) {
+// --- CORREÇÃO AQUI: Adicionando 'onEvolucoesSalva' às props ---
+export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // 3. ESTADO DAS ABAS
     const [tabIndex, setTabIndex] = useState(0);
 
-    // 4. ESTADOS APENAS DA CONSULTA ATUAL
-    const [sintomasConsulta, setSintomasConsulta] = useState({}); // Sintomas de HOJE
-    const [exameFisicoData, setExameFisicoData] = useState({}); // Exame de HOJE
+    // Estados da Consulta Atual
+    const [sintomasConsulta, setSintomasConsulta] = useState({});
+    const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // 5. CARREGAMENTO DE DADOS (SIMPLIFICADO)
-    // Não carrega mais a anamnese, apenas reseta os estados ao trocar de paciente
+    // Reseta estados ao trocar de paciente
     useEffect(() => {
-        // Reseta o SOAP e os sintomas da consulta atual ao trocar de paciente
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
-        setExameFisicoData({}); // Limpa exame físico anterior
-        setTabIndex(0); // Volta para a primeira aba
+        setExameFisicoData({});
+        setTabIndex(0);
     }, [pacienteId]);
 
-    // 6. GERADORES DE TEXTO (Iguais, mas usam estados locais)
+    // Geradores de texto
     const generateHda = useCallback(() => { 
         return sintomasOpcoes
-            .filter(opt => sintomasConsulta[opt.id]) // Usa estado local
+            .filter(opt => sintomasConsulta[opt.id])
             .map(opt => sintomaTemplates[opt.id] || `${opt.label}: `)
             .join('\n');
      }, [sintomasConsulta]);
@@ -103,7 +97,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
      }, [exameFisicoData, generateExameFisico]);
 
-    // 7. HANDLERS (Apenas da consulta atual)
+    // Handlers
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleSintomasChange = (e) => setSintomasConsulta(prev => ({ ...prev, [e.target.name]: e.target.checked }));
@@ -111,13 +105,12 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         const { name, value, type, checked } = event.target;
         setExameFisicoData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
-    // (Handlers de Anamnese/Fatores de Risco REMOVIDOS)
 
     // Botão Normalidade
     const preencherNormalidade = () => {
         setSintomasConsulta({}); 
         setExameFisicoData(prev => ({
-            ...prev, // Mantém PA/FC digitados
+            ...prev,
             ictus_normal: true, ictus_desviado: false,
             tjp_negativa: true, tjp_positiva: false,
             brnf_2t: true, bar_2t_sopros: false, b3: false, b4: false,
@@ -134,19 +127,17 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
     };
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({}); 
-        setExameFisicoData({}); // Limpa vitais e checkboxes
+        setExameFisicoData({});
         setSoapData({ notas_subjetivas: '', notas_objetivas: 'PA: \nFC: \n', avaliacao: '', plano: '' });
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // 8. handleSubmit (SIMPLIFICADO)
-    // Salva APENAS a Evolução (SOAP). O Histórico é salvo na Aba 2.
+    // handleSubmit (Usando a prop 'onEvolucoesSalva')
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         
         try {
-            // Prepara o SOAP, incluindo os vitais da cardiologia
             const soapPayload = {
                 ...soapData,
                 pressao_arterial: exameFisicoData.pa || null,
@@ -156,8 +147,10 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            if(onEvolucaoSalva) onEvolucoesSalva();
-            handleLimparConsultaAtual(); // Limpa os campos após salvar
+            // --- LINHA QUE CAUSOU O ERRO (Agora deve funcionar) ---
+            if(onEvolucoesSalva) onEvolucoesSalva();
+            
+            handleLimparConsultaAtual();
 
         } catch (error) {
             console.error("Erro ao salvar evolução:", error.response?.data);
@@ -168,7 +161,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
     };
     // --- FIM handleSubmit ---
 
-    // --- 9. JSX COM ABAS ---
+    // --- JSX COM ABAS ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             {/* CABEÇALHO */}
@@ -212,12 +205,10 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                             <TextField label="PA (mmHg)" name="pa" value={exameFisicoData.pa || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '100px' }}/>
                             <TextField label="FC (bpm)" name="fc" type="number" value={exameFisicoData.fc || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
-                            {/* Adicione outros vitais se desejar (FR, SpO2) */}
                         </Box>
                         
                         {/* Checkboxes Exame Físico */}
                         <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
-                            {/* Agrupando por sistema */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Inspeção/Pescoço:</Typography>
                                 {exameFisicoQualitativoOptions.filter(o=>o.group === 'inspecao' || o.group === 'pescoco').map(opt => (
