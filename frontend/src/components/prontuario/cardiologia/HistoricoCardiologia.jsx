@@ -113,28 +113,23 @@ export default function HistoricoCardiologia({ pacienteId }) {
 
             <Divider sx={{ my: 2 }} />
 
-            {/* --- CORREÇÃO DE LAYOUT AQUI --- */}
-            {/* Usamos Grid container ainda, mas cada item ocupa 12 colunas (largura total) */}
+            {/* --- CORREÇÃO DE LAYOUT USANDO BOX --- */}
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Histórico Detalhado</Typography>
-            <Grid container spacing={2} sx={{mt: 0.5}}>
-                {/* Cada Grid item agora tem apenas xs={12} */}
-                <Grid item xs={12}>
-                    <TextField label="Medicamentos Cardiológicos em Uso" name="medicamentos_em_uso" multiline rows={3} fullWidth size="small"
-                        value={anamneseData.medicamentos_em_uso || ''} onChange={handleChange} />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField label="Histórico Familiar Relevante" name="historico_familiar" multiline rows={3} fullWidth size="small"
-                        value={anamneseData.historico_familiar || ''} onChange={handleChange} placeholder="Ex: Pai IAM aos 50a" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField label="Cirurgias Prévias / Intervenções" name="cirurgias_cardiacas_previas" multiline rows={3} fullWidth size="small"
-                        value={anamneseData.cirurgias_cardiacas_previas || ''} onChange={handleChange} placeholder="Ex: Angioplastia com stent 2020" />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField label="Outras Comorbidades" name="comorbidades_outras" multiline rows={3} fullWidth size="small"
-                        value={anamneseData.comorbidades_outras || ''} onChange={handleChange} placeholder="Ex: DRC estágio 3, DPOC" />
-                </Grid>
-            </Grid>
+            {/* Substituímos o Grid container por um Box com flex column */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1.5 }}>
+                 {/* Removemos os Grid items */}
+                 <TextField label="Medicamentos Cardiológicos em Uso" name="medicamentos_em_uso" multiline rows={3} fullWidth size="small"
+                     value={anamneseData.medicamentos_em_uso || ''} onChange={handleChange} />
+
+                 <TextField label="Histórico Familiar Relevante" name="historico_familiar" multiline rows={3} fullWidth size="small"
+                     value={anamneseData.historico_familiar || ''} onChange={handleChange} placeholder="Ex: Pai IAM aos 50a" />
+
+                 <TextField label="Cirurgias Prévias / Intervenções" name="cirurgias_cardiacas_previas" multiline rows={3} fullWidth size="small"
+                     value={anamneseData.cirurgias_cardiacas_previas || ''} onChange={handleChange} placeholder="Ex: Angioplastia com stent 2020" />
+
+                 <TextField label="Outras Comorbidades" name="comorbidades_outras" multiline rows={3} fullWidth size="small"
+                     value={anamneseData.comorbidades_outras || ''} onChange={handleChange} placeholder="Ex: DRC estágio 3, DPOC" />
+            </Box>
             {/* --- FIM DA CORREÇÃO --- */}
 
             <Divider sx={{ my: 2 }} />
