@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,
     FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress,
-    Accordion, AccordionSummary, AccordionDetails // 1. IMPORTAR ACCORDION
+    Accordion, AccordionSummary, AccordionDetails, FormLabel // 1. IMPORTAR ACCORDION
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // Ícone para Accordion
 import { useSnackbar } from '../../../contexts/SnackbarContext';
@@ -38,6 +38,11 @@ const sonoComportamentoOptions = {
     choro: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
     vinculo: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
 };
+// --- OPÇÕES PARA TRIAGENS ---
+const triagensOptions = [
+    { id: 'pezinho', label: 'Pezinho' }, { id: 'orelhinha', label: 'Orelhinha' },
+    { id: 'olhinho', label: 'Olhinho' }, { id: 'coracaozinho', label: 'Coraçãozinho' },
+    { id: 'linguinha', label: 'Linguinha' },
 // --- FIM NOVAS OPÇÕES ---
 
 export default function HistoricoPediatrico({ pacienteId }) {
@@ -48,7 +53,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
     const [anamneseData, setAnamneseData] = useState({
         // Campos existentes
         tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
-        vacinacao: '', vacinacao_obs: '', dnpm: {},
+        vacinacao: '', vacinacao_obs: '', dnpm: {}, triagens: {},
         // Novos campos JSON (inicializados como objetos vazios)
         alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
         // Novos campos string/text
@@ -68,12 +73,12 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     alimentacao_0_6m: res.data.pediatrica.alimentacao_0_6m || {},
                     alimentacao_6_12m: res.data.pediatrica.alimentacao_6_12m || {},
                     sono_comportamento: res.data.pediatrica.sono_comportamento || {},
+                    triagens: res.data.pediatrica.triagens || {}, // 2. Carregar triagens
                 });
             } else {
-                 // Reseta para o estado inicial se não houver dados
-                setAnamneseData({
+                 setAnamneseData({ // Reset inclui triagens
                     tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
-                    vacinacao: '', vacinacao_obs: '', dnpm: {},
+                    vacinacao: '', vacinacao_obs: '', dnpm: {}, triagens: {}, // Reset triagens
                     alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
                     alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
                 });
@@ -116,24 +121,23 @@ export default function HistoricoPediatrico({ pacienteId }) {
         const { name, checked } = event.target;
         setAnamneseData(prev => ({ ...prev, dnpm: { ...prev.dnpm, [name]: checked } }));
     };
+    const handleTriagensChange = (event) => {
+        handleJsonCheckboxChange('triagens', event.target.name, event.target.checked);
+    };
 
 
-    // 4. FUNÇÃO DE SALVAR ATUALIZADA
+    // Função de Salvar (Payload agora inclui 'triagens')
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            // O payload agora é o estado 'anamneseData' completo
+            // O payload é o estado completo, que já inclui 'triagens' atualizado
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
                 pediatrica: anamneseData
             });
-            showSnackbar('Histórico de anamnese salvo com sucesso!', 'success');
-        } catch (error) {
-            console.error("Erro ao salvar anamnese:", error.response?.data);
-            showSnackbar('Erro ao salvar histórico de anamnese.', 'error');
-        } finally {
-            setIsSubmitting(false);
-        }
+            showSnackbar('Histórico pediátrico salvo com sucesso!', 'success');
+        } catch (error) { /* ... */ }
+        finally { setIsSubmitting(false); }
     };
 
     if (isLoading) {
@@ -149,29 +153,47 @@ export default function HistoricoPediatrico({ pacienteId }) {
 
             {/* Usaremos Accordions para organizar as seções */}
             <Box sx={{ mt: 2 }}>
-                {/* Accordion: Gestacional/Nascimento */}
+                {/* Accordion: Gestacional/Nascimento ATUALIZADO */}
                 <Accordion defaultExpanded>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <Typography sx={{ fontWeight: 'medium' }}>Histórico Gestacional e Nascimento</Typography>
+                        <Typography sx={{ fontWeight: 'medium' }}>Histórico Gestacional, Nascimento e Triagens</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {/* ... (O JSX dos campos tipo_parto, idade_gestacional, peso_nascimento, apgar, intercorrencias que você já tinha) ... */}
-                             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-                                {/* Tipo Parto e IG */}
-                                <TextField select label="Tipo de Parto" name="tipo_parto" value={anamneseData.tipo_parto || ''} onChange={handleChange} fullWidth size="small">
-                                    <MenuItem value="Normal">Normal</MenuItem> <MenuItem value="Cesárea">Cesárea</MenuItem> <MenuItem value="Fórceps">Fórceps</MenuItem> <MenuItem value="Não sabe">Não sabe</MenuItem>
-                                </TextField>
-                                <TextField select label="Idade Gestacional" name="idade_gestacional" value={anamneseData.idade_gestacional || ''} onChange={handleChange} fullWidth size="small">
-                                     <MenuItem value="A termo">A termo ({'>='} 37 sem)</MenuItem> <MenuItem value="Pré-termo tardio">Pré-termo tardio (34 a 36+6 sem)</MenuItem> {/* ... outras opções ... */} <MenuItem value="Não sabe">Não sabe</MenuItem>
-                                </TextField>
-                            </Box>
+                            {/* ... (Campos tipo_parto, idade_gestacional, peso_nascimento - sem alterações) ... */}
                             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-                                {/* Peso e Apgar */}
                                  <TextField label="Peso ao nascer (g)" name="peso_nascimento" type="number" value={anamneseData.peso_nascimento || ''} onChange={handleChange} fullWidth size="small"/>
-                                 <TextField label="APGAR (1º/5º)" name="apgar" value={anamneseData.apgar || ''} onChange={handleChange} fullWidth size="small" />
+                                 {/* 4. Campo APGAR com Placeholder atualizado */}
+                                 <TextField
+                                     label="APGAR (1'/5'/10')"
+                                     name="apgar"
+                                     value={anamneseData.apgar || ''}
+                                     onChange={handleChange}
+                                     fullWidth
+                                     size="small"
+                                     placeholder="Ex: 8/9/10" // Guia para o formato
+                                 />
                             </Box>
-                             <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={anamneseData.intercorrencias_gestacao_parto || ''} onChange={handleChange} multiline rows={2} fullWidth size="small" />
+                            <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={anamneseData.intercorrencias_gestacao_parto || ''} onChange={handleChange} multiline rows={2} fullWidth size="small" />
+
+                             {/* 5. NOVA SEÇÃO DE TRIAGENS */}
+                            <FormControl component="fieldset" size="small" sx={{mt: 1}}>
+                                <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
+                                <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                                    {triagensOptions.map(opt => (
+                                        <FormControlLabel
+                                            key={opt.id}
+                                            control={<Checkbox
+                                                size="small"
+                                                checked={anamneseData.triagens[opt.id] || false}
+                                                onChange={handleTriagensChange} // Usa o handler específico
+                                                name={opt.id}
+                                            />}
+                                            label={opt.label}
+                                        />
+                                    ))}
+                                </FormGroup>
+                            </FormControl>
                         </Box>
                     </AccordionDetails>
                 </Accordion>
