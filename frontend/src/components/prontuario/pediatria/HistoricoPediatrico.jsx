@@ -44,6 +44,15 @@ const triagensOptions = [
     { id: 'olhinho', label: 'Olhinho' }, { id: 'coracaozinho', label: 'Coraçãozinho' },
     { id: 'linguinha', label: 'Linguinha' },
 ];
+// 4. ADICIONE A DEFINIÇÃO FALTANTE AQUI
+const dnpmOptions = [
+    { id: 'dnpm_normal_idade', label: 'DNPM adequado para idade' },
+    { id: 'dnpm_sinais_alerta', label: 'Sinais de Alerta' },
+    { id: 'dnpm_atraso', label: 'Atraso no DNPM' },
+    // (Você pode adicionar outros marcos principais se quiser, como:)
+    // { id: 'dnpm_sentou', label: 'Sentou s/ apoio (~7m)' },
+    // { id: 'dnpm_andou', label: 'Andou sozinho (~12m)' },
+];
 // --- FIM NOVAS OPÇÕES ---
 
 export default function HistoricoPediatrico({ pacienteId }) {
