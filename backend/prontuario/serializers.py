@@ -1,15 +1,20 @@
 # backend/prontuario/serializers.py - VERSÃO CORRIGIDA
 
 from rest_framework import serializers
-from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia
+from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
+class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnamneseClinicaGeral
+        exclude = ['anamnese', 'id'] # Inclui hmp, habitos_sociais, vacina_adulto_status
 
 class AnamneseGinecologicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnamneseGinecologica
-        exclude = ['anamnese', 'id'] # Exclui a chave estrangeira e o ID automático
+        # Apenas os campos que existem no modelo (histórico)
+        exclude = ['anamnese', 'id'] # Inclui todos os campos do modelo exceto estes
 
 class AnamneseOrtopediaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,7 +38,8 @@ class AnamnesePediatriaSerializer(serializers.ModelSerializer):
 class AnamneseNeonatologiaSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnamneseNeonatologia
-        exclude = ['anamnese', 'id']
+        # Apenas os campos que existem no modelo (histórico)
+        exclude = ['anamnese', 'id'] # Inclui todos os campos do modelo exceto estes
 
 
 # Serializer para o modelo Evolucao
@@ -94,16 +100,22 @@ class AnamneseSerializer(serializers.ModelSerializer):
     cardiologica = AnamneseCardiologiaSerializer(required=False, allow_null=True)
     pediatrica = AnamnesePediatriaSerializer(required=False, allow_null=True)
     neonatologia = AnamneseNeonatologiaSerializer(required=False, allow_null=True)
+    clinica_geral = AnamneseClinicaGeralSerializer(required=False, allow_null=True) # <-- ADICIONE ESTA LINHA
     
     class Meta:
         model = Anamnese
         fields = [
-            'id', 'paciente', 'medico', 'queixa_principal',
-            'historia_doenca_atual', 'historico_medico_pregresso',
-            'historico_familiar', 'alergias', 'medicamentos_em_uso',
-            # Adicionando os nomes das relações definidas nos modelos
-            'ginecologica', 'ortopedica', 'cardiologica', 'pediatrica', 'neonatologia'
-            # (Adicione 'reumatologia', etc. aqui)
+            'id', 'paciente', 'medico',
+            # Campos principais da Anamnese que serão usados pelo Histórico de Clínica Geral:
+            'queixa_principal', # Pode ser útil exibir a QP da primeira consulta
+            'historia_doenca_atual', # HDA da primeira consulta
+            'historico_medico_pregresso', # Campo geral (pode coexistir com o HMP específico)
+            'historico_familiar', # Reutilizado
+            'alergias', # Reutilizado
+            'medicamentos_em_uso', # Reutilizado
+            # Campos de especialidade:
+            'ginecologica', 'ortopedica', 'cardiologica', 'pediatrica', 'neonatologia',
+            'clinica_geral' # <-- ADICIONE ESTA LINHA
         ]
         extra_kwargs = { field: {'required': False, 'allow_blank': True, 'allow_null': True}
                          for field in ['queixa_principal', 'historia_doenca_atual',
@@ -117,7 +129,7 @@ class AnamneseSerializer(serializers.ModelSerializer):
         cardiologica_data = validated_data.pop('cardiologica', None)
         pediatrica_data = validated_data.pop('pediatrica', None)
         neonatologia_data = validated_data.pop('neonatologia', None)
-        # (Adicione .pop() para Reumatologia, etc.)
+        clinica_geral_data = validated_data.pop('clinica_geral', None) # <-- ADD POP
 
         # Cria a Anamnese principal
         anamnese = Anamnese.objects.create(**validated_data)
@@ -128,7 +140,7 @@ class AnamneseSerializer(serializers.ModelSerializer):
         if cardiologica_data: AnamneseCardiologia.objects.create(anamnese=anamnese, **cardiologica_data)
         if pediatrica_data: AnamnesePediatria.objects.create(anamnese=anamnese, **pediatrica_data)
         if neonatologia_data: AnamneseNeonatologia.objects.create(anamnese=anamnese, **neonatologia_data)
-        # (Adicione create para Reumatologia, etc.)
+        if clinica_geral_data: AnamneseClinicaGeral.objects.create(anamnese=anamnese, **clinica_geral_data) # <-- ADD CREATE
 
         return anamnese
 
@@ -139,7 +151,7 @@ class AnamneseSerializer(serializers.ModelSerializer):
         cardiologica_data = validated_data.pop('cardiologica', None)
         pediatrica_data = validated_data.pop('pediatrica', None)
         neonatologia_data = validated_data.pop('neonatologia', None)
-        # (Adicione .pop() para Reumatologia, etc.)
+        clinica_geral_data = validated_data.pop('clinica_geral', None) # <-- ADD POP
 
         # Atualiza a Anamnese principal
         instance = super().update(instance, validated_data)
@@ -151,7 +163,7 @@ class AnamneseSerializer(serializers.ModelSerializer):
             'cardiologica': (AnamneseCardiologia, cardiologica_data),
             'pediatrica': (AnamnesePediatria, pediatrica_data),
             'neonatologia': (AnamneseNeonatologia, neonatologia_data),
-            # (Adicione Reumatologia, etc.)
+            'clinica_geral': (AnamneseClinicaGeral, clinica_geral_data), # <-- ADD TO MAP
         }
 
         for field_name, (ModelClass, data) in specialty_data_map.items():

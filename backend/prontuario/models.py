@@ -127,9 +127,31 @@ class OpcaoClinica(models.Model):
     def __str__(self):
         return f"[{self.especialidade} / {self.area_clinica}] {self.descricao}"
 
+class AnamneseClinicaGeral(models.Model):
+    anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='clinica_geral')
+
+    # Histórico Médico Pregresso (Doenças crônicas, cirurgias, internações)
+    hmp = models.TextField(blank=True, null=True, verbose_name="Histórico Médico Pregresso")
+
+    # Hábitos de Vida e Histórico Social
+    habitos_sociais = models.TextField(blank=True, null=True, verbose_name="Hábitos e Histórico Social (Tabagismo, Etilismo, Ocupação, etc.)")
+
+    # Status Vacinal Adulto (Simplificado)
+    vacina_adulto_status = models.TextField(blank=True, null=True, verbose_name="Status Vacinal (Adulto)")
+
+    # Alergias, Medicamentos em Uso e Histórico Familiar já estão no modelo Anamnese principal
+
+    def __str__(self):
+        return f"Dados de Clínica Geral de {self.anamnese.paciente.nome_completo}"
+
+    class Meta:
+        verbose_name = "Anamnese Clínica Geral"
+        verbose_name_plural = "Anamneses Clínica Geral"
+
 class AnamneseGinecologica(models.Model):
     anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='ginecologica')
-    # Histórico Menstrual e Obstétrico
+    
+    # --- HISTÓRICO MENSTRUAL E OBSTÉTRICO (Mantidos) ---
     dum = models.DateField(null=True, blank=True, verbose_name="DUM")
     menarca_idade = models.PositiveIntegerField(null=True, blank=True, verbose_name="Idade da Menarca")
     ciclo_regular = models.CharField(max_length=10, choices=[('regular', 'Regular'), ('irregular', 'Irregular')], null=True, blank=True)
@@ -141,7 +163,8 @@ class AnamneseGinecologica(models.Model):
     cesareas = models.PositiveIntegerField(null=True, blank=True, verbose_name="Cesáreas (C)")
     abortos = models.PositiveIntegerField(null=True, blank=True, verbose_name="Abortos (A)")
     complicacoes_obstetricas = models.TextField(blank=True, null=True, verbose_name="Complicações Obstétricas Anteriores")
-    # Rastreamento e Contracepção
+    
+    # --- RASTREAMENTO E CONTRACEPÇÃO (Mantidos) ---
     ultimo_preventivo_data = models.DateField(null=True, blank=True, verbose_name="Último Preventivo (Data)")
     ultimo_preventivo_resultado = models.CharField(max_length=255, blank=True, null=True, verbose_name="Resultado Preventivo")
     ultima_mamografia_data = models.DateField(null=True, blank=True, verbose_name="Última Mamografia (Data)")
@@ -149,18 +172,18 @@ class AnamneseGinecologica(models.Model):
     mac_atual = models.CharField(max_length=100, blank=True, null=True, verbose_name="Método Contraceptivo Atual")
     mac_anterior = models.CharField(max_length=100, blank=True, null=True, verbose_name="Métodos Anteriores")
     hists_ists = models.TextField(blank=True, null=True, verbose_name="Histórico de ISTs")
-    # Queixa Atual (Sintomas são tratados no frontend/serializer)
-    sintomas = models.JSONField(default=dict, blank=True, null=True) # Armazena os checkboxes { "corrimento": true, ... }
-    # Exame Físico
-    pa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pressão Arterial (mmHg)")
-    fc = models.PositiveIntegerField(null=True, blank=True, verbose_name="Frequência Cardíaca (bpm)")
-    peso = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="Peso (kg)")
-    altura = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True, verbose_name="Altura (m)")
-    ex_mamas = models.TextField(blank=True, null=True, verbose_name="Exame das Mamas")
-    ex_abdome = models.TextField(blank=True, null=True, verbose_name="Exame Abdominal")
-    ex_genitais_externos = models.TextField(blank=True, null=True, verbose_name="Exame Genitais Externos")
-    ex_especular = models.TextField(blank=True, null=True, verbose_name="Exame Especular")
-    ex_toque = models.TextField(blank=True, null=True, verbose_name="Toque Vaginal Bimanual")
+    
+    # --- CAMPOS REMOVIDOS (Agora pertencem à Evolucao/SOAP Ginecológico) ---
+    # sintomas = models.JSONField(...) <-- REMOVIDO
+    # pa = models.CharField(...) <-- REMOVIDO
+    # fc = models.PositiveIntegerField(...) <-- REMOVIDO
+    # peso = models.DecimalField(...) <-- REMOVIDO
+    # altura = models.DecimalField(...) <-- REMOVIDO
+    # ex_mamas = models.TextField(...) <-- REMOVIDO
+    # ex_abdome = models.TextField(...) <-- REMOVIDO
+    # ex_genitais_externos = models.TextField(...) <-- REMOVIDO
+    # ex_especular = models.TextField(...) <-- REMOVIDO
+    # ex_toque = models.TextField(...) <-- REMOVIDO
 
     def __str__(self):
         return f"Dados Ginecológicos de {self.anamnese.paciente.nome_completo}"
@@ -245,40 +268,45 @@ class AnamnesePediatria(models.Model):
 
 class AnamneseNeonatologia(models.Model):
     anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='neonatologia')
-    # Histórico Materno e Gestacional
+    
+    # --- DADOS MATERNOS E GESTACIONAIS (Mantidos) ---
     idade_materna = models.PositiveIntegerField(null=True, blank=True)
     gpa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Gesta/Para/Aborto")
     tipo_sanguineo_mae = models.CharField(max_length=5, blank=True, null=True)
     coombs_indireto = models.CharField(max_length=50, blank=True, null=True)
     sorologias = models.JSONField(default=dict, blank=True, null=True) # { "vdrl": true, ... }
     intercorrencias_gestacao = models.TextField(blank=True, null=True)
-    # Dados do Parto
+    
+    # --- DADOS DO PARTO (Mantidos) ---
     tipo_parto = models.CharField(max_length=50, blank=True, null=True)
     idade_gestacional = models.CharField(max_length=50, blank=True, null=True)
     bolsa_rota = models.CharField(max_length=100, blank=True, null=True)
     liquido_amniotico = models.CharField(max_length=100, blank=True, null=True)
-    # Dados do RN
+    reanimacao = models.TextField(blank=True, null=True, verbose_name="Reanimação em Sala de Parto")
+    
+    # --- DADOS DO RN AO NASCER (Mantidos) ---
     peso_nascimento = models.PositiveIntegerField(null=True, blank=True, verbose_name="Peso ao Nascer (g)")
     comprimento = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="Comprimento (cm)")
-    pc = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="Perímetro Cefálico (cm)")
+    pc_nascimento = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="PC ao Nascer (cm)") # Renomeado para clareza
     apgar = models.CharField(max_length=10, blank=True, null=True, verbose_name="APGAR (1º/5º)")
-    reanimacao = models.TextField(blank=True, null=True, verbose_name="Reanimação em Sala de Parto")
-    # Triagens
+    
+    # --- TRIAGENS (Mantido) ---
     triagens = models.JSONField(default=dict, blank=True, null=True) # { "pezinho": true, ... }
-    # Exame Físico Neonatal
-    ex_estado_geral = models.TextField(blank=True, null=True)
-    ex_pele = models.TextField(blank=True, null=True)
-    ex_cabeca = models.TextField(blank=True, null=True)
-    ex_resp = models.TextField(blank=True, null=True)
-    ex_cardio = models.TextField(blank=True, null=True)
-    ex_abdome = models.TextField(blank=True, null=True)
-    ex_genitalia = models.TextField(blank=True, null=True)
-    ex_neuro = models.TextField(blank=True, null=True)
-    # Evolução Inicial
-    alimentacao = models.CharField(max_length=20, blank=True, null=True)
-    diurese = models.CharField(max_length=50, blank=True, null=True)
-    evacuacao = models.CharField(max_length=50, blank=True, null=True)
-    plano = models.TextField(blank=True, null=True, verbose_name="Plano e Observações")
+
+    # --- CAMPOS REMOVIDOS (Agora pertencem à Evolucao/SOAP Neonatal) ---
+    # ex_estado_geral = models.TextField(...) <-- REMOVIDO
+    # ex_pele = models.TextField(...) <-- REMOVIDO
+    # ex_cabeca = models.TextField(...) <-- REMOVIDO
+    # ex_resp = models.TextField(...) <-- REMOVIDO
+    # ex_cardio = models.TextField(...) <-- REMOVIDO
+    # ex_abdome = models.TextField(...) <-- REMOVIDO
+    # ex_genitalia = models.TextField(...) <-- REMOVIDO
+    # ex_neuro = models.TextField(...) <-- REMOVIDO
+    # alimentacao = models.CharField(...) <-- REMOVIDO (será parte da evolução diária)
+    # diurese = models.CharField(...) <-- REMOVIDO
+    # evacuacao = models.CharField(...) <-- REMOVIDO
+    # plano = models.TextField(...) <-- REMOVIDO (será parte da evolução diária)
+    # pc = models.DecimalField(...) <-- REMOVIDO (PC ao nascer já existe, PC atual será na evolução)
 
     def __str__(self):
         return f"Dados Neonatais de {self.anamnese.paciente.nome_completo}"

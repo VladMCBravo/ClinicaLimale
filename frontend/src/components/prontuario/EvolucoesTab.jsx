@@ -8,8 +8,9 @@ import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 // Importa os formulários de especialidade com lazy loading
 const AtendimentoPediatria = lazy(() => import('./AtendimentoPediatria'));
 const AtendimentoCardiologia = lazy(() => import('./AtendimentoCardiologia'));
-// const AtendimentoGinecologia = lazy(() => import('./AtendimentoGinecologia')); // (Futuro)
-// const AtendimentoClinicaGeral = lazy(() => import('./AtendimentoClinicaGeral')); // (Futuro)
+const AtendimentoNeonatologia = lazy(() => import('./AtendimentoNeonatologia')); // Sem a subpasta
+const AtendimentoGinecologia = lazy(() => import('./AtendimentoGinecologia')); // Sem subpasta
+const AtendimentoClinicaGeral = lazy(() => import('./AtendimentoClinicaGeral')); // <-- ADICIONE O IMPORT
 
 // Componente "Fallback" genérico
 const GenericFallback = ({ especialidadeNome }) => (
@@ -30,15 +31,20 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucoesSalv
                 return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
             case 'Cardiologia':
                 return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
-            // case 'Ginecologia':
-            //     return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
-            
-            // Caso padrão (Clínica Geral ou outros)
-            // case 'Clínica Médica':
-            //     return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
-            default:
-                // Passamos o nome da especialidade para o fallback
-                return <GenericFallback especialidadeNome={especialidade} />;
+            case 'Neonatologia':
+                return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
+            case 'Ginecologia':
+            case 'Obstetrícia': // Pode usar o mesmo form? Avaliar.
+                return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
+            case 'Clínica Médica': // Ou o nome que você usa
+            // Adicione outras especialidades que usarão o form geral
+            // case 'Dermatologia':
+            // case 'Endocrinologia':
+                return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+
+            default: // Fallback final usa o genérico ou o de Clínica Geral
+                // return <GenericFallback especialidadeNome={especialidade} />;
+                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />; // Ou usa Clínica Geral como default
         }
     };
 
