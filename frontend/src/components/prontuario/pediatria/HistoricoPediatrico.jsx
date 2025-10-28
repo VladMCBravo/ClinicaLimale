@@ -1,38 +1,83 @@
 // src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// NOVO COMPONENTE (Aba 2)
+// VERSÃO ATUALIZADA COM SEÇÕES DETALHADAS
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,
-    FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress
+    FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress,
+    Accordion, AccordionSummary, AccordionDetails // 1. IMPORTAR ACCORDION
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // Ícone para Accordion
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
-// Estas são as opções de DNPM simples que você usava,
-// Vamos mantê-las aqui por enquanto, antes de mover para a Aba 3.
-const dnpmOptions = [
-    { id: 'sustenta_cabeca', label: 'Sustenta a cabeça (~3m)' }, { id: 'sorri_social', label: 'Sorriso social (~3m)' },
-    { id: 'senta_com_apoio', label: 'Senta com apoio (~6m)' }, { id: 'engatinha', label: 'Engatinha (~9m)' },
-    { id: 'anda', label: 'Anda (~12-15m)' }, { id: 'primeiras_palavras', label: 'Primeiras palavras (~12m)' },
-    { id: 'frases_simples', label: 'Frases simples (~24m)' }, { id: 'controle_esfincter', label: 'Controle de esfíncteres' },
-];
+// --- NOVAS OPÇÕES PARA ALIMENTAÇÃO E SONO ---
+const alimentacao06Options = {
+    tipo_aleitamento: [{value: 'AME', label: 'AME'}, {value: 'Misto', label: 'Misto'}, {value: 'Formula', label: 'Fórmula'}],
+    pega: [{value: 'Boa', label: 'Boa'}, {value: 'Parcial', label: 'Parcial'}, {value: 'Ruim', label: 'Ruim'}],
+    succao: [{value: 'Eficaz', label: 'Eficaz'}, {value: 'Fraca', label: 'Fraca'}, {value: 'Ausente', label: 'Ausente'}],
+    diurese: [{value: 'Adequada', label: 'Adequada'}, {value: 'Reduzida', label: 'Reduzida'}],
+    evacuacao: [{value: 'Normal', label: 'Normal'}, {value: 'Ressecada', label: 'Ressecada'}, {value: 'Diarreica', label: 'Diarreica'}],
+    suplementacao: [{id: 'vitamina_d', label: 'Vit D'}, {id: 'ferro', label: 'Ferro'}], // Checkboxes
+};
+const alimentacao612Options = {
+    tipo_alimentacao: [{value: 'Mantem AM', label: 'Mantém AM'}, {value: 'Formula', label: 'Fórmula'}, {value: 'Ambos', label: 'Ambos'}],
+    refeicoes_dia: [{value: '2', label: '2'}, {value: '3', label: '3'}, {value: '>3', label: '>3'}],
+    textura: [{value: 'Amassada', label: 'Amassada'}, {value: 'Picada', label: 'Picada'}, {value: 'Pedaços', label: 'Pedaços'}],
+    aceitacao: [{value: 'Boa', label: 'Boa'}, {value: 'Parcial', label: 'Parcial'}, {value: 'Ruim', label: 'Ruim'}],
+    agua: [{value: 'Adequada', label: 'Adequada'}, {value: 'Baixa', label: 'Baixa'}],
+    suplementacao: [{id: 'vitamina_d', label: 'Vit D'}, {id: 'ferro', label: 'Ferro'}], // Checkboxes
+    aceitacao_geral: [{value: 'Adequada', label: 'Adequada'}, {value: 'Seletiva', label: 'Seletiva'}, {value: 'Dificuldade Textura', label: 'Dificuldade Textura'}],
+};
+const metodoIAOptions = ['Tradicional', 'BLW', 'BLISS', 'Misto'];
+const copoTransicaoOptions = ['Copo 360', 'Canudo Curto', 'Bico Rígido', 'Aberto Pequeno', 'Não usa / Mamadeira'];
+const sonoComportamentoOptions = {
+    sono_diurno: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
+    sono_noturno: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
+    colica: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}], // Ou Sim/Não? PDF não claro
+    choro: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
+    vinculo: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
+};
+// --- FIM NOVAS OPÇÕES ---
 
 export default function HistoricoPediatrico({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [anamneseData, setAnamneseData] = useState({ pediatrica: {}, dnpm: {} });
+    // Estado principal agora reflete a nova estrutura do modelo
+    const [anamneseData, setAnamneseData] = useState({
+        // Campos existentes
+        tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
+        vacinacao: '', vacinacao_obs: '', dnpm: {},
+        // Novos campos JSON (inicializados como objetos vazios)
+        alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
+        // Novos campos string/text
+        alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
+    });
 
-    // 1. FUNÇÃO DE CARREGAMENTO (Movida do AtendimentoPediatria.jsx)
+    // 2. FUNÇÃO DE CARREGAMENTO ATUALIZADA
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
-            setAnamneseData({
-                pediatrica: res.data.pediatrica || {},
-                dnpm: res.data.pediatrica?.dnpm || {},
-            });
+            if (res.data && res.data.pediatrica) {
+                // Preenche o estado com os dados do backend, garantindo objetos vazios para JSONFields nulos
+                setAnamneseData({
+                    ...(res.data.pediatrica || {}), // Pega todos os campos retornados
+                    dnpm: res.data.pediatrica.dnpm || {}, // Garante que dnpm seja um objeto
+                    alimentacao_0_6m: res.data.pediatrica.alimentacao_0_6m || {},
+                    alimentacao_6_12m: res.data.pediatrica.alimentacao_6_12m || {},
+                    sono_comportamento: res.data.pediatrica.sono_comportamento || {},
+                });
+            } else {
+                 // Reseta para o estado inicial se não houver dados
+                setAnamneseData({
+                    tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
+                    vacinacao: '', vacinacao_obs: '', dnpm: {},
+                    alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
+                    alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
+                });
+            }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
                 showSnackbar('Erro ao carregar histórico de anamnese.', 'error');
@@ -47,30 +92,40 @@ export default function HistoricoPediatrico({ pacienteId }) {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // 2. HANDLERS (Movidos do AtendimentoPediatria.jsx)
-    const handlePediatricaChange = (name, value) => {
-        setAnamneseData(prev => ({ ...prev, pediatrica: { ...prev.pediatrica, [name]: value } }));
+    // 3. HANDLERS ATUALIZADOS
+    // Handler genérico para campos string/number diretos
+    const handleChange = (e) => {
+        setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
-
+    // Handler para RadioGroups dentro dos JSONFields
+    const handleJsonRadioChange = (jsonField, key, value) => {
+        setAnamneseData(prev => ({
+            ...prev,
+            [jsonField]: { ...(prev[jsonField] || {}), [key]: value }
+        }));
+    };
+    // Handler para Checkboxes dentro dos JSONFields
+    const handleJsonCheckboxChange = (jsonField, key, checked) => {
+         setAnamneseData(prev => ({
+            ...prev,
+            [jsonField]: { ...(prev[jsonField] || {}), [key]: checked }
+        }));
+    };
+     // Handler para checkboxes do DNPM (resumo)
     const handleDnpmChange = (event) => {
         const { name, checked } = event.target;
         setAnamneseData(prev => ({ ...prev, dnpm: { ...prev.dnpm, [name]: checked } }));
     };
 
-    // 3. FUNÇÃO DE SALVAR (Modificada do AtendimentoPediatria.jsx)
+
+    // 4. FUNÇÃO DE SALVAR ATUALIZADA
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
-
         try {
-            const anamnesePayload = {
-                ...anamneseData.pediatrica,
-                dnpm: anamneseData.dnpm,
-            };
-
-            // Usamos POST, pois a view de anamnese é RetrieveUpdate (ela lida com create/update)
+            // O payload agora é o estado 'anamneseData' completo
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                pediatrica: anamnesePayload
+                pediatrica: anamneseData
             });
             showSnackbar('Histórico de anamnese salvo com sucesso!', 'success');
         } catch (error) {
@@ -85,104 +140,144 @@ export default function HistoricoPediatrico({ pacienteId }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // 4. JSX (Copiado do AtendimentoPediatria.jsx)
+    // 5. JSX ATUALIZADO COM ACCORDIONS
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                    Histórico Pediátrico (Anamnese)
-                </Typography>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Histórico Pediátrico (Anamnese)
+            </Typography>
+
+            {/* Usaremos Accordions para organizar as seções */}
+            <Box sx={{ mt: 2 }}>
+                {/* Accordion: Gestacional/Nascimento */}
+                <Accordion defaultExpanded>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography sx={{ fontWeight: 'medium' }}>Histórico Gestacional e Nascimento</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {/* ... (O JSX dos campos tipo_parto, idade_gestacional, peso_nascimento, apgar, intercorrencias que você já tinha) ... */}
+                             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                                {/* Tipo Parto e IG */}
+                                <TextField select label="Tipo de Parto" name="tipo_parto" value={anamneseData.tipo_parto || ''} onChange={handleChange} fullWidth size="small">
+                                    <MenuItem value="Normal">Normal</MenuItem> <MenuItem value="Cesárea">Cesárea</MenuItem> <MenuItem value="Fórceps">Fórceps</MenuItem> <MenuItem value="Não sabe">Não sabe</MenuItem>
+                                </TextField>
+                                <TextField select label="Idade Gestacional" name="idade_gestacional" value={anamneseData.idade_gestacional || ''} onChange={handleChange} fullWidth size="small">
+                                     <MenuItem value="A termo">A termo ({'>='} 37 sem)</MenuItem> <MenuItem value="Pré-termo tardio">Pré-termo tardio (34 a 36+6 sem)</MenuItem> {/* ... outras opções ... */} <MenuItem value="Não sabe">Não sabe</MenuItem>
+                                </TextField>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                                {/* Peso e Apgar */}
+                                 <TextField label="Peso ao nascer (g)" name="peso_nascimento" type="number" value={anamneseData.peso_nascimento || ''} onChange={handleChange} fullWidth size="small"/>
+                                 <TextField label="APGAR (1º/5º)" name="apgar" value={anamneseData.apgar || ''} onChange={handleChange} fullWidth size="small" />
+                            </Box>
+                             <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={anamneseData.intercorrencias_gestacao_parto || ''} onChange={handleChange} multiline rows={2} fullWidth size="small" />
+                        </Box>
+                    </AccordionDetails>
+                </Accordion>
+
+                {/* Accordion: Alimentação 0-6m */}
+                <Accordion>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography sx={{ fontWeight: 'medium' }}>Alimentação (0-6 Meses)</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                         <Grid container spacing={2}>
+                            {/* Tipo, Pega, Sucção */}
+                            <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Tipo</FormLabel> <RadioGroup row name="tipo_aleitamento" value={anamneseData.alimentacao_0_6m.tipo_aleitamento || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'tipo_aleitamento', e.target.value)}> {alimentacao06Options.tipo_aleitamento.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                            <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Pega</FormLabel> <RadioGroup row name="pega" value={anamneseData.alimentacao_0_6m.pega || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'pega', e.target.value)}> {alimentacao06Options.pega.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                            <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Sucção</FormLabel> <RadioGroup row name="succao" value={anamneseData.alimentacao_0_6m.succao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'succao', e.target.value)}> {alimentacao06Options.succao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                             {/* Diurese, Evacuação */}
+                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Diurese</FormLabel> <RadioGroup row name="diurese" value={anamneseData.alimentacao_0_6m.diurese || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'diurese', e.target.value)}> {alimentacao06Options.diurese.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Evacuação</FormLabel> <RadioGroup row name="evacuacao" value={anamneseData.alimentacao_0_6m.evacuacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'evacuacao', e.target.value)}> {alimentacao06Options.evacuacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                             {/* Suplementação */}
+                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Suplementação</FormLabel> <FormGroup row> {alimentacao06Options.suplementacao.map(o => <FormControlLabel key={o.id} control={<Checkbox size="small" checked={anamneseData.alimentacao_0_6m[o.id] || false} onChange={(e) => handleJsonCheckboxChange('alimentacao_0_6m', o.id, e.target.checked)} name={o.id} />} label={o.label}/>)} </FormGroup> </FormControl> </Grid>
+                             {/* Observações */}
+                              <Grid item xs={12}> <TextField label="Observações Alimentação 0-6m" name="alimentacao_0_6m_obs" multiline rows={2} fullWidth size="small" value={anamneseData.alimentacao_0_6m_obs || ''} onChange={handleChange} /> </Grid>
+                         </Grid>
+                    </AccordionDetails>
+                </Accordion>
+
+                {/* Accordion: Alimentação 6-12m */}
+                 <Accordion>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography sx={{ fontWeight: 'medium' }}>Alimentação (6-12+ Meses)</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                         <Grid container spacing={2}>
+                             {/* Tipo, Refeições, Textura, Aceitação, Água */}
+                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Tipo</FormLabel> <RadioGroup row name="tipo_alimentacao" value={anamneseData.alimentacao_6_12m.tipo_alimentacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'tipo_alimentacao', e.target.value)}> {alimentacao612Options.tipo_alimentacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                             {/* ... Adicionar RadioGroups para refeicoes_dia, textura, aceitacao, agua ... */}
+
+                             {/* Suplementação, Aceitação Geral */}
+                              <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Suplementação</FormLabel> <FormGroup row> {alimentacao612Options.suplementacao.map(o => <FormControlLabel key={o.id} control={<Checkbox size="small" checked={anamneseData.alimentacao_6_12m[o.id] || false} onChange={(e) => handleJsonCheckboxChange('alimentacao_6_12m', o.id, e.target.checked)} name={o.id} />} label={o.label}/>)} </FormGroup> </FormControl> </Grid>
+                              <Grid item xs={12} sm={8}> <FormControl component="fieldset" size="small"> <FormLabel>Aceitação Geral</FormLabel> <RadioGroup row name="aceitacao_geral" value={anamneseData.alimentacao_6_12m.aceitacao_geral || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'aceitacao_geral', e.target.value)}> {alimentacao612Options.aceitacao_geral.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+
+                            {/* Método IA e Copo */}
+                             <Grid item xs={12} sm={6}> <TextField select label="Método Introdução Alimentar" name="metodo_ia" value={anamneseData.metodo_ia || ''} onChange={handleChange} fullWidth size="small"> {metodoIAOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} </TextField> </Grid>
+                             <Grid item xs={12} sm={6}> <TextField select label="Copo de Transição" name="copo_transicao" value={anamneseData.copo_transicao || ''} onChange={handleChange} fullWidth size="small"> {copoTransicaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} </TextField> </Grid>
+
+                             {/* Observações */}
+                              <Grid item xs={12}> <TextField label="Observações Alimentação 6-12m" name="alimentacao_6_12m_obs" multiline rows={2} fullWidth size="small" value={anamneseData.alimentacao_6_12m_obs || ''} onChange={handleChange} /> </Grid>
+                         </Grid>
+                    </AccordionDetails>
+                </Accordion>
+
+                {/* Accordion: Sono/Comportamento */}
+                 <Accordion>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography sx={{ fontWeight: 'medium' }}>Sono / Cólicas / Comportamento</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Grid container spacing={2}>
+                            {/* Sono Diurno, Noturno, Cólica, Choro, Vínculo */}
+                            {Object.entries(sonoComportamentoOptions).map(([key, options]) => (
+                                <Grid item xs={12} sm={6} md={4} key={key}>
+                                    <FormControl component="fieldset" size="small">
+                                        <FormLabel sx={{textTransform: 'capitalize'}}>{key.replace('_', ' ')}</FormLabel>
+                                        <RadioGroup row name={key} value={anamneseData.sono_comportamento[key] || ''} onChange={(e) => handleJsonRadioChange('sono_comportamento', key, e.target.value)}>
+                                            {options.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                        </RadioGroup>
+                                    </FormControl>
+                                </Grid>
+                            ))}
+                             {/* Observações */}
+                              <Grid item xs={12}> <TextField label="Observações Sono/Comportamento" name="sono_comportamento_obs" multiline rows={2} fullWidth size="small" value={anamneseData.sono_comportamento_obs || ''} onChange={handleChange} /> </Grid>
+                        </Grid>
+                    </AccordionDetails>
+                </Accordion>
+
+                {/* Accordion: Vacinação e DNPM (Resumos) */}
+                <Accordion>
+                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography sx={{ fontWeight: 'medium' }}>Vacinação e DNPM (Resumos)</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Grid container spacing={2}>
+                             <Grid item xs={12} sm={6}>
+                                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Vacinação (Resumo)</Typography>
+                                <RadioGroup row name="vacinacao" value={anamneseData.vacinacao || ''} onChange={handleChange}>
+                                    <FormControlLabel value="Em dia" control={<Radio size="small" />} label="Em dia" />
+                                    <FormControlLabel value="Atrasada" control={<Radio size="small" />} label="Atrasada" />
+                                </RadioGroup>
+                                <TextField label="Observações sobre vacinação" name="vacinacao_obs" value={anamneseData.vacinacao_obs || ''} onChange={handleChange} fullWidth size="small" sx={{mt: 1}}/>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>DNPM (Resumo)</Typography>
+                                <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                                    {dnpmOptions.map(opt => (
+                                        <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={anamneseData.dnpm[opt.id] || false} onChange={handleDnpmChange} name={opt.id} />} label={opt.label} />
+                                    ))}
+                                </FormGroup>
+                            </Grid>
+                        </Grid>
+                    </AccordionDetails>
+                </Accordion>
+
             </Box>
 
-            {/* Histórico Gestacional */}
-            <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }}>Histórico Gestacional e Nascimento</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1.5 }}>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-                    <FormControl fullWidth size="small">
-                        <InputLabel id="tipo-parto-label">Tipo de Parto</InputLabel>
-                        <Select labelId="tipo-parto-label" label="Tipo de Parto" name="tipo_parto"
-                            value={anamneseData.pediatrica.tipo_parto || ''}
-                            onChange={(e) => handlePediatricaChange('tipo_parto', e.target.value)}>
-                            <MenuItem value="Normal">Normal</MenuItem>
-                            <MenuItem value="Cesárea">Cesárea</MenuItem>
-                            <MenuItem value="Fórceps">Fórceps</MenuItem>
-                            <MenuItem value="Não sabe">Não sabe</MenuItem>
-                        </Select>
-                    </FormControl>
-                    <FormControl fullWidth size="small">
-                        <InputLabel id="idade-gestacional-label">Idade Gestacional</InputLabel>
-                        <Select
-                            labelId="idade-gestacional-label"
-                            label="Idade Gestacional"
-                            name="idade_gestacional"
-                            value={anamneseData.pediatrica.idade_gestacional || ''}
-                            onChange={(e) => handlePediatricaChange('idade_gestacional', e.target.value)}
-                        >
-                            <MenuItem value="A termo">A termo ({'>='} 37 sem)</MenuItem>
-                            <MenuItem value="Pré-termo tardio">Pré-termo tardio (34 a 36+6 sem)</MenuItem>
-                            <MenuItem value="Pré-termo moderado">Pré-termo moderado (32 a 33+6 sem)</MenuItem>
-                            <MenuItem value="Muito pré-termo">Muito pré-termo (28 a 31+6 sem)</MenuItem>
-                            <MenuItem value="Pré-termo extremo">Pré-termo extremo ({'<'} 28 sem)</MenuItem>
-                            <MenuItem value="Pós-termo">Pós-termo ({'>='} 42 sem)</MenuItem>
-                            <MenuItem value="Não sabe">Não sabe</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-                    <TextField label="Peso ao nascer" placeholder="gramas" name="peso_nascimento" type="number"
-                        value={anamneseData.pediatrica.peso_nascimento || ''}
-                        onChange={(e) => handlePediatricaChange('peso_nascimento', e.target.value)} fullWidth size="small" />
-                    <TextField label="APGAR (1º/5º)" name="apgar"
-                        value={anamneseData.pediatrica.apgar || ''}
-                        onChange={(e) => handlePediatricaChange('apgar', e.target.value)} fullWidth size="small" />
-                </Box>
-                <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto"
-                    value={anamneseData.pediatrica.intercorrencias_gestacao_parto || ''}
-                    onChange={(e) => handlePediatricaChange('intercorrencias_gestacao_parto', e.target.value)} multiline rows={2} fullWidth size="small" />
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Aleitamento e Vacinação */}
-            <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Aleitamento</Typography>
-                    <RadioGroup row name="aleitamento"
-                        value={anamneseData.pediatrica.aleitamento || ''}
-                        onChange={(e) => handlePediatricaChange('aleitamento', e.target.value)}>
-                        <FormControlLabel value="SME" control={<Radio size="small" />} label="Materno Exclusivo" />
-                        <FormControlLabel value="Formula" control={<Radio size="small" />} label="Fórmula" />
-                        <FormControlLabel value="Misto" control={<Radio size="small" />} label="Misto" />
-                    </RadioGroup>
-                    <TextField label="Introdução Alimentar" name="introducao_alimentar"
-                        value={anamneseData.pediatrica.introducao_alimentar || ''}
-                        onChange={(e) => handlePediatricaChange('introducao_alimentar', e.target.value)} fullWidth size="small" sx={{ mt: 1 }} />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Vacinação (Resumo)</Typography>
-                    <RadioGroup row name="vacinacao"
-                        value={anamneseData.pediatrica.vacinacao || ''}
-                        onChange={(e) => handlePediatricaChange('vacinacao', e.target.value)}>
-                        <FormControlLabel value="Em dia" control={<Radio size="small" />} label="Em dia" />
-                        <FormControlLabel value="Atrasada" control={<Radio size="small" />} label="Atrasada" />
-                    </RadioGroup>
-                    <TextField label="Observações sobre vacinação" name="vacinacao_obs"
-                        value={anamneseData.pediatrica.vacinacao_obs || ''}
-                        onChange={(e) => handlePediatricaChange('vacinacao_obs', e.target.value)} fullWidth size="small" sx={{ mt: 1 }} />
-                </Grid>
-            </Grid>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* DNPM (Ainda o simples) */}
-            <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Desenvolvimento Neuropsicomotor (Resumo)</Typography>
-            <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1 }}>
-                {dnpmOptions.map(opt => (
-                    <FormControlLabel key={opt.id} control={<Checkbox checked={anamneseData.dnpm[opt.id] || false} onChange={handleDnpmChange} name={opt.id} />} label={opt.label} />
-                ))}
-            </FormGroup>
-
-            <Box sx={{ textAlign: 'right', mt: 2 }}>
+            {/* Botão Salvar */}
+            <Box sx={{ textAlign: 'right', mt: 3 }}>
                 <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
                 </Button>

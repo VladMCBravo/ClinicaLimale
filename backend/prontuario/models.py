@@ -236,32 +236,56 @@ class AnamneseCardiologia(models.Model):
 
 class AnamnesePediatria(models.Model):
     anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='pediatrica')
-    # Gestacional e Nascimento
+    
+    # --- Gestacional e Nascimento (Mantidos) ---
     tipo_parto = models.CharField(max_length=50, blank=True, null=True)
-    idade_gestacional = models.CharField(max_length=50, blank=True, null=True) # Pode ser '39s 2d'
+    idade_gestacional = models.CharField(max_length=50, blank=True, null=True)
     peso_nascimento = models.PositiveIntegerField(null=True, blank=True, verbose_name="Peso ao Nascer (g)")
     apgar = models.CharField(max_length=10, blank=True, null=True, verbose_name="APGAR (1º/5º)")
     intercorrencias_gestacao_parto = models.TextField(blank=True, null=True)
-    # Aleitamento e Vacinação
-    aleitamento = models.CharField(max_length=20, blank=True, null=True)
-    introducao_alimentar = models.TextField(blank=True, null=True)
-    vacinacao = models.CharField(max_length=20, blank=True, null=True)
+    
+    # --- Vacinação (Mantido - Resumo) ---
+    # (A caderneta detalhada está em VacinaPaciente)
+    vacinacao = models.CharField(max_length=20, blank=True, null=True, help_text="Resumo: Em dia / Atrasada")
     vacinacao_obs = models.TextField(blank=True, null=True)
-    # DNPM
-    dnpm = models.JSONField(default=dict, blank=True, null=True) # { "sustenta_cabeca": true, ... }
-    # Sintomas
-    sintomas = models.JSONField(default=dict, blank=True, null=True) # { "febre": true, ... }
-    # Exame Físico Pediátrico
-    peso = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="Peso Atual (kg)")
-    altura = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, verbose_name="Altura Atual (cm)") # Ajustado para cm
-    pc = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="Perímetro Cefálico (cm)")
-    temperatura = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="Temperatura (°C)")
-    estado_geral = models.TextField(blank=True, null=True)
-    oroscopia = models.TextField(blank=True, null=True)
-    ausculta_resp = models.TextField(blank=True, null=True)
-    ausculta_card = models.TextField(blank=True, null=True)
-    abdome = models.TextField(blank=True, null=True)
-    pele_faneros = models.TextField(blank=True, null=True)
+    
+    # --- DNPM (Mantido - Resumo) ---
+    # (Os marcos detalhados estão em MarcoDNPM)
+    dnpm = models.JSONField(default=dict, blank=True, null=True, help_text="Resumo dos marcos principais")
+    
+    # --- CAMPOS ANTIGOS DE ALIMENTAÇÃO (REMOVIDOS/SUBSTITUÍDOS) ---
+    # aleitamento = models.CharField(...) <-- REMOVIDO
+    # introducao_alimentar = models.TextField(...) <-- REMOVIDO
+
+    # --- NOVA SEÇÃO: Alimentação 0-6 Meses ---
+    alimentacao_0_6m = models.JSONField(default=dict, blank=True, null=True, 
+        help_text="JSON com chaves: tipo_aleitamento (AME/Misto/Formula), pega (Boa/Parcial/Ruim), succao (Eficaz/Fraca/Ausente), diurese (Adequada/Reduzida), evacuacao (Normal/Ressecada/Diarreica), suplementacao (Vitamina/Ferro/Nenhuma)")
+    alimentacao_0_6m_obs = models.TextField(blank=True, null=True, verbose_name="Observações Alimentação 0-6m")
+
+    # --- NOVA SEÇÃO: Alimentação 6-12+ Meses ---
+    alimentacao_6_12m = models.JSONField(default=dict, blank=True, null=True,
+        help_text="JSON com chaves: tipo_alimentacao (Mantem AM/Formula/Ambos), refeicoes_dia (2/3/>3), textura (Amassada/Picada/Pedaços), aceitacao (Boa/Parcial/Ruim), agua (Adequada/Baixa), suplementacao (VitD/Ferro/Nenhuma), aceitacao_geral (Adequada/Seletiva/Dificuldade Textura)")
+    metodo_ia = models.CharField(max_length=50, blank=True, null=True, verbose_name="Método Introdução Alimentar (Tradicional/BLW/BLISS/Misto)")
+    copo_transicao = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tipo de Copo de Transição")
+    alimentacao_6_12m_obs = models.TextField(blank=True, null=True, verbose_name="Observações Alimentação 6-12m")
+
+    # --- NOVA SEÇÃO: Sono / Cólicas / Comportamento ---
+    sono_comportamento = models.JSONField(default=dict, blank=True, null=True,
+        help_text="JSON com chaves: sono_diurno (Adequado/Alterado), sono_noturno (Adequado/Alterado), colica (Adequado/Alterado), choro (Adequado/Alterado), vinculo (Adequado/Alterado)")
+    sono_comportamento_obs = models.TextField(blank=True, null=True, verbose_name="Observações Sono/Comportamento")
+
+    # --- CAMPOS REMOVIDOS (Agora pertencem à Evolucao/SOAP Pediátrico) ---
+    # sintomas = models.JSONField(...) <-- REMOVIDO (Fica na consulta atual)
+    # peso = models.DecimalField(...) <-- REMOVIDO (Peso atual fica na evolução)
+    # altura = models.DecimalField(...) <-- REMOVIDO (Altura atual fica na evolução)
+    # pc = models.DecimalField(...) <-- REMOVIDO (PC atual fica na evolução)
+    # temperatura = models.DecimalField(...) <-- REMOVIDO
+    # estado_geral = models.TextField(...) <-- REMOVIDO
+    # oroscopia = models.TextField(...) <-- REMOVIDO
+    # ausculta_resp = models.TextField(...) <-- REMOVIDO
+    # ausculta_card = models.TextField(...) <-- REMOVIDO
+    # abdome = models.TextField(...) <-- REMOVIDO
+    # pele_faneros = models.TextField(...) <-- REMOVIDO
 
     def __str__(self):
         return f"Dados Pediátricos de {self.anamnese.paciente.nome_completo}"

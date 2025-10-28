@@ -33,7 +33,8 @@ class AnamneseCardiologiaSerializer(serializers.ModelSerializer):
 class AnamnesePediatriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnamnesePediatria
-        exclude = ['anamnese', 'id']
+        # Incluímos os novos campos e removemos os antigos/movidos
+        exclude = ['anamnese', 'id'] # Inclui todos os campos do modelo exceto estes
 
 class AnamneseNeonatologiaSerializer(serializers.ModelSerializer):
     class Meta:
