@@ -43,6 +43,7 @@ const triagensOptions = [
     { id: 'pezinho', label: 'Pezinho' }, { id: 'orelhinha', label: 'Orelhinha' },
     { id: 'olhinho', label: 'Olhinho' }, { id: 'coracaozinho', label: 'Coraçãozinho' },
     { id: 'linguinha', label: 'Linguinha' },
+];
 // --- FIM NOVAS OPÇÕES ---
 
 export default function HistoricoPediatrico({ pacienteId }) {

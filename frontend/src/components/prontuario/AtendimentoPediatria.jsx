@@ -30,12 +30,7 @@ const sintomaTemplates = {
     prostracao: "Prostração / Sonolência. Hipoativo, pouca aceitação de líquidos.",
     exantema: "Exantema: Início há X dias. (macular/papular). Local: ",
 };
-JavaScript
-// src/components/prontuario/AtendimentoPediatria.jsx
-// ... (imports existentes) ...
-
-// --- OPÇÕES E TEMPLATES (Consulta Atual) ---
-// ... (sintomasOptions e sintomaTemplates - sem alterações) ...
+// --- FIM OPÇÕES E TEMPLATES ---
 
 // --- EXAME FÍSICO ATUALIZADO ---
 const exameFisicoQualitativoOptions = [
