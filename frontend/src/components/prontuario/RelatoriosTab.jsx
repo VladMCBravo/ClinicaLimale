@@ -135,10 +135,21 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     // 6. RENDERIZAÇÃO DO COMPONENTE
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-            <Grid container spacing={3}>
+            {/* O contêiner principal agora é um Flexbox.
+              - No mobile (xs): ele vira uma 'column'.
+              - No desktop (md): ele vira uma 'row' (lado a lado).
+            */}
+            <Box sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: 3 // O espaçamento entre as colunas
+            }}>
 
                 {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO --- */}
-                <Grid item xs={12} md={8}>
+                {/* - No desktop (md): ocupa 2/3 da largura (proporção 2).
+                  - No mobile (xs): ocupa 100% da largura (padrão).
+                */}
+                <Box sx={{ flex: { md: 2 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Gerar Novo Relatório
                     </Typography>
@@ -202,10 +213,13 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                             {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Relatório'}
                         </Button>
                     </Paper>
-                </Grid>
+                </Box>
 
                 {/* --- LADO DIREITO: HISTÓRICO --- */}
-                <Grid item xs={12} md={4}>
+                {/* - No desktop (md): ocupa 1/3 da largura (proporção 1).
+                  - No mobile (xs): ocupa 100% da largura (padrão).
+                */}
+                <Box sx={{ flex: { md: 1 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Relatórios Salvos
                     </Typography>
@@ -228,8 +242,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                             </List>
                          )}
                     </Paper>
-                </Grid>
-            </Grid>
+                </Box>
+            </Box>
         </Paper>
     );
 }
