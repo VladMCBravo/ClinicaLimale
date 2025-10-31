@@ -72,7 +72,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
         alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
     });
 
-    // FUNÇÃO DE CARREGAMENTO (Sem alterações)
+    // FUNÇÃO DE CARREGAMENTO (COM CORREÇÃO NO ARRAY DE DEPENDÊNCIA)
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -100,10 +100,10 @@ export default function HistoricoPediatrico({ pacienteId }) {
             }
         } finally {
             setIsLoading(false);
-            // Reseta para o primeiro painel aberto ao carregar novo paciente
             setExpanded('panel1'); 
         }
-    }, [pacienteId, showSnackbar]);
+    // *** ESTA É A CORREÇÃO 2: Removido o 'showSnackbar' do array de dependências ***
+    }, [pacienteId]); 
 
     useEffect(() => {
         fetchAnamnese();

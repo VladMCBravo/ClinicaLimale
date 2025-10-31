@@ -297,6 +297,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                 })
                 .catch(err => {
                     console.error("Erro ao carregar dados do paciente:", err);
+                    // O showSnackbar aqui é seguro, pois é só em caso de ERRO.
                     showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
                 });
         }
@@ -306,7 +307,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         setExameFisicoData(prev => ({ peso: prev.peso, altura: prev.altura })); 
         setTabIndex(0); // Volta para a primeira aba
 
-    // *** CORREÇÃO AQUI: Removido o 'showSnackbar' do array de dependências ***
+    // *** ESTA É A CORREÇÃO 1: Removido o 'showSnackbar' do array de dependências ***
     }, [pacienteId]);
 
 
