@@ -407,3 +407,69 @@ class VacinaPaciente(models.Model):
         return f"{self.paciente.nome_completo} - {self.nome_vacina} ({self.dose}) - {self.status}"
 
 # --- FIM DAS NOVAS ADIÇÕES ---
+
+class TemplateRelatorio(models.Model):
+    """
+    Armazena os "modelos" de relatórios com placeholders.
+    Ex: "Atestado de Atividade Física", "Risco Cirúrgico", etc.
+    """
+    ESPECIALIDADE_CHOICES = [
+        ('cardiologia', 'Cardiologia'),
+        ('pediatria', 'Pediatria'),
+        ('geral', 'Geral'),
+    ]
+
+    titulo = models.CharField(max_length=255)
+    especialidade = models.CharField(max_length=100, choices=ESPECIALIDADE_CHOICES, default='geral')
+    # O texto do template, ex: "Atesto que {{paciente_nome}}..."
+    conteudo = models.TextField() 
+    
+    # Opcional, mas bom: quem criou o template
+    medico_criador = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True
+    )
+
+    def __str__(self):
+        return f"[{self.get_especialidade_display()}] {self.titulo}"
+
+
+class RelatorioSalvo(models.Model):
+    """
+    Armazena o relatório final que foi gerado, editado e salvo pelo médico
+    para um paciente específico.
+    """
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="relatorios")
+    medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    
+    # A consulta que originou o relatório (ex: a consulta de hoje)
+    # Pode ser nulo se for um atestado avulso
+    consulta = models.ForeignKey(
+        Evolucao, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True
+    )
+    
+    # O template que foi usado como base (bom para rastreabilidade)
+    template_origem = models.ForeignKey(
+        TemplateRelatorio,
+        on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
+    titulo = models.CharField(max_length=255) # Ex: "Atestado - João Silva - 31/10/2025"
+    # O texto final, após o médico editar o template preenchido
+    conteudo_final = models.TextField()
+    
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.titulo} - {self.paciente.nome_completo}"
+    
+    class Meta:
+        ordering = ['-data_criacao']
+        verbose_name = "Relatório Salvo"
+        verbose_name_plural = "Relatórios Salvos"
+
+# --- FIM DAS NOVAS ADIÇÕES

@@ -3,6 +3,7 @@
 from rest_framework import serializers
 from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
+from .models import TemplateRelatorio, RelatorioSalvo
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
@@ -229,3 +230,36 @@ class VacinaPacienteSerializer(serializers.ModelSerializer):
         read_only_fields = ['paciente']
 
 # --- FIM DAS NOVAS ADIÇÕES ---
+
+class TemplateRelatorioSerializer(serializers.ModelSerializer):
+    """
+    Serializa os templates disponíveis (para o dropdown do frontend).
+    """
+    class Meta:
+        model = TemplateRelatorio
+        fields = ['id', 'titulo', 'especialidade']
+
+
+class RelatorioSalvoListSerializer(serializers.ModelSerializer):
+    """
+    Serializa a LISTA de relatórios já salvos do paciente (para o histórico).
+    """
+    medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
+    class Meta:
+        model = RelatorioSalvo
+        # Mostra campos simplificados
+        fields = ['id', 'titulo', 'data_criacao', 'medico_nome']
+
+
+class RelatorioSalvoCreateSerializer(serializers.ModelSerializer):
+    """
+    Usado para CRIAR (POST) um novo relatório salvo.
+    """
+    class Meta:
+        model = RelatorioSalvo
+        # O frontend enviará apenas estes campos
+        fields = ['titulo', 'conteudo_final', 'consulta', 'template_origem']
+        extra_kwargs = {
+            'consulta': {'required': False, 'allow_null': True},
+            'template_origem': {'required': False, 'allow_null': True},
+        }

@@ -2,6 +2,7 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from . import views
 from .views import (
     EvolucaoListCreateAPIView,
     EvolucaoDetailAPIView,  # 1. IMPORTE A NOVA VIEW AQUI
@@ -12,8 +13,12 @@ from .views import (
     MarcoDNPMListCreateView,       # <-- ADICIONE O NOVO IMPORT
     VacinaPacienteListCreateView,
     MarcoDNPMDetailView,         # <-- ADICIONE O NOVO IMPORT
-    VacinaPacienteDetailView     # <-- ADICIONE O NOVO IMPORT
-)
+    VacinaPacienteDetailView,
+    TemplateRelatorioListView,
+    RelatorioSalvoListView,
+    RelatorioSalvoCreateView,
+    GerarPreviewRelatorioView
+)     
 
 # O router é usado para ViewSets, como o de DocumentoPaciente
 router = DefaultRouter()
@@ -36,5 +41,26 @@ urlpatterns = [
     # --- Rotas de Vacina ---
     path('vacinas/', VacinaPacienteListCreateView.as_view(), name='listar-criar-vacinas'),
     path('vacinas/<int:pk>/', VacinaPacienteDetailView.as_view(), name='detalhe-vacina'), # <-- NOVA ROTA
+    
+    # --- NOVAS ROTAS DE RELATÓRIO (CORRIGIDAS) ---
+    # 1. Lista os RELATÓRIOS JÁ SALVOS do paciente (ex: .../<paciente_id>/relatorios/)
+    path('relatorios/', 
+         views.RelatorioSalvoListView.as_view(), 
+         name='relatorio-salvo-list'),
+
+    # 2. Salva um NOVO relatório (ex: .../<paciente_id>/relatorios/criar/)
+    path('relatorios/criar/', 
+         views.RelatorioSalvoCreateView.as_view(), 
+         name='relatorio-salvo-create'),
+
+    # 3. Gera a "prévia" de um template (ex: .../<paciente_id>/gerar-preview-relatorio/)
+    path('gerar-preview-relatorio/', 
+         views.GerarPreviewRelatorioView.as_view(), 
+         name='gerar-preview-relatorio'),
+
     path('', include(router.urls)),
+    
+    # --- ROTAS REMOVIDAS DAQUI ---
+    # As rotas com 'prontuario/templates/' e 'prontuario/pacientes/' foram removidas
+    # pois estavam com o prefixo errado ou no arquivo errado.
 ]

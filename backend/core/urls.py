@@ -1,7 +1,7 @@
 # backend/core/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView,OpcaoClinicaListView, GerarEvolucaoPDFView
+from prontuario.views import GerarAtestadoPDFView, GerarPrescricaoPDFView,OpcaoClinicaListView, GerarEvolucaoPDFView, TemplateRelatorioListView
 # 1. IMPORTAMOS NOSSAS VIEWS CUSTOMIZADAS DE LOGIN E LOGOUT
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
 from .views import debug_env_view, list_urls_view # <-- 1. IMPORTE A NOVA VIEW 'list_urls_view'
@@ -35,7 +35,12 @@ urlpatterns = [
     # deve ser gerenciada pelo arquivo de URLs do app 'prontuario'.
     path('api/prontuario/pacientes/<int:paciente_id>/', include('prontuario.urls')),
     path('api/prontuario/opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'),
-
+    # --- ADICIONE ESTA NOVA ROTA AQUI ---
+    # Esta rota é GERAL (lista todos os templates)
+    # URL: GET /api/prontuario/templates/?especialidade=cardiologia
+    path('api/prontuario/templates/', 
+         TemplateRelatorioListView.as_view(), 
+         name='template-relatorio-list'),
     # <<-- ADICIONE TAMBÉM AS ROTAS DE PDF QUE ESTÃO FORA DO PADRÃO -->>
     # O seu views.py tem rotas para gerar PDFs que não se encaixam no padrão acima
     path('api/prescricoes/<int:prescricao_id>/pdf/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
