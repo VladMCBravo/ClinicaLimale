@@ -230,20 +230,78 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionDetails>
                 </Accordion>
 
-                {/* Accordion: Alimentação 6-12m */}
+                {/* Accordion: Alimentação 6-12m (VERSÃO COMPLETA) */}
                  <Accordion>
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography sx={{ fontWeight: 'medium' }}>Alimentação (6-12+ Meses)</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
                          <Grid container spacing={2}>
-                             {/* Tipo, Refeições, Textura, Aceitação, Água */}
-                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Tipo</FormLabel> <RadioGroup row name="tipo_alimentacao" value={anamneseData.alimentacao_6_12m.tipo_alimentacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'tipo_alimentacao', e.target.value)}> {alimentacao612Options.tipo_alimentacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
-                             {/* ... Adicionar RadioGroups para refeicoes_dia, textura, aceitacao, agua ... */}
+                             
+                            {/* --- CAMPOS QUE JÁ EXISTIAM --- */}
+                             <Grid item xs={12} sm={4}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Tipo</FormLabel>
+                                    {/* CORRIGIDO AQUI: de 6_11m para 6_12m */}
+                                    <RadioGroup row name="tipo_alimentacao" value={anamneseData.alimentacao_6_12m.tipo_alimentacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'tipo_alimentacao', e.target.value)}>
+                                        {alimentacao612Options.tipo_alimentacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                    </RadioGroup>
+                                </FormControl>
+                             </Grid>
 
-                             {/* Suplementação, Aceitação Geral */}
-                              <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Suplementação</FormLabel> <FormGroup row> {alimentacao612Options.suplementacao.map(o => <FormControlLabel key={o.id} control={<Checkbox size="small" checked={anamneseData.alimentacao_6_12m[o.id] || false} onChange={(e) => handleJsonCheckboxChange('alimentacao_6_12m', o.id, e.target.checked)} name={o.id} />} label={o.label}/>)} </FormGroup> </FormControl> </Grid>
-                              <Grid item xs={12} sm={8}> <FormControl component="fieldset" size="small"> <FormLabel>Aceitação Geral</FormLabel> <RadioGroup row name="aceitacao_geral" value={anamneseData.alimentacao_6_12m.aceitacao_geral || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'aceitacao_geral', e.target.value)}> {alimentacao612Options.aceitacao_geral.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
+                             {/* --- OS NOVOS CAMPOS QUE VOCÊ ADICIONOU (CORRETO) --- */}
+                            <Grid item xs={12} sm={4}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Refeições/dia</FormLabel>
+                                    <RadioGroup row name="refeicoes_dia" value={anamneseData.alimentacao_6_12m.refeicoes_dia || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'refeicoes_dia', e.target.value)}>
+                                        {alimentacao612Options.refeicoes_dia.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                    </RadioGroup>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={4}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Textura</FormLabel>
+                                    <RadioGroup row name="textura" value={anamneseData.alimentacao_6_12m.textura || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'textura', e.target.value)}>
+                                        {alimentacao612Options.textura.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                    </RadioGroup>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={4}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Aceitação (IA)</FormLabel>
+                                    <RadioGroup row name="aceitacao" value={anamneseData.alimentacao_6_12m.aceitacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'aceitacao', e.target.value)}>
+                                        {alimentacao612Options.aceitacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                    </RadioGroup>
+                                </FormControl>
+                            </Grid>
+                             <Grid item xs={12} sm={4}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Água</FormLabel>
+                                    <RadioGroup row name="agua" value={anamneseData.alimentacao_6_12m.agua || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'agua', e.target.value)}>
+                                        {alimentacao612Options.agua.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                    </RadioGroup>
+                                </FormControl>
+                            </Grid>
+                            {/* --- FIM DOS NOVOS CAMPOS --- */}
+                            
+                            {/* --- CAMPOS QUE JÁ EXISTIAM (CONTINUAÇÃO) --- */}
+                            <Grid item xs={12} sm={4}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Suplementação</FormLabel>
+                                    <FormGroup row>
+                                        {alimentacao612Options.suplementacao.map(o => <FormControlLabel key={o.id} control={<Checkbox size="small" checked={anamneseData.alimentacao_6_12m[o.id] || false} onChange={(e) => handleJsonCheckboxChange('alimentacao_6_12m', o.id, e.target.checked)} name={o.id} />} label={o.label}/>)}
+                                    </FormGroup>
+                                </FormControl>
+                             </Grid>
+                            <Grid item xs={12} sm={8}>
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel>Aceitação Geral</FormLabel>
+                                    {/* CORRIGIDO AQUI: de 6_11m para 6_12m */}
+                                    <RadioGroup row name="aceitacao_geral" value={anamneseData.alimentacao_6_12m.aceitacao_geral || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'aceitacao_geral', e.target.value)}>
+                                        {alimentacao612Options.aceitacao_geral.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)}
+                                    </RadioGroup>
+                                </FormControl>
+                             </Grid>
 
                             {/* Método IA e Copo */}
                              <Grid item xs={12} sm={6}> <TextField select label="Método Introdução Alimentar" name="metodo_ia" value={anamneseData.metodo_ia || ''} onChange={handleChange} fullWidth size="small"> {metodoIAOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} </TextField> </Grid>

@@ -11,6 +11,7 @@ import apiClient from '../../api/axiosConfig';
 
 // --- 1. IMPORTAR A NOVA ABA DE HISTÓRICO ---
 const HistoricoCardiologia = lazy(() => import('./cardiologia/HistoricoCardiologia'));
+const RelatoriosTab = lazy(() => import('./RelatoriosTab'));
 
 // --- 2. OPÇÕES E TEMPLATES (APENAS DA CONSULTA ATUAL) ---
 const sintomasOpcoes = [
@@ -61,6 +62,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
     const [sintomasConsulta, setSintomasConsulta] = useState({});
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+    const [consultaSalvaId, setConsultaSalvaId] = useState(null);
 
     // Reseta estados ao trocar de paciente
     useEffect(() => {
@@ -68,6 +70,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
         setSintomasConsulta({});
         setExameFisicoData({});
         setTabIndex(0);
+        setConsultaSalvaId(null); // <-- ADICIONE ESTA LINHA
     }, [pacienteId]);
 
     // Geradores de texto
@@ -138,25 +141,31 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
         setIsSubmitting(true);
         
         try {
-            const soapPayload = {
-                ...soapData,
-                pressao_arterial: exameFisicoData.pa || null,
-                frequencia_cardiaca: exameFisicoData.fc || null,
-            };
+            // 1. Salva a EVOLUÇÃO (SOAP)
+            const res = await apiClient.post(
+                `/prontuario/pacientes/${pacienteId}/evolucoes/`, 
+                soapData
+            );
+            
+            // --- ESTA É A MUDANÇA ---
+            // Salva o ID da evolução recém-criada no estado
+            setConsultaSalvaId(res.data.id); 
+            // -------------------------
 
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            // --- LINHA QUE CAUSOU O ERRO (Agora deve funcionar) ---
-            if(onEvolucoesSalva) onEvolucoesSalva();
+            // (Chama a função onEvolucaoSalva, se ela existir, passando o ID)
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
-            handleLimparConsultaAtual();
-
         } catch (error) {
-            console.error("Erro ao salvar evolução:", error.response?.data);
-            showSnackbar(`Erro ao salvar evolução: ${error.response?.data?.detail || error.message}`, 'error');
+            showSnackbar('Erro ao salvar evolução.', 'error');
+            // (Limpe o ID se der erro?)
+            // setConsultaSalvaId(null); 
         } finally {
             setIsSubmitting(false);
+            // NÃO limpe os campos aqui ainda, o médico pode querer
+            // gerar um relatório baseado neles.
+            // handleLimparConsultaAtual(); // <-- Mova isso para um botão "Nova Consulta"
         }
     };
     // --- FIM handleSubmit ---
@@ -177,6 +186,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas do prontuário cardiológico" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="cardio-tab-0" />
                     <Tab label="Histórico" id="cardio-tab-1" />
+                    <Tab label="Relatórios" id="cardio-tab-2" /> {/* <-- NOVA ABA */}
                     <Tab label="Exames (ECG/ECO)" id="cardio-tab-2" />
                 </Tabs>
             </Box>
@@ -259,12 +269,18 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoCardiologia pacienteId={pacienteId} />
                 </TabPanel>
-
-                {/* ABA 3: EXAMES (Placeholder) */}
+                {/* --- NOVO PAINEL DA ABA --- */}
                 <TabPanel value={tabIndex} index={2}>
+                    <RelatoriosTab 
+                        pacienteId={pacienteId}
+                        especialidade="cardiologia" 
+                        consultaAtualId={consultaSalvaId} 
+                    />
+                </TabPanel>
+                {/* ABA 4: EXAMES (Corrigido) */}
+                <TabPanel value={tabIndex} index={3}> {/* <-- CORRIGIDO PARA 3 */}
                     <Typography>Em breve: Visualizador de Exames (ECG, ECO, Laudos).</Typography>
                 </TabPanel>
-                
             </Suspense>
         </Paper>
     );
