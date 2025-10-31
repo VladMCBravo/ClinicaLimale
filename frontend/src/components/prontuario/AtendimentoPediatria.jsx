@@ -255,25 +255,28 @@ const exameFisicoQualitativoOptions = [
 ];
 // --- FIM EXAME FÍSICO ---
 
-// FUNÇÃO HELPER PARA PAINÉIS DAS ABAS (Sem alteração)
+// --- 1. A CORREÇÃO DO TABPANEL ---
+// Esta função agora mantém os filhos "vivos" (montados) e apenas os esconde com CSS.
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
     return (
         <div
             role="tabpanel"
-            hidden={value !== index}
+            // Esconde usando CSS 'display' em vez de condicionalmente renderizar
+            style={{ display: value !== index ? 'none' : 'block' }} 
+            hidden={value !== index} // Mantém para acessibilidade
             id={`pediatria-tabpanel-${index}`}
             aria-labelledby={`pediatria-tab-${index}`}
             {...other}
         >
-            {value === index && (
-                <Box sx={{ p: { xs: 1, sm: 2 } }}>
-                    {children}
-                </Box>
-            )}
+            {/* Removemos o '{value === index && ...}' daqui */}
+            <Box sx={{ p: { xs: 1, sm: 2 } }}>
+                {children}
+            </Box>
         </div>
     );
 }
+// --- FIM DA CORREÇÃO DO TABPANEL ---
 
 export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     const { showSnackbar } = useSnackbar();

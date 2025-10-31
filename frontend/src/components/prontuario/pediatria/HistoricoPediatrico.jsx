@@ -50,29 +50,28 @@ const dnpmOptions = [
 ];
 // --- FIM OPÇÕES ---
 
+// Objeto de estado inicial vazio
+const initialState = {
+    tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
+    vacinacao: '', vacinacao_obs: '', dnpm: {}, triagens: {},
+    alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
+    alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
+};
+
 export default function HistoricoPediatrico({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     
-    // --- 1. ESTADO PARA CONTROLAR OS ACCORDIONS (A CORREÇÃO) ---
-    // 'panel1' corresponde ao primeiro Accordion (Gestacional), que começará aberto
     const [expanded, setExpanded] = useState('panel1');
-
-    // Handler para mudar o estado de qual Accordion está aberto
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpanded(isExpanded ? panel : false);
     };
+
+    const [anamneseData, setAnamneseData] = useState(initialState);
     // --- FIM DA CORREÇÃO ---
 
-    const [anamneseData, setAnamneseData] = useState({
-        tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
-        vacinacao: '', vacinacao_obs: '', dnpm: {}, triagens: {},
-        alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
-        alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
-    });
-
-    // FUNÇÃO DE CARREGAMENTO (COM CORREÇÃO NO ARRAY DE DEPENDÊNCIA)
+    // FUNÇÃO DE CARREGAMENTO (Corrigida na última etapa - Sem 'showSnackbar' aqui)
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -87,23 +86,19 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     triagens: res.data.pediatrica.triagens || {},
                 });
             } else {
-                 setAnamneseData({ 
-                    tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
-                    vacinacao: '', vacinacao_obs: '', dnpm: {}, triagens: {}, 
-                    alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
-                    alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
-                });
+                 setAnamneseData(initialState); // Reseta para o estado inicial
             }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
                 showSnackbar('Erro ao carregar histórico de anamnese.', 'error');
             }
+            // Se for 404, o estado já foi resetado para initialState
+            setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
             setExpanded('panel1'); 
         }
-    // *** ESTA É A CORREÇÃO 2: Removido o 'showSnackbar' do array de dependências ***
-    }, [pacienteId]); 
+    }, [pacienteId]); // Removido showSnackbar daqui 
 
     useEffect(() => {
         fetchAnamnese();
@@ -203,6 +198,12 @@ export default function HistoricoPediatrico({ pacienteId }) {
         }));
         showSnackbar('Vacinação e DNPM preenchidos com padrão normal.', 'info');
     };
+    // --- 2. NOVA FUNÇÃO "LIMPAR" ---
+    const handleLimparHistorico = () => {
+        setAnamneseData(initialState);
+        showSnackbar('Campos do histórico limpos.', 'info');
+    };
+    // --- FIM DA NOVA FUNÇÃO ---
     // --- FIM HANDLERS DE NORMALIDADE ---
 
     // Função de Salvar (Sem alterações)
@@ -420,8 +421,11 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 </Accordion>
             </Box>
 
-            {/* Botão Salvar (Sem alterações) */}
-            <Box sx={{ textAlign: 'right', mt: 3 }}>
+            {/* --- 3. BOTÕES DE AÇÃO "LIMPAR" E "SALVAR" --- */}
+            <Box sx={{ textAlign: 'right', mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                <Button onClick={handleLimparHistorico} variant="outlined" color="secondary" disabled={isSubmitting}>
+                    Limpar Histórico
+                </Button>
                 <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
                 </Button>
