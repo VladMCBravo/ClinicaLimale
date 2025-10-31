@@ -1,12 +1,12 @@
 // src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO ATUALIZADA COM LAYOUT CORRIGIDO E BOTÕES DE NORMALIDADE
+// VERSÃO ATUALIZADA COM ACORDION CONTROLADO (CORRIGE BUG DE FECHAR)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider, RadioGroup, Radio,
     FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress,
     Accordion, AccordionSummary, AccordionDetails, FormLabel 
-} from '@mui/material'; // Button já estava importado
+} from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; 
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
@@ -54,6 +54,17 @@ export default function HistoricoPediatrico({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // --- 1. ESTADO PARA CONTROLAR OS ACCORDIONS (A CORREÇÃO) ---
+    // 'panel1' corresponde ao primeiro Accordion (Gestacional), que começará aberto
+    const [expanded, setExpanded] = useState('panel1');
+
+    // Handler para mudar o estado de qual Accordion está aberto
+    const handleAccordionChange = (panel) => (event, isExpanded) => {
+        setExpanded(isExpanded ? panel : false);
+    };
+    // --- FIM DA CORREÇÃO ---
+
     const [anamneseData, setAnamneseData] = useState({
         tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
         vacinacao: '', vacinacao_obs: '', dnpm: {}, triagens: {},
@@ -89,6 +100,8 @@ export default function HistoricoPediatrico({ pacienteId }) {
             }
         } finally {
             setIsLoading(false);
+            // Reseta para o primeiro painel aberto ao carregar novo paciente
+            setExpanded('panel1'); 
         }
     }, [pacienteId, showSnackbar]);
 
@@ -120,7 +133,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
         handleJsonCheckboxChange('triagens', event.target.name, event.target.checked);
     };
 
-    // --- 1. NOVOS HANDLERS DE NORMALIDADE (POR SEÇÃO) ---
+    // --- HANDLERS DE NORMALIDADE (Sem alterações na lógica, apenas no efeito) ---
     const handleNormalidadeGestacional = () => {
         setAnamneseData(prev => ({
             ...prev,
@@ -212,7 +225,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- 2. JSX ATUALIZADO COM BOTÕES E LAYOUT CORRIGIDO ---
+    // --- 2. JSX ATUALIZADO COM props expanded e onChange ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -221,15 +234,15 @@ export default function HistoricoPediatrico({ pacienteId }) {
 
             <Box sx={{ mt: 2 }}>
                 {/* Accordion: Gestacional/Nascimento ATUALIZADO */}
-                <Accordion defaultExpanded>
+                <Accordion 
+                    expanded={expanded === 'panel1'} 
+                    onChange={handleAccordionChange('panel1')}
+                >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography sx={{ fontWeight: 'medium' }}>Histórico Gestacional, Nascimento e Triagens</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                        {/* BOTÃO DE NORMALIDADE */}
                         <Button size="small" variant="outlined" onClick={handleNormalidadeGestacional} sx={{mb: 2, float: 'right'}}>Preencher Triagens</Button>
-
-                        {/* Campos de texto e triagens (Layout original parecia ok) */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                                  <TextField label="Tipo do Parto" name="tipo_parto" value={anamneseData.tipo_parto || ''} onChange={handleChange} fullWidth size="small"/>
@@ -240,7 +253,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                  <TextField label="APGAR (1'/5'/10')" name="apgar" value={anamneseData.apgar || ''} onChange={handleChange} fullWidth size="small" placeholder="Ex: 8/9/10" />
                             </Box>
                             <TextField label="Intercorrências na gestação ou parto" name="intercorrencias_gestacao_parto" value={anamneseData.intercorrencias_gestacao_parto || ''} onChange={handleChange} multiline rows={2} fullWidth size="small" />
-
                             <FormControl component="fieldset" size="small" sx={{mt: 1}}>
                                 <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
                                 <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
@@ -258,15 +270,15 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 </Accordion>
 
                 {/* Accordion: Alimentação 0-6m (LAYOUT CORRIGIDO) */}
-                <Accordion>
+                <Accordion 
+                    expanded={expanded === 'panel2'} 
+                    onChange={handleAccordionChange('panel2')}
+                >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography sx={{ fontWeight: 'medium' }}>Alimentação (0-6 Meses)</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                        {/* BOTÃO DE NORMALIDADE */}
                         <Button size="small" variant="outlined" onClick={handleNormalidadeAlim06} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-
-                         {/* Grid APENAS para os radio/checkbox groups */}
                          <Grid container spacing={2}>
                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Tipo</FormLabel> <RadioGroup row name="tipo_aleitamento" value={anamneseData.alimentacao_0_6m.tipo_aleitamento || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'tipo_aleitamento', e.target.value)}> {alimentacao06Options.tipo_aleitamento.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Pega</FormLabel> <RadioGroup row name="pega" value={anamneseData.alimentacao_0_6m.pega || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'pega', e.target.value)}> {alimentacao06Options.pega.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
@@ -275,8 +287,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                              <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Evacuação</FormLabel> <RadioGroup row name="evacuacao" value={anamneseData.alimentacao_0_6m.evacuacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_0_6m', 'evacuacao', e.target.value)}> {alimentacao06Options.evacuacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
                              <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Suplementação</FormLabel> <FormGroup row> {alimentacao06Options.suplementacao.map(o => <FormControlLabel key={o.id} control={<Checkbox size="small" checked={anamneseData.alimentacao_0_6m[o.id] || false} onChange={(e) => handleJsonCheckboxChange('alimentacao_0_6m', o.id, e.target.checked)} name={o.id} />} label={o.label}/>)} </FormGroup> </FormControl> </Grid>
                          </Grid>
-
-                         {/* Campo de Observações FORA do Grid, para ter 100% de largura */}
                          <TextField 
                             label="Observações Alimentação 0-6m" 
                             name="alimentacao_0_6m_obs" 
@@ -285,21 +295,21 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             size="small" 
                             value={anamneseData.alimentacao_0_6m_obs || ''} 
                             onChange={handleChange} 
-                            sx={{ mt: 2 }} // Adiciona margem
+                            sx={{ mt: 2 }}
                         />
                     </AccordionDetails>
                 </Accordion>
 
                 {/* Accordion: Alimentação 6-12m (LAYOUT CORRIGIDO) */}
-                 <Accordion>
+                 <Accordion 
+                    expanded={expanded === 'panel3'} 
+                    onChange={handleAccordionChange('panel3')}
+                >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography sx={{ fontWeight: 'medium' }}>Alimentação (6-12+ Meses)</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                        {/* BOTÃO DE NORMALIDADE */}
                         <Button size="small" variant="outlined" onClick={handleNormalidadeAlim612} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-                        
-                         {/* Grid APENAS para os radio/checkbox groups */}
                          <Grid container spacing={2}>
                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Tipo</FormLabel> <RadioGroup row name="tipo_alimentacao" value={anamneseData.alimentacao_6_12m.tipo_alimentacao || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'tipo_alimentacao', e.target.value)}> {alimentacao612Options.tipo_alimentacao.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Refeições/dia</FormLabel> <RadioGroup row name="refeicoes_dia" value={anamneseData.alimentacao_6_12m.refeicoes_dia || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'refeicoes_dia', e.target.value)}> {alimentacao612Options.refeicoes_dia.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
@@ -309,8 +319,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             <Grid item xs={12} sm={4}> <FormControl component="fieldset" size="small"> <FormLabel>Suplementação</FormLabel> <FormGroup row> {alimentacao612Options.suplementacao.map(o => <FormControlLabel key={o.id} control={<Checkbox size="small" checked={anamneseData.alimentacao_6_12m[o.id] || false} onChange={(e) => handleJsonCheckboxChange('alimentacao_6_12m', o.id, e.target.checked)} name={o.id} />} label={o.label}/>)} </FormGroup> </FormControl> </Grid>
                             <Grid item xs={12} sm={8}> <FormControl component="fieldset" size="small"> <FormLabel>Aceitação Geral</FormLabel> <RadioGroup row name="aceitacao_geral" value={anamneseData.alimentacao_6_12m.aceitacao_geral || ''} onChange={(e) => handleJsonRadioChange('alimentacao_6_12m', 'aceitacao_geral', e.target.value)}> {alimentacao612Options.aceitacao_geral.map(o => <FormControlLabel key={o.value} value={o.value} control={<Radio size="small"/>} label={o.label}/>)} </RadioGroup> </FormControl> </Grid>
                          </Grid>
-                        
-                         {/* Novo Grid/Box para os campos Select (para que fiquem em 2 colunas) */}
                          <Grid container spacing={2} sx={{ mt: 2 }}>
                             <Grid item xs={12} sm={6}> 
                                 <TextField select label="Método Introdução Alimentar" name="metodo_ia" value={anamneseData.metodo_ia || ''} onChange={handleChange} fullWidth size="small"> 
@@ -323,8 +331,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                 </TextField> 
                             </Grid>
                          </Grid>
-
-                         {/* Campo de Observações FORA dos Grids, para ter 100% de largura */}
                          <TextField 
                             label="Observações Alimentação 6-12m" 
                             name="alimentacao_6_12m_obs" 
@@ -339,15 +345,15 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 </Accordion>
 
                 {/* Accordion: Sono/Comportamento (LAYOUT CORRIGIDO) */}
-                 <Accordion>
+                 <Accordion 
+                    expanded={expanded === 'panel4'} 
+                    onChange={handleAccordionChange('panel4')}
+                >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography sx={{ fontWeight: 'medium' }}>Sono / Cólicas / Comportamento</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                        {/* BOTÃO DE NORMALIDADE */}
                         <Button size="small" variant="outlined" onClick={handleNormalidadeSono} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-                        
-                        {/* Grid APENAS para os radio groups */}
                         <Grid container spacing={2}>
                             {Object.entries(sonoComportamentoOptions).map(([key, options]) => (
                                 <Grid item xs={12} sm={6} md={4} key={key}>
@@ -360,8 +366,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                 </Grid>
                             ))}
                         </Grid>
-                        
-                        {/* Campo de Observações FORA do Grid */}
                          <TextField 
                             label="Observações Sono/Comportamento" 
                             name="sono_comportamento_obs" 
@@ -376,14 +380,15 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 </Accordion>
 
                 {/* Accordion: Vacinação e DNPM (LAYOUT CORRIGIDO) */}
-                <Accordion>
+                <Accordion 
+                    expanded={expanded === 'panel5'} 
+                    onChange={handleAccordionChange('panel5')}
+                >
                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                         <Typography sx={{ fontWeight: 'medium' }}>Vacinação e DNPM (Resumos)</Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                        {/* BOTÃO DE NORMALIDADE */}
                         <Button size="small" variant="outlined" onClick={handleNormalidadeVacinacao} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-
                         <Grid container spacing={2}>
                              <Grid item xs={12} sm={6}>
                                 <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Vacinação (Resumo)</Typography>
@@ -400,8 +405,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                     ))}
                                 </FormGroup>
                             </Grid>
-                             
-                             {/* Campo de Observações em sua própria linha full-width (dentro do grid container) */}
                             <Grid item xs={12} sx={{mt: 1}}>
                                 <TextField 
                                     label="Observações sobre vacinação" 
