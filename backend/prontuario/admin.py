@@ -1,6 +1,8 @@
 # backend/prontuario/admin.py - VERSÃO CORRIGIDA E MODERNIZADA
 
 from django.contrib import admin
+from django.db import models
+from django.forms import Textarea
 from .models import (
     Evolucao, 
     Prescricao, 
@@ -16,7 +18,8 @@ from .models import (
     AnamneseCardiologia,
     AnamneseNeonatologia,
     MarcoDNPM,
-    VacinaPaciente
+    VacinaPaciente,
+    TemplateRelatorio, RelatorioSalvo
     # --- FIM DAS ADIÇÕES ---
 )
 
@@ -91,3 +94,22 @@ class AnamnesePediatriaAdmin(admin.ModelAdmin):
 # (Você pode descomentar o @admin.register acima e adicionar para as outras especialidades)
 
 # --- FIM DAS NOVAS ADIÇÕES ---
+# --- Opcional, mas RECOMENDADO ---
+# Isso cria um painel de admin melhor para os Templates,
+# com uma caixa de texto GRANDE para o conteúdo.
+class TemplateRelatorioAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'especialidade')
+    list_filter = ('especialidade',)
+    search_fields = ('titulo', 'conteudo')
+
+    # Isso faz a mágica de aumentar a caixa de texto
+    formfield_overrides = {
+        models.TextField: {'widget': Textarea(attrs={'rows': 30, 'cols': 90})},
+    }
+
+# --- REGISTRO ---
+# Registra o Template (com o painel melhorado)
+admin.site.register(TemplateRelatorio, TemplateRelatorioAdmin)
+
+# Registra os Relatórios Salvos (só para podermos vê-los)
+admin.site.register(RelatorioSalvo)

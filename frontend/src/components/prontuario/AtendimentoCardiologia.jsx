@@ -153,10 +153,10 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
             // -------------------------
 
             showSnackbar('Evolução salva com sucesso!', 'success');
-            
-            // (Chama a função onEvolucaoSalva, se ela existir, passando o ID)
-            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
-            
+
+            // (Chama a função onEvolucoesSalva, se ela existir, passando o ID)
+            if(onEvolucoesSalva) onEvolucoesSalva(res.data.id);
+
         } catch (error) {
             showSnackbar('Erro ao salvar evolução.', 'error');
             // (Limpe o ID se der erro?)
