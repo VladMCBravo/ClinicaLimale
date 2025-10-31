@@ -284,7 +284,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // CARREGA DADOS VITAIS DO PACIENTE (Sem alteração)
+    // CARREGA DADOS VITAIS DO PACIENTE (COM CORREÇÃO NO ARRAY DE DEPENDÊNCIA)
     useEffect(() => {
         if (pacienteId) {
             apiClient.get(`/pacientes/${pacienteId}/`)
@@ -303,10 +303,11 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         // Reseta tudo ao trocar de paciente
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
-        // Limpa exame físico mas mantém vitais pré-carregados
         setExameFisicoData(prev => ({ peso: prev.peso, altura: prev.altura })); 
-        setTabIndex(0); 
-    }, [pacienteId, showSnackbar]);
+        setTabIndex(0); // Volta para a primeira aba
+
+    // *** CORREÇÃO AQUI: Removido o 'showSnackbar' do array de dependências ***
+    }, [pacienteId]);
 
 
     // --- 4. GERADORES DE TEXTO (ATUALIZADOS) ---
