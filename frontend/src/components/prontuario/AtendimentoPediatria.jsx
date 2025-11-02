@@ -501,38 +501,44 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                             <TextField label="T (°C)" name="temperatura" value={exameFisicoData.temperatura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                          </Box>
 
-                        {/* 6. RENDERIZAÇÃO HÍBRIDA (COM SELECT/COMBOBOX) */}
+                        {/* 6. RENDERIZAÇÃO HÍBRIDA (COM SELECT/COMBOBOX) - CORREÇÃO DE LAYOUT */}
                         <FormGroup sx={{ p: 1.5, border: '1px solid #ddd', borderRadius: 1 }}>
                             
                             {/* --- GRUPOS DE SELECT (COMBOBOX) --- */}
-                            <Grid container spacing={2}>
+                            {/* Trocamos o <Grid container> por um <Box> com flexWrap */}
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                                 {exameFisicoSelectGroups.map(group => (
-                                    <Grid item xs={12} sm={6} md={4} key={group.id}>
-                                        <FormControl size="small" fullWidth>
-                                            <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
-                                            <Select
-                                                labelId={`${group.id}-select-label`}
-                                                id={`${group.id}-select`}
-                                                name={group.id} // Isso é vital para o handleExameChange
-                                                value={exameFisicoData[group.id] || ''}
-                                                label={group.label}
-                                                onChange={handleExameChange} // Nosso handler universal
-                                            >
-                                                {/* Opção para limpar a seleção */}
-                                                <MenuItem value="">
-                                                    <em>Nenhum</em>
+                                    // Removemos o <Grid item>
+                                    <FormControl 
+                                        key={group.id} 
+                                        size="small" 
+                                        // Adicionamos sx para controlar o tamanho
+                                        sx={{ 
+                                            minWidth: 160, // Garante que o label seja legível
+                                            flex: '1 1 160px' // Permite crescer e encolher
+                                        }}
+                                    >
+                                        <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
+                                        <Select
+                                            labelId={`${group.id}-select-label`}
+                                            id={`${group.id}-select`}
+                                            name={group.id}
+                                            value={exameFisicoData[group.id] || ''}
+                                            label={group.label}
+                                            onChange={handleExameChange}
+                                        >
+                                            <MenuItem value="">
+                                                <em>Nenhum</em>
+                                            </MenuItem>
+                                            {group.options.map(opt => (
+                                                <MenuItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
                                                 </MenuItem>
-                                                {/* Mapeia as opções */}
-                                                {group.options.map(opt => (
-                                                    <MenuItem key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                        </FormControl>
-                                    </Grid>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
                                 ))}
-                            </Grid>
+                            </Box>
 
                             <Divider sx={{ my: 1.5 }} />
 
