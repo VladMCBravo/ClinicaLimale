@@ -1,17 +1,16 @@
 // src/components/prontuario/pediatria/DnpmDetalhado.jsx
-// NOVO COMPONENTE (Aba 3)
+// VERSÃO REVISADA E FUNCIONAL (Com Resumo)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Paper, Typography, Box, Button, CircularProgress,
     TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
-    Checkbox, TextField, FormControlLabel
+    Checkbox, TextField, FormControlLabel, FormGroup, FormLabel, FormControl
 } from '@mui/material';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
-import apiClient from '../../../api/axiosConfig'
+import apiClient from '../../../api/axiosConfig';
 
-// 1. Dados da tabela, baseados no PDF (pág. 2)
-// Usamos o 'id' como chave única para a API
+// (definição de marcosPorIdade omitida para brevidade)
 const marcosPorIdade = [
     { idade: '1m', motorGrosso: { id: '1m_motor_grosso', desc: 'Sustenta parcial cabeça' }, motorFino: { id: '1m_motor_fino', desc: 'Reflexo palmar' }, linguagem: { id: '1m_linguagem', desc: 'Reage a som forte' }, social: { id: '1m_social', desc: 'Olhar fixo no rosto' } },
     { idade: '2m', motorGrosso: { id: '2m_motor_grosso', desc: 'Controle cefálico melhor' }, motorFino: { id: '2m_motor_fino', desc: 'Abre mãos' }, linguagem: { id: '2m_linguagem', desc: 'Vocaliza vogais' }, social: { id: '2m_social', desc: 'Sorriso social' } },
@@ -26,44 +25,59 @@ const marcosPorIdade = [
     { idade: '11m', motorGrosso: { id: '11m_motor_grosso', desc: 'Passos com apoio' }, motorFino: { id: '11m_motor_fino', desc: 'Manipula bilateral' }, linguagem: { id: '11m_linguagem', desc: '1-2 palavras' }, social: { id: '11m_social', desc: 'Imita gestos' } },
     { idade: '12m', motorGrosso: { id: '12m_motor_grosso', desc: 'Anda sozinho' }, motorFino: { id: '12m_motor_fino', desc: 'Empilha 2 blocos' }, linguagem: { id: '12m_linguagem', desc: '2-3 palavras' }, social: { id: '12m_social', desc: 'Bate palmas, tchau' } },
 ];
+const dnpmOptions = [
+    { id: 'dnpm_normal_idade', label: 'DNPM adequado para idade' },
+    { id: 'dnpm_sinais_alerta', label: 'Sinais de Alerta' },
+    { id: 'dnpm_atraso', label: 'Atraso no DNPM' },
+];
 
-export default function DnpmDetalhado({ pacienteId }) {
+export default function DnpmDetalhado({ pacienteId, onDataChange }) {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
-    // Armazena os marcos salvos no backend, mapeados por 'marco_id'
     const [marcosSalvos, setMarcosSalvos] = useState({});
-    // Armazena as observações
     const [observacoes, setObservacoes] = useState("");
     
-    // 2. Função para buscar os dados
-    const fetchMarcos = useCallback(async () => {
+    // 1. ADICIONAR ESTADO PARA O RESUMO
+    const [dnpmResumo, setDnpmResumo] = useState({
+        dnpm_normal_idade: false,
+        dnpm_sinais_alerta: false,
+        dnpm_atraso: false
+    });
+    
+    // 2. ATUALIZAR FUNÇÃO DE FETCH (agora busca marcos E resumo)
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
-            // Transforma o array em um mapa [marco_id] -> {objeto_marco}
-            const mapaMarcos = res.data.reduce((acc, marco) => {
+            // 2a. Busca os marcos detalhados (lógica existente)
+            const resMarcos = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
+            const mapaMarcos = resMarcos.data.reduce((acc, marco) => {
                 acc[marco.marco_id] = marco;
                 return acc;
             }, {});
             setMarcosSalvos(mapaMarcos);
-            // (Futuramente, podemos carregar a observação geral também)
+
+            // 2b. Busca os dados da anamnese para o resumo
+            const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+            if (resAnamnese.data && resAnamnese.data.pediatrica && resAnamnese.data.pediatrica.dnpm) {
+                setDnpmResumo(resAnamnese.data.pediatrica.dnpm);
+            }
+
         } catch (err) {
-            showSnackbar('Erro ao carregar marcos de DNPM.', 'error');
+            showSnackbar('Erro ao carregar dados de DNPM.', 'error');
         } finally {
             setIsLoading(false);
         }
     }, [pacienteId, showSnackbar]);
 
     useEffect(() => {
-        fetchMarcos();
-    }, [fetchMarcos]);
+        fetchData(); // 3. Chama a nova função
+    }, [fetchData]);
 
-    // 3. Função de "clique" no checkbox (Cria ou Atualiza)
+    // Handler de salvamento para os MARCOS (lógica existente)
     const handleToggleMarco = async (marco, checked) => {
         const { id: marco_id, desc: marco_descricao } = marco;
         const marcoExistente = marcosSalvos[marco_id];
         
-        // Atualiza o estado local imediatamente para feedback visual
         setMarcosSalvos(prev => ({
             ...prev,
             [marco_id]: {
@@ -75,25 +89,23 @@ export default function DnpmDetalhado({ pacienteId }) {
 
         try {
             if (marcoExistente) {
-                // Atualiza (PATCH) marco existente
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${marcoExistente.id}/`, {
                     alcançado: checked
                 });
             } else {
-                // Cria (POST) novo marco
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, {
                     marco_id: marco_id,
                     marco_descricao: marco_descricao,
-                    idade_marco: marco_id.split('_')[0], // ex: '1m'
+                    idade_marco: marco_id.split('_')[0],
                     alcançado: checked
                 });
-                // Atualiza o estado local com o objeto completo (incluindo o 'id')
                 setMarcosSalvos(prev => ({ ...prev, [marco_id]: res.data }));
             }
-            // showSnackbar(`Marco '${marco_descricao}' salvo!`, 'success');
+            if (onDataChange) {
+                onDataChange();
+            }
         } catch (err) {
             showSnackbar('Erro ao salvar marco.', 'error');
-            // Reverte o estado local em caso de erro
             setMarcosSalvos(prev => ({
                 ...prev,
                 [marco_id]: {
@@ -103,8 +115,40 @@ export default function DnpmDetalhado({ pacienteId }) {
             }));
         }
     };
+
+    // 4. NOVO HANDLER para salvar o RESUMO
+    const handleResumoChange = async (event) => {
+        const { name, checked } = event.target;
+        
+        // Atualiza o estado local (otimismo)
+        const newResumo = {
+            ...dnpmResumo,
+            [name]: checked
+        };
+        setDnpmResumo(newResumo);
+
+        try {
+            // Salva o resumo (PATCH) na Anamnese
+            // (Note que estamos salvando o objeto 'pediatrica' aninhado)
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                pediatrica: {
+                    dnpm: newResumo
+                }
+            });
+            
+            // Atualiza o indicador no cabeçalho
+            if (onDataChange) {
+                onDataChange();
+            }
+            showSnackbar('Resumo do DNPM atualizado!', 'success');
+        } catch (err) {
+            showSnackbar('Erro ao salvar resumo do DNPM.', 'error');
+            // Reverte em caso de erro
+            setDnpmResumo(prev => ({...prev, [name]: !checked}));
+        }
+    };
     
-    // 4. Componente de Checkbox reutilizável
+    // Componente de Checkbox (sem alteração)
     const MarcoCheckbox = ({ marco }) => {
         if (!marco) return <TableCell />;
         const salvo = marcosSalvos[marco.id];
@@ -130,47 +174,76 @@ export default function DnpmDetalhado({ pacienteId }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // 5. Renderização da Tabela
+    // 5. JSX REVISADO (Com <React.Fragment> e handlers)
     return (
-        <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Marcos do Desenvolvimento Neuropsicomotor (DNPM)
-            </Typography>
-            <TableContainer>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell sx={{fontWeight: 'bold'}}>Idade</TableCell>
-                            <TableCell sx={{fontWeight: 'bold'}}>Motor Grosso</TableCell>
-                            <TableCell sx={{fontWeight: 'bold'}}>Motor Fino</TableCell>
-                            <TableCell sx={{fontWeight: 'bold'}}>Linguagem/Audição</TableCell>
-                            <TableCell sx={{fontWeight: 'bold'}}>Social/Afetivo</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {marcosPorIdade.map((linha) => (
-                            <TableRow key={linha.idade}>
-                                <TableCell sx={{fontWeight: 'bold'}}>{linha.idade}</TableCell>
-                                <MarcoCheckbox marco={linha.motorGrosso} />
-                                <MarcoCheckbox marco={linha.motorFino} />
-                                <MarcoCheckbox marco={linha.linguagem} />
-                                <MarcoCheckbox marco={linha.social} />
-                            </TableRow>
+        <React.Fragment> {/* <-- 5a. Adicionado Fragmento para envolver os dois Papers */}
+            
+            {/* Bloco de Resumo (agora funcional) */}
+            <Paper variant="outlined" sx={{ p: 2, mb: 2, borderColor: 'grey.400' }}>
+                <FormControl component="fieldset" size="small">
+                    <FormLabel component="legend" sx={{fontWeight: 'bold', color: 'text.primary'}}>
+                        Resumo do DNPM (para indicador)
+                    </FormLabel>
+                    <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                        {dnpmOptions.map(opt => (
+                            <FormControlLabel 
+                                key={opt.id}
+                                control={
+                                    <Checkbox 
+                                        size="small" 
+                                        checked={dnpmResumo[opt.id] || false} 
+                                        onChange={handleResumoChange} 
+                                        name={opt.id} 
+                                    />
+                                } 
+                                label={opt.label} 
+                            />
                         ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TextField
-                label="Observações gerais do desenvolvimento"
-                multiline
-                rows={3}
-                fullWidth
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                size="small"
-                sx={{ mt: 2 }}
-            />
-            {/* <Button variant="contained" sx={{mt: 1, float: 'right'}}>Salvar Observações</Button> */}
-        </Paper>
+                    </FormGroup>
+                </FormControl>
+            </Paper>
+            
+            {/* Bloco de Marcos Detalhados (sem alteração) */}
+            <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Marcos do Desenvolvimento Neuropsicomotor (DNPM)
+                </Typography>
+                <TableContainer>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{fontWeight: 'bold'}}>Idade</TableCell>
+                                <TableCell sx={{fontWeight: 'bold'}}>Motor Grosso</TableCell>
+                                <TableCell sx={{fontWeight: 'bold'}}>Motor Fino</TableCell>
+                                <TableCell sx={{fontWeight: 'bold'}}>Linguagem/Audição</TableCell>
+                                <TableCell sx={{fontWeight: 'bold'}}>Social/Afetivo</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {marcosPorIdade.map((linha) => (
+                                <TableRow key={linha.idade}>
+                                    <TableCell sx={{fontWeight: 'bold'}}>{linha.idade}</TableCell>
+                                    <MarcoCheckbox marco={linha.motorGrosso} />
+                                    <MarcoCheckbox marco={linha.motorFino} />
+                                    <MarcoCheckbox marco={linha.linguagem} />
+                                    <MarcoCheckbox marco={linha.social} />
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TextField
+                    label="Observações gerais do desenvolvimento"
+                    multiline
+                    rows={3}
+                    fullWidth
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    size="small"
+                    sx={{ mt: 2 }}
+                />
+            </Paper>
+            
+        </React.Fragment> // <-- 5b. Fechamento do Fragmento
     );
 }

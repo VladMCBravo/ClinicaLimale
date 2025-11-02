@@ -1,5 +1,5 @@
 // src/components/prontuario/pediatria/VacinacaoTab.jsx
-// NOVO COMPONENTE (Aba 4)
+// ATUALIZADO para chamar onDataChange
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -10,7 +10,7 @@ import {
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig'
 
-// 1. Dados da tabela, baseados no PNI 2025 do seu PDF
+// (definição de pniSchedule omitida para brevidade)
 const pniSchedule = [
     { idade: 'Ao nascer', vacinas: [
         { id: 'bcg', nome: 'BCG', dose: 'Dose Única' },
@@ -48,18 +48,17 @@ const pniSchedule = [
     ]}
 ];
 
-export default function VacinacaoTab({ pacienteId }) {
+// 1. ACEITAR A PROP 'onDataChange'
+export default function VacinacaoTab({ pacienteId, onDataChange }) {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
-    // Armazena os registros do backend, mapeados por 'nome_vacina' + 'dose'
     const [vacinasSalvas, setVacinasSalvas] = useState({});
 
-    // 2. Função para buscar os dados
     const fetchVacinas = useCallback(async () => {
+        // ... (lógica de fetch sem alteração)
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`);
-            // Transforma o array em um mapa [nome_vacina + dose] -> {objeto_vacina}
             const mapaVacinas = res.data.reduce((acc, vacina) => {
                 const key = `${vacina.nome_vacina}_${vacina.dose}`;
                 acc[key] = vacina;
@@ -77,17 +76,13 @@ export default function VacinacaoTab({ pacienteId }) {
         fetchVacinas();
     }, [fetchVacinas]);
 
-    // 3. Função de "on change" (Cria ou Atualiza)
     const handleVacinaChange = async (vacinaInfo, field, newValue) => {
         const { nome, dose, idade } = vacinaInfo;
         const key = `${nome}_${dose}`;
         const vacinaExistente = vacinasSalvas[key];
-
-        // Cria o payload (só com o campo que mudou)
         const payload = { [field]: newValue };
-        
-        // Otimismo: Atualiza o estado local imediatamente
-        const oldState = vacinasSalvas; // Guarda estado anterior p/ reverter
+        const oldState = vacinasSalvas; 
+
         setVacinasSalvas(prev => ({
             ...prev,
             [key]: {
@@ -96,29 +91,32 @@ export default function VacinacaoTab({ pacienteId }) {
                     dose: dose, 
                     idade_recomendada: idade 
                 }),
-                ...payload // Aplica a mudança
+                ...payload
             }
         }));
 
         try {
             if (vacinaExistente) {
-                // Atualiza (PATCH) registro existente
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/vacinas/${vacinaExistente.id}/`, payload);
             } else {
-                // Cria (POST) novo registro
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/vacinas/`, {
                     nome_vacina: nome,
                     dose: dose,
                     idade_recomendada: idade,
-                    ...payload // Adiciona o campo que mudou (ex: status: 'Aplicada')
+                    ...payload
                 });
-                // Atualiza o estado local com o ID do DB
                 setVacinasSalvas(prev => ({ ...prev, [key]: res.data }));
             }
-            // showSnackbar('Registro de vacina salvo!', 'success'); // (Opcional: pode poluir)
+            
+            // 2. CHAMAR A FUNÇÃO DO PAI PARA ATUALIZAR O STATUS
+            if (onDataChange) {
+                onDataChange();
+            }
+            
         } catch (err) {
+            // ... (lógica de erro sem alteração)
             showSnackbar('Erro ao salvar vacina.', 'error');
-            setVacinasSalvas(oldState); // Reverte o estado em caso de erro
+            setVacinasSalvas(oldState); 
         }
     };
 
@@ -126,7 +124,7 @@ export default function VacinacaoTab({ pacienteId }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // 4. Renderização da Tabela
+    // ... (Restante do componente: render, etc. sem alterações)
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -145,7 +143,6 @@ export default function VacinacaoTab({ pacienteId }) {
                     </TableHead>
                     <TableBody>
                         {pniSchedule.map((grupo, index) => (
-                            // Usamos Fragment para agrupar as linhas de uma idade
                             <React.Fragment key={grupo.idade}>
                                 {grupo.vacinas.map((vacina, vacIndex) => {
                                     const key = `${vacina.nome}_${vacina.dose}`;
@@ -154,20 +151,17 @@ export default function VacinacaoTab({ pacienteId }) {
 
                                     return (
                                         <TableRow key={key}>
-                                            {/* Célula da Idade (só aparece na 1ª linha do grupo) */}
                                             {vacIndex === 0 ? (
                                                 <TableCell rowSpan={grupo.vacinas.length} sx={{ fontWeight: 'bold', verticalAlign: 'top' }}>
                                                     {grupo.idade}
                                                 </TableCell>
                                             ) : null}
                                             
-                                            {/* Célula da Vacina */}
                                             <TableCell>
                                                 <Typography variant="body2" sx={{fontWeight: '500'}}>{vacina.nome}</Typography>
                                                 <Typography variant="caption" color="textSecondary">{vacina.dose}</Typography>
                                             </TableCell>
                                             
-                                            {/* Célula do Status */}
                                             <TableCell>
                                                 <FormControl size="small" fullWidth sx={{minWidth: '120px'}}>
                                                     <InputLabel id={`status-label-${key}`}>Status</InputLabel>
@@ -185,7 +179,6 @@ export default function VacinacaoTab({ pacienteId }) {
                                                 </FormControl>
                                             </TableCell>
 
-                                            {/* Célula da Data */}
                                             <TableCell>
                                                 <TextField
                                                     type="date"
@@ -196,14 +189,12 @@ export default function VacinacaoTab({ pacienteId }) {
                                                 />
                                             </TableCell>
 
-                                            {/* Célula de Observações */}
                                             <TableCell>
                                                 <TextField
                                                     placeholder="Lote, clínica, etc."
                                                     size="small"
                                                     fullWidth
                                                     defaultValue={dadosSalvos.observacao || ''}
-                                                    // Usamos onBlur para salvar ao sair do campo
                                                     onBlur={(e) => handleVacinaChange(vacinaInfo, 'observacao', e.target.value)}
                                                 />
                                             </TableCell>

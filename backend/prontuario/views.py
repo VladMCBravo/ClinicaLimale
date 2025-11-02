@@ -265,6 +265,49 @@ class VacinaPacienteDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [CanViewProntuario]
     lookup_field = 'pk'
 
+class VacinaStatusView(APIView):
+    """
+    Verifica o status da vacinação do paciente.
+    Retorna: {'status': 'em_dia'} ou {'status': 'atrasada'}
+    """
+    permission_classes = [CanViewProntuario]
+
+    def get(self, request, paciente_id):
+        # A lógica é simples: se UMA vacina estiver 'Atrasada', o status é 'atrasada'.
+        if VacinaPaciente.objects.filter(paciente__id=paciente_id, status='Atrasada').exists():
+            return Response({'status': 'atrasada'})
+        
+        # Se não houver nenhuma atrasada (pode ter Pendente ou Aplicada)
+        return Response({'status': 'em_dia'})
+
+class DNPMStatusView(APIView):
+    """
+    Verifica o status resumo do DNPM do paciente.
+    Retorna: {'status': 'normal'} | {'status': 'alerta'} | {'status': 'atraso'} | {'status': None}
+    """
+    permission_classes = [CanViewProntuario]
+
+    def get(self, request, paciente_id):
+        try:
+            # 1. Busca a Anamnese principal
+            anamnese = Anamnese.objects.get(paciente__id=paciente_id)
+            # 2. Acessa a anamnese pediátrica aninhada
+            anamnese_pediatrica = anamnese.pediatrica
+            # 3. Lê o JSONField 'dnpm'
+            dnpm_data = anamnese_pediatrica.dnpm # Este é o JSONField { dnpm_normal_idade: true, ... }
+
+            if dnpm_data.get('dnpm_atraso'):
+                return Response({'status': 'atraso'})
+            if dnpm_data.get('dnpm_sinais_alerta'):
+                return Response({'status': 'alerta'})
+            if dnpm_data.get('dnpm_normal_idade'):
+                return Response({'status': 'normal'})
+            
+            return Response({'status': None}) # Nenhuma opção marcada
+            
+        except (Anamnese.DoesNotExist, AnamnesePediatria.DoesNotExist, AttributeError, TypeError):
+            # Se a anamnese ou os dados não existirem, retorna Nulo
+            return Response({'status': None})
 # --- FIM DAS NOVAS ADIÇÕES ---
 
 # --- INÍCIO DAS NOVAS VIEWS DE RELATÓRIOS ---

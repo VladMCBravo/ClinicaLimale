@@ -17,8 +17,10 @@ from .views import (
     TemplateRelatorioListView,
     RelatorioSalvoListView,
     RelatorioSalvoCreateView,
-    GerarPreviewRelatorioView
-)     
+    GerarPreviewRelatorioView,
+    VacinaStatusView,
+    DNPMStatusView
+)  
 
 # O router é usado para ViewSets, como o de DocumentoPaciente
 router = DefaultRouter()
@@ -37,11 +39,11 @@ urlpatterns = [
     # --- Rotas de DNPM ---
     path('marcos-dnpm/', MarcoDNPMListCreateView.as_view(), name='listar-criar-marcos-dnpm'),
     path('marcos-dnpm/<int:pk>/', MarcoDNPMDetailView.as_view(), name='detalhe-marco-dnpm'), # <-- NOVA ROTA
-
+    path('dnpm-status/', DNPMStatusView.as_view(), name='status-dnpm'),
     # --- Rotas de Vacina ---
     path('vacinas/', VacinaPacienteListCreateView.as_view(), name='listar-criar-vacinas'),
     path('vacinas/<int:pk>/', VacinaPacienteDetailView.as_view(), name='detalhe-vacina'), # <-- NOVA ROTA
-    
+    path('vacinas-status/', VacinaStatusView.as_view(), name='status-vacina'),
     # --- NOVAS ROTAS DE RELATÓRIO (CORRIGIDAS) ---
     # 1. Lista os RELATÓRIOS JÁ SALVOS do paciente (ex: .../<paciente_id>/relatorios/)
     path('relatorios/', 
