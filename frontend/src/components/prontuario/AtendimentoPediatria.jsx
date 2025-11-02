@@ -378,48 +378,101 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                             <TextField label="T (°C)" name="temperatura" value={exameFisicoData.temperatura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                          </Box>
 
-                        {/* RENDERIZAÇÃO 100% ComboBox */}
-                        <FormGroup sx={{ p: 1.5, border: '1px solid #ddd', borderRadius: 1 }}>
-                            
-                            {/* Usamos Box com flexWrap para os ComboBoxes se alinharem
-                                  Exatamente como os campos de vitais acima */}
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                                {exameFisicoSelectGroups.map(group => (
-                                    <FormControl 
-                                        key={group.id} 
-                                        size="small" 
-                                        sx={{ 
-                                            minWidth: 170, // Largura mínima para legibilidade
-                                            flex: '1 1 170px' // Flex grow/shrink
-                                        }}
-                                    >
-                                        <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
-                                        <Select
-                                            labelId={`${group.id}-select-label`}
-                                            id={`${group.id}-select`}
-                                            name={group.id} // Isso é vital para o handleExameChange
-                                            value={exameFisicoData[group.id] || ''}
-                                            label={group.label}
-                                            onChange={handleExameChange}
-                                        >
-                                            {/* Opção para limpar a seleção */}
-                                            <MenuItem value="">
-                                                <em>Nenhum</em>
-                                            </MenuItem>
-                                            {/* Mapeia as opções */}
-                                            {group.options.map(opt => (
-                                                <MenuItem key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                ))}
-                            </Box>
-                            
-                            {/* Bloco de Checkboxes foi removido */}
+                        {/* --- INÍCIO DA SEÇÃO ATUALIZADA --- */}
+{/* RENDERIZAÇÃO 100% ComboBox, SEPARADA POR SEÇÕES */}
+<FormGroup sx={{ p: { xs: 1, sm: 2 }, border: '1px solid #ddd', borderRadius: 1 }}>
 
-                        </FormGroup>
+    {/* Helpers para organizar os grupos do rascunho */}
+    {(() => {
+        // Define quais IDs de 'exameFisicoSelectGroups' vão para cada seção
+        const secoes = [
+            { 
+                titulo: 'Geral / Pele', 
+                ids: ['estado_geral', 'atividade', 'reatividade', 'cor_pele', 'hidratacao', 'estado_febril', 'cianose', 'ictericia'] 
+            },
+            { 
+                titulo: 'Cabeça e Pescoço', 
+                ids: ['fontanelas', 'suturas', 'pescoco_estado', 'linfonodos'] 
+            },
+            { 
+                titulo: 'Olhos', 
+                ids: ['olhos_estado', 'olhos_secrecao', 'reflexo_vermelho'] 
+            },
+            { 
+                titulo: 'Ouvidos / Nariz / Boca', 
+                ids: ['otoscopia', 'otorreia', 'narinas', 'oroscopia'] 
+            },
+            { 
+                titulo: 'Respiratório', 
+                ids: ['respiratorio_estado', 'mv_ausculta', 'ruidos_adventicios'] 
+            },
+            { 
+                titulo: 'Cardiovascular', 
+                ids: ['ritmo_cardiaco', 'cardio_sopros', 'pulsos'] 
+            },
+            { 
+                titulo: 'Abdome', 
+                ids: ['forma_abdome', 'rha_abdome', 'palpacao_abdome', 'visceromegalias'] 
+            },
+            { 
+                titulo: 'Outros (Genitália, Membros, Neuro)', 
+                ids: ['coto_umbilical_sinais', 'coto_umbilical_aspecto', 'genitalia', 'perineo', 'membros', 'neuro_tonus', 'neuro_reflexos'] 
+            },
+        ];
+
+        return secoes.map((secao, index) => (
+            <Box key={secao.titulo}>
+                {/* Adiciona Divider ANTES da seção (exceto na primeira) */}
+                {index > 0 && <Divider sx={{ my: 2 }} />}
+
+                {/* Título da Seção */}
+                <Typography 
+                    variant="overline" 
+                    color="textSecondary" 
+                    sx={{ display: 'block', mb: 1.5, mt: index > 0 ? 1 : 0 }}
+                >
+                    {secao.titulo}
+                </Typography>
+
+                {/* Box com os ComboBoxes daquela seção */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    {exameFisicoSelectGroups
+                        .filter(group => secao.ids.includes(group.id)) // Filtra os grupos da seção
+                        .map(group => (
+                            <FormControl 
+                                key={group.id} 
+                                size="small" 
+                                sx={{ 
+                                    minWidth: 170, // Largura mínima
+                                    flex: '1 1 170px' // Flexbox para responsividade
+                                }}
+                            >
+                                <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
+                                <Select
+                                    labelId={`${group.id}-select-label`}
+                                    id={`${group.id}-select`}
+                                    name={group.id}
+                                    value={exameFisicoData[group.id] || ''}
+                                    label={group.label}
+                                    onChange={handleExameChange}
+                                >
+                                    <MenuItem value="">
+                                        <em>Nenhum</em>
+                                    </MenuItem>
+                                    {group.options.map(opt => (
+                                        <MenuItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        ))}
+                </Box>
+            </Box>
+        ));
+    })()}
+
+</FormGroup>
 
                         {/* Campo Objetivo (preenchido ou editado) */}
                         <TextField name="notas_objetivas" label="Objetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_objetivas || ''} onChange={handleSoapChange} size="small" sx={{mt: 1.5}}/>
