@@ -73,23 +73,30 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
 
 class AnamneseDetailAPIView(generics.RetrieveUpdateAPIView):
     """
-    View para buscar (GET) ou atualizar (PUT/PATCH) a anamnese de um paciente.
-    Esta view substitui a GenericAPIView anterior para resolver o erro 405.
+    View para buscar (GET), criar ou atualizar (PUT/PATCH) a anamnese.
+    Agora usa get_or_create para suportar atualizações em abas
+    antes do salvamento inicial do Histórico.
     """
     serializer_class = AnamneseSerializer
     permission_classes = [CanViewProntuario]
 
     def get_object(self):
         """
-        Busca e retorna a instância única da anamnese para o paciente da URL.
+        Busca ou CRIA a instância da anamnese para o paciente da URL.
+        Isso corrige o Erro 500 ao tentar dar PATCH (ex: Resumo DNPM)
+        em um paciente sem Anamnese salva.
         """
         paciente_id = self.kwargs.get('paciente_id')
-        try:
-            # .get() é usado aqui porque esperamos apenas uma anamnese por paciente
-            return Anamnese.objects.get(paciente__id=paciente_id)
-        except Anamnese.DoesNotExist:
-            # Se não existir, o DRF tratará isso e retornará um 404 Not Found.
-            return None
+        obj, created = Anamnese.objects.get_or_create(
+            paciente_id=paciente_id,
+            defaults={'medico': self.request.user} # Define o médico se for criado
+        )
+        return obj
+
+    # O método update/partial_update padrão do RetrieveUpdateAPIView
+    # agora usará o 'get_object' acima e funcionará corretamente.
+    # O 'update' inteligente do AnamneseSerializer fará o resto.
+# --- FIM DA CORREÇÃO ---
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
     serializer_class = DocumentoPacienteSerializer
