@@ -1,11 +1,11 @@
-// src/components/prontuario/AtendimentoPediatria.jsx - VERSÃO FINAL (Tudo ComboBox)
+// src/components/prontuario/AtendimentoPediatria.jsx - VERSÃO FINAL (100% ComboBox, Rascunho do Médico)
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
     Box, Button, CircularProgress, Tabs, Tab,
-    // 1. IMPORTAÇÕES ATUALIZADAS PARA MULTI-SELECT
-    FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip
+    // 1. Imports necessários para ComboBox (Select)
+    FormControl, InputLabel, Select, MenuItem 
 } from '@mui/material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
@@ -39,163 +39,65 @@ const sintomaTemplates = {
 };
 // --- FIM OPÇÕES E TEMPLATES ---
 
-// --- 2. EXAME FÍSICO (TOTALMENTE REESTRUTURADO) ---
-
-// GRUPOS DE SELEÇÃO ÚNICA (Single-Select ComboBox)
+// --- 2. EXAME FÍSICO (100% Select Groups, baseado no rascunho) ---
 const exameFisicoSelectGroups = [
-    // --- GERAL / PELE ---
+    // --- GERAL --- (Baseado no rascunho)
     { id: 'estado_geral', label: 'Estado Geral', options: [{ value: 'BEG', label: 'BEG', template: 'BEG (Bom Estado Geral).' },{ value: 'REG', label: 'REG', template: 'REG (Regular Estado Geral).' },{ value: 'MEG', label: 'MEG', template: 'MEG (Mau Estado Geral).' }] },
-    { id: 'cor_pele', label: 'Coloração', options: [{ value: 'Pletorico', label: 'Pletórico', template: 'Pletórico.' },{ value: 'Corado', label: 'Corado', template: 'Corado.' },{ value: 'Descorado', label: 'Descorado', template: 'Descorado (+/4+).' }] },
-    { id: 'hidratacao', label: 'Hidratação', options: [{ value: 'Hidratado', label: 'Hidratado', template: 'Hidratado.' },{ value: 'Desidratado', label: 'Desidratado', template: 'Desidratado (+/4+).' },{ value: 'Edemaciado', label: 'Edemaciado', template: 'Edemaciado (+/4+).' },{ value: 'Anasarca', label: 'Anasarca', template: 'Anasarca.' }] },
+    { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.' },{ value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.' },{ value: 'Hiperativo', label: 'Hiperativo', template: 'Hiperativo.' }] },
+    { id: 'reatividade', label: 'Reatividade', options: [{ value: 'Reativo', label: 'Reativo', template: 'Reativo.' },{ value: 'Hiporeativo', label: 'Hiporeativo', template: 'Hiporeativo.' },{ value: 'Hipereativo', label: 'Hipereativo', template: 'Hipereativo.' }] },
+    { id: 'cor_pele', label: 'Coloração', options: [{ value: 'Corado', label: 'Corado', template: 'Corado.' },{ value: 'Descorado', label: 'Descorado (+/4+)', template: 'Descorado (+/4+).' }, { value: 'Pletorico', label: 'Pletórico', template: 'Pletórico.' }] },
+    { id: 'hidratacao', label: 'Hidratação', options: [{ value: 'Hidratado', label: 'Hidratado', template: 'Hidratado.' },{ value: 'Desidratado', label: 'Desidratado (+/4+)', template: 'Desidratado (+/4+).' },{ value: 'Edemaciado', label: 'Edemaciado (+/4+)', template: 'Edemaciado (+/4+).' },{ value: 'Anasarca', label: 'Anasarca', template: 'Anasarca.' }] },
     { id: 'estado_febril', label: 'Temperatura', options: [{ value: 'Afebril', label: 'Afebril', template: 'Afebril ao toque.' },{ value: 'Febril', label: 'Febril', template: 'Febril ao toque.' },{ value: 'Hipotermico', label: 'Hipotérmico', template: 'Hipotérmico ao toque.' }] },
     { id: 'cianose', label: 'Cianose', options: [{ value: 'Acianotico', label: 'Acianótico', template: 'Acianótico.' },{ value: 'Cianotico', label: 'Cianótico', template: 'Cianótico (Central/Periférico).' }] },
-    { id: 'ictericia', label: 'Icterícia', options: [{ value: 'Anicterico', label: 'Anictérico', template: 'Anictérico.' },{ value: 'Icterico', label: 'Ictérico', template: 'Ictérico (Zona ___/ Kramer).' }] },
-    // --- NEUROLÓGICO (ESTADO) ---
-     { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.' },{ value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.' },{ value: 'Hiperativo', label: 'Hiperativo', template: 'Hiperativo.' }] },
-    { id: 'reatividade', label: 'Reatividade', options: [{ value: 'Reativo', label: 'Reativo', template: 'Reativo.' },{ value: 'Hiporeativo', label: 'Hiporeativo', template: 'Hiporeativo.' },{ value: 'Hipereativo', label: 'Hipereativo', template: 'Hipereativo.' }] },
-    // --- CABEÇA ---
+    { id: 'ictericia', label: 'Icterícia', options: [{ value: 'Anicterico', label: 'Anictérico', template: 'Anictérico.' },{ value: 'Icterico', label: 'Ictérico (+/4+)', template: 'Ictérico (Zona ___/ Kramer).' }] },
+    
+    // --- CABEÇA E PESCOÇO --- (Baseado no rascunho)
     { id: 'fontanelas', label: 'Fontanela Anterior', options: [{ value: 'Normo', label: 'FA Normotensa', template: 'Fontanela anterior normotensa.' },{ value: 'Abaulada', label: 'FA Abaulada', template: 'Fontanela anterior abaulada.' },{ value: 'Deprimida', label: 'FA Deprimida', template: 'Fontanela anterior deprimida.' }] },
     { id: 'suturas', label: 'Suturas', options: [{ value: 'Normais', label: 'Normais', template: 'Suturas cranianas normais.' },{ value: 'Acavalgadas', label: 'Acavalgadas', template: 'Suturas cranianas acavalgadas.' },{ value: 'Diastase', label: 'Diástase', template: 'Diástase de suturas.' }] },
-    // --- OLHOS ---
+    { id: 'pescoco_estado', label: 'Pescoço', options: [{ value: 'Livre', label: 'Livre/Indolor', template: 'Pescoço livre, indolor, sem massas.' }, { value: 'Rigido', label: 'Rigidez Nucal', template: 'Rigidez de nuca presente.'}] },
+    { id: 'linfonodos', label: 'Linfonodos', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Linfonodos não palpáveis.' },{ value: 'Presentes', label: 'Presentes', template: 'Linfonodos palpáveis em cadeias ___.' }] },
+
+    // --- OLHOS --- (Baseado no rascunho)
     { id: 'olhos_estado', label: 'Olhos (Estado)', options: [{ value: 'Normal', label: 'Normal', template: 'Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas.' },{ value: 'Hiperemia', label: 'Hiperemia Ocular', template: 'Hiperemia conjuntival.' }] },
     { id: 'olhos_secrecao', label: 'Secreção Ocular', options: [{ value: 'Sem', label: 'Sem secreção', template: 'Sem secreção ocular.' },{ value: 'Com', label: 'Com secreção', template: 'Presença de secreção ocular (amarela/esverdeada/clara).' }] },
-    // --- ORL ---
+    { id: 'reflexo_vermelho', label: 'Reflexo Vermelho', options: [{ value: 'Presente', label: 'Presente', template: 'Reflexo vermelho presente bilateralmente.'}, { value: 'Ausente', label: 'Ausente', template: 'Reflexo vermelho ausente em ___.'}] },
+
+    // --- OUVIDOS / NARIZ / BOCA --- (Baseado no rascunho)
     { id: 'otoscopia', label: 'Otoscopia', options: [{ value: 'Normal', label: 'Normal', template: 'Otoscopia: Membranas timpânicas íntegras, translúcidas.' },{ value: 'HiperemiaSem', label: 'Hiperemia s/ Abaulamento', template: 'Otoscopia: Hiperemia de MT, sem abaulamento.' },{ value: 'HiperemiaCom', label: 'Hiperemia c/ Abaulamento', template: 'Otoscopia: Hiperemia e abaulamento de MT.' }] },
     { id: 'otorreia', label: 'Otorreia', options: [{ value: 'Nao', label: 'Não', template: 'Ausência de otorreia.' },{ value: 'Sim', label: 'Sim', template: 'Presença de otorreia.' }] },
-    // --- PESCOÇO ---
-    { id: 'linfonodos', label: 'Linfonodos', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Linfonodos não palpáveis.' },{ value: 'Presentes', label: 'Presentes', template: 'Linfonodos palpáveis em cadeias ___ (tamanho, consistência).' }] },
-    // --- RESPIRATÓRIO ---
+    { id: 'narinas', label: 'Narinas', options: [{ value: 'Permeaveis', label: 'Permeáveis', template: 'Narinas pérvias, sem secreção.'}, { value: 'Obstruidas', label: 'Obstruídas', template: 'Obstrução nasal / Coriza ___.'}]},
+    { id: 'oroscopia', label: 'Oroscopia', options: [{ value: 'Normal', label: 'Normal', template: 'Oroscopia sem alterações.'}, { value: 'Hiperemia', label: 'Hiperemia', template: 'Oroscopia: Hiperemia de orofaringe.'}, { value: 'Placas', label: 'Hiperemia c/ Placas', template: 'Oroscopia: Hiperemia com placas purulentas em amígdalas.'}]},
+
+    // --- RESPIRATÓRIO --- (Baseado no rascunho)
     { id: 'respiratorio_estado', label: 'Padrão Respiratório', options: [{ value: 'Eupneico', label: 'Eupneico', template: 'Eupneico, FR=___.' },{ value: 'Dispneico', label: 'Dispneico', template: 'Dispneico (FR=___), esforço respiratório.' },{ value: 'Taquipneico', label: 'Taquipneico/Tiragem', template: 'Taquipneico (FR=___), com tiragem ___.' }] },
-    // --- CARDIOVASCULAR ---
-    { id: 'cardio_sopros', label: 'Sopros Cardíacos', options: [{ value: 'Sem', label: 'Sem sopros', template: 'Sem sopros.' },{ value: 'Com', label: 'Com sopros', template: 'ACV: Sopro ___ /6+ em foco ___.' }] }
+    { id: 'mv_ausculta', label: 'Ausculta (MV)', options: [{ value: 'Presente', label: 'MV presente s/ RA', template: 'AR: MV presente universalmente, sem ruídos adventícios.'}, {value: 'Diminuido', label: 'MV diminuído', template: 'AR: MV diminuído em ___.'}]},
+    { id: 'ruidos_adventicios', label: 'Ausculta (RAs)', options: [{ value: 'Nenhum', label: 'Nenhum', template: ''}, { value: 'Roncos', label: 'Roncos', template: 'AR: Roncos difusos.'}, { value: 'Sibilos', label: 'Sibilos', template: 'AR: Sibilos difusos.'}, { value: 'Creptos', label: 'Estertores Creptantes', template: 'AR: Estertores creptantes em ___.'}, { value: 'EstertoresFinos', label: 'Estertores Finos', template: 'AR: Estertores finos em ___.'}]}, // Adicionado 'Nenhum'
+
+    // --- CARDIOVASCULAR --- (Baseado no rascunho)
+    { id: 'ritmo_cardiaco', label: 'Ritmo Cardíaco', options: [{ value: 'BRNF', label: 'BRNF 2T', template: 'ACV: BRNF em 2T.'}, { value: 'Arritmia', label: 'Arritmia', template: 'ACV: Ritmo irregular, arrítmico.'}]},
+    { id: 'cardio_sopros', label: 'Sopros Cardíacos', options: [{ value: 'Sem', label: 'Sem sopros', template: 'Sem sopros.' },{ value: 'Com', label: 'Com sopros', template: 'ACV: Sopro ___ /6+ em foco ___.' }] },
+    { id: 'pulsos', label: 'Pulsos', options: [{ value: 'Cheios', label: 'Cheios e Simétricos', template: 'Pulsos periféricos cheios e simétricos.'}, {value: 'Finos', label: 'Finos ou Assimétricos', template: 'Pulsos finos/assimétricos.'}]},
+
+    // --- ABDOME --- (Baseado no rascunho)
+    { id: 'forma_abdome', label: 'Abdome (Forma)', options: [{ value: 'Plano', label: 'Plano', template: 'Abdome plano.'}, { value: 'Globoso', label: 'Globoso', template: 'Abdome globoso, timpânico.'}, { value: 'Distendido', label: 'Distendido', template: 'Abdome distendido.'}]},
+    { id: 'rha_abdome', label: 'Abdome (RHA)', options: [{ value: 'Presente', label: 'RHA Presentes', template: 'RHA presentes.'}, { value: 'Aumentado', label: 'RHA Aumentados', template: 'RHA aumentados.'}, { value: 'Diminuido', label: 'RHA Diminuídos', template: 'RHA diminuídos.'}, { value: 'Ausente', label: 'RHA Ausentes', template: 'RHA ausentes.'}]},
+    { id: 'palpacao_abdome', label: 'Abdome (Palpação)', options: [{ value: 'Flacido', label: 'Flácido e Indolor', template: 'Abdome flácido, indolor à palpação.'}, { value: 'Doloroso', label: 'Doloroso', template: 'Abdome doloroso à palpação em ___.'}]},
+    { id: 'visceromegalias', label: 'Abdome (Viscerom.)', options: [{ value: 'Nao', label: 'Sem visceromegalias', template: 'Sem visceromegalias palpáveis.'}, { value: 'Sim', label: 'Com visceromegalias', template: 'Visceromegalias palpáveis (descrever).'}]},
+
+    // --- COTO UMBILICAL --- (Baseado no rascunho)
+    { id: 'coto_umbilical_sinais', label: 'Coto Umbilical (Sinais)', options: [{ value: 'SemSinais', label: 'Sem sinais flogísticos', template: 'Coto umbilical sem sinais flogísticos.'}, { value: 'ComHiperemia', label: 'Com hiperemia', template: 'Coto umbilical com hiperemia/secreção.'}]},
+    { id: 'coto_umbilical_aspecto', label: 'Coto Umbilical (Aspecto)', options: [{ value: 'Normal', label: 'Normal', template: 'Coto umbilical em bom aspecto.'}, { value: 'Geleia', label: 'Geleia', template: 'Coto umbilical de aspecto gelatinoso.'}, { value: 'Mumificado', label: 'Mumificado', template: 'Coto umbilical mumificado.'}]},
+    
+    // --- OUTROS (Convertidos de Checkboxes) ---
+    { id: 'genitalia', label: 'Genitália', options: [{ value: 'MascNormal', label: 'Masc Normal', template: 'Genitália masculina tópica, testículos em bolsa.'}, { value: 'FemNormal', label: 'Fem Normal', template: 'Genitália feminina tópica, sem alterações.'}, { value: 'Alterada', label: 'Alterada', template: 'Genitália: ___ (descrever).'}]},
+    { id: 'perineo', label: 'Períneo', options: [{ value: 'Integro', label: 'Íntegro', template: 'Região perineal íntegra, sem hiperemia ou lesões.'}, { value: 'Alterado', label: 'Alterado', template: 'Região perineal com ___.'}]},
+    { id: 'membros', label: 'Membros e Coluna', options: [{ value: 'Normais', label: 'Normais', template: 'Membros e coluna sem alterações. Ortolani negativo.'}, { value: 'Alterado', label: 'Alterado', template: 'Alteração em membros/coluna (descrever).'}]},
+    { id: 'neuro_tonus', label: 'Neurológico (Tônus)', options: [{ value: 'Normal', label: 'Tônus Normal', template: 'Tônus muscular normal.'}, { value: 'Hipotonia', label: 'Hipotonia', template: 'Hipotonia global.'}, { value: 'Hipertonia', label: 'Hipertonia', template: 'Hipertonia.'}]},
+    { id: 'neuro_reflexos', label: 'Neurológico (Reflexos)', options: [{ value: 'Presentes', label: 'Reflexos Primitivos +', template: 'Reflexos primitivos (Moro, sucção, preensão) presentes.'}, { value: 'Ausentes', label: 'Reflexos Ausentes', template: 'Reflexos primitivos ausentes.'}]},
 ];
 
-// GRUPOS DE SELEÇÃO MÚLTIPLA (Multi-Select ComboBox)
-const exameFisicoMultiSelectGroups = [
-    { 
-        id: 'olhos_achados', 
-        label: 'Olhos (Achados)', 
-        options: [
-            { id: 'reflexo_vermelho_presente', label: 'Reflexo Vermelho +' },
-            { id: 'reflexo_vermelho_ausente', label: 'Reflexo Vermelho -' }
-        ] 
-    },
-    { 
-        id: 'orl_achados', 
-        label: 'Nariz / Boca', 
-        options: [
-            { id: 'narinas_permeaveis', label: 'Narinas Permeáveis' },
-            { id: 'narinas_obstruidas', label: 'Narinas Obstruídas' },
-            { id: 'oroscopia_normal', label: 'Oroscopia Normal' },
-            { id: 'oroscopia_hiperemia', label: 'Oroscopia Hiperemia' },
-            { id: 'oroscopia_placas', label: 'Oroscopia Placas' }
-        ] 
-    },
-    { 
-        id: 'pescoco_achados', 
-        label: 'Pescoço (Achados)', 
-        options: [
-            { id: 'pescoco_livre', label: 'Livre/Indolor' }
-        ] 
-    },
-    { 
-        id: 'respiratorio_achados', 
-        label: 'Respiratório (Achados)', 
-        options: [
-            { id: 'ar_mv_presente', label: 'MV presente s/ RA' },
-            { id: 'ar_roncos', label: 'Roncos' },
-            { id: 'ar_sibilos', label: 'Sibilos' },
-            { id: 'ar_creptos', label: 'Estertores Creptantes' }
-        ] 
-    },
-    { 
-        id: 'cardiaco_achados', 
-        label: 'Cardiovascular (Achados)', 
-        options: [
-            { id: 'acv_brnf', label: 'BRNF 2T' },
-            { id: 'pulsos_cheios', label: 'Pulsos Cheios/Simétricos' }
-        ] 
-    },
-    { 
-        id: 'abdome_achados', 
-        label: 'Abdome', 
-        options: [
-            { id: 'abdome_flacido', label: 'Flácido/Indolor' },
-            { id: 'abdome_doloroso', label: 'Doloroso' },
-            { id: 'abdome_distendido', label: 'Distendido' },
-            { id: 'sem_visceromegalias', label: 'S/ Visceromegalias' }
-        ] 
-    },
-    { 
-        id: 'genitalia_achados', 
-        label: 'Genitália / Períneo', 
-        options: [
-            { id: 'genitalia_masc_normal', label: 'Gen Masc Normal' },
-            { id: 'genitalia_fem_normal', label: 'Gen Fem Normal' },
-            { id: 'genitalia_alterada', label: 'Gen Alterada' },
-            { id: 'perineo_integro', label: 'Períneo Íntegro' }
-        ] 
-    },
-    { 
-        id: 'membros_achados', 
-        label: 'Coluna / Membros', 
-        options: [
-            { id: 'coluna_sem_desvios', label: 'Coluna s/ Desvios' },
-            { id: 'membros_normais', label: 'MMSS/MMII Normais' },
-            { id: 'ortolani_negativo', label: 'Ortolani Negativo' }
-        ] 
-    },
-    { 
-        id: 'neuro_achados', 
-        label: 'Neurológico (Achados)', 
-        options: [
-            { id: 'neuro_normal_idade', label: 'Normal p/ Idade (Reflexos/Tônus)' },
-            { id: 'reflexos_primitivos_presentes', label: 'Reflexos Primitivos +' },
-            { id: 'tonus_normal', label: 'Tônus Normal' },
-            { id: 'hipotonia_hipertonia', label: 'Hipo/Hipertonia' }
-        ] 
-    }
-];
-
-// Dicionário de templates para os Multi-Selects (para gerar o texto)
-const multiSelectTemplates = {
-    'reflexo_vermelho_presente': "Reflexo vermelho presente bilateralmente.",
-    'reflexo_vermelho_ausente': "Reflexo vermelho ausente em ___.",
-    'narinas_permeaveis': "Narinas pérvias, sem secreção.",
-    'narinas_obstruidas': "Obstrução nasal / Coriza ___.",
-    'oroscopia_normal': "Oroscopia sem alterações.",
-    'oroscopia_hiperemia': "Oroscopia: Hiperemia de orofaringe.",
-    'oroscopia_placas': "Oroscopia: Hiperemia com placas purulentas em amígdalas.",
-    'pescoco_livre': "Pescoço livre, sem massas ou rigidez.",
-    'ar_mv_presente': "AR: MV presente universalmente, sem ruídos adventícios.",
-    'ar_roncos': "AR: Roncos difusos.",
-    'ar_sibilos': "AR: Sibilos difusos.",
-    'ar_creptos': "AR: Estertores creptantes em ___.",
-    'acv_brnf': "ACV: BRNF em 2T.",
-    'pulsos_cheios': "Pulsos periféricos cheios e simétricos.",
-    'abdome_flacido': "Abdome: Flácido, indolor à palpação, RHA+.",
-    'abdome_doloroso': "Abdome: Doloroso à palpação em ___.",
-    'abdome_distendido': "Abdome: Distendido, timpânico.",
-    'sem_visceromegalias': "Sem visceromegalias palpáveis.",
-    'genitalia_masc_normal': "Genitália masculina tópica, testículos em bolsa.",
-    'genitalia_fem_normal': "Genitália feminina tópica, sem alterações.",
-    'genitalia_alterada': "Genitália: ___ (descrever).",
-    'perineo_integro': "Região perineal íntegra, sem hiperemia ou lesões.",
-    'coluna_sem_desvios': "Coluna vertebral sem desvios aparentes.",
-    'membros_normais': "Membros superiores e inferiores sem deformidades ou edema. Mobilidade preservada.",
-    'ortolani_negativo': "Manobra de Ortolani negativa.",
-    'neuro_normal_idade': "Neurológico: Tônus e reflexos normais para a idade.",
-    'reflexos_primitivos_presentes': "Reflexos primitivos (Moro, sucção, preensão) presentes.",
-    'tonus_normal': "Tônus muscular normal.",
-    'hipotonia_hipertonia': "Hipotonia / Hipertonia."
-};
-
-// Dicionário para buscar o label de um multi-select (usado para renderizar os Chips)
-const allMultiSelectOptions = new Map(
-    exameFisicoMultiSelectGroups.flatMap(g => g.options.map(o => [o.id, o.label]))
-);
-// --- FIM EXAME FÍSICO ---
-
+// --- 3. LISTA DE CHECKBOXES FOI REMOVIDA ---
+// const exameFisicoQualitativoOptions = [...]; // REMOVIDO
 
 // --- TABPANEL (Sem alterações) ---
 function TabPanel(props) {
@@ -248,7 +150,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     }, [pacienteId]);
 
 
-    // --- 3. GERADORES DE TEXTO (ATUALIZADOS) ---
+    // --- 4. GERADORES DE TEXTO (ATUALIZADOS) ---
     const generateHda = useCallback(() => {
         return sintomasOptions
             .filter(opt => sintomasConsulta[opt.id]) 
@@ -256,30 +158,22 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             .join('\n');
     }, [sintomasConsulta]);
 
-    // ATUALIZADO para ler Selects e Multi-Selects
+    // ATUALIZADO para ler APENAS 'exameFisicoSelectGroups'
     const generateExameFisico = useCallback(() => {
         let texto = `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\n`;
 
-        // 1. Gera texto dos Selects (Single-Select)
+        // 1. Gera texto dos Selects
         const selectAchados = exameFisicoSelectGroups.map(group => {
             const selectedValue = exameFisicoData[group.id]; // Ex: 'BEG'
-            if (!selectedValue) return null;
+            if (!selectedValue || selectedValue === 'Nenhum') return null; // Ignora 'Nenhum'
             
             const selectedOption = group.options.find(opt => opt.value === selectedValue);
             return selectedOption ? selectedOption.template : ''; // Ex: 'BEG (Bom Estado Geral).'
         }).filter(Boolean).join(" ");
+        
+        // 2. O bloco de Checkboxes foi removido
 
-        // 2. Gera texto dos Multi-Selects
-        const multiSelectAchados = exameFisicoMultiSelectGroups.flatMap(group => {
-            const selectedValues = exameFisicoData[group.id]; // Ex: ['narinas_permeaveis', 'oroscopia_normal']
-            if (!selectedValues || selectedValues.length === 0) return [];
-            
-            // Mapeia cada valor (id) para seu template
-            return selectedValues.map(valueId => multiSelectTemplates[valueId]);
-        }).filter(Boolean).join(" ");
-
-
-        return texto + [selectAchados, multiSelectAchados].filter(Boolean).join(" ") || "Nenhuma observação selecionada.";
+        return texto + (selectAchados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
     // --- useEffects de atualização (Sem alterações) ---
@@ -297,7 +191,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     }, [exameFisicoData, generateExameFisico]);
 
 
-    // --- 4. HANDLERS (ATUALIZADOS) ---
+    // --- 5. HANDLERS (ATUALIZADOS) ---
     const handleTabChange = (event, newIndex) => {
         setTabIndex(newIndex);
     };
@@ -309,68 +203,72 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         setSintomasConsulta(prev => ({ ...prev, [name]: checked }));
     };
 
-    // ATUALIZADO: Este handler agora suporta <Select multiple>
+    // ATUALIZADO: Este handler agora só precisa se preocupar com Select (value) e TextField (value)
     const handleExameChange = (event) => {
-        const { name, value, type, checked } = event.target;
-
-        if (type === 'checkbox') {
-            // Lógica antiga para Checkboxes (se ainda houver algum)
-             setExameFisicoData(prev => ({
-                ...prev,
-                [name]: checked
-            }));
-        } else {
-            // Lógica para <Select> (single) e <Select multiple>
-            // O 'value' do <Select multiple> já é um array!
-             setExameFisicoData(prev => ({
-                ...prev,
-                [name]: value
-            }));
-        }
+        const { name, value } = event.target;
+        setExameFisicoData(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
     
-    // --- 5. preencherNormalidade (ATUALIZADO) ---
-    // Atualizado para setar os novos estados (arrays) dos Multi-Selects
+    // --- 6. preencherNormalidade (ATUALIZADO) ---
+    // Totalmente reescrito para os novos Selects
     const preencherNormalidade = () => {
         setSintomasConsulta({});
         setExameFisicoData(prev => ({
-            ...prev,
-            // --- Campos de Select (Single) ---
+            ...prev, // Mantém vitais
+            // --- Geral ---
             estado_geral: 'BEG',
+            atividade: 'Ativo',
+            reatividade: 'Reativo',
             cor_pele: 'Corado',
             hidratacao: 'Hidratado',
             estado_febril: 'Afebril',
             cianose: 'Acianotico',
             ictericia: 'Anicterico',
-            atividade: 'Ativo',
-            reatividade: 'Reativo',
+            // --- Cabeça e Pescoço ---
             fontanelas: 'Normo',
             suturas: 'Normais',
+            pescoco_estado: 'Livre',
+            linfonodos: 'Ausentes',
+            // --- Olhos ---
             olhos_estado: 'Normal',
             olhos_secrecao: 'Sem',
+            reflexo_vermelho: 'Presente',
+            // --- ORL ---
             otoscopia: 'Normal',
             otorreia: 'Nao',
-            linfonodos: 'Ausentes',
+            narinas: 'Permeaveis',
+            oroscopia: 'Normal',
+            // --- Respiratório ---
             respiratorio_estado: 'Eupneico',
+            mv_ausculta: 'Presente',
+            ruidos_adventicios: 'Nenhum',
+            // --- Cardiovascular ---
+            ritmo_cardiaco: 'BRNF',
             cardio_sopros: 'Sem',
-
-            // --- Campos de Select (Multi) ---
-            olhos_achados: ['reflexo_vermelho_presente'],
-            orl_achados: ['narinas_permeaveis', 'oroscopia_normal'],
-            pescoco_achados: ['pescoco_livre'],
-            respiratorio_achados: ['ar_mv_presente'],
-            cardiaco_achados: ['acv_brnf', 'pulsos_cheios'],
-            abdome_achados: ['abdome_flacido', 'sem_visceromegalias'],
-            genitalia_achados: ['genitalia_masc_normal', 'perineo_integro'], // Exemplo, pode ser os 2
-            membros_achados: ['coluna_sem_desvios', 'membros_normais', 'ortolani_negativo'],
-            neuro_achados: ['neuro_normal_idade', 'reflexos_primitivos_presentes', 'tonus_normal'],
+            pulsos: 'Cheios',
+            // --- Abdome ---
+            forma_abdome: 'Plano',
+            rha_abdome: 'Presente',
+            palpacao_abdome: 'Flacido',
+            visceromegalias: 'Nao',
+            // --- Coto/Outros ---
+            coto_umbilical_sinais: 'SemSinais',
+            coto_umbilical_aspecto: 'Normal',
+            genitalia: 'MascNormal', // Você pode querer 2 botões (Masc/Fem) ou deixar o médico ajustar
+            perineo: 'Integro',
+            membros: 'Normais',
+            neuro_tonus: 'Normal',
+            neuro_reflexos: 'Presentes',
         }));
         
-        // Texto gerado (sem alterações, a lógica de geração já foi atualizada)
+        // Texto gerado (ATUALIZADO)
         setSoapData(prev => ({
             ...prev,
             notas_subjetivas: 'Mãe nega queixas. Criança ativa, reativa, alimentando-se bem (SME), diurese e evacuações presentes.',
-            notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Corado. Hidratado. Afebril ao toque. Acianótico. Anictérico. Ativo. Reativo. Fontanela anterior normotensa. Suturas cranianas normais. Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente bilateralmente. Otoscopia: Membranas timpânicas íntegras, translúcidas. Ausência de otorreia. Narinas pérvias, sem secreção. Oroscopia sem alterações. Pescoço livre, sem massas ou rigidez. Linfonodos não palpáveis. Eupneico, FR=___. AR: MV presente universalmente, sem ruídos adventícios. ACV: BRNF em 2T. Sem sopros. Pulsos periféricos cheios e simétricos. Abdome: Flácido, indolor à palpação, RHA+. Sem visceromegalias palpáveis. Genitália masculina tópica, testículos em bolsa. Região perineal íntegra, sem hiperemia ou lesões. Coluna vertebral sem desvios aparentes. Membros superiores e inferiores sem deformidades ou edema. Mobilidade preservada. Manobra de Ortolani negativa. Neurológico: Tônus e reflexos normais para a idade. Reflexos primitivos (Moro, sucção, preensão) presentes. Tônus muscular normal.`,
+            notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Acianótico. Anictérico. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, indolor, sem massas. Linfonodos não palpáveis. Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente bilateralmente. Otoscopia: Membranas timpânicas íntegras, translúcidas. Ausência de otorreia. Narinas pérvias, sem secreção. Oroscopia sem alterações. Eupneico, FR=___. AR: MV presente universalmente, sem ruídos adventícios. ACV: BRNF em 2T. Sem sopros. Pulsos periféricos cheios e simétricos. Abdome plano. RHA presentes. Abdome flácido, indolor à palpação. Sem visceromegalias palpáveis. Coto umbilical sem sinais flogísticos. Genitália masculina tópica, testículos em bolsa. Região perineal íntegra, sem hiperemia ou lesões. Membros e coluna sem alterações. Ortolani negativo. Tônus muscular normal. Reflexos primitivos (Moro, sucção, preensão) presentes.`,
             avaliacao: 'Criança hígida, sem sinais de alarme. Desenvolvimento adequado para a idade.',
             plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
         }));
@@ -379,7 +277,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
      // --- handleLimparConsultaAtual (ATUALIZADO) ---
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
-        // Limpa exame físico, mas mantém vitais pré-carregados
+        // Mantém apenas os vitais
         setExameFisicoData(prev => ({ 
             peso: prev.peso, 
             altura: prev.altura, 
@@ -395,7 +293,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
-    // --- SUBMIT (Sem alterações) ---
+    // --- SUBMIT (ATUALIZADO) ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
@@ -403,8 +301,11 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             peso: exameFisicoData.peso || null, 
             altura: exameFisicoData.altura || null,
             // Adicione PC e Temp se precisar salvar no paciente
+            // pc: exameFisicoData.pc || null,
+            // temperatura: exameFisicoData.temperatura || null, 
         };
         try {
+            // soapData é atualizado automaticamente pelo useEffect
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
             showSnackbar('Evolução salva com sucesso!', 'success');
             if(onEvolucoesSalva) onEvolucoesSalva();
@@ -416,10 +317,10 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         }
         try {
             await apiClient.patch(`/pacientes/${pacienteId}/`, vitaisData);
-            showSnackbar('Peso e Altura do paciente atualizados.', 'info');
+            showSnackbar('Dados vitais do paciente atualizados.', 'info');
         } catch (error) {
              console.error("Erro ao atualizar vitais:", error.response?.data || error);
-             showSnackbar('Erro ao atualizar peso/altura do paciente.', 'error');
+             showSnackbar('Erro ao atualizar dados vitais do paciente.', 'error');
         } finally {
             setIsSubmitting(false);
             handleLimparConsultaAtual();
@@ -427,7 +328,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     };
 
 
-    // --- 6. JSX ATUALIZADO (Totalmente baseado em ComboBoxes) ---
+    // --- 7. JSX (ATUALIZADO - 100% ComboBox) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             
@@ -477,33 +378,35 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                             <TextField label="T (°C)" name="temperatura" value={exameFisicoData.temperatura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                          </Box>
 
-                        {/* 7. RENDERIZAÇÃO FINAL (Tudo ComboBox) */}
+                        {/* RENDERIZAÇÃO 100% ComboBox */}
                         <FormGroup sx={{ p: 1.5, border: '1px solid #ddd', borderRadius: 1 }}>
                             
+                            {/* Usamos Box com flexWrap para os ComboBoxes se alinharem
+                                  Exatamente como os campos de vitais acima */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                                
-                                {/* --- GRUPOS DE SINGLE-SELECT (ComboBox) --- */}
                                 {exameFisicoSelectGroups.map(group => (
                                     <FormControl 
                                         key={group.id} 
                                         size="small" 
                                         sx={{ 
-                                            minWidth: 160, // Largura mínima para legibilidade
-                                            flex: '1 1 160px' // Flex grow/shrink
+                                            minWidth: 170, // Largura mínima para legibilidade
+                                            flex: '1 1 170px' // Flex grow/shrink
                                         }}
                                     >
                                         <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
                                         <Select
                                             labelId={`${group.id}-select-label`}
                                             id={`${group.id}-select`}
-                                            name={group.id} // Chave do estado
+                                            name={group.id} // Isso é vital para o handleExameChange
                                             value={exameFisicoData[group.id] || ''}
                                             label={group.label}
                                             onChange={handleExameChange}
                                         >
+                                            {/* Opção para limpar a seleção */}
                                             <MenuItem value="">
                                                 <em>Nenhum</em>
                                             </MenuItem>
+                                            {/* Mapeia as opções */}
                                             {group.options.map(opt => (
                                                 <MenuItem key={opt.value} value={opt.value}>
                                                     {opt.label}
@@ -512,51 +415,9 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                                         </Select>
                                     </FormControl>
                                 ))}
-
-                                {/* --- GRUPOS DE MULTI-SELECT (ComboBox) --- */}
-                                {exameFisicoMultiSelectGroups.map(group => (
-                                    <FormControl 
-                                        key={group.id} 
-                                        size="small" 
-                                        sx={{ 
-                                            minWidth: 200, // Largura mínima maior
-                                            flex: '1 1 200px' // Flex grow/shrink
-                                        }}
-                                    >
-                                        <InputLabel id={`${group.id}-multi-select-label`}>{group.label}</InputLabel>
-                                        <Select
-                                            labelId={`${group.id}-multi-select-label`}
-                                            id={`${group.id}-multi-select`}
-                                            multiple
-                                            name={group.id} // Chave do estado
-                                            value={exameFisicoData[group.id] || []} // Estado deve ser um array
-                                            onChange={handleExameChange}
-                                            label={group.label}
-                                            input={<OutlinedInput label={group.label} />}
-                                            renderValue={(selected) => (
-                                                // Renderiza os "chips"
-                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                    {selected.map((valueId) => (
-                                                        <Chip 
-                                                            key={valueId} 
-                                                            label={allMultiSelectOptions.get(valueId) || valueId} 
-                                                            size="small" 
-                                                        />
-                                                    ))}
-                                                </Box>
-                                            )}
-                                        >
-                                            {group.options.map(opt => (
-                                                <MenuItem key={opt.id} value={opt.id}>
-                                                    {opt.label}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                ))}
                             </Box>
                             
-                            {/* O Divider e os Checkboxes antigos foram removidos */}
+                            {/* Bloco de Checkboxes foi removido */}
 
                         </FormGroup>
 
