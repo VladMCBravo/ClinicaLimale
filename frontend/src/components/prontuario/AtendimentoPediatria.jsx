@@ -1,11 +1,11 @@
-// src/components/prontuario/AtendimentoPediatria.jsx - VERSÃO FINAL HÍBRIDA (Rádios + Checkboxes)
+// src/components/prontuario/AtendimentoPediatria.jsx - VERSÃO HÍBRIDA (Select/ComboBox + Checkboxes)
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
     Box, Button, CircularProgress, Tabs, Tab,
-    // 1. IMPORTAÇÕES ADICIONADAS PARA RADIO GROUPS
-    Radio, RadioGroup, FormControl, FormLabel 
+    // 1. NOVAS IMPORTAÇÕES (Select, MenuItem) E REMOÇÃO (Radio, RadioGroup, FormLabel)
+    FormControl, InputLabel, Select, MenuItem 
 } from '@mui/material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
@@ -15,12 +15,11 @@ const HistoricoPediatrico = lazy(() => import('./pediatria/HistoricoPediatrico')
 const DnpmDetalhado = lazy(() => import('./pediatria/DnpmDetalhado'));
 const VacinacaoTab = lazy(() => import('./pediatria/VacinacaoTab'));
 
-// --- 2. OPÇÕES E TEMPLATES DE SINTOMAS (ATUALIZADO) ---
+// --- OPÇÕES E TEMPLATES DE SINTOMAS (Sem alterações) ---
 const sintomasOptions = [
     { id: 'febre', label: 'Febre' }, { id: 'tosse', label: 'Tosse' }, { id: 'coriza', label: 'Coriza' },
     { id: 'vomitos', label: 'Vômitos' }, { id: 'diarreia', label: 'Diarreia' }, { id: 'irritabilidade', label: 'Irritabilidade / Choro' },
     { id: 'prostracao', label: 'Prostração / Sonolência' }, { id: 'exantema', label: 'Exantema (Manchas)' },
-    // NOVOS
     { id: 'dor_abdominal', label: 'Dor abdominal' },
     { id: 'perda_apetite', label: 'Perda de apetite' },
     { id: 'cansaco_dispneia', label: 'Cansaço (Dispneia)' },
@@ -34,17 +33,17 @@ const sintomaTemplates = {
     irritabilidade: "Irritabilidade / Choro intenso. Não cede ao colo.",
     prostracao: "Prostração / Sonolência. Hipoativo, pouca aceitação de líquidos.",
     exantema: "Exantema: Início há X dias. (macular/papular). Local: ",
-    // NOVOS
     dor_abdominal: "Dor abdominal: Início há X dias, (cólica/pontada), (localização).",
     perda_apetite: "Redução da ingesta alimentar (hiporexia/anorexia) há X dias.",
     cansaco_dispneia: "Relato de cansaço / dispneia aos esforços.",
 };
 // --- FIM OPÇÕES E TEMPLATES ---
 
-// --- 3. EXAME FÍSICO HÍBRIDO ---
+// --- EXAME FÍSICO HÍBRIDO ---
 
-// LISTA DE RADIO GROUPS (Baseado nas "caixas" pedidas)
-const exameFisicoRadioGroups = [
+// 2. A ESTRUTURA DE DADOS DOS GRUPOS PERMANECE A MESMA.
+// (O nome 'exameFisicoRadioGroups' agora é 'exameFisicoSelectGroups' para clareza)
+const exameFisicoSelectGroups = [
     // --- GERAL / PELE ---
     { 
         id: 'estado_geral', 
@@ -203,51 +202,33 @@ const exameFisicoRadioGroups = [
 ];
 
 // LISTA DE CHECKBOXES (Apenas achados cumulativos)
+// 3. ESSA LISTA PERMANECE EXATAMENTE IGUAL
 const exameFisicoQualitativoOptions = [
-    // --- GERAL/PELE/CABEÇA/OLHOS: Removidos (estão nos Rádios) ---
-    
-    // --- OLHOS (Achados cumulativos) ---
     { id: 'reflexo_vermelho_presente', label: 'Reflexo Vermelho +', group: 'olhos', template: "Reflexo vermelho presente bilateralmente." },
     { id: 'reflexo_vermelho_ausente', label: 'Reflexo Vermelho -', group: 'olhos', template: "Reflexo vermelho ausente em ___." },
-
-    // --- ORL (Achados cumulativos) ---
     { id: 'narinas_permeaveis', label: 'Narinas Permeáveis', group: 'orl', template: "Narinas pérvias, sem secreção." },
     { id: 'narinas_obstruidas', label: 'Narinas Obstruídas', group: 'orl', template: "Obstrução nasal / Coriza ___." },
     { id: 'oroscopia_normal', label: 'Oroscopia Normal', group: 'orl', template: "Oroscopia sem alterações." },
     { id: 'oroscopia_hiperemia', label: 'Oroscopia Hiperemia', group: 'orl', template: "Oroscopia: Hiperemia de orofaringe." },
     { id: 'oroscopia_placas', label: 'Oroscopia Placas', group: 'orl', template: "Oroscopia: Hiperemia com placas purulentas em amígdalas." },
-
-    // --- PESCOÇO (Achados cumulativos) ---
     { id: 'pescoco_livre', label: 'Livre/Indolor', group: 'pescoco', template: "Pescoço livre, sem massas ou rigidez." },
-
-    // --- RESPIRATÓRIO (Achados cumulativos) ---
     { id: 'ar_mv_presente', label: 'MV presente s/ RA', group: 'respiratorio', template: "AR: MV presente universalmente, sem ruídos adventícios." },
     { id: 'ar_roncos', label: 'Roncos', group: 'respiratorio', template: "AR: Roncos difusos." },
     { id: 'ar_sibilos', label: 'Sibilos', group: 'respiratorio', template: "AR: Sibilos difusos." },
     { id: 'ar_creptos', label: 'Estertores Creptantes', group: 'respiratorio', template: "AR: Estertores creptantes em ___." },
-
-    // --- CARDIOVASCULAR (Achados cumulativos) ---
     { id: 'acv_brnf', label: 'BRNF 2T', group: 'cardiaco', template: "ACV: BRNF em 2T." },
     { id: 'pulsos_cheios', label: 'Pulsos Cheios/Simétricos', group: 'cardiaco', template: "Pulsos periféricos cheios e simétricos." },
-
-    // --- ABDOME (Permanecem Checkboxes) ---
     { id: 'abdome_flacido', label: 'Flácido/Indolor', group: 'abdome', template: "Abdome: Flácido, indolor à palpação, RHA+." },
     { id: 'abdome_doloroso', label: 'Doloroso', group: 'abdome', template: "Abdome: Doloroso à palpação em ___." },
     { id: 'abdome_distendido', label: 'Distendido', group: 'abdome', template: "Abdome: Distendido, timpânico." },
     { id: 'sem_visceromegalias', label: 'S/ Visceromegalias', group: 'abdome', template: "Sem visceromegalias palpáveis." },
-
-    // --- GENITÁLIA (Permanecem Checkboxes) ---
     { id: 'genitalia_masc_normal', label: 'Gen Masc Normal', group: 'genitalia', template: "Genitália masculina tópica, testículos em bolsa." },
     { id: 'genitalia_fem_normal', label: 'Gen Fem Normal', group: 'genitalia', template: "Genitália feminina tópica, sem alterações." },
     { id: 'genitalia_alterada', label: 'Gen Alterada', group: 'genitalia', template: "Genitália: ___ (descrever)." },
     { id: 'perineo_integro', label: 'Períneo Íntegro', group: 'genitalia', template: "Região perineal íntegra, sem hiperemia ou lesões." },
-
-    // --- MEMBROS (Permanecem Checkboxes) ---
     { id: 'coluna_sem_desvios', label: 'Coluna s/ Desvios', group: 'membros', template: "Coluna vertebral sem desvios aparentes." },
     { id: 'membros_normais', label: 'MMSS/MMII Normais', group: 'membros', template: "Membros superiores e inferiores sem deformidades ou edema. Mobilidade preservada." },
     { id: 'ortolani_negativo', label: 'Ortolani Negativo', group: 'membros', template: "Manobra de Ortolani negativa." },
-
-    // --- NEUROLÓGICO (Achados cumulativos) ---
     { id: 'neuro_normal_idade', label: 'Normal p/ Idade (Reflexos/Tônus)', group: 'neuro', template: "Neurológico: Tônus e reflexos normais para a idade." },
     { id: 'reflexos_primitivos_presentes', label: 'Reflexos Primitivos +', group: 'neuro', template: "Reflexos primitivos (Moro, sucção, preensão) presentes." },
     { id: 'tonus_normal', label: 'Tônus Normal', group: 'neuro', template: "Tônus muscular normal." },
@@ -255,28 +236,24 @@ const exameFisicoQualitativoOptions = [
 ];
 // --- FIM EXAME FÍSICO ---
 
-// --- 1. A CORREÇÃO DO TABPANEL ---
-// Esta função agora mantém os filhos "vivos" (montados) e apenas os esconde com CSS.
+// --- TABPANEL (Corrigido na última etapa - Sem alterações) ---
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
     return (
         <div
             role="tabpanel"
-            // Esconde usando CSS 'display' em vez de condicionalmente renderizar
             style={{ display: value !== index ? 'none' : 'block' }} 
-            hidden={value !== index} // Mantém para acessibilidade
+            hidden={value !== index}
             id={`pediatria-tabpanel-${index}`}
             aria-labelledby={`pediatria-tab-${index}`}
             {...other}
         >
-            {/* Removemos o '{value === index && ...}' daqui */}
             <Box sx={{ p: { xs: 1, sm: 2 } }}>
                 {children}
             </Box>
         </div>
     );
 }
-// --- FIM DA CORREÇÃO DO TABPANEL ---
 
 export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     const { showSnackbar } = useSnackbar();
@@ -287,7 +264,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // CARREGA DADOS VITAIS DO PACIENTE (COM CORREÇÃO NO ARRAY DE DEPENDÊNCIA)
+    // --- useEffect de carregamento (Corrigido na última etapa - Sem alterações) ---
     useEffect(() => {
         if (pacienteId) {
             apiClient.get(`/pacientes/${pacienteId}/`)
@@ -300,34 +277,30 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                 })
                 .catch(err => {
                     console.error("Erro ao carregar dados do paciente:", err);
-                    // O showSnackbar aqui é seguro, pois é só em caso de ERRO.
                     showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
                 });
         }
-        // Reseta tudo ao trocar de paciente
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
         setExameFisicoData(prev => ({ peso: prev.peso, altura: prev.altura })); 
-        setTabIndex(0); // Volta para a primeira aba
-
-    // *** ESTA É A CORREÇÃO 1: Removido o 'showSnackbar' do array de dependências ***
+        setTabIndex(0); 
     }, [pacienteId]);
 
 
-    // --- 4. GERADORES DE TEXTO (ATUALIZADOS) ---
+    // --- GERADORES DE TEXTO (Sem alterações) ---
+    // A lógica não muda, pois o ESTADO (exameFisicoData) e os TEMPLATES (exameFisicoSelectGroups) são os mesmos.
     const generateHda = useCallback(() => {
         return sintomasOptions
             .filter(opt => sintomasConsulta[opt.id]) 
             .map(opt => sintomaTemplates[opt.id])
             .join('\n');
-    }, [sintomasConsulta]); // Depende apenas dos sintomas da consulta
+    }, [sintomasConsulta]);
 
-    // REESCRITO PARA SISTEMA HÍBRIDO (Rádios + Checkboxes)
     const generateExameFisico = useCallback(() => {
         let texto = `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\n`;
 
-        // 1. Gera texto dos RadioGroups
-        const radioAchados = exameFisicoRadioGroups.map(group => {
+        // 1. Gera texto dos Selects (antigos RadioGroups)
+        const selectAchados = exameFisicoSelectGroups.map(group => {
             const selectedValue = exameFisicoData[group.id]; // Ex: 'BEG'
             if (!selectedValue) return null;
             
@@ -341,10 +314,10 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             .map(opt => opt.template)
             .join(" ");
 
-        return texto + [radioAchados, checkboxAchados].filter(Boolean).join(" ") || "Nenhuma observação selecionada.";
-    }, [exameFisicoData]); // Depende apenas do exameFisicoData
+        return texto + [selectAchados, checkboxAchados].filter(Boolean).join(" ") || "Nenhuma observação selecionada.";
+    }, [exameFisicoData]);
 
-    // Efeitos que ATUALIZAM o SOAP (Sem alteração)
+    // --- useEffects de atualização (Sem alterações) ---
     useEffect(() => {
         const hdaText = generateHda();
         setSoapData(prev => ({
@@ -359,21 +332,19 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     }, [exameFisicoData, generateExameFisico]);
 
 
-    // --- 5. HANDLERS (Sem alteração, já são compatíveis) ---
+    // --- HANDLERS (Sem alterações) ---
     const handleTabChange = (event, newIndex) => {
         setTabIndex(newIndex);
     };
-
     const handleSoapChange = (e) => {
         setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
-
     const handleSintomasChange = (event) => {
         const { name, checked } = event.target;
         setSintomasConsulta(prev => ({ ...prev, [name]: checked }));
     };
 
-    // Esta função JÁ SUPORTA Rádios (value) e Checkboxes (checked)
+    // 4. ESTE HANDLER JÁ FUNCIONA PARA <Select> e <Checkbox>
     const handleExameChange = (event) => {
         const { name, value, type, checked } = event.target;
         setExameFisicoData(prev => ({
@@ -382,13 +353,12 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         }));
     };
     
-    // 6. preencherNormalidade REESCRITO PARA SISTEMA HÍBRIDO FINAL
+    // --- preencherNormalidade (Sem alterações) ---
+    // A lógica não muda, pois ele apenas seta o ESTADO, não o componente de UI.
     const preencherNormalidade = () => {
         setSintomasConsulta({});
         setExameFisicoData(prev => ({
-            ...prev, // Mantém peso/altura/pc/temp digitados
-            
-            // --- CAMPOS DE RÁDIO (Normalidade) ---
+            ...prev,
             estado_geral: 'BEG',
             cor_pele: 'Corado',
             hidratacao: 'Hidratado',
@@ -406,8 +376,6 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             linfonodos: 'Ausentes',
             respiratorio_estado: 'Eupneico',
             cardio_sopros: 'Sem',
-
-            // --- CAMPOS DE CHECKBOX (Normalidade) ---
             reflexo_vermelho_presente: true,
             narinas_permeaveis: true,
             oroscopia_normal: true,
@@ -426,8 +394,6 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             neuro_normal_idade: true, 
             reflexos_primitivos_presentes: true, 
             tonus_normal: true,
-
-            // --- LIMPAR CHECKBOXES DE ALTERAÇÃO ---
             reflexo_vermelho_ausente: false,
             narinas_obstruidas: false, oroscopia_hiperemia: false, oroscopia_placas: false,
             ar_roncos: false, ar_sibilos: false, ar_creptos: false,
@@ -435,26 +401,21 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             genitalia_alterada: false,
             hipotonia_hipertonia: false,
         }));
-        
-        // ATUALIZAR O TEXTO GERADO
         setSoapData(prev => ({
             ...prev,
             notas_subjetivas: 'Mãe nega queixas. Criança ativa, reativa, alimentando-se bem (SME), diurese e evacuações presentes.',
-            // Template de normalidade completo e atualizado
             notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Corado. Hidratado. Afebril ao toque. Acianótico. Anictérico. Ativo. Reativo. Fontanela anterior normotensa. Suturas cranianas normais. Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente bilateralmente. Otoscopia: Membranas timpânicas íntegras, translúcidas. Ausência de otorreia. Narinas pérvias, sem secreção. Oroscopia sem alterações. Pescoço livre, sem massas ou rigidez. Linfonodos não palpáveis. Eupneico, FR=___. AR: MV presente universalmente, sem ruídos adventícios. ACV: BRNF em 2T. Sem sopros. Pulsos periféricos cheios e simétricos. Abdome: Flácido, indolor à palpação, RHA+. Sem visceromegalias palpáveis. Genitália masculina tópica, testículos em bolsa. Genitália feminina tópica, sem alterações. Região perineal íntegra, sem hiperemia ou lesões. Coluna vertebral sem desvios aparentes. Membros superiores e inferiores sem deformidades ou edema. Mobilidade preservada. Manobra de Ortolani negativa. Neurológico: Tônus e reflexos normais para a idade. Reflexos primitivos (Moro, sucção, preensão) presentes. Tônus muscular normal.`,
             avaliacao: 'Criança hígida, sem sinais de alarme. Desenvolvimento adequado para a idade.',
             plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
         }));
     };
 
-     // handleLimparConsultaAtual (Limpa Rádios e Checkboxes)
+     // --- handleLimparConsultaAtual (Sem alterações) ---
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
-        // Limpa exame físico, mas mantém vitais pré-carregados
         setExameFisicoData(prev => ({ peso: prev.peso, altura: prev.altura }));
         setSoapData({
             notas_subjetivas: '',
-            // Template inicial só com vitais
             notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\n`,
             avaliacao: '',
             plano: ''
@@ -462,30 +423,21 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
-    // 7. SUBMIT (Sem alteração, já é compatível)
+    // --- SUBMIT (Sem alterações) ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
-        
-        const vitaisData = {
-            peso: exameFisicoData.peso || null,
-            altura: exameFisicoData.altura || null,
-        };
-
-        // Salva Evolução (SOAP)
+        const vitaisData = { peso: exameFisicoData.peso || null, altura: exameFisicoData.altura || null };
         try {
-            // soapData já é atualizado pelo useEffect/generateExameFisico
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
             showSnackbar('Evolução salva com sucesso!', 'success');
-            if(onEvolucoesSalva) onEvolucoesSalva(); // Atualiza a lista de evoluções
+            if(onEvolucoesSalva) onEvolucoesSalva();
         } catch (error) {
             console.error("Erro ao salvar evolução:", error.response?.data || error);
             showSnackbar('Erro ao salvar evolução.', 'error');
             setIsSubmitting(false);
             return;
         }
-        
-        // Atualiza Vitais do Paciente
         try {
             await apiClient.patch(`/pacientes/${pacienteId}/`, vitaisData);
             showSnackbar('Peso e Altura do paciente atualizados.', 'info');
@@ -494,17 +446,16 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
              showSnackbar('Erro ao atualizar peso/altura do paciente.', 'error');
         } finally {
             setIsSubmitting(false);
-            // Limpa os campos da consulta atual para o próximo atendimento
             handleLimparConsultaAtual();
         }
     };
 
 
-    // --- 8. JSX ATUALIZADO COM RENDERIZAÇÃO HÍBRIDA ---
+    // --- 5. JSX ATUALIZADO (A única grande mudança é aqui) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             
-            {/* --- CABEÇALHO --- */}
+            {/* --- CABEÇALHO (Sem alterações) --- */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
                 <Typography variant="h6" gutterBottom> Atendimento Pediátrico </Typography>
                 {tabIndex === 0 && (
@@ -512,7 +463,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                 )}
             </Box>
 
-            {/* --- NAVEGAÇÃO DAS ABAS --- */}
+            {/* --- NAVEGAÇÃO DAS ABAS (Sem alterações) --- */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas do prontuário pediátrico" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="pediatria-tab-0" />
@@ -522,7 +473,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                 </Tabs>
             </Box>
 
-            {/* --- CONTEÚDO DAS ABAS --- */}
+            {/* --- CONTEÚDO DAS ABAS (Sem alterações) --- */}
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
                 
                 {/* ABA 1: CONSULTA ATUAL (SOAP) */}
@@ -530,10 +481,9 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                     <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
                         
-                        {/* Queixa Atual (S) */}
+                        {/* Queixa Atual (S) (Sem alterações) */}
                         <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Queixa Atual (S)</Typography>
                         <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
-                            {/* Renderiza os sintomas atualizados */}
                             {sintomasOptions.map(opt => ( 
                                 <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={sintomasConsulta[opt.id] || false} onChange={handleSintomasChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                             ))}
@@ -542,41 +492,43 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                         
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Exame Físico (O) */}
+                        {/* Exame Físico (O) (Sem alterações nos vitais) */}
                         <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
-                            {/* Inputs Vitais (Peso, Altura, PC, Temp - igual) */}
                             <TextField label="Peso (kg)" name="peso" value={exameFisicoData.peso || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                             <TextField label="Altura (cm)" name="altura" value={exameFisicoData.altura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                             <TextField label="PC (cm)" name="pc" value={exameFisicoData.pc || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                             <TextField label="T (°C)" name="temperatura" value={exameFisicoData.temperatura || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                          </Box>
 
-                        {/* RENDERIZAÇÃO HÍBRIDA DO EXAME FÍSICO */}
+                        {/* 6. RENDERIZAÇÃO HÍBRIDA (COM SELECT/COMBOBOX) */}
                         <FormGroup sx={{ p: 1.5, border: '1px solid #ddd', borderRadius: 1 }}>
                             
-                            {/* --- NOVOS GRUPOS DE RÁDIO (Layout em 2 colunas) --- */}
-                            <Grid container spacing={1.5}>
-                                {exameFisicoRadioGroups.map(group => (
+                            {/* --- GRUPOS DE SELECT (COMBOBOX) --- */}
+                            <Grid container spacing={2}>
+                                {exameFisicoSelectGroups.map(group => (
                                     <Grid item xs={12} sm={6} md={4} key={group.id}>
-                                        <FormControl component="fieldset" size="small" fullWidth>
-                                            <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>{group.label}</FormLabel>
-                                            <RadioGroup
-                                                row
-                                                name={group.id}
+                                        <FormControl size="small" fullWidth>
+                                            <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
+                                            <Select
+                                                labelId={`${group.id}-select-label`}
+                                                id={`${group.id}-select`}
+                                                name={group.id} // Isso é vital para o handleExameChange
                                                 value={exameFisicoData[group.id] || ''}
-                                                onChange={handleExameChange}
+                                                label={group.label}
+                                                onChange={handleExameChange} // Nosso handler universal
                                             >
+                                                {/* Opção para limpar a seleção */}
+                                                <MenuItem value="">
+                                                    <em>Nenhum</em>
+                                                </MenuItem>
+                                                {/* Mapeia as opções */}
                                                 {group.options.map(opt => (
-                                                    <FormControlLabel 
-                                                        key={opt.value} 
-                                                        value={opt.value} 
-                                                        control={<Radio size="small" />} 
-                                                        label={<Typography variant="body2">{opt.label}</Typography>}
-                                                        sx={{mr: 1}}
-                                                    />
+                                                    <MenuItem key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </MenuItem>
                                                 ))}
-                                            </RadioGroup>
+                                            </Select>
                                         </FormControl>
                                     </Grid>
                                 ))}
@@ -584,64 +536,55 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
 
                             <Divider sx={{ my: 1.5 }} />
 
-                            {/* --- CHECKBOXES RESTANTES (AGRUPADOS) --- */}
-                            {/* Grupo Olhos (Achados) */}
-                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                            {/* --- CHECKBOXES RESTANTES (AGRUPADOS) - Sem alterações --- */}
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Olhos (Achados):</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'olhos').map(opt => (
                                     <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                            {/* Grupo ORL (Achados) */}
                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Nariz / Boca:</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'orl').map(opt => (
                                     <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                           {/* Grupo Pescoço (Achados) */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Pescoço (Achados):</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'pescoco').map(opt => (
                                     <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                            {/* Grupo Respiratório (Achados) */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Respiratório (Achados):</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'respiratorio').map(opt => (
                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                           {/* Grupo Cardíaco (Achados) */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Cardiovascular (Achados):</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'cardiaco').map(opt => (
                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                           {/* Grupo Abdome */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Abdome:</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'abdome').map(opt => (
                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                            {/* Grupo Genitália */}
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Genitália / Períneo:</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'genitalia').map(opt => (
                                     <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                            {/* Grupo Coluna / Membros */}
                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Coluna / Membros:</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'membros').map(opt => (
                                     <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
                                ))}
                            </Box>
-                            {/* Grupo Neurológico */}
                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Neurológico (Achados):</Typography>
                                {exameFisicoQualitativoOptions.filter(o=>o.group === 'neuro').map(opt => (
@@ -655,7 +598,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
 
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Campos Finais (A, P) e Botões */}
+                        {/* Campos Finais (A, P) e Botões (Sem alterações) */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                             <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
@@ -671,17 +614,17 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                     </Paper>
                 </TabPanel>
 
-                {/* ABA 2: HISTÓRICO PEDIÁTRICO */}
+                {/* ABA 2: HISTÓRICO PEDIÁTRICO (Sem alterações) */}
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoPediatrico pacienteId={pacienteId} />
                 </TabPanel>
 
-                {/* ABA 3: DNPM */}
+                {/* ABA 3: DNPM (Sem alterações) */}
                 <TabPanel value={tabIndex} index={2}>
                     <DnpmDetalhado pacienteId={pacienteId} />
                 </TabPanel>
 
-                {/* ABA 4: VACINAÇÃO */}
+                {/* ABA 4: VACINAÇÃO (Sem alterações) */}
                 <TabPanel value={tabIndex} index={3}>
                     <VacinacaoTab pacienteId={pacienteId} />
                 </TabPanel>
