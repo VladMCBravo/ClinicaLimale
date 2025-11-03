@@ -311,8 +311,8 @@ class AnamneseNeonatologia(models.Model):
     idade_gestacional = models.CharField(max_length=50, blank=True, null=True)
     bolsa_rota = models.CharField(max_length=100, blank=True, null=True)
     liquido_amniotico = models.CharField(max_length=100, blank=True, null=True)
-    reanimacao = models.TextField(blank=True, null=True, verbose_name="Reanimação em Sala de Parto") # Mapeia para PDF Reanimação + Intercorrências [cite: 74, 76, 77]
-    
+    reanimacao = models.JSONField(default=dict, blank=True, null=True, verbose_name="Reanimação em Sala de Parto (JSON)")
+
     # --- DADOS DO RN AO NASCER (Já existentes) ---
     peso_nascimento = models.PositiveIntegerField(null=True, blank=True, verbose_name="Peso ao Nascer (g)")
     comprimento = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="Comprimento (cm)")
