@@ -7,8 +7,10 @@ import {
     Grid, FormGroup, FormControlLabel, Checkbox, Divider,
     FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip // Para ComboBox
 } from '@mui/material';
-import { useSnackbar } from '../../../contexts/SnackbarContext';
-import apiClient from '../../api/axiosConfig';
+// --- CORREÇÃO DE CAMINHO ---
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Caminho para src/contexts
+import apiClient from '../../api/axiosConfig'; // Caminho para src/api
+// --- FIM DA CORREÇÃO ---
 
 // --- IMPORT DA ABA DE HISTÓRICO ---
 const HistoricoNeonatologia = lazy(() => import('./neonatologia/HistoricoNeonatologia'));
