@@ -6,8 +6,8 @@ import {
     Paper, Typography, TextField, Box, Button, CircularProgress, Grid, Divider,
     FormGroup, FormControlLabel, Checkbox, FormControl, InputLabel, Select, MenuItem, FormLabel
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext'; // Era ../../../
-import apiClient from '../../api/axiosConfig'; // Era ../../../
+import { useSnackbar } from '../../../contexts/SnackbarContext'; // Deve ser ../../../
+import apiClient from '../../../api/axiosConfig'; // Deve ser ../../../
 
 // --- Opções para os novos ComboBoxes ---
 const preNatalOptions = ['Adequado', 'Inadequado', 'Sem PN', 'Ignorado']; // [cite: 8, 9]
