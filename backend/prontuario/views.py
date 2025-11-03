@@ -72,37 +72,77 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         serializer.save(medico=self.request.user, paciente=paciente)
 
-class AnamneseDetailAPIView(generics.RetrieveUpdateAPIView):
+# --- ★★★ CORREÇÃO DO ERRO 500 ESTÁ AQUI ★★★ ---
+# Substituímos 'generics.RetrieveUpdateAPIView' por 'APIView' para controle manual
+class AnamneseDetailAPIView(APIView):
     """
-    View para buscar (GET) ou atualizar (PUT/PATCH) a anamnese.
-    Corrigida para criar a anamnese principal E todas as suas filhas
-    de especialidade caso elas não existam, evitando o Erro 500.
+    View para buscar (GET) ou atualizar (PATCH) a anamnese.
+    Implementa manualmente o 'get_or_create' aninhado para evitar Erros 500.
     """
-    serializer_class = AnamneseSerializer
     permission_classes = [CanViewProntuario]
+    serializer_class = AnamneseSerializer
 
     @transaction.atomic # Garante que as criações sejam atômicas
-    def get_object(self):
-        paciente_id = self.kwargs.get('paciente_id')
-        
-        # Tenta buscar. Se não existir, o get_or_create é acionado
+    def get_anamnese_object(self, paciente_id, request_user):
+        """
+        Função helper para buscar ou criar a anamnese e seus filhos.
+        """
         obj, created = Anamnese.objects.get_or_create(
             paciente_id=paciente_id,
-            defaults={'medico': self.request.user} # Define o médico se for criado
+            defaults={'medico': request_user}
         )
         
-        # Se a Anamnese principal ACABOU de ser criada...
-        if created:
-            # ... precisamos criar imediatamente seus filhos de especialidade vazios
-            # para que o AnamneseSerializer não falhe ao tentar acessá-los.
-            AnamneseGinecologica.objects.create(anamnese=obj)
-            AnamneseOrtopedia.objects.create(anamnese=obj)
-            AnamneseCardiologia.objects.create(anamnese=obj)
-            AnamnesePediatria.objects.create(anamnese=obj)
-            AnamneseNeonatologia.objects.create(anamnese=obj)
-            AnamneseClinicaGeral.objects.create(anamnese=obj)
+        # Se a Anamnese principal ACABOU de ser criada (ou se falhou por algum motivo)
+        # Garantimos que todos os filhos existam
+        AnamneseGinecologica.objects.get_or_create(anamnese=obj)
+        AnamneseOrtopedia.objects.get_or_create(anamnese=obj)
+        AnamneseCardiologia.objects.get_or_create(anamnese=obj)
+        AnamnesePediatria.objects.get_or_create(anamnese=obj)
+        AnamneseNeonatologia.objects.get_or_create(anamnese=obj)
+        AnamneseClinicaGeral.objects.get_or_create(anamnese=obj)
             
         return obj
+
+    def get(self, request, paciente_id, *args, **kwargs):
+        """
+        Lida com a requisição GET (Carregar Histórico).
+        """
+        try:
+            anamnese = self.get_anamnese_object(paciente_id, request.user)
+            serializer = self.serializer_class(anamnese)
+            return Response(serializer.data)
+        except Paciente.DoesNotExist:
+             return Response({"detail": "Paciente não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            # Captura outros erros inesperados durante o get/create
+            return Response({"detail": f"Erro interno ao buscar anamnese: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def patch(self, request, paciente_id, *args, **kwargs):
+        """
+        Lida com a requisição PATCH (Salvar Histórico ou Resumo DNPM).
+        """
+        try:
+            anamnese = self.get_anamnese_object(paciente_id, request.user)
+            # 'partial=True' é o que define um PATCH (atualização parcial)
+            serializer = self.serializer_class(anamnese, data=request.data, partial=True)
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            
+            # Se a validação falhar, retorna o erro 400
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Paciente.DoesNotExist:
+             return Response({"detail": "Paciente não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": f"Erro interno ao salvar anamnese: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, paciente_id, *args, **kwargs):
+        """ Lida com a requisição PUT (substituição completa). """
+        # Apenas redireciona para o PATCH, pois o serializer lida com 'partial=True'
+        return self.patch(request, paciente_id, *args, **kwargs)
+
 # --- FIM DA CORREÇÃO ---
 
 class DocumentoPacienteViewSet(viewsets.ModelViewSet):
