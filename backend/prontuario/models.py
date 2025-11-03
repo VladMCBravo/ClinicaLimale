@@ -293,44 +293,46 @@ class AnamnesePediatria(models.Model):
 class AnamneseNeonatologia(models.Model):
     anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='neonatologia')
     
-    # --- DADOS MATERNOS E GESTACIONAIS (Mantidos) ---
+    # --- DADOS MATERNOS E GESTACIONAIS (Já existentes) ---
     idade_materna = models.PositiveIntegerField(null=True, blank=True)
     gpa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Gesta/Para/Aborto")
     tipo_sanguineo_mae = models.CharField(max_length=5, blank=True, null=True)
     coombs_indireto = models.CharField(max_length=50, blank=True, null=True)
     sorologias = models.JSONField(default=dict, blank=True, null=True) # { "vdrl": true, ... }
     intercorrencias_gestacao = models.TextField(blank=True, null=True)
+    # --- NOVOS CAMPOS PRÉ-NATAL (do PDF [cite: 8, 10, 11, 12]) ---
+    pre_natal = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pré-Natal") # Adequado/Inadequado/Ignorado
+    tipo_gestacao = models.CharField(max_length=20, blank=True, null=True, verbose_name="Tipo Gestação") # Única/Gemelar
+    corticoterapia = models.CharField(max_length=10, blank=True, null=True, verbose_name="Corticoterapia") # Sim/Não
+    neuroprotecao_mg = models.CharField(max_length=10, blank=True, null=True, verbose_name="Neuroproteção (Sulf. Magnésio)") # Sim/Não/Ignorado
     
-    # --- DADOS DO PARTO (Mantidos) ---
+    # --- DADOS DO PARTO (Já existentes) ---
     tipo_parto = models.CharField(max_length=50, blank=True, null=True)
     idade_gestacional = models.CharField(max_length=50, blank=True, null=True)
     bolsa_rota = models.CharField(max_length=100, blank=True, null=True)
     liquido_amniotico = models.CharField(max_length=100, blank=True, null=True)
-    reanimacao = models.TextField(blank=True, null=True, verbose_name="Reanimação em Sala de Parto")
+    reanimacao = models.TextField(blank=True, null=True, verbose_name="Reanimação em Sala de Parto") # Mapeia para PDF Reanimação + Intercorrências [cite: 74, 76, 77]
     
-    # --- DADOS DO RN AO NASCER (Mantidos) ---
+    # --- DADOS DO RN AO NASCER (Já existentes) ---
     peso_nascimento = models.PositiveIntegerField(null=True, blank=True, verbose_name="Peso ao Nascer (g)")
     comprimento = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="Comprimento (cm)")
-    pc_nascimento = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="PC ao Nascer (cm)") # Renomeado para clareza
-    apgar = models.CharField(max_length=10, blank=True, null=True, verbose_name="APGAR (1º/5º)")
+    pc_nascimento = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="PC ao Nascer (cm)")
+    apgar = models.CharField(max_length=10, blank=True, null=True, verbose_name="APGAR (1º/5º/10')") # PDF pede 1', 5' e 10' [cite: 67]
     
-    # --- TRIAGENS (Mantido) ---
+    # --- TRIAGENS (Já existente) ---
     triagens = models.JSONField(default=dict, blank=True, null=True) # { "pezinho": true, ... }
 
-    # --- CAMPOS REMOVIDOS (Agora pertencem à Evolucao/SOAP Neonatal) ---
-    # ex_estado_geral = models.TextField(...) <-- REMOVIDO
-    # ex_pele = models.TextField(...) <-- REMOVIDO
-    # ex_cabeca = models.TextField(...) <-- REMOVIDO
-    # ex_resp = models.TextField(...) <-- REMOVIDO
-    # ex_cardio = models.TextField(...) <-- REMOVIDO
-    # ex_abdome = models.TextField(...) <-- REMOVIDO
-    # ex_genitalia = models.TextField(...) <-- REMOVIDO
-    # ex_neuro = models.TextField(...) <-- REMOVIDO
-    # alimentacao = models.CharField(...) <-- REMOVIDO (será parte da evolução diária)
-    # diurese = models.CharField(...) <-- REMOVIDO
-    # evacuacao = models.CharField(...) <-- REMOVIDO
-    # plano = models.TextField(...) <-- REMOVIDO (será parte da evolução diária)
-    # pc = models.DecimalField(...) <-- REMOVIDO (PC ao nascer já existe, PC atual será na evolução)
+    # --- ★ NOVOS CAMPOS: HISTÓRICO HOSPITALAR (Seção IV do PDF ) ★ ---
+    ig_classificacao = models.CharField(max_length=50, blank=True, null=True, verbose_name="Classificação IG") # Ex: RNPTE, A Termo
+    peso_classificacao = models.CharField(max_length=50, blank=True, null=True, verbose_name="Adequação Peso") # Ex: PIG, AIG, GIG
+    tempo_internacao = models.CharField(max_length=50, blank=True, null=True, verbose_name="Tempo de Internação (dias)")
+    suporte_ventilatorio = models.CharField(max_length=100, blank=True, null=True, verbose_name="Suporte Ventilatório (VM/CPAP/O2)")
+    fototerapia = models.CharField(max_length=50, blank=True, null=True, verbose_name="Fototerapia (dias)")
+    npp = models.CharField(max_length=50, blank=True, null=True, verbose_name="NPP (dias)")
+    antibioticos = models.TextField(blank=True, null=True, verbose_name="Antibióticos (Esquema/Dias)")
+    diagnosticos_principais = models.TextField(blank=True, null=True, verbose_name="Diagnósticos Principais na Alta")
+    exames_realizados = models.JSONField(default=dict, blank=True, null=True, verbose_name="Exames Hospitalares (US-TF, Eco, etc.)")
+    # --- FIM DAS NOVAS ADIÇÕES ---
 
     def __str__(self):
         return f"Dados Neonatais de {self.anamnese.paciente.nome_completo}"
