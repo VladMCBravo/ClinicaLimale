@@ -332,6 +332,7 @@ class AnamneseNeonatologia(models.Model):
     antibioticos = models.TextField(blank=True, null=True, verbose_name="Antibióticos (Esquema/Dias)")
     diagnosticos_principais = models.TextField(blank=True, null=True, verbose_name="Diagnósticos Principais na Alta")
     exames_realizados = models.JSONField(default=dict, blank=True, null=True, verbose_name="Exames Hospitalares (US-TF, Eco, etc.)")
+    outros_exames = models.JSONField(default=list, blank=True, verbose_name="Lista de Outros Exames")
     # --- FIM DAS NOVAS ADIÇÕES ---
 
     def __str__(self):
