@@ -1,200 +1,66 @@
 // src/components/prontuario/AtendimentoNeonatologia.jsx
-// VERSÃO COMPLETA E REFEITA (Baseada no PDF [cite: 101-154])
+// VERSÃO FINAL (Baseada nos rascunhos e vídeos)
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
     Paper, Typography, TextField, Box, Button, CircularProgress, Tabs, Tab,
     Grid, FormGroup, FormControlLabel, Checkbox, Divider,
-    FormControl, InputLabel, Select, MenuItem, OutlinedInput, Chip // Para ComboBox
+    FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
-// --- CORREÇÃO DE CAMINHO ---
-import { useSnackbar } from '../../contexts/SnackbarContext'; // Caminho para src/contexts
-import apiClient from '../../api/axiosConfig'; // Caminho para src/api
-// --- FIM DA CORREÇÃO ---
+import { useSnackbar } from '../../contexts/SnackbarContext';
+import apiClient from '../../api/axiosConfig';
 
 // --- IMPORT DA ABA DE HISTÓRICO ---
 const HistoricoNeonatologia = lazy(() => import('./neonatologia/HistoricoNeonatologia'));
 
-// --- ESTRUTURA DO EXAME FÍSICO (Baseado no PDF, Página 3 ) ---
-// Usaremos Multi-Select ComboBox, pois o PDF indica "Itens clicáveis" [cite: 117]
+// --- ESTRUTURA DO EXAME FÍSICO (Baseado nos Rascunhos) ---
+// 100% ComboBoxes de Seleção Única
 const exameFisicoNeoGroups = [
-    {
-        id: 'avaliacao_geral', label: 'Avaliação Geral',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'BEG, Ativo, Reativo, Corado, Hidratado, Afebril, Eupneico.'},
-            { id: 'BEG', label: 'BEG', template: 'Bom Estado Geral.'},
-            { id: 'REG', label: 'REG', template: 'Regular Estado Geral.'},
-            { id: 'MEG', label: 'MEG', template: 'Mau Estado Geral.'},
-            { id: 'corado', label: 'Corado', template: 'Corado.'},
-            { id: 'descorado', label: 'Descorado', template: 'Descorado.'},
-            { id: 'hidratado', label: 'Hidratado', template: 'Hidratado.'},
-            { id: 'desidratado', label: 'Desidratado', template: 'Desidratado.'},
-            { id: 'afebril', label: 'Afebril', template: 'Afebril.'},
-            { id: 'febril', label: 'Febril', template: 'Febril.'},
-            { id: 'eupneico', label: 'Eupneico', template: 'Eupneico.'},
-            { id: 'dispneico', label: 'Dispneico', template: 'Dispneico.'},
-            { id: 'taquipneico', label: 'Taquipneico', template: 'Taquipneico.'},
-            { id: 'ativo', label: 'Ativo', template: 'Ativo.'},
-            { id: 'hipoativo', label: 'Hipoativo', template: 'Hipoativo.'},
-            { id: 'reativo', label: 'Reativo', template: 'Reativo.'},
-            { id: 'hiporreativo', label: 'Hiporreativo', template: 'Hiporreativo.'},
-            { id: 'irritado', label: 'Irritado', template: 'Irritado.'},
-            { id: 'letargico', label: 'Letárgico', template: 'Letárgico.'},
-        ]
-    },
-    {
-        id: 'pele', label: 'Pele',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Pele íntegra, sem lesões.'},
-            { id: 'integra', label: 'Íntegra', template: 'Pele íntegra.'},
-            { id: 'lesoes', label: 'Lesões', template: 'Lesões cutâneas (descrever).'},
-            { id: 'icterica', label: 'Ictérica', template: 'Ictérico (Zona ___ / Kramer).'},
-            { id: 'petequias', label: 'Petéquias', template: 'Petéquias presentes.'},
-            { id: 'eritema_toxico', label: 'Eritema Tóxico', template: 'Eritema tóxico neonatal.'},
-        ]
-    },
-    {
-        id: 'cabeca', label: 'Cabeça e Fontanelas',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Normocefalia, fontanelas normotensas.'},
-            { id: 'normocefalia', label: 'Normocefalia', template: 'Normocefalia.'},
-            { id: 'dolicocefalia', label: 'Dolicocefalia', template: 'Dolicocefalia.'},
-            { id: 'fa_normotensa', label: 'Fontanela Normotensa', template: 'Fontanela anterior normotensa.'},
-            { id: 'fa_abaulada', label: 'Fontanela Abaulada', template: 'Fontanela anterior abaulada.'},
-            { id: 'fa_deprimida', label: 'Fontanela Deprimida', template: 'Fontanela anterior deprimida.'},
-        ]
-    },
-    {
-        id: 'olhos', label: 'Olhos',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Pupilas isocóricas, reflexo vermelho presente.'},
-            { id: 'pupilas_isocoricas', label: 'Pupilas Isocóricas', template: 'Pupilas isocóricas.'},
-            { id: 'reflexo_vermelho', label: 'Reflexo Vermelho', template: 'Reflexo vermelho presente.'},
-            { id: 'secrecao', label: 'Secreção', template: 'Secreção ocular.'},
-            { id: 'edema', label: 'Edema Palpebral', template: 'Edema palpebral.'},
-        ]
-    },
-    {
-        id: 'orofaringe', label: 'Orofaringe',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Palato íntegro, língua normal.'},
-            { id: 'palato_integro', label: 'Palato Íntegro', template: 'Palato íntegro.'},
-            { id: 'frenulo_curto', label: 'Frênulo Curto', template: 'Frênulo lingual curto.'},
-            { id: 'lingua_normal', label: 'Língua Normal', template: 'Língua normal.'},
-        ]
-    },
-    {
-        id: 'pescoco', label: 'Pescoço',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Livre, sem massas ou retrações.'},
-            { id: 'livre', label: 'Livre', template: 'Pescoço livre.'},
-            { id: 'retracoes', label: 'Retrações', template: 'Retrações cervicais.'},
-            { id: 'massas', label: 'Massas', template: 'Massas palpáveis.'},
-            { id: 'ganglios', label: 'Gânglios', template: 'Gânglios palpáveis.'},
-        ]
-    },
-    {
-        id: 'respiratorio', label: 'Respiratório',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Tórax simétrico, MV+ bilateralmente, sem RAs.'},
-            { id: 'torax_simetrico', label: 'Tórax Simétrico', template: 'Tórax simétrico.'},
-            { id: 'mv_presente', label: 'MV + Bilateral', template: 'MV presente bilateralmente.'},
-            { id: 'sibilos', label: 'Sibilos', template: 'Sibilos.'},
-            { id: 'estertores', label: 'Estertores', template: 'Estertores.'},
-            { id: 'roncos', label: 'Roncos', template: 'Roncos.'},
-        ]
-    },
-    {
-        id: 'cardiovascular', label: 'Cardiovascular',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Bulhas normais, sem sopros, pulsos simétricos, perfusão < 3s.'},
-            { id: 'bulhas_normais', label: 'Bulhas Normais', template: 'Bulhas normais.'},
-            { id: 'sopros', label: 'Sopros', template: 'Sopro (descrever).'},
-            { id: 'pulsos_simetricos', label: 'Pulsos Simétricos', template: 'Pulsos simétricos.'},
-            { id: 'perfusao_normal', label: 'Perfusão < 3s', template: 'Perfusão < 3s.'},
-            { id: 'perfusao_lenta', label: 'Perfusão > 3s', template: 'Perfusão > 3s.'},
-        ]
-    },
-    {
-        id: 'abdome', label: 'Abdome',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Abdome plano, flácido, indolor.'},
-            { id: 'plano', label: 'Plano', template: 'Abdome plano.'},
-            { id: 'globoso', label: 'Globoso', template: 'Abdome globoso.'},
-            { id: 'doloroso', label: 'Doloroso', template: 'Doloroso à palpação.'},
-            { id: 'hepatomegalia', label: 'Hepatomegalia', template: 'Hepatomegalia.'},
-            { id: 'massa_palpavel', label: 'Massa Palpável', template: 'Massa palpável.'},
-        ]
-    },
-    {
-        id: 'cordao_umbilical', label: 'Cordão Umbilical',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Coto umbilical seco, sem sinais flogísticos.'},
-            { id: 'seco', label: 'Seco', template: 'Coto umbilical seco.'},
-            { id: 'humido', label: 'Húmido', template: 'Coto umbilical húmido.'},
-            { id: 'eritema', label: 'Eritema', template: 'Eritema de coto.'},
-            { id: 'secrecao', label: 'Secreção', template: 'Secreção em coto.'},
-        ]
-    },
-    {
-        id: 'genitalia_anus', label: 'Genitália e Ânus',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Genitália normal, ânus pérvio.'},
-            { id: 'genitalia_normal', label: 'Genitália Normal', template: 'Genitália normal (Masc/Fem).'},
-            { id: 'ambigua', label: 'Ambigua', template: 'Genitália ambígua.'},
-            { id: 'anus_pervio', label: 'Ânus Pérvio', template: 'Ânus pérvio.'},
-        ]
-    },
-    {
-        id: 'extremidades', label: 'Extremidades',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Extremidades normais, sem cianose ou edema.'},
-            { id: 'normais', label: 'Normais', template: 'Extremidades normais.'},
-            { id: 'cianose_ext', label: 'Cianose', template: 'Cianose de extremidades.'},
-            { id: 'polidactilia', label: 'Polidactilia', template: 'Polidactilia.'},
-            { id: 'edema_ext', label: 'Edema', template: 'Edema de extremidades.'},
-        ]
-    },
-    {
-        id: 'coluna', label: 'Coluna',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Alinhada, sem fosseta.'},
-            { id: 'alinhada', label: 'Alinhada', template: 'Coluna alinhada.'},
-            { id: 'fosseta_sacral', label: 'Fosseta Sacral', template: 'Fosseta sacral.'},
-            { id: 'abaulamento', label: 'Abaulamento', template: 'Abaulamento (descrever).'},
-        ]
-    },
-    {
-        id: 'neurologico', label: 'Neurológico (Estado)',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Reativo, tônus normal.'},
-            { id: 'reativo_neuro', label: 'Reativo', template: 'Reativo.'},
-            { id: 'hipotonico', label: 'Hipotônico', template: 'Hipotônico.'},
-            { id: 'hipertonico', label: 'Hipertônico', template: 'Hipertônico.'},
-            { id: 'convulsao', label: 'Convulsão', template: 'Convulsão.'},
-        ]
-    },
-    {
-        id: 'reflexos', label: 'Reflexos Primitivos',
-        options: [
-            { id: 'normal', label: 'Normal', template: 'Reflexos primitivos presentes e simétricos.'},
-            { id: 'moro', label: 'Moro Presente', template: 'Reflexo de Moro presente.'},
-            { id: 'succao', label: 'Sucção Presente', template: 'Reflexo de Sucção presente.'},
-            { id: 'procura', label: 'Procura Presente', template: 'Reflexo de Procura presente.'},
-            { id: 'preensao_palmar', label: 'Preensão Palmar', template: 'Reflexo de Preensão Palmar presente.'},
-            { id: 'preensao_plantar', label: 'Preensão Plantar', template: 'Reflexo de Preensão Plantar presente.'},
-            { id: 'marcha', label: 'Marcha Presente', template: 'Reflexo da Marcha presente.'},
-            { id: 'babinski', label: 'Babinski Presente', template: 'Reflexo de Babinski presente.'},
-            { id: 'galant', label: 'Galant Presente', template: 'Reflexo de Galant presente.'},
-            { id: 'atnr', label: 'ATNR Presente', template: 'Reflexo Tônico Cervical Assimétrico (ATNR) presente.'},
-        ]
-    },
+    // --- GERAL ---
+    { id: 'avaliacao_geral', label: 'Avaliação Geral', options: [{ value: 'BEG', label: 'BEG', template: 'Bom Estado Geral (BEG).'}, { value: 'REG', label: 'REG', template: 'Regular Estado Geral (REG).'}, { value: 'MEG', label: 'MEG', template: 'Mau Estado Geral (MEG).'}] },
+    { id: 'cor', label: 'Coloração', options: [{ value: 'Corado', label: 'Corado', template: 'Corado.'}, { value: 'Descorado', label: 'Descorado', template: 'Descorado.'}, { value: 'Icterico', label: 'Ictérico', template: 'Ictérico (Zona ___).'}, { value: 'Cianotico', label: 'Cianótico', template: 'Cianótico.'}] },
+    { id: 'hidratacao', label: 'Hidratação', options: [{ value: 'Hidratado', label: 'Hidratado', template: 'Hidratado.'}, { value: 'Desidratado', label: 'Desidratado', template: 'Desidratado.'}] },
+    { id: 'estado_febril', label: 'Temperatura', options: [{ value: 'Afebril', label: 'Afebril', template: 'Afebril ao toque.'}, { value: 'Febril', label: 'Febril', template: 'Febril ao toque.'}] },
+    { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.'}, { value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.'}, { value: 'Letargico', label: 'Letárgico', template: 'Letárgico.'}] },
+    { id: 'reatividade', label: 'Reatividade', options: [{ value: 'Reativo', label: 'Reativo', template: 'Reativo.'}, { value: 'Hiporreativo', label: 'Hiporreativo', template: 'Hiporreativo.'}, { value: 'Irritado', label: 'Irritado', template: 'Irritado.'}] },
+    // --- PELE ---
+    { id: 'pele_lesoes', label: 'Pele (Lesões)', options: [{ value: 'Integra', label: 'Íntegra / Sem Lesões', template: 'Pele íntegra, sem lesões.'}, { value: 'Eritema', label: 'Eritema Tóxico', template: 'Eritema tóxico neonatal.'}, { value: 'Petequias', label: 'Petéquias', template: 'Petéquias presentes.'}, { value: 'Outras', label: 'Outras Lesões', template: 'Lesões cutâneas (descrever).'}] },
+    // --- CABEÇA E PESCOÇO ---
+    { id: 'fontanela', label: 'Fontanela Anterior', options: [{ value: 'Normotensa', label: 'Normotensa', template: 'Fontanela anterior normotensa.'}, { value: 'Abaulada', label: 'Abaulada', template: 'Fontanela anterior abaulada.'}, { value: 'Deprimida', label: 'Deprimida', template: 'Fontanela anterior deprimida.'}] },
+    { id: 'suturas', label: 'Suturas', options: [{ value: 'Normais', label: 'Normais', template: 'Suturas cranianas normais.'}, { value: 'Acavalgadas', label: 'Acavalgadas', template: 'Suturas acavalgadas.'}, { value: 'Diastase', label: 'Diástase', template: 'Diástase de suturas.'}] },
+    { id: 'pescoco', label: 'Pescoço', options: [{ value: 'Livre', label: 'Livre / Indolor', template: 'Pescoço livre, sem massas.'}, { value: 'Massas', label: 'Massas / Gânglios', template: 'Massas ou gânglios palpáveis.'}, { value: 'Retracoes', label: 'Retrações', template: 'Retrações cervicais.'}] },
+    // --- OLHOS ---
+    { id: 'olhos_estado', label: 'Olhos (Estado)', options: [{ value: 'Normal', label: 'Normal', template: 'Pupilas isocóricas. Conjuntivas coradas.'}, { value: 'Hiperemia', label: 'Hiperemia Conjuntival', template: 'Hiperemia conjuntival.'}, { value: 'Edema', label: 'Edema Palpebral', template: 'Edema palpebral.'}] },
+    { id: 'olhos_secrecao', label: 'Secreção Ocular', options: [{ value: 'Ausente', label: 'Ausente', template: 'Sem secreção ocular.'}, { value: 'Presente', label: 'Presente', template: 'Secreção ocular presente.'}] },
+    { id: 'reflexo_vermelho', label: 'Reflexo Vermelho', options: [{ value: 'Presente', label: 'Presente', template: 'Reflexo vermelho presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Reflexo vermelho ausente.'}] },
+    // --- ORL ---
+    { id: 'orofaringe', label: 'Orofaringe', options: [{ value: 'Normal', label: 'Normal', template: 'Orofaringe normal, palato íntegro.'}, { value: 'Frenulo_curto', label: 'Frênulo Curto', template: 'Frênulo lingual curto.'}, { value: 'Outros', label: 'Alterada', template: 'Orofaringe alterada (descrever).'}] },
+    // --- RESPIRATÓRIO ---
+    { id: 'respiratorio_padrao', label: 'Padrão Respiratório', options: [{ value: 'Eupneico', label: 'Eupneico', template: 'Eupneico, boa expansibilidade.'}, { value: 'Dispneico', label: 'Dispneico/Taquipneico', template: 'Dispneico/Taquipneico, com retrações.'}] },
+    { id: 'respiratorio_ausculta', label: 'Ausculta Respiratória', options: [{ value: 'Normal', label: 'MV+ s/ RA', template: 'MV presente bilateralmente, sem ruídos adventícios.'}, { value: 'Roncos', label: 'Roncos', template: 'Roncos.'}, { value: 'Sibilos', label: 'Sibilos', template: 'Sibilos.'}, { value: 'Estertores', label: 'Estertores', template: 'Estertores.'}] },
+    // --- CARDIOVASCULAR ---
+    { id: 'cardio_ritmo', label: 'Ritmo Cardíaco', options: [{ value: 'Normal', label: 'BRNF 2T', template: 'BRNF em 2T.'}, { value: 'Arritmia', label: 'Arritmia', template: 'Ritmo arrítmico.'}] },
+    { id: 'cardio_sopros', label: 'Sopros', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Sem sopros.'}, { value: 'Presentes', label: 'Presentes', template: 'Sopro (descrever /6+).'}] },
+    { id: 'cardio_perfusao', label: 'Perfusão', options: [{ value: 'Normal', label: 'Perfusão < 3s', template: 'Perfusão periférica < 3s.'}, { value: 'Lenta', label: 'Perfusão > 3s', template: 'Perfusão lentificada.'}] },
+    // --- ABDOME ---
+    { id: 'abdome_forma', label: 'Abdome (Forma)', options: [{ value: 'Plano', label: 'Plano', template: 'Abdome plano.'}, { value: 'Globoso', label: 'Globoso', template: 'Abdome globoso.'}, { value: 'Distendido', label: 'Distendido', template: 'Abdome distendido.'}] },
+    { id: 'abdome_rha', label: 'Abdome (RHA)', options: [{ value: 'Presentes', label: 'RHA Presentes', template: 'RHA presentes.'}, { value: 'Aumentados', label: 'RHA Aumentados', template: 'RHA aumentados.'}, { value: 'Diminuidos', label: 'RHA Diminuídos', template: 'RHA diminuídos.'}, { value: 'Ausentes', label: 'RHA Ausentes', template: 'RHA ausentes.'}] },
+    { id: 'abdome_palpacao', label: 'Abdome (Palpação)', options: [{ value: 'Flacido', label: 'Flácido/Indolor', template: 'Abdome flácido, indolor.'}, { value: 'Doloroso', label: 'Doloroso', template: 'Abdome doloroso à palpação.'}, { value: 'Massas', label: 'Massas Palpáveis', template: 'Massa palpável em ___.'}] },
+    { id: 'abdome_viscero', label: 'Abdome (Viscerom.)', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Sem visceromegalias.'}, { value: 'Hepatomegalia', label: 'Hepatomegalia', template: 'Hepatomegalia.'}, { value: 'Esplenomegalia', label: 'Esplenomegalia', template: 'Esplenomegalia.'}] },
+    // --- CORDÃO UMBILICAL ---
+    { id: 'cordao', label: 'Cordão Umbilical', options: [{ value: 'NaoAplica', label: 'Não se aplica', template: ''}, { value: 'Normal', label: 'Seco, sem sinais flogísticos', template: 'Coto umbilical seco, sem sinais flogísticos.'}, { value: 'Alterado', label: 'Alterado (Eritema/Secreção)', template: 'Coto umbilical com hiperemia/secreção.'}] },
+    // --- GENITÁLIA E ÂNUS ---
+    { id: 'genitalia', label: 'Genitália', options: [{ value: 'Normal', label: 'Normal/Tópica', template: 'Genitália tópica, sem alterações.'}, { value: 'Anormal', label: 'Anormal', template: 'Genitália anormal (descrever).'}] },
+    { id: 'anus', label: 'Ânus', options: [{ value: 'Pervio', label: 'Pérvio', template: 'Ânus pérvio.'}, { value: 'Imperfurado', label: 'Imperfurado', template: 'Ânus imperfurado.'}] },
+    // --- MEMBROS E COLUNA ---
+    { id: 'membros_coluna', label: 'Membros e Coluna', options: [{ value: 'Normal', label: 'Normais, alinhados', template: 'Membros e coluna sem alterações. Ortolani negativo.'}, { value: 'Fosseta', label: 'Fosseta Sacral', template: 'Fosseta sacral.'}, { value: 'Alterado', label: 'Alterado', template: 'Alteração em membros/coluna (descrever).'}] },
+    { id: 'pulsos', label: 'Pulsos (Membros)', options: [{ value: 'Simetricos', label: 'Simétricos/Cheios', template: 'Pulsos simétricos e cheios.'}, { value: 'Assimetricos', label: 'Assimétricos/Diminuídos', template: 'Pulsos assimétricos ou diminuídos.'}] },
+    // --- NEUROLÓGICO ---
+    { id: 'neuro_tonus', label: 'Tônus', options: [{ value: 'Normal', label: 'Tônus Normal', template: 'Tônus normal, ativo.'}, { value: 'Hipotonia', label: 'Hipotonia', template: 'Hipotonia.'}, { value: 'Hipertonia', label: 'Hipertonia', template: 'Hipertonia.'}] },
+    { id: 'neuro_reflexos', label: 'Reflexos Primitivos', options: [{ value: 'Normais', label: 'Normais/Presentes', template: 'Reflexos primitivos presentes.'}, { value: 'Anormais', label: 'Anormais/Ausentes', template: 'Reflexos primitivos alterados ou ausentes.'}] },
+    { id: 'sinais_meningeos', label: 'Sinais Meníngeos', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Sinais meníngeos ausentes.'}, { value: 'Presentes', label: 'Presentes', template: 'Sinais meníngeos presentes.'}] },
 ];
-
-// Dicionário para buscar templates e labels dos Multi-Selects
-const allMultiSelectOptions = new Map(
-    exameFisicoNeoGroups.flatMap(g => g.options.map(o => [o.id, { label: o.label, template: o.template }]))
-);
+// --- FIM EXAME FÍSICO ---
 
 
 // Helper TabPanel (Corrigido para manter estado)
@@ -236,23 +102,19 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
 
     // --- Geradores de texto ATUALIZADOS ---
     const generateSubjetivo = useCallback(() => {
-        // Usamos os campos da Seção V e a evolução diária
-        return `RN com ${vitalsData.dias_vida || '___'} dias de vida, IGC ${vitalsData.igc_semanas || '__'}s ${vitalsData.igc_dias || '_'}d.\nMedicações em uso: ${vitalsData.medicacoes || 'Nenhuma'}.\nObservações: ${vitalsData.observacoes || 'Nenhuma'}\n\nDieta: ${evolucaoDiaria.dieta || 'Não informado'}\nDiurese: ${evolucaoDiaria.diurese || 'Não informado'}\nEvacuação: ${evolucaoDiaria.evacuacao || 'Não informado'}`;
+        return `RN com ${vitalsData.dias_vida || '___'} dias de vida, IGC ${vitalsData.igc_semanas || '__'}s ${vitalsData.igc_dias || '_'}d.\nMedicações em uso: ${vitalsData.medicacoes || 'Nenhuma'}.\nObservações: ${vitalsData.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${evolucaoDiaria.dieta || 'Não informado'}\nDiurese: ${evolucaoDiaria.diurese || 'Não informado'}\nEvacuação: ${evolucaoDiaria.evacuacao || 'Não informado'}`;
     }, [vitalsData, evolucaoDiaria]);
 
     const generateObjetivo = useCallback(() => {
         let texto = `Dados Vitais:\nPeso: ${vitalsData.peso || '___'} g\nCompr: ${vitalsData.comprimento || '___'} cm\nPC: ${vitalsData.pc || '___'} cm\n\nExame Físico:\n`;
         
-        // Loop sobre os grupos de Multi-Select (Pele, Olhos, etc.)
-        const achados = exameFisicoNeoGroups.flatMap(group => {
-            const selectedValues = exameFisicoData[group.id]; // Ex: ['normal', 'petequias']
-            if (!selectedValues || selectedValues.length === 0) return [];
+        // Loop sobre os grupos de ComboBox
+        const achados = exameFisicoNeoGroups.map(group => {
+            const selectedValue = exameFisicoData[group.id];
+            if (!selectedValue || selectedValue === 'Nenhum' || selectedValue === 'NaoAplica') return null;
             
-            // Mapeia cada valor (id) para seu template
-            return selectedValues.map(valueId => {
-                const option = allMultiSelectOptions.get(valueId);
-                return option ? option.template : '';
-            });
+            const option = group.options.find(opt => opt.value === selectedValue);
+            return option ? option.template : '';
         }).filter(Boolean).join(" ");
         
         return texto + (achados || "Nenhuma observação selecionada.");
@@ -272,36 +134,44 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleVitalsChange = (e) => setVitalsData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleEvolucaoDiariaChange = (e) => setEvolucaoDiaria(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleExameChange = (e) => setExameFisicoData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
-    // Handler para os Multi-Select ComboBoxes
-    const handleExameChange = (event) => {
-        const { name, value } = event.target;
-        setExameFisicoData(prev => ({
-            ...prev,
-            [name]: typeof value === 'string' ? value.split(',') : value,
-        }));
-    };
-
-    // Botão Normalidade (Baseado no PDF )
+    // Botão Normalidade (Baseado no PDF e Rascunhos)
     const preencherNormalidade = () => {
         setExameFisicoData({
-            avaliacao_geral: ['normal'],
-            pele: ['normal'],
-            cabeca: ['normal'],
-            olhos: ['normal'],
-            orofaringe: ['normal'],
-            pescoco: ['normal'],
-            respiratorio: ['normal'],
-            cardiovascular: ['normal'],
-            abdome: ['normal'],
-            cordao_umbilical: ['normal'],
-            genitalia_anus: ['normal'],
-            extremidades: ['normal'],
-            coluna: ['normal'],
-            neurologico: ['normal'],
-            reflexos: ['normal'],
+            avaliacao_geral: 'BEG',
+            cor: 'Corado',
+            hidratacao: 'Hidratado',
+            estado_febril: 'Afebril',
+            atividade: 'Ativo',
+            reatividade: 'Reativo',
+            pele_lesoes: 'Integra',
+            fontanela: 'Normotensa',
+            suturas: 'Normais',
+            pescoco: 'Livre',
+            olhos_estado: 'Normal',
+            olhos_secrecao: 'Ausente',
+            reflexo_vermelho: 'Presente',
+            orofaringe: 'Normal',
+            respiratorio_padrao: 'Eupneico',
+            respiratorio_ausculta: 'Normal',
+            cardio_ritmo: 'Normal',
+            cardio_sopros: 'Ausentes',
+            cardio_perfusao: 'Normal',
+            abdome_forma: 'Plano',
+            abdome_rha: 'Presentes',
+            abdome_palpacao: 'Flacido',
+            abdome_viscero: 'Ausentes',
+            cordao: 'NaoAplica',
+            genitalia: 'Normal',
+            anus: 'Pervio',
+            membros_coluna: 'Normal',
+            pulsos: 'Simetricos',
+            neuro_tonus: 'Normal',
+            neuro_reflexos: 'Normais',
+            sinais_meningeos: 'Ausentes',
         });
-        setVitalsData(prev => ({ ...prev })); // Mantém vitais
+        setVitalsData(prev => ({ ...prev })); // Mantém vitais já digitados
         setEvolucaoDiaria({ dieta: 'Seno materno sob livre demanda', diurese: 'Presente', evacuacao: 'Presente' });
         showSnackbar('Exame físico preenchido com padrão normal.', 'info');
      };
@@ -309,7 +179,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
     // Botão Limpar
     const handleLimparConsultaAtual = () => {
         setExameFisicoData({});
-        setVitalsData({});
+        setVitalsData({}); // Limpa também os vitais da consulta
         setEvolucaoDiaria({ dieta: '', diurese: '', evacuacao: '' });
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         showSnackbar('Campos da consulta atual limpos.', 'info');
@@ -320,12 +190,12 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            // O modelo Evolucao tem campos para Peso e Altura (Compr).
-            // O PDF [cite: 106-108] pede Peso (g) e Compr (cm). Ajuste seu backend se necessário.
             const soapPayload = { 
                 ...soapData,
-                peso: vitalsData.peso ? (parseFloat(vitalsData.peso) / 1000).toFixed(2) : null, // Converte g para kg
-                altura: vitalsData.comprimento ? (parseFloat(vitalsData.comprimento) / 100).toFixed(2) : null, // Converte cm para m
+                // Converte g para kg e cm para m, se o modelo Evolucao esperar assim
+                peso: vitalsData.peso ? (parseFloat(vitalsData.peso) / 1000).toFixed(3) : null,
+                altura: vitalsData.comprimento ? (parseFloat(vitalsData.comprimento)).toFixed(2) : null, // Assumindo que Evolucao.altura é cm
+                // Se Evolucao.altura for metros, use: (parseFloat(vitalsData.comprimento) / 100).toFixed(2)
             };
 
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
@@ -367,7 +237,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                     <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
 
-                         {/* Subjetivo (Seção V do PDF [cite: 101-109] + Evolução Diária) */}
+                         {/* Subjetivo (Seção V do PDF  + Evolução Diária) */}
                          <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Dados da Consulta e Evolução (S)</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                             <TextField label="Dias de Vida" name="dias_vida" type="number" value={vitalsData.dias_vida || ''} onChange={handleVitalsChange} size="small" sx={{minWidth: '80px', flex: '1 1 80px'}}/>
@@ -387,56 +257,59 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
 
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Objetivo (Seção V - Vitals + Seção VII - Exame [cite: 106, 117]) */}
+                        {/* Objetivo (Seção V - Vitals + Seção VII - Exame) */}
                         <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                             <TextField label="Peso (g)" name="peso" type="number" value={vitalsData.peso || ''} onChange={handleVitalsChange} size="small" sx={{minWidth: '80px', flex: '1 1 80px'}}/>
                             <TextField label="Compr. (cm)" name="comprimento" type="number" value={vitalsData.comprimento || ''} onChange={handleVitalsChange} size="small" sx={{minWidth: '80px', flex: '1 1 80px'}}/>
                             <TextField label="PC (cm)" name="pc" type="number" value={vitalsData.pc || ''} onChange={handleVitalsChange} size="small" sx={{minWidth: '80px', flex: '1 1 80px'}}/>
-                            {/* Pode adicionar FC, FR, Temp, SpO2 aqui se o médico medir na consulta */}
                         </Box>
                         
-                        {/* Exame Físico Multi-Select (Seção VII ) */}
+                        {/* Exame Físico 100% ComboBox, SEPARADO POR SEÇÕES */}
                         <FormGroup sx={{ p: { xs: 1, sm: 2 }, border: '1px solid #ddd', borderRadius: 1 }}>
-                            {exameFisicoNeoGroups.map((group, index) => (
-                                <Box key={group.id}>
-                                    {index > 0 && <Divider sx={{ my: 1.5 }} />}
-                                    <FormControl 
-                                        size="small" 
-                                        fullWidth 
-                                        sx={{ mt: index > 0 ? 1.5 : 0 }}
-                                    >
-                                        <InputLabel id={`${group.id}-multi-select-label`}>{group.label}</InputLabel>
+                            {(() => {
+                                const secoes = [
+                                    { titulo: 'Geral e Pele', ids: ['avaliacao_geral', 'cor', 'hidratacao', 'estado_febril', 'atividade', 'reatividade', 'pele_lesoes'] },
+                                    { titulo: 'Cabeça, Pescoço e ORL', ids: ['fontanela', 'suturas', 'pescoco', 'olhos_estado', 'olhos_secrecao', 'reflexo_vermelho', 'orofaringe'] },
+                                    { titulo: 'Respiratório e Cardiovascular', ids: ['respiratorio_padrao', 'respiratorio_ausculta', 'cardio_ritmo', 'cardio_sopros', 'cardio_perfusao'] },
+                                    { titulo: 'Abdome e Genitália', ids: ['abdome_forma', 'abdome_rha', 'abdome_palpacao', 'abdome_viscero', 'cordao', 'genitalia', 'anus'] },
+                                    { titulo: 'Membros e Neurológico', ids: ['membros_coluna', 'pulsos', 'neuro_tonus', 'neuro_reflexos', 'sinais_meningeos'] },
+                                ];
+                                
+                                const renderSelect = (group) => (
+                                    <FormControl key={group.id} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
+                                        <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
                                         <Select
-                                            labelId={`${group.id}-multi-select-label`}
-                                            id={`${group.id}-multi-select`}
-                                            multiple
+                                            labelId={`${group.id}-select-label`}
+                                            id={`${group.id}-select`}
                                             name={group.id}
-                                            value={exameFisicoData[group.id] || []}
-                                            onChange={handleExameChange}
+                                            value={exameFisicoData[group.id] || ''}
                                             label={group.label}
-                                            input={<OutlinedInput label={group.label} />}
-                                            renderValue={(selected) => (
-                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                    {selected.map((valueId) => (
-                                                        <Chip 
-                                                            key={valueId} 
-                                                            label={(allMultiSelectOptions.get(valueId) || {}).label || valueId}
-                                                            size="small" 
-                                                        />
-                                                    ))}
-                                                </Box>
-                                            )}
+                                            onChange={handleExameChange}
                                         >
+                                            <MenuItem value=""><em>Nenhum</em></MenuItem>
                                             {group.options.map(opt => (
-                                                <MenuItem key={opt.id} value={opt.id}>
-                                                    {opt.label}
-                                                </MenuItem>
+                                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                                             ))}
                                         </Select>
                                     </FormControl>
-                                </Box>
-                            ))}
+                                );
+
+                                return secoes.map((secao, index) => (
+                                    <Box key={secao.titulo}>
+                                        {index > 0 && <Divider sx={{ my: 2 }} />}
+                                        <Typography variant="overline" color="textSecondary" sx={{ display: 'block', mb: 1.5, mt: index > 0 ? 1 : 0 }}>
+                                            {secao.titulo}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                            {exameFisicoNeoGroups
+                                                .filter(group => secao.ids.includes(group.id))
+                                                .map(group => renderSelect(group))
+                                            }
+                                        </Box>
+                                    </Box>
+                                ));
+                            })()}
                         </FormGroup>
                         
                         {/* Campo O (Gerado) */}
