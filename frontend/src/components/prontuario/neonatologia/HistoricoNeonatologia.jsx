@@ -61,6 +61,7 @@ export default function HistoricoNeonatologia({ pacienteId }) {
     const [examesHosp, setExamesHosp] = useState({});
 
     // 1. FUNÇÃO DE CARREGAMENTO (Atualizada)
+    // --- ★★★ CORREÇÃO DO LOOP INFINITO ESTÁ AQUI ★★★ ---
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
@@ -70,8 +71,8 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                 setAnamneseData(res.data.neonatologia);
                 setSorologias(res.data.neonatologia.sorologias || {});
                 setTriagens(res.data.neonatologia.triagens || {});
-                setReanimacao(res.data.neonatologia.reanimacao || {}); // Carrega o JSON de reanimação
-                setExamesHosp(res.data.neonatologia.exames_realizados || {}); // Carrega o JSON de exames
+                setReanimacao(res.data.neonatologia.reanimacao || {});
+                setExamesHosp(res.data.neonatologia.exames_realizados || {});
             } else {
                 setAnamneseData(initialState);
                 setSorologias({});
@@ -80,13 +81,16 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                 setExamesHosp({});
             }
         } catch (err) {
+            // Este erro é o que estava causando o loop
             if (err.response && err.response.status !== 404) {
                 showSnackbar('Erro ao carregar histórico neonatal.', 'error');
             }
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId, showSnackbar]);
+    // Removido 'showSnackbar' da lista de dependências para evitar o loop
+    }, [pacienteId]);
+    // --- FIM DA CORREÇÃO ---
 
     useEffect(() => {
         fetchAnamnese();
