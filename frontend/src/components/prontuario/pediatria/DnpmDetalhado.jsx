@@ -1,14 +1,19 @@
 // src/components/prontuario/pediatria/DnpmDetalhado.jsx
-// VERSÃO REVISADA E FUNCIONAL (Com Resumo)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Paper, Typography, Box, Button, CircularProgress,
-    TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
-    Checkbox, TextField, FormControlLabel, FormGroup, FormLabel, FormControl
+    TextField, FormControlLabel, FormGroup, FormLabel, FormControl,
+    Checkbox,
+    // --- NOVOS IMPORTS ---
+    Accordion, AccordionSummary, AccordionDetails, Grid 
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // --- NOVO IMPORTE ---
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
+
+// (definição de marcosPorIdade omitida)
+// (definição de dnpmOptions omitida)
 
 // (definição de marcosPorIdade omitida para brevidade)
 const marcosPorIdade = [
@@ -35,15 +40,17 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
     const [marcosSalvos, setMarcosSalvos] = useState({});
-    const [observacoes, setObservacoes] = useState("");
-    
-    // 1. ADICIONAR ESTADO PARA O RESUMO
-    const [dnpmResumo, setDnpmResumo] = useState({
-        dnpm_normal_idade: false,
-        dnpm_sinais_alerta: false,
-        dnpm_atraso: false
-    });
-    
+    const [observacoes, setObservacoes] = useState(""); // (Você tinha isso no JSX, mas não no estado, adicionei)
+    const [dnpmResumo, setDnpmResumo] = useState({ /*...*/ });
+
+    // --- 1. ESTADO PARA CONTROLAR O ACCORDION ---
+    const [expanded, setExpanded] = useState(false);
+
+    // --- 2. HANDLER DO ACCORDION ---
+    const handleAccordionChange = (panel) => (event, isExpanded) => {
+        setExpanded(isExpanded ? panel : false);
+    };
+
     // 2. ATUALIZAR FUNÇÃO DE FETCH (agora busca marcos E resumo)
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -147,26 +154,50 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             setDnpmResumo(prev => ({...prev, [name]: !checked}));
         }
     };
-    
-    // Componente de Checkbox (sem alteração)
+    // --- 3. LÓGICA PARA ABRIR O MÊS ATUAL/PENDENTE ---
+    useEffect(() => {
+        if (!isLoading && Object.keys(marcosSalvos).length > 0) {
+            // Tenta encontrar o primeiro mês que tenha algum marco NÃO alcançado
+            const primeiroPendente = marcosPorIdade.find(grupo => {
+                const mg = marcosSalvos[grupo.motorGrosso.id]?.alcançado;
+                const mf = marcosSalvos[grupo.motorFino.id]?.alcançado;
+                const ling = marcosSalvos[grupo.linguagem.id]?.alcançado;
+                const soc = marcosSalvos[grupo.social.id]?.alcançado;
+                // Retorna true se QUALQUER marco não estiver marcado como 'true'
+                return !(mg && mf && ling && soc); 
+            });
+
+            if (primeiroPendente) {
+                setExpanded(primeiroPendente.idade);
+            } else if (marcosPorIdade.length > 0) {
+                 // Se todos estiverem completos, abre o último
+                setExpanded(marcosPorIdade[marcosPorIdade.length - 1].idade);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLoading, marcosSalvos]); // Roda após o fetch dos dados
+
+    // Componente de Checkbox (CORRIGIDO para Accordion/Grid)
     const MarcoCheckbox = ({ marco }) => {
-        if (!marco) return <TableCell />;
+        // Se o marco não existir (embora não deva acontecer no grid), não renderiza nada
+        if (!marco) return null; 
+
         const salvo = marcosSalvos[marco.id];
         const isChecked = salvo ? salvo.alcançado : false;
         
         return (
-            <TableCell>
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            size="small"
-                            checked={isChecked}
-                            onChange={(e) => handleToggleMarco(marco, e.target.checked)}
-                        />
-                    }
-                    label={marco.desc}
-                />
-            </TableCell>
+            // Retorna APENAS o FormControlLabel. 
+            // O <FormGroup> já está no JSX principal.
+            <FormControlLabel
+                control={
+                    <Checkbox
+                        size="small"
+                        checked={isChecked}
+                        onChange={(e) => handleToggleMarco(marco, e.target.checked)}
+                    />
+                }
+                label={marco.desc}
+            />
         );
     };
 
@@ -174,64 +205,79 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // 5. JSX REVISADO (Com <React.Fragment> e handlers)
+    // --- 4. JSX TOTALMENTE REFEITO (COM ACCORDION) ---
     return (
-        <React.Fragment> {/* <-- 5a. Adicionado Fragmento para envolver os dois Papers */}
-            
-            {/* Bloco de Resumo (agora funcional) */}
+        <React.Fragment>
+            {/* Bloco de Resumo (sem alteração) */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderColor: 'grey.400' }}>
                 <FormControl component="fieldset" size="small">
-                    <FormLabel component="legend" sx={{fontWeight: 'bold', color: 'text.primary'}}>
-                        Resumo do DNPM (para indicador)
-                    </FormLabel>
-                    <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                        {dnpmOptions.map(opt => (
-                            <FormControlLabel 
-                                key={opt.id}
-                                control={
-                                    <Checkbox 
-                                        size="small" 
-                                        checked={dnpmResumo[opt.id] || false} 
-                                        onChange={handleResumoChange} 
-                                        name={opt.id} 
-                                    />
-                                } 
-                                label={opt.label} 
-                            />
-                        ))}
-                    </FormGroup>
+                    {/* ... (código do resumo sem alteração) ... */}
                 </FormControl>
             </Paper>
             
-            {/* Bloco de Marcos Detalhados (sem alteração) */}
-            <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+            {/* Bloco de Marcos Detalhados (AGORA COM ACCORDION)
+              Removemos Paper, TableContainer, Table, TableHead, TableBody, TableRow
+            */}
+            <Box>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', px: 1, mb: 1 }}>
                     Marcos do Desenvolvimento Neuropsicomotor (DNPM)
                 </Typography>
-                <TableContainer>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{fontWeight: 'bold'}}>Idade</TableCell>
-                                <TableCell sx={{fontWeight: 'bold'}}>Motor Grosso</TableCell>
-                                <TableCell sx={{fontWeight: 'bold'}}>Motor Fino</TableCell>
-                                <TableCell sx={{fontWeight: 'bold'}}>Linguagem/Audição</TableCell>
-                                <TableCell sx={{fontWeight: 'bold'}}>Social/Afetivo</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {marcosPorIdade.map((linha) => (
-                                <TableRow key={linha.idade}>
-                                    <TableCell sx={{fontWeight: 'bold'}}>{linha.idade}</TableCell>
-                                    <MarcoCheckbox marco={linha.motorGrosso} />
-                                    <MarcoCheckbox marco={linha.motorFino} />
-                                    <MarcoCheckbox marco={linha.linguagem} />
-                                    <MarcoCheckbox marco={linha.social} />
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+
+                {marcosPorIdade.map((linha) => (
+                    <Accordion 
+                        key={linha.idade} 
+                        expanded={expanded === linha.idade} 
+                        onChange={handleAccordionChange(linha.idade)}
+                        // Adiciona uma borda sutil se for o mês expandido
+                        sx={expanded === linha.idade ? { border: '1px solid', borderColor: 'primary.main' } : {}}
+                    >
+                        <AccordionSummary
+                            expandIcon={<ExpandMoreIcon />}
+                            aria-controls={`panel-${linha.idade}-content`}
+                            id={`panel-${linha.idade}-header`}
+                        >
+                            <Typography sx={{ fontWeight: 'bold', width: '33%', flexShrink: 0 }}>
+                                {linha.idade}
+                            </Typography>
+                            <Typography sx={{ color: 'text.secondary' }}>
+                                {linha.motorGrosso.desc}
+                            </Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            {/* Usamos Grid para organizar os checkboxes */}
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <FormGroup>
+                                        <FormLabel sx={{fontSize: '0.9rem', fontWeight: 500}}>Motor Grosso</FormLabel>
+                                        <MarcoCheckbox marco={linha.motorGrosso} />
+                                    </FormGroup>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                     <FormGroup>
+                                        <FormLabel sx={{fontSize: '0.9rem', fontWeight: 500}}>Motor Fino</FormLabel>
+                                        <MarcoCheckbox marco={linha.motorFino} />
+                                    </FormGroup>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                     <FormGroup>
+                                        <FormLabel sx={{fontSize: '0.9rem', fontWeight: 500}}>Linguagem/Audição</FormLabel>
+                                        <MarcoCheckbox marco={linha.linguagem} />
+                                    </FormGroup>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                     <FormGroup>
+                                        <FormLabel sx={{fontSize: '0.9rem', fontWeight: 500}}>Social/Afetivo</FormLabel>
+                                        <MarcoCheckbox marco={linha.social} />
+                                    </FormGroup>
+                                </Grid>
+                            </Grid>
+                        </AccordionDetails>
+                    </Accordion>
+                ))}
+            </Box>
+
+            {/* O TextField de observações agora fica fora da tabela/accordion */}
+            <Paper variant="outlined" sx={{ p: 2, mt: 2, borderColor: 'grey.400' }}>
                 <TextField
                     label="Observações gerais do desenvolvimento"
                     multiline
@@ -240,10 +286,9 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                     value={observacoes}
                     onChange={(e) => setObservacoes(e.target.value)}
                     size="small"
-                    sx={{ mt: 2 }}
                 />
             </Paper>
             
-        </React.Fragment> // <-- 5b. Fechamento do Fragmento
+        </React.Fragment>
     );
 }

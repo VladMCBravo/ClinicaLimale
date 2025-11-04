@@ -10,7 +10,7 @@ import {
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig'
 
-// (definição de pniSchedule omitida para brevidade)
+// ATUALIZADO com Gripe, COVID, 15 meses e 4 anos
 const pniSchedule = [
     { idade: 'Ao nascer', vacinas: [
         { id: 'bcg', nome: 'BCG', dose: 'Dose Única' },
@@ -23,7 +23,8 @@ const pniSchedule = [
         { id: 'pneumo_1', nome: 'Pneumo 10', dose: '1ª Dose' }
     ]},
     { idade: '3 meses', vacinas: [
-        { id: 'meno_acwy_1', nome: 'Meningocócica ACWY', dose: '1ª Dose' }
+        { id: 'meno_acwy_1', nome: 'Meningocócica ACWY', dose: '1ª Dose' } 
+        // PNI padrão usa Meningo C. Manter ACWY se for o padrão da clínica.
     ]},
     { idade: '4 meses', vacinas: [
         { id: 'penta_2', nome: 'Pentavalente', dose: '2ª Dose' },
@@ -36,15 +37,38 @@ const pniSchedule = [
     ]},
     { idade: '6 meses', vacinas: [
         { id: 'penta_3', nome: 'Pentavalente', dose: '3ª Dose' },
-        { id: 'vip_3', nome: 'VIP (Pólio)', dose: '3ª Dose' }
+        { id: 'vip_3', nome: 'VIP (Pólio)', dose: '3ª Dose' },
+        { id: 'influenza_1', nome: 'Influenza (Gripe)', dose: '1ª Dose (Campanha)' }, //
+        { id: 'covid_1', nome: 'COVID-19', dose: '1ª Dose' } //
     ]},
-    { idade: '9 meses', vacinas: [
-        { id: 'febre_amarela', nome: 'Febre Amarela', dose: 'Dose Inicial' }
+    { idade: '7 meses', vacinas: [
+        // A Influenza pode ter a 2ª dose aqui (30 dias após a 1ª) se for a primovacinação
+        { id: 'influenza_2', nome: 'Influenza (Gripe)', dose: '2ª Dose (se primovacinação)' }, 
+        { id: 'covid_2', nome: 'COVID-19', dose: '2ª Dose' } //
+    ]},
+     { idade: '9 meses', vacinas: [
+        { id: 'febre_amarela', nome: 'Febre Amarela', dose: 'Dose Inicial' },
+        { id: 'covid_3', nome: 'COVID-19', dose: '3ª Dose' } //
     ]},
     { idade: '12 meses', vacinas: [
         { id: 'triplice_1', nome: 'Tríplice Viral', dose: '1ª Dose' },
         { id: 'pneumo_r', nome: 'Pneumo 10', dose: 'Reforço' },
         { id: 'meno_acwy_r', nome: 'Meningo ACWY', dose: 'Reforço' }
+    ]},
+    { idade: '15 meses', vacinas: [ //
+        { id: 'dtp_r1', nome: 'DTP (Tríplice Bact.)', dose: '1º Reforço' },
+        { id: 'vop_r1', nome: 'VOP (Pólio Oral)', dose: '1º Reforço' }, // Ou VIP, conforme nova recomendação PNI
+        { id: 'hep_a', nome: 'Hepatite A', dose: 'Dose Única' },
+        { id: 'tetra_viral', nome: 'Tetra Viral', dose: 'Dose Única' } // (Sarampo, Caxumba, Rubéola, Varicela)
+    ]},
+    { idade: '4 anos', vacinas: [ //
+        { id: 'dtp_r2', nome: 'DTP (Tríplice Bact.)', dose: '2º Reforço' },
+        { id: 'vop_r2', nome: 'VOP (Pólio Oral)', dose: '2º Reforço' },
+        { id: 'varicela_r', nome: 'Varicela', dose: 'Reforço/2ª Dose' }, // (Se não tomou Tetra Viral)
+        { id: 'febre_amarela_r', nome: 'Febre Amarela', dose: 'Reforço' } //
+    ]},
+    { idade: 'Anual', vacinas: [
+        { id: 'influenza_anual', nome: 'Influenza (Gripe)', dose: 'Dose Anual' } //
     ]}
 ];
 
