@@ -1,20 +1,26 @@
 // src/components/prontuario/EvolucoesTab.jsx
-// ESTE É O COMPONENTE "ROTEADOR"
+// ARQUIVO ATUALIZADO (Roteador de Especialidades)
 
 import React, { Suspense, lazy } from 'react';
-// --- CORREÇÃO AQUI ---
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // Importa os formulários de especialidade com lazy loading
 const AtendimentoPediatria = lazy(() => import('./AtendimentoPediatria'));
 const AtendimentoCardiologia = lazy(() => import('./AtendimentoCardiologia'));
-const AtendimentoNeonatologia = lazy(() => import('./AtendimentoNeonatologia')); // Sem a subpasta
-const AtendimentoGinecologia = lazy(() => import('./AtendimentoGinecologia')); // Sem subpasta
-const AtendimentoClinicaGeral = lazy(() => import('./AtendimentoClinicaGeral')); // <-- ADICIONE O IMPORT
+const AtendimentoNeonatologia = lazy(() => import('./AtendimentoNeonatologia'));
+const AtendimentoGinecologia = lazy(() => import('./AtendimentoGinecologia'));
+const AtendimentoClinicaGeral = lazy(() => import('./AtendimentoClinicaGeral'));
+
+// --- 1. ADICIONANDO NOVAS ESPECIALIDADES ---
+const AtendimentoObstetricia = lazy(() => import('./AtendimentoObstetricia'));
+const AtendimentoOrtopedia = lazy(() => import('./AtendimentoOrtopedia'));
+const AtendimentoReumatologia = lazy(() => import('./AtendimentoReumatologia'));
+const AtendimentoNeurologia = lazy(() => import('./AtendimentoNeurologia'));
+// --- FIM DA ADIÇÃO ---
+
 
 // Componente "Fallback" genérico
 const GenericFallback = ({ especialidadeNome }) => (
-    // --- ESTA LINHA CAUSOU O ERRO ---
     <Paper sx={{ p: 2, textAlign: 'center' }}>
         <Typography variant="h6">Prontuário (Em Desenvolvimento)</Typography>
         <Typography>Especialidade: {especialidadeNome}</Typography>
@@ -22,29 +28,40 @@ const GenericFallback = ({ especialidadeNome }) => (
     </Paper>
 );
 
-export default function EvolucaoTab({ pacienteId, especialidade, onEvolucoesSalva }) {
+// --- 2. CORRIGIDO NOME DA PROP para onEvolucaoSalva (singular) ---
+export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva }) {
     
     // Função para renderizar o componente da especialidade correta
     const renderEspecialidadeComponent = () => {
+        
+        // --- 3. ATUALIZANDO O 'switch' E PADRONIZANDO A PROP ---
         switch (especialidade) {
+            // --- Módulos Antigos ---
             case 'Pediatria':
-                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
+                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
             case 'Cardiologia':
-                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
+                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
             case 'Neonatologia':
-                return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
+                return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
             case 'Ginecologia':
-            case 'Obstetrícia': // Pode usar o mesmo form? Avaliar.
-                return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucoesSalva} />;
-            case 'Clínica Médica': // Ou o nome que você usa
-            // Adicione outras especialidades que usarão o form geral
-            // case 'Dermatologia':
-            // case 'Endocrinologia':
-                return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />;
+                return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            
+            // --- Módulos Novos e Corrigidos ---
+            case 'Obstetrícia': // <-- CORRIGIDO
+                return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Ortopedia': // <-- ADICIONADO
+                return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Reumatologia': // <-- ADICIONADO
+                return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Neurologia': // <-- ADICIONADO (Conforme solicitado)
+                return <AtendimentoNeurologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
 
-            default: // Fallback final usa o genérico ou o de Clínica Geral
-                // return <GenericFallback especialidadeNome={especialidade} />;
-                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucoesSalva} />; // Ou usa Clínica Geral como default
+            // --- Módulo Padrão/Default ---
+            case 'Clínica Médica':
+            case 'ClinicaGeral': // Adicionando alias
+            default: 
+                 // Usa o Clínica Geral como padrão
+                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
         }
     };
 
