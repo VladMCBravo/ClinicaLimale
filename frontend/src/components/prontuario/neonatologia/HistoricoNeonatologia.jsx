@@ -54,12 +54,16 @@ const examesHospOptions = [ //
     { id: 'us_tf', label: 'US Transfontanelar' }, { id: 'eco', label: 'Ecocardiograma' },
     { id: 'fundo_olho', label: 'Fundo de olho' },
 ];
-const triagensOptions = [ //
-    { id: 'pezinho', label: 'Pezinho' }, { id: 'orelhinha', label: 'Orelhinha' },
-    { id: 'olhinho', label: 'Olhinho' }, { id: 'coracaozinho', label: 'Coraçãozinho' },
-    { id: 'linguinha', label: 'Linguinha' },
-];
+// (triagensOptions foi REMOVIDO)
 
+// --- ALTERAÇÃO 1: Novas opções para Triagens ---
+const normalAlteradoOptions = ['Normal', 'Alterado'];
+const presenteAlteradoOptions = ['Presente', 'Alterado'];
+const eoatOptions = ['Presente Bilateral', 'Alterado', 'Ausente'];
+// --- FIM ALTERAÇÃO ---
+
+
+// --- ALTERAÇÃO 2: initialState atualizado para Triagens ---
 const initialState = {
     gpa_g: '', gpa_p: '', gpa_a: '',
     pre_natal: '', tipo_gestacao: '', corticoterapia: '', neuroprotecao_mg: '',
@@ -90,8 +94,17 @@ const initialState = {
     diagnosticos_principais: '',
     exames_realizados: {},
     outros_exames: [], 
-    triagens: {},
+    // Nova estrutura para triagens
+    triagens: {
+        pezinho_status: '', pezinho_desc: '',
+        orelhinha_eoat_status: '', orelhinha_eoat_desc: '',
+        orelhinha_bera_status: '', orelhinha_bera_desc: '',
+        olhinho_status: '', olhinho_desc: '',
+        coracaozinho_status: '', coracaozinho_desc: '',
+        linguinha_status: '', linguinha_desc: '',
+    },
 };
+// --- FIM ALTERAÇÃO ---
 
 export default function HistoricoNeonatologia({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
@@ -104,34 +117,37 @@ export default function HistoricoNeonatologia({ pacienteId }) {
     const [vicios, setVicios] = useState({});
     const [reanimacao, setReanimacao] = useState({});
     const [examesHosp, setExamesHosp] = useState({});
-    const [triagens, setTriagens] = useState({});
+    // --- ALTERAÇÃO 3: Estado de Triagens usa initialState ---
+    const [triagens, setTriagens] = useState(initialState.triagens);
+    // --- FIM ALTERAÇÃO ---
     const [outrosExames, setOutrosExames] = useState([]);
 
-    // --- fetchAnamnese (Corrigido para o loop 500) ---
+    // --- ALTERAÇÃO 4: fetchAnamnese (Deep Merge de Triagens) ---
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             if (res.data && res.data.neonatologia) {
-                const data = { ...initialState, ...res.data.neonatologia }; // Garante que todos os campos existam
+                const data = { ...initialState, ...res.data.neonatologia };
+                // Garante que a sub-estrutura de triagens exista e esteja completa
+                data.triagens = { ...initialState.triagens, ...(data.triagens || {}) }; 
+                
                 setAnamneseData(data);
-                // Seta os estados dos checkboxes/JSONs
                 setComorbidades(data.comorbidades_detalhes || {});
                 setVicios(data.vicios_detalhes || {});
                 setReanimacao(data.reanimacao_opcoes || {});
                 setExamesHosp(data.exames_realizados || {});
                 setOutrosExames(data.outros_exames || []);
-                setTriagens(data.triagens || {});
+                setTriagens(data.triagens || initialState.triagens); // Seta o estado separado
             } else {
-                // Se não houver dados, reseta tudo para o estado inicial
                 setAnamneseData(initialState);
                 setComorbidades({});
                 setVicios({});
                 setReanimacao({});
                 setExamesHosp({});
                 setOutrosExames([]);
-                setTriagens({});
+                setTriagens(initialState.triagens); // Reseta triagens
             }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
@@ -140,7 +156,8 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId]); // Removido 'showSnackbar'
+    }, [pacienteId, showSnackbar]);
+    // --- FIM ALTERAÇÃO ---
 
     useEffect(() => {
         fetchAnamnese();
@@ -193,7 +210,12 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         list.splice(index, 1);
         setOutrosExames(list);
     };
-
+    // --- ALTERAÇÃO 5: Novo Handler para Triagens ---
+    const handleTriagensChange = (e) => {
+        const { name, value } = e.target;
+        setTriagens(prev => ({ ...prev, [name]: value }));
+    };
+    // --- FIM ALTERAÇÃO ---
     // --- Salvar, Normalidade, Limpar ---
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
@@ -220,43 +242,40 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         }
     };
     
+    // --- ALTERAÇÃO 6: Normalidade e Limpar (Triagens) ---
     const preencherNormalidade = () => {
         setAnamneseData(prev => ({
-            ...initialState, // Começa do zero, mas mantém os vitais
-            gpa_g: '1', gpa_p: '1', gpa_a: '0',
-            pre_natal: 'Adequado',
-            tipo_gestacao: 'Única',
-            corticoterapia: 'Não',
-            neuroprotecao_mg: 'Não se aplica',
-            condicoes_maternas: 'Não',
-            vicios: 'Não',
+            ...initialState, 
+            // ... (campos de normalidade existentes)
+            gpa_g: '1', gpa_p: '1', gpa_a: '0', pre_natal: 'Adequado', tipo_gestacao: 'Única',
+            corticoterapia: 'Não', neuroprotecao_mg: 'Não se aplica', condicoes_maternas: 'Não', vicios: 'Não',
             tipo_sanguineo_mae: 'O', rh_mae: '+', coombs_indireto: 'Negativo', anti_d: 'Não se aplica',
             tipo_sanguineo_rn: 'O', rh_rn: '+', coombs_direto_rn: 'Negativo', eluato: 'Negativo',
             sorologias: {
                 hiv_status: 'Não reagente', sifilis_status: 'Não reagente', toxo_status: 'Imune',
                 hep_b_status: 'Não reagente', outras_inf_status: 'Não reagente',
             },
-            tipo_parto: 'Normal',
-            bolsa_rota: 'Rota <18h',
-            profilaxia_bolsa: 'Sim',
-            liquido_amniotico: 'Claro',
+            tipo_parto: 'Normal', bolsa_rota: 'Rota <18h', profilaxia_bolsa: 'Sim', liquido_amniotico: 'Claro',
             apgar_1: 9, apgar_5: 10, apgar_10: 10,
             reanimacao_status: 'Não',
-            ig_semanas: '39', ig_dias: '0',
-            peso_adequacao: 'AIG',
-            tempo_internacao: '2',
-            suporte_ventilatorio: 'Não aplicável',
-            fototerapia: 'Não',
-            npp: 'Não',
-            antibioticos: 'Não',
+            ig_semanas: '39', ig_dias: '0', peso_adequacao: 'AIG', tempo_internacao: '2',
+            suporte_ventilatorio: 'Não aplicável', fototerapia: 'Não', npp: 'Não', antibioticos: 'Não',
             diagnosticos_principais: 'RN A Termo, AIG, sem intercorrências.',
         }));
         setComorbidades({});
         setVicios({});
         setReanimacao({});
         setExamesHosp({ us_tf: true, eco: true, fundo_olho: true });
-        setTriagens({ pezinho: true, orelhinha: true, olhinho: true, coracaozinho: true, linguinha: true });
         setOutrosExames([]);
+        // Seta normalidade para triagens
+        setTriagens({
+            pezinho_status: 'Normal', pezinho_desc: '',
+            orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
+            orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '',
+            olhinho_status: 'Presente', olhinho_desc: '',
+            coracaozinho_status: 'Normal', coracaozinho_desc: '',
+            linguinha_status: 'Normal', linguinha_desc: '', // Assumindo 'Normal'
+        });
         showSnackbar('Histórico preenchido com dados normais.', 'info');
     };
     
@@ -267,9 +286,10 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         setReanimacao({});
         setExamesHosp({});
         setOutrosExames([]);
-        setTriagens({});
+        setTriagens(initialState.triagens); // Reseta triagens
         showSnackbar('Campos do histórico limpos.', 'info');
     };
+    // --- FIM ALTERAÇÃO ---
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
@@ -660,17 +680,84 @@ export default function HistoricoNeonatologia({ pacienteId }) {
             </FormControl>
 
 
-            {/* --- 5. TRIAGENS --- */}
+            {/* --- ALTERAÇÃO 7: JSX Seção 5 (Triagens) --- */}
             <Divider sx={{ my: 2 }} />
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>5. Triagens e Testes Neonatais</Typography>
-            <FormControl component="fieldset" size="small" sx={{mt: 1, width: '100%'}}>
-                <FormLabel component="legend" sx={{fontSize: '0.9rem'}}>Status (Marcados = Realizados e Normais):</FormLabel>
-                <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                    {triagensOptions.map(opt => (
-                        <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={triagens[opt.id] || false} onChange={handleCheckboxChange(setTriagens)} name={opt.id} />} label={opt.label} />
-                    ))}
-                </FormGroup>
-            </FormControl>
+            
+            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                {/* Teste do Pezinho */}
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste do Pezinho" name="pezinho_status" value={triagens.pezinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.pezinho_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Pezinho)" name="pezinho_desc" value={triagens.pezinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                {/* Teste da Orelhinha (EOAT) */}
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste da Orelhinha (EOAT)" name="orelhinha_eoat_status" value={triagens.orelhinha_eoat_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {eoatOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.orelhinha_eoat_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (EOAT)" name="orelhinha_eoat_desc" value={triagens.orelhinha_eoat_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                {/* Teste da Orelhinha (BERA) */}
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="BERA" name="orelhinha_bera_status" value={triagens.orelhinha_bera_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.orelhinha_bera_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (BERA)" name="orelhinha_bera_desc" value={triagens.orelhinha_bera_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                {/* Teste do Olhinho (Reflexo Vermelho) */}
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste do Olhinho (Refl. Verm.)" name="olhinho_status" value={triagens.olhinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {presenteAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.olhinho_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Olhinho)" name="olhinho_desc" value={triagens.olhinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                {/* Teste do Coraçãozinho */}
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste do Coraçãozinho" name="coracaozinho_status" value={triagens.coracaozinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.coracaozinho_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Coraçãozinho)" name="coracaozinho_desc" value={triagens.coracaozinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+                
+                {/* Teste da Linguinha (Bônus, baseado no código antigo) */}
+                 <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste da Linguinha" name="linguinha_status" value={triagens.linguinha_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.linguinha_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Linguinha)" name="linguinha_desc" value={triagens.linguinha_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+            </Grid>
+            {/* --- FIM DA ALTERAÇÃO --- */}
 
             {/* Botões Salvar/Limpar */}
             <Box sx={{ textAlign: 'right', mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>

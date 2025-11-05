@@ -1,5 +1,5 @@
 // src/components/prontuario/pediatria/DnpmDetalhado.jsx
-// VERSÃO ATUALIZADA: Troca Checkbox por Select (Dropdown) Sim/Não/Pendente
+// VERSÃO ATUALIZADA: Adiciona FormLabels de volta ao Accordion
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -7,12 +7,10 @@ import {
     TextField, FormControlLabel, FormGroup, FormLabel, FormControl,
     Checkbox,
     Accordion, AccordionSummary, AccordionDetails, Grid,
-    // --- ALTERAÇÃO 1: NOVOS IMPORTS ---
     Select, MenuItem, InputLabel
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-// Caminho corrigido para 3 níveis (src/components/prontuario/pediatria -> src/contexts)
-import { useSnackbar } from '../../../contexts/SnackbarContext'; 
+import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
 // (definição de marcosPorIdade omitida para brevidade)
@@ -35,12 +33,10 @@ const dnpmOptions = [
     { id: 'dnpm_sinais_alerta', label: 'Sinais de Alerta' },
     { id: 'dnpm_atraso', label: 'Atraso no DNPM' },
 ];
-
-// --- ALTERAÇÃO 2: OPÇÕES PARA O DROPDOWN ---
 const dnpmStatusOptions = [
     { value: 'Pendente', label: 'Pendente' },
-    { value: 'Sim', label: 'Sim (Alcançado)' },
-    { value: 'Não', label: 'Não (Alerta)' },
+    { value: 'Presente', label: 'Presente' },
+    { value: 'Ausente', label: 'Ausente (Alerta)' },
 ];
 
 export default function DnpmDetalhado({ pacienteId, onDataChange }) {
@@ -55,21 +51,22 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
         setExpanded(isExpanded ? panel : false);
     };
 
-    // --- ALTERAÇÃO 3: FETCHDATA ATUALIZADO (Traduz alcançado -> status) ---
+    // --- ALTERAÇÃO 2: fetchData (Mapeia para Presente/Ausente e carrega observacao) ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const resMarcos = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
-            
-            // Converte a resposta da API (alcançado: true/false/null) 
-            // para um estado local (status: 'Sim'/'Não'/'Pendente')
             const mapaMarcos = resMarcos.data.reduce((acc, marco) => {
                 let status;
-                if (marco.alcançado === true) status = 'Sim';
-                else if (marco.alcançado === false) status = 'Não';
-                else status = 'Pendente'; // Se for null ou undefined
+                if (marco.alcançado === true) status = 'Presente';
+                else if (marco.alcançado === false) status = 'Ausente';
+                else status = 'Pendente';
                 
-                acc[marco.marco_id] = { ...marco, status: status }; // Adiciona o status local
+                acc[marco.marco_id] = { 
+                    ...marco, 
+                    status: status, 
+                    observacao: marco.observacao || '' // Garante que observacao exista
+                };
                 return acc;
             }, {});
             setMarcosSalvos(mapaMarcos);
@@ -78,70 +75,75 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             if (resAnamnese.data && resAnamnese.data.pediatrica && resAnamnese.data.pediatrica.dnpm) {
                 setDnpmResumo(resAnamnese.data.pediatrica.dnpm);
             }
-
-        } catch (err) {
-            showSnackbar('Erro ao carregar dados de DNPM.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (err) { showSnackbar('Erro ao carregar dados de DNPM.', 'error'); }
+        finally { setIsLoading(false); }
     }, [pacienteId, showSnackbar]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    // --- ALTERAÇÃO 4: NOVA FUNÇÃO DE SALVAMENTO (Traduz status -> alcançado) ---
-    const handleMarcoChange = async (marco, newStatus) => {
-        const { id: marco_id, desc: marco_descricao } = marco;
+    // --- ALTERAÇÃO 3: Função 'saveMarco' consolidada ---
+    // Salva qualquer parte do marco (status ou observação)
+    const saveMarco = async (marco_id, payload) => {
+        // Encontra a descrição do marco na constante
+        const marco = marcosPorIdade
+            .flatMap(g => [g.motorGrosso, g.motorFino, g.linguagem, g.social])
+            .find(m => m.id === marco_id);
+        
+        if (!marco) return;
+        const { desc: marco_descricao } = marco;
+        
         const marcoExistente = marcosSalvos[marco_id];
-        const oldState = marcosSalvos; // Guarda estado anterior para reverter em caso de erro
+        const oldState = { ...marcosSalvos }; // Salva estado anterior
+        
+        // --- Atualização Otimista ---
+        const optimisticData = {
+            ...(marcoExistente || { 
+                marco_id: marco_id, 
+                marco_descricao: marco_descricao,
+                idade_marco: marco_id.split('_')[0],
+                status: 'Pendente',
+                observacao: ''
+            }),
+            ...payload // Aplica as novas mudanças (ex: {alcançado: false} ou {observacao: '...'})
+        };
+        
+        // Se 'alcançado' foi mudado, atualiza o 'status' local
+        if (payload.alcançado === true) optimisticData.status = 'Presente';
+        else if (payload.alcançado === false) optimisticData.status = 'Ausente';
+        else if (payload.alcançado === null) optimisticData.status = 'Pendente';
 
-        // 1. Traduz o status do dropdown (string) para o que a API espera (boolean/null)
-        let alcançado_payload;
-        if (newStatus === 'Sim') alcançado_payload = true;
-        else if (newStatus === 'Não') alcançado_payload = false;
-        else alcançado_payload = null; // 'Pendente'
+        setMarcosSalvos(prev => ({ ...prev, [marco_id]: optimisticData }));
+        // --- Fim Atualização Otimista ---
 
-        // 2. Atualização Otimista da UI
-        setMarcosSalvos(prev => ({
-            ...prev,
-            [marco_id]: {
-                ...(prev[marco_id] || { 
-                    marco_id: marco_id, 
-                    marco_descricao: marco_descricao,
-                    idade_marco: marco_id.split('_')[0]
-                }),
-                status: newStatus, // Atualiza o status (string) local
-                alcançado: alcançado_payload // Atualiza o alcançado (bool) local
-            }
-        }));
-
-        // 3. Chamada de API
         try {
-            const payload = { alcançado: alcançado_payload }; // Envia apenas o bool/null
-
-            if (marcoExistente?.id) { // Se já existe no banco (tem ID)
+            if (marcoExistente?.id) {
+                // PATCH (Atualiza só o que mudou)
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${marcoExistente.id}/`, payload);
-            } else { // Se é novo (não tem ID)
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, {
+            } else {
+                // POST (Cria novo)
+                const fullPayload = {
                     marco_id: marco_id,
                     marco_descricao: marco_descricao,
                     idade_marco: marco_id.split('_')[0],
-                    ...payload
-                });
-                // Atualiza o estado local com os dados do novo item (incluindo o ID)
-                setMarcosSalvos(prev => ({ ...prev, [marco_id]: { ...res.data, status: newStatus } }));
+                    alcançado: payload.alcançado !== undefined ? payload.alcançado : null,
+                    observacao: payload.observacao || ''
+                };
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, fullPayload);
+                
+                // Atualiza o estado local com o ID do banco
+                setMarcosSalvos(prev => ({ 
+                    ...prev, 
+                    [marco_id]: { ...res.data, status: optimisticData.status } 
+                }));
             }
-            if (onDataChange) {
-                onDataChange();
-            }
+            if (onDataChange) onDataChange();
         } catch (err) {
             showSnackbar('Erro ao salvar marco.', 'error');
-            setMarcosSalvos(oldState); // Reverte a UI em caso de erro
+            setMarcosSalvos(oldState); // Reverte em caso de erro
         }
     };
 
-    // Handler do Resumo (sem alteração)
+    // (handleResumoChange... sem alterações)
     const handleResumoChange = async (event) => {
         const { name, checked } = event.target;
         const newResumo = { ...dnpmResumo, [name]: checked };
@@ -158,60 +160,88 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
         }
     };
 
-    // --- ALTERAÇÃO 5: LÓGICA DE EXPANSÃO (Verifica 'status' em vez de 'alcançado') ---
+    // --- ALTERAÇÃO 4: useEffect de expansão (checa 'Presente') ---
     useEffect(() => {
         if (!isLoading && Object.keys(marcosSalvos).length > 0) {
-            
             const primeiroPendente = marcosPorIdade.find(grupo => {
-                // Pega o status de cada marco (ou 'Pendente' se não existir)
                 const mg_status = marcosSalvos[grupo.motorGrosso.id]?.status || 'Pendente';
                 const mf_status = marcosSalvos[grupo.motorFino.id]?.status || 'Pendente';
                 const ling_status = marcosSalvos[grupo.linguagem.id]?.status || 'Pendente';
                 const soc_status = marcosSalvos[grupo.social.id]?.status || 'Pendente';
                 
-                // Retorna true (para o 'find') se QUALQUER marco não for 'Sim'
-                return (mg_status !== 'Sim' || mf_status !== 'Sim' || ling_status !== 'Sim' || soc_status !== 'Sim'); 
+                // Retorna true se QUALQUER marco não for 'Presente'
+                return (mg_status !== 'Presente' || mf_status !== 'Presente' || ling_status !== 'Presente' || soc_status !== 'Presente'); 
             });
 
-            if (primeiroPendente) {
-                setExpanded(primeiroPendente.idade);
-            } else if (marcosPorIdade.length > 0) {
-                setExpanded(marcosPorIdade[marcosPorIdade.length - 1].idade);
-            }
+            if (primeiroPendente) setExpanded(primeiroPendente.idade);
+            else if (marcosPorIdade.length > 0) setExpanded(marcosPorIdade[marcosPorIdade.length - 1].idade);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, marcosSalvos]); // Roda após o fetch dos dados
+    }, [isLoading, marcosSalvos]);
 
 
-    // --- ALTERAÇÃO 6: NOVO COMPONENTE (MarcoSelect) ---
-    const MarcoSelect = ({ marco }) => {
+    // --- ALTERAÇÃO 5: Novo Componente (MarcoAvaliacao) ---
+    const MarcoAvaliacao = ({ marco }) => {
         if (!marco) return null;
 
         const salvo = marcosSalvos[marco.id];
-        // O valor padrão é 'Pendente' se não houver 'status' salvo
-        const currentStatus = salvo?.status || 'Pendente'; 
+        const currentStatus = salvo?.status || 'Pendente';
+        const currentObs = salvo?.observacao || '';
         
         return (
-            // Renderiza um FormControl completo com Label e Select
-            <FormControl size="small" fullWidth sx={{ mb: 1, minWidth: '220px' }}>
-                <InputLabel id={`label-${marco.id}`}>{marco.desc}</InputLabel>
-                <Select
-                    labelId={`label-${marco.id}`}
-                    id={`select-${marco.id}`}
-                    value={currentStatus}
-                    label={marco.desc} // Importante para o layout do label
-                    onChange={(e) => handleMarcoChange(marco, e.target.value)}
-                >
-                    {dnpmStatusOptions.map(opt => (
-                        <MenuItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+            <Box>
+                {/* O Dropdown (Select) */}
+                <FormControl size="small" fullWidth sx={{ mb: 1, minWidth: '200px' }}>
+                    <InputLabel id={`label-${marco.id}`}>{marco.desc}</InputLabel>
+                    <Select
+                        labelId={`label-${marco.id}`}
+                        id={`select-${marco.id}`}
+                        value={currentStatus}
+                        label={marco.desc}
+                        onChange={(e) => {
+                            const newStatus = e.target.value;
+                            let alcançado_payload;
+                            if (newStatus === 'Presente') alcançado_payload = true;
+                            else if (newStatus === 'Ausente') alcançado_payload = false;
+                            else alcançado_payload = null;
+                            
+                            // Salva o status (alcançado)
+                            saveMarco(marco.id, { alcançado: alcançado_payload });
+                        }}
+                    >
+                        {dnpmStatusOptions.map(opt => (
+                            <MenuItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                
+                {/* O Campo "Descrever" (Condicional) */}
+                {currentStatus === 'Ausente' && (
+                    <TextField
+                        label="Descrever"
+                        size="small"
+                        fullWidth
+                        value={currentObs}
+                        onChange={(e) => {
+                            // Apenas atualiza o estado local (otimismo)
+                            const newObs = e.target.value;
+                            setMarcosSalvos(prev => ({
+                                ...prev,
+                                [marco.id]: { ...(prev[marco.id] || {}), observacao: newObs }
+                            }));
+                        }}
+                        onBlur={() => {
+                            // Salva no banco QUANDO o usuário sai do campo
+                            saveMarco(marco.id, { observacao: currentObs });
+                        }}
+                        sx={{ mb: 1 }}
+                    />
+                )}
+            </Box>
         );
     };
-
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
@@ -219,7 +249,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
 
     return (
         <React.Fragment>
-            {/* Bloco de Resumo */}
+            {/* Bloco de Resumo (sem alteração) */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderColor: 'grey.400' }}>
                 <FormControl component="fieldset" size="small">
                     <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 500}}>Resumo da Avaliação</FormLabel>
@@ -242,7 +272,6 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                 </FormControl>
             </Paper>
             
-            {/* Bloco de Marcos Detalhados (Accordion) */}
             <Box>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', px: 1, mb: 1 }}>
                     Marcos do Desenvolvimento Neuropsicomotor (DNPM)
@@ -268,19 +297,23 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                             </Typography>
                         </AccordionSummary>
                         <AccordionDetails>
-                            {/* --- ALTERAÇÃO 7: JSX ATUALIZADO (Usa MarcoSelect) --- */}
+                            {/* --- ALTERAÇÃO 6: JSX com FormLabels e MarcoAvaliacao --- */}
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6} md={3}>
-                                    <MarcoSelect marco={linha.motorGrosso} />
+                                    <FormLabel sx={{fontSize: '0.8rem', fontWeight: 500, mb: 0.5, display: 'block'}}>Motor Grosso</FormLabel>
+                                    <MarcoAvaliacao marco={linha.motorGrosso} />
                                 </Grid>
                                 <Grid item xs={12} sm={6} md={3}>
-                                    <MarcoSelect marco={linha.motorFino} />
+                                    <FormLabel sx={{fontSize: '0.8rem', fontWeight: 500, mb: 0.5, display: 'block'}}>Motor Fino</FormLabel>
+                                    <MarcoAvaliacao marco={linha.motorFino} />
                                 </Grid>
                                 <Grid item xs={12} sm={6} md={3}>
-                                    <MarcoSelect marco={linha.linguagem} />
+                                    <FormLabel sx={{fontSize: '0.8rem', fontWeight: 500, mb: 0.5, display: 'block'}}>Linguagem/Audição</FormLabel>
+                                    <MarcoAvaliacao marco={linha.linguagem} />
                                 </Grid>
                                 <Grid item xs={12} sm={6} md={3}>
-                                    <MarcoSelect marco={linha.social} />
+                                    <FormLabel sx={{fontSize: '0.8rem', fontWeight: 500, mb: 0.5, display: 'block'}}>Social/Afetivo</FormLabel>
+                                    <MarcoAvaliacao marco={linha.social} />
                                 </Grid>
                             </Grid>
                         </AccordionDetails>
@@ -288,18 +321,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                 ))}
             </Box>
 
-            {/* Bloco de Observações */}
-            <Paper variant="outlined" sx={{ p: 2, mt: 2, borderColor: 'grey.400' }}>
-                <TextField
-                    label="Observações gerais do desenvolvimento"
-                    multiline
-                    rows={3}
-                    fullWidth
-                    value={observacoes}
-                    onChange={(e) => setObservacoes(e.target.value)}
-                    size="small"
-                />
-            </Paper>
+            {/* Bloco de Observações (TextField de observações GERAIS foi removido, pois agora é por marco) */}
             
         </React.Fragment>
     );

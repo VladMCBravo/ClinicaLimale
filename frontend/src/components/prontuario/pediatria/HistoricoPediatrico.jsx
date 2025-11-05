@@ -40,10 +40,11 @@ const copoTransicaoOptions = ['Copo 360', 'Canudo Curto', 'Bico Rígido', 'Abert
 const sonoComportamentoOptions = {
     sono_diurno: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
     sono_noturno: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
-    colica: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
+    colica: [{value: 'Presente', label: 'Presente'}, {value: 'Ausente', label: 'Ausente'}], // <-- Modificado
     choro: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
     vinculo: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
 };
+
 const triagensOptions = [
     { id: 'pezinho', label: 'Pezinho' }, { id: 'orelhinha', label: 'Orelhinha' },
     { id: 'olhinho', label: 'Olhinho' }, { id: 'coracaozinho', label: 'Coraçãozinho' },
@@ -173,12 +174,12 @@ export default function HistoricoPediatrico({ pacienteId }) {
             sono_comportamento: {
                 sono_diurno: 'Adequado',
                 sono_noturno: 'Adequado',
-                colica: 'Adequado',
+                colica: 'Ausente', // <-- Modificado
                 choro: 'Adequado',
                 vinculo: 'Adequado'
             },
         }));
-        showSnackbar('Sono/Comportamento preenchidos como "Adequado".', 'info');
+        showSnackbar('Sono/Comportamento preenchidos com padrão normal.', 'info'); // <-- Modificado
     };
     const handleLimparHistorico = () => {
         setAnamneseData(initialState);
