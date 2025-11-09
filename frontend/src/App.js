@@ -1,4 +1,4 @@
-// src/App.js
+// src/App.js // Forçando o rebuild da Vercel
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SnackbarProvider } from './contexts/SnackbarContext';
