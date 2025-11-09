@@ -1,10 +1,11 @@
 // src/api/axiosConfig.js
 import axios from 'axios';
 
-// FORÇANDO URL DO AWS BACKEND
-const API_BASE_URL = 'https://clinicalimale.onrender.com/api';
+// --- CORREÇÃO ---
+// Agora ele lê a variável de ambiente correta (Production ou Preview)
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
-console.log('API_BASE_URL:', API_BASE_URL);
+console.log('USANDO API_BASE_URL:', API_BASE_URL);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

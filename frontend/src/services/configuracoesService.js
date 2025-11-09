@@ -20,24 +20,27 @@ const deleteEspecialidade = (id) => {
 // --- ADICIONE AS FUNÇÕES ABAIXO ---
 
 const getJornadas = (medicoId = null) => {
-    // --- USA O NOVO ENDPOINT E PERMITE FILTRAR ---
     const params = new URLSearchParams();
     if (medicoId) {
         params.append('medico_id', medicoId);
     }
-    return apiClient.get(`/jornadas/?${params.toString()}`);
+    // Adicionado /usuarios/
+    return apiClient.get(`/usuarios/jornadas/?${params.toString()}`);
 };
 
 const createJornada = (data) => {
-    return apiClient.post('/jornadas/', data);
+    // Adicionado /usuarios/
+    return apiClient.post('/usuarios/jornadas/', data);
 };
 
 const updateJornada = (id, data) => {
-    return apiClient.put(`/jornadas/${id}/`, data);
+    // Adicionado /usuarios/
+    return apiClient.put(`/usuarios/jornadas/${id}/`, data);
 };
 
 const deleteJornada = (id) => {
-    return apiClient.delete(`/jornadas/${id}/`);
+    // Adicionado /usuarios/
+    return apiClient.delete(`/usuarios/jornadas/${id}/`);
 };
 
 // --- ADICIONE ESTA FUNÇÃO PARA BUSCAR OS MÉDICOS ---
