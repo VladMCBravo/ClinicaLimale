@@ -29,9 +29,6 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
     // --- CORREÇÃO DO LOOP ESTÁ AQUI ---
     const memoizedComponent = useMemo(() => {
         const renderEspecialidadeComponent = () => {
-            // O switch case usa as props 'pacienteId' e 'especialidade'
-            // que estão no array de dependência do useMemo.
-            // A prop 'onEvolucaoSalva' é passada diretamente.
             switch (especialidade) {
                 case 'Pediatria':
                     return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
@@ -57,12 +54,10 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
         };
         return renderEspecialidadeComponent();
         
-    // O array de dependência SÓ deve incluir o que recria o componente.
-    // A função onEvolucaoSalva é recriada em todo render pai, causando o loop.
-    // Removê-la daqui corrige o loop.
-    }, [pacienteId, especialidade, onEvolucaoSalva]); // <-- CORREÇÃO: mantive onEvolucaoSalva, assumindo que VOCÊ irá memoizá-lo no ProntuarioCompleto.jsx com useCallback
+    // A prop 'onEvolucaoSalva' foi REMOVIDA do array de dependências
+    // para impedir que o componente seja recriado a cada renderização do pai.
+    }, [pacienteId, especialidade]); 
     // --- FIM DA CORREÇÃO ---
-    // (Se o loop persistir, remova 'onEvolucaoSalva' do array acima)
 
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
