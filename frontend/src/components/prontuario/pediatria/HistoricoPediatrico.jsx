@@ -302,85 +302,87 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             sx={{ mt: 2 }}
                         />
                         
-                        {/* --- ALTERAÇÃO 8: JSX TRIAGENS (Layout Detalhado) --- */}
+                        {/* --- CORREÇÃO DO LAYOUT DAS TRIAGENS (Grid -> Box) --- */}
                         <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
                             <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
                             
-                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                            {/* O Grid container foi substituído por um Box */}
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5 }}>
+                                
                                 {/* Teste do Pezinho */}
-                                <Grid item xs={12} sm={4} md={3}>
+                                <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Teste do Pezinho" name="pezinho_status" value={anamneseData.triagens.pezinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
                                         {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                     </TextField>
-                                </Grid>
+                                </Box>
                                 {anamneseData.triagens.pezinho_status === 'Alterado' && (
-                                    <Grid item xs={12} sm={8} md={9}>
+                                    <Box sx={{minWidth: 170, flex: '2 1 200px'}}>
                                         <TextField label="Descrever (Pezinho)" name="pezinho_desc" value={anamneseData.triagens.pezinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
-                                    </Grid>
+                                    </Box>
                                 )}
 
                                 {/* Teste da Orelhinha (EOAT) */}
-                                <Grid item xs={12} sm={4} md={3}>
+                                <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Orelhinha (EOAT)" name="orelhinha_eoat_status" value={anamneseData.triagens.orelhinha_eoat_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
                                         {eoatOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                     </TextField>
-                                </Grid>
+                                </Box>
                                 {anamneseData.triagens.orelhinha_eoat_status === 'Alterado' && (
-                                    <Grid item xs={12} sm={8} md={9}>
+                                    <Box sx={{minWidth: 170, flex: '2 1 200px'}}>
                                         <TextField label="Descrever (EOAT)" name="orelhinha_eoat_desc" value={anamneseData.triagens.orelhinha_eoat_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
-                                    </Grid>
+                                    </Box>
                                 )}
 
                                 {/* Teste da Orelhinha (BERA) */}
-                                <Grid item xs={12} sm={4} md={3}>
+                                <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="BERA" name="orelhinha_bera_status" value={anamneseData.triagens.orelhinha_bera_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
                                         {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                     </TextField>
-                                </Grid>
+                                </Box>
                                 {anamneseData.triagens.orelhinha_bera_status === 'Alterado' && (
-                                    <Grid item xs={12} sm={8} md={9}>
+                                    <Box sx={{minWidth: 170, flex: '2 1 200px'}}>
                                         <TextField label="Descrever (BERA)" name="orelhinha_bera_desc" value={anamneseData.triagens.orelhinha_bera_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
-                                    </Grid>
+                                    </Box>
                                 )}
 
                                 {/* Teste do Olhinho (Reflexo Vermelho) */}
-                                <Grid item xs={12} sm={4} md={3}>
+                                <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Olhinho (Refl. Verm.)" name="olhinho_status" value={anamneseData.triagens.olhinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
                                         {presenteAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                     </TextField>
-                                </Grid>
+                                </Box>
                                 {anamneseData.triagens.olhinho_status === 'Alterado' && (
-                                    <Grid item xs={12} sm={8} md={9}>
+                                    <Box sx={{minWidth: 170, flex: '2 1 200px'}}>
                                         <TextField label="Descrever (Olhinho)" name="olhinho_desc" value={anamneseData.triagens.olhinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
-                                    </Grid>
+                                    </Box>
                                 )}
 
                                 {/* Teste do Coraçãozinho */}
-                                <Grid item xs={12} sm={4} md={3}>
+                                <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Coraçãozinho" name="coracaozinho_status" value={anamneseData.triagens.coracaozinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
                                         {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                     </TextField>
-                                </Grid>
+                                </Box>
                                 {anamneseData.triagens.coracaozinho_status === 'Alterado' && (
-                                    <Grid item xs={12} sm={8} md={9}>
+                                    <Box sx={{minWidth: 170, flex: '2 1 200px'}}>
                                         <TextField label="Descrever (Coraçãozinho)" name="coracaozinho_desc" value={anamneseData.triagens.coracaozinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
-                                    </Grid>
+                                    </Box>
                                 )}
                                 
                                 {/* Teste da Linguinha */}
-                                <Grid item xs={12} sm={4} md={3}>
+                                <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Linguinha" name="linguinha_status" value={anamneseData.triagens.linguinha_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
                                         {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                     </TextField>
-                                </Grid>
+                                </Box>
                                 {anamneseData.triagens.linguinha_status === 'Alterado' && (
-                                    <Grid item xs={12} sm={8} md={9}>
+                                    <Box sx={{minWidth: 170, flex: '2 1 200px'}}>
                                         <TextField label="Descrever (Linguinha)" name="linguinha_desc" value={anamneseData.triagens.linguinha_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
-                                    </Grid>
+                                    </Box>
                                 )}
-                            </Grid>
+                            </Box>
                         </FormControl>
-                        {/* --- FIM ALTERAÇÃO TRIAGENS --- */}
+                        {/* --- FIM DA CORREÇÃO --- */}
                     </AccordionDetails>
                 </Accordion>
 
