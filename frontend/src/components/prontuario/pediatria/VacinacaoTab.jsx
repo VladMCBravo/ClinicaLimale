@@ -219,7 +219,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                                     const key = vacina.id; // Chave Única
                                     const dadosSalvos = vacinasSalvas[key] || {};
                                     // Passa todas as infos da vacina para o handler
-                                    const vacinaInfo = { ...vacina };
+                                    const vacinaInfo = { ...vacina, idade: grupo.idade };
 
                                     return (
                                         <TableRow key={key}>
