@@ -187,7 +187,8 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             setVacinacaoStatus(null);
             setDnpmStatus(null);
         }
-    }, [pacienteId, fetchStatusResumos, showSnackbar]); // Adicionado fetchStatusResumos
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId, fetchStatusResumos]); // <-- `showSnackbar` FOI REMOVIDO
 
 
     // --- GERADORES DE TEXTO (Atualizados) ---

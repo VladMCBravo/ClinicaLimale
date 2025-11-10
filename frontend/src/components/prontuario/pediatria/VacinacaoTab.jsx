@@ -110,7 +110,8 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId, showSnackbar]);
+    // Remova showSnackbar daqui, pois ele não deve mudar
+    }, [pacienteId]); // <-- Removido 'showSnackbar'
 
     useEffect(() => {
         fetchVacinas();
