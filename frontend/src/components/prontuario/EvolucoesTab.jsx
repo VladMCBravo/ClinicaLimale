@@ -1,7 +1,7 @@
 // src/components/prontuario/EvolucoesTab.jsx
 // ARQUIVO ATUALIZADO (Roteador de Especialidades)
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // Importa os formulários de especialidade com lazy loading
@@ -28,15 +28,16 @@ const GenericFallback = ({ especialidadeNome }) => (
     </Paper>
 );
 
-// --- 2. CORRIGIDO NOME DA PROP para onEvolucaoSalva (singular) ---
+// --- CORRIGIDO NOME DA PROP para onEvolucaoSalva (singular) ---
 export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva }) {
     
-    // Função para renderizar o componente da especialidade correta
+    // 2. MOVA A FUNÇÃO PARA DENTRO DO 'useMemo' OU MANTENHA-A E MEMOIZE A CHAMADA
+    // (Vamos memoizar a chamada, é mais limpo)
+    
+    // A função que decide o componente
     const renderEspecialidadeComponent = () => {
-        
-        // --- 3. ATUALIZANDO O 'switch' E PADRONIZANDO A PROP ---
+        // (Todo o seu 'switch case' permanece exatamente igual)
         switch (especialidade) {
-            // --- Módulos Antigos ---
             case 'Pediatria':
                 return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
             case 'Cardiologia':
@@ -45,29 +46,34 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
                 return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
             case 'Ginecologia':
                 return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            
-            // --- Módulos Novos e Corrigidos ---
-            case 'Obstetrícia': // <-- CORRIGIDO
+            case 'Obstetrícia': 
                 return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Ortopedia': // <-- ADICIONADO
+            case 'Ortopedia': 
                 return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Reumatologia': // <-- ADICIONADO
+            case 'Reumatologia': 
                 return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Neurologia': // <-- ADICIONADO (Conforme solicitado)
+            case 'Neurologia': 
                 return <AtendimentoNeurologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-
-            // --- Módulo Padrão/Default ---
             case 'Clínica Médica':
-            case 'ClinicaGeral': // Adicionando alias
+            case 'ClinicaGeral':
             default: 
-                 // Usa o Clínica Geral como padrão
                  return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
         }
     };
 
+    // --- 3. A CORREÇÃO ESTÁ AQUI ---
+    // Use 'useMemo' para guardar o componente.
+    // Ele só vai chamar 'renderEspecialidadeComponent' de novo se o paciente ou a especialidade mudarem.
+    // Qualquer outra re-renderização no componente pai não vai recriá-lo.
+    const memoizedComponent = useMemo(() => {
+        return renderEspecialidadeComponent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId, especialidade, onEvolucaoSalva]); // Depende das props que o afetam
+    // --- FIM DA CORREÇÃO ---
+
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-            {renderEspecialidadeComponent()}
+            {memoizedComponent} {/* <-- 4. RENDERIZE O COMPONENTE MEMOIZADO */}
         </Suspense>
     );
 }

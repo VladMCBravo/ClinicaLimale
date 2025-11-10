@@ -1,5 +1,5 @@
-// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO FINAL (Layout Corrigido + 100% ComboBox)
+/// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
+// ATUALIZADO: APGAR (3 campos) e Triagens (detalhado) conforme vídeo
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -15,7 +15,10 @@ import apiClient from '../../../api/axiosConfig';
 const tipoPartoOptions = ['Vaginal', 'Fórceps', 'Cesárea'];
 const igOptions = ['Pré-termo (<37s)', 'Termo (37-41s)', 'Pós-termo (>42s)'];
 const pesoNascerOptions = ['Baixo peso (<2500g)', 'Peso adequado (2500-3999g)', 'Macrossômico (>=4000g)'];
-const apgarOptions = ['10/10/10', '9/10/10', '8/9/10', '<8 (descrever)'];
+// --- ALTERAÇÃO 1: APGAR ---
+// Removido apgarOptions
+const apgarScoreOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
+// --- FIM ALTERAÇÃO ---
 
 const alimentacao06Options = {
     tipo_aleitamento: [{value: 'AME', label: 'AME'}, {value: 'Misto', label: 'Misto'}, {value: 'Formula', label: 'Fórmula'}],
@@ -45,19 +48,32 @@ const sonoComportamentoOptions = {
     vinculo: [{value: 'Adequado', label: 'Adequado'}, {value: 'Alterado', label: 'Alterado'}],
 };
 
-const triagensOptions = [
-    { id: 'pezinho', label: 'Pezinho' }, { id: 'orelhinha', label: 'Orelhinha' },
-    { id: 'olhinho', label: 'Olhinho' }, { id: 'coracaozinho', label: 'Coraçãozinho' },
-    { id: 'linguinha', label: 'Linguinha' },
-];
+// --- ALTERAÇÃO 2: TRIAGENS ---
+// Removido triagensOptions (checkbox)
+const normalAlteradoOptions = ['Normal', 'Alterado'];
+const presenteAlteradoOptions = ['Presente', 'Alterado'];
+const eoatOptions = ['Presente Bilateral', 'Alterado', 'Ausente'];
+// --- FIM ALTERAÇÃO ---
 
-// Estado inicial (sem dnpm/vacinas)
+// --- ALTERAÇÃO 3: initialState (APGAR e Triagens) ---
 const initialState = {
-    tipo_parto: '', idade_gestacional: '', peso_nascimento: '', apgar: '', intercorrencias_gestacao_parto: '',
-    triagens: {},
+    tipo_parto: '', idade_gestacional: '', peso_nascimento: '', 
+    // APGAR atualizado
+    apgar_1: '', apgar_5: '', apgar_10: '', 
+    intercorrencias_gestacao_parto: '',
+    // Triagens atualizado
+    triagens: {
+        pezinho_status: '', pezinho_desc: '',
+        orelhinha_eoat_status: '', orelhinha_eoat_desc: '',
+        orelhinha_bera_status: '', orelhinha_bera_desc: '',
+        olhinho_status: '', olhinho_desc: '',
+        coracaozinho_status: '', coracaozinho_desc: '',
+        linguinha_status: '', linguinha_desc: '',
+    },
     alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
     alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
 };
+// --- FIM ALTERAÇÃO ---
 
 export default function HistoricoPediatrico({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
@@ -71,19 +87,21 @@ export default function HistoricoPediatrico({ pacienteId }) {
 
     const [anamneseData, setAnamneseData] = useState(initialState);
 
-    // Função de Fetch (sem alteração)
+    // --- ALTERAÇÃO 4: fetchAnamnese (Deep Merge Triagens) ---
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             if (res.data && res.data.pediatrica) {
-                setAnamneseData({
-                    ...(res.data.pediatrica || {}),
-                    alimentacao_0_6m: res.data.pediatrica.alimentacao_0_6m || {},
-                    alimentacao_6_12m: res.data.pediatrica.alimentacao_6_12m || {},
-                    sono_comportamento: res.data.pediatrica.sono_comportamento || {},
-                    triagens: res.data.pediatrica.triagens || {},
-                });
+                // Garante que o estado inicial tenha todas as chaves
+                const data = { ...initialState, ...(res.data.pediatrica || {}) };
+                // Deep merge para sub-objetos
+                data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
+                data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
+                data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
+                data.triagens = { ...initialState.triagens, ...(data.triagens || {}) };
+                
+                setAnamneseData(data);
             } else {
                  setAnamneseData(initialState);
             }
@@ -96,7 +114,8 @@ export default function HistoricoPediatrico({ pacienteId }) {
             setIsLoading(false);
             setExpanded('panel1'); 
         }
-    }, [pacienteId]); 
+    }, [pacienteId, showSnackbar]); 
+    // --- FIM ALTERAÇÃO ---
 
     useEffect(() => {
         fetchAnamnese();
@@ -118,23 +137,38 @@ export default function HistoricoPediatrico({ pacienteId }) {
             [jsonField]: { ...(prev[jsonField] || {}), [key]: checked }
         }));
     };
-    const handleTriagensChange = (event) => {
-        handleJsonCheckboxChange('triagens', event.target.name, event.target.checked);
+    // --- ALTERAÇÃO 5: Novo Handler para Triagens ---
+    const handleTriagensChange = (e) => {
+        const { name, value } = e.target;
+        handleJsonChange('triagens', name, value);
     };
+    // --- FIM ALTERAÇÃO ---
     // --- Fim Handlers ---
 
-    // --- Handlers de Normalidade (sem alteração) ---
+    // --- Handlers de Normalidade ---
+    // --- ALTERAÇÃO 6: handleNormalidadeGestacional (APGAR e Triagens) ---
     const handleNormalidadeGestacional = () => {
         setAnamneseData(prev => ({
             ...prev,
             tipo_parto: 'Vaginal',
             idade_gestacional: 'Termo (37-41s)',
             peso_nascimento: 'Peso adequado (2500-3999g)',
-            apgar: '9/10/10',
-            triagens: { pezinho: true, orelhinha: true, olhinho: true, coracaozinho: true, linguinha: true },
+            apgar_1: '9', // Atualizado
+            apgar_5: '10', // Atualizado
+            apgar_10: '10', // Atualizado
+            // Triagens atualizado
+            triagens: {
+                pezinho_status: 'Normal', pezinho_desc: '',
+                orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
+                orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '',
+                olhinho_status: 'Presente', olhinho_desc: '',
+                coracaozinho_status: 'Normal', coracaozinho_desc: '',
+                linguinha_status: 'Normal', linguinha_desc: '',
+            },
         }));
         showSnackbar('Dados gestacionais e triagens preenchidos.', 'info');
     };
+    // --- FIM ALTERAÇÃO ---
     const handleNormalidadeAlim06 = () => {
         setAnamneseData(prev => ({
             ...prev,
@@ -228,7 +262,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     <AccordionDetails>
                         <Button size="small" variant="outlined" onClick={handleNormalidadeGestacional} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
                         
-                        {/* Box flexWrap para os campos de texto */}
+                        {/* --- ALTERAÇÃO 7: JSX APGAR (3 campos) --- */}
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             <TextField select label="Tipo do Parto" name="tipo_parto" value={anamneseData.tipo_parto || ''} onChange={handleChange} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
                                 {tipoPartoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
@@ -239,10 +273,22 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             <TextField select label="Peso ao nascer" name="peso_nascimento" value={anamneseData.peso_nascimento || ''} onChange={handleChange} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
                                 {pesoNascerOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
                             </TextField>
-                             <TextField select label="APGAR (1'/5'/10')" name="apgar" value={anamneseData.apgar || ''} onChange={handleChange} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
-                                {apgarOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
+                        </Box>
+                        
+                        <Typography variant="body2" sx={{ mt: 2, fontWeight: 'medium', color: 'text.secondary' }}>APGAR</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+                             <TextField select label="1º Minuto" name="apgar_1" value={anamneseData.apgar_1 || ''} onChange={handleChange} size="small" sx={{ minWidth: 100, flex: '1 1 100px' }}> 
+                                {apgarScoreOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
+                            </TextField>
+                             <TextField select label="5º Minuto" name="apgar_5" value={anamneseData.apgar_5 || ''} onChange={handleChange} size="small" sx={{ minWidth: 100, flex: '1 1 100px' }}> 
+                                {apgarScoreOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
+                            </TextField>
+                             <TextField select label="10º Minuto (opc)" name="apgar_10" value={anamneseData.apgar_10 || ''} onChange={handleChange} size="small" sx={{ minWidth: 100, flex: '1 1 100px' }}> 
+                                <MenuItem value="">-</MenuItem>
+                                {apgarScoreOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
                             </TextField>
                         </Box>
+                        {/* --- FIM ALTERAÇÃO APGAR --- */}
                         
                         <TextField 
                             label="Intercorrências na gestação ou parto" 
@@ -256,18 +302,85 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             sx={{ mt: 2 }}
                         />
                         
+                        {/* --- ALTERAÇÃO 8: JSX TRIAGENS (Layout Detalhado) --- */}
                         <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
                             <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
-                            <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
-                                {triagensOptions.map(opt => (
-                                    <FormControlLabel
-                                        key={opt.id}
-                                        control={<Checkbox size="small" checked={anamneseData.triagens[opt.id] || false} onChange={handleTriagensChange} name={opt.id} />}
-                                        label={opt.label}
-                                    />
-                                ))}
-                            </FormGroup>
+                            
+                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                                {/* Teste do Pezinho */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <TextField select label="Teste do Pezinho" name="pezinho_status" value={anamneseData.triagens.pezinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                {anamneseData.triagens.pezinho_status === 'Alterado' && (
+                                    <Grid item xs={12} sm={8} md={9}>
+                                        <TextField label="Descrever (Pezinho)" name="pezinho_desc" value={anamneseData.triagens.pezinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                                    </Grid>
+                                )}
+
+                                {/* Teste da Orelhinha (EOAT) */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <TextField select label="Orelhinha (EOAT)" name="orelhinha_eoat_status" value={anamneseData.triagens.orelhinha_eoat_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                                        {eoatOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                {anamneseData.triagens.orelhinha_eoat_status === 'Alterado' && (
+                                    <Grid item xs={12} sm={8} md={9}>
+                                        <TextField label="Descrever (EOAT)" name="orelhinha_eoat_desc" value={anamneseData.triagens.orelhinha_eoat_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                                    </Grid>
+                                )}
+
+                                {/* Teste da Orelhinha (BERA) */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <TextField select label="BERA" name="orelhinha_bera_status" value={anamneseData.triagens.orelhinha_bera_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                {anamneseData.triagens.orelhinha_bera_status === 'Alterado' && (
+                                    <Grid item xs={12} sm={8} md={9}>
+                                        <TextField label="Descrever (BERA)" name="orelhinha_bera_desc" value={anamneseData.triagens.orelhinha_bera_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                                    </Grid>
+                                )}
+
+                                {/* Teste do Olhinho (Reflexo Vermelho) */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <TextField select label="Olhinho (Refl. Verm.)" name="olhinho_status" value={anamneseData.triagens.olhinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                                        {presenteAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                {anamneseData.triagens.olhinho_status === 'Alterado' && (
+                                    <Grid item xs={12} sm={8} md={9}>
+                                        <TextField label="Descrever (Olhinho)" name="olhinho_desc" value={anamneseData.triagens.olhinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                                    </Grid>
+                                )}
+
+                                {/* Teste do Coraçãozinho */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <TextField select label="Coraçãozinho" name="coracaozinho_status" value={anamneseData.triagens.coracaozinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                {anamneseData.triagens.coracaozinho_status === 'Alterado' && (
+                                    <Grid item xs={12} sm={8} md={9}>
+                                        <TextField label="Descrever (Coraçãozinho)" name="coracaozinho_desc" value={anamneseData.triagens.coracaozinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                                    </Grid>
+                                )}
+                                
+                                {/* Teste da Linguinha */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <TextField select label="Linguinha" name="linguinha_status" value={anamneseData.triagens.linguinha_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                {anamneseData.triagens.linguinha_status === 'Alterado' && (
+                                    <Grid item xs={12} sm={8} md={9}>
+                                        <TextField label="Descrever (Linguinha)" name="linguinha_desc" value={anamneseData.triagens.linguinha_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                                    </Grid>
+                                )}
+                            </Grid>
                         </FormControl>
+                        {/* --- FIM ALTERAÇÃO TRIAGENS --- */}
                     </AccordionDetails>
                 </Accordion>
 
