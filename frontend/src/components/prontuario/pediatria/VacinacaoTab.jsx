@@ -116,64 +116,80 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
         fetchVacinas();
     }, [fetchVacinas]);
 
-    // --- ALTERAÇÃO 3: handleVacinaChange ATUALIZADO ---
+    // --- FUNÇÃO handleVacinaChange TOTALMENTE CORRIGIDA ---
     const handleVacinaChange = async (vacinaInfo, field, newValue) => {
         const { id, nome, dose, idade, defaultName } = vacinaInfo;
-        const key = id; // Usa o 'id' do pniSchedule como chave
+        const key = id; // O 'vacina_id' (ex: 'pneumo_1')
         const vacinaExistente = vacinasSalvas[key];
         
-        // Determina o nome final da vacina
+        // 1. Obter os dados atuais salvos (ou um objeto vazio)
+        const savedData = vacinasSalvas[key] || {};
+
+        // 2. Determinar o nome final (para o dropdown da Pneumo)
         let nomeVacinaFinal;
         if (field === 'nome_vacina') {
-            nomeVacinaFinal = newValue; // Se o campo alterado é o nome (dropdown)
-        } else if (vacinaExistente?.nome_vacina) {
-            nomeVacinaFinal = vacinaExistente.nome_vacina; // Se já existe salvo
+            nomeVacinaFinal = newValue; // O usuário mudou o dropdown
+        } else if (savedData.nome_vacina) {
+            nomeVacinaFinal = savedData.nome_vacina; // Já tinha um nome salvo (ex: 'Pneumo 13')
         } else {
-            nomeVacinaFinal = defaultName || nome; // Se é novo, usa o padrão ou o nome base
+            nomeVacinaFinal = defaultName || nome; // Valor padrão (ex: 'Pneumo 10' ou 'BCG')
         }
         
+        // 3. Construir o PAYLOAD LIMPO
+        // Contém apenas os campos que o backend DEVE escrever.
         const payload = {
-            vacina_id: key, // Chave estável
-            nome_vacina: nomeVacinaFinal, // Nome (pode ser do dropdown)
+            vacina_id: key,
+            nome_vacina: nomeVacinaFinal,
             dose: dose,
             idade_recomendada: idade,
-            ...(vacinaExistente || {}), // Pega dados existentes
-            [field]: newValue // Aplica a mudança
+            
+            // Pega os valores atuais do estado salvo (ou padrões)
+            status: savedData.status || 'Pendente', 
+            data_aplicacao: savedData.data_aplicacao || null,
+            observacao: savedData.observacao || '',
+            
+            // Sobrescreve o campo que o usuário acabou de alterar
+            [field]: newValue,
         };
         
-        // Remove 'id' da API do payload para evitar conflito
-        delete payload.id; 
+        // Garante que o backend receba 'null' se o campo de data for limpo
+        if (field === 'data_aplicacao' && newValue === '') {
+            payload.data_aplicacao = null;
+        }
 
         const oldState = vacinasSalvas;
         
-        // Atualização Otimista
+        // 4. Atualização Otimista
+        // Mescla o payload limpo com os dados existentes (como o 'id' do banco)
         setVacinasSalvas(prev => ({
             ...prev,
             [key]: {
-                ...(prev[key] || {}),
-                ...payload
+                ...(prev[key] || {}), // Mantém o ID do banco e 'paciente' se já existirem
+                ...payload // Atualiza os campos editáveis
             }
         }));
 
         try {
-            if (vacinaExistente) {
-                // Atualiza (PATCH) usando o ID do banco
+            if (vacinaExistente?.id) { // Usa o ID do banco se existir
+                // PATCH: Envia SÓ o payload limpo
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/vacinas/${vacinaExistente.id}/`, payload);
             } else {
-                // Cria (POST)
+                // POST: Envia o payload limpo
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/vacinas/`, payload);
-                setVacinasSalvas(prev => ({ ...prev, [key]: res.data })); // Atualiza com o ID do banco
+                // Atualiza o estado local com a resposta completa (incluindo o novo ID do banco)
+                setVacinasSalvas(prev => ({ ...prev, [key]: res.data })); 
             }
             
             if (onDataChange) {
                 onDataChange();
             }
         } catch (err) {
-            showSnackbar('Erro ao salvar vacina.', 'error');
+            console.error("Erro ao salvar vacina. Payload enviado:", payload, "Erro:", err.response);
+            showSnackbar('Erro ao salvar vacina. Verifique os dados.', 'error');
             setVacinasSalvas(oldState); // Reverte
         }
     };
-
+    // --- FIM DA CORREÇÃO ---
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
