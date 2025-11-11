@@ -1,5 +1,5 @@
 // src/components/prontuario/ortopedia/HistoricoOrtopedia.jsx
-// NOVO COMPONENTE (Aba 2)
+// VERSÃO CORRIGIDA: Removida dependência 'showSnackbar'
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -14,7 +14,7 @@ export default function HistoricoOrtopedia({ pacienteId }) {
     const [isLoading, setIsLoading] = useState(true);
     const [anamneseData, setAnamneseData] = useState({});
 
-    // 1. FUNÇÃO DE CARREGAMENTO
+    // 1. FUNÇÃO DE CARREGAMENTO (CORRIGIDA)
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
@@ -25,9 +25,14 @@ export default function HistoricoOrtopedia({ pacienteId }) {
             } else {
                 setAnamneseData({});
             }
-        } catch (err) { /* ... (tratamento de erro) ... */ }
+        } catch (err) { 
+            if (err.response && err.response.status !== 404) {
+                showSnackbar('Erro ao carregar histórico ortopédico.', 'error');
+            }
+        }
         finally { setIsLoading(false); }
-    }, [pacienteId, showSnackbar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId]); // <-- CORREÇÃO: 'showSnackbar' removido
 
     useEffect(() => { fetchAnamnese(); }, [fetchAnamnese]);
 
@@ -45,7 +50,9 @@ export default function HistoricoOrtopedia({ pacienteId }) {
                 ortopedica: anamneseData
             });
             showSnackbar('Histórico ortopédico salvo com sucesso!', 'success');
-        } catch (error) { /* ... (tratamento de erro) ... */ }
+        } catch (error) { 
+            showSnackbar('Erro ao salvar histórico ortopédico.', 'error');
+        }
         finally { setIsSubmitting(false); }
     };
 
@@ -64,8 +71,6 @@ export default function HistoricoOrtopedia({ pacienteId }) {
                 value={anamneseData.antecedentes || ''}
                 onChange={handleChange} />
             
-            {/* Adicione outros campos de histórico ortopédico aqui se necessário */}
-
             {/* Botão Salvar */}
             <Box sx={{ textAlign: 'right', mt: 3 }}>
                 <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>

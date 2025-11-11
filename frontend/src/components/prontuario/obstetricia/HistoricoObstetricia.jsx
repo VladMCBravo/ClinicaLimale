@@ -1,5 +1,5 @@
 // src/components/prontuario/obstetricia/HistoricoObstetricia.jsx
-// NOVO COMPONENTE (Aba 2 - Baseado no Hist. Gineco)
+// VERSÃO CORRIGIDA: Removida dependência 'showSnackbar'
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -8,15 +8,13 @@ import {
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
-// Prop 'onIgCalculada' é opcional, usada para atualizar a Aba 1
 export default function HistoricoObstetricia({ pacienteId, onIgCalculada }) { 
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    // Usamos o modelo 'ginecologica' para salvar os dados obstétricos
     const [anamneseData, setAnamneseData] = useState({});
 
-    // 1. FUNÇÃO DE CARREGAMENTO
+    // 1. FUNÇÃO DE CARREGAMENTO (CORRIGIDA)
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
@@ -24,16 +22,20 @@ export default function HistoricoObstetricia({ pacienteId, onIgCalculada }) {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             if (res.data && res.data.ginecologica) {
                 setAnamneseData(res.data.ginecologica);
-                // Informa o pai sobre a IG (se a função foi passada)
                 if (onIgCalculada && res.data.ginecologica.ig_atual) {
                     onIgCalculada(res.data.ginecologica.ig_atual);
                 }
             } else {
                 setAnamneseData({});
             }
-        } catch (err) { /* ... (tratamento de erro) ... */ }
+        } catch (err) { 
+            if (err.response && err.response.status !== 404) {
+                showSnackbar('Erro ao carregar histórico obstétrico.', 'error');
+            }
+        }
         finally { setIsLoading(false); }
-    }, [pacienteId, showSnackbar, onIgCalculada]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId, onIgCalculada]); // <-- CORREÇÃO: 'showSnackbar' removido
 
     useEffect(() => { fetchAnamnese(); }, [fetchAnamnese]);
 
@@ -49,16 +51,16 @@ export default function HistoricoObstetricia({ pacienteId, onIgCalculada }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            // Usamos o endpoint de anamnese geral, passando o objeto 'ginecologica'
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
                 ginecologica: anamneseData
             });
             showSnackbar('Histórico obstétrico salvo com sucesso!', 'success');
-            // Informa o pai sobre a IG (se a função foi passada)
              if (onIgCalculada && anamneseData.ig_atual) {
                 onIgCalculada(anamneseData.ig_atual);
             }
-        } catch (error) { /* ... (tratamento de erro) ... */ }
+        } catch (error) { 
+            showSnackbar('Erro ao salvar histórico obstétrico.', 'error');
+        }
         finally { setIsSubmitting(false); }
     };
 
@@ -73,7 +75,6 @@ export default function HistoricoObstetricia({ pacienteId, onIgCalculada }) {
                 Histórico Obstétrico (Anamnese)
             </Typography>
             
-            {/* Campos Gesta, Para, Cesárea, Aborto, DUM, DPP, IG Atual */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1.5 }}>
                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                    <TextField label="Gesta" name="gesta" type="number" size="small" value={anamneseData.gesta || ''} onChange={handleChange} />
@@ -88,7 +89,6 @@ export default function HistoricoObstetricia({ pacienteId, onIgCalculada }) {
                </Box>
             </Box>
 
-            {/* Botão Salvar */}
             <Box sx={{ textAlign: 'right', mt: 3 }}>
                 <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}

@@ -1,5 +1,5 @@
 // src/components/prontuario/neurologia/HistoricoNeurologia.jsx
-// NOVO COMPONENTE (Aba 2 - Histórico)
+// VERSÃO CORRIGIDA: Removida dependência 'showSnackbar'
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -13,10 +13,9 @@ export default function HistoricoNeurologia({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    // Estado para guardar os dados da anamnese (neurologica)
     const [anamneseData, setAnamneseData] = useState({});
 
-    // 1. FUNÇÃO DE CARREGAMENTO
+    // 1. FUNÇÃO DE CARREGAMENTO (CORRIGIDA)
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
@@ -34,7 +33,8 @@ export default function HistoricoNeurologia({ pacienteId }) {
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId, showSnackbar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId]); // <-- CORREÇÃO: 'showSnackbar' removido
 
     useEffect(() => {
         fetchAnamnese();
@@ -54,7 +54,7 @@ export default function HistoricoNeurologia({ pacienteId }) {
 
         try {
             await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                neurologica: payload // Salva dentro do objeto 'neurologica'
+                neurologica: payload
             });
             showSnackbar('Histórico neurológico salvo com sucesso!', 'success');
         } catch (error) {
@@ -100,7 +100,6 @@ export default function HistoricoNeurologia({ pacienteId }) {
                  />
             </Box>
 
-            {/* Botão Salvar */}
             <Box sx={{ textAlign: 'right', mt: 3 }}>
                 <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
