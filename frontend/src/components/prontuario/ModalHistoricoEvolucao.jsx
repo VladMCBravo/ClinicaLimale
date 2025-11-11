@@ -1,41 +1,68 @@
-// Crie este arquivo em: src/components/prontuario/ModalHistoricoEvolucao.jsx
-
+// src/components/prontuario/ModalHistoricoEvolucao.jsx
 import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, Button, 
     Typography, Box, CircularProgress, Divider 
 } from '@mui/material';
-import apiClient from '../../api/axiosConfig';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+// --- CORREÇÃO DO ERRO DE BUILD: Adicionando extensões .js ---
+import apiClient from '../../api/axiosConfig.js';
+import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
-export default function ModalHistoricoEvolucao({ evolucaoId, onClose }) {
+// --- CORREÇÃO 1: Adicione 'pacienteId' nas props ---
+export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose }) {
     const [evolucao, setEvolucao] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        if (evolucaoId) {
+        // Verifica se temos os DOIS IDs antes de buscar
+        if (pacienteId && evolucaoId) {
             setIsLoading(true);
-            setEvolucao(null); // Limpa o estado anterior
+            setEvolucao(null); 
             
-            // Esta API busca os detalhes de UMA evolução
-            // Ela depende da sua EvolucaoDetailAPIView
-            // e da rota 'evolucoes/<int:pk>/'
-            apiClient.get(`/prontuario/evolucoes/${evolucaoId}/`)
+            // --- CORREÇÃO 2: URL errada (erro 404 da sua imagem) ---
+            // A URL correta precisa do pacienteId, como definido no seu urls.py
+            const urlCorreta = `/api/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`;
+            
+            apiClient.get(urlCorreta)
                 .then(res => setEvolucao(res.data))
                 .catch(err => {
+                    // Este snackbar agora deve mostrar o erro 404
                     showSnackbar('Erro ao buscar detalhes da evolução.', 'error');
                     console.error("Erro ao buscar evolução:", err);
                     onClose();
                 })
                 .finally(() => setIsLoading(false));
         }
-    }, [evolucaoId, onClose, showSnackbar]);
+    // Adicione pacienteId nas dependências do useEffect
+    }, [pacienteId, evolucaoId, onClose, showSnackbar]);
     
-    // Função para o botão de PDF
-    const handleDownloadPdf = () => {
-        // Esta é a rota que criamos no Passo 1
-        window.open(`/api/pdf/evolucao/${evolucaoId}/`, '_blank');
+    // --- CORREÇÃO 3: Função de PDF ---
+    // Estava usando window.open() direto, o que falha a autenticação.
+    // Trocamos para o método async com apiClient + blob.
+    const handleDownloadPdf = async () => {
+        if (!evolucaoId) return;
+
+        try {
+            // A URL do PDF (que corrigimos no urls.py)
+            const response = await apiClient.get(
+                `/api/pdf/evolucao/${evolucaoId}/`,
+                { responseType: 'blob' } // Pede um arquivo (blob)
+            );
+
+            const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(pdfBlob);
+            window.open(url, '_blank');
+            // window.URL.revokeObjectURL(url); // Opcional
+
+        } catch (error) {
+            console.error("Erro ao gerar PDF da evolução:", error);
+            if (error.response && error.response.status === 404) {
+                 showSnackbar('Erro 404: Rota do PDF de evolução não encontrada.', 'error');
+            } else {
+                 showSnackbar('Erro ao gerar PDF da evolução.', 'error');
+            }
+        }
     };
 
     return (
@@ -68,7 +95,7 @@ export default function ModalHistoricoEvolucao({ evolucaoId, onClose }) {
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleDownloadPdf} variant="outlined" disabled={!evolucao}>Gerar PDF</Button>
+                <Button onClick={handleDownloadPdf} variant="outlined" disabled={!evolucao || isLoading}>Gerar PDF</Button>
                 <Button onClick={onClose} variant="contained">Fechar</Button>
             </DialogActions>
         </Dialog>
