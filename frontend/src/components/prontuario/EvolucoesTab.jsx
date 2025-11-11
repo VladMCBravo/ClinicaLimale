@@ -1,7 +1,7 @@
 // src/components/prontuario/EvolucoesTab.jsx
-// VERSÃO CORRIGIDA: Estabilizando a prop 'onEvolucoesSalva' com useCallback
+// VERSÃO CORRIGIDA: Usando useRef para garantir uma prop 100% estável
 
-import React, { Suspense, lazy, useCallback } from 'react'; // 1. IMPORTAR useCallback
+import React, { Suspense, lazy, useCallback, useEffect, useRef } from 'react'; // 1. IMPORTAR useEffect e useRef
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // (Imports lazy... AtendimentoPediatria, AtendimentoCardiologia, etc.)
@@ -26,18 +26,27 @@ const GenericFallback = ({ especialidadeNome }) => (
 
 export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva }) {
     
-    // --- DEBUG: Log de render do PAI ---
     console.log(`🔄 [RENDER PAI] EvolucoesTab renderizou. Especialidade: ${especialidade}`);
 
-    // --- 2. CORREÇÃO: Estabiliza a prop 'onEvolucoesSalva' ---
-    // Mesmo que o "avô" nos envie uma nova função a cada render,
-    // nós a envolvemos em um useCallback aqui. O React só criará
-    // uma nova função 'stableOnEvolucaoSalva' se a 'onEvolucaoSalva' original mudar.
-    const stableOnEvolucaoSalva = useCallback(() => {
-        if (onEvolucaoSalva) {
-            onEvolucaoSalva();
-        }
+    // --- CORREÇÃO AVANÇADA: Estabilizando a prop com useRef ---
+
+    // 1. Criamos uma 'ref' para guardar a versão mais recente da função
+    const onEvolucaoSalvaRef = useRef(onEvolucaoSalva);
+
+    // 2. Usamos useEffect para atualizar a 'ref' se a prop do "avô" mudar.
+    // Isso NÃO causa uma nova renderização.
+    useEffect(() => {
+        onEvolucaoSalvaRef.current = onEvolucaoSalva;
     }, [onEvolucaoSalva]);
+
+    // 3. Criamos uma função de callback 100% estável (com array vazio [])
+    // que chama a função mais recente guardada na 'ref'.
+    const stableOnEvolucaoSalva = useCallback(() => {
+        if (onEvolucaoSalvaRef.current) {
+            onEvolucaoSalvaRef.current();
+        }
+    }, []); // <-- Array vazio garante que esta função NUNCA mude.
+    
     // --- FIM DA CORREÇÃO ---
 
 
@@ -77,7 +86,7 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
 
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-            {/* 3. Passa a função ESTÁVEL para o componente filho */}
+            {/* 4. Passamos a função 100% estável para o filho */}
             <ComponenteDaEspecialidade 
                 pacienteId={pacienteId} 
                 onEvolucoesSalva={stableOnEvolucaoSalva} 
