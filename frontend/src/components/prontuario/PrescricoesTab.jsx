@@ -68,17 +68,26 @@ export default function PrescricoesTab({ pacienteId }) {
   
   const handleGerarPdf = async (prescricaoId) => {
     try {
-        // Usa apiClient para fazer a requisição (envia o token)
+        // --- ALTERAÇÃO AQUI ---
+        // A URL estava errada. Deve seguir o mesmo padrão da
+        // URL de PDF de evolução (que provavelmente é /api/pdf/...)
         const response = await apiClient.get(
-            `/api/prescricoes/${prescricaoId}/pdf/`, // <-- Adicione a '/' no início
+            `/api/pdf/prescricao/${prescricaoId}/`, // <-- ESTA É A URL CORRETA
             { responseType: 'blob' } 
         );
+        // --- FIM DA ALTERAÇÃO ---
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
         window.open(fileURL, '_blank');
         setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
     } catch (error) {
         console.error("Erro ao gerar PDF da prescrição:", error);
-        showSnackbar('Erro ao gerar PDF da prescrição.', 'error'); // Adicione feedback de erro
+        
+        // Adicione um feedback mais claro do erro 404
+        if (error.response && error.response.status === 404) {
+             showSnackbar('Erro 404: Rota do PDF não encontrada no backend.', 'error');
+        } else {
+             showSnackbar('Erro ao gerar PDF da prescrição.', 'error');
+        }
     }
   };
 

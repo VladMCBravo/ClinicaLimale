@@ -27,11 +27,39 @@ export default function HistoricoConsultas({ pacienteId, onConsultaClick }) {
         }
     }, [pacienteId, showSnackbar]);
 
-    // 3. NOVA FUNÇÃO para o botão de PDF
-    const handleDownloadPdf = (evolucaoId, event) => {
+    // 3. NOVA FUNÇÃO (CORRIGIDA) para o botão de PDF
+    const handleDownloadPdf = async (evolucaoId, event) => {
         event.stopPropagation(); // Impede que o clique no botão abra o modal
-        // Abre o PDF em nova aba (usa a rota que criamos no Passo 1)
-        window.open(`/api/pdf/evolucao/${evolucaoId}/`, '_blank');
+        
+        try {
+            // 1. Use o apiClient para fazer a requisição (ele envia o token de auth)
+            //    O apiClient já deve ter a baseURL '/api'
+            const response = await apiClient.get(
+                `/pdf/evolucao/${evolucaoId}/`, 
+                { responseType: 'blob' } // MUITO IMPORTANTE: pedir um 'blob'
+            );
+
+            // 2. Crie um Blob com o tipo PDF
+            const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+
+            // 3. Crie uma URL temporária para o Blob
+            const url = window.URL.createObjectURL(pdfBlob);
+            
+            // 4. Abra essa URL na nova aba
+            window.open(url, '_blank');
+            
+            // 5. Opcional: revogue a URL depois para liberar memória
+            // window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error("Erro ao baixar o PDF:", error);
+            // Verifique se o erro é 404
+            if (error.response && error.response.status === 404) {
+                showSnackbar('Erro: Rota do PDF não encontrada no servidor.', 'error');
+            } else {
+                showSnackbar('Erro ao gerar o PDF.', 'error');
+            }
+        }
     };
 
     return (
