@@ -1,5 +1,5 @@
 // src/components/prontuario/EvolucoesTab.jsx
-// ARQUIVO COM DEBUG: Removido o 'useMemo' para testar se ele está recriando o componente
+// ARQUIVO CORRIGIDO: Corrigido o 'return' para chamar a função correta
 
 import React, { Suspense, lazy } from 'react'; // Removido useMemo
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
@@ -53,14 +53,15 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
             case 'Clínica Médica':
             case 'ClinicaGeral':
             default: 
-                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
+                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
         }
     };
     // --- FIM DA CORREÇÃO ---
 
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-            {memoizedComponent}
+            {/* --- CORREÇÃO APLICADA AQUI --- */}
+            {renderEspecialidadeComponent()}
         </Suspense>
     );
 }
