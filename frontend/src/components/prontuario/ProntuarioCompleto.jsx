@@ -7,16 +7,16 @@ import {
 } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam'; 
 import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar painel
-import ModalHistoricoEvolucao from './ModalHistoricoEvolucao';
-import apiClient from '../../api/axiosConfig';
-import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
+import ModalHistoricoEvolucao from './ModalHistoricoEvolucao.js'; // Ajuste de import (assumindo .js)
+import apiClient from '../../api/axiosConfig.js'; // Ajuste de import (assumindo .js)
+import { useSnackbar } from '../../contexts/SnackbarContext.js'; // Ajuste de import (assumindo .js)
 
 // --- Imports das Abas ---
-const PrescricoesTab = lazy(() => import('./PrescricoesTab'));
-const AtestadosTab = lazy(() => import('./AtestadosTab')); 
-const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
-const DocumentosTab = lazy(() => import('./DocumentosTab')); 
-const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
+const PrescricoesTab = lazy(() => import('./PrescricoesTab.js')); // Ajuste de import
+const AtestadosTab = lazy(() => import('./AtestadosTab.js')); // Ajuste de import
+const EvolucaoTab = lazy(() => import('./EvolucoesTab.js')); // Ajuste de import
+const DocumentosTab = lazy(() => import('./DocumentosTab.js')); // Ajuste de import
+const ExamesDicomTab = lazy(() => import('./ExamesDicomTab.js')); // Ajuste de import
 
 // --- COMPONENTE TabPanel CORRIGIDO ---
 // Garante que painéis inativos não ocupem espaço
@@ -235,6 +235,9 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
       {/* Modal de Histórico */}
       {modalHistoricoId && (
         <ModalHistoricoEvolucao 
+          // --- ESTA LINHA ESTAVA A FALTAR E FOI ADICIONADA ---
+          pacienteId={pacienteId} 
+          // --- FIM DA CORREÇÃO ---
           evolucaoId={modalHistoricoId}
           onClose={onCloseHistoricoModal}
         />
