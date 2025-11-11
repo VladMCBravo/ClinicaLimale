@@ -1,7 +1,7 @@
 // src/components/prontuario/EvolucoesTab.jsx
-// ARQUIVO CORRIGIDO: Corrigido o 'return' para chamar a função correta
+// VERSÃO CORRIGIDA: Renderiza o tipo de componente dinamicamente para preservar o estado
 
-import React, { Suspense, lazy } from 'react'; // Removido useMemo
+import React, { Suspense, lazy } from 'react';
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // (Imports lazy... AtendimentoPediatria, AtendimentoCardiologia, etc.)
@@ -29,39 +29,48 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
     // --- DEBUG: Log de render do PAI ---
     console.log(`🔄 [RENDER PAI] EvolucoesTab renderizou. Especialidade: ${especialidade}`);
 
-    // --- CORREÇÃO: Removido o useMemo que recriava o componente ---
-    // Renderizamos o componente diretamente. O React cuidará da memoização.
-    
-    const renderEspecialidadeComponent = () => {
-        switch (especialidade) {
-            case 'Pediatria':
-                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Cardiologia':
-                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Neonatologia':
-                return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Ginecologia':
-                return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Obstetrícia': 
-                return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Ortopedia': 
-                return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Reumatologia': 
-                return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Neurologia': 
-                return <AtendimentoNeurologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-            case 'Clínica Médica':
-            case 'ClinicaGeral':
-            default: 
-                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-        }
-    };
+    // --- CORREÇÃO: Define o *TIPO* de componente a ser renderizado ---
+    let ComponenteDaEspecialidade;
+
+    switch (especialidade) {
+        case 'Pediatria':
+            ComponenteDaEspecialidade = AtendimentoPediatria;
+            break;
+        case 'Cardiologia':
+            ComponenteDaEspecialidade = AtendimentoCardiologia;
+            break;
+        case 'Neonatologia':
+            ComponenteDaEspecialidade = AtendimentoNeonatologia;
+            break;
+        case 'Ginecologia':
+            ComponenteDaEspecialidade = AtendimentoGinecologia;
+            break;
+        case 'Obstetrícia': 
+            ComponenteDaEspecialidade = AtendimentoObstetricia;
+            break;
+        case 'Ortopedia': 
+            ComponenteDaEspecialidade = AtendimentoOrtopedia;
+            break;
+        case 'Reumatologia': 
+            ComponenteDaEspecialidade = AtendimentoReumatologia;
+            break;
+        case 'Neurologia': 
+            ComponenteDaEspecialidade = AtendimentoNeurologia;
+            break;
+        case 'Clínica Médica':
+        case 'ClinicaGeral':
+        default: 
+             ComponenteDaEspecialidade = AtendimentoClinicaGeral;
+    }
     // --- FIM DA CORREÇÃO ---
 
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-            {/* --- CORREÇÃO APLICADA AQUI --- */}
-            {renderEspecialidadeComponent()}
+            {/* Renderiza o TIPO de componente. 
+              Agora o React vai gerenciar o ciclo de vida corretamente 
+              e não vai destruir o componente a cada renderização do pai.
+            */}
+            <ComponenteDaEspecialidade pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />
         </Suspense>
     );
 }
