@@ -1,7 +1,7 @@
 // src/components/prontuario/EvolucoesTab.jsx
-// VERSÃO CORRIGIDA: Renderiza o tipo de componente dinamicamente para preservar o estado
+// VERSÃO CORRIGIDA: Estabilizando a prop 'onEvolucoesSalva' com useCallback
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useCallback } from 'react'; // 1. IMPORTAR useCallback
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // (Imports lazy... AtendimentoPediatria, AtendimentoCardiologia, etc.)
@@ -29,7 +29,19 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
     // --- DEBUG: Log de render do PAI ---
     console.log(`🔄 [RENDER PAI] EvolucoesTab renderizou. Especialidade: ${especialidade}`);
 
-    // --- CORREÇÃO: Define o *TIPO* de componente a ser renderizado ---
+    // --- 2. CORREÇÃO: Estabiliza a prop 'onEvolucoesSalva' ---
+    // Mesmo que o "avô" nos envie uma nova função a cada render,
+    // nós a envolvemos em um useCallback aqui. O React só criará
+    // uma nova função 'stableOnEvolucaoSalva' se a 'onEvolucaoSalva' original mudar.
+    const stableOnEvolucaoSalva = useCallback(() => {
+        if (onEvolucaoSalva) {
+            onEvolucaoSalva();
+        }
+    }, [onEvolucaoSalva]);
+    // --- FIM DA CORREÇÃO ---
+
+
+    // --- Define o TIPO de componente a ser renderizado ---
     let ComponenteDaEspecialidade;
 
     switch (especialidade) {
@@ -62,15 +74,14 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
         default: 
              ComponenteDaEspecialidade = AtendimentoClinicaGeral;
     }
-    // --- FIM DA CORREÇÃO ---
 
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-            {/* Renderiza o TIPO de componente. 
-              Agora o React vai gerenciar o ciclo de vida corretamente 
-              e não vai destruir o componente a cada renderização do pai.
-            */}
-            <ComponenteDaEspecialidade pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />
+            {/* 3. Passa a função ESTÁVEL para o componente filho */}
+            <ComponenteDaEspecialidade 
+                pacienteId={pacienteId} 
+                onEvolucoesSalva={stableOnEvolucaoSalva} 
+            />
         </Suspense>
     );
 }
