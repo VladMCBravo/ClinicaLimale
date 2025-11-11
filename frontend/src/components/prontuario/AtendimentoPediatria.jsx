@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoPediatria.jsx
-// VERSÃO CORRIGIDA: Removido o useEffect que causava o loop
+// VERSÃO CORRIGIDA: Removido o useEffect de sintomasConsulta que causava o loop
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
@@ -71,7 +71,7 @@ const exameFisicoSelectGroups = [
     { id: 'cardio_sopros', label: 'Sopros Cardíacos', options: [{ value: 'Sem', label: 'Sem sopros', template: 'Sem sopros.' },{ value: 'Com', label: 'Com sopros', template: 'ACV: Sopro ___ /6+ em foco ___.' }] },
     // --- ABDOME ---
     { id: 'forma_abdome', label: 'Abdome (Forma)', options: [{ value: 'Plano', label: 'Plano', template: 'Abdome plano.'}, { value: 'Globoso', label: 'Globoso', template: 'Abdome globoso, timpânico.'}, { value: 'Distendido', label: 'Distendido', template: 'Abdome distendido.'}]},
-    { id: 'rha_abdome', label: 'Abdome (RHA)', options: [{ value: 'Presente', label: 'RHA Presentes', template: 'RHA presentes.'}, { value: 'Aumentado', label: 'RHA Aumentados', template: 'RHA aumentados.'}, { value: 'Diminuido', label: 'RHA Diminuídos', template: 'RHA diminuídos.'}, { value: 'Ausente', label: 'RHA Ausentes', template: 'RHA ausentes.'}]},
+    { id: 'rha_abdome', label: 'Abdome (RHA)', options: [{ value: 'Presente', label: 'RHA Presentes', template: 'RHA presentes.'}, { value: 'Aumentado', label: 'RHA Aumentados', template: 'RHA aumentados.'}, { value: 'Diminido', label: 'RHA Diminuídos', template: 'RHA diminuídos.'}, { value: 'Ausente', label: 'RHA Ausentes', template: 'RHA ausentes.'}]},
     { id: 'palpacao_abdome', label: 'Abdome (Palpação)', options: [{ value: 'Flacido', label: 'Flácido e Indolor', template: 'Abdome flácido, indolor à palpação.'}, { value: 'Doloroso', label: 'Doloroso', template: 'Abdome doloroso à palpação em ___.'}]},
     { id: 'visceromegalias', label: 'Abdome (Viscerom.)', options: [{ value: 'Nao', label: 'Sem visceromegalias', template: 'Sem visceromegalias palpáveis.'}, { value: 'Sim', label: 'Com visceromegalias', template: 'Visceromegalias palpáveis (descrever).'}]},
     // --- GENITÁLIA / COTO ---
@@ -120,8 +120,8 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     const [vacinacaoStatus, setVacinacaoStatus] = useState(null); 
     const [dnpmStatus, setDnpmStatus] = useState(null); 
     
-    // --- DEBUG 1: Verificar se o componente está renderizando ---
-    console.log(`🔄 [RENDER FILHO] AtendimentoPediatria renderizou. ID: ${pacienteId} (Tipo: ${typeof pacienteId})`);
+    // --- DEBUG 1: Remover logs desnecessários para focar no clique ---
+    // console.log(`🔄 [RENDER FILHO] AtendimentoPediatria renderizou. ID: ${pacienteId} (Tipo: ${typeof pacienteId})`);
 
 
     // --- 3. NOVA FUNÇÃO PARA BUSCAR STATUS ---
@@ -132,26 +132,22 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             return;
         }
         try {
-            // const resVac = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas-status/`);
-            // setVacinacaoStatus(resVac.data.status); 
-            // const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/dnpm-status/`);
-            // setDnpmStatus(resDnpm.data.status);
+            // (endpoints desabilitados para o teste)
         } catch (err) {
             console.error("Erro ao buscar resumos de status", err);
         }
     }, [pacienteId]);
 
-    // --- DEBUG 2: Verificar a estabilidade da função fetchStatusResumos ---
+    // --- DEBUG 2: Remover log de ref ---
+    // useEffect(() => {
+    //     console.log("⚠️ [REF] A função fetchStatusResumos foi recriada (mudou de referência)!");
+    // }, [fetchStatusResumos]);
+
+
+    // --- 4. useEffect DE CARREGAMENTO (Limpando logs) ---
     useEffect(() => {
-        console.log("⚠️ [REF] A função fetchStatusResumos foi recriada (mudou de referência)!");
-    }, [fetchStatusResumos]);
-
-
-    // --- 4. useEffect DE CARREGAMENTO (COM DEBUG E CORREÇÃO) ---
-    useEffect(() => {
-        console.log("🔥 [EFFECT] O useEffect principal foi disparado!");
-        console.log("   -> Dependências:", { pacienteId, "Tipo fetchStatusResumos": typeof fetchStatusResumos });
-
+        console.log("🔥 [EFFECT] O useEffect principal foi disparado (Carregamento)");
+        
         if (pacienteId) {
             setVacinacaoStatus(null);
             setDnpmStatus(null);
@@ -159,19 +155,12 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
 
             apiClient.get(`/pacientes/${pacienteId}/`)
                 .then(res => {
-                    console.log("   ✅ [API] Dados vitais recebidos. Atualizando State...");
-                    setExameFisicoData(prev => {
-                        if (prev.peso === (res.data.peso || '') && prev.altura === (res.data.altura || '')) {
-                            console.log("   ℹ️ [STATE] Peso/Altura idênticos. Update redundante.");
-                        } else {
-                            console.log("   🔄 [STATE] Peso/Altura diferentes. Atualizando estado.");
-                        }
-                        return {
-                            ...prev,
-                            peso: res.data.peso || '',
-                            altura: res.data.altura || '',
-                        };
-                    });
+                    console.log("   ✅ [API] Dados vitais recebidos.");
+                    setExameFisicoData(prev => ({
+                        ...prev,
+                        peso: res.data.peso || '',
+                        altura: res.data.altura || '',
+                    }));
                 })
                 .catch(err => {
                     console.error("   ❌ [API] Erro ao carregar dados do paciente:", err);
@@ -180,7 +169,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             
             fetchStatusResumos();
         } else {
-            console.log("   -> Paciente ID nulo. Limpando estados.");
+             // Limpa tudo
             setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
             setSintomasConsulta({});
             setExameFisicoData({}); 
@@ -193,83 +182,76 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     }, [pacienteId, fetchStatusResumos]); 
 
 
-    // --- GERADORES DE TEXTO (Atualizados) ---
-    const generateHda = useCallback(() => {
+    // --- GERADORES DE TEXTO ---
+    const generateHda = useCallback((sintomas) => {
+        // Aceita os sintomas como argumento para não depender do estado
+        const currentSintomas = sintomas || sintomasConsulta;
         return sintomasOptions
-            .filter(opt => sintomasConsulta[opt.id]) 
+            .filter(opt => currentSintomas[opt.id]) 
             .map(opt => sintomaTemplates[opt.id])
             .join('\n');
-    }, [sintomasConsulta]);
+    }, [sintomasConsulta]); // Dependência mantida para memoização
 
-    // Esta função agora SÓ GERA o texto, não atualiza mais o estado
-    const generateExameFisico = useCallback(() => {
-        let texto = `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\n`;
+    const generateExameFisico = useCallback((data) => {
+        // Aceita os dados como argumento
+        const currentData = data || exameFisicoData;
+        let texto = `Dados Vitais:\nPeso: ${currentData.peso || '___'} kg\nAltura: ${currentData.altura || '___'} cm\nPC: ${currentData.pc || '___'} cm\nT: ${currentData.temperatura || '___'} °C\n\nExame Físico:\n`;
         const selectAchados = exameFisicoSelectGroups.map(group => {
-            const selectedValue = exameFisicoData[group.id];
+            const selectedValue = currentData[group.id];
             if (!selectedValue || selectedValue === 'Nenhum' || selectedValue === 'NaoAplica') return null; 
             const selectedOption = group.options.find(opt => opt.value === selectedValue);
             return selectedOption ? selectedOption.template : '';
         }).filter(Boolean).join(" ");
         return texto + (selectAchados || "Nenhuma observação selecionada.");
-    }, [exameFisicoData]);
+    }, [exameFisicoData]); // Dependência mantida para memoização
 
     
-    // --- useEffects de atualização (CORRIGIDOS) ---
-
-    // Este useEffect atualiza o HDA (Subjetivo)
-    useEffect(() => {
-        const hdaText = generateHda();
-        setSoapData(prev => ({
-            ...prev,
-            notas_subjetivas: hdaText || (prev.notas_subjetivas || '')
-        }));
-    // Esta dependência está correta
-    }, [sintomasConsulta, generateHda]);
-
     // --- !!! CORREÇÃO !!! ---
-    // O useEffect que atualizava 'notas_objetivas' automaticamente
-    // foi REMOVIDO. Ele estava "brigando" com a função preencherNormalidade
-    // e causando o loop infinito.
-    /*
-    useEffect(() => {
-        const exameText = generateExameFisico();
-        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
-    }, [exameFisicoData, generateExameFisico]);
-    */
-    // --- FIM DA CORREÇÃO ---
+    // AMBOS OS useEffects que atualizavam o SOAP foram REMOVIDOS
+    // A lógica agora está dentro dos handlers.
 
 
-    // --- HANDLERS (Sem alterações) ---
+    // --- HANDLERS (CORRIGIDOS) ---
     const handleTabChange = (event, newIndex) => {
         setTabIndex(newIndex);
     };
     const handleSoapChange = (e) => {
         setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
+
     const handleSintomasChange = (event) => {
         const { name, checked } = event.target;
-        setSintomasConsulta(prev => ({ ...prev, [name]: checked }));
-    };
-    const handleExameChange = (event) => {
-        const { name, value } = event.target;
-        setExameFisicoData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        
+        // 1. Atualiza o estado dos sintomas
+        const newSintomas = { ...sintomasConsulta, [name]: checked };
+        setSintomasConsulta(newSintomas);
+        
+        // 2. Gera o texto HDA e atualiza o SOAP na mesma "tacada"
+        const hdaText = generateHda(newSintomas);
+        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
     };
     
-    // --- preencherNormalidade (Atualizado para ser auto-contido) ---
+    const handleExameChange = (event) => {
+        const { name, value } = event.target;
+        
+        // 1. Atualiza o estado do exame
+        const newExameData = { ...exameFisicoData, [name]: value };
+        setExameFisicoData(newExameData);
+        
+        // 2. Gera o texto do exame e atualiza o SOAP na mesma "tacada"
+        const exameText = generateExameFisico(newExameData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    };
+    
+    // --- preencherNormalidade (Sem alterações, agora deve funcionar) ---
     const preencherNormalidade = () => {
         console.log("🖱️ [CLICK] 'Preencher Normalidade' clicado!");
         
-        // 1. Define os dados do exame físico
         const dadosExameNormal = {
-            // Mantém vitais que já estavam lá
             peso: exameFisicoData.peso || '___', 
             altura: exameFisicoData.altura || '___',
             pc: exameFisicoData.pc || '___', 
             temperatura: exameFisicoData.temperatura || '___',
-            // --- Geral ---
             estado_geral: 'BEG',
             atividade: 'Ativo',
             reatividade: 'Reativo',
@@ -278,52 +260,40 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             estado_febril: 'Afebril',
             cianose: 'Acianotico',
             ictericia: 'Anicterico',
-            // --- Cabeça e Pescoço ---
             fontanelas: 'Normo',
             suturas: 'Normais',
             pescoco_estado: 'Livre',
             linfonodos: 'Ausentes',
-            // --- Olhos ---
             olhos_estado: 'Normal',
             olhos_secrecao: 'Sem',
             reflexo_vermelho: 'Presente',
-            // --- ORL ---
             otoscopia: 'Normal',
             otorreia: 'Nao',
             narinas: 'Permeaveis',
             oroscopia: 'Normal',
-            // --- Respiratório ---
             respiratorio_estado: 'Eupneico',
             mv_ausculta: 'Presente',
             ruidos_adventicios: 'Nenhum',
-            // --- Cardiovascular ---
             ritmo_cardiaco: 'BRNF',
             cardio_sopros: 'Sem',
-            // --- Abdome ---
             forma_abdome: 'Plano',
             rha_abdome: 'Presente',
             palpacao_abdome: 'Flacido',
             visceromegalias: 'Nao',
-            // --- Genitália / Coto ---
             genitalia: 'Normal',
             perineo: 'Integro',
             coto_umbilical_sinais: 'NaoAplica',
             coto_umbilical_aspecto: 'NaoAplica',
-            // --- Membros (Atualizado) ---
             membros_estado: 'Normais',
             pulsos: 'Presentes', 
             simetria: 'Simetricos',
-            // --- Neurológico (Atualizado) ---
             neuro_tonus: 'Normal',
             neuro_reflexos: 'Normais', 
             sinais_meningeos: 'Ausentes',
         };
 
-        // 2. Gera o texto do exame físico COM BASE nesses dados
-        // (Simulando o que a 'generateExameFisico' faria)
         const textoExameNormal = `Dados Vitais:\nPeso: ${dadosExameNormal.peso} kg\nAltura: ${dadosExameNormal.altura} cm\nPC: ${dadosExameNormal.pc} cm\nT: ${dadosExameNormal.temperatura} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Acianótico. Anictérico. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, indolor, sem massas. Linfonodos não palpáveis. Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente bilateralmente. Otoscopia: Membranas timpânicas íntegras, translúcidas. Ausência de otorreia. Narinas pérvias, sem secreção. Oroscopia sem alterações. Eupneico, FR=___. AR: MV presente universalmente, sem ruídos adventícios. ACV: BRNF em 2T. Sem sopros. Abdome plano. RHA presentes. Abdome flácido, indolor à palpação. Sem visceromegalias palpáveis. Genitália tópica, sem alterações. Região perineal íntegra, sem hiperemia ou lesões. Membros e coluna sem alterações. Ortolani negativo. Pulsos periféricos cheios e simétricos. Membros simétricos. Tônus muscular normal. Reflexos primitivos (Moro, sucção, preensão) presentes. Sinais meníngeos (Kernig, Brudzinski) ausentes.`;
 
-        // 3. Atualiza os estados DE UMA SÓ VEZ
         console.log("   -> Atualizando estado 'sintomasConsulta' (vazio).");
         setSintomasConsulta({});
         
@@ -334,15 +304,18 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         setSoapData(prev => ({
             ...prev,
             notas_subjetivas: 'Mãe nega queixas. Criança ativa, reativa, alimentando-se bem (SME), diurese e evacuações presentes.',
-            notas_objetivas: textoExameNormal, // Usa o texto gerado
+            notas_objetivas: textoExameNormal,
             avaliacao: 'Criança hígida, sem sinais de alarme. Desenvolvimento adequado para a idade.',
             plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
         }));
     };
 
-    // --- handleLimparConsultaAtual (Sem alterações) ---
+    // --- handleLimparConsultaAtual (CORRIGIDO) ---
     const handleLimparConsultaAtual = () => {
+        // 1. Limpa os sintomas
         setSintomasConsulta({});
+        
+        // 2. Mantém os vitais, limpa o resto do exame
         const vitais = {
             peso: exameFisicoData.peso || '___', 
             altura: exameFisicoData.altura || '___',
@@ -350,6 +323,8 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             temperatura: exameFisicoData.temperatura || '___',
         };
         setExameFisicoData(vitais);
+        
+        // 3. Limpa o SOAP, mas recria o 'notas_objetivas' com os vitais
         setSoapData({
             notas_subjetivas: '',
             notas_objetivas: `Dados Vitais:\nPeso: ${vitais.peso} kg\nAltura: ${vitais.altura} cm\nPC: ${vitais.pc} cm\nT: ${vitais.temperatura} °C\n\nExame Físico:\n`,
@@ -425,7 +400,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             {/* --- CABEÇALHO ATUALIZADO COM STATUS --- */}
             <Box sx={{ 
                 display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' }, // Empilha em telas pequenas
+                flexDirection: { xs: 'column', sm: 'row' },
                 justifyContent: 'space-between', 
                 alignItems: { xs: 'flex-start', sm: 'center' },
                 gap: 1,
@@ -435,7 +410,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                     <Typography variant="h6" gutterBottom sx={{mb: 0}}> 
                         Atendimento Pediátrico 
                     </Typography>
-                    {renderStatusBadges()} {/* <-- INDICADORES ADICIONADOS AQUI */}
+                    {renderStatusBadges()}
                 </Box>
                 {tabIndex === 0 && (
                     <Button variant="outlined" size="small" onClick={preencherNormalidade} sx={{flexShrink: 0}}> 
