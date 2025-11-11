@@ -20,11 +20,11 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             setIsLoading(true);
             setEvolucao(null); 
             
-            // --- CORREÇÃO 2: URL errada (erro 404 da sua imagem) ---
-            // A URL correta precisa do pacienteId, como definido no seu urls.py
-            const urlCorreta = `/api/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`;
-            
-            apiClient.get(urlCorreta)
+            // --- CORREÇÃO AQUI ---
+        // Remova o /api do início. O apiClient já tem.
+        const urlCorreta = `/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`;
+
+        apiClient.get(urlCorreta)
                 .then(res => setEvolucao(res.data))
                 .catch(err => {
                     // Este snackbar agora deve mostrar o erro 404
@@ -44,11 +44,12 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         if (!evolucaoId) return;
 
         try {
-            // A URL do PDF (que corrigimos no urls.py)
-            const response = await apiClient.get(
-                `/api/pdf/evolucao/${evolucaoId}/`,
-                { responseType: 'blob' } // Pede um arquivo (blob)
-            );
+            // --- CORREÇÃO AQUI ---
+        // Remova o /api do início aqui também.
+        const response = await apiClient.get(
+            `/pdf/evolucao/${evolucaoId}/`,
+            { responseType: 'blob' } 
+        );
 
             const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(pdfBlob);
