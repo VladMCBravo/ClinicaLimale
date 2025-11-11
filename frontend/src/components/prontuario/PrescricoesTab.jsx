@@ -68,14 +68,24 @@ export default function PrescricoesTab({ pacienteId }) {
   
   const handleGerarPdf = async (prescricaoId) => {
     try {
-        // --- ALTERAÇÃO AQUI ---
-        // A URL estava errada. Deve seguir o mesmo padrão da
-        // URL de PDF de evolução (que provavelmente é /api/pdf/...)
+        // --- CORREÇÃO AQUI ---
+        // Você está chamando /api/pdf/...
+        // Mas o apiClient JÁ adiciona o /api
+        // O resultado é /api/api/pdf/..., que dá 404.
+        
+        // ALTERE DE:
+        // const response = await apiClient.get(
+        //     `/api/pdf/prescricao/${prescricaoId}/`, 
+        //     { responseType: 'blob' } 
+        // );
+
+        // PARA: (Remova o /api do início)
         const response = await apiClient.get(
-            `/api/pdf/prescricao/${prescricaoId}/`, // <-- ESTA É A URL CORRETA
+            `/pdf/prescricao/${prescricaoId}/`, 
             { responseType: 'blob' } 
         );
-        // --- FIM DA ALTERAÇÃO ---
+        // --- FIM DA CORREÇÃO ---
+
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
         window.open(fileURL, '_blank');
         setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
