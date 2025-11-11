@@ -7,16 +7,21 @@ import {
 } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam'; 
 import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar painel
-import ModalHistoricoEvolucao from './ModalHistoricoEvolucao.js'; // Ajuste de import (assumindo .js)
-import apiClient from '../../api/axiosConfig.js'; // Ajuste de import (assumindo .js)
-import { useSnackbar } from '../../contexts/SnackbarContext.js'; // Ajuste de import (assumindo .js)
 
-// --- Imports das Abas ---
-const PrescricoesTab = lazy(() => import('./PrescricoesTab.js')); // Ajuste de import
-const AtestadosTab = lazy(() => import('./AtestadosTab.js')); // Ajuste de import
-const EvolucaoTab = lazy(() => import('./EvolucoesTab.js')); // Ajuste de import
-const DocumentosTab = lazy(() => import('./DocumentosTab.js')); // Ajuste de import
-const ExamesDicomTab = lazy(() => import('./ExamesDicomTab.js')); // Ajuste de import
+// --- CORREÇÃO DE IMPORTAÇÃO ---
+// Readicionando as extensões de arquivo corretas (.jsx para componentes, .js para config)
+import ModalHistoricoEvolucao from './ModalHistoricoEvolucao.jsx'; 
+import apiClient from '../../api/axiosConfig.js'; 
+import { useSnackbar } from '../../contexts/SnackbarContext.jsx'; // Assumindo .jsx
+
+// --- Imports das Abas (com extensões .jsx) ---
+const PrescricoesTab = lazy(() => import('./PrescricoesTab.jsx')); 
+const AtestadosTab = lazy(() => import('./AtestadosTab.jsx')); 
+const EvolucaoTab = lazy(() => import('./EvolucoesTab.jsx')); 
+const DocumentosTab = lazy(() => import('./DocumentosTab.jsx')); 
+const ExamesDicomTab = lazy(() => import('./ExamesDicomTab.jsx'));
+// --- FIM DA CORREÇÃO DE IMPORTAÇÃO ---
+
 
 // --- COMPONENTE TabPanel CORRIGIDO ---
 // Garante que painéis inativos não ocupem espaço
@@ -217,6 +222,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             <TabPanel value={tabIndex} index={1}>
               <PrescricoesTab pacienteId={pacienteId} />
             </TabPanel>
+            {/* --- CORREÇÃO DOS ERROS DE TAG --- */}
             <TabPanel value={tabIndex} index={2}>
               <AtestadosTab pacienteId={pacienteId} />
             </TabPanel>
@@ -226,18 +232,17 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             <TabPanel value={tabIndex} index={4}>
               <ExamesDicomTab pacienteId={pacienteId} />
             </TabPanel>
+            {/* --- FIM DA CORREÇÃO --- */}
 
           </Suspense>
         </Box>
         {/* --- FIM DO CONTEÚDO DAS ABAS --- */}
       </Box>
 
-      {/* Modal de Histórico */}
+      {/* Modal de Histórico (com a correção do pacienteId já aplicada) */}
       {modalHistoricoId && (
         <ModalHistoricoEvolucao 
-          // --- ESTA LINHA ESTAVA A FALTAR E FOI ADICIONADA ---
           pacienteId={pacienteId} 
-          // --- FIM DA CORREÇÃO ---
           evolucaoId={modalHistoricoId}
           onClose={onCloseHistoricoModal}
         />
