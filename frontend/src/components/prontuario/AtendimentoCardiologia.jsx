@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoCardiologia.jsx
-// VERSÃO REATORADA COM ABAS (Modelo Pediatria) - COM CORREÇÃO DE PROPS
+// VERSÃO CORRIGIDA: Removidos useEffects que causavam loop
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
@@ -9,11 +9,10 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// --- 1. IMPORTAR A NOVA ABA DE HISTÓRICO ---
 const HistoricoCardiologia = lazy(() => import('./cardiologia/HistoricoCardiologia'));
 const RelatoriosTab = lazy(() => import('./RelatoriosTab'));
 
-// --- 2. OPÇÕES E TEMPLATES (APENAS DA CONSULTA ATUAL) ---
+// --- (Constantes de Opções omitidas para brevidade) ---
 const sintomasOpcoes = [
   { id: 'dor_toracica', label: 'Dor torácica' }, { id: 'dispneia', label: 'Dispneia' },
   { id: 'palpitacoes', label: 'Palpitações' }, { id: 'sincope_tontura', label: 'Síncope/Tontura' },
@@ -52,13 +51,11 @@ function TabPanel(props) {
     );
 }
 
-// --- CORREÇÃO AQUI: Adicionando 'onEvolucoesSalva' às props ---
-export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva }) {
+export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    // Estados da Consulta Atual
     const [sintomasConsulta, setSintomasConsulta] = useState({});
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
@@ -70,64 +67,77 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
         setSintomasConsulta({});
         setExameFisicoData({});
         setTabIndex(0);
-        setConsultaSalvaId(null); // <-- ADICIONE ESTA LINHA
+        setConsultaSalvaId(null);
     }, [pacienteId]);
 
-    // Geradores de texto
-    const generateHda = useCallback(() => { 
+    // Geradores de texto (Atualizados para aceitar argumentos)
+    const generateHda = useCallback((sintomas) => { 
+        const currentSintomas = sintomas || sintomasConsulta;
         return sintomasOpcoes
-            .filter(opt => sintomasConsulta[opt.id])
+            .filter(opt => currentSintomas[opt.id])
             .map(opt => sintomaTemplates[opt.id] || `${opt.label}: `)
             .join('\n');
      }, [sintomasConsulta]);
 
-    const generateExameFisico = useCallback(() => {
-        let texto = `Dados Vitais:\nPA: ${exameFisicoData.pa || '___x___'} mmHg\nFC: ${exameFisicoData.fc || '___'} bpm\n\nExame Físico:\n`;
+    const generateExameFisico = useCallback((data) => {
+        const currentData = data || exameFisicoData;
+        let texto = `Dados Vitais:\nPA: ${currentData.pa || '___x___'} mmHg\nFC: ${currentData.fc || '___'} bpm\n\nExame Físico:\n`;
         const achados = exameFisicoQualitativoOptions
-            .filter(opt => exameFisicoData[opt.id])
+            .filter(opt => currentData[opt.id])
             .map(opt => opt.template).join(" ");
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // Efeitos que atualizam SOAP
-    useEffect(() => { 
-        const hdaText = generateHda();
-        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText || (prev.notas_subjetivas || '') }));
-     }, [sintomasConsulta, generateHda]);
+    // --- CORREÇÃO: useEffects que atualizam SOAP foram removidos ---
+    // useEffect(() => { ... }, [sintomasConsulta, generateHda]);
+    // useEffect(() => { ... }, [exameFisicoData, generateExameFisico]);
 
-    useEffect(() => { 
-        const exameText = generateExameFisico();
-        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
-     }, [exameFisicoData, generateExameFisico]);
-
-    // Handlers
+    // Handlers (Atualizados para controlar o SOAP)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSintomasChange = (e) => setSintomasConsulta(prev => ({ ...prev, [e.target.name]: e.target.checked }));
-    const handleExameChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        setExameFisicoData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    
+    const handleSintomasChange = (e) => {
+        const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
+        setSintomasConsulta(newSintomas);
+        
+        const hdaText = generateHda(newSintomas);
+        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
     };
 
-    // Botão Normalidade
+    const handleExameChange = (event) => {
+        const { name, value, type, checked } = event.target;
+        const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
+        setExameFisicoData(newExameData);
+        
+        const exameText = generateExameFisico(newExameData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    };
+
+    // Botão Normalidade (Atualizado para ser auto-contido)
     const preencherNormalidade = () => {
-        setSintomasConsulta({}); 
-        setExameFisicoData(prev => ({
-            ...prev,
+        const dadosExameNormal = {
+            pa: exameFisicoData.pa || '___x___',
+            fc: exameFisicoData.fc || '___',
             ictus_normal: true, ictus_desviado: false,
             tjp_negativa: true, tjp_positiva: false,
             brnf_2t: true, bar_2t_sopros: false, b3: false, b4: false,
             mv_presente: true, estertores: false,
             pulsos_cheios: true, pulsos_diminuidos: false,
             sem_edema: true, com_edema: false,
-        }));
+        };
+        
+        const textoExameNormal = `Dados Vitais:\nPA: ${dadosExameNormal.pa} mmHg\nFC: ${dadosExameNormal.fc} bpm\n\nExame Físico:\nIctus cordis não visível/palpável ou em LHE 5º EIC. Turgência Jugular Patológica negativa a 45º. ACV: Ritmo regular, BRNF em 2T, sem sopros. AR: MV presente universalmente, sem ruídos adventícios. Pulsos periféricos cheios e simétricos. MMII sem edema, panturrilhas livres.`;
+        
+        setSintomasConsulta({}); 
+        setExameFisicoData(dadosExameNormal);
         setSoapData({
             notas_subjetivas: 'Paciente assintomático do ponto de vista cardiovascular.',
-            notas_objetivas: `Dados Vitais:\nPA: ${exameFisicoData.pa || '___x___'} mmHg\nFC: ${exameFisicoData.fc || '___'} bpm\n\nExame Físico:\nIctus cordis não visível/palpável ou em LHE 5º EIC. Turgência Jugular Patológica negativa a 45º. ACV: Ritmo regular, BRNF em 2T, sem sopros. AR: MV presente universalmente, sem ruídos adventícios. Pulsos periféricos cheios e simétricos. MMII sem edema, panturrilhas livres.`,
+            notas_objetivas: textoExameNormal,
             avaliacao: 'Exame cardiovascular sem alterações.',
             plano: 'Manter acompanhamento regular. Orientações gerais.'
         });
     };
+    
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({}); 
         setExameFisicoData({});
@@ -135,45 +145,33 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // handleSubmit (Usando a prop 'onEvolucoesSalva')
+    // handleSubmit (Sem alterações)
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         
         try {
-            // 1. Salva a EVOLUÇÃO (SOAP)
             const res = await apiClient.post(
                 `/prontuario/pacientes/${pacienteId}/evolucoes/`, 
                 soapData
             );
             
-            // --- ESTA É A MUDANÇA ---
-            // Salva o ID da evolução recém-criada no estado
             setConsultaSalvaId(res.data.id); 
-            // -------------------------
-
             showSnackbar('Evolução salva com sucesso!', 'success');
-
-            // (Chama a função onEvolucoesSalva, se ela existir, passando o ID)
-            if(onEvolucoesSalva) onEvolucoesSalva(res.data.id);
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
 
         } catch (error) {
             showSnackbar('Erro ao salvar evolução.', 'error');
-            // (Limpe o ID se der erro?)
-            // setConsultaSalvaId(null); 
         } finally {
             setIsSubmitting(false);
-            // NÃO limpe os campos aqui ainda, o médico pode querer
-            // gerar um relatório baseado neles.
-            // handleLimparConsultaAtual(); // <-- Mova isso para um botão "Nova Consulta"
+            // Não limpa os campos para permitir geração de relatórios
         }
     };
     // --- FIM handleSubmit ---
 
-    // --- JSX COM ABAS ---
+    // --- JSX (Sem alterações) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
-            {/* CABEÇALHO */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
                 <Typography variant="h6" gutterBottom> Atendimento Cardiológico </Typography>
                 {tabIndex === 0 && (
@@ -181,25 +179,21 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                 )}
             </Box>
 
-            {/* NAVEGAÇÃO DAS ABAS */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas do prontuário cardiológico" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="cardio-tab-0" />
                     <Tab label="Histórico" id="cardio-tab-1" />
-                    <Tab label="Relatórios" id="cardio-tab-2" /> {/* <-- NOVA ABA */}
-                    <Tab label="Exames (ECG/ECO)" id="cardio-tab-2" />
+                    <Tab label="Relatórios" id="cardio-tab-2" />
+                    <Tab label="Exames (ECG/ECO)" id="cardio-tab-3" /> {/* Corrigido ID para 3 */}
                 </Tabs>
             </Box>
 
-            {/* CONTEÚDO DAS ABAS */}
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
                 
-                {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
                         
-                        {/* Queixa Atual (S) */}
                         <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Queixa Atual (S)</Typography>
                         <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
                             {sintomasOpcoes.map(opt => ( 
@@ -210,14 +204,12 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                         
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Exame Físico (O) */}
                         <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                             <TextField label="PA (mmHg)" name="pa" value={exameFisicoData.pa || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '100px' }}/>
                             <TextField label="FC (bpm)" name="fc" type="number" value={exameFisicoData.fc || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
                         </Box>
                         
-                        {/* Checkboxes Exame Físico */}
                         <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Inspeção/Pescoço:</Typography>
@@ -249,7 +241,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                         
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Campos Finais (A, P) e Botões */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                             <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
@@ -257,7 +248,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                                 <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}>
                                     Limpar Consulta
                                 </Button>
-                                <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
+                                <Button type="submit" variant="contained" disabled={isSubmitting}>
                                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
                                 </Button>
                             </Box>
@@ -265,11 +256,9 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                     </Paper>
                 </TabPanel>
 
-                {/* ABA 2: HISTÓRICO CARDIOLÓGICO */}
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoCardiologia pacienteId={pacienteId} />
                 </TabPanel>
-                {/* --- NOVO PAINEL DA ABA --- */}
                 <TabPanel value={tabIndex} index={2}>
                     <RelatoriosTab 
                         pacienteId={pacienteId}
@@ -277,8 +266,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucoesSalva })
                         consultaAtualId={consultaSalvaId} 
                     />
                 </TabPanel>
-                {/* ABA 4: EXAMES (Corrigido) */}
-                <TabPanel value={tabIndex} index={3}> {/* <-- CORRIGIDO PARA 3 */}
+                <TabPanel value={tabIndex} index={3}> {/* Corrigido para 3 */}
                     <Typography>Em breve: Visualizador de Exames (ECG, ECO, Laudos).</Typography>
                 </TabPanel>
             </Suspense>

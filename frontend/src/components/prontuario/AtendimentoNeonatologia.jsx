@@ -1,23 +1,21 @@
 // src/components/prontuario/AtendimentoNeonatologia.jsx
-// VERSÃO FINAL (Com 4 Abas: Consulta, Histórico, DNPM, Vacinação)
+// VERSÃO CORRIGIDA: Removidos 'showSnackbar' e useEffects do SOAP
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
     Paper, Typography, TextField, Box, Button, CircularProgress, Tabs, Tab,
     Grid, FormGroup, FormControlLabel, Checkbox, Divider,
     FormControl, InputLabel, Select, MenuItem,
-    Chip // 1. IMPORTAR CHIP
+    Chip
 } from '@mui/material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// --- 2. IMPORTAR AS NOVAS ABAS ---
 const HistoricoNeonatologia = lazy(() => import('./neonatologia/HistoricoNeonatologia'));
-const DnpmDetalhado = lazy(() => import('./pediatria/DnpmDetalhado')); // Reutiliza o de Pediatria
-const VacinacaoTab = lazy(() => import('./pediatria/VacinacaoTab')); // Reutiliza o de Pediatria
+const DnpmDetalhado = lazy(() => import('./pediatria/DnpmDetalhado'));
+const VacinacaoTab = lazy(() => import('./pediatria/VacinacaoTab'));
 
-// --- ESTRUTURA DO EXAME FÍSICO (Sem alterações) ---
-// (código omitido para brevidade)
+// --- (Constantes de Opções omitidas para brevidade) ---
 const exameFisicoNeoGroups = [
     { id: 'avaliacao_geral', label: 'Avaliação Geral', options: [{ value: 'BEG', label: 'BEG', template: 'Bom Estado Geral (BEG).'}, { value: 'REG', label: 'REG', template: 'Regular Estado Geral (REG).'}, { value: 'MEG', label: 'MEG', template: 'Mau Estado Geral (MEG).'}] },
     { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.'}, { value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.'}, { value: 'Letargico', label: 'Letárgico', template: 'Letárgico.'}] },
@@ -26,7 +24,7 @@ const exameFisicoNeoGroups = [
     { id: 'hidratacao', label: 'Hidratação', options: [{ value: 'Hidratado', label: 'Hidratado', template: 'Hidratado.'},{ value: 'Desidratado', label: 'Desidratado', template: 'Desidratado.'}] },
     { id: 'estado_febril', label: 'Temperatura', options: [{ value: 'Afebril', label: 'Afebril', template: 'Afebril ao toque.'},{ value: 'Febril', label: 'Febril', template: 'Febril ao toque.'}] },
     { id: 'pele_lesoes', label: 'Pele (Lesões)', options: [{ value: 'Integra', label: 'Íntegra / Sem Lesões', template: 'Pele íntegra, sem lesões.'},{ value: 'Eritema', label: 'Eritema Tóxico', template: 'Eritema tóxico neonatal.'},{ value: 'Petequias', label: 'Petéquias', template: 'Petéquias presentes.'},{ value: 'Outras', label: 'Outras Lesões', template: 'Lesões cutâneas (descrever).'}] },
-    { id: 'fontanela', label: 'Fontanela Anterior', options: [{ value: 'Normotensa', label: 'Normotensa', template: 'Fontanela anterior normotensa.'},{ value: 'Abaulada', label: 'Abaulada', template: 'Fontanela anterior abaulada.'},{ value: 'Deprimida', label: 'Deprimida', template: 'Fontanela anterior deprimida.'}] },
+    { id: 'fontanela', label: 'Fontanela Anterior', options: [{ value: 'Normotensa', label: 'Normotensa', template: 'Fontanela anterior normotensa.'},{ value: 'Abaulada', label: 'FA Abaulada', template: 'Fontanela anterior abaulada.'},{ value: 'Deprimida', label: 'FA Deprimida', template: 'Fontanela anterior deprimida.'}] },
     { id: 'suturas', label: 'Suturas', options: [{ value: 'Normais', label: 'Normais', template: 'Suturas cranianas normais.'},{ value: 'Acavalgadas', label: 'Acavalgadas', template: 'Suturas acavalgadas.'},{ value: 'Diastase', label: 'Diástase', template: 'Diástase de suturas.'}] },
     { id: 'pescoco', label: 'Pescoço', options: [{ value: 'Livre', label: 'Livre / Indolor', template: 'Pescoço livre, sem massas.'},{ value: 'Massas', label: 'Massas / Gânglios', template: 'Massas ou gânglios palpáveis.'},{ value: 'Retracoes', label: 'Retrações', template: 'Retrações cervicais.'}] },
     { id: 'olhos_estado', label: 'Olhos (Estado)', options: [{ value: 'Normal', label: 'Normal', template: 'Pupilas isocóricas. Conjuntivas coradas.'},{ value: 'Hiperemia', label: 'Hiperemia Conjuntival', template: 'Hiperemia conjuntival.'},{ value: 'Edema', label: 'Edema Palpebral', template: 'Edema palpebral.'}] },
@@ -90,11 +88,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // --- 3. NOVOS ESTADOS PARA OS INDICADORES ---
     const [vacinacaoStatus, setVacinacaoStatus] = useState(null); 
     const [dnpmStatus, setDnpmStatus] = useState(null); 
 
-    // --- 4. NOVA FUNÇÃO PARA BUSCAR STATUS ---
     const fetchStatusResumos = useCallback(async () => {
         if (!pacienteId) {
             setVacinacaoStatus(null);
@@ -102,19 +98,14 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
             return;
         }
         try {
-            // (Descomente quando os endpoints de status existirem no backend)
-            // const resVac = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas-status/`);
-            // setVacinacaoStatus(resVac.data.status); 
-            // const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/dnpm-status/`);
-            // setDnpmStatus(resDnpm.data.status);
+            // (endpoints desabilitados)
         } catch (err) {
             console.error("Erro ao buscar resumos de status", err);
         }
     }, [pacienteId]);
 
-    // --- 5. useEffect DE CARREGAMENTO (ATUALIZADO) ---
+    // --- useEffect DE CARREGAMENTO (COM CORREÇÃO) ---
     useEffect(() => {
-        // Reseta tudo ao trocar de paciente
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setExameFisicoData({});
         setVitalsData({});
@@ -128,7 +119,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                 .then(res => {
                     setVitalsData(prev => ({
                         ...prev,
-                        // Você pode pré-carregar vitais da Neonatologia se existirem no Paciente
                         // peso: res.data.peso || '', 
                     }));
                 })
@@ -137,22 +127,27 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                     showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
                 });
             
-            // Chama a nova função para buscar status
             fetchStatusResumos();
         }
-    }, [pacienteId, fetchStatusResumos, showSnackbar]); // Adicionado fetchStatusResumos
+    // --- CORREÇÃO APLICADA: 'showSnackbar' removido das dependências ---
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId, fetchStatusResumos]);
 
 
-    // --- Geradores de texto (sem alteração) ---
-    const generateSubjetivo = useCallback(() => {
-        return `RN com ${vitalsData.dias_vida || '___'} dias de vida, IGC ${vitalsData.igc_semanas || '__'}s ${vitalsData.igc_dias || '_'}d.\nMedicações em uso: ${vitalsData.medicacoes || 'Nenhuma'}.\nObservações: ${vitalsData.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${evolucaoDiaria.dieta || 'Não informado'}\nDiurese: ${evolucaoDiaria.diurese || 'Não informado'}\nEvacuação: ${evolucaoDiaria.evacuacao || 'Não informado'}`;
+    // --- Geradores de texto (Atualizados para aceitar argumentos) ---
+    const generateSubjetivo = useCallback((vitals, evolucao) => {
+        const currentVitals = vitals || vitalsData;
+        const currentEvolucao = evolucao || evolucaoDiaria;
+        return `RN com ${currentVitals.dias_vida || '___'} dias de vida, IGC ${currentVitals.igc_semanas || '__'}s ${currentVitals.igc_dias || '_'}d.\nMedicações em uso: ${currentVitals.medicacoes || 'Nenhuma'}.\nObservações: ${currentVitals.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${currentEvolucao.dieta || 'Não informado'}\nDiurese: ${currentEvolucao.diurese || 'Não informado'}\nEvacuação: ${currentEvolucao.evacuacao || 'Não informado'}`;
     }, [vitalsData, evolucaoDiaria]);
 
-    const generateObjetivo = useCallback(() => {
-        let texto = `Dados Vitais:\nPeso: ${vitalsData.peso || '___'} g\nCompr: ${vitalsData.comprimento || '___'} cm\nPC: ${vitalsData.pc || '___'} cm\n\nExame Físico:\n`;
+    const generateObjetivo = useCallback((vitals, exame) => {
+        const currentVitals = vitals || vitalsData;
+        const currentExame = exame || exameFisicoData;
+        let texto = `Dados Vitais:\nPeso: ${currentVitals.peso || '___'} g\nCompr: ${currentVitals.comprimento || '___'} cm\nPC: ${currentVitals.pc || '___'} cm\n\nExame Físico:\n`;
         const todosOsGrupos = [...exameFisicoNeoGroups, ...reflexosPrimitivosGroups];
         const achados = todosOsGrupos.map(group => {
-            const selectedValue = exameFisicoData[group.id];
+            const selectedValue = currentExame[group.id];
             if (!selectedValue || selectedValue === 'Nenhum' || selectedValue === 'NaoAplica') return null;
             const option = group.options.find(opt => opt.value === selectedValue);
             return option ? option.template : '';
@@ -160,24 +155,49 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [vitalsData, exameFisicoData]);
 
-    // --- useEffects de atualização (sem alteração) ---
-    useEffect(() => {
-        setSoapData(prev => ({ ...prev, notas_subjetivas: generateSubjetivo() }));
-    }, [vitalsData, evolucaoDiaria, generateSubjetivo]);
-    useEffect(() => {
-        setSoapData(prev => ({ ...prev, notas_objetivas: generateObjetivo() }));
-    }, [vitalsData, exameFisicoData, generateObjetivo]);
+    // --- CORREÇÃO: useEffects que atualizam SOAP foram removidos ---
+    // useEffect(() => { ... }, [vitalsData, evolucaoDiaria, generateSubjetivo]);
+    // useEffect(() => { ... }, [vitalsData, exameFisicoData, generateObjetivo]);
 
-    // --- Handlers (sem alteração) ---
+    // --- Handlers (Atualizados para controlar o SOAP) ---
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleVitalsChange = (e) => setVitalsData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleEvolucaoDiariaChange = (e) => setEvolucaoDiaria(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleExameChange = (e) => setExameFisicoData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    
+    const handleVitalsChange = (e) => {
+        const newVitals = { ...vitalsData, [e.target.name]: e.target.value };
+        setVitalsData(newVitals);
+        
+        // Atualiza SOAP
+        setSoapData(prev => ({
+            ...prev,
+            notas_subjetivas: generateSubjetivo(newVitals, evolucaoDiaria),
+            notas_objetivas: generateObjetivo(newVitals, exameFisicoData)
+        }));
+    };
+    const handleEvolucaoDiariaChange = (e) => {
+        const newEvolucao = { ...evolucaoDiaria, [e.target.name]: e.target.value };
+        setEvolucaoDiaria(newEvolucao);
 
-    // --- preencherNormalidade (sem alteração) ---
+        // Atualiza SOAP
+        setSoapData(prev => ({
+            ...prev,
+            notas_subjetivas: generateSubjetivo(vitalsData, newEvolucao)
+        }));
+    };
+    const handleExameChange = (e) => {
+        const newExame = { ...exameFisicoData, [e.target.name]: e.target.value };
+        setExameFisicoData(newExame);
+
+        // Atualiza SOAP
+        setSoapData(prev => ({
+            ...prev,
+            notas_objetivas: generateObjetivo(vitalsData, newExame)
+        }));
+    };
+
+    // --- preencherNormalidade (Atualizado para ser auto-contido) ---
     const preencherNormalidade = () => {
-        setExameFisicoData({
+        const dadosExameNormal = {
             avaliacao_geral: 'BEG', cor: 'Corado', hidratacao: 'Hidratado', estado_febril: 'Afebril',
             atividade: 'Ativo', reatividade: 'Reativo', pele_lesoes: 'Integra',
             fontanela: 'Normotensa', suturas: 'Normais', pescoco: 'Livre',
@@ -192,16 +212,29 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
             reflexo_moro: 'Presente', reflexo_cocleo_palp: 'Presente', reflexo_succao: 'Presente',
             reflexo_preensao_palmar: 'Presente', reflexo_preensao_plantar: 'Presente',
             reflexo_cutaneo_plantar: 'Normal', reflexo_marcha: 'Presente', reflexo_galant: 'Presente', reflexo_atnr: 'Presente',
-        });
-        setVitalsData(prev => ({ ...prev }));
-        setEvolucaoDiaria({ dieta: 'Seno materno sob livre demanda', diurese: 'Adequada', evacuacao: 'Presente' });
+        };
+        const dadosEvolucaoNormal = { dieta: 'Seno materno sob livre demanda', diurese: 'Adequada', evacuacao: 'Presente' };
+        
+        const textoSubjetivo = `RN com ${vitalsData.dias_vida || '___'} dias de vida, IGC ${vitalsData.igc_semanas || '__'}s ${vitalsData.igc_dias || '_'}d.\nMedicações em uso: ${vitalsData.medicacoes || 'Nenhuma'}.\nObservações: ${vitalsData.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${dadosEvolucaoNormal.dieta}\nDiurese: ${dadosEvolucaoNormal.diurese}\nEvacuação: ${dadosEvolucaoNormal.evacuacao}`;
+        const textoObjetivo = `Dados Vitais:\nPeso: ${vitalsData.peso || '___'} g\nCompr: ${vitalsData.comprimento || '___'} cm\nPC: ${vitalsData.pc || '___'} cm\n\nExame Físico:\nBom Estado Geral (BEG). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Pele íntegra, sem lesões. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, sem massas. Pupilas isocóricas. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente. Orofaringe normal, palato íntegro. Eupneico, boa expansibilidade. MV presente bilateralmente, sem ruídos adventícios. BRNF em 2T. Sem sopros. Perfusão periférica < 3s. Abdome plano. RHA presentes. Abdome flácido, indolor. Sem visceromegalias. Genitália tópica, sem alterações. Ânus pérvio. Membros e coluna sem alterações. Ortolani negativo. Pulsos simétricos e cheios. Tônus normal, ativo. Sinais meníngeos ausentes. Moro presente. Refl. Cócleo-Palpebral presente. Refl. Sucção presente. Preensão Palmar presente. Preensão Plantar presente. Refl. Cutâneo Plantar extensor. Refl. Marcha presente. Refl. Galant presente. Refl. ATNR presente.`;
+
+        setExameFisicoData(dadosExameNormal);
+        setEvolucaoDiaria(dadosEvolucaoNormal);
+        setSoapData(prev => ({
+            ...prev,
+            notas_subjetivas: textoSubjetivo,
+            notas_objetivas: textoObjetivo,
+            avaliacao: 'RN hígido, em bom estado geral, sem queixas.',
+            plano: 'Alta da consulta. Orientações de puericultura.'
+        }));
         showSnackbar('Exame físico preenchido com padrão normal.', 'info');
      };
 
-    // --- handleLimparConsultaAtual (sem alteração) ---
+    // --- handleLimparConsultaAtual (Atualizado) ---
     const handleLimparConsultaAtual = () => {
         setExameFisicoData({});
-        setVitalsData({});
+        // Não limpa os vitais carregados da API
+        // setVitalsData({}); 
         setEvolucaoDiaria({ dieta: '', diurese: '', evacuacao: '' });
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         showSnackbar('Campos da consulta atual limpos.', 'info');
@@ -256,12 +289,10 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
         </Box>
     );
 
-
     // --- 7. JSX (ATUALIZADO) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             
-            {/* CABEÇALHO ATUALIZADO COM STATUS */}
             <Box sx={{ 
                 display: 'flex', 
                 flexDirection: { xs: 'column', sm: 'row' },
@@ -274,7 +305,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                     <Typography variant="h6" gutterBottom sx={{mb: 0}}> 
                         Atendimento Neonatal 
                     </Typography>
-                    {renderStatusBadges()} {/* <-- INDICADORES ADICIONADOS AQUI */}
+                    {renderStatusBadges()} 
                 </Box>
                 {tabIndex === 0 && (
                     <Button variant="outlined" size="small" onClick={preencherNormalidade} sx={{flexShrink: 0}}> 
@@ -283,7 +314,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                 )}
             </Box>
 
-            {/* NAVEGAÇÃO DAS ABAS (ATUALIZADA) */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, mt: 1 }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas prontuário neonatal" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="neo-tab-0" />
@@ -293,12 +323,10 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                 </Tabs>
             </Box>
 
-            {/* CONTEÚDO DAS ABAS (ATUALIZADO) */}
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
                 
-                {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
 
                          <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Dados da Consulta e Evolução (S)</Typography>
@@ -335,7 +363,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                             <TextField label="PC (cm)" name="pc" type="number" value={vitalsData.pc || ''} onChange={handleVitalsChange} size="small" sx={{minWidth: '80px', flex: '1 1 80px'}}/>
                         </Box>
                         
-                        {/* Exame Físico 100% ComboBox, SEPARADO POR SEÇÕES */}
                         <FormGroup sx={{ p: { xs: 1, sm: 2 }, border: '1px solid #ddd', borderRadius: 1 }}>
                             {(() => {
                                 const secoes = [
@@ -399,13 +426,12 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                         <TextField name="notas_objetivas" label="Objetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_objetivas || ''} onChange={handleSoapChange} size="small" sx={{mt: 1.5}}/>
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Avaliação e Plano */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <TextField name="avaliacao" label="Avaliação / Hipóteses (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                             <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
                              <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                 <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}> Limpar Consulta </Button>
-                                <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
+                                <Button type="submit" variant="contained" disabled={isSubmitting}>
                                     {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Evolução'}
                                 </Button>
                             </Box>
@@ -413,17 +439,14 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                     </Paper>
                 </TabPanel>
 
-                {/* ABA 2: HISTÓRICO NEONATAL */}
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoNeonatologia pacienteId={pacienteId} />
                 </TabPanel>
 
-                {/* ABA 3: DNPM (Adicionada) */}
                 <TabPanel value={tabIndex} index={2}>
                     <DnpmDetalhado pacienteId={pacienteId} onDataChange={fetchStatusResumos} />
                 </TabPanel>
 
-                {/* ABA 4: VACINAÇÃO (Adicionada) */}
                 <TabPanel value={tabIndex} index={3}>
                     <VacinacaoTab pacienteId={pacienteId} onDataChange={fetchStatusResumos} />
                 </TabPanel>

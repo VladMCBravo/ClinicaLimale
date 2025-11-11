@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoNeurologia.jsx
-// NOVO COMPONENTE (Baseado no padrão Cardiologia/Ginecologia)
+// CORRIGIDO: Removidos useEffects automáticos que causavam loop
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
@@ -9,12 +9,10 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// --- 1. IMPORTAR AS NOVAS ABAS ---
 const HistoricoNeurologia = lazy(() => import('./neurologia/HistoricoNeurologia'));
-// Importa o RelatoriosTab que você forneceu
 const RelatoriosTab = lazy(() => import('./RelatoriosTab')); 
 
-// --- 2. OPÇÕES E TEMPLATES (Consulta Atual Neurológica) ---
+// --- OPÇÕES E TEMPLATES (Consulta Atual Neurológica) ---
 const sintomasNeurologiaOptions = [
     { id: 'cefaleia', label: 'Cefaleia', template: 'Refere cefaleia (início, tipo, localização, irradiação, intensidade, fatores).' },
     { id: 'tontura_vertigem', label: 'Tontura / Vertigem', template: 'Refere tontura/vertigem (tipo, duração, fatores).' },
@@ -29,30 +27,24 @@ const exameFisicoNeurologiaOptions = [
     { id: 'confuso_desorientado', label: 'Confuso / Desorientado', group: 'mental', template: "Estado Mental: Confuso / Desorientado." },
     { id: 'linguagem_normal', label: 'Linguagem Normal', group: 'mental', template: "Linguagem preservada." },
     { id: 'afasia', label: 'Afasia (Expressão/Compreensão)', group: 'mental', template: "Linguagem: Afasia de ___." },
-    
     { id: 'cn_normais', label: 'Pares Cranianos Normais', group: 'cranianos', template: "Pares Cranianos: Sem alterações." },
     { id: 'cn_alterados', label: 'Alteração Pares Cranianos', group: 'cranianos', template: "Pares Cranianos: Alteração em ___ (descrever)." },
-
     { id: 'forca_global_5', label: 'Força Global Grau 5/5', group: 'motor', template: "Motor: Força muscular global preservada (Grau 5/5)." },
     { id: 'hemiparesia', label: 'Hemiparesia (D/E)', group: 'motor', template: "Motor: Hemiparesia em ___." },
     { id: 'tonus_normal', label: 'Tônus Normal', group: 'motor', template: "Tônus normal." },
     { id: 'espasticidade_rigidez', label: 'Espasticidade / Rigidez', group: 'motor', template: "Tônus: Presença de ___." },
     { id: 'sem_mov_invol', label: 'Sem Mov. Involuntários', group: 'motor', template: "Sem movimentos involuntários." },
-
     { id: 'reflexos_normo', label: 'Reflexos Normoativos', group: 'reflexos', template: "Reflexos profundos normoativos e simétricos." },
     { id: 'reflexos_alterados', label: 'Hiper/Hiporreflexia', group: 'reflexos', template: "Reflexos profundos ___." },
     { id: 'babinski_ausente', label: 'Babinski Ausente (Flexor)', group: 'reflexos', template: "Reflexo cutâneo-plantar flexor bilateral." },
     { id: 'babinski_presente', label: 'Babinski Presente (Extensor)', group: 'reflexos', template: "Reflexo cutâneo-plantar extensor em ___." },
-    
     { id: 'sensibilidade_normal', label: 'Sensibilidade Normal', group: 'sensorial', template: "Sensibilidade (tátil, dolorosa, vibratória) preservada." },
     { id: 'hipoestesia', label: 'Hipoestesia / Anestesia', group: 'sensorial', template: "Sensibilidade: Hipoestesia em ___." },
-    
     { id: 'marcha_normal', label: 'Marcha Normal', group: 'marcha', template: "Marcha e equilíbrio: Eutáxica, Romberg negativo." },
     { id: 'marcha_ataxica', label: 'Marcha Atáxica', group: 'marcha', template: "Marcha atáxica." },
     { id: 'romberg_positivo', label: 'Romberg Positivo', group: 'marcha', template: "Sinal de Romberg positivo." },
     { id: 'sinais_meningeos_ausentes', label: 'Sinais Meníngeos Ausentes', group: 'marcha', template: "Sinais meníngeos (Rigidez Nucal, Kernig, Brudzinski) ausentes." },
 ];
-// --- FIM OPÇÕES ---
 
 // Helper TabPanel
 function TabPanel(props) {
@@ -69,13 +61,11 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    // Estados da Consulta Atual
     const [sintomasConsulta, setSintomasConsulta] = useState({});
-    const [exameFisicoData, setExameFisicoData] = useState({}); // Checkboxes + vitais
+    const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-    const [consultaSalvaId, setConsultaSalvaId] = useState(null); // Para o RelatoriosTab
+    const [consultaSalvaId, setConsultaSalvaId] = useState(null); 
 
-    // Reseta estados ao trocar de paciente
     useEffect(() => {
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
@@ -84,47 +74,56 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
         setConsultaSalvaId(null);
     }, [pacienteId]);
 
-    // Geradores de texto
-    const generateSubjetivo = useCallback(() => { 
+    // Geradores de texto (CORRIGIDOS)
+    const generateSubjetivo = useCallback((sintomas) => { 
+        const currentSintomas = sintomas || sintomasConsulta;
         return sintomasNeurologiaOptions
-            .filter(opt => sintomasConsulta[opt.id])
+            .filter(opt => currentSintomas[opt.id])
             .map(opt => opt.template || `${opt.label}: `)
             .join('\n');
      }, [sintomasConsulta]);
 
-    const generateObjetivo = useCallback(() => {
-        let texto = `Dados Vitais:\nPA: ${exameFisicoData.pa || '___x___'} mmHg\nFC: ${exameFisicoData.fc || '___'} bpm\nPeso: ${exameFisicoData.peso || '___'} kg\n\nExame Neurológico:\n`;
+    const generateObjetivo = useCallback((exame) => {
+        const currentExame = exame || exameFisicoData;
+        let texto = `Dados Vitais:\nPA: ${currentExame.pa || '___x___'} mmHg\nFC: ${currentExame.fc || '___'} bpm\nPeso: ${currentExame.peso || '___'} kg\n\nExame Neurológico:\n`;
         const achados = exameFisicoNeurologiaOptions
-            .filter(opt => exameFisicoData[opt.id])
+            .filter(opt => currentExame[opt.id])
             .map(opt => opt.template).join(" ");
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // Efeitos que atualizam SOAP
-    useEffect(() => { 
-        const hdaText = generateSubjetivo();
-        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText || (prev.notas_subjetivas || '') }));
-     }, [sintomasConsulta, generateSubjetivo]);
+    // --- CORREÇÃO: useEffects automáticos REMOVIDOS ---
+    // useEffect(() => { ... }, [sintomasConsulta, generateSubjetivo]);
+    // useEffect(() => { ... }, [exameFisicoData, generateObjetivo]);
+    // --- FIM DA CORREÇÃO ---
 
-    useEffect(() => { 
-        const exameText = generateObjetivo();
-        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
-     }, [exameFisicoData, generateObjetivo]);
-
-    // Handlers
+    // Handlers (CORRIGIDOS)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSintomasChange = (e) => setSintomasConsulta(prev => ({ ...prev, [e.target.name]: e.target.checked }));
+    
+    const handleSintomasChange = (e) => {
+        const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
+        setSintomasConsulta(newSintomas);
+        
+        const hdaText = generateSubjetivo(newSintomas);
+        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText || '' }));
+    };
+    
     const handleExameChange = (event) => {
         const { name, value, type, checked } = event.target;
-        setExameFisicoData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
+        setExameFisicoData(newExameData);
+
+        const exameText = generateObjetivo(newExameData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
 
-    // Botão Normalidade
+    // Botão Normalidade (CORRIGIDO)
     const preencherNormalidade = () => {
         setSintomasConsulta({}); 
-        setExameFisicoData(prev => ({
-            ...prev, // Mantém vitais (PA/FC/Peso)
+        
+        const newExameData = {
+            ...exameFisicoData, // Mantém vitais (PA/FC/Peso)
             alerta_orientado: true,
             linguagem_normal: true,
             cn_normais: true,
@@ -140,19 +139,30 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
             confuso_desorientado: false, afasia: false, cn_alterados: false, hemiparesia: false,
             espasticidade_rigidez: false, reflexos_alterados: false, babinski_presente: false,
             hipoestesia: false, marcha_ataxica: false, romberg_positivo: false,
-        }));
+        };
+        setExameFisicoData(newExameData);
+
+        // Gera texto com os novos dados
+        const exameText = generateObjetivo(newExameData);
+        
         setSoapData(prev => ({
             ...prev,
             notas_subjetivas: 'Paciente nega queixas neurológicas.',
-            notas_objetivas: `Dados Vitais:\nPA: ${exameFisicoData.pa || '___x___'} mmHg\nFC: ${exameFisicoData.fc || '___'} bpm\nPeso: ${exameFisicoData.peso || '___'} kg\n\nExame Neurológico:\nEstado Mental: Alerta, orientado em tempo, espaço e pessoa. Linguagem preservada. Pares Cranianos: Sem alterações. Motor: Força muscular global preservada (Grau 5/5). Tônus normal. Sem movimentos involuntários. Reflexos profundos normoativos e simétricos. Reflexo cutâneo-plantar flexor bilateral. Sensibilidade (tátil, dolorosa, vibratória) preservada. Marcha e equilíbrio: Eutáxica, Romberg negativo. Sinais meníngeos (Rigidez Nucal, Kernig, Brudzinski) ausentes.`,
+            notas_objetivas: exameText,
             avaliacao: 'Exame neurológico sem alterações.',
             plano: 'Manter acompanhamento de rotina.'
         }));
     };
+    
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({}); 
         setExameFisicoData({});
-        setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+        
+        // Gera texto com dados vazios
+        const hdaText = generateSubjetivo({});
+        const exameText = generateObjetivo({});
+        
+        setSoapData({ notas_subjetivas: hdaText, notas_objetivas: exameText, avaliacao: '', plano: '' });
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
@@ -169,7 +179,7 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
             };
             const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
-            setConsultaSalvaId(res.data.id); // <-- Salva o ID da consulta
+            setConsultaSalvaId(res.data.id); 
             showSnackbar('Evolução salva com sucesso!', 'success');
             if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
 
@@ -179,7 +189,6 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
             setIsSubmitting(false);
         }
     };
-    // --- FIM handleSubmit ---
 
     // --- JSX COM ABAS ---
     return (
@@ -298,8 +307,8 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
                 <TabPanel value={tabIndex} index={2}>
                     <RelatoriosTab 
                         pacienteId={pacienteId}
-                        especialidade="neurologia" // Passa a especialidade correta
-                        consultaAtualId={consultaSalvaId} // Passa o ID da consulta salva
+                        especialidade="neurologia" 
+                        consultaAtualId={consultaSalvaId}
                     />
                 </TabPanel>
                 

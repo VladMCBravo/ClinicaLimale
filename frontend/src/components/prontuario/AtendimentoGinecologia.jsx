@@ -1,16 +1,14 @@
 // src/components/prontuario/AtendimentoGinecologia.jsx
-// VERSÃO COMPLETA, REATORADA COM ABAS E CAMINHOS CORRIGIDOS
+// CORRIGIDO: Removidos useEffects automáticos que causavam loop
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
     Paper, Typography, TextField, Box, Button, CircularProgress, Tabs, Tab,
     Grid, FormGroup, FormControlLabel, Checkbox, Divider
 } from '@mui/material';
-// --- CAMINHOS CORRIGIDOS ---
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// --- IMPORT DA ABA DE HISTÓRICO (com caminho corrigido) ---
 const HistoricoGinecologia = lazy(() => import('./ginecologia/HistoricoGinecologia'));
 
 // --- OPÇÕES E TEMPLATES (Consulta Atual Ginecológica) ---
@@ -25,7 +23,6 @@ const sintomaTemplates = {
   sua: "SUA: Padrão/Relação com ciclo/Pós-coito/Pós-menopausa/Sintomas associados.",
   dor_pelvica: "Dor Pélvica: Tipo/Local/Intensidade/Relação com ciclo/Fatores/Sintomas associados.",
   nodulo_mama: "Queixa Mamária: Tipo/Local/Variação com ciclo/Descarga papilar.",
-  // Adicionar outros templates...
 };
 const exameFisicoGinecoOptions = [
     { id: 'mamas_normais', label: 'Mamas s/ Alterações', group: 'mamas', template: "Mamas: Simétricas, sem nódulos ou retrações. Axilas livres." },
@@ -50,19 +47,16 @@ function TabPanel(props) {
     );
 }
 
-// --- Componente Principal ---
 export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    // Estados da Consulta Atual
     const [sintomasConsulta, setSintomasConsulta] = useState({});
-    const [exameFisicoData, setExameFisicoData] = useState({}); // Checkboxes + campos livres do exame
-    const [vitalsData, setVitalsData] = useState({}); // PA, FC, Peso, Altura
+    const [exameFisicoData, setExameFisicoData] = useState({});
+    const [vitalsData, setVitalsData] = useState({}); 
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // Reseta estados ao trocar de paciente
     useEffect(() => {
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
@@ -71,54 +65,72 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
         setTabIndex(0);
     }, [pacienteId]);
 
-    // Geradores de texto
-    const generateSubjetivo = useCallback(() => {
+    // Geradores de texto (CORRIGIDOS)
+    const generateSubjetivo = useCallback((sintomas) => {
+        const currentSintomas = sintomas || sintomasConsulta;
         return sintomasGinecoOptions
-            .filter(opt => sintomasConsulta[opt.id])
+            .filter(opt => currentSintomas[opt.id])
             .map(opt => sintomaTemplates[opt.id] || `${opt.label}: `)
             .join('\n');
      }, [sintomasConsulta]);
 
-    const generateObjetivo = useCallback(() => {
-         let texto = `Dados Vitais:\nPA: ${vitalsData.pa || '___x___'} mmHg\nFC: ${vitalsData.fc || '___'} bpm\nPeso: ${vitalsData.peso || '___'} kg\n\nExame Físico Ginecológico:\n`;
+    const generateObjetivo = useCallback((vitals, exame) => {
+         const currentVitals = vitals || vitalsData;
+         const currentExame = exame || exameFisicoData;
+         
+         let texto = `Dados Vitais:\nPA: ${currentVitals.pa || '___x___'} mmHg\nFC: ${currentVitals.fc || '___'} bpm\nPeso: ${currentVitals.peso || '___'} kg\n\nExame Físico Ginecológico:\n`;
          const achados = exameFisicoGinecoOptions
-            .filter(opt => exameFisicoData[opt.id]) // Usa checkboxes do exameFisicoData
+            .filter(opt => currentExame[opt.id])
             .map(opt => opt.template).join(" ");
-         // Adiciona descrições manuais se houver
-         if (exameFisicoData.ex_mamas_livre) texto += `Mamas (livre): ${exameFisicoData.ex_mamas_livre}\n`;
-         if (exameFisicoData.ex_abdome_livre) texto += `Abdome (livre): ${exameFisicoData.ex_abdome_livre}\n`;
-         if (exameFisicoData.ex_gen_ext_livre) texto += `Gen Externa (livre): ${exameFisicoData.ex_gen_ext_livre}\n`;
-         if (exameFisicoData.ex_especular_livre) texto += `Especular (livre): ${exameFisicoData.ex_especular_livre}\n`;
-         if (exameFisicoData.ex_toque_livre) texto += `Toque (livre): ${exameFisicoData.ex_toque_livre}\n`;
+         
+         if (currentExame.ex_mamas_livre) texto += `Mamas (livre): ${currentExame.ex_mamas_livre}\n`;
+         if (currentExame.ex_abdome_livre) texto += `Abdome (livre): ${currentExame.ex_abdome_livre}\n`;
+         if (currentExame.ex_gen_ext_livre) texto += `Gen Externa (livre): ${currentExame.ex_gen_ext_livre}\n`;
+         if (currentExame.ex_especular_livre) texto += `Especular (livre): ${currentExame.ex_especular_livre}\n`;
+         if (currentExame.ex_toque_livre) texto += `Toque (livre): ${currentExame.ex_toque_livre}\n`;
 
          return texto + (achados || "Nenhuma observação selecionada.");
      }, [vitalsData, exameFisicoData]);
 
-    // Efeitos que atualizam SOAP
-    useEffect(() => {
-        const hdaText = generateSubjetivo();
-        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText || (prev.notas_subjetivas || '') }));
-     }, [sintomasConsulta, generateSubjetivo]);
+    // --- CORREÇÃO: useEffects automáticos REMOVIDOS ---
+    // useEffect(() => { ... }, [sintomasConsulta, generateSubjetivo]);
+    // useEffect(() => { ... }, [vitalsData, exameFisicoData, generateObjetivo]);
+    // --- FIM DA CORREÇÃO ---
 
-    useEffect(() => {
-        const exameText = generateObjetivo();
-        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
-     }, [vitalsData, exameFisicoData, generateObjetivo]);
-
-    // Handlers
+    // Handlers (CORRIGIDOS)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSintomasChange = (e) => setSintomasConsulta(prev => ({ ...prev, [e.target.name]: e.target.checked }));
-    const handleExameChange = (e) => { // Para Checkboxes e TextFields do exame
-        const { name, value, type, checked } = e.target;
-        setExameFisicoData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    
+    const handleSintomasChange = (e) => {
+        const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
+        setSintomasConsulta(newSintomas);
+        
+        const hdaText = generateSubjetivo(newSintomas);
+        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText || '' }));
     };
-    const handleVitalsChange = (e) => setVitalsData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    
+    const handleExameChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
+        setExameFisicoData(newExameData);
+        
+        const exameText = generateObjetivo(vitalsData, newExameData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    };
+    
+    const handleVitalsChange = (e) => {
+        const newVitals = { ...vitalsData, [e.target.name]: e.target.value };
+        setVitalsData(newVitals);
+        
+        const exameText = generateObjetivo(newVitals, exameFisicoData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    };
 
-    // Botão Normalidade
+    // Botão Normalidade (CORRIGIDO)
     const preencherNormalidade = () => {
         setSintomasConsulta({});
-        setExameFisicoData({
+        
+        const newExameData = {
              ...exameFisicoData, // Mantém vitais
              mamas_normais: true, mamas_nodulo: false,
              abd_normal: true, abd_doloroso: false,
@@ -127,25 +139,33 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
              toque_normal: true, toque_alterado: false,
              ex_mamas_livre: '', ex_abdome_livre: '', ex_gen_ext_livre: '',
              ex_especular_livre: '', ex_toque_livre: '',
-        });
+        };
+        setExameFisicoData(newExameData);
+
+        const exameText = generateObjetivo(vitalsData, newExameData);
+        
         setSoapData({
              notas_subjetivas: 'Paciente assintomática.',
-             notas_objetivas: `Dados Vitais:\nPA: ${vitalsData.pa || '___x___'} mmHg\nFC: ${vitalsData.fc || '___'} bpm\nPeso: ${vitalsData.peso || '___'} kg\n\nExame Físico Ginecológico:\nMamas: Simétricas, sem nódulos ou retrações. Axilas livres. Abdome: Plano, flácido, indolor, RHA+. Genitália Externa: Trófica, sem lesões. Especular: Colo visualizado, sem lesões. Conteúdo vaginal fisiológico. Toque: Útero AVF/RVF, tamanho normal, móvel, indolor. Anexos não palpáveis/dolorosos.`,
+             notas_objetivas: exameText,
              avaliacao: 'Exame ginecológico sem alterações.',
              plano: 'Manter acompanhamento de rotina.'
         });
      };
 
-    // Botão Limpar
+    // Botão Limpar (CORRIGIDO)
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
-        setExameFisicoData({}); // Limpa checkboxes e campos livres do exame
-        setVitalsData({}); // Limpa vitais
-        setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+        setExameFisicoData({});
+        setVitalsData({});
+        
+        const hdaText = generateSubjetivo({});
+        const exameText = generateObjetivo({}, {});
+        
+        setSoapData({ notas_subjetivas: hdaText, notas_objetivas: exameText, avaliacao: '', plano: '' });
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // handleSubmit (Salva apenas a Evolução SOAP)
+    // handleSubmit (Sem alterações)
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
@@ -167,7 +187,7 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
         finally { setIsSubmitting(false); }
     };
 
-    // --- JSX COM ABAS ---
+    // --- JSX (Sem alterações) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             {/* CABEÇALHO */}
@@ -183,7 +203,6 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas prontuário ginecológico" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="gineco-tab-0" />
                     <Tab label="Histórico" id="gineco-tab-1" />
-                    {/* <Tab label="Exames (USG/Colpo)" id="gineco-tab-2" /> */}
                 </Tabs>
             </Box>
 
@@ -251,7 +270,6 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
                          <TextField label="Genitália Externa (descrição livre)" name="ex_gen_ext_livre" multiline rows={2} fullWidth size="small" sx={{mt: 1}} value={exameFisicoData.ex_gen_ext_livre || ''} onChange={handleExameChange} />
                          <TextField label="Exame Especular (descrição livre)" name="ex_especular_livre" multiline rows={2} fullWidth size="small" sx={{mt: 1}} value={exameFisicoData.ex_especular_livre || ''} onChange={handleExameChange} />
                          <TextField label="Toque Vaginal (descrição livre)" name="ex_toque_livre" multiline rows={2} fullWidth size="small" sx={{mt: 1}} value={exameFisicoData.ex_toque_livre || ''} onChange={handleExameChange} />
-                         {/* Campo Objetivo (preenchido ou editado) */}
                          <TextField name="notas_objetivas" label="Objetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_objetivas || ''} onChange={handleSoapChange} size="small" sx={{mt: 1.5}}/>
 
                         <Divider sx={{ my: 2 }} />
@@ -274,10 +292,6 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoGinecologia pacienteId={pacienteId} />
                 </TabPanel>
-
-                {/* ABA 3: EXAMES (Placeholder) */}
-                 {/* <TabPanel value={tabIndex} index={2}> ... </TabPanel> */}
-
             </Suspense>
         </Paper>
     );

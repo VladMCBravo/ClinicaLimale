@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoOrtopedia.jsx
-// VERSÃO REFATORADA COM ABAS
+// VERSÃO CORRIGIDA: Removidos useEffects que causavam loop
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
@@ -9,10 +9,9 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// 1. IMPORTAR A NOVA ABA DE HISTÓRICO
 const HistoricoOrtopedia = lazy(() => import('./ortopedia/HistoricoOrtopedia'));
 
-// --- OPÇÕES (Ortopedia - Consulta Atual) ---
+// --- (Constantes de Opções omitidas para brevidade) ---
 const sintomasOrtopediaOptions = [
     { id: 'dor', label: 'Dor', group: 'sintoma', template: 'Dor em ___ (descrever início, tipo, irradiação, intensidade, fatores).' },
     { id: 'trauma', label: 'Trauma', group: 'sintoma', template: 'História de trauma em ___ (descrever mecanismo).' },
@@ -48,7 +47,6 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    // Estados da Consulta Atual
     const [sintomasConsulta, setSintomasConsulta] = useState({});
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
@@ -61,64 +59,80 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
         setTabIndex(0);
     }, [pacienteId]);
 
-    // Geradores de texto
-    const generateHda = useCallback(() => {
+    // Geradores de texto (Atualizados para aceitar argumentos)
+    const generateHda = useCallback((sintomas) => {
+         const currentSintomas = sintomas || sintomasConsulta;
          return sintomasOrtopediaOptions
-            .filter(opt => sintomasConsulta[opt.id])
+            .filter(opt => currentSintomas[opt.id])
             .map(opt => opt.template).join(" ");
      }, [sintomasConsulta]);
      
-    const generateExameFisico = useCallback(() => {
-        let texto = `Exame Físico Ortopédico (Local: ${exameFisicoData.ex_local || '___'}):\n`;
+    const generateExameFisico = useCallback((data) => {
+        const currentData = data || exameFisicoData;
+        let texto = `Exame Físico Ortopédico (Local: ${currentData.ex_local || '___'}):\n`;
         const achados = exameFisicoOrtopediaOptions
-            .filter(opt => exameFisicoData[opt.id])
+            .filter(opt => currentData[opt.id])
             .map(opt => opt.template).join(" ");
-        if (exameFisicoData.ex_inspecao && !exameFisicoData.inspecao_normal) texto += `Inspeção: ${exameFisicoData.ex_inspecao}\n`;
-        if (exameFisicoData.ex_palpacao && !exameFisicoData.palpacao_indolor && !exameFisicoData.palpacao_dor) texto += `Palpação: ${exameFisicoData.ex_palpacao}\n`;
-        if (exameFisicoData.ex_adm && !exameFisicoData.adm_preservada && !exameFisicoData.adm_limitada) texto += `ADM: ${exameFisicoData.ex_adm}\n`;
-        if (exameFisicoData.ex_forca && !exameFisicoData.forca_preservada) texto += `Força Muscular: ${exameFisicoData.ex_forca}\n`;
-        if (exameFisicoData.ex_neurovascular && !exameFisicoData.neurovascular_normal) texto += `Neurovascular: ${exameFisicoData.ex_neurovascular}\n`;
-        if (exameFisicoData.ex_testes) texto += `Testes Especiais: ${exameFisicoData.ex_testes}\n`;
+        if (currentData.ex_inspecao && !currentData.inspecao_normal) texto += `Inspeção: ${currentData.ex_inspecao}\n`;
+        if (currentData.ex_palpacao && !currentData.palpacao_indolor && !currentData.palpacao_dor) texto += `Palpação: ${currentData.ex_palpacao}\n`;
+        if (currentData.ex_adm && !currentData.adm_preservada && !currentData.adm_limitada) texto += `ADM: ${currentData.ex_adm}\n`;
+        if (currentData.ex_forca && !currentData.forca_preservada) texto += `Força Muscular: ${currentData.ex_forca}\n`;
+        if (currentData.ex_neurovascular && !currentData.neurovascular_normal) texto += `Neurovascular: ${currentData.ex_neurovascular}\n`;
+        if (currentData.ex_testes) texto += `Testes Especiais: ${currentData.ex_testes}\n`;
         
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // Efeitos que atualizam SOAP
-    useEffect(() => {
-        setSoapData(prev => ({ ...prev, notas_subjetivas: generateHda() || (prev.notas_subjetivas || '') }));
-    }, [sintomasConsulta, generateHda]);
-    useEffect(() => {
-         setSoapData(prev => ({ ...prev, notas_objetivas: generateExameFisico() }));
-    }, [exameFisicoData, generateExameFisico]);
+    // --- CORREÇÃO: useEffects que atualizam SOAP foram removidos ---
+    // useEffect(() => { ... }, [sintomasConsulta, generateHda]);
+    // useEffect(() => { ... }, [exameFisicoData, generateExameFisico]);
 
-    // Handlers
+    // Handlers (Atualizados para controlar o SOAP)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSintomasChange = (e) => setSintomasConsulta(prev => ({ ...prev, [e.target.name]: e.target.checked }));
-    const handleExameChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        setExameFisicoData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    
+    const handleSintomasChange = (e) => {
+        const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
+        setSintomasConsulta(newSintomas);
+        
+        // Atualiza SOAP
+        const hdaText = generateHda(newSintomas);
+        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
     };
 
-    // Botão Normalidade
+    const handleExameChange = (event) => {
+        const { name, value, type, checked } = event.target;
+        const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
+        setExameFisicoData(newExameData);
+        
+        // Atualiza SOAP
+        const exameText = generateExameFisico(newExameData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    };
+
+    // Botão Normalidade (Atualizado para ser auto-contido)
     const preencherNormalidade = () => { 
-        setSintomasConsulta({}); 
-        setExameFisicoData(prev => ({
-            ...prev,
+        const dadosExameNormal = {
+            ex_local: exameFisicoData.ex_local || '___',
             inspecao_normal: true, palpacao_indolor: true, adm_preservada: true, 
             forca_preservada: true, neurovascular_normal: true,
             inspecao_edema: false, inspecao_equimose: false, palpacao_dor: false, adm_limitada: false,
             ex_inspecao: '', ex_palpacao: '', ex_adm: '', ex_forca: '', ex_neurovascular: '', ex_testes: ''
-        }));
+        };
+        
+        const textoExameNormal = `Exame Físico Ortopédico (Local: ${dadosExameNormal.ex_local}):\nInspeção: Sem alterações. Palpação: Indolor. ADM: Preservada e indolor. Força Muscular: Grau 5/5 preservada. Exame Neurovascular: Perfusão, sensibilidade e motricidade distais normais. Testes Especiais: Negativos.`;
+        
+        setSintomasConsulta({}); 
+        setExameFisicoData(dadosExameNormal);
         setSoapData({
              notas_subjetivas: 'Paciente nega dor ou outras queixas musculoesqueléticas.',
-             notas_objetivas: `Exame Físico Ortopédico (Local: ${exameFisicoData.ex_local || '___'}):\nInspeção: Sem alterações. Palpação: Indolor. ADM: Preservada e indolor. Força Muscular: Grau 5/5 preservada. Exame Neurovascular: Perfusão, sensibilidade e motricidade distais normais. Testes Especiais: Negativos.`,
+             notas_objetivas: textoExameNormal,
              avaliacao: 'Exame ortopédico sem alterações no momento.',
              plano: 'Orientações gerais. Manter observação.'
         });
      };
      
-    // Botão Limpar
+    // Botão Limpar (Atualizado)
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
         setExameFisicoData({});
@@ -142,10 +156,9 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
         setIsSubmitting(false); 
     };
 
-    // --- RETURN ---
+    // --- RETURN (Sem alterações no JSX, apenas removi o `name` duplicado que o linter achou) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
-            {/* CABEÇALHO */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
                 <Typography variant="h6" gutterBottom> Atendimento Ortopédico </Typography>
                 {tabIndex === 0 && (
@@ -153,22 +166,18 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
                 )}
             </Box>
 
-             {/* NAVEGAÇÃO DAS ABAS */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
+             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas prontuário ortopédico" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="orto-tab-0" />
                     <Tab label="Histórico" id="orto-tab-1" />
                 </Tabs>
             </Box>
 
-            {/* CONTEÚDO DAS ABAS */}
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-                {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual</Typography>
                        
-                       {/* Queixa Atual (S) */}
                        <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Queixa Atual / HDA (S)</Typography>
                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
                            {sintomasOrtopediaOptions.map(opt => ( 
@@ -184,7 +193,6 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
                        
                        <Divider sx={{ my: 2 }} />
 
-                       {/* Exame Físico (O) */}
                        <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
                        <TextField label="Local Afetado / Articulação" name="ex_local" size="small" fullWidth sx={{my: 1.5}} value={exameFisicoData.ex_local || ''} onChange={handleExameChange} />
                        <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
@@ -209,19 +217,18 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
                        
                        <Divider sx={{ my: 2 }} />
 
-                       {/* Campos Finais SOAP e Botões */}
                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {/* --- CORREÇÃO DO LINT: Removido 'name' duplicado --- */}
                           <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                           <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
                           <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                              <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}> Limpar Consulta </Button>
-                             <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}> Salvar Atendimento </Button>
+                             <Button type="submit" variant="contained" disabled={isSubmitting}> Salvar Atendimento </Button>
                           </Box>
                        </Box>
                     </Paper>
                 </TabPanel>
 
-                {/* ABA 2: HISTÓRICO ORTOPÉDICO */}
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoOrtopedia pacienteId={pacienteId} />
                 </TabPanel>

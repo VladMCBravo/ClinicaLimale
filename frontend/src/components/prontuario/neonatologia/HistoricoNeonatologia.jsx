@@ -1,5 +1,5 @@
 // src/components/prontuario/neonatologia/HistoricoNeonatologia.jsx
-// VERSÃO FINAL (Implementa vídeos, rascunhos e lógica condicional)
+// VERSÃO CORRIGIDA: Removida a dependência 'showSnackbar' do useCallback
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -10,11 +10,10 @@ import {
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
-// Caminho corrigido para 3 níveis (src/components/prontuario/neonatologia -> src/contexts)
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
-// --- Opções para ComboBoxes ---
+// --- (Constantes de Opções omitidas para brevidade) ---
 const gpaOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
 const preNatalOptions = ['Adequado', 'Inadequado', 'Sem PN', 'Ignorado'];
 const gestacaoTipoOptions = ['Única', 'Gemelar', 'Trigemelar'];
@@ -36,7 +35,6 @@ const sorologiaStatusOptions = ['Não reagente', 'Reagente', 'Imune', 'Suscetív
 const hivVdrlStatusOptions = ['Não reagente', 'Reagente', 'Indeterminado']; //
 const vdrlTituloOptions = ['1:1', '1:2', '1:4', '1:8', '1:16', '1:32', '1:64', '1:128', '1:256']; //
 const hivCVOptions = ['Indetectável', 'Baixa', 'Alta']; //
-
 const comorbidadesOptions = [ //
     { id: 'DMG', label: 'DMG' }, { id: 'DHEG_HAC', label: 'DHEG/HAC' }, { id: 'Hipotireoidismo', label: 'Hipotireoidismo' },
     { id: 'Obesidade', label: 'Obesidade' }, { id: 'TB', label: 'TB' }, { id: 'Asma', label: 'Asma' }, { id: 'Depressao', label: 'Depressão' },
@@ -54,16 +52,9 @@ const examesHospOptions = [ //
     { id: 'us_tf', label: 'US Transfontanelar' }, { id: 'eco', label: 'Ecocardiograma' },
     { id: 'fundo_olho', label: 'Fundo de olho' },
 ];
-// (triagensOptions foi REMOVIDO)
-
-// --- ALTERAÇÃO 1: Novas opções para Triagens ---
 const normalAlteradoOptions = ['Normal', 'Alterado'];
 const presenteAlteradoOptions = ['Presente', 'Alterado'];
 const eoatOptions = ['Presente Bilateral', 'Alterado', 'Ausente'];
-// --- FIM ALTERAÇÃO ---
-
-
-// --- ALTERAÇÃO 2: initialState atualizado para Triagens ---
 const initialState = {
     gpa_g: '', gpa_p: '', gpa_a: '',
     pre_natal: '', tipo_gestacao: '', corticoterapia: '', neuroprotecao_mg: '',
@@ -94,7 +85,6 @@ const initialState = {
     diagnosticos_principais: '',
     exames_realizados: {},
     outros_exames: [], 
-    // Nova estrutura para triagens
     triagens: {
         pezinho_status: '', pezinho_desc: '',
         orelhinha_eoat_status: '', orelhinha_eoat_desc: '',
@@ -104,7 +94,7 @@ const initialState = {
         linguinha_status: '', linguinha_desc: '',
     },
 };
-// --- FIM ALTERAÇÃO ---
+// --- FIM Constantes ---
 
 export default function HistoricoNeonatologia({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
@@ -112,17 +102,14 @@ export default function HistoricoNeonatologia({ pacienteId }) {
     const [isLoading, setIsLoading] = useState(true);
     const [anamneseData, setAnamneseData] = useState(initialState);
     
-    // Estados separados para os JSONFields (Checkboxes)
     const [comorbidades, setComorbidades] = useState({});
     const [vicios, setVicios] = useState({});
     const [reanimacao, setReanimacao] = useState({});
     const [examesHosp, setExamesHosp] = useState({});
-    // --- ALTERAÇÃO 3: Estado de Triagens usa initialState ---
     const [triagens, setTriagens] = useState(initialState.triagens);
-    // --- FIM ALTERAÇÃO ---
     const [outrosExames, setOutrosExames] = useState([]);
 
-    // --- ALTERAÇÃO 4: fetchAnamnese (Deep Merge de Triagens) ---
+    // --- fetchAnamnese (COM CORREÇÃO) ---
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
@@ -130,7 +117,6 @@ export default function HistoricoNeonatologia({ pacienteId }) {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             if (res.data && res.data.neonatologia) {
                 const data = { ...initialState, ...res.data.neonatologia };
-                // Garante que a sub-estrutura de triagens exista e esteja completa
                 data.triagens = { ...initialState.triagens, ...(data.triagens || {}) }; 
                 
                 setAnamneseData(data);
@@ -139,7 +125,7 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                 setReanimacao(data.reanimacao_opcoes || {});
                 setExamesHosp(data.exames_realizados || {});
                 setOutrosExames(data.outros_exames || []);
-                setTriagens(data.triagens || initialState.triagens); // Seta o estado separado
+                setTriagens(data.triagens || initialState.triagens);
             } else {
                 setAnamneseData(initialState);
                 setComorbidades({});
@@ -147,7 +133,7 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                 setReanimacao({});
                 setExamesHosp({});
                 setOutrosExames([]);
-                setTriagens(initialState.triagens); // Reseta triagens
+                setTriagens(initialState.triagens);
             }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
@@ -156,14 +142,16 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId, showSnackbar]);
-    // --- FIM ALTERAÇÃO ---
+    // --- CORREÇÃO APLICADA: 'showSnackbar' removido das dependências ---
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pacienteId]);
+    // --- FIM fetchAnamnese ---
 
     useEffect(() => {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // --- Handlers ---
+    // --- Handlers (sem alteração) ---
     const handleChange = (e) => {
         const { name, value } = e.target;
         setAnamneseData(prev => ({ ...prev, [name]: value }));
@@ -195,7 +183,6 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         }));
         showSnackbar('Sorologias marcadas como "Não reagente".', 'info');
     };
-    // Handlers para "Outros Exames"
     const handleOutroExameChange = (index, event) => {
         const { name, value } = event.target;
         const list = [...outrosExames];
@@ -210,13 +197,12 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         list.splice(index, 1);
         setOutrosExames(list);
     };
-    // --- ALTERAÇÃO 5: Novo Handler para Triagens ---
     const handleTriagensChange = (e) => {
         const { name, value } = e.target;
         setTriagens(prev => ({ ...prev, [name]: value }));
     };
-    // --- FIM ALTERAÇÃO ---
-    // --- Salvar, Normalidade, Limpar ---
+    
+    // --- Salvar, Normalidade, Limpar (sem alteração) ---
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
@@ -242,11 +228,9 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         }
     };
     
-    // --- ALTERAÇÃO 6: Normalidade e Limpar (Triagens) ---
     const preencherNormalidade = () => {
         setAnamneseData(prev => ({
             ...initialState, 
-            // ... (campos de normalidade existentes)
             gpa_g: '1', gpa_p: '1', gpa_a: '0', pre_natal: 'Adequado', tipo_gestacao: 'Única',
             corticoterapia: 'Não', neuroprotecao_mg: 'Não se aplica', condicoes_maternas: 'Não', vicios: 'Não',
             tipo_sanguineo_mae: 'O', rh_mae: '+', coombs_indireto: 'Negativo', anti_d: 'Não se aplica',
@@ -267,14 +251,13 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         setReanimacao({});
         setExamesHosp({ us_tf: true, eco: true, fundo_olho: true });
         setOutrosExames([]);
-        // Seta normalidade para triagens
         setTriagens({
             pezinho_status: 'Normal', pezinho_desc: '',
             orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
             orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '',
             olhinho_status: 'Presente', olhinho_desc: '',
             coracaozinho_status: 'Normal', coracaozinho_desc: '',
-            linguinha_status: 'Normal', linguinha_desc: '', // Assumindo 'Normal'
+            linguinha_status: 'Normal',
         });
         showSnackbar('Histórico preenchido com dados normais.', 'info');
     };
@@ -286,16 +269,15 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         setReanimacao({});
         setExamesHosp({});
         setOutrosExames([]);
-        setTriagens(initialState.triagens); // Reseta triagens
+        setTriagens(initialState.triagens);
         showSnackbar('Campos do histórico limpos.', 'info');
     };
-    // --- FIM ALTERAÇÃO ---
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- JSX (Mapeado do PDF com Lógica Condicional) ---
+    // --- JSX (Sem alterações) ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -679,8 +661,6 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                  </Box>
             </FormControl>
 
-
-            {/* --- ALTERAÇÃO 7: JSX Seção 5 (Triagens) --- */}
             <Divider sx={{ my: 2 }} />
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>5. Triagens e Testes Neonatais</Typography>
             
@@ -757,9 +737,7 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                     </Grid>
                 )}
             </Grid>
-            {/* --- FIM DA ALTERAÇÃO --- */}
-
-            {/* Botões Salvar/Limpar */}
+            
             <Box sx={{ textAlign: 'right', mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                 <Button onClick={handleLimpar} variant="outlined" color="secondary" disabled={isSubmitting}>
                     Limpar Histórico

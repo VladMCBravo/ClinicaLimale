@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoObstetricia.jsx
-// VERSÃO REFATORADA COM ABAS
+// CORRIGIDO: Removidos useEffects automáticos que causavam loop
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
@@ -9,7 +9,6 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// 1. IMPORTAR A NOVA ABA DE HISTÓRICO
 const HistoricoObstetricia = lazy(() => import('./obstetricia/HistoricoObstetricia'));
 
 // --- OPÇÕES (Obstetrícia - Consulta Atual) ---
@@ -25,7 +24,6 @@ const exameFisicoOBOptions = [
     { id: 'colo_fechado', label: 'Colo Fechado', group: 'toque', template: 'Toque: Colo grosso, posterior, fechado.' },
     { id: 'colo_dilatado', label: 'Colo Dilatado', group: 'toque', template: 'Toque: Colo ___, ___, ___ cm de dilatação, bolsa ___, apresentação ___.' },
 ];
-// --- FIM OPÇÕES ---
 
 // Helper TabPanel
 function TabPanel(props) {
@@ -42,15 +40,11 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva }) 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    // Estados SOMENTE da Consulta Atual
     const [sintomasConsulta, setSintomasConsulta] = useState({});
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-    
-    // Estado para guardar a IG (pode ser buscada ou preenchida)
     const [igAtual, setIgAtual] = useState('');
 
-    // Reseta estados ao trocar de paciente
     useEffect(() => {
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
@@ -58,76 +52,103 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva }) 
         setTabIndex(0);
         setIgAtual('');
         
-        // Opcional: Buscar a IG da anamnese para pré-preencher o S
         if (pacienteId) {
              apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`)
                 .then(res => {
                     if (res.data && res.data.ginecologica) {
-                        setIgAtual(res.data.ginecologica.ig_atual || '');
+                        const ig = res.data.ginecologica.ig_atual || '';
+                        setIgAtual(ig);
+                        // Pré-preenche o subjetivo inicial com a IG
+                        setSoapData(prev => ({ ...prev, notas_subjetivas: `IG: ${ig || '___'} semanas.\n` }));
                     }
                 }).catch(err => console.error("Erro ao buscar IG"));
         }
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pacienteId]);
 
     // Geradores de texto
-    const generateHda = useCallback(() => {
-        let texto = `IG: ${igAtual || '___'} semanas.\n`;
+    const generateHda = useCallback((sintomas, ig) => {
+        const currentSintomas = sintomas || sintomasConsulta;
+        const currentIg = ig !== undefined ? ig : igAtual;
+        
+        let texto = `IG: ${currentIg || '___'} semanas.\n`;
         const queixas = sintomasOBOptions
-            .filter(opt => sintomasConsulta[opt.id])
+            .filter(opt => currentSintomas[opt.id])
             .map(opt => opt.template).join(" ");
         return texto + (queixas || "Nega queixas.");
      }, [sintomasConsulta, igAtual]);
 
-    const generateExameFisico = useCallback(() => {
-        let texto = `Dados Vitais:\nPA: ${exameFisicoData.pa || '___x___'} mmHg\nFC: ${exameFisicoData.fc || '___'} bpm\n\nExame Obstétrico:\nAU = ${exameFisicoData.au || '___'} cm.\n`;
+    const generateExameFisico = useCallback((exame) => {
+        const currentExame = exame || exameFisicoData;
+        let texto = `Dados Vitais:\nPA: ${currentExame.pa || '___x___'} mmHg\nFC: ${currentExame.fc || '___'} bpm\n\nExame Obstétrico:\nAU = ${currentExame.au || '___'} cm.\n`;
         const achados = exameFisicoOBOptions
-            .filter(opt => exameFisicoData[opt.id])
+            .filter(opt => currentExame[opt.id])
             .map(opt => opt.template).join(" ");
-         if (!exameFisicoData.bcf_presente && exameFisicoData.bcf_manual) texto += `BCF = ${exameFisicoData.bcf_manual} bpm.\n`;
-         if (!exameFisicoData.colo_fechado && !exameFisicoData.colo_dilatado && exameFisicoData.toque_manual) texto += `Toque: ${exameFisicoData.toque_manual}\n`;
+         if (!currentExame.bcf_presente && currentExame.bcf_manual) texto += `BCF = ${currentExame.bcf_manual} bpm.\n`;
+         if (!currentExame.colo_fechado && !currentExame.colo_dilatado && currentExame.toque_manual) texto += `Toque: ${currentExame.toque_manual}\n`;
             
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // Efeitos que atualizam SOAP
-    useEffect(() => {
-        setSoapData(prev => ({ ...prev, notas_subjetivas: generateHda() }));
-    }, [sintomasConsulta, igAtual, generateHda]);
-    useEffect(() => {
-        setSoapData(prev => ({ ...prev, notas_objetivas: generateExameFisico() }));
-    }, [exameFisicoData, generateExameFisico]);
+    // --- CORREÇÃO: useEffects automáticos REMOVIDOS ---
+    // useEffect(() => { ... }, [sintomasConsulta, igAtual, generateHda]);
+    // useEffect(() => { ... }, [exameFisicoData, generateExameFisico]);
+    // --- FIM DA CORREÇÃO ---
 
-    // Handlers
+    // Handlers (CORRIGIDOS)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSintomasChange = (e) => setSintomasConsulta(prev => ({ ...prev, [e.target.name]: e.target.checked }));
-    const handleExameChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        setExameFisicoData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    
+    const handleSintomasChange = (e) => {
+        const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
+        setSintomasConsulta(newSintomas);
+        
+        const hdaText = generateHda(newSintomas, igAtual);
+        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
     };
     
-    // Botão Normalidade
+    const handleExameChange = (event) => {
+        const { name, value, type, checked } = event.target;
+        const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
+        setExameFisicoData(newExameData);
+        
+        const exameText = generateExameFisico(newExameData);
+        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
+    };
+    
+    // Botão Normalidade (CORRIGIDO)
     const preencherNormalidade = () => { 
-        setSintomasConsulta({ mov_fetal_presente: true }); 
-        setExameFisicoData(prev => ({
-            ...prev,
+        const newSintomas = { mov_fetal_presente: true };
+        setSintomasConsulta(newSintomas); 
+        
+        const newExameData = {
+            ...exameFisicoData, // Mantém PA, FC, AU
             bcf_presente: true, mf_presente: true, colo_fechado: true, colo_dilatado: false,
             toque_manual: '', bcf_manual: '',
-        }));
+        };
+        setExameFisicoData(newExameData);
+        
+        // Gera textos com os novos dados
+        const hdaText = generateHda(newSintomas, igAtual);
+        const exameText = generateExameFisico(newExameData);
+
         setSoapData({
-             notas_subjetivas: `IG: ${igAtual || '___'} semanas.\nRefere boa movimentação fetal.`,
-             notas_objetivas: `Dados Vitais:\nPA: ${exameFisicoData.pa || '___x___'} mmHg\nFC: ${exameFisicoData.fc || '___'} bpm\n\nExame Obstétrico:\nAU = ${exameFisicoData.au || '___'} cm.\nBCF = ___ bpm (presente). Movimentação fetal presente. Toque: Colo grosso, posterior, fechado.`,
+             notas_subjetivas: hdaText,
+             notas_objetivas: exameText.replace('BCF = ___ bpm (presente).', `BCF = ${newExameData.bcf_manual || '___'} bpm (presente).`)
+                                       .replace('Toque: Colo grosso, posterior, fechado.', `Toque: Colo grosso, posterior, fechado.`),
              avaliacao: 'Gestação tópica, feto vivo, sem sinais de trabalho de parto.',
              plano: 'Manter acompanhamento pré-natal. Orientações gerais.'
         });
      };
     
-    // Botão Limpar
+    // Botão Limpar (CORRIGIDO)
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
         setExameFisicoData({});
-        setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+        // Recria textos com dados vazios
+        const hdaText = generateHda({}, igAtual); 
+        const exameText = generateExameFisico({});
+        setSoapData({ notas_subjetivas: hdaText, notas_objetivas: exameText, avaliacao: '', plano: '' });
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
@@ -230,10 +251,9 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva }) 
 
                 {/* ABA 2: HISTÓRICO OBSTÉTRICO */}
                 <TabPanel value={tabIndex} index={1}>
-                    {/* O componente de histórico agora recebe a prop 'onIgCalculada' */}
                     <HistoricoObstetricia 
                         pacienteId={pacienteId} 
-                        onIgCalculada={(ig) => setIgAtual(ig)} // Passa a IG para o componente pai
+                        onIgCalculada={(ig) => setIgAtual(ig)}
                     />
                 </TabPanel>
 
