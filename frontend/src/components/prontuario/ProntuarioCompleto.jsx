@@ -9,17 +9,18 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import CloseIcon from '@mui/icons-material/Close'; // Ícone para fechar painel
 
 // --- CORREÇÃO DE IMPORTAÇÃO ---
-// Readicionando as extensões de arquivo corretas (.jsx para componentes, .js para config)
-import ModalHistoricoEvolucao from './ModalHistoricoEvolucao.jsx'; 
-import apiClient from '../../api/axiosConfig.js'; 
-import { useSnackbar } from '../../contexts/SnackbarContext.jsx'; // Assumindo .jsx
+// Removidas as extensões de arquivo (.js e .jsx)
+// Esta é a prática padrão do Create React App (react-scripts)
+import ModalHistoricoEvolucao from './ModalHistoricoEvolucao'; 
+import apiClient from '../../api/axiosConfig'; 
+import { useSnackbar } from '../../contexts/SnackbarContext'; 
 
-// --- Imports das Abas (com extensões .jsx) ---
-const PrescricoesTab = lazy(() => import('./PrescricoesTab.jsx')); 
-const AtestadosTab = lazy(() => import('./AtestadosTab.jsx')); 
-const EvolucaoTab = lazy(() => import('./EvolucoesTab.jsx')); 
-const DocumentosTab = lazy(() => import('./DocumentosTab.jsx')); 
-const ExamesDicomTab = lazy(() => import('./ExamesDicomTab.jsx'));
+// --- Imports das Abas (sem extensões) ---
+const PrescricoesTab = lazy(() => import('./PrescricoesTab')); 
+const AtestadosTab = lazy(() => import('./AtestadosTab')); 
+const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
+const DocumentosTab = lazy(() => import('./DocumentosTab')); 
+const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
 // --- FIM DA CORREÇÃO DE IMPORTAÇÃO ---
 
 
@@ -222,7 +223,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             <TabPanel value={tabIndex} index={1}>
               <PrescricoesTab pacienteId={pacienteId} />
             </TabPanel>
-            {/* --- CORREÇÃO DOS ERROS DE TAG --- */}
             <TabPanel value={tabIndex} index={2}>
               <AtestadosTab pacienteId={pacienteId} />
             </TabPanel>
@@ -232,7 +232,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             <TabPanel value={tabIndex} index={4}>
               <ExamesDicomTab pacienteId={pacienteId} />
             </TabPanel>
-            {/* --- FIM DA CORREÇÃO --- */}
 
           </Suspense>
         </Box>
