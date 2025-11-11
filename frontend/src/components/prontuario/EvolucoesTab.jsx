@@ -1,7 +1,7 @@
 // src/components/prontuario/EvolucoesTab.jsx
-// ARQUIVO CORRIGIDO: useMemo ajustado para não depender de 'onEvolucaoSalva'
+// ARQUIVO COM DEBUG: Removido o 'useMemo' para testar se ele está recriando o componente
 
-import React, { Suspense, lazy, useMemo } from 'react'; // useMemo importado
+import React, { Suspense, lazy } from 'react'; // Removido useMemo
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // (Imports lazy... AtendimentoPediatria, AtendimentoCardiologia, etc.)
@@ -26,37 +26,36 @@ const GenericFallback = ({ especialidadeNome }) => (
 
 export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva }) {
     
-    // --- CORREÇÃO DO LOOP ESTÁ AQUI ---
-    const memoizedComponent = useMemo(() => {
-        const renderEspecialidadeComponent = () => {
-            switch (especialidade) {
-                case 'Pediatria':
-                    return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Cardiologia':
-                    return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Neonatologia':
-                    return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Ginecologia':
-                    return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Obstetrícia': 
-                    return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Ortopedia': 
-                    return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Reumatologia': 
-                    return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Neurologia': 
-                    return <AtendimentoNeurologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
-                case 'Clínica Médica':
-                case 'ClinicaGeral':
-                default: 
-                     return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
-            }
-        };
-        return renderEspecialidadeComponent();
-        
-    // A prop 'onEvolucaoSalva' foi REMOVIDA do array de dependências
-    // para impedir que o componente seja recriado a cada renderização do pai.
-    }, [pacienteId, especialidade]); 
+    // --- DEBUG: Log de render do PAI ---
+    console.log(`🔄 [RENDER PAI] EvolucoesTab renderizou. Especialidade: ${especialidade}`);
+
+    // --- CORREÇÃO: Removido o useMemo que recriava o componente ---
+    // Renderizamos o componente diretamente. O React cuidará da memoização.
+    
+    const renderEspecialidadeComponent = () => {
+        switch (especialidade) {
+            case 'Pediatria':
+                return <AtendimentoPediatria pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Cardiologia':
+                return <AtendimentoCardiologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Neonatologia':
+                return <AtendimentoNeonatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Ginecologia':
+                return <AtendimentoGinecologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Obstetrícia': 
+                return <AtendimentoObstetricia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Ortopedia': 
+                return <AtendimentoOrtopedia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Reumatologia': 
+                return <AtendimentoReumatologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Neurologia': 
+                return <AtendimentoNeurologia pacienteId={pacienteId} onEvolucoesSalva={onEvolucaoSalva} />;
+            case 'Clínica Médica':
+            case 'ClinicaGeral':
+            default: 
+                 return <AtendimentoClinicaGeral pacienteId={pacienteId} onEvolucaoSalva={onEvolucaoSalva} />;
+        }
+    };
     // --- FIM DA CORREÇÃO ---
 
     return (

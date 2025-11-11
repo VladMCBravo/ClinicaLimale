@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
-    Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
+    Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
     Box, Button, CircularProgress, Tabs, Tab,
     FormControl, InputLabel, Select, MenuItem,
     Chip // 1. IMPORTAR CHIP
@@ -125,9 +125,12 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     // --- 2. NOVOS ESTADOS PARA OS INDICADORES ---
     const [vacinacaoStatus, setVacinacaoStatus] = useState(null); // 'em_dia', 'atrasada'
     const [dnpmStatus, setDnpmStatus] = useState(null); // 'normal', 'alerta', 'atraso'
+    
+    // --- DEBUG 1: Verificar se o componente está renderizando ---
+    console.log(`🔄 [RENDER FILHO] AtendimentoPediatria renderizou. ID: ${pacienteId} (Tipo: ${typeof pacienteId})`);
+
 
     // --- 3. NOVA FUNÇÃO PARA BUSCAR STATUS ---
-    // (Esta função será chamada no carregamento e pelas abas filhas)
     const fetchStatusResumos = useCallback(async () => {
         if (!pacienteId) {
             setVacinacaoStatus(null);
@@ -135,43 +138,58 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             return;
         }
         try {
-            // --- ATENÇÃO ---
-            // Você precisará criar estes endpoints no seu backend
-            // Eles devem olhar os dados do paciente e retornar um status simples.
-            
             // const resVac = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas-status/`);
-            // setVacinacaoStatus(resVac.data.status); // ex: 'em_dia'
-            
+            // setVacinacaoStatus(resVac.data.status); 
             // const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/dnpm-status/`);
-            // setDnpmStatus(resDnpm.data.status); // ex: 'alerta'
-
-            // ** Exemplo de simulação (REMOVA ISSO QUANDO OS ENDPOINTS EXISTIREM) **
-            // setVacinacaoStatus(['em_dia', 'atrasada'][Math.floor(Math.random() * 2)]);
-            // setDnpmStatus(['normal', 'alerta', 'atraso'][Math.floor(Math.random() * 3)]);
-
+            // setDnpmStatus(resDnpm.data.status);
         } catch (err) {
             console.error("Erro ao buscar resumos de status", err);
-            // Não mostre um snackbar aqui para não poluir
         }
     }, [pacienteId]);
 
-    // --- 4. useEffect DE CARREGAMENTO (ATUALIZADO) ---
+    // --- DEBUG 2: Verificar a estabilidade da função fetchStatusResumos ---
     useEffect(() => {
+        console.log("⚠️ [REF] A função fetchStatusResumos foi recriada (mudou de referência)!");
+    }, [fetchStatusResumos]);
+
+
+    // --- 4. useEffect DE CARREGAMENTO (COM DEBUG E CORREÇÃO) ---
+    useEffect(() => {
+        console.log("🔥 [EFFECT] O useEffect principal foi disparado!");
+        
+        // Log para identificar qual dependência mudou (manual check)
+        console.log("   -> Dependências:", { 
+            pacienteId, 
+            "Tipo fetchStatusResumos": typeof fetchStatusResumos 
+        });
+
         if (pacienteId) {
             // Reseta status antes de carregar novos
             setVacinacaoStatus(null);
             setDnpmStatus(null);
 
+            console.log("   -> Iniciando GET /pacientes/...");
+
             apiClient.get(`/pacientes/${pacienteId}/`)
                 .then(res => {
-                    setExameFisicoData(prev => ({
-                        ...prev,
-                        peso: res.data.peso || '',
-                        altura: res.data.altura || '',
-                    }));
+                    console.log("   ✅ [API] Dados vitais recebidos. Atualizando State...");
+                    
+                    setExameFisicoData(prev => {
+                        // Vamos ver se o estado realmente precisa mudar
+                        if (prev.peso === (res.data.peso || '') && prev.altura === (res.data.altura || '')) {
+                            console.log("   ℹ️ [STATE] Peso/Altura idênticos. Update redundante.");
+                        } else {
+                            console.log("   🔄 [STATE] Peso/Altura diferentes. Atualizando estado.");
+                        }
+                        return {
+                            ...prev,
+                            peso: res.data.peso || '',
+                            altura: res.data.altura || '',
+                        };
+                    });
                 })
                 .catch(err => {
-                    console.error("Erro ao carregar dados do paciente:", err);
+                    console.error("   ❌ [API] Erro ao carregar dados do paciente:", err);
                     showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
                 });
             
@@ -180,6 +198,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
 
         } else {
              // Limpa tudo se não houver paciente
+            console.log("   -> Paciente ID nulo. Limpando estados.");
             setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
             setSintomasConsulta({});
             setExameFisicoData({}); 
@@ -187,8 +206,10 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             setVacinacaoStatus(null);
             setDnpmStatus(null);
         }
+    
+    // --- CORREÇÃO APLICADA: `showSnackbar` removido das dependências ---
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pacienteId, fetchStatusResumos]); // <-- `showSnackbar` FOI REMOVIDO
+    }, [pacienteId, fetchStatusResumos]); 
 
 
     // --- GERADORES DE TEXTO (Atualizados) ---
@@ -246,9 +267,15 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     
     // --- 5. preencherNormalidade (ATUALIZADO com rascunho) ---
     const preencherNormalidade = () => {
+        
+        // --- DEBUG 3: Logar clique ---
+        console.log("🖱️ [CLICK] 'Preencher Normalidade' clicado!");
+        
         setSintomasConsulta({});
-        setExameFisicoData(prev => ({
-            ...prev, // Mantém vitais
+        setExameFisicoData(prev => {
+            console.log("   -> Atualizando estado 'exameFisicoData' com normalidade.");
+            return {
+                ...prev, // Mantém vitais
             // --- Geral ---
             estado_geral: 'BEG',
             atividade: 'Ativo',
@@ -297,16 +324,20 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             neuro_tonus: 'Normal',
             neuro_reflexos: 'Normais', 
             sinais_meningeos: 'Ausentes',
-        }));
+            }
+        });
         
         // Texto gerado (ATUALIZADO)
-        setSoapData(prev => ({
-            ...prev,
-            notas_subjetivas: 'Mãe nega queixas. Criança ativa, reativa, alimentando-se bem (SME), diurese e evacuações presentes.',
-            notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Acianótico. Anictérico. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, indolor, sem massas. Linfonodos não palpáveis. Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente bilateralmente. Otoscopia: Membranas timpânicas íntegras, translúcidas. Ausência de otorreia. Narinas pérvias, sem secreção. Oroscopia sem alterações. Eupneico, FR=___. AR: MV presente universalmente, sem ruídos adventícios. ACV: BRNF em 2T. Sem sopros. Abdome plano. RHA presentes. Abdome flácido, indolor à palpação. Sem visceromegalias palpáveis. Genitália tópica, sem alterações. Região perineal íntegra, sem hiperemia ou lesões. Membros e coluna sem alterações. Ortolani negativo. Pulsos periféricos cheios e simétricos. Membros simétricos. Tônus muscular normal. Reflexos primitivos (Moro, sucção, preensão) presentes. Sinais meníngeos (Kernig, Brudzinski) ausentes.`,
-            avaliacao: 'Criança hígida, sem sinais de alarme. Desenvolvimento adequado para a idade.',
-            plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
-        }));
+        setSoapData(prev => {
+            console.log("   -> Atualizando estado 'soapData' com normalidade.");
+            return {
+                ...prev,
+                notas_subjetivas: 'Mãe nega queixas. Criança ativa, reativa, alimentando-se bem (SME), diurese e evacuações presentes.',
+                notas_objetivas: `Dados Vitais:\nPeso: ${exameFisicoData.peso || '___'} kg\nAltura: ${exameFisicoData.altura || '___'} cm\nPC: ${exameFisicoData.pc || '___'} cm\nT: ${exameFisicoData.temperatura || '___'} °C\n\nExame Físico:\nBEG (Bom Estado Geral). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Acianótico. Anictérico. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, indolor, sem massas. Linfonodos não palpáveis. Olhos sem alterações, pupilas isocóricas e fotorreagentes. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente bilateralmente. Otoscopia: Membranas timpânicas íntegras, translúcidas. Ausência de otorreia. Narinas pérvias, sem secreção. Oroscopia sem alterações. Eupneico, FR=___. AR: MV presente universalmente, sem ruídos adventícios. ACV: BRNF em 2T. Sem sopros. Abdome plano. RHA presentes. Abdome flácido, indolor à palpação. Sem visceromegalias palpáveis. Genitália tópica, sem alterações. Região perineal íntegra, sem hiperemia ou lesões. Membros e coluna sem alterações. Ortolani negativo. Pulsos periféricos cheios e simétricos. Membros simétricos. Tônus muscular normal. Reflexos primitivos (Moro, sucção, preensão) presentes. Sinais meníngeos (Kernig, Brudzinski) ausentes.`,
+                avaliacao: 'Criança hígida, sem sinais de alarme. Desenvolvimento adequado para a idade.',
+                plano: 'Sigo com orientações gerais, manutenção do aleitamento materno. Alta da consulta.'
+            }
+        });
     };
 
     // --- handleLimparConsultaAtual (Sem alterações) ---
