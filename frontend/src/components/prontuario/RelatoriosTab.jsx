@@ -139,10 +139,18 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         setPdfLoadingId(relatorioId); // Ativa o loading para este item
         
         try {
-            // Chama a URL exata que você criou no core/urls.py
+            // --- CORREÇÃO AQUI ---
+            
+            // ALTERE DE: (ERRADO)
+            // const response = await apiClient.get(
+            //     `/api/pdf/relatorio/${relatorioId}/`,
+            //     { responseType: 'blob' }
+            // );
+
+            // PARA: (CORRETO - Remova o /api do início)
             const response = await apiClient.get(
-                `/api/pdf/relatorio/${relatorioId}/`,
-                { responseType: 'blob' } // ESSENCIAL para PDFs
+                `/pdf/relatorio/${relatorioId}/`,
+                { responseType: 'blob' }
             );
 
             // Cria e abre o PDF em uma nova aba
