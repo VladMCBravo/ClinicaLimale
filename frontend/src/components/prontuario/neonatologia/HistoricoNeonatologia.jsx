@@ -206,6 +206,22 @@ export default function HistoricoNeonatologia({ pacienteId }) {
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
+
+        // --- ADICIONE ESTA LÓGICA DE CORREÇÃO ---
+        // Copie os dados para poder modificá-los antes de enviar
+        const dataToSend = { ...anamneseData };
+
+        // Se 'peso_nascimento' for uma string vazia, mude para 'null'
+        // O backend (IntegerField) aceita 'null', mas não '""'
+        if (dataToSend.peso_nascimento === '') {
+            dataToSend.peso_nascimento = null;
+        }
+        
+        // (Você pode fazer o mesmo para outros campos numéricos se o erro se repetir)
+        // if (dataToSend.comprimento === '') dataToSend.comprimento = null;
+        // if (dataToSend.pc_nascimento === '') dataToSend.pc_nascimento = null;
+        // ... etc ...
+        // --- FIM DA LÓGICA ---
         const payload = {
             ...anamneseData,
             comorbidades_detalhes: comorbidades,
@@ -312,7 +328,7 @@ export default function HistoricoNeonatologia({ pacienteId }) {
                     {simNaoNaoSeAplicaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                 </TextField>
                 <TextField select label="Neuroproteção MgSO4" name="neuroprotecao_mg" value={anamneseData.neuroprotecao_mg || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
-                    {simNaoIgnoradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    {simNaoNaoSeAplicaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                 </TextField>
             </Box>
             
