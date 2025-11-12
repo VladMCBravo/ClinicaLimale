@@ -228,7 +228,6 @@ export default function HistoricoNeonatologia({ pacienteId }) {
 
         // 3. Monta o payload final
         const payload = {
-            // --- ESTA É A MUDANÇA PRINCIPAL ---
             // Usa 'dataToSend' (com as correções) em vez de 'anamneseData'
             ...dataToSend, 
             
@@ -242,7 +241,7 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         };
 
         try {
-            // 4. Usa apiClient.patch (como você já fez corretamente)
+            // 4. USA O MÉTODO 'PATCH' (para corrigir o erro 405)
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
                 neonatologia: payload
             });
@@ -250,18 +249,21 @@ export default function HistoricoNeonatologia({ pacienteId }) {
         } catch (error) {
             console.error("Erro ao salvar anamnese neonatal:", error.response?.data);
             
-            // Tenta mostrar um erro mais específico, se o backend enviar
+            // Tenta mostrar um erro mais específico
             if (error.response && error.response.status === 400) {
                 const errors = error.response.data?.neonatologia;
                 if (errors) {
-                    const firstKey = Object.keys(errors)[0]; // Pega o nome do campo (ex: 'peso_nascimento')
-                    const firstMessage = errors[firstKey][0]; // Pega a mensagem de erro
+                    const firstKey = Object.keys(errors)[0]; 
+                    const firstMessage = errors[firstKey][0]; 
                     showSnackbar(`Erro: ${firstKey} - ${firstMessage}`, 'error');
                 } else {
                     showSnackbar('Erro de validação (400). Verifique os campos.', 'error');
                 }
+            } else if (error.response && error.response.status === 405) {
+                // O erro que você está vendo agora
+                showSnackbar('Erro 405: O frontend está usando POST em vez de PATCH.', 'error');
             } else {
-                showSnackbar('Erro ao salvar histórico.', 'error');
+                 showSnackbar('Erro ao salvar histórico.', 'error');
             }
         } finally {
             setIsSubmitting(false);
