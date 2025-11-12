@@ -54,11 +54,21 @@ export default function AtestadosTab({ pacienteId }) {
   
   const handleGerarPdf = async (atestadoId) => {
     try {
-        // Usa apiClient para fazer a requisição (envia o token)
+        // --- CORREÇÃO AQUI ---
+
+        // ALTERE DE: (ERRADO - com /api e 'atestados' no plural)
+        // const response = await apiClient.get(
+        //     `/api/atestados/${atestadoId}/pdf/`, 
+        //     { responseType: 'blob' }
+        // );
+
+        // PARA: (CORRETO - sem /api e 'atestado' no singular, como em core/urls.py)
         const response = await apiClient.get(
-            `/api/atestados/${atestadoId}/pdf/`, // <-- Adicione a '/' no início
+            `/pdf/atestado/${atestadoId}/`,
             { responseType: 'blob' }
         );
+        
+        // --- FIM DA CORREÇÃO ---
         // Cria uma URL temporária para o blob
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
         // Abre essa URL em nova aba
