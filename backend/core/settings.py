@@ -187,3 +187,18 @@ else:
             },
         },
     }
+
+# --- INFORMAÇÕES DA CLÍNICA PARA TEMPLATES ---
+# (Adicione este dicionário no final do arquivo)
+
+CLINICA_INFO = {
+    'NOME': 'Clinica Limalé - Especialidades Médicas e Imagem',
+    'ENDERECO': 'R. Orense, 41 - sala 512, Edifício D - Office, Diadema - SP, 09920-650',
+    'TELEFONE': '(11) 919511842',
+    'EMAIL': 'contato@limale.com.br',
+    
+    # --- MUDE ESTA LINHA ---
+    # DE: 'LOGO_STATIC_PATH': 'images/logo.png'
+    # PARA:
+    'LOGO_STATIC_PATH': 'images/logo_limale.jpg' 
+}

@@ -2,10 +2,12 @@
 
 from io import BytesIO
 from django.db import models
+from django.conf import settings # <-- IMPORTAR SETTINGS
 from django.contrib.staticfiles import finders
 from django.http import HttpResponse
 from django.template.loader import get_template
 from rest_framework import generics, status, viewsets
+from xhtml2pdf import pisa
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -157,6 +159,44 @@ class DocumentoPacienteViewSet(viewsets.ModelViewSet):
 
 
 # --- Views de Geração de PDF ---
+# --- NOSSA NOVA FUNÇÃO HELPER ---
+# (Coloque isso logo antes das suas views de PDF)
+
+def generate_pdf_response(template_path, context, filename_prefix='documento'):
+    """
+    Função helper centralizada para renderizar qualquer template HTML para PDF.
+    """
+    # 1. Buscar logo e informações da clínica (agora centralizado)
+    logo_path = finders.find(settings.CLINICA_INFO['LOGO_STATIC_PATH'])
+    
+    # 2. Adicionar dados globais ao contexto
+    full_context = {
+        'clinica': settings.CLINICA_INFO,
+        'logo_path': logo_path,
+        **context # Adiciona o contexto específico (ex: 'atestado': obj)
+    }
+    
+    # 3. Renderizar o HTML
+    template = get_template(template_path)
+    html = template.render(full_context)
+    
+    # 4. Criar o PDF
+    result = BytesIO()
+    pdf = pisa.pisaDocument(
+        BytesIO(html.encode("UTF-8")), 
+        result, 
+        link_callback=lambda uri, rel: logo_path # Mantém seu callback do logo
+    )
+    
+    if not pdf.err:
+        response = HttpResponse(result.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'filename="{filename_prefix}.pdf"'
+        return response
+        
+    return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
+
+
+# --- Views de Geração de PDF (AGORA REATORADAS) ---
 
 class GerarPrescricaoPDFView(APIView):
     permission_classes = [IsAuthenticated]
@@ -167,20 +207,15 @@ class GerarPrescricaoPDFView(APIView):
         except Prescricao.DoesNotExist:
             return HttpResponse("Prescrição não encontrada.", status=404)
         
-        logo_path = finders.find('images/logo.png')
-        template = get_template('pdfs/prescricao_template.html')
-        context = {'prescricao': prescricao, 'logo_path': logo_path}
-        html = template.render(context)
+        # --- VIU COMO FICOU LIMPO? ---
+        context = {'prescricao': prescricao}
+        filename = f'prescricao_{prescricao.paciente.nome_completo}_{prescricao.id}'
         
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result, link_callback=lambda uri, rel: logo_path)
-        
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            response['Content-Disposition'] = f'filename="prescricao_{prescricao.paciente.nome_completo}_{prescricao.id}.pdf"'
-            return response
-            
-        return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
+        return generate_pdf_response(
+            'pdfs/prescricao_template.html', 
+            context, 
+            filename
+        )
 
 
 class GerarAtestadoPDFView(APIView):
@@ -191,21 +226,44 @@ class GerarAtestadoPDFView(APIView):
             atestado = Atestado.objects.get(pk=atestado_id)
         except Atestado.DoesNotExist:
             return HttpResponse("Atestado não encontrado.", status=404)
+
+        # --- REPETE O PADRÃO ---
+        context = {
+            'atestado': atestado,
+            'paciente': atestado.paciente, # Passando para usar no template
+            'medico': atestado.medico,     # Passando para usar no template
+        }
+        filename = f'atestado_{atestado.paciente.nome_completo}_{atestado.id}'
         
-        logo_path = finders.find('images/logo.png')
-        template = get_template('pdfs/atestado_template.html')
-        context = {'atestado': atestado, 'logo_path': logo_path}
-        html = template.render(context)
+        return generate_pdf_response(
+            'pdfs/atestado_template.html', 
+            context, 
+            filename
+        )
+
+
+class GerarEvolucaoPDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, evolucao_id, *args, **kwargs):
+        try:
+            evolucao = Evolucao.objects.get(pk=evolucao_id)
+        except Evolucao.DoesNotExist:
+            return HttpResponse("Evolução não encontrada.", status=404)
         
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result, link_callback=lambda uri, rel: logo_path)
+        # --- REPETE O PADRÃO ---
+        context = {
+            'evolucao': evolucao,
+            'paciente': evolucao.paciente,
+            'medico': evolucao.medico,
+        }
+        filename = f'evolucao_{evolucao.paciente.nome_completo}_{evolucao.id}'
         
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            response['Content-Disposition'] = f'filename="atestado_{atestado.paciente.nome_completo}_{atestado.id}.pdf"'
-            return response
-            
-        return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
+        return generate_pdf_response(
+            'pdfs/evolucao_template.html', # Note que o nome do template continua o mesmo
+            context, 
+            filename
+        )
 
 class OpcaoClinicaListView(generics.ListAPIView):
     """
@@ -227,42 +285,6 @@ class OpcaoClinicaListView(generics.ListAPIView):
             queryset = queryset.filter(area_clinica=area_clinica)
 
         return queryset
-
-# --- ADICIONE ESTA NOVA CLASSE ---
-class GerarEvolucaoPDFView(APIView):
-    permission_classes = [IsAuthenticated] # Ou [CanViewProntuario] se preferir
-
-    def get(self, request, evolucao_id, *args, **kwargs):
-        try:
-            evolucao = Evolucao.objects.get(pk=evolucao_id)
-        except Evolucao.DoesNotExist:
-            return HttpResponse("Evolução não encontrada.", status=404)
-        
-        # Logo da clínica (você já usa isso)
-        logo_path = finders.find('images/logo.png') 
-        
-        # Nome do novo template que criaremos
-        template = get_template('pdfs/evolucao_template.html') 
-        
-        context = {
-            'evolucao': evolucao,
-            'paciente': evolucao.paciente,
-            'medico': evolucao.medico,
-            'logo_path': logo_path
-        }
-        html = template.render(context)
-        
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result, link_callback=lambda uri, rel: logo_path)
-        
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            # Nome do arquivo que será baixado
-            response['Content-Disposition'] = f'filename="evolucao_{evolucao.paciente.nome_completo}_{evolucao.id}.pdf"'
-            return response
-            
-        return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
-
 
 # --- INÍCIO DAS NOVAS ADIÇÕES ---
 
@@ -536,4 +558,27 @@ class GerarPreviewRelatorioView(APIView):
 
         return Response({'conteudo_preenchido': conteudo_preenchido})
 
+# --- NOVA VIEW PARA PDF DE RELATÓRIO ---
+class GerarRelatorioPDFView(APIView):
+    permission_classes = [IsAuthenticated] # Ou CanViewProntuario
+
+    def get(self, request, relatorio_id, *args, **kwargs):
+        try:
+            relatorio = RelatorioSalvo.objects.get(pk=relatorio_id)
+        except RelatorioSalvo.DoesNotExist:
+            return HttpResponse("Relatório não encontrado.", status=404)
+
+        context = {
+            'relatorio': relatorio,
+            'paciente': relatorio.paciente,
+            'medico': relatorio.medico,
+        }
+        filename = f'relatorio_{relatorio.paciente.nome_completo}_{relatorio.id}'
+        
+        # Vamos criar este template 'relatorio_template.html' a seguir
+        return generate_pdf_response(
+            'pdfs/relatorio_template.html', 
+            context, 
+            filename
+        )
 # --- FIM DAS NOVAS VIEWS DE RELATÓRIOS ---

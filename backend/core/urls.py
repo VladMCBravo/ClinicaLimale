@@ -7,7 +7,8 @@ from prontuario.views import (
     GerarPrescricaoPDFView, 
     GerarEvolucaoPDFView,
     OpcaoClinicaListView, 
-    TemplateRelatorioListView
+    TemplateRelatorioListView,
+    GerarRelatorioPDFView  # <-- 1. IMPORTE A NOVA VIEW
 )
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
 from .views import debug_env_view, list_urls_view
@@ -58,4 +59,7 @@ urlpatterns = [
     path('api/pdf/atestado/<int:atestado_id>/', 
          GerarAtestadoPDFView.as_view(), 
          name='gerar-atestado-pdf'),
+ 
+    # --- 2. ADICIONE ESTA NOVA LINHA ---
+    path('api/pdf/relatorio/<int:relatorio_id>/', GerarRelatorioPDFView.as_view(), name='pdf_relatorio'),
 ]

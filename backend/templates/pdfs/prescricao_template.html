@@ -1,0 +1,37 @@
+{% extends "pdfs/base_pdf.html" %}
+
+{% block title %}Prescrição Médica{% endblock %}
+
+{% block content %}
+
+    <h1>PRESCRIÇÃO MÉDICA</h1>
+
+    <table class="info-grid">
+        <tr>
+            <td class="label">Paciente:</td>
+            <td>{{ prescricao.paciente.nome_completo }}</td>
+            <td class="label">Data:</td>
+            <td>{{ prescricao.data_prescricao|date:"d/m/Y" }}</td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-title">Medicamentos</div>
+        
+        {% for item in prescricao.itens.all %}
+            <div class="content" style="margin-bottom: 15px;">
+                <strong>{{ forloop.counter }}) {{ item.medicamento }} - {{ item.dosagem }}</strong>
+                <br>
+                <span style="padding-left: 15px;">Uso: {{ item.instrucoes }}</span>
+            </div>
+        {% endfor %}
+        
+    </div>
+
+    <div style="text-align: center; margin-top: 50px;">
+        <p>___________________________________</p>
+        <p>Dr(a). {{ prescricao.medico.get_full_name }}</p>
+        <p>CRM: {{ prescricao.medico.profile.crm|default:'N/A' }}</p>
+    </div>
+
+{% endblock %}

@@ -4,8 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Grid, Paper, Typography, FormControl, InputLabel, Select,
     MenuItem, Button, TextField, CircularProgress, List, ListItem,
-    ListItemText, Divider
+    ListItemText, Divider,
+    IconButton, Tooltip // 1. IMPORTE IconButton E Tooltip
 } from '@mui/material';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'; // 2. IMPORTE O ÍCONE
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
@@ -13,25 +15,28 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const { showSnackbar } = useSnackbar();
     
     // --- ESTADOS DE DADOS ---
-    const [templates, setTemplates] = useState([]); // Lista de templates (do dropdown)
-    const [savedReports, setSavedReports] = useState([]); // Histórico de relatórios salvos
+    const [templates, setTemplates] = useState([]); 
+    const [savedReports, setSavedReports] = useState([]);
     
     // --- ESTADOS DA "ESTAÇÃO DE TRABALHO" (Lado Esquerdo) ---
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
-    const [titulo, setTitulo] = useState(''); // Título para salvar
-    const [editorContent, setEditorContent] = useState(''); // O texto do relatório
+    const [titulo, setTitulo] = useState(''); 
+    const [editorContent, setEditorContent] = useState('');
     
     // --- ESTADOS DE LOADING ---
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // 3. ADICIONE O NOVO ESTADO DE LOADING DO PDF
+    const [pdfLoadingId, setPdfLoadingId] = useState(null); 
 
-    // 1. FUNÇÃO PARA BUSCAR OS TEMPLATES (Modelos)
+
+    // ... (as funções fetchTemplates e fetchSavedReports continuam iguais) ...
     const fetchTemplates = useCallback(async () => {
         setIsLoadingTemplates(true);
         try {
-            // Usamos o endpoint GERAL que criamos, filtrando pela especialidade
             const res = await apiClient.get(`/prontuario/templates/?especialidade=${especialidade}`);
             setTemplates(res.data);
         } catch (err) {
@@ -41,11 +46,9 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     }, [especialidade, showSnackbar]);
 
-    // 2. FUNÇÃO PARA BUSCAR O HISTÓRICO DE RELATÓRIOS SALVOS
     const fetchSavedReports = useCallback(async () => {
         setIsLoadingHistory(true);
         try {
-            // Usamos o endpoint específico do paciente
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/relatorios/`);
             setSavedReports(res.data);
         } catch (err) {
@@ -55,19 +58,19 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     }, [pacienteId, showSnackbar]);
 
-    // 3. BUSCAR DADOS INICIAIS QUANDO O PACIENTE MUDAR
+
+    // ... (o useEffect continua igual) ...
     useEffect(() => {
         if (pacienteId && especialidade) {
             fetchTemplates();
             fetchSavedReports();
         }
-        // Limpar tudo ao trocar de paciente
         setSelectedTemplateId('');
         setTitulo('');
         setEditorContent('');
     }, [pacienteId, especialidade, fetchTemplates, fetchSavedReports]);
 
-    // 4. HANDLER: GERAR PRÉVIA (A "MÁGICA")
+    // ... (o handleGerarPreview continua igual) ...
     const handleGerarPreview = async () => {
         if (!selectedTemplateId) {
             showSnackbar('Selecione um modelo de relatório primeiro.', 'warning');
@@ -77,7 +80,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         try {
             const payload = {
                 template_id: selectedTemplateId,
-                // Envia o ID da consulta atual (SOAP) se ele existir!
                 consulta_id: consultaAtualId || null 
             };
             const res = await apiClient.post(
@@ -85,10 +87,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 payload
             );
             
-            // Preenche o editor com o texto do backend
             setEditorContent(res.data.conteudo_preenchido);
             
-            // Sugere um título (ex: "Atestado de Atividade Física")
             const templateNome = templates.find(t => t.id === selectedTemplateId)?.titulo || 'Relatório';
             setTitulo(templateNome);
 
@@ -99,7 +99,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
 
-    // 5. HANDLER: SALVAR O RELATÓRIO
+    // ... (o handleSalvarRelatorio continua igual) ...
     const handleSalvarRelatorio = async () => {
         if (!titulo || !editorContent) {
             showSnackbar('O título e o conteúdo do relatório não podem estar vazios.', 'warning');
@@ -119,11 +119,10 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             );
             
             showSnackbar('Relatório salvo com sucesso!', 'success');
-            // Limpa o editor e atualiza o histórico
             setEditorContent('');
             setTitulo('');
             setSelectedTemplateId('');
-            fetchSavedReports(); // <-- Atualiza a lista da direita
+            fetchSavedReports(); 
 
         } catch (err) {
             showSnackbar('Erro ao salvar o relatório.', 'error');
@@ -132,23 +131,49 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
     
-    // 6. RENDERIZAÇÃO DO COMPONENTE
+    // 4. ADICIONE A NOVA FUNÇÃO PARA GERAR O PDF
+    const handleGerarPdf = async (relatorioId) => {
+        // Impede cliques duplos
+        if (pdfLoadingId) return; 
+        
+        setPdfLoadingId(relatorioId); // Ativa o loading para este item
+        
+        try {
+            // Chama a URL exata que você criou no core/urls.py
+            const response = await apiClient.get(
+                `/api/pdf/relatorio/${relatorioId}/`,
+                { responseType: 'blob' } // ESSENCIAL para PDFs
+            );
+
+            // Cria e abre o PDF em uma nova aba
+            const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+            window.open(fileURL, '_blank');
+            setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
+
+        } catch (error) {
+            console.error("Erro ao gerar PDF do relatório:", error);
+            if (error.response && error.response.status === 404) {
+                showSnackbar('Erro 404: Rota do PDF de relatório não encontrada.', 'error');
+            } else {
+                showSnackbar('Erro ao gerar PDF do relatório.', 'error');
+            }
+        } finally {
+            setPdfLoadingId(null); // Desativa o loading
+        }
+    };
+
+    
+    // 5. ATUALIZE A RENDERIZAÇÃO
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-            {/* O contêiner principal agora é um Flexbox.
-              - No mobile (xs): ele vira uma 'column'.
-              - No desktop (md): ele vira uma 'row' (lado a lado).
-            */}
             <Box sx={{
                 display: 'flex',
                 flexDirection: { xs: 'column', md: 'row' },
-                gap: 3 // O espaçamento entre as colunas
+                gap: 3 
             }}>
 
                 {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO --- */}
-                {/* - No desktop (md): ocupa 2/3 da largura (proporção 2).
-                  - No mobile (xs): ocupa 100% da largura (padrão).
-                */}
+                {/* ... (Todo o Lado Esquerdo continua igual) ... */}
                 <Box sx={{ flex: { md: 2 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Gerar Novo Relatório
@@ -215,10 +240,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                     </Paper>
                 </Box>
 
-                {/* --- LADO DIREITO: HISTÓRICO --- */}
-                {/* - No desktop (md): ocupa 1/3 da largura (proporção 1).
-                  - No mobile (xs): ocupa 100% da largura (padrão).
-                */}
+
+                {/* --- LADO DIREITO: HISTÓRICO (COM A MUDANÇA) --- */}
                 <Box sx={{ flex: { md: 1 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Relatórios Salvos
@@ -229,12 +252,32 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                             <List dense>
                                 {savedReports.map(report => (
                                     <React.Fragment key={report.id}>
-                                        <ListItem>
+                                        <ListItem
+                                            // Adiciona o botão de PDF no final do item
+                                            secondaryAction={
+                                                <Tooltip title="Gerar PDF">
+                                                    <span>
+                                                        <IconButton
+                                                            edge="end"
+                                                            aria-label="gerar pdf"
+                                                            onClick={() => handleGerarPdf(report.id)}
+                                                            // Desabilita se este PDF estiver carregando
+                                                            disabled={pdfLoadingId === report.id}
+                                                        >
+                                                            {/* Mostra loading ou ícone */}
+                                                            {pdfLoadingId === report.id ? 
+                                                                <CircularProgress size={20} color="inherit" /> : 
+                                                                <PictureAsPdfIcon fontSize="small" />
+                                                            }
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                            }
+                                        >
                                             <ListItemText
                                                 primary={report.titulo}
                                                 secondary={`Em: ${new Date(report.data_criacao).toLocaleDateString()} por Dr(a) ${report.medico_nome}`}
                                             />
-                                            {/* (Opcional) Adicionar botões de "Ver" ou "Imprimir" aqui */}
                                         </ListItem>
                                         <Divider component="li" />
                                     </React.Fragment>

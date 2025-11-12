@@ -1,0 +1,53 @@
+{% extends "pdfs/base_pdf.html" %}
+
+{% block title %}Atestado Médico{% endblock %}
+
+{% block content %}
+
+    <h1>ATESTADO MÉDICO</h1>
+
+    <table class="info-grid">
+        <tr>
+            <td class="label">Paciente:</td>
+            <td>{{ paciente.nome_completo }}</td>
+            <td class="label">Data:</td>
+            <td>{{ atestado.data_emissao|date:"d/m/Y" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Médico(a):</td>
+            <td colspan="3">{{ medico.get_full_name }} (CRM: {{ medico.profile.crm|default:'N/A' }})</td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-title">Finalidade: {{ atestado.get_tipo_atestado_display }}</div>
+        
+        <div class="content" style="text-align: justify; margin-top: 30px; white-space: normal;">
+            Atesto para os devidos fins que o(a) paciente <strong>{{ paciente.nome_completo }}</strong>
+            {% if atestado.tipo_atestado == 'Comparecimento' %}
+                esteve presente nesta unidade em {{ atestado.data_emissao|date:"d/m/Y" }} para consulta médica.
+            {% elif atestado.tipo_atestado == 'Afastamento' %}
+                necessita de afastamento de suas atividades laborais/escolares
+                {% if atestado.observacoes %}
+                    conforme observações abaixo.
+                {% else %}
+                    a partir desta data.
+                {% endif %}
+            {% elif atestado.tipo_atestado == 'Aptidao' %}
+                encontra-se apto(a) para a prática de atividades físicas.
+            {% endif %}
+        </div>
+        
+        <div class="content" style="text-align: justify; margin-top: 20px; white-space: pre-wrap;">
+            <strong>Observações:</strong><br>
+            {{ atestado.observacoes|default:"Sem observações." }}
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px;">
+        <p>___________________________________</p>
+        <p>Dr(a). {{ medico.get_full_name }}</p>
+        <p>CRM: {{ medico.profile.crm|default:'N/A' }}</p>
+    </div>
+
+{% endblock %}

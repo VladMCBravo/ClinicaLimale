@@ -1,0 +1,36 @@
+{% extends "pdfs/base_pdf.html" %}
+
+{% block title %}Relatório Médico{% endblock %}
+
+{% block content %}
+
+    <h1>{{ relatorio.titulo|upper }}</h1>
+
+    <table class="info-grid">
+        <tr>
+            <td class="label">Paciente:</td>
+            <td>{{ paciente.nome_completo }}</td>
+            <td class="label">Data:</td>
+            <td>{{ relatorio.data_criacao|date:"d/m/Y" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Médico(a):</td>
+            <td colspan="3">{{ medico.get_full_name }} (CRM: {{ medico.profile.crm|default:'N/A' }})</td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-title">Conteúdo do Relatório</div>
+        
+        <div class="content" style="white-space: normal;">
+            {{ relatorio.conteudo_final|linebreaksbr }}
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px;">
+        <p>___________________________________</p>
+        <p>Dr(a). {{ medico.get_full_name }}</p>
+        <p>CRM: {{ medico.profile.crm|default:'N/A' }})</p>
+    </div>
+
+{% endblock %}
