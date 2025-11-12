@@ -17,7 +17,8 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 
 // --- Imports das Abas (sem extensões) ---
 const PrescricoesTab = lazy(() => import('./PrescricoesTab')); 
-const AtestadosTab = lazy(() => import('./AtestadosTab')); 
+// const AtestadosTab = lazy(() => import('./AtestadosTab')); // <-- MUDANÇA AQUI: Removido
+const RelatoriosTab = lazy(() => import('./RelatoriosTab'));  // <-- MUDANÇA AQUI: Adicionado
 const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
@@ -144,7 +145,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           {/* 3. ABAS ATUALIZADAS */}
           <Tab label="Atendimento" id="prontuario-tab-0" /> 
           <Tab label="Prescrições" id="prontuario-tab-1" />
-          <Tab label="Atestados" id="prontuario-tab-2" />
+          <Tab label="Relatórios" id="prontuario-tab-2" /> {/* <-- MUDANÇA AQUI: Nome da aba */}
           <Tab label="Documentos" id="prontuario-tab-3" />
           <Tab label="Ver Exames" id="prontuario-tab-4" /> {/* Nova Aba */}
         </Tabs>
@@ -224,7 +225,15 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
               <PrescricoesTab pacienteId={pacienteId} />
             </TabPanel>
             <TabPanel value={tabIndex} index={2}>
-              <AtestadosTab pacienteId={pacienteId} />
+              {/* <-- MUDANÇA AQUI: Componente substituído */}
+              <RelatoriosTab 
+                pacienteId={pacienteId} 
+                especialidade={especialidade} 
+                /* O 'consultaAtualId' precisará ser gerenciado aqui ou no componente pai (PainelMedicoPage)
+                   para que o botão "Gerar Prévia" do RelatoriosTab funcione.
+                   Por enquanto, passamos as props que temos neste escopo. */
+                // consultaAtualId={??} 
+              />
             </TabPanel>
             <TabPanel value={tabIndex} index={3}>
               <DocumentosTab pacienteId={pacienteId} />
