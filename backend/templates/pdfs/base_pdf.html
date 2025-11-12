@@ -12,42 +12,6 @@
         
         body { font-family: "Helvetica", sans-serif; font-size: 11pt; color: #333; }
         
-        /* --- CABEÇALHO PADRÃO --- */
-        .header { 
-            position: fixed; 
-            top: -2cm; /* Puxa para a margem superior */
-            left: 0; 
-            right: 0; 
-            width: 100%;
-            display: -pdf-flex; /* Flexbox para xhtml2pdf */
-            -pdf-flex-direction: row;
-            -pdf-justify-content: space-between;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-        .header .logo { max-height: 70px; max-width: 180px; }
-        .header .info { 
-            text-align: right; 
-            font-size: 9pt; 
-            color: #555;
-            line-height: 1.4;
-        }
-        .header .info strong { font-size: 10pt; color: #000; }
-        
-        /* --- RODAPÉ PADRÃO --- */
-        .footer { 
-            position: fixed; 
-            bottom: -1.5cm; /* Puxa para a margem inferior */
-            left: 0; 
-            right: 0; 
-            width: 100%; 
-            text-align: center; 
-            font-size: 9pt; 
-            color: #777; 
-            border-top: 1px solid #eee;
-            padding-top: 5px;
-        }
-        
         /* --- CONTEÚDO --- */
         h1 { 
             text-align: center; 
@@ -66,23 +30,6 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div>
-            {% if logo_path %}
-                <img src="{{ logo_path }}" alt="Logo da Clínica" class="logo">
-            {% endif %}
-        </div>
-        <div class="info">
-            <strong>{{ clinica.NOME }}</strong><br>
-            {{ clinica.ENDERECO }}<br>
-            Telefone/WhatsApp: {{ clinica.TELEFONE }}<br>
-            E-mail: {{ clinica.EMAIL }}
-        </div>
-    </div>
-
-    <div class="footer">
-        {{ clinica.NOME }} | {{ clinica.TELEFONE }} | {{ clinica.ENDERECO }}
-    </div>
 
     <main>
         {% block content %}
