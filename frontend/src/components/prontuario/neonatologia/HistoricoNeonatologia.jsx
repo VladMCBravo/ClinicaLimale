@@ -206,24 +206,33 @@ export default function HistoricoNeonatologia({ pacienteId }) {
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
-
-        // --- ADICIONE ESTA LÓGICA DE CORREÇÃO ---
-        // Copie os dados para poder modificá-los antes de enviar
+        
+        // 1. Copia os dados para um objeto que podemos modificar
         const dataToSend = { ...anamneseData };
 
-        // Se 'peso_nascimento' for uma string vazia, mude para 'null'
-        // O backend (IntegerField) aceita 'null', mas não '""'
-        if (dataToSend.peso_nascimento === '') {
-            dataToSend.peso_nascimento = null;
-        }
+        // 2. Converte campos numéricos de "" (string vazia) para null
+        // O Django aceita 'null' em campos Integer/Float, mas não '""'.
+        // Isso corrige o erro 400 (Bad Request).
+        const camposNumericos = [
+            'peso_nascimento', 'comprimento', 'pc_nascimento', 'peso_alta',
+            'ig_semanas', 'ig_dias', 'tempo_internacao',
+            'suporte_vm_d', 'suporte_cpap_d', 'suporte_o2_d',
+            'fototerapia_d', 'npp_d', 'antibioticos_d'
+        ];
         
-        // (Você pode fazer o mesmo para outros campos numéricos se o erro se repetir)
-        // if (dataToSend.comprimento === '') dataToSend.comprimento = null;
-        // if (dataToSend.pc_nascimento === '') dataToSend.pc_nascimento = null;
-        // ... etc ...
-        // --- FIM DA LÓGICA ---
+        camposNumericos.forEach(campo => {
+            if (dataToSend[campo] === '') {
+                dataToSend[campo] = null;
+            }
+        });
+
+        // 3. Monta o payload final
         const payload = {
-            ...anamneseData,
+            // --- ESTA É A MUDANÇA PRINCIPAL ---
+            // Usa 'dataToSend' (com as correções) em vez de 'anamneseData'
+            ...dataToSend, 
+            
+            // O resto do payload continua igual
             comorbidades_detalhes: comorbidades,
             vicios_detalhes: vicios,
             reanimacao_opcoes: reanimacao,
@@ -231,14 +240,29 @@ export default function HistoricoNeonatologia({ pacienteId }) {
             outros_exames: outrosExames,
             triagens: triagens,
         };
+
         try {
+            // 4. Usa apiClient.patch (como você já fez corretamente)
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
                 neonatologia: payload
             });
             showSnackbar('Histórico neonatal salvo com sucesso!', 'success');
         } catch (error) {
             console.error("Erro ao salvar anamnese neonatal:", error.response?.data);
-            showSnackbar('Erro ao salvar histórico.', 'error');
+            
+            // Tenta mostrar um erro mais específico, se o backend enviar
+            if (error.response && error.response.status === 400) {
+                const errors = error.response.data?.neonatologia;
+                if (errors) {
+                    const firstKey = Object.keys(errors)[0]; // Pega o nome do campo (ex: 'peso_nascimento')
+                    const firstMessage = errors[firstKey][0]; // Pega a mensagem de erro
+                    showSnackbar(`Erro: ${firstKey} - ${firstMessage}`, 'error');
+                } else {
+                    showSnackbar('Erro de validação (400). Verifique os campos.', 'error');
+                }
+            } else {
+                showSnackbar('Erro ao salvar histórico.', 'error');
+            }
         } finally {
             setIsSubmitting(false);
         }
