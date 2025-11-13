@@ -68,7 +68,13 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
     setTelemedicinaVisivel(false);
     setLinkSalaAtual(agendamento?.link_telemedicina || null);
     setConsultaAtualId(null); // Limpa o ID da consulta ao trocar de agendamento
-  }, [agendamento]);
+  
+  // --- CORREÇÃO AQUI ---
+  // O 'agendamento' (objeto) muda a cada refresh. 
+  // O 'pacienteId' só muda quando você troca de paciente.
+  // Vamos também observar o 'link_telemedicina' caso ele mude.
+  }, [pacienteId, agendamento?.link_telemedicina]); // ANTES: [agendamento]
+  // --- FIM DA CORREÇÃO ---
 
   const handleChange = (event, newIndex) => { setTabIndex(newIndex); };
   

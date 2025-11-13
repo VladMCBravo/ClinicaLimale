@@ -70,7 +70,14 @@ export default function HistoricoClinicaGeral({ pacienteId }) {
             showSnackbar('Histórico salvo com sucesso!', 'success');
         } catch (error) { 
             console.error("Erro ao salvar histórico:", error.response?.data || error);
-            showSnackbar('Erro ao salvar histórico.', 'error');
+            // Mostra erros 400 (validação) ou 405 (método)
+            if (error.response && error.response.status === 400) {
+                 showSnackbar('Erro de validação (400). Verifique os campos.', 'error');
+            } else if (error.response && error.response.status === 405) {
+                 showSnackbar('Erro 405: O frontend está usando POST em vez de PATCH.', 'error');
+            } else {
+                 showSnackbar('Erro ao salvar histórico.', 'error');
+            }
         }
         finally { setIsSubmitting(false); }
     };

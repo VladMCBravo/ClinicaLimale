@@ -165,27 +165,46 @@ class DocumentoPacienteViewSet(viewsets.ModelViewSet):
 def generate_pdf_response(template_path, context, filename_prefix='documento'):
     """
     Função helper centralizada para renderizar qualquer template HTML para PDF.
+    VERSÃO ATUALIZADA: Agora também busca a Anamnese (Prontuário Mestre).
     """
-    # 1. Buscar logo e informações da clínica (agora centralizado)
     logo_path = finders.find(settings.CLINICA_INFO['LOGO_STATIC_PATH'])
     
-    # 2. Adicionar dados globais ao contexto
+    # --- NOVA LÓGICA ---
+    anamnese_obj = None
+    # Tentamos extrair o paciente do contexto (que pode vir da Evolução, Prescrição, etc.)
+    paciente = None
+    if 'evolucao' in context:
+        paciente = context['evolucao'].paciente
+    elif 'atestado' in context:
+        paciente = context['atestado'].paciente
+    elif 'prescricao' in context:
+        paciente = context['prescricao'].paciente
+    elif 'relatorio' in context:
+        paciente = context['relatorio'].paciente
+
+    # Se encontramos um paciente, buscamos sua anamnese (Prontuário Mestre)
+    if paciente:
+        try:
+            anamnese_obj = Anamnese.objects.get(paciente=paciente)
+        except Anamnese.DoesNotExist:
+            anamnese_obj = None # Não falha se não existir
+    # --- FIM DA NOVA LÓGICA ---
+            
     full_context = {
         'clinica': settings.CLINICA_INFO,
         'logo_path': logo_path,
-        **context # Adiciona o contexto específico (ex: 'atestado': obj)
+        'anamnese': anamnese_obj, # <-- ADICIONA A ANAMNESE AO CONTEXTO
+        **context
     }
     
-    # 3. Renderizar o HTML
     template = get_template(template_path)
     html = template.render(full_context)
     
-    # 4. Criar o PDF
     result = BytesIO()
     pdf = pisa.pisaDocument(
         BytesIO(html.encode("UTF-8")), 
         result, 
-        link_callback=lambda uri, rel: logo_path # Mantém seu callback do logo
+        link_callback=lambda uri, rel: logo_path
     )
     
     if not pdf.err:

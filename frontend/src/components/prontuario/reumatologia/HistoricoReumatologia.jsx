@@ -42,9 +42,9 @@ export default function HistoricoReumatologia({ pacienteId }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            // --- CORREÇÃO AQUI ---
-            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, { // 1. Mude para PATCH
-                reumatologica: anamneseData // 2. Payload está correto
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                // --- CORREÇÃO AQUI ---
+                reumatologica: anamneseData // ANTES: cardiologica
             });
             showSnackbar('Histórico reumatológico salvo com sucesso!', 'success');
         } catch (error) { 

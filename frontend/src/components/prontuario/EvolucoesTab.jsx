@@ -89,7 +89,9 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
             {/* 4. Passamos a função 100% estável para o filho */}
             <ComponenteDaEspecialidade 
                 pacienteId={pacienteId} 
-                onEvolucoesSalva={stableOnEvolucaoSalva} 
+                
+                // --- CORREÇÃO AQUI ---
+                onEvolucaoSalva={stableOnEvolucaoSalva} // ANTES: onEvolucOESalva
             />
         </Suspense>
     );

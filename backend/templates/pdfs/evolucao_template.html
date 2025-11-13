@@ -1,10 +1,35 @@
 {% extends "pdfs/base_pdf.html" %}
 
-{% block title %}Evolução Médica{% endblock %}
+{% block title %}Evolução Médica Completa{% endblock %}
 
 {% block content %}
 
-    <h1>EVOLUÇÃO MÉDICA</h1>
+    {% if anamnese %}
+        <Box class="prontuario-mestre">
+            
+            {% if anamnese.pediatrica %}
+                <h1 style="border-bottom: 1px solid #eee; font-size: 14pt;">HISTÓRICO PEDIÁTRICO</h1>
+                <table class="info-grid">
+                    <tr><td class="label">Parto:</td><td>{{ anamnese.pediatrica.tipo_parto|default:'N/A' }}</td></tr>
+                    <tr><td class="label">IG:</td><td>{{ anamnese.pediatrica.idade_gestacional|default:'N/A' }}</td></tr>
+                    <tr><td class="label">Peso Nasc.:</td><td>{{ anamnese.pediatrica.peso_nascimento|default:'N/A' }}</td></tr>
+                    <tr><td class="label">Apgar:</td><td>{{ anamnese.pediatrica.apgar_1|default:'_' }} / {{ anamnese.pediatrica.apgar_5|default:'_' }}</td></tr>
+                    <tr><td class="label">Intercorrências:</td><td>{{ anamnese.pediatrica.intercorrencias_gestacao_parto|default:'N/A' }}</td></tr>
+                </table>
+            {% endif %}
+
+            {% if anamnese.cardiologica %}
+                <h1 style="border-bottom: 1px solid #eee; font-size: 14pt;">HISTÓRICO CARDIOLÓGICO</h1>
+                <table class="info-grid">
+                    <tr><td class="label">Fatores de Risco:</td><td>{{ anamnese.cardiologica.fatores_risco_detalhes|default:'N/A' }}</td></tr>
+                    <tr><td class="label">Comorbidades:</td><td>{{ anamnese.cardiologica.comorbidades_outras|default:'N/A' }}</td></tr>
+                </table>
+            {% endif %}
+            
+            <br>
+        </Box>
+    {% endif %}
+    <h1>EVOLUÇÃO MÉDICA (SOAP DA CONSULTA)</h1>
 
     <table class="info-grid">
         <tr>
@@ -44,5 +69,4 @@
         <p>Dr(a). {{ medico.get_full_name }}</p>
         <p>CRM: {{ medico.profile.crm|default:'N/A' }}</p>
     </div>
-
-{% endblock %}
+    {% endblock %}
