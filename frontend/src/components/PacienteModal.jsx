@@ -10,7 +10,7 @@ import {
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 // 3. Importar as máscaras que já criamos
-import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from '../common/MaskedInput';
+import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from './common/MaskedInput';
 
 const initialState = {
   nome_completo: '',
