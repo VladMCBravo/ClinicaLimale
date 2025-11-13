@@ -1,5 +1,4 @@
 /// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO COM DEBUG E CORREÇÃO DO LOOP
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
