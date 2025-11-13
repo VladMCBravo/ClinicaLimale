@@ -120,11 +120,12 @@ export default function HistoricoPediatrico({ pacienteId }) {
     }, [fetchAnamnese]);
 
     // --- 4. ADICIONE ESTE useEffect PARA O AUTO-SAVE ---
-useEffect(() => {
-    // Não salvar no primeiro carregamento (enquanto isLoading)
-    if (isLoading) {
-        return;
-    }
+    // AGORA ESTE useEffect VEM DEPOIS DA FUNÇÃO QUE ELE USA
+    useEffect(() => {
+        // Não salvar no primeiro carregamento (enquanto isLoading)
+        if (isLoading) {
+            return;
+        }
 
     // Se já existe um timer, limpe-o
     if (debounceTimer.current) {
@@ -133,10 +134,10 @@ useEffect(() => {
 
     // Crie um novo timer
     debounceTimer.current = setTimeout(() => {
-        // Clona o estado para evitar race conditions
-        const dataToSave = { ...anamneseData }; 
-        handleSaveAnamnese(dataToSave);
-    }, 1500); // 1.5 segundos após a última mudança
+            // Clona o estado para evitar race conditions
+            const dataToSave = { ...anamneseData }; 
+            handleSaveAnamnese(dataToSave); // <--- Agora isso funciona!
+        }, 1500); // 1.5 segundos após a última mudança
 
     // Função de limpeza
     return () => {
@@ -260,8 +261,7 @@ useEffect(() => {
 };
     // --- Fim Handlers de Normalidade ---
 
-    // --- 3. REESCREVA O handleSaveAnamnese ---
-    // Agora ele não usa 'event' e salva o estado atual
+    // --- 3. COLE A FUNÇÃO AQUI ---
     const handleSaveAnamnese = useCallback(async (dataToSave) => {
         setIsSubmitting(true);
 
@@ -285,7 +285,7 @@ useEffect(() => {
         } finally {
             setIsSubmitting(false);
         }
-    }, [pacienteId, showSnackbar]); // Mantenha as dependências
+    }, [pacienteId, showSnackbar]);
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
