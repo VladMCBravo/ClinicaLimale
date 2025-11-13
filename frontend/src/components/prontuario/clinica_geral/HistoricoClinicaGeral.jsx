@@ -56,18 +56,12 @@ export default function HistoricoClinicaGeral({ pacienteId }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            const anamnGeralPayload = { ...anamneseGeralData };
-            const clinicaPayload = { ...clinicaGeralData };
-
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                alergias: anamnGeralPayload.alergias,
-                medicamentos_em_uso: anamnGeralPayload.medicamentos_em_uso,
-                historico_familiar: anamnGeralPayload.historico_familiar,
-                clinica_geral: clinicaPayload
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                clinica_geral: anamneseData // Chave correta para Clínica Geral
             });
-            showSnackbar('Histórico de Clínica Geral salvo!', 'success');
+            showSnackbar('Histórico salvo com sucesso!', 'success');
         } catch (error) { 
-            showSnackbar('Erro ao salvar histórico de clínica geral.', 'error');
+            showSnackbar('Erro ao salvar histórico.', 'error');
         }
         finally { setIsSubmitting(false); }
     };

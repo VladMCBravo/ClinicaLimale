@@ -224,14 +224,54 @@ export default function HistoricoPediatrico({ pacienteId }) {
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
+
+        // 1. Copia os dados para um objeto que podemos modificar
+        const dataToSend = { ...anamneseData };
+
+        // 2. Converte campos numéricos de "" (string vazia) para null
+        const camposNumericos = [
+            'apgar_1', 'apgar_5', 'apgar_10'
+            // Adicione outros campos numéricos deste formulário aqui se necessário
+        ];
+        
+        camposNumericos.forEach(campo => {
+            if (dataToSend[campo] === '') {
+                dataToSend[campo] = null;
+            }
+        });
+        
+        // 3. Monta o payload final
+        const payload = {
+            ...dataToSend, 
+            // (qualquer outro state que precise ser salvo, como 'triagens')
+            triagens: dataToSend.triagens, 
+        };
+
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                pediatrica: anamneseData
+            // 4. USA O MÉTODO 'PATCH' (Corrige o erro 405)
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                // O payload deve ser enviado dentro da chave 'pediatria'
+                pediatria: payload
             });
             showSnackbar('Histórico pediátrico salvo com sucesso!', 'success');
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error.response?.data || error);
-            showSnackbar('Erro ao salvar histórico.', 'error');
+
+            // Tenta mostrar um erro mais específico
+            if (error.response && error.response.status === 400) {
+                const errors = error.response.data?.pediatria; // <-- Note a chave 'pediatria'
+                if (errors) {
+                    const firstKey = Object.keys(errors)[0]; 
+                    const firstMessage = errors[firstKey][0]; 
+                    showSnackbar(`Erro: ${firstKey} - ${firstMessage}`, 'error');
+                } else {
+                    showSnackbar('Erro de validação (400). Verifique os campos.', 'error');
+                }
+            } else if (error.response && error.response.status === 405) {
+                showSnackbar('Erro 405: O frontend está usando POST em vez de PATCH.', 'error');
+            } else {
+                 showSnackbar('Erro ao salvar histórico.', 'error');
+            }
         }
         finally { setIsSubmitting(false); }
     };

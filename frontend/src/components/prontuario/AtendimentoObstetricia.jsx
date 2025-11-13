@@ -162,9 +162,14 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva }) 
                 pressao_arterial: exameFisicoData.pa || null,
                 frequencia_cardiaca: exameFisicoData.fc || null,
             };
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            // --- CORREÇÃO AQUI ---
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            
             showSnackbar('Evolução salva com sucesso!', 'success');
-            if(onEvolucaoSalva) onEvolucaoSalva();
+            
+            // --- E AQUI ---
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Passe o ID
+            
             handleLimparConsultaAtual(); // Limpa consulta após salvar
         } catch (error) {
              console.error("Erro ao salvar evolução:", error.response?.data);

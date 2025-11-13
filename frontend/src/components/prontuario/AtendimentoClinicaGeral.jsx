@@ -163,9 +163,14 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva })
                 frequencia_cardiaca: vitalsData.fc || null,
                 peso: vitalsData.peso || null,
             };
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            // --- CORREÇÃO AQUI ---
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            
             showSnackbar('Evolução salva com sucesso!', 'success');
-            if(onEvolucaoSalva) onEvolucaoSalva();
+            
+            // --- CORREÇÃO AQUI ---
+            if(onEvolucoesSalva) onEvolucoesSalva(res.data.id);
+            
             handleLimparConsultaAtual();
         } catch (error) {
              console.error("Erro ao salvar evolução:", error.response?.data);

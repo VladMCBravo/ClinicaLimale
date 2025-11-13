@@ -46,8 +46,8 @@ export default function HistoricoOrtopedia({ pacienteId }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                ortopedica: anamneseData
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                ortopedica: anamneseData // Chave correta para Ortopedia
             });
             showSnackbar('Histórico ortopédico salvo com sucesso!', 'success');
         } catch (error) { 

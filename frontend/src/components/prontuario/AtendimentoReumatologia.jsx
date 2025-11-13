@@ -38,10 +38,15 @@ export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva })
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, formData);
+            // --- CORREÇÃO AQUI ---
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, formData);
+            
             showSnackbar('Evolução salva com sucesso!', 'success');
             setFormData({}); 
-            if(onEvolucaoSalva) onEvolucaoSalva();
+            
+            // --- E AQUI ---
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Passe o ID
+            
         } catch (error) { showSnackbar('Erro ao salvar evolução.', 'error'); }
         finally { setIsSubmitting(false); }
     };

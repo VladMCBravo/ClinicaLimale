@@ -49,20 +49,15 @@ export default function HistoricoNeurologia({ pacienteId }) {
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
-        
-        const payload = { ...anamneseData };
-
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                neurologica: payload
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                neurologica: anamneseData // Chave correta para Neurologia
             });
             showSnackbar('Histórico neurológico salvo com sucesso!', 'success');
-        } catch (error) {
-            console.error("Erro ao salvar anamnese:", error.response?.data);
-            showSnackbar('Erro ao salvar histórico.', 'error');
-        } finally {
-            setIsSubmitting(false);
+        } catch (error) { 
+            showSnackbar('Erro ao salvar histórico neurológico.', 'error');
         }
+        finally { setIsSubmitting(false); }
     };
 
     if (isLoading) {

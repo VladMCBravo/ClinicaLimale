@@ -51,13 +51,11 @@ export default function HistoricoObstetricia({ pacienteId, onIgCalculada }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                ginecologica: anamneseData
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                // OBs: A anamnese de Obstetrícia é a Ginecologia
+                ginecologica: anamneseData 
             });
             showSnackbar('Histórico obstétrico salvo com sucesso!', 'success');
-             if (onIgCalculada && anamneseData.ig_atual) {
-                onIgCalculada(anamneseData.ig_atual);
-            }
         } catch (error) { 
             showSnackbar('Erro ao salvar histórico obstétrico.', 'error');
         }

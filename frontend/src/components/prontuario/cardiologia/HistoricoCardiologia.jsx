@@ -46,12 +46,12 @@ export default function HistoricoReumatologia({ pacienteId }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                reumatologica: anamneseData
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                cardiologica: anamneseData // Chave correta para Cardiologia
             });
-            showSnackbar('Histórico reumatológico salvo com sucesso!', 'success');
+            showSnackbar('Histórico cardiológico salvo com sucesso!', 'success');
         } catch (error) { 
-            showSnackbar('Erro ao salvar histórico reumatológico.', 'error');
+            showSnackbar('Erro ao salvar histórico cardiológico.', 'error');
         }
         finally { setIsSubmitting(false); }
     };

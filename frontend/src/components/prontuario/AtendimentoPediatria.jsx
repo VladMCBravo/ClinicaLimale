@@ -343,9 +343,16 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             altura: exameFisicoData.altura || null,
         };
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+            // --- CORREÇÃO AQUI ---
+            // Salve a resposta da API em uma variável 'res'
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+            
             showSnackbar('Evolução salva com sucesso!', 'success');
-            if(onEvolucoesSalva) onEvolucoesSalva();
+            
+            // --- CORREÇÃO AQUI ---
+            // Chame a função com o ID da resposta
+            if(onEvolucoesSalva) onEvolucoesSalva(res.data.id); 
+
         } catch (error) {
             console.error("Erro ao salvar evolução:", error.response?.data || error);
             showSnackbar('Erro ao salvar evolução.', 'error');

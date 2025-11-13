@@ -250,9 +250,14 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
                 peso: vitalsData.peso ? (parseFloat(vitalsData.peso) / 1000).toFixed(3) : null,
                 altura: vitalsData.comprimento ? (parseFloat(vitalsData.comprimento) / 100).toFixed(2) : null,
             };
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            // --- CORREÇÃO AQUI ---
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            
             showSnackbar('Evolução salva com sucesso!', 'success');
-            if(onEvolucaoSalva) onEvolucaoSalva();
+            
+            // --- E AQUI ---
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Passe o ID
+            
             handleLimparConsultaAtual();
         } catch (error) {
              console.error("Erro ao salvar evolução:", error.response?.data);

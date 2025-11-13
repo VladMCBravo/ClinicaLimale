@@ -42,11 +42,14 @@ export default function HistoricoReumatologia({ pacienteId }) {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                reumatologica: anamneseData
+            // --- CORREÇÃO AQUI ---
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, { // 1. Mude para PATCH
+                reumatologica: anamneseData // 2. Payload está correto
             });
             showSnackbar('Histórico reumatológico salvo com sucesso!', 'success');
-        } catch (error) { /* ... (tratamento de erro) ... */ }
+        } catch (error) { 
+            showSnackbar('Erro ao salvar histórico reumatológico.', 'error');
+        }
         finally { setIsSubmitting(false); }
     };
 

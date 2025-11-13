@@ -40,20 +40,28 @@ export default function HistoricoGinecologia({ pacienteId }) {
         setAnamneseData(prev => ({ ...prev, [name]: finalValue }));
     };
 
-    // 3. FUNÇÃO DE SALVAR
+    // 3. FUNÇÃO DE SALVAR (CORRIGIDA COM PATCH)
     const handleSaveAnamnese = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                ginecologica: anamneseData
+            // USA 'PATCH' E ANINHA O PAYLOAD
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                ginecologica: anamneseData // 'anamneseData' é o nome do seu state
             });
             showSnackbar('Histórico ginecológico salvo com sucesso!', 'success');
-        } catch (error) { /* ... (tratamento de erro) ... */ }
+        } catch (error) { 
+            // Adicione tratamento de erro 400/405 aqui
+            showSnackbar('Erro ao salvar histórico ginecológico.', 'error');
+        }
         finally { setIsSubmitting(false); }
     };
 
-    if (isLoading) { /* ... Loading ... */ }
+    // --- ESTA É A CORREÇÃO QUE VOCÊ PEDIU ---
+    if (isLoading) {
+         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+    }
+    // --- FIM DA CORREÇÃO ---
 
     // 4. JSX (Formulário do Histórico Ginecológico)
     return (

@@ -176,9 +176,14 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) 
                 frequencia_cardiaca: vitalsData.fc || null,
                 peso: vitalsData.peso || null,
             };
-            await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            // --- CORREÇÃO AQUI ---
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            
             showSnackbar('Evolução salva com sucesso!', 'success');
-            if(onEvolucaoSalva) onEvolucaoSalva();
+            
+            // --- E AQUI ---
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Envie o ID
+            
             handleLimparConsultaAtual();
         } catch (error) {
              console.error("Erro ao salvar evolução:", error.response?.data);

@@ -58,6 +58,8 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   const [criandoSala, setCriandoSala] = useState(false);
   // NOVO: Estado para guardar o link da sala (para o iframe)
   const [linkSalaAtual, setLinkSalaAtual] = useState(agendamento?.link_telemedicina || null); 
+  // --- 1. ADICIONE O STATE CENTRAL AQUI ---
+  const [consultaAtualId, setConsultaAtualId] = useState(null);
 
   const pacienteId = agendamento?.paciente;
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
@@ -65,6 +67,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   useEffect(() => {
     setTelemedicinaVisivel(false);
     setLinkSalaAtual(agendamento?.link_telemedicina || null);
+    setConsultaAtualId(null); // Limpa o ID da consulta ao trocar de agendamento
   }, [agendamento]);
 
   const handleChange = (event, newIndex) => { setTabIndex(newIndex); };
@@ -145,7 +148,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           {/* 3. ABAS ATUALIZADAS */}
           <Tab label="Atendimento" id="prontuario-tab-0" /> 
           <Tab label="Prescrições" id="prontuario-tab-1" />
-          <Tab label="Relatórios" id="prontuario-tab-2" /> {/* <-- MUDANÇA AQUI: Nome da aba */}
+          <Tab label="Atestado/Relatório" id="prontuario-tab-2" /> {/* <-- MUDANÇA AQUI: Nome da aba */}
           <Tab label="Documentos" id="prontuario-tab-3" />
           <Tab label="Ver Exames" id="prontuario-tab-4" /> {/* Nova Aba */}
         </Tabs>
@@ -219,20 +222,26 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             
             {/* Usamos a função TabPanel corrigida para cada aba */}
             <TabPanel value={tabIndex} index={0}>
-              <EvolucaoTab pacienteId={pacienteId} especialidade={especialidade} onEvolucoesSalva={onEvolucaoSalva} />
+              {/* --- 3A. PASSE A FUNÇÃO "SETER" PARA O FILHO --- */}
+              <EvolucaoTab 
+                pacienteId={pacienteId} 
+                especialidade={especialidade} 
+                // Passa a função onEvolucaoSalva E a nova função para setar o ID
+                onEvolucoesSalva={(id) => {
+                  onEvolucaoSalva(); // A função original que recarrega o histórico
+                  setConsultaAtualId(id); // A nova função que salva o ID
+                }}
+              />
             </TabPanel>
             <TabPanel value={tabIndex} index={1}>
               <PrescricoesTab pacienteId={pacienteId} />
             </TabPanel>
             <TabPanel value={tabIndex} index={2}>
-              {/* <-- MUDANÇA AQUI: Componente substituído */}
+              {/* --- 3B. PASSE O ID SALVO PARA O RELATÓRIOS TAB --- */}
               <RelatoriosTab 
                 pacienteId={pacienteId} 
                 especialidade={especialidade} 
-                /* O 'consultaAtualId' precisará ser gerenciado aqui ou no componente pai (PainelMedicoPage)
-                   para que o botão "Gerar Prévia" do RelatoriosTab funcione.
-                   Por enquanto, passamos as props que temos neste escopo. */
-                // consultaAtualId={??} 
+                consultaAtualId={consultaAtualId} // <-- AQUI!
               />
             </TabPanel>
             <TabPanel value={tabIndex} index={3}>
