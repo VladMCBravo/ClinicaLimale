@@ -165,7 +165,6 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
     };
 
     return (
-        // --- MUDANÇA: maxWidth="lg" ---
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg">
             <DialogTitle>{usuarioParaEditar ? 'Editar Usuário' : 'Criar Novo Usuário'}</DialogTitle>
             <form onSubmit={handleSubmit}>
@@ -251,8 +250,11 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                 <Grid container spacing={2} sx={{ pt: 2 }}>
                                     <Grid item xs={12} sm={6}><TextField name="crm" label="CRM" value={formData.crm || ''} onChange={handleChange} fullWidth /></Grid>
                                     <Grid item xs={12} sm={6}><TextField name="rqe" label="RQE" value={formData.rqe || ''} onChange={handleChange} fullWidth /></Grid>
+                                    
+                                    {/* ======================================================= */}
+                                    {/* O "Grid item" aqui garante que o campo não "esmague" */}
                                     <Grid item xs={12}>
-                                        {/* ... (Seu código de especialidades aqui) ... */}
+                                    {/* ======================================================= */}
                                         <FormControl fullWidth>
                                             <InputLabel>Especialidades</InputLabel>
                                             <Select multiple value={selectedEspecialidades} onChange={handleEspecialidadesChange}
@@ -260,11 +262,13 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                                 renderValue={(selected) => (
                                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                                         {selected.map((id) => {
+                                                            // Agora 'find' vai funcionar
                                                             const esp = especialidadesDisponiveis.find(e => e.id === id);
-                                                            return <Chip key={id} label={esp ? esp.nome : ''} />;
+                                                            return <Chip key={id} label={esp ? esp.nome : `ID ${id}`} />;
                                                         })}
                                                     </Box>
                                                 )}>
+                                                {/* E o .map aqui também vai funcionar */}
                                                 {especialidadesDisponiveis.map((especialidade) => (
                                                     <MenuItem key={especialidade.id} value={especialidade.id}>
                                                         {especialidade.nome}
