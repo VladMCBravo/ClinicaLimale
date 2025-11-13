@@ -1,4 +1,4 @@
-# backend/usuarios/serializers.py - VERSÃO FINAL E CORRIGIDA
+# backend/usuarios/serializers.py - VERSÃO COMPLETA E CORRIGIDA
 
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator # <-- 1. IMPORTE O VALIDATOR
@@ -16,26 +16,24 @@ class UserSerializer(serializers.ModelSerializer):
         queryset=Especialidade.objects.all(),
         required=False
     )
-    # --- 2. ADICIONE VALIDADORES EXPLÍCITOS ---
-    # Isso força o DRF a checar a unicidade ANTES de salvar,
-    # transformando o erro 500 (crash) em um erro 400 (validação).
 
-    # O 'username' já é validado pelo AbstractUser
+    # --- 2. ADICIONE VALIDADORES EXPLÍCITOS ---
+    # Isso transforma o Erro 500 em um Erro 400 amigável.
     
-    # Validadores para os campos que VOCÊ definiu como únicos:
     cpf = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True, # Mantém as regras do modelo
+        required=False, allow_blank=True, allow_null=True,
         validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Já existe um usuário com este CPF.")]
     )
     crm = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True, # Mantém as regras do modelo
+        required=False, allow_blank=True, allow_null=True,
         validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Já existe um usuário com este CRM.")]
     )
-    # --- FIM DA CORREÇÃO ---
+    
+    # O validador de 'username' já é automático
+
 
     class Meta:
         model = CustomUser
-        # 3. GARANTA QUE TODOS OS CAMPOS ESTÃO AQUI
         fields = [
             'id', 'username', 'first_name', 'last_name', 
             'genero', 'data_nascimento', 'telefone', 'cpf', 'email',
@@ -45,37 +43,50 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
+    # --- 3. ADICIONE ESTES MÉTODOS DE VALIDAÇÃO ---
+    # Isso converte strings vazias "" em None (NULL), permitindo
+    # que vários usuários tenham o campo em branco sem violar a regra "unique".
+
+    def validate_cpf(self, value):
+        if value == "":
+            return None
+        return value
+
+    def validate_crm(self, value):
+        if value == "":
+            return None
+        return value
+    
+    # --- FIM DA CORREÇÃO ---
+
     def create(self, validated_data):
         especialidades_data = validated_data.pop('especialidades', [])
-        
-        # <<-- CORREÇÃO APLICADA AQUI -->>
-        # Usamos .pop('password', None) para obter a senha de forma segura.
-        # Se a senha não for enviada, a variável 'password' será None e não causará erro.
         password = validated_data.pop('password', None)
-        
-        # Criamos o usuário com os dados restantes.
         user = CustomUser.objects.create_user(**validated_data)
-        
-        # Se uma senha foi fornecida, nós a definimos de forma segura (criptografada).
         if password:
             user.set_password(password)
             user.save()
-        # <<-- FIM DA CORREÇÃO -->>
-
         if especialidades_data:
             user.especialidades.set(especialidades_data)
         return user
 
     def update(self, instance, validated_data):
-        # Sua lógica de update já estava correta e foi mantida.
         password = validated_data.pop('password', None)
         if password:
             instance.set_password(password)
-
         if 'especialidades' in validated_data:
             especialidades_data = validated_data.pop('especialidades')
             instance.especialidades.set(especialidades_data)
-
+        
+        # --- 4. ATUALIZE A LÓGICA DE UPDATE ---
+        # Isso garante que a conversão de "" para None funcione também na edição (PATCH)
+        
+        # Converte "" para None ANTES de passar para o super().update
+        if 'cpf' in validated_data and validated_data['cpf'] == "":
+            validated_data['cpf'] = None
+        if 'crm' in validated_data and validated_data['crm'] == "":
+            validated_data['crm'] = None
+            
         return super().update(instance, validated_data)
 
 # --- ADICIONE ESTE NOVO SERIALIZER ---
