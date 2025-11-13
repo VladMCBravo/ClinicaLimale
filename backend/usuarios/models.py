@@ -37,6 +37,27 @@ class CustomUser(AbstractUser):
         null=True, 
         blank=True
     )
+    # --- NOVOS CAMPOS AQUI ---
+    data_nascimento = models.DateField(
+        null=True, 
+        blank=True,
+        verbose_name="Data de Nascimento"
+    )
+    telefone = models.CharField(
+        max_length=20, 
+        blank=True, 
+        null=True,
+        verbose_name="Telefone / Celular"
+    )
+    cpf = models.CharField(
+        max_length=14, 
+        blank=True, 
+        null=True, 
+        unique=True,
+        verbose_name="CPF"
+    )
+    # --- FIM DOS NOVOS CAMPOS ---
+    
     CARGO_CHOICES = [
         ('admin', 'Administrador'),
         ('medico', 'Médico'),

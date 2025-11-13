@@ -10,9 +10,18 @@ import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { configuracoesService } from '../../services/configuracoesService';
 
+// 1. ATUALIZE O initialState
 const initialState = {
     username: '', password: '', first_name: '', last_name: '',
     cargo: 'recepcao', is_active: true,
+    
+    // --- NOVOS CAMPOS AQUI ---
+    genero: '',
+    data_nascimento: '',
+    telefone: '',
+    cpf: '',
+    crm: '',
+    // --- FIM DOS NOVOS CAMPOS ---
 };
 
 export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar }) {
@@ -30,6 +39,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
         }
     }, [open, showSnackbar]);
 
+    // 2. ATUALIZE O useEffect
     useEffect(() => {
         if (open && usuarioParaEditar) {
             setFormData({
@@ -38,7 +48,16 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 last_name: usuarioParaEditar.last_name || '',
                 cargo: usuarioParaEditar.cargo || 'recepcao',
                 is_active: usuarioParaEditar.is_active,
-                password: '', // Senha fica vazia na edição por segurança
+                
+                // --- NOVOS CAMPOS AQUI ---
+                genero: usuarioParaEditar.genero || '',
+                data_nascimento: usuarioParaEditar.data_nascimento || '',
+                telefone: usuarioParaEditar.telefone || '',
+                cpf: usuarioParaEditar.cpf || '',
+                crm: usuarioParaEditar.crm || '',
+                // --- FIM DOS NOVOS CAMPOS ---
+                
+                password: '', // Senha fica vazia na edição
             });
             setSelectedEspecialidades(usuarioParaEditar.especialidades || []);
         } else {
@@ -98,14 +117,40 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
         }
     };
 
+    // 3. ATUALIZE O JSX (O FORMULÁRIO)
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
             <DialogTitle>{usuarioParaEditar ? 'Editar Usuário' : 'Criar Novo Usuário'}</DialogTitle>
             <form onSubmit={handleSubmit}>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                        {/* --- DADOS PESSOAIS --- */}
                         <TextField name="first_name" label="Nome" value={formData.first_name} onChange={handleChange} required />
                         <TextField name="last_name" label="Sobrenome" value={formData.last_name} onChange={handleChange} required />
+                        
+                        {/* NOVO: Data de Nascimento */}
+                        <TextField name="data_nascimento" label="Data de Nascimento" type="date"
+                            value={formData.data_nascimento || ''} onChange={handleChange}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                        
+                        {/* NOVO: Gênero */}
+                        <FormControl fullWidth>
+                            <InputLabel>Gênero</InputLabel>
+                            <Select name="genero" value={formData.genero || ''} label="Gênero" onChange={handleChange}>
+                                <MenuItem value=""><em>Não informar</em></MenuItem>
+                                <MenuItem value="M">Masculino</MenuItem>
+                                <MenuItem value="F">Feminino</MenuItem>
+                            </Select>
+                        </FormControl>
+                        
+                        {/* NOVO: Telefone e CPF */}
+                        <TextField name="telefone" label="Telefone / Celular" value={formData.telefone || ''} onChange={handleChange} />
+                        <TextField name="cpf" label="CPF" value={formData.cpf || ''} onChange={handleChange} />
+
+                        <hr />
+
+                        {/* --- DADOS DE ACESSO E CARGO --- */}
                         <TextField name="username" label="Usuário (login)" value={formData.username} onChange={handleChange} required />
                         <TextField name="password" label={usuarioParaEditar ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} type="password" onChange={handleChange} required={!usuarioParaEditar} />
                         
@@ -117,6 +162,11 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                 <MenuItem value="admin">Administrador</MenuItem>
                             </Select>
                         </FormControl>
+                        
+                        {/* --- CAMPO CRM (JÁ EXISTIA NO MODELO) --- */}
+                        {formData.cargo === 'medico' && (
+                            <TextField name="crm" label="CRM" value={formData.crm || ''} onChange={handleChange} />
+                        )}
                         
                         {formData.cargo === 'medico' && (
                             <FormControl fullWidth>
