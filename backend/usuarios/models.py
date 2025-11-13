@@ -65,6 +65,18 @@ class CustomUser(AbstractUser):
     ]
     cargo = models.CharField(max_length=10, choices=CARGO_CHOICES, default='recepcao')
     crm = models.CharField(max_length=20, blank=True, null=True, unique=True, verbose_name="CRM")
+    # NOVO: RQE (Registro de Qualificação de Especialista)
+    rqe = models.CharField(max_length=20, blank=True, null=True, verbose_name="RQE")
+
+    # --- NOVOS: CAMPOS DE ENDEREÇO ---
+    logradouro = models.CharField(max_length=255, blank=True, null=True)
+    numero = models.CharField(max_length=20, blank=True, null=True)
+    complemento = models.CharField(max_length=100, blank=True, null=True)
+    bairro = models.CharField(max_length=100, blank=True, null=True)
+    cidade = models.CharField(max_length=100, blank=True, null=True)
+    uf = models.CharField(max_length=2, blank=True, null=True, verbose_name="UF")
+    cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
+    # --- FIM DO ENDEREÇO ---
     
     # Esta relação ManyToMany que você já tinha é a forma correta e poderosa.
     # Um médico pode ter múltiplas especialidades.

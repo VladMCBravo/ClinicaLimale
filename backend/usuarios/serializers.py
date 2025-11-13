@@ -21,11 +21,17 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'first_name', 'last_name', 
             
-            # --- CAMPOS ADICIONADOS AQUI ---
-            'genero', 'data_nascimento', 'telefone', 'cpf', 'crm', 
+            # --- CAMPOS ATUALIZADOS AQUI ---
+            'genero', 'data_nascimento', 'telefone', 'cpf', 'email', # 'email' já estava, mas o movemos
             
-            'email', 'cargo', 
-            'is_active', 'especialidades', 'especialidades_detalhes', 'password'
+            # Endereço
+            'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 
+            
+            # Dados Médicos
+            'crm', 'rqe', 
+            
+            # Controle
+            'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password'
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
