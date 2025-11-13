@@ -1,6 +1,7 @@
 # backend/usuarios/serializers.py - VERSÃO FINAL E CORRIGIDA
 
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator # <-- 1. IMPORTE O VALIDATOR
 from .models import CustomUser, Especialidade, JornadaDeTrabalho
 
 class EspecialidadeSerializer(serializers.ModelSerializer):
@@ -15,22 +16,31 @@ class UserSerializer(serializers.ModelSerializer):
         queryset=Especialidade.objects.all(),
         required=False
     )
+    # --- 2. ADICIONE VALIDADORES EXPLÍCITOS ---
+    # Isso força o DRF a checar a unicidade ANTES de salvar,
+    # transformando o erro 500 (crash) em um erro 400 (validação).
+
+    # O 'username' já é validado pelo AbstractUser
+    
+    # Validadores para os campos que VOCÊ definiu como únicos:
+    cpf = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, # Mantém as regras do modelo
+        validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Já existe um usuário com este CPF.")]
+    )
+    crm = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, # Mantém as regras do modelo
+        validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Já existe um usuário com este CRM.")]
+    )
+    # --- FIM DA CORREÇÃO ---
 
     class Meta:
         model = CustomUser
+        # 3. GARANTA QUE TODOS OS CAMPOS ESTÃO AQUI
         fields = [
             'id', 'username', 'first_name', 'last_name', 
-            
-            # --- CAMPOS ATUALIZADOS AQUI ---
-            'genero', 'data_nascimento', 'telefone', 'cpf', 'email', # 'email' já estava, mas o movemos
-            
-            # Endereço
+            'genero', 'data_nascimento', 'telefone', 'cpf', 'email',
             'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 
-            
-            # Dados Médicos
             'crm', 'rqe', 
-            
-            # Controle
             'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password'
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
