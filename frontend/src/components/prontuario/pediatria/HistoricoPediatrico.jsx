@@ -1,7 +1,7 @@
 /// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
 // VERSÃO COM DEBUG E CORREÇÃO DO LOOP
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Paper, Typography, Grid, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
     FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress,
@@ -74,6 +74,9 @@ export default function HistoricoPediatrico({ pacienteId }) {
 
     const [anamneseData, setAnamneseData] = useState(initialState);
 
+    // --- 2. ADICIONE O TIMER DEBOUCE ---
+    const debounceTimer = useRef(null);
+
     // --- DEBUG 1: Log de Render ---
     console.log(`🔄 [RENDER HISTÓRICO] HistoricoPediatrico renderizou. Paciente ID: ${pacienteId}`);
 
@@ -115,6 +118,41 @@ export default function HistoricoPediatrico({ pacienteId }) {
     useEffect(() => {
         fetchAnamnese();
     }, [fetchAnamnese]);
+
+    // --- 4. ADICIONE ESTE useEffect PARA O AUTO-SAVE ---
+useEffect(() => {
+    // Não salvar no primeiro carregamento (enquanto isLoading)
+    if (isLoading) {
+        return;
+    }
+
+    // Se já existe um timer, limpe-o
+    if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+    }
+
+    // Crie um novo timer
+    debounceTimer.current = setTimeout(() => {
+        // Clona o estado para evitar race conditions
+        const dataToSave = { ...anamneseData }; 
+        handleSaveAnamnese(dataToSave);
+    }, 1500); // 1.5 segundos após a última mudança
+
+    // Função de limpeza
+    return () => {
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+    };
+// Observe apenas 'anamneseData' e 'isLoading'.
+// Adicione 'handleSaveAnamnese' que já é um 'useCallback'
+}, [anamneseData, isLoading, handleSaveAnamnese]);
+
+
+// --- 5. Habilitar os Handlers de "Normalidade" (Eles disparam o auto-save) ---
+// Seus handlers de normalidade (ex: handleNormalidadeGestacional) já
+// usam 'setAnamneseData'. Isso *automaticamente* vai disparar
+// o useEffect de auto-save acima. Perfeito!
 
     // --- Handlers (sem alteração) ---
     const handleChange = (e) => {
@@ -214,67 +252,40 @@ export default function HistoricoPediatrico({ pacienteId }) {
         showSnackbar('Sono/Comportamento preenchidos com padrão normal.', 'info');
     };
     
+    // --- 6. Habilitar o "Limpar Histórico" (se você mantiver) ---
     const handleLimparHistorico = () => {
-        setAnamneseData(initialState);
-        showSnackbar('Campos do histórico limpos.', 'info');
-    };
+    setAnamneseData(initialState); 
+    // Isso também vai disparar o auto-save, que salvará o estado inicial (limpo)
+    showSnackbar('Campos do histórico limpos.', 'info');
+};
     // --- Fim Handlers de Normalidade ---
 
-    // Função de Salvar (Sem alterações)
-    const handleSaveAnamnese = async (event) => {
-        event.preventDefault();
+    // --- 3. REESCREVA O handleSaveAnamnese ---
+    // Agora ele não usa 'event' e salva o estado atual
+    const handleSaveAnamnese = useCallback(async (dataToSave) => {
         setIsSubmitting(true);
 
-        // 1. Copia os dados para um objeto que podemos modificar
-        const dataToSend = { ...anamneseData };
-
-        // 2. Converte campos numéricos de "" (string vazia) para null
-        const camposNumericos = [
-            'apgar_1', 'apgar_5', 'apgar_10'
-            // Adicione outros campos numéricos deste formulário aqui se necessário
-        ];
-        
+        // Converte campos numéricos de "" para null (Sua lógica original)
+        const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10'];
         camposNumericos.forEach(campo => {
-            if (dataToSend[campo] === '') {
-                dataToSend[campo] = null;
+            if (dataToSave[campo] === '') {
+                dataToSave[campo] = null;
             }
         });
-        
-        // 3. Monta o payload final
-        const payload = {
-            ...dataToSend, 
-            // (qualquer outro state que precise ser salvo, como 'triagens')
-            triagens: dataToSend.triagens, 
-        };
+
+        const payload = { pediatria: dataToSave };
 
         try {
-            // 4. USA O MÉTODO 'PATCH' (Corrige o erro 405)
-            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                // O payload deve ser enviado dentro da chave 'pediatria'
-                pediatria: payload
-            });
-            showSnackbar('Histórico pediátrico salvo com sucesso!', 'success');
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
+            // Opcional: um snackbar sutil
+            // showSnackbar('Histórico salvo.', 'success', { autoHideDuration: 2000 });
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error.response?.data || error);
-
-            // Tenta mostrar um erro mais específico
-            if (error.response && error.response.status === 400) {
-                const errors = error.response.data?.pediatria; // <-- Note a chave 'pediatria'
-                if (errors) {
-                    const firstKey = Object.keys(errors)[0]; 
-                    const firstMessage = errors[firstKey][0]; 
-                    showSnackbar(`Erro: ${firstKey} - ${firstMessage}`, 'error');
-                } else {
-                    showSnackbar('Erro de validação (400). Verifique os campos.', 'error');
-                }
-            } else if (error.response && error.response.status === 405) {
-                showSnackbar('Erro 405: O frontend está usando POST em vez de PATCH.', 'error');
-            } else {
-                 showSnackbar('Erro ao salvar histórico.', 'error');
-            }
+            showSnackbar('Erro ao salvar histórico.', 'error');
+        } finally {
+            setIsSubmitting(false);
         }
-        finally { setIsSubmitting(false); }
-    };
+    }, [pacienteId, showSnackbar]); // Mantenha as dependências
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
@@ -557,15 +568,15 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 </Accordion>
             </Box>
 
-            {/* Botões de Ação (Sem alteração) */}
-            <Box sx={{ textAlign: 'right', mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Button onClick={handleLimparHistorico} variant="outlined" color="secondary" disabled={isSubmitting}>
-                    Limpar Histórico
-                </Button>
-                <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
-                    {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
-                </Button>
-            </Box>
-        </Paper>
-    );
+            {/* Botões de Ação (REMOVER OU COMENTAR) */}
+        {/* <Box sx={{ textAlign: 'right', mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button onClick={handleLimparHistorico} variant="outlined" color="secondary" disabled={isSubmitting}>
+                Limpar Histórico
+            </Button>
+            <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
+                {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
+            </Button>
+        </Box> */}
+    </Paper>
+);
 }
