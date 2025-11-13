@@ -111,61 +111,58 @@ export default function HistoricoPediatrico({ pacienteId }) {
             setIsLoading(false);
             setExpanded('panel1'); 
         }
-    // --- CORREÇÃO APLICADA: 'showSnackbar' removido das dependências ---
-    }, [pacienteId]); // <-- AQUI ESTÁ A CORREÇÃO
+    }, [pacienteId, showSnackbar]); // Removido 'showSnackbar' para estabilizar
     // --- FIM fetchAnamnese ---
 
     useEffect(() => {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // --- 4. ADICIONE ESTE useEffect PARA O AUTO-SAVE ---
-    // AGORA ESTE useEffect VEM DEPOIS DA FUNÇÃO QUE ELE USA
+    // --- 4. useEffect PARA O AUTO-SAVE (AGORA SEGURO) ---
     useEffect(() => {
-        // Não salvar no primeiro carregamento (enquanto isLoading)
         if (isLoading) {
+            // --- DEBUG 6: Log de Bloqueio ---
+            console.log("⏳ [AUTO-SAVE] Bloqueado. (isLoading = true)");
             return;
         }
 
-    // Se já existe um timer, limpe-o
-    if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-    }
-
-    // Crie um novo timer
-    debounceTimer.current = setTimeout(() => {
-            // Clona o estado para evitar race conditions
-            const dataToSave = { ...anamneseData }; 
-            handleSaveAnamnese(dataToSave); // <--- Agora isso funciona!
-        }, 1500); // 1.5 segundos após a última mudança
-
-    // Função de limpeza
-    return () => {
         if (debounceTimer.current) {
+            // --- DEBUG 7: Log de Limpeza de Timer ---
+            console.log("⏱️ [AUTO-SAVE] Limpando timer anterior.");
             clearTimeout(debounceTimer.current);
         }
-    };
-// Observe apenas 'anamneseData' e 'isLoading'.
-// Adicione 'handleSaveAnamnese' que já é um 'useCallback'
-}, [anamneseData, isLoading, handleSaveAnamnese]);
 
+        // --- DEBUG 8: Log de Agendamento ---
+        console.log("⏱️ [AUTO-SAVE] Agendando salvamento em 1.5s...");
+        debounceTimer.current = setTimeout(() => {
+            // --- DEBUG 9: Log de Execução ---
+            console.log("▶️ [AUTO-SAVE] Timer executado! Preparando para salvar...");
+            const dataToSave = { ...anamneseData }; 
+            handleSaveAnamnese(dataToSave); // <--- Agora isso funciona!
+        }, 1500);
 
-// --- 5. Habilitar os Handlers de "Normalidade" (Eles disparam o auto-save) ---
-// Seus handlers de normalidade (ex: handleNormalidadeGestacional) já
-// usam 'setAnamneseData'. Isso *automaticamente* vai disparar
-// o useEffect de auto-save acima. Perfeito!
+        return () => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+            }
+        };
+    }, [anamneseData, isLoading, handleSaveAnamnese]); // <-- 'handleSaveAnamnese' está seguro agora
+
 
     // --- Handlers (sem alteração) ---
     const handleChange = (e) => {
+        console.log(`[DEBUG] handleChange: ${e.target.name} = ${e.target.value}`);
         setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
     const handleJsonChange = (jsonField, key, value) => {
+        console.log(`[DEBUG] handleJsonChange: ${jsonField}.${key} = ${value}`);
         setAnamneseData(prev => ({
             ...prev,
             [jsonField]: { ...(prev[jsonField] || {}), [key]: value }
         }));
     };
     const handleJsonCheckboxChange = (jsonField, key, checked) => {
+         console.log(`[DEBUG] handleJsonCheckboxChange: ${jsonField}.${key} = ${checked}`);
          setAnamneseData(prev => ({
             ...prev,
             [jsonField]: { ...(prev[jsonField] || {}), [key]: checked }
@@ -261,31 +258,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
 };
     // --- Fim Handlers de Normalidade ---
 
-    // --- 3. COLE A FUNÇÃO AQUI ---
-    const handleSaveAnamnese = useCallback(async (dataToSave) => {
-        setIsSubmitting(true);
-
-        // Converte campos numéricos de "" para null (Sua lógica original)
-        const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10'];
-        camposNumericos.forEach(campo => {
-            if (dataToSave[campo] === '') {
-                dataToSave[campo] = null;
-            }
-        });
-
-        const payload = { pediatria: dataToSave };
-
-        try {
-            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
-            // Opcional: um snackbar sutil
-            // showSnackbar('Histórico salvo.', 'success', { autoHideDuration: 2000 });
-        } catch (error) {
-            console.error("Erro ao salvar anamnese:", error.response?.data || error);
-            showSnackbar('Erro ao salvar histórico.', 'error');
-        } finally {
-            setIsSubmitting(false);
-        }
-    }, [pacienteId, showSnackbar]);
+    // A FUNÇÃO 'handleSaveAnamnese' FOI MOVIDA LÁ PARA CIMA (LINHA 92)
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
@@ -452,7 +425,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                     size="small"
                                     sx={{ minWidth: 170, flex: '1 1 170px' }}
                                 >
-                                    {options.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+                                    {options.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                 </TextField>
                             ))}
                              <FormControl component="fieldset" size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
@@ -498,7 +471,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                     size="small"
                                     sx={{ minWidth: 170, flex: '1 1 170px' }}
                                 >
-                                    {options.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+                                    {options.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                                 </TextField>
                             ))}
                             <FormControl component="fieldset" size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
