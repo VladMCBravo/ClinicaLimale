@@ -45,6 +45,8 @@ function TabPanel(props) {
 }
 
 // --- Componente Principal ---
+// --- CORREÇÃO AQUI ---
+// Certifique-se de que 'onEvolucaoSalva' está listado aqui nas props
 export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);

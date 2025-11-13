@@ -52,19 +52,24 @@ export default function HistoricoClinicaGeral({ pacienteId }) {
     };
 
     // 3. FUNÇÃO DE SALVAR
-    const handleSaveAnamnese = async (event) => {
-        event.preventDefault();
-        setIsSubmitting(true);
-        try {
-            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                clinica_geral: anamneseData // Chave correta para Clínica Geral
-            });
-            showSnackbar('Histórico salvo com sucesso!', 'success');
-        } catch (error) { 
-            showSnackbar('Erro ao salvar histórico.', 'error');
-        }
-        finally { setIsSubmitting(false); }
-    };
+    // --- CORREÇÃO AQUI ---
+// Substitua sua função 'handleSaveAnamnese' inteira por esta:
+const handleSaveAnamnese = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    try {
+        // 1. Usa o método PATCH (para corrigir o erro 405)
+        // 2. Aninha o 'anamneseData' (que está no escopo) dentro da chave correta
+        await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+            clinica_geral: anamneseData 
+        });
+        showSnackbar('Histórico salvo com sucesso!', 'success');
+    } catch (error) { 
+        console.error("Erro ao salvar histórico:", error.response?.data || error);
+        showSnackbar('Erro ao salvar histórico.', 'error');
+    }
+    finally { setIsSubmitting(false); }
+};
 
     if (isLoading) { 
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
