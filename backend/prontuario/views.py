@@ -270,16 +270,33 @@ class GerarEvolucaoPDFView(APIView):
         except Evolucao.DoesNotExist:
             return HttpResponse("Evolução não encontrada.", status=404)
         
-        # --- REPETE O PADRÃO ---
+        paciente = evolucao.paciente
+        
+        # 1. Busca Prontuário Mestre (Anamnese)
+        try:
+            anamnese = Anamnese.objects.get(paciente=paciente)
+        except Anamnese.DoesNotExist:
+            anamnese = None
+            
+        # 2. Busca Marcos DNPM (Apenas os avaliados)
+        marcos = MarcoDNPM.objects.filter(paciente=paciente).order_by('data_registro')
+        
+        # 3. Busca Vacinas (Todas ou apenas as aplicadas/atrasadas)
+        vacinas = VacinaPaciente.objects.filter(paciente=paciente).order_by('id') # Ordenação simples
+
         context = {
             'evolucao': evolucao,
-            'paciente': evolucao.paciente,
+            'paciente': paciente,
             'medico': evolucao.medico,
+            'anamnese': anamnese,
+            'marcos': marcos,
+            'vacinas': vacinas,
         }
-        filename = f'evolucao_{evolucao.paciente.nome_completo}_{evolucao.id}'
+        
+        filename = f'evolucao_{paciente.nome_completo}_{evolucao.id}'
         
         return generate_pdf_response(
-            'pdfs/evolucao_template.html', # Note que o nome do template continua o mesmo
+            'pdfs/evolucao_template.html', 
             context, 
             filename
         )

@@ -1,41 +1,15 @@
 {% extends "pdfs/base_pdf.html" %}
 
-{% block title %}Evolução Médica Completa{% endblock %}
+{% block title %}Prontuário e Evolução{% endblock %}
 
 {% block content %}
 
-    {% if anamnese %}
-        <Box class="prontuario-mestre">
-            
-            {% if anamnese.pediatrica %}
-                <h1 style="border-bottom: 1px solid #eee; font-size: 14pt;">HISTÓRICO PEDIÁTRICO</h1>
-                <table class="info-grid">
-                    <tr><td class="label">Parto:</td><td>{{ anamnese.pediatrica.tipo_parto|default:'N/A' }}</td></tr>
-                    <tr><td class="label">IG:</td><td>{{ anamnese.pediatrica.idade_gestacional|default:'N/A' }}</td></tr>
-                    <tr><td class="label">Peso Nasc.:</td><td>{{ anamnese.pediatrica.peso_nascimento|default:'N/A' }}</td></tr>
-                    <tr><td class="label">Apgar:</td><td>{{ anamnese.pediatrica.apgar_1|default:'_' }} / {{ anamnese.pediatrica.apgar_5|default:'_' }}</td></tr>
-                    <tr><td class="label">Intercorrências:</td><td>{{ anamnese.pediatrica.intercorrencias_gestacao_parto|default:'N/A' }}</td></tr>
-                </table>
-            {% endif %}
-
-            {% if anamnese.cardiologica %}
-                <h1 style="border-bottom: 1px solid #eee; font-size: 14pt;">HISTÓRICO CARDIOLÓGICO</h1>
-                <table class="info-grid">
-                    <tr><td class="label">Fatores de Risco:</td><td>{{ anamnese.cardiologica.fatores_risco_detalhes|default:'N/A' }}</td></tr>
-                    <tr><td class="label">Comorbidades:</td><td>{{ anamnese.cardiologica.comorbidades_outras|default:'N/A' }}</td></tr>
-                </table>
-            {% endif %}
-            
-            <br>
-        </Box>
-    {% endif %}
-    <h1>EVOLUÇÃO MÉDICA (SOAP DA CONSULTA)</h1>
-
+    <h1>REGISTRO DE ATENDIMENTO</h1>
     <table class="info-grid">
         <tr>
             <td class="label">Paciente:</td>
             <td>{{ paciente.nome_completo }}</td>
-            <td class="label">Data Atend.:</td>
+            <td class="label">Data:</td>
             <td>{{ evolucao.data_atendimento|date:"d/m/Y H:i" }}</td>
         </tr>
         <tr>
@@ -44,29 +18,110 @@
         </tr>
     </table>
 
-    <div class="section">
-        <div class="section-title">Subjetivo (S)</div>
-        <div class="content">{{ evolucao.notas_subjetivas|default:"N/A" }}</div>
+    <div style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;">
+        <h3 style="margin-top: 0; border-bottom: 1px solid #eee;">Evolução Atual (SOAP)</h3>
+        
+        {% if evolucao.notas_subjetivas %}
+        <div class="section">
+            <div class="section-title">Subjetivo</div>
+            <div class="content">{{ evolucao.notas_subjetivas }}</div>
+        </div>
+        {% endif %}
+
+        {% if evolucao.notas_objetivas %}
+        <div class="section">
+            <div class="section-title">Objetivo</div>
+            <div class="content">{{ evolucao.notas_objetivas }}</div>
+        </div>
+        {% endif %}
+
+        {% if evolucao.avaliacao %}
+        <div class="section">
+            <div class="section-title">Avaliação</div>
+            <div class="content">{{ evolucao.avaliacao }}</div>
+        </div>
+        {% endif %}
+
+        {% if evolucao.plano %}
+        <div class="section">
+            <div class="section-title">Plano</div>
+            <div class="content">{{ evolucao.plano }}</div>
+        </div>
+        {% endif %}
     </div>
 
-    <div class="section">
-        <div class="section-title">Objetivo (O)</div>
-        <div class="content">{{ evolucao.notas_objetivas|default:"N/A" }}</div>
+    {% if anamnese and anamnese.pediatrica %}
+    <div style="margin-top: 20px;">
+        <h3 style="border-bottom: 1px solid #eee;">Histórico Pediátrico (Resumo)</h3>
+        <table class="info-grid">
+            <tr>
+                <td class="label">Nascimento:</td>
+                <td>{{ anamnese.pediatrica.tipo_parto|default:"-" }} | IG: {{ anamnese.pediatrica.idade_gestacional|default:"-" }}</td>
+            </tr>
+            <tr>
+                <td class="label">Peso Nasc.:</td>
+                <td>{{ anamnese.pediatrica.peso_nascimento|default:"-" }}</td>
+            </tr>
+            <tr>
+                <td class="label">Apgar:</td>
+                <td>1': {{ anamnese.pediatrica.apgar_1|default:"-" }} | 5': {{ anamnese.pediatrica.apgar_5|default:"-" }}</td>
+            </tr>
+        </table>
     </div>
+    {% endif %}
 
-    <div class="section">
-        <div class="section-title">Avaliação (A)</div>
-        <div class="content">{{ evolucao.avaliacao|default:"N/A" }}</div>
+    {% if vacinas %}
+    <div style="margin-top: 20px;">
+        <h3 style="border-bottom: 1px solid #eee;">Status Vacinal</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10pt;">
+            <thead>
+                <tr style="background-color: #f0f0f0;">
+                    <th style="text-align: left; padding: 4px;">Vacina</th>
+                    <th style="text-align: left; padding: 4px;">Dose</th>
+                    <th style="text-align: left; padding: 4px;">Status</th>
+                    <th style="text-align: left; padding: 4px;">Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vacinas %}
+                    {% if v.status != 'Pendente' %} <tr>
+                        <td style="border-bottom: 1px solid #eee; padding: 4px;">{{ v.nome_vacina }}</td>
+                        <td style="border-bottom: 1px solid #eee; padding: 4px;">{{ v.dose }}</td>
+                        <td style="border-bottom: 1px solid #eee; padding: 4px;">{{ v.status }}</td>
+                        <td style="border-bottom: 1px solid #eee; padding: 4px;">{{ v.data_aplicacao|date:"d/m/Y"|default:"-" }}</td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
+    {% endif %}
 
-    <div class="section">
-        <div class="section-title">Plano (P)</div>
-        <div class="content">{{ evolucao.plano|default:"N/A" }}</div>
+    {% if marcos %}
+    <div style="margin-top: 20px;">
+        <h3 style="border-bottom: 1px solid #eee;">Desenvolvimento (DNPM) - Últimos Registros</h3>
+        <ul style="font-size: 10pt;">
+            {% for m in marcos %}
+                {% if m.alcançado != None %}
+                <li>
+                    <strong>{{ m.idade_marco }}:</strong> {{ m.marco_descricao }} - 
+                    {% if m.alcançado %}
+                        <span style="color: green;">Alcançado</span>
+                    {% else %}
+                        <span style="color: red;">Não Alcançado</span>
+                    {% endif %}
+                    {% if m.observacao %} ({{ m.observacao }}) {% endif %}
+                </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
     </div>
-    
+    {% endif %}
+
     <div style="text-align: center; margin-top: 50px;">
         <p>___________________________________</p>
         <p>Dr(a). {{ medico.get_full_name }}</p>
         <p>CRM: {{ medico.profile.crm|default:'N/A' }}</p>
     </div>
-    {% endblock %}
+
+{% endblock %}
