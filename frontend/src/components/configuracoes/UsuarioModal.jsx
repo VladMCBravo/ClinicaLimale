@@ -27,9 +27,19 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [especialidadesDisponiveis, setEspecialidadesDisponiveis] = useState([]);
     const [selectedEspecialidades, setSelectedEspecialidades] = useState([]);
-    
-    // --- NOVO: Estado para o loading do CEP ---
     const [isCepLoading, setIsCepLoading] = useState(false);
+
+    // ==================================================================
+    // === A CORREÇÃO ESTÁ AQUI ===
+    // Este useEffect busca a lista de especialidades
+    useEffect(() => {
+        if (open) {
+            configuracoesService.getEspecialidades()
+                .then(response => setEspecialidadesDisponiveis(response.data))
+                .catch(() => showSnackbar('Erro ao carregar especialidades.', 'error'));
+        }
+    }, [open, showSnackbar]);
+    // ==================================================================
 
     // 3. useEffect (COMPLETO)
     useEffect(() => {
