@@ -171,7 +171,8 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva })
             showSnackbar('Evolução salva com sucesso!', 'success');
             
             // --- CORREÇÃO AQUI ---
-            if(onEvolucoesSalva) onEvolucoesSalva(res.data.id);
+            // Mude de 'onEvolucoesSalva' (plural) para 'onEvolucaoSalva' (singular)
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
             handleLimparConsultaAtual();
         } catch (error) {

@@ -51,25 +51,29 @@ export default function HistoricoClinicaGeral({ pacienteId }) {
         setAnamneseGeralData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    // 3. FUNÇÃO DE SALVAR
-    // --- CORREÇÃO AQUI ---
-// Substitua sua função 'handleSaveAnamnese' inteira por esta:
-const handleSaveAnamnese = async (event) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    try {
-        // 1. Usa o método PATCH (para corrigir o erro 405)
-        // 2. Aninha o 'anamneseData' (que está no escopo) dentro da chave correta
-        await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-            clinica_geral: anamneseData 
-        });
-        showSnackbar('Histórico salvo com sucesso!', 'success');
-    } catch (error) { 
-        console.error("Erro ao salvar histórico:", error.response?.data || error);
-        showSnackbar('Erro ao salvar histórico.', 'error');
-    }
-    finally { setIsSubmitting(false); }
-};
+    // 3. FUNÇÃO DE SALVAR (CORRIGIDA)
+    const handleSaveAnamnese = async (event) => {
+        event.preventDefault();
+        setIsSubmitting(true);
+        try {
+            // 1. Monta o payload combinando os DOIS states
+            // O backend aceita os campos de alergia/medicamentos no nível superior
+            // e os campos de HMP dentro da chave 'clinica_geral'
+            const payload = {
+                ...anamneseGeralData, // Envia: { alergias: "...", medicamentos_em_uso: "..." }
+                clinica_geral: clinicaGeralData // Envia: { clinica_geral: { hmp: "..." } }
+            };
+
+            // 2. Usa o método PATCH
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
+            
+            showSnackbar('Histórico salvo com sucesso!', 'success');
+        } catch (error) { 
+            console.error("Erro ao salvar histórico:", error.response?.data || error);
+            showSnackbar('Erro ao salvar histórico.', 'error');
+        }
+        finally { setIsSubmitting(false); }
+    };
 
     if (isLoading) { 
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
