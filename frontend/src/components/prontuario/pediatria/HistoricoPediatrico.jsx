@@ -80,6 +80,12 @@ export default function HistoricoPediatrico({ pacienteId }) {
     // --- DEBUG 1: Log de Render ---
     console.log(`🔄 [RENDER HISTÓRICO] HistoricoPediatrico renderizou. Paciente ID: ${pacienteId}`);
 
+    // ★★★ A FUNÇÃO DEVE ESTAR AQUI (LINHA ~92) ★★★
+    const handleSaveAnamnese = useCallback(async (dataToSave) => {
+        console.log("💾 [AUTO-SAVE] Disparando handleSaveAnamnese...");
+        // ... (resto da função) ...
+    }, [pacienteId, showSnackbar]);
+
 
     // --- fetchAnamnese (COM CORREÇÃO + DEBUG) ---
     const fetchAnamnese = useCallback(async () => {
