@@ -89,6 +89,8 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
     const [vacinasSalvas, setVacinasSalvas] = useState({});
+    // --- 1. ADICIONE ESTE NOVO STATE ---
+    const [loadingVacinas, setLoadingVacinas] = useState({}); // Controla o loading por linha
 
     // --- ALTERAÇÃO 2: fetchVacinas usa 'vacina_id' como chave ---
     const fetchVacinas = useCallback(async () => {
@@ -122,7 +124,10 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
         const { id, nome, dose, idade, defaultName } = vacinaInfo;
         const key = id; // O 'vacina_id' (ex: 'pneumo_1')
         const vacinaExistente = vacinasSalvas[key];
-        
+        // --- 2. ADICIONE ESTA TRAVA ---
+        // Se esta vacina específica já está salvando, não faça nada.
+        if (loadingVacinas[key]) return; 
+        // --- FIM DA TRAVA ---
         // 1. Obter os dados atuais salvos (ou um objeto vazio)
         const savedData = vacinasSalvas[key] || {};
 
@@ -169,6 +174,8 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                 ...payload // Atualiza os campos editáveis
             }
         }));
+        // --- 3. ATIVE A TRAVA E FAÇA A CHAMADA ---
+        setLoadingVacinas(prev => ({ ...prev, [key]: true })); // Liga o loading
 
         try {
             if (vacinaExistente?.id) { // Usa o ID do banco se existir
