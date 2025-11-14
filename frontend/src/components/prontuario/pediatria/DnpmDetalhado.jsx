@@ -183,7 +183,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             else if (marcosPorIdade.length > 0) setExpanded(marcosPorIdade[marcosPorIdade.length - 1].idade);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, marcosSalvos]);
+    }, [isLoading]);
 
 
     // --- ALTERAÇÃO 5: Novo Componente (MarcoAvaliacao) ---

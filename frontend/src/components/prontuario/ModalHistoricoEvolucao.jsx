@@ -118,13 +118,14 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
                             data={relatorioData.anamnese}
                             renderFunc={(data) => (
-                                <Typography variant="body2" paragraph>
-                                    Parto: {data.tipo_parto || 'N/I'}, 
-                                    IG: {data.idade_gestacional || 'N/I'}, 
-                                    Peso Nasc.: {data.peso_nascimento || 'N/I'}g, 
-                                    APGAR: {`${data.apgar_1 || 'N/I'}/${data.apgar_5 || 'N/I'}/${data.apgar_10 || 'N/I'}`}
-                                </Typography>
-                            )}
+    <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>
+        {`Parto: ${data.tipo_parto || 'N/I'}`}
+        {`\nIG: ${data.idade_gestacional || 'N/I'}`}
+        {`\nPeso Nasc.: ${data.peso_nascimento || 'N/I'}g`}
+        {`\nAPGAR: ${data.apgar_1 || 'N/I'} / ${data.apgar_5 || 'N/I'} / ${data.apgar_10 || 'N/I'}`}
+        {`\nTriagens: ${data.triagens?.pezinho_status || 'N/I'}`}
+    </Typography>
+)}
                         />
                         
                         {/* 3. SEÇÃO DO DNPM (MARCOS) */}
@@ -151,7 +152,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         {/* 4. SEÇÃO DE VACINAS */}
                         <SecaoRelatorio 
                             titulo="Resumo da Vacinação (Cadastro Mestre)"
-                            data={relatorioData.vacinas.filter(v => v.status === 'Aplicada')} // Mostra apenas vacinas aplicadas
+                            data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} // Mostra tudo que foi preenchido
                             renderFunc={(data) => (
                                 <TableContainer component={Paper} variant="outlined">
                                     <Table size="small">
