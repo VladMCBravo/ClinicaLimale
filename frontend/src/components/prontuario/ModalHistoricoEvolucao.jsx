@@ -37,14 +37,9 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}, Paciente ID: ${pacienteId}`);
 
             // ★★★ CORREÇÃO AQUI ★★★
-            // Define headers para forçar o axios a não usar o cache
-            const cacheBustConfig = {
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                }
-            };
+            // Em vez de headers, adicionamos um parâmetro único à URL para
+            // garantir que o navegador não use uma resposta em cache.
+            const cacheBuster = `?_=${new Date().getTime()}`;
             // ★★★ FIM DA CORREÇÃO ★★★
 
             const fetchTudo = async () => {
