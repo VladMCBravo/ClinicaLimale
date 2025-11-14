@@ -116,18 +116,24 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
         // --- Fim Atualização Otimista ---
 
         try {
+            // Prepara o payload completo para garantir que o backend receba todos os campos
+            const fullPayload = {
+                marco_id: marco_id,
+                marco_descricao: marco_descricao,
+                idade_marco: marco_id.split('_')[0],
+                // Mescla os dados otimistas com o payload
+                alcançado: optimisticData.alcançado !== undefined ? optimisticData.alcançado : null, 
+                observacao: optimisticData.observacao || ''
+            };
+
             if (marcoExistente?.id) {
-                // PATCH (Atualiza só o que mudou)
-                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${marcoExistente.id}/`, payload);
+                // PATCH (Envia o payload COMPLETO)
+                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${marcoExistente.id}/`, fullPayload);
             } else {
-                // POST (Cria novo)
-                const fullPayload = {
-                    marco_id: marco_id,
-                    marco_descricao: marco_descricao,
-                    idade_marco: marco_id.split('_')[0],
-                    alcançado: payload.alcançado !== undefined ? payload.alcançado : null,
-                    observacao: payload.observacao || ''
-                };
+                // POST (Envia o payload COMPLETO)
+                
+                // ★★★ CORREÇÃO AQUI ★★★
+                // A linha abaixo estava errada, apontando para /vacinas/
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, fullPayload);
                 
                 // Atualiza o estado local com o ID do banco

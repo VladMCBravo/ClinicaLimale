@@ -1,102 +1,185 @@
-// src/components/prontuario/ModalHistoricoEvolucao.jsx
+/// src/components/prontuario/ModalHistoricoEvolucao.jsx
+// VERSÃO TOTALMENTE REFEITA: Agora busca e exibe TUDO (SOAP, Anamnese, DNPM, Vacinas)
+
 import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, Button, 
-    Typography, Box, CircularProgress, Divider 
+    Typography, Box, CircularProgress, Divider, Paper,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
-// --- CORREÇÃO DO ERRO DE BUILD: Adicionando extensões .js ---
 import apiClient from '../../api/axiosConfig.js';
 import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
-// --- CORREÇÃO 1: Adicione 'pacienteId' nas props ---
+// Componente simples para renderizar seções
+const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
+    if (!data) return null;
+    return (
+        <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'primary.main' }}>
+                {titulo}
+            </Typography>
+            <Divider sx={{ mb: 1.5 }} />
+            {renderFunc(data)}
+        </Box>
+    );
+};
+
 export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose }) {
-    const [evolucao, setEvolucao] = useState(null);
+    const [relatorioData, setRelatorioData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        // Verifica se temos os DOIS IDs antes de buscar
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
-            setEvolucao(null); 
+            setRelatorioData(null); 
             
-            // --- CORREÇÃO AQUI ---
-        // Remova o /api do início. O apiClient já tem.
-        const urlCorreta = `/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`;
+            const fetchTudo = async () => {
+                try {
+                    // 1. Busca a Evolução (SOAP)
+                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`);
+                    
+                    // 2. Busca a Anamnese (Histórico Pediátrico)
+                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+                    
+                    // 3. Busca o DNPM (Marcos)
+                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
+                    
+                    // 4. Busca as Vacinas
+                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`);
 
-        apiClient.get(urlCorreta)
-                .then(res => setEvolucao(res.data))
-                .catch(err => {
-                    // Este snackbar agora deve mostrar o erro 404
-                    showSnackbar('Erro ao buscar detalhes da evolução.', 'error');
-                    console.error("Erro ao buscar evolução:", err);
+                    // 5. Junta tudo
+                    setRelatorioData({
+                        evolucao: resEvolucao.data,
+                        anamnese: resAnamnese.data.pediatrica,
+                        dnpm: resDnpm.data,
+                        vacinas: resVacinas.data
+                    });
+                } catch (err) {
+                    showSnackbar('Erro ao buscar o relatório completo da consulta.', 'error');
+                    console.error("Erro ao buscar relatório completo:", err);
                     onClose();
-                })
-                .finally(() => setIsLoading(false));
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            fetchTudo();
         }
-    // Adicione pacienteId nas dependências do useEffect
     }, [pacienteId, evolucaoId, onClose, showSnackbar]);
     
-    // --- CORREÇÃO 3: Função de PDF ---
-    // Estava usando window.open() direto, o que falha a autenticação.
-    // Trocamos para o método async com apiClient + blob.
+    // A função de Gerar PDF continua igual, ela já busca tudo no backend
     const handleDownloadPdf = async () => {
         if (!evolucaoId) return;
-
         try {
-            // --- CORREÇÃO AQUI ---
-        // Remova o /api do início aqui também.
-        const response = await apiClient.get(
-            `/pdf/evolucao/${evolucaoId}/`,
-            { responseType: 'blob' } 
-        );
-
+            const response = await apiClient.get(
+                `/pdf/evolucao/${evolucaoId}/`, // Esta URL já gera o "SUPER PDF"
+                { responseType: 'blob' } 
+            );
             const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
             const url = window.URL.createObjectURL(pdfBlob);
             window.open(url, '_blank');
-            // window.URL.revokeObjectURL(url); // Opcional
-
         } catch (error) {
-            console.error("Erro ao gerar PDF da evolução:", error);
-            if (error.response && error.response.status === 404) {
-                 showSnackbar('Erro 404: Rota do PDF de evolução não encontrada.', 'error');
-            } else {
-                 showSnackbar('Erro ao gerar PDF da evolução.', 'error');
-            }
+            console.error("Erro ao gerar PDF:", error);
+            showSnackbar('Erro ao gerar o PDF completo.', 'error');
         }
     };
 
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>Detalhes da Evolução</DialogTitle>
+            <DialogTitle>Relatório da Consulta</DialogTitle>
             <DialogContent dividers>
                 {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
-                {evolucao && (
+                {relatorioData && (
                     <Box>
-                        <Typography variant="body2" gutterBottom>
-                            <strong>Data:</strong> {new Date(evolucao.data_atendimento).toLocaleString('pt-BR')}
-                        </Typography>
-                        <Typography variant="body2" gutterBottom>
-                            <strong>Médico:</strong> {evolucao.medico_nome || 'Não informado'}
-                        </Typography>
-                        <Divider sx={{ my: 2 }} />
+                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) */}
+                        <SecaoRelatorio 
+                            titulo={`Consulta do Dia (${new Date(relatorioData.evolucao.data_atendimento).toLocaleString('pt-BR')} - ${relatorioData.evolucao.medico_nome || ''})`}
+                            data={relatorioData.evolucao}
+                            renderFunc={(data) => (
+                                <Box>
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Subjetivo (S)</Typography>
+                                    <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.notas_subjetivas || 'N/A'}</Typography>
+                                    
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Objetivo (O)</Typography>
+                                    <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.notas_objetivas || 'N/A'}</Typography>
+                                    
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Avaliação (A)</Typography>
+                                    <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.avaliacao || 'N/A'}</Typography>
+                                    
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Plano (P)</Typography>
+                                    <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.plano || 'N/A'}</Typography>
+                                </Box>
+                            )}
+                        />
                         
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Subjetivo (S)</Typography>
-                        <Typography variant="body1" paragraph style={{ whiteSpace: 'pre-wrap' }}>{evolucao.notas_subjetivas || 'N/A'}</Typography>
+                        {/* 2. SEÇÃO DA ANAMNESE (HISTÓRICO) */}
+                        <SecaoRelatorio 
+                            titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
+                            data={relatorioData.anamnese}
+                            renderFunc={(data) => (
+                                <Typography variant="body2" paragraph>
+                                    Parto: {data.tipo_parto || 'N/I'}, 
+                                    IG: {data.idade_gestacional || 'N/I'}, 
+                                    Peso Nasc.: {data.peso_nascimento || 'N/I'}g, 
+                                    APGAR: {`${data.apgar_1 || 'N/I'}/${data.apgar_5 || 'N/I'}/${data.apgar_10 || 'N/I'}`}
+                                </Typography>
+                            )}
+                        />
                         
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Objetivo (O)</Typography>
-                        <Typography variant="body1" paragraph style={{ whiteSpace: 'pre-wrap' }}>{evolucao.notas_objetivas || 'N/A'}</Typography>
-                        
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Avaliação (A)</Typography>
-                        <Typography variant="body1" paragraph style={{ whiteSpace: 'pre-wrap' }}>{evolucao.avaliacao || 'N/A'}</Typography>
-                        
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Plano (P)</Typography>
-                        <Typography variant="body1" paragraph style={{ whiteSpace: 'pre-wrap' }}>{evolucao.plano || 'N/A'}</Typography>
+                        {/* 3. SEÇÃO DO DNPM (MARCOS) */}
+                        <SecaoRelatorio 
+                            titulo="Resumo do DNPM (Cadastro Mestre)"
+                            data={relatorioData.dnpm.filter(m => m.alcançado === false)} // Mostra apenas marcos ausentes
+                            renderFunc={(data) => (
+                                data.length > 0 ? (
+                                    <ul>
+                                        {data.map(marco => (
+                                            <li key={marco.id}>
+                                                <Typography variant="body2">
+                                                    <strong>{marco.idade_marco}:</strong> {marco.marco_descricao} (Status: {marco.alcançado ? 'Alcançado' : 'Ausente/Alerta'})
+                                                </Typography>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <Typography variant="body2">Todos os marcos registrados estão alcançados.</Typography>
+                                )
+                            )}
+                        />
+
+                        {/* 4. SEÇÃO DE VACINAS */}
+                        <SecaoRelatorio 
+                            titulo="Resumo da Vacinação (Cadastro Mestre)"
+                            data={relatorioData.vacinas.filter(v => v.status === 'Aplicada')} // Mostra apenas vacinas aplicadas
+                            renderFunc={(data) => (
+                                <TableContainer component={Paper} variant="outlined">
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>Vacina</TableCell>
+                                                <TableCell>Dose</TableCell>
+                                                <TableCell>Data Aplicação</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {data.map(vacina => (
+                                                <TableRow key={vacina.id}>
+                                                    <TableCell>{vacina.nome_vacina}</TableCell>
+                                                    <TableCell>{vacina.dose}</TableCell>
+                                                    <TableCell>{new Date(vacina.data_aplicacao).toLocaleDateString('pt-BR')}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            )}
+                        />
                     </Box>
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleDownloadPdf} variant="outlined" disabled={!evolucao || isLoading}>Gerar PDF</Button>
+                <Button onClick={handleDownloadPdf} variant="outlined" disabled={!relatorioData || isLoading}>Gerar PDF Completo</Button>
                 <Button onClick={onClose} variant="contained">Fechar</Button>
             </DialogActions>
         </Dialog>
