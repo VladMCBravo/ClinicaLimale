@@ -237,11 +237,23 @@ class AnamneseCardiologia(models.Model):
 class AnamnesePediatria(models.Model):
     anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='pediatrica')
     
-    # --- Gestacional e Nascimento (Mantidos) ---
+    # --- Gestacional e Nascimento (VERIFIQUE ISSO) ---
     tipo_parto = models.CharField(max_length=50, blank=True, null=True)
     idade_gestacional = models.CharField(max_length=50, blank=True, null=True)
+    
+    # ★★★ CORREÇÃO DE TIPO DE DADO ★★★
+    # Deve ser IntegerField (ou DecimalField), não CharField, para o 'peso_nascimento: 3500' funcionar
     peso_nascimento = models.PositiveIntegerField(null=True, blank=True, verbose_name="Peso ao Nascer (g)")
-    apgar = models.CharField(max_length=10, blank=True, null=True, verbose_name="APGAR (1º/5º)")
+    
+    # ★★★ CORREÇÃO DE TIPO DE DADO ★★★
+    # Os 3 campos separados (como o médico quer)
+    apgar_1 = models.PositiveIntegerField(null=True, blank=True, verbose_name="APGAR 1º Min")
+    apgar_5 = models.PositiveIntegerField(null=True, blank=True, verbose_name="APGAR 5º Min")
+    apgar_10 = models.PositiveIntegerField(null=True, blank=True, verbose_name="APGAR 10º Min")
+    
+    # REMOVA ESTE CAMPO SE ELE EXISTIR
+    # apgar = models.CharField(max_length=10, blank=True, null=True, verbose_name="APGAR (1º/5º)")
+
     intercorrencias_gestacao_parto = models.TextField(blank=True, null=True)
     
     # --- Vacinação (Mantido - Resumo) ---
@@ -387,8 +399,11 @@ class VacinaPaciente(models.Model):
     ]
 
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='vacinas')
-    
-    # Nome da vacina (ex: 'Pentavalente')
+    # ★★★ ADICIONE ESTA LINHA ★★★
+    # Este é o ID do frontend (ex: 'penta_1', 'bcg')
+    vacina_id = models.CharField(max_length=100, db_index=True, null=True, blank=True)
+
+    # Nome da vacina (ex: 'Pentavalente' ou 'Pneumo 13')
     nome_vacina = models.CharField(max_length=100, db_index=True)
     
     # Idade recomendada (ex: '2m', 'Ao Nascer')

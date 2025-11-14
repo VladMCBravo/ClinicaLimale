@@ -1,4 +1,5 @@
 /// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
+// VERSÃO CORRIGIDA: Mantém APGAR em 3 campos, corrige 'peso_nascimento' e o 'ReferenceError'.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -10,11 +11,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
-// --- (Constantes de Opções omitidas para brevidade) ---
+// --- Constantes (APGAR mantido como estava) ---
 const tipoPartoOptions = ['Vaginal', 'Fórceps', 'Cesárea'];
 const igOptions = ['Pré-termo (<37s)', 'Termo (37-41s)', 'Pós-termo (>42s)'];
-const pesoNascerOptions = ['Baixo peso (<2500g)', 'Peso adequado (2500-3999g)', 'Macrossômico (>=4000g)'];
 const apgarScoreOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
+// (Restante das constantes... alimentacao06Options, etc... permanecem iguais)
 const alimentacao06Options = {
     tipo_aleitamento: [{value: 'AME', label: 'AME'}, {value: 'Misto', label: 'Misto'}, {value: 'Formula', label: 'Fórmula'}],
     pega: [{value: 'Boa', label: 'Boa'}, {value: 'Parcial', label: 'Parcial'}, {value: 'Ruim', label: 'Ruim'}],
@@ -44,9 +45,11 @@ const sonoComportamentoOptions = {
 const normalAlteradoOptions = ['Normal', 'Alterado'];
 const presenteAlteradoOptions = ['Presente', 'Alterado'];
 const eoatOptions = ['Presente Bilateral', 'Alterado', 'Ausente'];
+// --- initialState (Mantendo 3 campos de APGAR) ---
 const initialState = {
-    tipo_parto: '', idade_gestacional: '', peso_nascimento: '', 
-    apgar_1: '', apgar_5: '', apgar_10: '', 
+    tipo_parto: '', idade_gestacional: '', 
+    peso_nascimento: '', // Será um número, mas o estado inicial é string
+    apgar_1: '', apgar_5: '', apgar_10: '', // 3 campos separados
     intercorrencias_gestacao_parto: '',
     triagens: {
         pezinho_status: '', pezinho_desc: '',
@@ -72,52 +75,50 @@ export default function HistoricoPediatrico({ pacienteId }) {
     };
 
     const [anamneseData, setAnamneseData] = useState(initialState);
-
-    // --- 2. ADICIONE O TIMER DEBOUCE ---
     const debounceTimer = useRef(null);
 
-    // --- DEBUG 1: Log de Render ---
     console.log(`🔄 [RENDER HISTÓRICO] HistoricoPediatrico renderizou. Paciente ID: ${pacienteId}`);
 
-    // --- ★ CORREÇÃO 1 ★ ---
-    // A FUNÇÃO DE SALVAR FOI MOVIDA PARA ANTES DOS useEffects QUE A UTILIZAM
-    // --- 3. FUNÇÃO DE AUTO-SAVE ---
+    // --- FUNÇÃO DE SALVAR (Movida para o topo e corrigida) ---
     const handleSaveAnamnese = useCallback(async (dataToSave) => {
         console.log("💾 [AUTO-SAVE] Disparando handleSaveAnamnese...");
         setIsSubmitting(true);
 
-        const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10'];
+        // Clona os dados para não modificar o estado diretamente
+        const dataCopy = { ...dataToSave };
+
+        // --- PREPARA O PAYLOAD ---
+        // 1. Converte campos numéricos de "" para null
+        const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10', 'peso_nascimento'];
         camposNumericos.forEach(campo => {
-            if (dataToSave[campo] === '') {
-                dataToSave[campo] = null;
-            }
+            // Converte para número ou null
+            const valorNum = parseInt(dataCopy[campo], 10);
+            dataCopy[campo] = isNaN(valorNum) ? null : valorNum;
         });
 
-        const payload = { pediatria: dataToSave };
+        const payload = { pediatria: dataCopy };
 
         try {
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
             console.log("   ✅ [AUTO-SAVE] Salvo com sucesso!");
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error.response?.data || error);
-            showSnackbar('Erro ao salvar histórico.', 'error');
+            showSnackbar('Erro ao salvar histórico (verifique os campos).', 'error');
         } finally {
             setIsSubmitting(false);
         }
-    }, [pacienteId, showSnackbar]); // 'showSnackbar' aqui está OK
+    }, [pacienteId, showSnackbar]);
 
 
-    // --- fetchAnamnese (COM CORREÇÃO + DEBUG) ---
+    // --- fetchAnamnese ---
     const fetchAnamnese = useCallback(async () => {
-        // --- DEBUG 2: Log de Execução do Efeito ---
         console.log("🔥 [EFFECT HISTÓRICO] fetchAnamnese foi DISPARADO!");
-        
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             if (res.data && res.data.pediatrica) {
-                // ... (lógica de deep merge)
                 const data = { ...initialState, ...(res.data.pediatrica || {}) };
+                // ... (lógica de deep merge) ...
                 data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
                 data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
                 data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
@@ -137,35 +138,26 @@ export default function HistoricoPediatrico({ pacienteId }) {
             setIsLoading(false);
             setExpanded('panel1'); 
         }
-    // --- ★ CORREÇÃO 2 ★ ---
-    // 'showSnackbar' REMOVIDO das dependências para evitar o loop infinito.
-    }, [pacienteId]); 
+    }, [pacienteId]); // Removido showSnackbar
     // --- FIM fetchAnamnese ---
 
-    // Este useEffect busca os dados UMA VEZ quando o pacienteId muda.
+    // useEffect de Fetch
     useEffect(() => {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // --- 4. ADICIONE ESTE useEffect PARA O AUTO-SAVE ---
-    // Agora ele pode chamar 'handleSaveAnamnese' com segurança
+    // useEffect de Auto-Save
     useEffect(() => {
         if (isLoading) {
-            console.log("⏳ [AUTO-SAVE] Bloqueado. (isLoading = true)");
             return; // Não salvar enquanto os dados iniciais estão carregando
         }
-
         if (debounceTimer.current) {
-            console.log("⏱️ [AUTO-SAVE] Limpando timer anterior.");
             clearTimeout(debounceTimer.current);
         }
-
-        console.log("⏱️ [AUTO-SAVE] Agendando salvamento em 1.5s...");
         debounceTimer.current = setTimeout(() => {
-            console.log("▶️ [AUTO-SAVE] Timer executado! Preparando para salvar...");
             const dataToSave = { ...anamneseData }; 
             handleSaveAnamnese(dataToSave);
-        }, 1500); // 1.5 segundos após a última mudança
+        }, 1500);
 
         return () => {
             if (debounceTimer.current) {
@@ -177,18 +169,15 @@ export default function HistoricoPediatrico({ pacienteId }) {
 
     // --- Handlers (sem alteração) ---
     const handleChange = (e) => {
-        console.log(`[DEBUG] handleChange: ${e.target.name} = ${e.target.value}`);
         setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
     const handleJsonChange = (jsonField, key, value) => {
-        console.log(`[DEBUG] handleJsonChange: ${jsonField}.${key} = ${value}`);
         setAnamneseData(prev => ({
             ...prev,
             [jsonField]: { ...(prev[jsonField] || {}), [key]: value }
         }));
     };
     const handleJsonCheckboxChange = (jsonField, key, checked) => {
-         console.log(`[DEBUG] handleJsonCheckboxChange: ${jsonField}.${key} = ${checked}`);
          setAnamneseData(prev => ({
             ...prev,
             [jsonField]: { ...(prev[jsonField] || {}), [key]: checked }
@@ -200,18 +189,19 @@ export default function HistoricoPediatrico({ pacienteId }) {
     };
     // --- Fim Handlers ---
 
-    // --- Handlers de Normalidade (COM DEBUG) ---
+    // --- Handlers de Normalidade (ATUALIZADOS) ---
     const handleNormalidadeGestacional = () => {
-        // --- DEBUG 3: Log de Clique ---
         console.log("🖱️ [CLICK HISTÓRICO] 'Preencher Normalidade (Gestacional)' clicado!");
         setAnamneseData(prev => ({
             ...prev,
             tipo_parto: 'Vaginal',
             idade_gestacional: 'Termo (37-41s)',
-            peso_nascimento: 'Peso adequado (2500-3999g)',
-            apgar_1: '9', 
+            // --- CORRIGIDO ---
+            peso_nascimento: 3500, // Salva como NÚMERO
+            apgar_1: '9',         // Mantém campos separados
             apgar_5: '10',
             apgar_10: '10',
+            // --- FIM CORREÇÃO ---
             triagens: {
                 pezinho_status: 'Normal', pezinho_desc: '',
                 orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
@@ -224,6 +214,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
         showSnackbar('Dados gestacionais e triagens preenchidos.', 'info');
     };
     
+    // ... (Handlers de normalidade de Alimentação e Sono não precisam de mudança) ...
     const handleNormalidadeAlim06 = () => {
         console.log("🖱️ [CLICK HISTÓRICO] 'Preencher Normalidade (0-6m)' clicado!");
         setAnamneseData(prev => ({
@@ -276,20 +267,17 @@ export default function HistoricoPediatrico({ pacienteId }) {
         showSnackbar('Sono/Comportamento preenchidos com padrão normal.', 'info');
     };
     
-    // --- 6. Habilitar o "Limpar Histórico" (se você mantiver) ---
     const handleLimparHistorico = () => {
         setAnamneseData(initialState); 
         showSnackbar('Campos do histórico limpos.', 'info');
     };
     // --- Fim Handlers de Normalidade ---
 
-    // A FUNÇÃO 'handleSaveAnamnese' FOI MOVIDA PARA O TOPO (LINHA 92)
-
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- JSX (Sem alterações, apenas mantido) ---
+    // --- JSX (COM CAMPOS APGAR E PESO CORRIGIDOS) ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -315,11 +303,21 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             <TextField select label="Idade Gestacional" name="idade_gestacional" value={anamneseData.idade_gestacional || ''} onChange={handleChange} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
                                 {igOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
                             </TextField>
-                            <TextField select label="Peso ao nascer" name="peso_nascimento" value={anamneseData.peso_nascimento || ''} onChange={handleChange} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
-                                {pesoNascerOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
-                            </TextField>
+                            
+                            {/* --- CAMPO CORRIGIDO (Peso) --- */}
+                            <TextField 
+                                label="Peso ao nascer (g)" 
+                                name="peso_nascimento" 
+                                type="number" // Garante que seja numérico
+                                value={anamneseData.peso_nascimento || ''} 
+                                onChange={handleChange} 
+                                size="small" 
+                                sx={{ minWidth: 170, flex: '1 1 170px' }}
+                                helperText="Ex: 3500"
+                            />
                         </Box>
                         
+                        {/* --- CAMPOS APGAR (Restaurados para 3 campos) --- */}
                         <Typography variant="body2" sx={{ mt: 2, fontWeight: 'medium', color: 'text.secondary' }}>APGAR</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
                              <TextField select label="1º Minuto" name="apgar_1" value={anamneseData.apgar_1 || ''} onChange={handleChange} size="small" sx={{ minWidth: 100, flex: '1 1 100px' }}> 
@@ -346,11 +344,10 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             sx={{ mt: 2 }}
                         />
                         
+                        {/* ... (Restante do JSX de Triagens, Alimentação, etc. permanece igual) ... */}
                         <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
                             <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
-                            
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5 }}>
-                                
                                 {/* Teste do Pezinho */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Teste do Pezinho" name="pezinho_status" value={anamneseData.triagens.pezinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
@@ -362,7 +359,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                         <TextField label="Descrever (Pezinho)" name="pezinho_desc" value={anamneseData.triagens.pezinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
                                     </Box>
                                 )}
-
                                 {/* Teste da Orelhinha (EOAT) */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Orelhinha (EOAT)" name="orelhinha_eoat_status" value={anamneseData.triagens.orelhinha_eoat_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
@@ -374,7 +370,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                         <TextField label="Descrever (EOAT)" name="orelhinha_eoat_desc" value={anamneseData.triagens.orelhinha_eoat_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
                                     </Box>
                                 )}
-
                                 {/* Teste da Orelhinha (BERA) */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="BERA" name="orelhinha_bera_status" value={anamneseData.triagens.orelhinha_bera_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
@@ -386,7 +381,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                         <TextField label="Descrever (BERA)" name="orelhinha_bera_desc" value={anamneseData.triagens.orelhinha_bera_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
                                     </Box>
                                 )}
-
                                 {/* Teste do Olhinho (Reflexo Vermelho) */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Olhinho (Refl. Verm.)" name="olhinho_status" value={anamneseData.triagens.olhinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
@@ -398,7 +392,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                         <TextField label="Descrever (Olhinho)" name="olhinho_desc" value={anamneseData.triagens.olhinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
                                     </Box>
                                 )}
-
                                 {/* Teste do Coraçãozinho */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Coraçãozinho" name="coracaozinho_status" value={anamneseData.triagens.coracaozinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
@@ -410,7 +403,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                         <TextField label="Descrever (Coraçãozinho)" name="coracaozinho_desc" value={anamneseData.triagens.coracaozinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
                                     </Box>
                                 )}
-                                
                                 {/* Teste da Linguinha */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}>
                                     <TextField select label="Linguinha" name="linguinha_status" value={anamneseData.triagens.linguinha_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
@@ -427,7 +419,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionDetails>
                 </Accordion>
 
-                {/* Accordion: Alimentação 0-6m (ATUALIZADO) */}
+                {/* Accordion: Alimentação 0-6m */}
                 <Accordion 
                     expanded={expanded === 'panel2'} 
                     onChange={handleAccordionChange('panel2')}
@@ -437,7 +429,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionSummary>
                     <AccordionDetails>
                         <Button size="small" variant="outlined" onClick={handleNormalidadeAlim06} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-                         
                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             {Object.entries(alimentacao06Options).filter(([key]) => key !== 'suplementacao').map(([key, options]) => (
                                 <TextField 
@@ -450,7 +441,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                     size="small"
                                     sx={{ minWidth: 170, flex: '1 1 170px' }}
                                 >
-                                    {options.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    {options.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
                                 </TextField>
                             ))}
                              <FormControl component="fieldset" size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
@@ -473,7 +464,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionDetails>
                 </Accordion>
 
-                {/* Accordion: Alimentação 6-12m (ATUALIZADO) */}
+                {/* Accordion: Alimentação 6-12m */}
                  <Accordion 
                     expanded={expanded === 'panel3'} 
                     onChange={handleAccordionChange('panel3')}
@@ -483,7 +474,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionSummary>
                     <AccordionDetails>
                         <Button size="small" variant="outlined" onClick={handleNormalidadeAlim612} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-                         
                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                              {Object.entries(alimentacao612Options).filter(([key]) => key !== 'suplementacao').map(([key, options]) => (
                                 <TextField 
@@ -496,7 +486,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                                     size="small"
                                     sx={{ minWidth: 170, flex: '1 1 170px' }}
                                 >
-                                    {options.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                                    {options.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
                                 </TextField>
                             ))}
                             <FormControl component="fieldset" size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
@@ -525,7 +515,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionDetails>
                 </Accordion>
 
-                {/* Accordion: Sono/Comportamento (ATUALIZADO) */}
+                {/* Accordion: Sono/Comportamento */}
                  <Accordion 
                     expanded={expanded === 'panel4'} 
                     onChange={handleAccordionChange('panel4')}
@@ -535,7 +525,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionSummary>
                     <AccordionDetails>
                         <Button size="small" variant="outlined" onClick={handleNormalidadeSono} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
-                        
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             {Object.entries(sonoComportamentoOptions).map(([key, options]) => (
                                 <TextField 
@@ -565,16 +554,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                     </AccordionDetails>
                 </Accordion>
             </Box>
-
-            {/* Botões de Ação (REMOVER OU COMENTAR) */}
-        {/* <Box sx={{ textAlign: 'right', mt: 3, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button onClick={handleLimparHistorico} variant="outlined" color="secondary" disabled={isSubmitting}>
-                Limpar Histórico
-            </Button>
-            <Button onClick={handleSaveAnamnese} variant="contained" color="primary" disabled={isSubmitting}>
-                {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Histórico'}
-            </Button>
-        </Box> */}
-    </Paper>
-);
+        </Paper>
+    );
 }

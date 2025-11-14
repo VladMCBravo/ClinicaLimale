@@ -81,7 +81,9 @@ class MarcoDNPMAdmin(admin.ModelAdmin):
 
 @admin.register(VacinaPaciente)
 class VacinaPacienteAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 'nome_vacina', 'dose', 'status', 'data_aplicacao')
+    list_display = ('paciente', 
+                    'vacina_id', # ★★★ ADICIONE ESTA LINHA ★★★
+                    'nome_vacina', 'dose', 'status', 'data_aplicacao')
     list_filter = ('status', 'nome_vacina')
     search_fields = ('paciente__nome_completo',)
 

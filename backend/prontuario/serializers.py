@@ -224,7 +224,9 @@ class VacinaPacienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = VacinaPaciente
         fields = [
-            'id', 'paciente', 'nome_vacina', 'idade_recomendada', 
+            'id', 'paciente', 
+            'vacina_id', # ★★★ ADICIONE ESTA LINHA ★★★
+            'nome_vacina', 'idade_recomendada', 
             'dose', 'data_aplicacao', 'status', 'observacao'
         ]
         read_only_fields = ['paciente']
