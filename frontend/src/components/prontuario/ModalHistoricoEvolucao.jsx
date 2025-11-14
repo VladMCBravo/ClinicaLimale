@@ -1,5 +1,5 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO ATUALIZADA: Filtro de Anamnese mais inteligente
+// VERSÃO ATUALIZADA: Adiciona headers de cache-control para buscar dados novos
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -36,12 +36,24 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             
             console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}, Paciente ID: ${pacienteId}`);
 
+            // ★★★ CORREÇÃO AQUI ★★★
+            // Define headers para forçar o axios a não usar o cache
+            const cacheBustConfig = {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                }
+            };
+            // ★★★ FIM DA CORREÇÃO ★★★
+
             const fetchTudo = async () => {
                 try {
-                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`);
-                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
-                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
-                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`);
+                    // Adiciona o 'cacheBustConfig' em todas as chamadas GET
+                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, cacheBustConfig);
+                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`, cacheBustConfig);
+                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, cacheBustConfig);
+                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`, cacheBustConfig);
 
                     const dadosBrutos = {
                         evolucao: resEvolucao.data,
@@ -82,11 +94,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // ★★★ Funções de Render e Filtro ATUALIZADAS ★★★
-    
-    // Novo helper de checagem:
-    // Retorna true se o valor for "preenchido" (não nulo, não undefined, não string vazia)
-    // Permite o número 0.
+    // (Funções de Render e Filtro... sem alterações)
     const isFilled = (value) => {
         if (value === 0) return true;
         if (value === null || value === undefined || value === "") return false;
@@ -98,7 +106,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         
         const itensPreenchidos = [];
         
-        // Helper para adicionar itens
         const addItem = (label, value, formatter = (v) => v) => {
             if (isFilled(value)) {
                 itensPreenchidos.push({ label, value: formatter(value) });
@@ -115,7 +122,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         
         addItem('Intercorrências Gestação/Parto', data.intercorrencias_gestacao_parto);
 
-        // 2. Triagens (Apenas as alteradas ou preenchidas)
+        // 2. Triagens
         Object.entries(data.triagens || {}).forEach(([key, value]) => {
             if (key.endsWith('_status') && isFilled(value) && value !== 'Normal' && value !== 'Presente' && value !== 'Presente Bilateral') {
                 const descKey = key.replace('_status', '_desc');
@@ -125,12 +132,12 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             }
         });
 
-        // 3. Observações (apenas se preenchidas)
+        // 3. Observações
         addItem('Obs. Alim. 0-6m', data.alimentacao_0_6m_obs);
         addItem('Obs. Alim. 6-12m', data.alimentacao_6_12m_obs);
         addItem('Obs. Sono/Comp.', data.sono_comportamento_obs);
         
-        // 4. Outros campos relevantes (Exemplo)
+        // 4. Outros
         addItem('Método IA', data.metodo_ia);
         addItem('Copo de Transição', data.copo_transicao);
 
@@ -160,7 +167,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
                 {relatorioData && (
                     <Box>
-                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) - Sem alteração */}
+                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) */}
                         <SecaoRelatorio 
                             titulo={`Consulta do Dia (${new Date(relatorioData.evolucao.data_atendimento).toLocaleString('pt-BR')} - ${relatorioData.evolucao.medico_nome || ''})`}
                             data={relatorioData.evolucao}
@@ -181,14 +188,14 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             )}
                         />
                         
-                        {/* 2. SEÇÃO DA ANAMNESE (HISTÓRICO) - ★★★ ALTERADO ★★★ */}
+                        {/* 2. SEÇÃO DA ANAMNESE (HISTÓRICO) */}
                         <SecaoRelatorio 
                             titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
                             data={relatorioData.anamnese}
-                            renderFunc={renderAnamnese} // Usa a nova função de renderização
+                            renderFunc={renderAnamnese}
                         />
                         
-                        {/* 3. SEÇÃO DO DNPM (MARCOS) - Filtro mantido (está correto) */}
+                        {/* 3. SEÇÃO DO DNPM (MARCOS) */}
                         <SecaoRelatorio 
                             titulo="Resumo do DNPM (Cadastro Mestre)"
                             data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
@@ -213,7 +220,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             }}
                         />
 
-                        {/* 4. SEÇÃO DE VACINAS - Filtro mantido (está correto) */}
+                        {/* 4. SEÇÃO DE VACINAS */}
                         <SecaoRelatorio 
                             titulo="Resumo da Vacinação (Cadastro Mestre)"
                             data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
@@ -239,7 +246,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                                         <TableCell sx={{color: vacina.status === 'Atrasada' ? 'error.main' : 'text.primary'}}>
                                                             {vacina.status}
                                                         </TableCell>
-                                                        {/* Formata a data para exibição (adiciona T00:00:00 para evitar problemas de fuso) */}
                                                         <TableCell>{vacina.data_aplicacao ? new Date(vacina.data_aplicacao + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
                                                     </TableRow>
                                                 ))}

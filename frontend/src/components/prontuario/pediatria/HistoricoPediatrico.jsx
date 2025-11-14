@@ -1,5 +1,5 @@
 /// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO COM MAIS DEBUGS
+// CORRIGIDO: Removido 'showSnackbar' da dependência do fetchAnamnese
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -12,7 +12,6 @@ import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
 // (Constantes omitidas para brevidade... sem alterações)
-// --- Constantes (APGAR mantido como estava) ---
 const tipoPartoOptions = ['Vaginal', 'Fórceps', 'Cesárea'];
 const igOptions = ['Pré-termo (<37s)', 'Termo (37-41s)', 'Pós-termo (>42s)'];
 const apgarScoreOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
@@ -45,11 +44,10 @@ const sonoComportamentoOptions = {
 const normalAlteradoOptions = ['Normal', 'Alterado'];
 const presenteAlteradoOptions = ['Presente', 'Alterado'];
 const eoatOptions = ['Presente Bilateral', 'Alterado', 'Ausente'];
-// --- initialState (Mantendo 3 campos de APGAR) ---
 const initialState = {
     tipo_parto: '', idade_gestacional: '', 
-    peso_nascimento: '', // Será um número, mas o estado inicial é string
-    apgar_1: '', apgar_5: '', apgar_10: '', // 3 campos separados
+    peso_nascimento: '', 
+    apgar_1: '', apgar_5: '', apgar_10: '', 
     intercorrencias_gestacao_parto: '',
     triagens: {
         pezinho_status: '', pezinho_desc: '',
@@ -78,26 +76,20 @@ export default function HistoricoPediatrico({ pacienteId }) {
 
     console.log(`🔄 [RENDER HISTÓRICO] HistoricoPediatrico renderizou. Paciente ID: ${pacienteId}`);
 
-    // --- FUNÇÃO DE SALVAR (Movida para o topo e corrigida) ---
     const handleSaveAnamnese = useCallback(async (dataToSave) => {
         console.log("💾 [AUTO-SAVE] Disparando handleSaveAnamnese...");
         setIsSubmitting(true);
 
-        // Clona os dados para não modificar o estado diretamente
         const dataCopy = { ...dataToSave };
 
-        // --- PREPARA O PAYLOAD ---
-        // 1. Converte campos numéricos de "" para null
         const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10', 'peso_nascimento'];
         camposNumericos.forEach(campo => {
-            // Converte para número ou null
             const valorNum = parseInt(dataCopy[campo], 10);
             dataCopy[campo] = isNaN(valorNum) ? null : valorNum;
         });
 
         const payload = { pediatria: dataCopy };
         
-        // ★★★ NOVO DEBUG ★★★
         console.log('   [DEBUG HISTÓRICO] 🚀 Enviando payload para PATCH:', payload);
 
         try {
@@ -105,26 +97,22 @@ export default function HistoricoPediatrico({ pacienteId }) {
             console.log("   ✅ [AUTO-SAVE] Salvo com sucesso!");
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error.response?.data || error);
-            // Não podemos usar o showSnackbar aqui se ele não estiver estável.
-            // A melhor correção é remover o showSnackbar da dependência.
         } finally {
             setIsSubmitting(false);
         }
-    }, [pacienteId]); // <-- ★★★ REMOVA o showSnackbar da dependência ★★★
+    }, [pacienteId]); 
 
 
     // --- fetchAnamnese ---
     const fetchAnamnese = useCallback(async () => {
-        console.log(`🔥 [EFFECT HISTÓRICO] fetchAnamnese foi DISPARADO! Paciente ID: ${pacienteId}`); // ★★★ DEBUG MELHORADO ★★★
+        console.log(`🔥 [EFFECT HISTÓRICO] fetchAnamnese foi DISPARADO! Paciente ID: ${pacienteId}`);
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
-             // ★★★ NOVO DEBUG ★★★
             console.log('   [DEBUG HISTÓRICO] 📦 Dados brutos da API:', res.data.pediatrica);
 
             if (res.data && res.data.pediatrica) {
                 const data = { ...initialState, ...(res.data.pediatrica || {}) };
-                // ... (lógica de deep merge) ...
                 data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
                 data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
                 data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
@@ -133,41 +121,42 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 console.log("   ✅ [API HISTÓRICO] Dados recebidos, atualizando estado.");
                 setAnamneseData(data);
             } else {
-                 console.log("   [API HISTÓRICO] Nenhum dado pediátrico encontrado, usando initialState."); // ★★★ NOVO DEBUG ★★★
+                 console.log("   [API HISTÓRICO] Nenhum dado pediátrico encontrado, usando initialState.");
                  setAnamneseData(initialState);
             }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
-                console.error("   ❌ [API HISTÓRICO] Erro no fetch:", err); // ★★★ NOVO DEBUG ★★★
-                showSnackbar('Erro ao carregar histórico de anamnese.', 'error');
+                console.error("   ❌ [API HISTÓRICO] Erro no fetch:", err);
+                // Não podemos usar o showSnackbar aqui, pois ele não é estável e causa re-fetch
             } else {
-                console.log("   [API HISTÓRICO] 404 - Anamnese não encontrada, usando initialState."); // ★★★ NOVO DEBUG ★★★
+                console.log("   [API HISTÓRICO] 404 - Anamnese não encontrada, usando initialState.");
             }
             setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
-            // ★★★ CORREÇÃO AQUI ★★★
-            // Não resetar o accordion no fetch, apenas no primeiro load (que é feito no useEffect)
-            // setExpanded('panel1'); // <-- REMOVIDO
         }
-    }, [pacienteId]); // <-- 'showSnackbar' REMOVIDO DAQUI
+    // ★★★ CORREÇÃO AQUI ★★★
+    // Removido 'showSnackbar' das dependências. Isso impede o re-fetch.
+    }, [pacienteId]); 
     // --- FIM fetchAnamnese ---
 
     // useEffect de Fetch
     useEffect(() => {
-        fetchAnamnese();
+        fetchAnamnese().then(() => {
+            setExpanded('panel1');
+        });
     }, [fetchAnamnese]);
 
     // useEffect de Auto-Save
     useEffect(() => {
         if (isLoading) {
-            console.log("   [AUTO-SAVE] ⚠️ Aguardando isLoading=false para iniciar auto-save."); // ★★★ NOVO DEBUG ★★★
-            return; // Não salvar enquanto os dados iniciais estão carregando
+            console.log("   [AUTO-SAVE] ⚠️ Aguardando isLoading=false para iniciar auto-save.");
+            return; 
         }
         if (debounceTimer.current) {
             clearTimeout(debounceTimer.current);
         }
-        console.log("   [AUTO-SAVE] ⏱️ Mudança detectada, iniciando timer de 1.5s..."); // ★★★ NOVO DEBUG ★★★
+        console.log("   [AUTO-SAVE] ⏱️ Mudança detectada, iniciando timer de 1.5s..."); 
         debounceTimer.current = setTimeout(() => {
             const dataToSave = { ...anamneseData }; 
             handleSaveAnamnese(dataToSave);
@@ -181,7 +170,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
     }, [anamneseData, isLoading, handleSaveAnamnese]);
 
 
-    // (Handlers e JSX... sem alterações)
     // --- Handlers (sem alteração) ---
     const handleChange = (e) => {
         setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -204,19 +192,17 @@ export default function HistoricoPediatrico({ pacienteId }) {
     };
     // --- Fim Handlers ---
 
-    // --- Handlers de Normalidade (ATUALIZADOS) ---
+    // --- Handlers de Normalidade (sem alteração) ---
     const handleNormalidadeGestacional = () => {
         console.log("🖱️ [CLICK HISTÓRICO] 'Preencher Normalidade (Gestacional)' clicado!");
         setAnamneseData(prev => ({
             ...prev,
             tipo_parto: 'Vaginal',
             idade_gestacional: 'Termo (37-41s)',
-            // --- CORRIGIDO ---
-            peso_nascimento: 3500, // Salva como NÚMERO
-            apgar_1: '9',         // Mantém campos separados
+            peso_nascimento: 3500, 
+            apgar_1: '9',        
             apgar_5: '10',
             apgar_10: '10',
-            // --- FIM CORREÇÃO ---
             triagens: {
                 pezinho_status: 'Normal', pezinho_desc: '',
                 orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
@@ -229,7 +215,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
         showSnackbar('Dados gestacionais e triagens preenchidos.', 'info');
     };
     
-    // ... (Handlers de normalidade de Alimentação e Sono não precisam de mudança) ...
     const handleNormalidadeAlim06 = () => {
         console.log("🖱️ [CLICK HISTÓRICO] 'Preencher Normalidade (0-6m)' clicado!");
         setAnamneseData(prev => ({
@@ -292,7 +277,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- JSX (COM CAMPOS APGAR E PESO CORRIGIDOS) ---
+    // --- JSX (sem alterações) ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -318,12 +303,10 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             <TextField select label="Idade Gestacional" name="idade_gestacional" value={anamneseData.idade_gestacional || ''} onChange={handleChange} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}> 
                                 {igOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)} 
                             </TextField>
-                            
-                            {/* --- CAMPO CORRIGIDO (Peso) --- */}
                             <TextField 
                                 label="Peso ao nascer (g)" 
                                 name="peso_nascimento" 
-                                type="number" // Garante que seja numérico
+                                type="number"
                                 value={anamneseData.peso_nascimento || ''} 
                                 onChange={handleChange} 
                                 size="small" 
@@ -332,7 +315,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             />
                         </Box>
                         
-                        {/* --- CAMPOS APGAR (Restaurados para 3 campos) --- */}
                         <Typography variant="body2" sx={{ mt: 2, fontWeight: 'medium', color: 'text.secondary' }}>APGAR</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
                              <TextField select label="1º Minuto" name="apgar_1" value={anamneseData.apgar_1 || ''} onChange={handleChange} size="small" sx={{ minWidth: 100, flex: '1 1 100px' }}> 
@@ -359,7 +341,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
                             sx={{ mt: 2 }}
                         />
                         
-                        {/* ... (Restante do JSX de Triagens, Alimentação, etc. permanece igual) ... */}
                         <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
                             <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5 }}>
