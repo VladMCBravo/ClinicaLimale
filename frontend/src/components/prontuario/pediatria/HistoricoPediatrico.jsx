@@ -1,5 +1,5 @@
 /// src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO CORRIGIDA: Mantém APGAR em 3 campos, corrige 'peso_nascimento' e o 'ReferenceError'.
+// VERSÃO COM MAIS DEBUGS
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -11,11 +11,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
+// (Constantes omitidas para brevidade... sem alterações)
 // --- Constantes (APGAR mantido como estava) ---
 const tipoPartoOptions = ['Vaginal', 'Fórceps', 'Cesárea'];
 const igOptions = ['Pré-termo (<37s)', 'Termo (37-41s)', 'Pós-termo (>42s)'];
 const apgarScoreOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
-// (Restante das constantes... alimentacao06Options, etc... permanecem iguais)
 const alimentacao06Options = {
     tipo_aleitamento: [{value: 'AME', label: 'AME'}, {value: 'Misto', label: 'Misto'}, {value: 'Formula', label: 'Fórmula'}],
     pega: [{value: 'Boa', label: 'Boa'}, {value: 'Parcial', label: 'Parcial'}, {value: 'Ruim', label: 'Ruim'}],
@@ -62,7 +62,6 @@ const initialState = {
     alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
     alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
 };
-// --- FIM Constantes ---
 
 export default function HistoricoPediatrico({ pacienteId }) {
     const { showSnackbar } = useSnackbar();
@@ -97,25 +96,32 @@ export default function HistoricoPediatrico({ pacienteId }) {
         });
 
         const payload = { pediatria: dataCopy };
+        
+        // ★★★ NOVO DEBUG ★★★
+        console.log('   [DEBUG HISTÓRICO] 🚀 Enviando payload para PATCH:', payload);
 
         try {
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
             console.log("   ✅ [AUTO-SAVE] Salvo com sucesso!");
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error.response?.data || error);
-            showSnackbar('Erro ao salvar histórico (verifique os campos).', 'error');
+            // Não podemos usar o showSnackbar aqui se ele não estiver estável.
+            // A melhor correção é remover o showSnackbar da dependência.
         } finally {
             setIsSubmitting(false);
         }
-    }, [pacienteId, showSnackbar]);
+    }, [pacienteId]); // <-- ★★★ REMOVA o showSnackbar da dependência ★★★
 
 
     // --- fetchAnamnese ---
     const fetchAnamnese = useCallback(async () => {
-        console.log("🔥 [EFFECT HISTÓRICO] fetchAnamnese foi DISPARADO!");
+        console.log(`🔥 [EFFECT HISTÓRICO] fetchAnamnese foi DISPARADO! Paciente ID: ${pacienteId}`); // ★★★ DEBUG MELHORADO ★★★
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+             // ★★★ NOVO DEBUG ★★★
+            console.log('   [DEBUG HISTÓRICO] 📦 Dados brutos da API:', res.data.pediatrica);
+
             if (res.data && res.data.pediatrica) {
                 const data = { ...initialState, ...(res.data.pediatrica || {}) };
                 // ... (lógica de deep merge) ...
@@ -127,18 +133,22 @@ export default function HistoricoPediatrico({ pacienteId }) {
                 console.log("   ✅ [API HISTÓRICO] Dados recebidos, atualizando estado.");
                 setAnamneseData(data);
             } else {
+                 console.log("   [API HISTÓRICO] Nenhum dado pediátrico encontrado, usando initialState."); // ★★★ NOVO DEBUG ★★★
                  setAnamneseData(initialState);
             }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
+                console.error("   ❌ [API HISTÓRICO] Erro no fetch:", err); // ★★★ NOVO DEBUG ★★★
                 showSnackbar('Erro ao carregar histórico de anamnese.', 'error');
+            } else {
+                console.log("   [API HISTÓRICO] 404 - Anamnese não encontrada, usando initialState."); // ★★★ NOVO DEBUG ★★★
             }
             setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
             setExpanded('panel1'); 
         }
-    }, [pacienteId]); // Removido showSnackbar
+    }, [pacienteId, showSnackbar]); // showSnackbar pode ficar aqui se estiver estável (vindo do context)
     // --- FIM fetchAnamnese ---
 
     // useEffect de Fetch
@@ -149,11 +159,13 @@ export default function HistoricoPediatrico({ pacienteId }) {
     // useEffect de Auto-Save
     useEffect(() => {
         if (isLoading) {
+            console.log("   [AUTO-SAVE] ⚠️ Aguardando isLoading=false para iniciar auto-save."); // ★★★ NOVO DEBUG ★★★
             return; // Não salvar enquanto os dados iniciais estão carregando
         }
         if (debounceTimer.current) {
             clearTimeout(debounceTimer.current);
         }
+        console.log("   [AUTO-SAVE] ⏱️ Mudança detectada, iniciando timer de 1.5s..."); // ★★★ NOVO DEBUG ★★★
         debounceTimer.current = setTimeout(() => {
             const dataToSave = { ...anamneseData }; 
             handleSaveAnamnese(dataToSave);
@@ -167,6 +179,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
     }, [anamneseData, isLoading, handleSaveAnamnese]);
 
 
+    // (Handlers e JSX... sem alterações)
     // --- Handlers (sem alteração) ---
     const handleChange = (e) => {
         setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));

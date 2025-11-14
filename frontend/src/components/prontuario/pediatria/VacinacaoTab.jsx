@@ -1,5 +1,5 @@
 // src/components/prontuario/pediatria/VacinacaoTab.jsx
-// ATUALIZADO: Adiciona Meningo B e Dropdown Pneumo (10/13/15/20)
+// VERSÃO COM MAIS DEBUGS
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -10,7 +10,7 @@ import {
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig'
 
-// --- ALTERAÇÃO 1: pniSchedule ATUALIZADO ---
+// (pniSchedule omitido para brevidade... sem alterações)
 const pniSchedule = [
     { idade: 'Ao nascer', vacinas: [
         { id: 'bcg', nome: 'BCG', dose: 'Dose Única' },
@@ -85,18 +85,21 @@ const pniSchedule = [
     ]}
 ];
 
+
 export default function VacinacaoTab({ pacienteId, onDataChange }) {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
     const [vacinasSalvas, setVacinasSalvas] = useState({});
-    // --- 1. ADICIONE ESTE NOVO STATE ---
-    const [loadingVacinas, setLoadingVacinas] = useState({}); // Controla o loading por linha
+    const [loadingVacinas, setLoadingVacinas] = useState({}); 
 
-    // --- ALTERAÇÃO 2: fetchVacinas usa 'vacina_id' como chave ---
     const fetchVacinas = useCallback(async () => {
         setIsLoading(true);
+        console.log(`[DEBUG VACINAS]  fetching... pacienteId: ${pacienteId}`); // ★★★ NOVO DEBUG ★★★
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`);
+            // ★★★ NOVO DEBUG ★★★
+            console.log('[DEBUG VACINAS] 📦 Dados BRUTOS recebidos da API:', res.data);
+            
             // Mapeia usando o 'vacina_id' (que é o 'id' do pniSchedule)
             const mapaVacinas = res.data.reduce((acc, vacina) => {
                 if (vacina.vacina_id) {
@@ -105,15 +108,17 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                 return acc;
             }, {});
             setVacinasSalvas(mapaVacinas);
+            // ★★★ NOVO DEBUG ★★★
+            console.log('[DEBUG VACINAS] 🏁 Estado final (mapaVacinas):', mapaVacinas);
         } catch (err) {
             if (err.response && err.response.status !== 404) {
+                console.error("[DEBUG VACINAS] ❌ Erro no fetch:", err); // ★★★ NOVO DEBUG ★★★
                 showSnackbar('Erro ao carregar caderneta de vacinação.', 'error');
             }
         } finally {
             setIsLoading(false);
         }
-    // Remova showSnackbar daqui, pois ele não deve mudar
-    }, [pacienteId]); // <-- Removido 'showSnackbar'
+    }, [pacienteId, showSnackbar]); // MANTIDO showSnackbar, pois está no useCallback
 
     useEffect(() => {
         fetchVacinas();
@@ -124,82 +129,73 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
         const { id, nome, dose, idade, defaultName } = vacinaInfo;
         const key = id; // O 'vacina_id' (ex: 'pneumo_1')
         const vacinaExistente = vacinasSalvas[key];
-        // --- 2. ADICIONE ESTA TRAVA ---
-        // Se esta vacina específica já está salvando, não faça nada.
-        if (loadingVacinas[key]) return; 
-        // --- FIM DA TRAVA ---
-        // 1. Obter os dados atuais salvos (ou um objeto vazio)
-        const savedData = vacinasSalvas[key] || {};
+        
+        // ★★★ NOVO DEBUG ★★★
+        console.log(`[DEBUG VACINAS] 💾 handleVacinaChange... ID: ${key}, Campo: ${field}, Valor: ${newValue}`);
 
-        // 2. Determinar o nome final (para o dropdown da Pneumo)
-        let nomeVacinaFinal;
-        if (field === 'nome_vacina') {
-            nomeVacinaFinal = newValue; // O usuário mudou o dropdown
-        } else if (savedData.nome_vacina) {
-            nomeVacinaFinal = savedData.nome_vacina; // Já tinha um nome salvo (ex: 'Pneumo 13')
-        } else {
-            nomeVacinaFinal = defaultName || nome; // Valor padrão (ex: 'Pneumo 10' ou 'BCG')
+        if (loadingVacinas[key]) {
+            console.warn(`[DEBUG VACINAS] ⚠️ Bloqueado: ${key} já está salvando.`); // ★★★ NOVO DEBUG ★★★
+            return; 
         }
         
-        // 3. Construir o PAYLOAD LIMPO
-        // Contém apenas os campos que o backend DEVE escrever.
+        const savedData = vacinasSalvas[key] || {};
+
+        let nomeVacinaFinal;
+        if (field === 'nome_vacina') {
+            nomeVacinaFinal = newValue;
+        } else if (savedData.nome_vacina) {
+            nomeVacinaFinal = savedData.nome_vacina;
+        } else {
+            nomeVacinaFinal = defaultName || nome;
+        }
+        
         const payload = {
             vacina_id: key,
             nome_vacina: nomeVacinaFinal,
             dose: dose,
             idade_recomendada: idade,
-            
-            // Pega os valores atuais do estado salvo (ou padrões)
             status: savedData.status || 'Pendente', 
             data_aplicacao: savedData.data_aplicacao || null,
             observacao: savedData.observacao || '',
-            
-            // Sobrescreve o campo que o usuário acabou de alterar
             [field]: newValue,
         };
         
-        // ★★★ INÍCIO DA NOVA LÓGICA INTELIGENTE ★★★
-
-        // Se o status mudou para 'Aplicada' E a data está vazia, preencha hoje.
+        // Lógica inteligente
         if (field === 'status' && newValue === 'Aplicada' && !payload.data_aplicacao) {
             payload.data_aplicacao = new Date().toISOString().split('T')[0];
         }
-        
-        // Se a data foi preenchida, mude o status para 'Aplicada'.
         if (field === 'data_aplicacao' && newValue) {
             payload.status = 'Aplicada';
         }
-        
-        // Se a data foi apagada, limpe a data e mude o status para 'Pendente'.
         if (field === 'data_aplicacao' && !newValue) {
             payload.data_aplicacao = null;
             payload.status = 'Pendente';
         }
         
-        // ★★★ FIM DA NOVA LÓGICA ★★★
+        // ★★★ NOVO DEBUG ★★★
+        console.log('[DEBUG VACINAS] 🚀 Payload (otimista):', payload);
 
         const oldState = vacinasSalvas;
         
         // 4. Atualização Otimista
-        // Mescla o payload limpo com os dados existentes (como o 'id' do banco)
         setVacinasSalvas(prev => ({
             ...prev,
             [key]: {
-                ...(prev[key] || {}), // Mantém o ID do banco e 'paciente' se já existirem
-                ...payload // Atualiza os campos editáveis
+                ...(prev[key] || {}),
+                ...payload 
             }
         }));
-        // --- 3. ATIVE A TRAVA E FAÇA A CHAMADA ---
+        
         setLoadingVacinas(prev => ({ ...prev, [key]: true })); // Liga o loading
 
         try {
+             // ★★★ NOVO DEBUG ★★★
+            console.log(`[DEBUG VACINAS] 📩 Enviando ${vacinaExistente?.id ? 'PATCH' : 'POST'} para ${key}...`);
+            
             if (vacinaExistente?.id) { // Usa o ID do banco se existir
-                // PATCH: Envia SÓ o payload limpo
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/vacinas/${vacinaExistente.id}/`, payload);
             } else {
-                // POST: Envia o payload limpo
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/vacinas/`, payload);
-                // Atualiza o estado local com a resposta completa (incluindo o novo ID do banco)
                 setVacinasSalvas(prev => ({ ...prev, [key]: res.data })); 
             }
             
@@ -210,6 +206,8 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
             console.error("Erro ao salvar vacina. Payload enviado:", payload, "Erro:", err.response);
             showSnackbar('Erro ao salvar vacina. Verifique os dados.', 'error');
             setVacinasSalvas(oldState); // Reverte
+        } finally {
+            setLoadingVacinas(prev => ({ ...prev, [key]: false })); // Desliga o loading
         }
     };
     // --- FIM DA CORREÇÃO ---
@@ -217,7 +215,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- ALTERAÇÃO 4: JSX Render (dentro do TableBody) ---
+    // (JSX do return... sem alterações)
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>

@@ -1,5 +1,5 @@
 // src/components/prontuario/pediatria/DnpmDetalhado.jsx
-// VERSÃO ATUALIZADA: Adiciona FormLabels de volta ao Accordion
+// VERSÃO COM MAIS DEBUGS
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -9,7 +9,7 @@ import {
     Accordion, AccordionSummary, AccordionDetails, Grid,
     Select, MenuItem, InputLabel
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandMoreIcon from '@mui/j/icons-material/ExpandMore';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
@@ -54,8 +54,17 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
     // --- ALTERAÇÃO 2: fetchData (Mapeia para Presente/Ausente e carrega observacao) ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
+        console.log(`[DEBUG DNPM]  fetching... pacienteId: ${pacienteId}`); // ★★★ NOVO DEBUG ★★★
         try {
             const resMarcos = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
+            const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+            
+            // ★★★ NOVO DEBUG ★★★
+            console.log('[DEBUG DNPM] 📦 Dados BRUTOS recebidos:', { 
+                marcos: resMarcos.data, 
+                anamnese: resAnamnese.data 
+            });
+
             const mapaMarcos = resMarcos.data.reduce((acc, marco) => {
                 let status;
                 if (marco.alcançado === true) status = 'Presente';
@@ -71,11 +80,15 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             }, {});
             setMarcosSalvos(mapaMarcos);
 
-            const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             if (resAnamnese.data && resAnamnese.data.pediatrica && resAnamnese.data.pediatrica.dnpm) {
                 setDnpmResumo(resAnamnese.data.pediatrica.dnpm);
             }
-        } catch (err) { showSnackbar('Erro ao carregar dados de DNPM.', 'error'); }
+             // ★★★ NOVO DEBUG ★★★
+            console.log('[DEBUG DNPM] 🏁 Estado final (mapaMarcos):', mapaMarcos);
+        } catch (err) { 
+            console.error("[DEBUG DNPM] ❌ Erro no fetchData:", err); // ★★★ NOVO DEBUG ★★★
+            showSnackbar('Erro ao carregar dados de DNPM.', 'error'); 
+        }
         finally { setIsLoading(false); }
     }, [pacienteId, showSnackbar]);
 
@@ -84,12 +97,18 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
     // --- ALTERAÇÃO 3: Função 'saveMarco' consolidada ---
     // Salva qualquer parte do marco (status ou observação)
     const saveMarco = async (marco_id, payload) => {
+        // ★★★ NOVO DEBUG ★★★
+        console.log(`[DEBUG DNPM] 💾 saveMarco... marco_id: ${marco_id}`, 'payload:', payload);
+
         // Encontra a descrição do marco na constante
         const marco = marcosPorIdade
             .flatMap(g => [g.motorGrosso, g.motorFino, g.linguagem, g.social])
             .find(m => m.id === marco_id);
         
-        if (!marco) return;
+        if (!marco) {
+            console.error(`[DEBUG DNPM] ❌ Marco não encontrado: ${marco_id}`);
+            return;
+        }
         const { desc: marco_descricao } = marco;
         
         const marcoExistente = marcosSalvos[marco_id];
@@ -125,15 +144,15 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                 alcançado: optimisticData.alcançado !== undefined ? optimisticData.alcançado : null, 
                 observacao: optimisticData.observacao || ''
             };
+            
+            // ★★★ NOVO DEBUG ★★★
+            console.log(`[DEBUG DNPM] 🚀 Enviando ${marcoExistente?.id ? 'PATCH' : 'POST'}...`, fullPayload);
 
             if (marcoExistente?.id) {
                 // PATCH (Envia o payload COMPLETO)
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${marcoExistente.id}/`, fullPayload);
             } else {
                 // POST (Envia o payload COMPLETO)
-                
-                // ★★★ CORREÇÃO AQUI ★★★
-                // A linha abaixo estava errada, apontando para /vacinas/
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, fullPayload);
                 
                 // Atualiza o estado local com o ID do banco
@@ -144,6 +163,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             }
             if (onDataChange) onDataChange();
         } catch (err) {
+            console.error("[DEBUG DNPM] ❌ Erro ao salvar marco:", err); // ★★★ NOVO DEBUG ★★★
             showSnackbar('Erro ao salvar marco.', 'error');
             setMarcosSalvos(oldState); // Reverte em caso de erro
         }
@@ -154,6 +174,9 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
         const { name, checked } = event.target;
         const newResumo = { ...dnpmResumo, [name]: checked };
         setDnpmResumo(newResumo);
+        
+        // ★★★ NOVO DEBUG ★★★
+        console.log(`[DEBUG DNPM] 💾 Salvar Resumo...`, newResumo);
         try {
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
                 pediatrica: { dnpm: newResumo }
@@ -161,12 +184,13 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             if (onDataChange) onDataChange();
             showSnackbar('Resumo do DNPM atualizado!', 'success');
         } catch (err) {
+            console.error("[DEBUG DNPM] ❌ Erro ao salvar resumo:", err); // ★★★ NOVO DEBUG ★★★
             showSnackbar('Erro ao salvar resumo do DNPM.', 'error');
             setDnpmResumo(prev => ({...prev, [name]: !checked}));
         }
     };
 
-    // --- ALTERAÇÃO 4: useEffect de expansão (checa 'Presente') ---
+    // (useEffect de expansão... sem alterações)
     useEffect(() => {
         if (!isLoading && Object.keys(marcosSalvos).length > 0) {
             const primeiroPendente = marcosPorIdade.find(grupo => {
@@ -186,6 +210,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
     }, [isLoading]);
 
 
+    // (Componente MarcoAvaliacao e JSX... sem alterações)
     // --- ALTERAÇÃO 5: Novo Componente (MarcoAvaliacao) ---
     const MarcoAvaliacao = ({ marco }) => {
         if (!marco) return null;
@@ -326,9 +351,6 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                     </Accordion>
                 ))}
             </Box>
-
-            {/* Bloco de Observações (TextField de observações GERAIS foi removido, pois agora é por marco) */}
-            
         </React.Fragment>
     );
 }
