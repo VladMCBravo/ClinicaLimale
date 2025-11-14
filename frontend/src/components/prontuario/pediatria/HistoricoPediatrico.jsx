@@ -79,11 +79,32 @@ export default function HistoricoPediatrico({ pacienteId }) {
     // --- DEBUG 1: Log de Render ---
     console.log(`🔄 [RENDER HISTÓRICO] HistoricoPediatrico renderizou. Paciente ID: ${pacienteId}`);
 
-    // ★★★ A FUNÇÃO DEVE ESTAR AQUI (LINHA ~92) ★★★
+    // --- ★ CORREÇÃO 1 ★ ---
+    // A FUNÇÃO DE SALVAR FOI MOVIDA PARA ANTES DOS useEffects QUE A UTILIZAM
+    // --- 3. FUNÇÃO DE AUTO-SAVE ---
     const handleSaveAnamnese = useCallback(async (dataToSave) => {
         console.log("💾 [AUTO-SAVE] Disparando handleSaveAnamnese...");
-        // ... (resto da função) ...
-    }, [pacienteId, showSnackbar]);
+        setIsSubmitting(true);
+
+        const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10'];
+        camposNumericos.forEach(campo => {
+            if (dataToSave[campo] === '') {
+                dataToSave[campo] = null;
+            }
+        });
+
+        const payload = { pediatria: dataToSave };
+
+        try {
+            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
+            console.log("   ✅ [AUTO-SAVE] Salvo com sucesso!");
+        } catch (error) {
+            console.error("Erro ao salvar anamnese:", error.response?.data || error);
+            showSnackbar('Erro ao salvar histórico.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [pacienteId, showSnackbar]); // 'showSnackbar' aqui está OK
 
 
     // --- fetchAnamnese (COM CORREÇÃO + DEBUG) ---
@@ -116,42 +137,42 @@ export default function HistoricoPediatrico({ pacienteId }) {
             setIsLoading(false);
             setExpanded('panel1'); 
         }
-    }, [pacienteId, showSnackbar]); // Removido 'showSnackbar' para estabilizar
+    // --- ★ CORREÇÃO 2 ★ ---
+    // 'showSnackbar' REMOVIDO das dependências para evitar o loop infinito.
+    }, [pacienteId]); 
     // --- FIM fetchAnamnese ---
 
+    // Este useEffect busca os dados UMA VEZ quando o pacienteId muda.
     useEffect(() => {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // --- 4. useEffect PARA O AUTO-SAVE (AGORA SEGURO) ---
+    // --- 4. ADICIONE ESTE useEffect PARA O AUTO-SAVE ---
+    // Agora ele pode chamar 'handleSaveAnamnese' com segurança
     useEffect(() => {
         if (isLoading) {
-            // --- DEBUG 6: Log de Bloqueio ---
             console.log("⏳ [AUTO-SAVE] Bloqueado. (isLoading = true)");
-            return;
+            return; // Não salvar enquanto os dados iniciais estão carregando
         }
 
         if (debounceTimer.current) {
-            // --- DEBUG 7: Log de Limpeza de Timer ---
             console.log("⏱️ [AUTO-SAVE] Limpando timer anterior.");
             clearTimeout(debounceTimer.current);
         }
 
-        // --- DEBUG 8: Log de Agendamento ---
         console.log("⏱️ [AUTO-SAVE] Agendando salvamento em 1.5s...");
         debounceTimer.current = setTimeout(() => {
-            // --- DEBUG 9: Log de Execução ---
             console.log("▶️ [AUTO-SAVE] Timer executado! Preparando para salvar...");
             const dataToSave = { ...anamneseData }; 
-            handleSaveAnamnese(dataToSave); // <--- Agora isso funciona!
-        }, 1500);
+            handleSaveAnamnese(dataToSave);
+        }, 1500); // 1.5 segundos após a última mudança
 
         return () => {
             if (debounceTimer.current) {
                 clearTimeout(debounceTimer.current);
             }
         };
-    }, [anamneseData, isLoading, handleSaveAnamnese]); // <-- 'handleSaveAnamnese' está seguro agora
+    }, [anamneseData, isLoading, handleSaveAnamnese]);
 
 
     // --- Handlers (sem alteração) ---
@@ -257,13 +278,12 @@ export default function HistoricoPediatrico({ pacienteId }) {
     
     // --- 6. Habilitar o "Limpar Histórico" (se você mantiver) ---
     const handleLimparHistorico = () => {
-    setAnamneseData(initialState); 
-    // Isso também vai disparar o auto-save, que salvará o estado inicial (limpo)
-    showSnackbar('Campos do histórico limpos.', 'info');
-};
+        setAnamneseData(initialState); 
+        showSnackbar('Campos do histórico limpos.', 'info');
+    };
     // --- Fim Handlers de Normalidade ---
 
-    // A FUNÇÃO 'handleSaveAnamnese' FOI MOVIDA LÁ PARA CIMA (LINHA 92)
+    // A FUNÇÃO 'handleSaveAnamnese' FOI MOVIDA PARA O TOPO (LINHA 92)
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
