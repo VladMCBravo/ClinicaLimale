@@ -158,10 +158,25 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
             [field]: newValue,
         };
         
-        // Garante que o backend receba 'null' se o campo de data for limpo
-        if (field === 'data_aplicacao' && newValue === '') {
-            payload.data_aplicacao = null;
+        // ★★★ INÍCIO DA NOVA LÓGICA INTELIGENTE ★★★
+
+        // Se o status mudou para 'Aplicada' E a data está vazia, preencha hoje.
+        if (field === 'status' && newValue === 'Aplicada' && !payload.data_aplicacao) {
+            payload.data_aplicacao = new Date().toISOString().split('T')[0];
         }
+        
+        // Se a data foi preenchida, mude o status para 'Aplicada'.
+        if (field === 'data_aplicacao' && newValue) {
+            payload.status = 'Aplicada';
+        }
+        
+        // Se a data foi apagada, limpe a data e mude o status para 'Pendente'.
+        if (field === 'data_aplicacao' && !newValue) {
+            payload.data_aplicacao = null;
+            payload.status = 'Pendente';
+        }
+        
+        // ★★★ FIM DA NOVA LÓGICA ★★★
 
         const oldState = vacinasSalvas;
         

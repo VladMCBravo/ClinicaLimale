@@ -130,7 +130,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         {/* 3. SEÇÃO DO DNPM (MARCOS) */}
                         <SecaoRelatorio 
                             titulo="Resumo do DNPM (Cadastro Mestre)"
-                            data={relatorioData.dnpm.filter(m => m.alcançado === false)} // Mostra apenas marcos ausentes
+                            data={relatorioData.dnpm.filter(m => m.alcançado !== true)} // Mostra marcos Ausentes (false) ou Pendentes (null) 
                             renderFunc={(data) => (
                                 data.length > 0 ? (
                                     <ul>
@@ -167,7 +167,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                                 <TableRow key={vacina.id}>
                                                     <TableCell>{vacina.nome_vacina}</TableCell>
                                                     <TableCell>{vacina.dose}</TableCell>
-                                                    <TableCell>{new Date(vacina.data_aplicacao).toLocaleDateString('pt-BR')}</TableCell>
+                                                    <TableCell>{vacina.data_aplicacao ? new Date(vacina.data_aplicacao).toLocaleDateString('pt-BR') : 'Sem data'}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
