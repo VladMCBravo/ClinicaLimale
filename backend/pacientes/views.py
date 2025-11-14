@@ -1,41 +1,58 @@
-# backend/pacientes/views.py - VERSÃO OTIMIZADA
+# backend/pacientes/views.py - VERSÃO CORRIGIDA (LÓGICA DO MÉDICO)
 
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from usuarios.permissions import IsMedicoResponsavelOrAdmin, AllowRead_WriteRecepcaoAdmin
 from .models import Paciente
 from .serializers import PacienteSerializer
-from django.db.models import Count # <-- 1. IMPORTE O 'Count'
+# --- 1. IMPORTE O 'Q' (para queries 'OU') E 'Count' ---
+from django.db.models import Count, Q 
 
 class PacienteListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PacienteSerializer
-    permission_classes = [AllowRead_WriteRecepcaoAdmin]
+    # A permissão aqui está correta para a Recepção criar pacientes
+    permission_classes = [AllowRead_WriteRecepcaoAdmin] 
 
     def get_queryset(self):
         user = self.request.user
-        base_queryset = Paciente.objects.all()
-
-        # 2. A MÁGICA ACONTECE AQUI:
-        # Pedimos ao Django para adicionar um novo campo 'total_consultas' em cada paciente,
-        # contendo a contagem de seus agendamentos. Isso é feito de forma super eficiente.
-        queryset_anotado = base_queryset.annotate(
+        
+        # Começamos com a lista de todos os pacientes
+        base_queryset = Paciente.objects.annotate(
             total_consultas=Count('agendamentos')
         )
-        
-        # O resto da sua lógica de permissão continua a mesma, mas agora sobre o queryset otimizado
+
+        # Admin e Recepção veem todos
         if user.cargo in ['admin', 'recepcao']:
-            return queryset_anotado
+            return base_queryset
         
+        # --- 2. LÓGICA CORRIGIDA PARA O MÉDICO ---
         if user.cargo == 'medico':
-            return queryset_anotado.filter(medico_responsavel=user)
+            # Pacientes onde o médico é o responsável
+            pacientes_responsaveis = Q(medico_responsavel=user)
+            
+            # Pacientes que o médico já atendeu (tem uma evolução/consulta)
+            pacientes_com_evolucao = Q(evolucoes__medico=user)
+            
+            # Pacientes que o médico tem/teve um agendamento
+            pacientes_agendados = Q(agendamentos__medico=user)
+
+            # O médico verá pacientes que se encaixam em QUALQUER uma das condições (OU)
+            filtro_medico = pacientes_responsaveis | pacientes_com_evolucao | pacientes_agendados
+            
+            # Aplicamos o filtro e usamos .distinct() para garantir que não haja duplicatas
+            return base_queryset.filter(filtro_medico).distinct()
         
+        # Se não for nenhum dos cargos acima, não retorna nada
         return Paciente.objects.none()
 
     def perform_create(self, serializer):
         serializer.save()
 
-# A PacienteDetailAPIView não precisa de alterações, mas podemos otimizá-la também se quisermos
+# --- 3. CORREÇÃO DA VIEW DE DETALHE (QUE CAUSOU O ERRO 403) ---
+# Esta view é usada para 'Editar' (PATCH) e 'Deletar' (DELETE)
 class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos')) # Adicionamos a otimização aqui também
+    queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos'))
     serializer_class = PacienteSerializer
-    permission_classes = [AllowRead_WriteRecepcaoAdmin]
+    
+    # A permissão aqui estava ERRADA. Devemos permitir que o médico responsável edite.
+    permission_classes = [IsMedicoResponsavelOrAdmin]
