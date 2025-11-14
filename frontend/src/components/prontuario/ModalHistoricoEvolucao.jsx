@@ -1,5 +1,5 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO ATUALIZADA: Filtros inteligentes (não mostra Pendente) e debugs.
+// VERSÃO ATUALIZADA: Filtro de Anamnese mais inteligente
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -38,16 +38,9 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
 
             const fetchTudo = async () => {
                 try {
-                    // 1. Busca a Evolução (SOAP)
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`);
-                    
-                    // 2. Busca a Anamnese (Histórico Pediátrico)
                     const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
-                    
-                    // 3. Busca o DNPM (Marcos)
                     const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
-                    
-                    // 4. Busca as Vacinas
                     const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`);
 
                     const dadosBrutos = {
@@ -57,10 +50,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         vacinas: resVacinas.data
                     };
                     
-                    // ★★★ NOVO DEBUG ★★★
                     console.log('[DEBUG MODAL] 📦 Dados BRUTOS recebidos da API:', dadosBrutos);
-
-                    // 5. Junta tudo
                     setRelatorioData(dadosBrutos);
                 } catch (err) {
                     showSnackbar('Erro ao buscar o relatório completo da consulta.', 'error');
@@ -92,35 +82,45 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // ★★★ Funções de Render e Filtro ★★★
+    // ★★★ Funções de Render e Filtro ATUALIZADAS ★★★
+    
+    // Novo helper de checagem:
+    // Retorna true se o valor for "preenchido" (não nulo, não undefined, não string vazia)
+    // Permite o número 0.
+    const isFilled = (value) => {
+        if (value === 0) return true;
+        if (value === null || value === undefined || value === "") return false;
+        return true;
+    };
+
     const renderAnamnese = (data) => {
+        if (!data) return <Typography variant="body2">Nenhum dado de anamnese encontrado.</Typography>;
+        
         const itensPreenchidos = [];
         
         // Helper para adicionar itens
-        const addItem = (label, value) => {
-            // Verifica se o valor é "truthy" (não nulo, não undefined, não string vazia, não 0)
-            // O 'data.peso_nascimento ? ...' trata o caso do 0 ser um valor válido
-            if (value || (typeof value === 'number' && value === 0)) {
-                itensPreenchidos.push({ label, value });
+        const addItem = (label, value, formatter = (v) => v) => {
+            if (isFilled(value)) {
+                itensPreenchidos.push({ label, value: formatter(value) });
             }
         };
 
         // 1. Dados Gestacionais
         addItem('Parto', data.tipo_parto);
         addItem('Idade Gestacional', data.idade_gestacional);
-        addItem('Peso ao Nascer', data.peso_nascimento ? `${data.peso_nascimento}g` : '');
+        addItem('Peso ao Nascer', data.peso_nascimento, (v) => `${v}g`);
         
-        const apgar = [data.apgar_1, data.apgar_5, data.apgar_10].filter(Boolean).join(' / ');
-        addItem('APGAR (1/5/10)', apgar);
+        const apgar = [data.apgar_1, data.apgar_5, data.apgar_10].filter(isFilled).join(' / ');
+        addItem('APGAR (1/5/10)', apgar); 
         
         addItem('Intercorrências Gestação/Parto', data.intercorrencias_gestacao_parto);
 
-        // 2. Triagens (Apenas as alteradas)
+        // 2. Triagens (Apenas as alteradas ou preenchidas)
         Object.entries(data.triagens || {}).forEach(([key, value]) => {
-            if (key.endsWith('_status') && (value === 'Alterado' || value === 'Ausente')) {
+            if (key.endsWith('_status') && isFilled(value) && value !== 'Normal' && value !== 'Presente' && value !== 'Presente Bilateral') {
                 const descKey = key.replace('_status', '_desc');
                 const desc = data.triagens[descKey] || 'Sem descrição';
-                const label = key.split('_')[0]; // Ex: "pezinho"
+                const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
                 addItem(`Triagem ${label} (${value})`, desc);
             }
         });
@@ -129,8 +129,11 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         addItem('Obs. Alim. 0-6m', data.alimentacao_0_6m_obs);
         addItem('Obs. Alim. 6-12m', data.alimentacao_6_12m_obs);
         addItem('Obs. Sono/Comp.', data.sono_comportamento_obs);
+        
+        // 4. Outros campos relevantes (Exemplo)
+        addItem('Método IA', data.metodo_ia);
+        addItem('Copo de Transição', data.copo_transicao);
 
-        // ★★★ NOVO DEBUG ★★★
         console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese:', itensPreenchidos);
 
         if (itensPreenchidos.length === 0) {
@@ -185,13 +188,11 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             renderFunc={renderAnamnese} // Usa a nova função de renderização
                         />
                         
-                        {/* 3. SEÇÃO DO DNPM (MARCOS) - ★★★ FILTRO ALTERADO ★★★ */}
+                        {/* 3. SEÇÃO DO DNPM (MARCOS) - Filtro mantido (está correto) */}
                         <SecaoRelatorio 
                             titulo="Resumo do DNPM (Cadastro Mestre)"
-                            // Filtra marcos onde 'alcançado' NÃO é nulo (ou seja, foi marcado como Presente (true) ou Ausente (false))
                             data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
                             renderFunc={(data) => {
-                                // ★★★ NOVO DEBUG ★★★
                                 console.log('[DEBUG MODAL] 🎯 Marcos DNPM FILTRADOS (Pendente=null removidos):', data);
                                 
                                 return data.length > 0 ? (
@@ -212,13 +213,11 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             }}
                         />
 
-                        {/* 4. SEÇÃO DE VACINAS - ★★★ FILTRO CORRETO (já estava) ★★★ */}
+                        {/* 4. SEÇÃO DE VACINAS - Filtro mantido (está correto) */}
                         <SecaoRelatorio 
                             titulo="Resumo da Vacinação (Cadastro Mestre)"
-                            // Filtra vacinas onde o status NÃO é 'Pendente'
                             data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
                             renderFunc={(data) => {
-                                // ★★★ NOVO DEBUG ★★★
                                 console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS (Pendente removidas):', data);
 
                                 return data.length > 0 ? (
@@ -240,6 +239,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                                         <TableCell sx={{color: vacina.status === 'Atrasada' ? 'error.main' : 'text.primary'}}>
                                                             {vacina.status}
                                                         </TableCell>
+                                                        {/* Formata a data para exibição (adiciona T00:00:00 para evitar problemas de fuso) */}
                                                         <TableCell>{vacina.data_aplicacao ? new Date(vacina.data_aplicacao + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
                                                     </TableRow>
                                                 ))}

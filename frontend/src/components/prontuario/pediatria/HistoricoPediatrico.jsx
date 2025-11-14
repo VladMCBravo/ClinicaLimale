@@ -146,9 +146,11 @@ export default function HistoricoPediatrico({ pacienteId }) {
             setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
-            setExpanded('panel1'); 
+            // ★★★ CORREÇÃO AQUI ★★★
+            // Não resetar o accordion no fetch, apenas no primeiro load (que é feito no useEffect)
+            // setExpanded('panel1'); // <-- REMOVIDO
         }
-    }, [pacienteId, showSnackbar]); // showSnackbar pode ficar aqui se estiver estável (vindo do context)
+    }, [pacienteId]); // <-- 'showSnackbar' REMOVIDO DAQUI
     // --- FIM fetchAnamnese ---
 
     // useEffect de Fetch

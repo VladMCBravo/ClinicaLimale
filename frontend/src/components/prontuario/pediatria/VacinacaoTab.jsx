@@ -103,6 +103,13 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
             // Mapeia usando o 'vacina_id' (que é o 'id' do pniSchedule)
             const mapaVacinas = res.data.reduce((acc, vacina) => {
                 if (vacina.vacina_id) {
+                    // ★★★ CORREÇÃO AQUI ★★★
+                    // Formata a data para YYYY-MM-DD, que é o que o TextField type="date" espera.
+                    if (vacina.data_aplicacao) {
+                        vacina.data_aplicacao = vacina.data_aplicacao.split('T')[0];
+                    }
+                    // ★★★ FIM DA CORREÇÃO ★★★
+                    
                     acc[vacina.vacina_id] = vacina;
                 }
                 return acc;
