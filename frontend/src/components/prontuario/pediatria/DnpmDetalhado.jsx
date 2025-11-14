@@ -9,7 +9,7 @@ import {
     Accordion, AccordionSummary, AccordionDetails, Grid,
     Select, MenuItem, InputLabel
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/j/icons-material/ExpandMore';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // <-- CORREÇÃO AQUI
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
