@@ -44,11 +44,15 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
 
             const fetchTudo = async () => {
                 try {
-                    // Adiciona o 'cacheBustConfig' em todas as chamadas GET
-                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, cacheBustConfig);
-                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`, cacheBustConfig);
-                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, cacheBustConfig);
-                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`, cacheBustConfig);
+                    // ★★★ CORREÇÃO AQUI ★★★
+                    // Concatenamos a string 'cacheBuster' ao final da URL
+                    
+                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
+                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
+                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
+                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
+
+                    // ★★★ FIM DA CORREÇÃO ★★★
 
                     const dadosBrutos = {
                         evolucao: resEvolucao.data,
