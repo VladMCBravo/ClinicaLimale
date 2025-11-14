@@ -1,5 +1,7 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO ATUALIZADA: Adiciona headers de cache-control para buscar dados novos
+// VERSÃO CORRIGIDA:
+// 1. Corrige a função 'renderAnamnese' para exibir TODOS os dados preenchidos.
+// 2. Garante que o cacheBuster não crie uma barra dupla "//" na URL.
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -12,7 +14,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
 // Componente simples para renderizar seções (sem alteração)
 const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
-    if (!data) return null;
+    if (!data || (Array.isArray(data) && data.length === 0)) return null;
     return (
         <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'primary.main' }}>
@@ -23,6 +25,43 @@ const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
         </Box>
     );
 };
+
+// Funções de "Tradução" para os campos JSON
+const labelMap = {
+    // Gestacional
+    tipo_parto: 'Parto',
+    idade_gestacional: 'Idade Gestacional',
+    peso_nascimento: 'Peso ao Nascer',
+    intercorrencias_gestacao_parto: 'Intercorrências Gestação/Parto',
+    // Triagens (tratado separadamente)
+    // Alim 0-6m
+    tipo_aleitamento: 'Aleitamento (0-6m)',
+    pega: 'Pega (0-6m)',
+    succao: 'Sucção (0-6m)',
+    diurese: 'Diurese (0-6m)',
+    evacuacao: 'Evacuação (0-6m)',
+    vitamina_d: 'Supl. Vitamina D (0-6m)',
+    ferro: 'Supl. Ferro (0-6m)',
+    alimentacao_0_6m_obs: 'Obs. Alim. (0-6m)',
+    // Alim 6-12m
+    tipo_alimentacao: 'Alimentação (6-12m)',
+    refeicoes_dia: 'Refeições/dia (6-12m)',
+    textura: 'Textura (6-12m)',
+    aceitacao: 'Aceitação (6-12m)',
+    agua: 'Água (6-12m)',
+    aceitacao_geral: 'Aceitação Geral (6-12m)',
+    metodo_ia: 'Método IA',
+    copo_transicao: 'Copo de Transição',
+    alimentacao_6_12m_obs: 'Obs. Alim. (6-12m)',
+    // Sono
+    sono_diurno: 'Sono Diurno',
+    sono_noturno: 'Sono Noturno',
+    colica: 'Cólica',
+    choro: 'Choro',
+    vinculo: 'Vínculo',
+    sono_comportamento_obs: 'Obs. Sono/Comp.',
+};
+
 
 export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose }) {
     const [relatorioData, setRelatorioData] = useState(null);
@@ -36,22 +75,18 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             
             console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}, Paciente ID: ${pacienteId}`);
 
-            // ★★★ CORREÇÃO AQUI ★★★
-            // Em vez de headers, adicionamos um parâmetro único à URL para
-            // garantir que o navegador não use uma resposta em cache.
             const cacheBuster = `?_=${new Date().getTime()}`;
-            // ★★★ FIM DA CORREÇÃO ★★★
 
             const fetchTudo = async () => {
                 try {
                     // ★★★ CORREÇÃO AQUI ★★★
-                    // Concatenamos a string 'cacheBuster' ao final da URL
+                    // Removida a barra final ANTES de adicionar o cacheBuster
                     
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
-                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
-                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
-
+                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese${cacheBuster}`);
+                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm${cacheBuster}`);
+                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas${cacheBuster}`);
+                    
                     // ★★★ FIM DA CORREÇÃO ★★★
 
                     const dadosBrutos = {
@@ -66,7 +101,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 } catch (err) {
                     showSnackbar('Erro ao buscar o relatório completo da consulta.', 'error');
                     console.error("Erro ao buscar relatório completo:", err);
-                    onClose();
+                    onClose(); 
                 } finally {
                     setIsLoading(false);
                 }
@@ -93,52 +128,82 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // (Funções de Render e Filtro... sem alterações)
+    // ★★★ FUNÇÃO DE FILTRO TOTALMENTE REESCRITA ★★★
+    
+    // Helper para checar se um valor foi preenchido
     const isFilled = (value) => {
-        if (value === 0) return true;
+        if (value === 0) return true; // 0 é um valor válido (ex: APGAR)
+        if (value === true) return true; // true é um valor válido (ex: checkboxes)
         if (value === null || value === undefined || value === "") return false;
         return true;
     };
+    
+    // Helper para formatar o valor
+    const formatValue = (key, value) => {
+        if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+        if (key === 'peso_nascimento') return `${value}g`;
+        return value;
+    }
 
     const renderAnamnese = (data) => {
         if (!data) return <Typography variant="body2">Nenhum dado de anamnese encontrado.</Typography>;
         
         const itensPreenchidos = [];
         
-        const addItem = (label, value, formatter = (v) => v) => {
-            if (isFilled(value)) {
-                itensPreenchidos.push({ label, value: formatter(value) });
-            }
-        };
-
         // 1. Dados Gestacionais
-        addItem('Parto', data.tipo_parto);
-        addItem('Idade Gestacional', data.idade_gestacional);
-        addItem('Peso ao Nascer', data.peso_nascimento, (v) => `${v}g`);
-        
         const apgar = [data.apgar_1, data.apgar_5, data.apgar_10].filter(isFilled).join(' / ');
-        addItem('APGAR (1/5/10)', apgar); 
+        if (isFilled(apgar)) {
+            itensPreenchidos.push({ label: 'APGAR (1/5/10)', value: apgar });
+        }
         
-        addItem('Intercorrências Gestação/Parto', data.intercorrencias_gestacao_parto);
-
-        // 2. Triagens
-        Object.entries(data.triagens || {}).forEach(([key, value]) => {
-            if (key.endsWith('_status') && isFilled(value) && value !== 'Normal' && value !== 'Presente' && value !== 'Presente Bilateral') {
-                const descKey = key.replace('_status', '_desc');
-                const desc = data.triagens[descKey] || 'Sem descrição';
-                const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
-                addItem(`Triagem ${label} (${value})`, desc);
+        // 2. Todos os outros campos (exceto JSONs)
+        Object.entries(data).forEach(([key, value]) => {
+            const label = labelMap[key];
+            if (label && isFilled(value)) {
+                itensPreenchidos.push({ label, value: formatValue(key, value) });
             }
         });
 
-        // 3. Observações
-        addItem('Obs. Alim. 0-6m', data.alimentacao_0_6m_obs);
-        addItem('Obs. Alim. 6-12m', data.alimentacao_6_12m_obs);
-        addItem('Obs. Sono/Comp.', data.sono_comportamento_obs);
+        // 3. Campos JSON (Triagens)
+        Object.entries(data.triagens || {}).forEach(([key, value]) => {
+            if (key.endsWith('_status') && isFilled(value)) {
+                const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
+                let displayValue = value;
+                
+                if (value === 'Alterado') {
+                    const descKey = key.replace('_status', '_desc');
+                    const desc = data.triagens[descKey];
+                    if (isFilled(desc)) {
+                        displayValue = `Alterado (${desc})`;
+                    }
+                }
+                itensPreenchidos.push({ label: `Triagem ${label}`, value: displayValue });
+            }
+        });
         
-        // 4. Outros
-        addItem('Método IA', data.metodo_ia);
-        addItem('Copo de Transição', data.copo_transicao);
+        // 4. Campos JSON (Alimentação 0-6m)
+        Object.entries(data.alimentacao_0_6m || {}).forEach(([key, value]) => {
+            const label = labelMap[key];
+            if (label && isFilled(value)) {
+                 itensPreenchidos.push({ label, value: formatValue(key, value) });
+            }
+        });
+        
+        // 5. Campos JSON (Alimentação 6-12m)
+        Object.entries(data.alimentacao_6_12m || {}).forEach(([key, value]) => {
+            const label = labelMap[key];
+            if (label && isFilled(value)) {
+                 itensPreenchidos.push({ label, value: formatValue(key, value) });
+            }
+        });
+        
+        // 6. Campos JSON (Sono/Comportamento)
+        Object.entries(data.sono_comportamento || {}).forEach(([key, value]) => {
+            const label = labelMap[key];
+            if (label && isFilled(value)) {
+                 itensPreenchidos.push({ label, value: formatValue(key, value) });
+            }
+        });
 
         console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese:', itensPreenchidos);
 
