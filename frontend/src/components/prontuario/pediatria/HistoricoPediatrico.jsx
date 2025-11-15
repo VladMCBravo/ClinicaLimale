@@ -177,19 +177,19 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
     // (handleNormalidadeGestacional, handleNormalidadeAlim06, etc... ficam iguais)
     const handleNormalidadeGestacional = () => {
         setAnamneseData(prev => ({ ...prev, tipo_parto: 'Vaginal', idade_gestacional: 'Termo (37-41s)', peso_nascimento: 3500, apgar_1: '9', apgar_5: '10', apgar_10: '10', triagens: { pezinho_status: 'Normal', pezinho_desc: '', orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '', orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '', olhinho_status: 'Presente', olhinho_desc: '', coracaozinho_status: 'Normal', coracaozinho_desc: '', linguinha_status: 'Normal', linguinha_desc: '', }, }));
-        showSnackbar('Pré-preenchido com normalidade.', 'info');
+        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
     const handleNormalidadeAlim06 = () => {
         setAnamneseData(prev => ({ ...prev, alimentacao_0_6m: { tipo_aleitamento: 'AME', pega: 'Boa', succao: 'Eficaz', diurese: 'Adequada', evacuacao: 'Normal', vitamina_d: true, ferro: true }, }));
-        showSnackbar('Pré-preenchido com normalidade.', 'info');
+        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
     const handleNormalidadeAlim612 = () => {
         setAnamneseData(prev => ({ ...prev, alimentacao_6_12m: { tipo_alimentacao: 'Mantem AM', refeicoes_dia: '2', textura: 'Amassada', aceitacao: 'Boa', agua: 'Adequada', vitamina_d: true, ferro: true, aceitacao_geral: 'Adequada' }, metodo_ia: 'Tradicional', copo_transicao: 'Aberto Pequeno' }));
-        showSnackbar('Pré-preenchido com normalidade.', 'info');
+        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
     const handleNormalidadeSono = () => {
         setAnamneseData(prev => ({ ...prev, sono_comportamento: { sono_diurno: 'Adequado', sono_noturno: 'Adequado', colica: 'Ausente', choro: 'Adequado', vinculo: 'Adequado' }, }));
-        showSnackbar('Pré-preenchido com normalidade.', 'info');
+        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
 
 
