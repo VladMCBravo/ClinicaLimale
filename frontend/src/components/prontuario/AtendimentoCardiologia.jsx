@@ -1,4 +1,4 @@
-/ src/components/prontuario/AtendimentoCardiologia.jsx
+// src/components/prontuario/AtendimentoCardiologia.jsx
 // VERSÃO CORRIGIDA: Usando caminhos de importação absolutos
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
