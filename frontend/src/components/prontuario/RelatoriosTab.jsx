@@ -1,21 +1,24 @@
 // src/components/prontuario/cardiologia/RelatoriosTab.jsx
-// VERSÃO CORRIGIDA: Permite gerar prévia sem uma consulta ativa
+// VERSÃO FINAL: Com ícone de arquivar (lixeira) e diálogo de confirmação
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Grid, Paper, Typography, FormControl, InputLabel, Select,
     MenuItem, Button, TextField, CircularProgress, List, ListItem,
     ListItemText, Divider,
-    IconButton, Tooltip
+    IconButton, Tooltip,
+    // --- 1. IMPORTAR ÍCONE DA LIXEIRA E COMPONENTES DE DIÁLOGO ---
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DeleteIcon from '@mui/icons-material/Delete'; // <-- Ícone da lixeira
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
 export default function RelatoriosTab({ pacienteId, consultaAtualId, especialidade }) {
     const { showSnackbar } = useSnackbar();
     
-    // ... (Todos os 'useState' continuam iguais) ...
+    // ... (Estados de dados e loading continuam iguais) ...
     const [templates, setTemplates] = useState([]); 
     const [savedReports, setSavedReports] = useState([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -27,7 +30,11 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pdfLoadingId, setPdfLoadingId] = useState(null); 
 
-    // ... (fetchTemplates, fetchSavedReports e useEffect continuam iguais) ...
+    // --- 2. ADICIONAR ESTADO PARA O DIÁLOGO DE CONFIRMAÇÃO ---
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+
+    // ... (fetchTemplates e fetchSavedReports continuam iguais) ...
     const fetchTemplates = useCallback(async () => {
         setIsLoadingTemplates(true);
         try {
@@ -43,6 +50,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const fetchSavedReports = useCallback(async () => {
         setIsLoadingHistory(true);
         try {
+            // Esta view no backend deve ser atualizada para
+            // retornar apenas relatórios com "ativo=True"
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/relatorios/`);
             setSavedReports(res.data);
         } catch (err) {
@@ -53,6 +62,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     }, [pacienteId, showSnackbar]);
 
 
+    // ... (useEffect e handleGerarPreview continuam iguais) ...
     useEffect(() => {
         if (pacienteId && especialidade) {
             fetchTemplates();
@@ -63,7 +73,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         setEditorContent('');
     }, [pacienteId, especialidade, fetchTemplates, fetchSavedReports]);
 
-    // ... (handleGerarPreview continua igual) ...
     const handleGerarPreview = async () => {
         if (!selectedTemplateId) {
             showSnackbar('Selecione um modelo de relatório primeiro.', 'warning');
@@ -73,7 +82,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         try {
             const payload = {
                 template_id: selectedTemplateId,
-                consulta_id: consultaAtualId || null // Envia null se não houver consulta ativa
+                consulta_id: consultaAtualId || null 
             };
             const res = await apiClient.post(
                 `/prontuario/pacientes/${pacienteId}/gerar-preview-relatorio/`,
@@ -150,6 +159,37 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
 
+    // --- 3. ADICIONAR FUNÇÕES PARA O "SOFT DELETE" (Arquivar) ---
+    
+    // Esta função será chamada pelo botão "Arquivar" do diálogo
+    const handleArquivarRelatorio = async () => {
+        const relatorioId = confirmDeleteId;
+        if (!relatorioId) return;
+
+        try {
+            // ATENÇÃO: Este é um NOVO ENDPOINT que seu backend precisa criar.
+            // Ele deve ser um POST ou PATCH que seta "ativo = False" no relatório.
+            await apiClient.post(`/prontuario/relatorios/${relatorioId}/arquivar/`);
+            
+            showSnackbar('Relatório arquivado com sucesso.', 'success');
+            
+            // Recarrega a lista (que agora virá filtrada do backend sem esse item)
+            fetchSavedReports();
+
+        } catch (error) {
+            console.error("Erro ao arquivar relatório:", error);
+            showSnackbar('Erro ao arquivar o relatório.', 'error');
+        } finally {
+            // Fecha o diálogo de confirmação
+            setConfirmDeleteId(null);
+        }
+    };
+
+    // Esta função apenas abre o diálogo
+    const handleOpenConfirmDialog = (id) => {
+        setConfirmDeleteId(id);
+    };
+
     
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
@@ -159,7 +199,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 gap: 3 
             }}>
 
-                {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO (COM MUDANÇAS) --- */}
+                {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO (Sem alterações) --- */}
                 <Box sx={{ flex: { md: 2 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Gerar Novo Relatório
@@ -181,12 +221,11 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                             </Select>
                         </FormControl>
 
-                        {/* ★★★ MUDANÇA 1: LÓGICA DO BOTÃO E TEXTO ★★★ */}
+                        {/* Botão Gerar */}
                         <Button
                             variant="contained"
                             color="primary"
                             onClick={handleGerarPreview}
-                            // Agora só precisa de um template selecionado
                             disabled={!selectedTemplateId || isLoadingPreview}
                         >
                             {isLoadingPreview ? <CircularProgress size={24} /> 
@@ -194,7 +233,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                             }
                         </Button>
                         
-                        {/* ★★★ MUDANÇA 2: LÓGICA DO TEXTO DE AJUDA ★★★ */}
                         {!consultaAtualId ? (
                             <Typography variant="caption" color="warning.main" sx={{textAlign: 'center', mt: -1}}>
                                 Consulta (SOAP) não salva nesta sessão. A prévia usará apenas dados do paciente.
@@ -204,7 +242,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                                 Consulta atual (SOAP) será incluída na prévia.
                             </Typography>
                         )}
-                        {/* ★★★ FIM DAS MUDANÇAS ★★★ */}
 
 
                         {/* Editor de Texto */}
@@ -238,7 +275,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 </Box>
 
 
-                {/* --- LADO DIREITO: HISTÓRICO (Sem alterações) --- */}
+                {/* --- LADO DIREITO: HISTÓRICO (COM A LIXEIRA) --- */}
                 <Box sx={{ flex: { md: 1 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Relatórios Salvos
@@ -250,22 +287,41 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                                 {savedReports.map(report => (
                                     <React.Fragment key={report.id}>
                                         <ListItem
+                                            // --- 4. ATUALIZAR O SECONDARY ACTION ---
+                                            // Colocamos os dois botões dentro de um Box
                                             secondaryAction={
-                                                <Tooltip title="Gerar PDF">
-                                                    <span>
-                                                        <IconButton
-                                                            edge="end"
-                                                            aria-label="gerar pdf"
-                                                            onClick={() => handleGerarPdf(report.id)}
-                                                            disabled={pdfLoadingId === report.id}
-                                                        >
-                                                            {pdfLoadingId === report.id ? 
-                                                                <CircularProgress size={20} color="inherit" /> : 
-                                                                <PictureAsPdfIcon fontSize="small" />
-                                                            }
-                                                        </IconButton>
-                                                    </span>
-                                                </Tooltip>
+                                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                    {/* Botão de PDF (igual ao de antes) */}
+                                                    <Tooltip title="Gerar PDF">
+                                                        <span>
+                                                            <IconButton
+                                                                edge="end"
+                                                                aria-label="gerar pdf"
+                                                                onClick={() => handleGerarPdf(report.id)}
+                                                                disabled={pdfLoadingId === report.id}
+                                                            >
+                                                                {pdfLoadingId === report.id ? 
+                                                                    <CircularProgress size={20} color="inherit" /> : 
+                                                                    <PictureAsPdfIcon fontSize="small" />
+                                                                }
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+
+                                                    {/* Botão de Arquivar (Lixeira) */}
+                                                    <Tooltip title="Arquivar Relatório">
+                                                        <span>
+                                                            <IconButton
+                                                                edge="end"
+                                                                aria-label="arquivar"
+                                                                onClick={() => handleOpenConfirmDialog(report.id)}
+                                                                disabled={pdfLoadingId === report.id} // Desabilita se o PDF estiver carregando
+                                                            >
+                                                                <DeleteIcon fontSize="small" color="error" />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                </Box>
                                             }
                                         >
                                             <ListItemText
@@ -281,6 +337,31 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                     </Paper>
                 </Box>
             </Box>
+
+            {/* --- 5. ADICIONAR O DIÁLOGO DE CONFIRMAÇÃO NO FINAL --- */}
+            <Dialog
+                open={!!confirmDeleteId}
+                onClose={() => setConfirmDeleteId(null)}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+            >
+                <DialogTitle id="alert-dialog-title">
+                    Arquivar Relatório?
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="alert-dialog-description">
+                        Tem certeza que deseja arquivar este relatório? 
+                        Ele será removido desta lista, mas permanecerá visível no 
+                        histórico do sistema (Admin) para fins de auditoria.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
+                    <Button onClick={handleArquivarRelatorio} color="error" autoFocus>
+                        Sim, Arquivar
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 }
