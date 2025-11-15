@@ -7,7 +7,8 @@ import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandl
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    Button // <-- ★★★ ADICIONE ESTA LINHA ★★★
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig.js';
 import { useSnackbar } from '../../contexts/SnackbarContext.js';
