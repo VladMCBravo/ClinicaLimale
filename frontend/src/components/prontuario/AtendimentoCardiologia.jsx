@@ -9,10 +9,10 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-// 1. Importar o 'HistoricoCardiologia' (não remover)
+// --- CORREÇÃO AQUI ---
+// 1. Importar o 'HistoricoCardiologia' (ele deve estar em uma subpasta)
 const HistoricoCardiologia = lazy(() => import('./cardiologia/HistoricoCardiologia'));
-// 2. Remover a importação do 'RelatoriosTab'
-// const RelatoriosTab = lazy(() => import('./RelatoriosTab')); // <-- REMOVIDO
+// 2. Remover a definição 'const HistoricoCardiologia = ...' que estava aqui.
 
 // --- (Constantes de Opções omitidas para brevidade) ---
 const sintomasOpcoes = [ { id: 'dor_toracica', label: 'Dor torácica' }, { id: 'dispneia', label: 'Dispneia' }, { id: 'palpitacoes', label: 'Palpitações' }, { id: 'sincope_tontura', label: 'Síncope/Tontura' }, { id: 'edema_membros', label: 'Edema MMII' }, { id: 'claudicacao', label: 'Claudicação' }, { id: 'fadiga', label: 'Fadiga' }, ];
