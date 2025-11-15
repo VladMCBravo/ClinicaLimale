@@ -1,14 +1,15 @@
 // src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO FINAL: Auto-Save removido. Usa Botão Salvar Manual para garantir persistência.
+// VERSÃO REATORADA: Salva apenas quando o PAI (AtendimentoPediatria) mandar.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
     Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField,
-    FormControl, InputLabel, Select, MenuItem, Box, Button, CircularProgress,
-    Accordion, AccordionSummary, AccordionDetails, FormLabel, Fab, Tooltip
+    FormControl, InputLabel, Select, MenuItem, Box, CircularProgress,
+    Accordion, AccordionSummary, AccordionDetails, FormLabel, Button
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; 
-import SaveIcon from '@mui/icons-material/Save'; // Ícone de Salvar
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+// import SaveIcon from '@mui/icons-material/Save'; // Removido
+// import { Tooltip, Fab } from '@mui/material'; // Removidos
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
@@ -62,7 +63,8 @@ const initialState = {
     alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
 };
 
-export default function HistoricoPediatrico({ pacienteId }) {
+// --- 1. Envolver componente com forwardRef ---
+const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function HistoricoPediatrico({ pacienteId }) {
         setExpanded(isExpanded ? panel : false);
     };
 
-    // --- 1. Fetch de Dados (Apenas ao carregar) ---
+    // --- Fetch (Sem alteração) ---
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         const cacheBuster = `?_=${new Date().getTime()}`;
@@ -81,7 +83,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
             if (res.data && res.data.pediatrica) {
                 const data = { ...initialState, ...(res.data.pediatrica || {}) };
-                // Garante que os objetos aninhados existam
                 data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
                 data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
                 data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
@@ -105,11 +106,11 @@ export default function HistoricoPediatrico({ pacienteId }) {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // --- 2. Botão Salvar Manual ---
+    // --- 2. Função de Salvar (agora chamada pelo PAI) ---
     const handleSaveManual = async () => {
+        if (isSubmitting) return; // Evita cliques duplos
         setIsSubmitting(true);
         
-        // Prepara dados numéricos
         const dataCopy = { ...anamneseData };
         const camposNumericos = ['apgar_1', 'apgar_5', 'apgar_10', 'peso_nascimento'];
         camposNumericos.forEach(campo => {
@@ -118,22 +119,30 @@ export default function HistoricoPediatrico({ pacienteId }) {
         });
 
         const payload = { pediatria: dataCopy };
-        console.log('[SAVE MANUAL] Enviando:', payload);
+        console.log('[SAVE MANUAL - HISTÓRICO] Enviando:', payload);
 
         try {
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
-            showSnackbar('Histórico salvo com sucesso!', 'success');
-            // Opcional: Recarregar dados para garantir sincronia, mas não é estritamente necessário se o save funcionou
-            // fetchAnamnese(); 
+            console.log('Histórico salvo com sucesso!');
+            // showSnackbar('Histórico salvo com sucesso!', 'success'); // O PAI dará o snackbar
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error);
             showSnackbar('Erro ao salvar histórico.', 'error');
+            throw error; // Re-lança o erro para o Promise.all do pai saber que falhou
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // --- Handlers de input (Apenas atualizam o estado local) ---
+    // --- 3. Expor a função de salvar para o PAI ---
+    useImperativeHandle(ref, () => ({
+        saveData: async () => {
+            await handleSaveManual();
+        }
+    }));
+
+
+    // --- Handlers de input (Sem alteração) ---
     const handleChange = (e) => {
         setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
@@ -154,92 +163,47 @@ export default function HistoricoPediatrico({ pacienteId }) {
         handleJsonChange('triagens', name, value);
     };
 
-    // --- Handlers de Normalidade ---
+    // --- Handlers de Normalidade (Sem alteração) ---
+    // (handleNormalidadeGestacional, handleNormalidadeAlim06, etc... ficam iguais)
     const handleNormalidadeGestacional = () => {
-        setAnamneseData(prev => ({
-            ...prev,
-            tipo_parto: 'Vaginal',
-            idade_gestacional: 'Termo (37-41s)',
-            peso_nascimento: 3500, 
-            apgar_1: '9', apgar_5: '10', apgar_10: '10',
-            triagens: {
-                pezinho_status: 'Normal', pezinho_desc: '',
-                orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
-                orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '',
-                olhinho_status: 'Presente', olhinho_desc: '',
-                coracaozinho_status: 'Normal', coracaozinho_desc: '',
-                linguinha_status: 'Normal', linguinha_desc: '',
-            },
-        }));
-        showSnackbar('Preenchido com normalidade (clique em Salvar para confirmar).', 'info');
+        setAnamneseData(prev => ({ ...prev, tipo_parto: 'Vaginal', idade_gestacional: 'Termo (37-41s)', peso_nascimento: 3500, apgar_1: '9', apgar_5: '10', apgar_10: '10', triagens: { pezinho_status: 'Normal', pezinho_desc: '', orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '', orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '', olhinho_status: 'Presente', olhinho_desc: '', coracaozinho_status: 'Normal', coracaozinho_desc: '', linguinha_status: 'Normal', linguinha_desc: '', }, }));
+        showSnackbar('Pré-preenchido com normalidade.', 'info');
     };
-    
     const handleNormalidadeAlim06 = () => {
-        setAnamneseData(prev => ({
-            ...prev,
-            alimentacao_0_6m: {
-                tipo_aleitamento: 'AME', pega: 'Boa', succao: 'Eficaz', diurese: 'Adequada', evacuacao: 'Normal',
-                vitamina_d: true, ferro: true
-            },
-        }));
-        showSnackbar('Preenchido com normalidade (clique em Salvar para confirmar).', 'info');
+        setAnamneseData(prev => ({ ...prev, alimentacao_0_6m: { tipo_aleitamento: 'AME', pega: 'Boa', succao: 'Eficaz', diurese: 'Adequada', evacuacao: 'Normal', vitamina_d: true, ferro: true }, }));
+        showSnackbar('Pré-preenchido com normalidade.', 'info');
     };
-    
     const handleNormalidadeAlim612 = () => {
-        setAnamneseData(prev => ({
-            ...prev,
-            alimentacao_6_12m: {
-                tipo_alimentacao: 'Mantem AM', refeicoes_dia: '2', textura: 'Amassada', aceitacao: 'Boa', agua: 'Adequada',
-                vitamina_d: true, ferro: true, aceitacao_geral: 'Adequada'
-            },
-            metodo_ia: 'Tradicional', copo_transicao: 'Aberto Pequeno'
-        }));
-        showSnackbar('Preenchido com normalidade (clique em Salvar para confirmar).', 'info');
+        setAnamneseData(prev => ({ ...prev, alimentacao_6_12m: { tipo_alimentacao: 'Mantem AM', refeicoes_dia: '2', textura: 'Amassada', aceitacao: 'Boa', agua: 'Adequada', vitamina_d: true, ferro: true, aceitacao_geral: 'Adequada' }, metodo_ia: 'Tradicional', copo_transicao: 'Aberto Pequeno' }));
+        showSnackbar('Pré-preenchido com normalidade.', 'info');
     };
-    
     const handleNormalidadeSono = () => {
-        setAnamneseData(prev => ({
-            ...prev,
-            sono_comportamento: {
-                sono_diurno: 'Adequado', sono_noturno: 'Adequado', colica: 'Ausente', choro: 'Adequado', vinculo: 'Adequado'
-            },
-        }));
-        showSnackbar('Preenchido com normalidade (clique em Salvar para confirmar).', 'info');
+        setAnamneseData(prev => ({ ...prev, sono_comportamento: { sono_diurno: 'Adequado', sono_noturno: 'Adequado', colica: 'Ausente', choro: 'Adequado', vinculo: 'Adequado' }, }));
+        showSnackbar('Pré-preenchido com normalidade.', 'info');
     };
+
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
+    // --- 4. JSX Atualizado (Sem botões de salvar) ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400', position: 'relative' }}>
             
-            {/* --- BOTÃO FLUTUANTE DE SALVAR --- */}
-            <Tooltip title="Salvar Histórico">
-                <Fab 
-                    color="primary" 
-                    aria-label="save" 
-                    onClick={handleSaveManual}
-                    disabled={isSubmitting}
-                    sx={{ position: 'fixed', bottom: 80, right: 30, zIndex: 1000 }}
-                >
-                    {isSubmitting ? <CircularProgress color="inherit" size={24} /> : <SaveIcon />}
-                </Fab>
-            </Tooltip>
+            {/* --- BOTÃO FLUTUANTE DE SALVAR (REMOVIDO) --- */}
+            {/* <Tooltip title="Salvar Histórico"> ... </Fab> */}
 
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                     Histórico Pediátrico (Anamnese)
                 </Typography>
-                {/* Botão Salvar no topo também */}
-                <Button 
-                    variant="contained" 
-                    startIcon={<SaveIcon />} 
-                    onClick={handleSaveManual}
-                    disabled={isSubmitting}
-                >
-                    {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
+                
+                {/* --- BOTÃO SALVAR NO TOPO (REMOVIDO) --- */}
+                {/* <Button ... > ... </Button> */}
+
+                {/* Adiciona um spinner se esta aba estiver salvando */}
+                {isSubmitting && <CircularProgress size={24} />}
             </Box>
 
             <Box sx={{ mt: 2 }}>
@@ -358,4 +322,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
             </Box>
         </Paper>
     );
-}
+}); // --- Fim do forwardRef ---
+
+export default HistoricoPediatrico;

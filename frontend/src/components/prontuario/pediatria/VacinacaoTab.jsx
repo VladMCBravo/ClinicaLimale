@@ -1,7 +1,7 @@
 // src/components/prontuario/pediatria/VacinacaoTab.jsx
-// VERSÃO COM MAIS DEBUGS
+// VERSÃO REATORADA: Salva apenas quando o PAI (AtendimentoPediatria) mandar.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
     Paper, Typography, Box, CircularProgress,
     TableContainer, Table, TableHead, TableBody, TableRow, TableCell,
@@ -23,12 +23,12 @@ const pniSchedule = [
         { id: 'pneumo_1', nome: 'Pneumocócica', dose: '1ª Dose', 
           type: 'select', 
           options: ['Pneumo 10', 'Pneumo 13', 'Pneumo 15', 'Pneumo 20'],
-          defaultName: 'Pneumo 10' // Valor padrão se não salvo
+          defaultName: 'Pneumo 10'
         }
     ]},
     { idade: '3 meses', vacinas: [
         { id: 'meno_acwy_1', nome: 'Meningocócica ACWY', dose: '1ª Dose' },
-        { id: 'meno_b_1', nome: 'Meningocócica B', dose: '1ª Dose' } // <-- NOVO
+        { id: 'meno_b_1', nome: 'Meningocócica B', dose: '1ª Dose' }
     ]},
     { idade: '4 meses', vacinas: [
         { id: 'penta_2', nome: 'Pentavalente', dose: '2ª Dose' },
@@ -42,7 +42,7 @@ const pniSchedule = [
     ]},
     { idade: '5 meses', vacinas: [
         { id: 'meno_acwy_2', nome: 'Meningocócica ACWY', dose: '2ª Dose' },
-        { id: 'meno_b_2', nome: 'Meningocócica B', dose: '2ª Dose' } // <-- NOVO
+        { id: 'meno_b_2', nome: 'Meningocócica B', dose: '2ª Dose' }
     ]},
     { idade: '6 meses', vacinas: [
         { id: 'penta_3', nome: 'Pentavalente', dose: '3ª Dose' },
@@ -66,7 +66,7 @@ const pniSchedule = [
           defaultName: 'Pneumo 10'
         },
         { id: 'meno_acwy_r', nome: 'Meningo ACWY', dose: 'Reforço' },
-        { id: 'meno_b_r', nome: 'Meningo B', dose: 'Reforço' } // <-- NOVO
+        { id: 'meno_b_r', nome: 'Meningo B', dose: 'Reforço' }
     ]},
     { idade: '15 meses', vacinas: [
         { id: 'dtp_r1', nome: 'DTP (Tríplice Bact.)', dose: '1º Reforço' },
@@ -85,65 +85,56 @@ const pniSchedule = [
     ]}
 ];
 
-
-export default function VacinacaoTab({ pacienteId, onDataChange }) {
+// --- 1. Envolver componente com forwardRef ---
+const VacinacaoTab = forwardRef(({ pacienteId, onDataChange }, ref) => {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false); // 2. State de Submissão
     const [vacinasSalvas, setVacinasSalvas] = useState({});
-    const [loadingVacinas, setLoadingVacinas] = useState({}); 
+    const [vacinasIniciais, setVacinasIniciais] = useState({}); // 3. State Inicial
+    // const [loadingVacinas, setLoadingVacinas] = useState({}); // Removido
 
     const fetchVacinas = useCallback(async () => {
         setIsLoading(true);
-        console.log(`[DEBUG VACINAS]  fetching... pacienteId: ${pacienteId}`); // ★★★ NOVO DEBUG ★★★
+        console.log(`[DEBUG VACINAS]  fetching... pacienteId: ${pacienteId}`);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/`);
-            // ★★★ NOVO DEBUG ★★★
             console.log('[DEBUG VACINAS] 📦 Dados BRUTOS recebidos da API:', res.data);
             
-            // Mapeia usando o 'vacina_id' (que é o 'id' do pniSchedule)
             const mapaVacinas = res.data.reduce((acc, vacina) => {
                 if (vacina.vacina_id) {
-                    // ★★★ CORREÇÃO AQUI ★★★
-                    // Formata a data para YYYY-MM-DD, que é o que o TextField type="date" espera.
                     if (vacina.data_aplicacao) {
                         vacina.data_aplicacao = vacina.data_aplicacao.split('T')[0];
                     }
-                    // ★★★ FIM DA CORREÇÃO ★★★
-                    
                     acc[vacina.vacina_id] = vacina;
                 }
                 return acc;
             }, {});
+            
             setVacinasSalvas(mapaVacinas);
-            // ★★★ NOVO DEBUG ★★★
+            setVacinasIniciais(JSON.parse(JSON.stringify(mapaVacinas))); // Guarda cópia profunda inicial
+            
             console.log('[DEBUG VACINAS] 🏁 Estado final (mapaVacinas):', mapaVacinas);
         } catch (err) {
             if (err.response && err.response.status !== 404) {
-                console.error("[DEBUG VACINAS] ❌ Erro no fetch:", err); // ★★★ NOVO DEBUG ★★★
+                console.error("[DEBUG VACINAS] ❌ Erro no fetch:", err);
                 showSnackbar('Erro ao carregar caderneta de vacinação.', 'error');
             }
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId, showSnackbar]); // MANTIDO showSnackbar, pois está no useCallback
+    }, [pacienteId, showSnackbar]);
 
     useEffect(() => {
         fetchVacinas();
     }, [fetchVacinas]);
 
-    // --- FUNÇÃO handleVacinaChange TOTALMENTE CORRIGIDA ---
-    const handleVacinaChange = async (vacinaInfo, field, newValue) => {
+    // --- 4. Função de MUDANÇA (NÃO SALVA MAIS) ---
+    const handleLocalVacinaChange = (vacinaInfo, field, newValue) => {
         const { id, nome, dose, idade, defaultName } = vacinaInfo;
-        const key = id; // O 'vacina_id' (ex: 'pneumo_1')
-        const vacinaExistente = vacinasSalvas[key];
+        const key = id;
         
-        // ★★★ NOVO DEBUG ★★★
-        console.log(`[DEBUG VACINAS] 💾 handleVacinaChange... ID: ${key}, Campo: ${field}, Valor: ${newValue}`);
-
-        if (loadingVacinas[key]) {
-            console.warn(`[DEBUG VACINAS] ⚠️ Bloqueado: ${key} já está salvando.`); // ★★★ NOVO DEBUG ★★★
-            return; 
-        }
+        console.log(`[DEBUG VACINAS] ✍️  Mudança local... ID: ${key}, Campo: ${field}, Valor: ${newValue}`);
         
         const savedData = vacinasSalvas[key] || {};
 
@@ -157,6 +148,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
         }
         
         const payload = {
+            ...(savedData.id && { id: savedData.id }), // Mantém o ID do banco, se existir
             vacina_id: key,
             nome_vacina: nomeVacinaFinal,
             dose: dose,
@@ -179,12 +171,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
             payload.status = 'Pendente';
         }
         
-        // ★★★ NOVO DEBUG ★★★
-        console.log('[DEBUG VACINAS] 🚀 Payload (otimista):', payload);
-
-        const oldState = vacinasSalvas;
-        
-        // 4. Atualização Otimista
+        // Apenas atualiza o estado local
         setVacinasSalvas(prev => ({
             ...prev,
             [key]: {
@@ -192,42 +179,83 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                 ...payload 
             }
         }));
-        
-        setLoadingVacinas(prev => ({ ...prev, [key]: true })); // Liga o loading
+    };
+
+    // --- 5. NOVA FUNÇÃO DE SALVAR (Chamada pelo PAI) ---
+    const saveData = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        console.log('[SAVE DATA - VACINAS] Iniciando salvamento...');
+
+        const savePromises = [];
+
+        // Itera sobre o estado local
+        for (const vacina_id in vacinasSalvas) {
+            const localVacina = vacinasSalvas[vacina_id];
+            const vacinaInicial = vacinasIniciais[vacina_id];
+
+            // Compara com o estado inicial
+            if (JSON.stringify(localVacina) === JSON.stringify(vacinaInicial)) {
+                continue; // Pula, sem mudanças
+            }
+
+            console.log(`[SAVE DATA - VACINAS] Alteração detectada em: ${vacina_id}`);
+
+            // O 'localVacina' já é o payload completo, graças ao handleLocalVacinaChange
+            const payload = localVacina;
+
+            // Decide se é POST (novo) ou PATCH (existente)
+            if (localVacina.id) { // 'id' é o ID do banco de dados
+                savePromises.push(
+                    apiClient.patch(`/prontuario/pacientes/${pacienteId}/vacinas/${localVacina.id}/`, payload)
+                );
+            } else {
+                savePromises.push(
+                    apiClient.post(`/prontuario/pacientes/${pacienteId}/vacinas/`, payload)
+                );
+            }
+        }
 
         try {
-             // ★★★ NOVO DEBUG ★★★
-            console.log(`[DEBUG VACINAS] 📩 Enviando ${vacinaExistente?.id ? 'PATCH' : 'POST'} para ${key}...`);
+            await Promise.all(savePromises);
+            console.log('[SAVE DATA - VACINAS] Salvo com sucesso!');
             
-            if (vacinaExistente?.id) { // Usa o ID do banco se existir
-                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/vacinas/${vacinaExistente.id}/`, payload);
-            } else {
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/vacinas/`, payload);
-                setVacinasSalvas(prev => ({ ...prev, [key]: res.data })); 
-            }
+            // Re-fetch para atualizar os estados iniciais e IDs
+            await fetchVacinas(); 
             
-            if (onDataChange) {
-                onDataChange();
-            }
+            // Chama o onDataChange (para os badges do pai)
+            if (onDataChange) onDataChange();
+
         } catch (err) {
-            console.error("Erro ao salvar vacina. Payload enviado:", payload, "Erro:", err.response);
-            showSnackbar('Erro ao salvar vacina. Verifique os dados.', 'error');
-            setVacinasSalvas(oldState); // Reverte
+            console.error("[SAVE DATA - VACINAS] ❌ Erro ao salvar:", err);
+            showSnackbar('Erro ao salvar dados de Vacinação.', 'error');
+            throw err; // Re-lança o erro para o Promise.all do pai
         } finally {
-            setLoadingVacinas(prev => ({ ...prev, [key]: false })); // Desliga o loading
+            setIsSubmitting(false);
         }
     };
-    // --- FIM DA CORREÇÃO ---
+
+    // --- 6. Expor a função de salvar para o PAI ---
+    useImperativeHandle(ref, () => ({
+        saveData: async () => {
+            await saveData();
+        }
+    }));
+
+
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // (JSX do return... sem alterações)
+    // --- 7. JSX (com indicador de loading) ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Caderneta de Vacinação (PNI 2025)
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 0 }}>
+                    Caderneta de Vacinação (PNI 2025)
+                </Typography>
+                {isSubmitting && <CircularProgress size={20} sx={{ ml: 2 }} />}
+            </Box>
             <TableContainer>
                 <Table size="small">
                     <TableHead>
@@ -244,9 +272,8 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                             <React.Fragment key={grupo.idade}>
                                 {grupo.vacinas.map((vacina, vacIndex) => {
                                     
-                                    const key = vacina.id; // Chave Única
+                                    const key = vacina.id;
                                     const dadosSalvos = vacinasSalvas[key] || {};
-                                    // Passa todas as infos da vacina para o handler
                                     const vacinaInfo = { ...vacina, idade: grupo.idade };
 
                                     return (
@@ -258,7 +285,6 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                                             ) : null}
                                             
                                             <TableCell>
-                                                {/* CONDIÇÃO PARA RENDERIZAR O DROPDOWN */}
                                                 {vacina.type === 'select' ? (
                                                     <FormControl size="small" fullWidth sx={{minWidth: '150px'}}>
                                                         <InputLabel id={`nome-vacina-label-${key}`}>{vacina.nome}</InputLabel>
@@ -266,7 +292,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                                                             labelId={`nome-vacina-label-${key}`}
                                                             label={vacina.nome}
                                                             value={dadosSalvos.nome_vacina || vacina.defaultName}
-                                                            onChange={(e) => handleVacinaChange(vacinaInfo, 'nome_vacina', e.target.value)}
+                                                            onChange={(e) => handleLocalVacinaChange(vacinaInfo, 'nome_vacina', e.target.value)}
                                                         >
                                                             {vacina.options.map(opt => (
                                                                 <MenuItem key={opt} value={opt}>{opt}</MenuItem>
@@ -288,7 +314,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                                                         labelId={`status-label-${key}`}
                                                         label="Status"
                                                         value={dadosSalvos.status || 'Pendente'}
-                                                        onChange={(e) => handleVacinaChange(vacinaInfo, 'status', e.target.value)}
+                                                        onChange={(e) => handleLocalVacinaChange(vacinaInfo, 'status', e.target.value)}
                                                     >
                                                         <MenuItem value="Pendente">Pendente</MenuItem>
                                                         <MenuItem value="Aplicada">Aplicada</MenuItem>
@@ -304,7 +330,7 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                                                     size="small"
                                                     InputLabelProps={{ shrink: true }}
                                                     value={dadosSalvos.data_aplicacao || ''}
-                                                    onChange={(e) => handleVacinaChange(vacinaInfo, 'data_aplicacao', e.target.value || null)}
+                                                    onChange={(e) => handleLocalVacinaChange(vacinaInfo, 'data_aplicacao', e.target.value || null)}
                                                 />
                                             </TableCell>
 
@@ -313,9 +339,10 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
                                                     placeholder="Lote, clínica, etc."
                                                     size="small"
                                                     fullWidth
-                                                    defaultValue={dadosSalvos.observacao || ''}
-                                                    // Usamos onBlur para não salvar a cada tecla
-                                                    onBlur={(e) => handleVacinaChange(vacinaInfo, 'observacao', e.target.value)}
+                                                    // Usamos 'value' para garantir que o estado local seja a fonte da verdade
+                                                    value={dadosSalvos.observacao || ''}
+                                                    // onChange é mais reativo que onBlur para estado local
+                                                    onChange={(e) => handleLocalVacinaChange(vacinaInfo, 'observacao', e.target.value)}
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -328,4 +355,6 @@ export default function VacinacaoTab({ pacienteId, onDataChange }) {
             </TableContainer>
         </Paper>
     );
-}
+}); // --- Fim do forwardRef ---
+
+export default VacinacaoTab;

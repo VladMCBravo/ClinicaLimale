@@ -3,9 +3,9 @@
 // 1. Corrige a função 'renderAnamnese' para exibir TODOS os dados preenchidos.
 // 2. Garante que o cacheBuster não crie uma barra dupla "//" na URL.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
-    Dialog, DialogTitle, DialogContent, DialogActions, Button, 
+    Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
@@ -80,14 +80,14 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             const fetchTudo = async () => {
                 try {
                     // ★★★ CORREÇÃO AQUI ★★★
-                    // Garante a barra "/" final ANTES do cacheBuster
-                    
-                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
-                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
-                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
-                    
-                    // ★★★ FIM DA CORREÇÃO ★★★
+        // Garante a barra "/" final ANTES do cacheBuster
+        
+        const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
+        const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
+        const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
+        const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
+        
+        // ★★★ FIM DA CORREÇÃO ★★★
 
                     const dadosBrutos = {
                         evolucao: resEvolucao.data,

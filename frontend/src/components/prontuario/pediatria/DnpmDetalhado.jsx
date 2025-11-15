@@ -1,15 +1,15 @@
 // src/components/prontuario/pediatria/DnpmDetalhado.jsx
-// VERSÃO COM MAIS DEBUGS
+// VERSÃO REATORADA: Salva apenas quando o PAI (AtendimentoPediatria) mandar.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
-    Paper, Typography, Box, Button, CircularProgress,
+    Paper, Typography, Box, CircularProgress,
     TextField, FormControlLabel, FormGroup, FormLabel, FormControl,
     Checkbox,
     Accordion, AccordionSummary, AccordionDetails, Grid,
     Select, MenuItem, InputLabel
 } from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // <-- CORREÇÃO AQUI
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
@@ -39,27 +39,31 @@ const dnpmStatusOptions = [
     { value: 'Ausente', label: 'Ausente (Alerta)' },
 ];
 
-export default function DnpmDetalhado({ pacienteId, onDataChange }) {
+// --- 1. Envolver componente com forwardRef ---
+const DnpmDetalhado = forwardRef(({ pacienteId, onDataChange }, ref) => {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false); // 2. State de Submissão
     const [marcosSalvos, setMarcosSalvos] = useState({});
-    const [observacoes, setObservacoes] = useState("");
+    // const [observacoes, setObservacoes] = useState(""); // Este state não parece estar sendo usado
     const [dnpmResumo, setDnpmResumo] = useState({});
     const [expanded, setExpanded] = useState(false);
+    
+    // Este estado é usado para comparar o que mudou
+    const [marcosIniciais, setMarcosIniciais] = useState({});
 
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpanded(isExpanded ? panel : false);
     };
 
-    // --- ALTERAÇÃO 2: fetchData (Mapeia para Presente/Ausente e carrega observacao) ---
+    // --- fetchData (Sem alteração, mas agora também guarda o estado inicial) ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
-        console.log(`[DEBUG DNPM]  fetching... pacienteId: ${pacienteId}`); // ★★★ NOVO DEBUG ★★★
+        console.log(`[DEBUG DNPM]  fetching... pacienteId: ${pacienteId}`);
         try {
             const resMarcos = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`);
             const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
             
-            // ★★★ NOVO DEBUG ★★★
             console.log('[DEBUG DNPM] 📦 Dados BRUTOS recebidos:', { 
                 marcos: resMarcos.data, 
                 anamnese: resAnamnese.data 
@@ -74,19 +78,20 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                 acc[marco.marco_id] = { 
                     ...marco, 
                     status: status, 
-                    observacao: marco.observacao || '' // Garante que observacao exista
+                    observacao: marco.observacao || ''
                 };
                 return acc;
             }, {});
+            
             setMarcosSalvos(mapaMarcos);
+            setMarcosIniciais(JSON.parse(JSON.stringify(mapaMarcos))); // Guarda cópia profunda inicial
 
             if (resAnamnese.data && resAnamnese.data.pediatrica && resAnamnese.data.pediatrica.dnpm) {
                 setDnpmResumo(resAnamnese.data.pediatrica.dnpm);
             }
-             // ★★★ NOVO DEBUG ★★★
-            console.log('[DEBUG DNPM] 🏁 Estado final (mapaMarcos):', mapaMarcos);
+             console.log('[DEBUG DNPM] 🏁 Estado final (mapaMarcos):', mapaMarcos);
         } catch (err) { 
-            console.error("[DEBUG DNPM] ❌ Erro no fetchData:", err); // ★★★ NOVO DEBUG ★★★
+            console.error("[DEBUG DNPM] ❌ Erro no fetchData:", err);
             showSnackbar('Erro ao carregar dados de DNPM.', 'error'); 
         }
         finally { setIsLoading(false); }
@@ -94,101 +99,123 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    // --- ALTERAÇÃO 3: Função 'saveMarco' consolidada ---
-    // Salva qualquer parte do marco (status ou observação)
-    const saveMarco = async (marco_id, payload) => {
-        // ★★★ NOVO DEBUG ★★★
-        console.log(`[DEBUG DNPM] 💾 saveMarco... marco_id: ${marco_id}`, 'payload:', payload);
-
-        // Encontra a descrição do marco na constante
-        const marco = marcosPorIdade
-            .flatMap(g => [g.motorGrosso, g.motorFino, g.linguagem, g.social])
-            .find(m => m.id === marco_id);
-        
-        if (!marco) {
-            console.error(`[DEBUG DNPM] ❌ Marco não encontrado: ${marco_id}`);
-            return;
-        }
-        const { desc: marco_descricao } = marco;
+    // --- 3. Função de MUDANÇA (NÃO SALVA MAIS) ---
+    // (antiga 'saveMarco')
+    const handleMarcoChange = (marco_id, payload) => {
+        console.log(`[DEBUG DNPM] ✍️  Mudança local... marco_id: ${marco_id}`, 'payload:', payload);
         
         const marcoExistente = marcosSalvos[marco_id];
-        const oldState = { ...marcosSalvos }; // Salva estado anterior
         
-        // --- Atualização Otimista ---
+        // --- Atualização do ESTADO LOCAL ---
         const optimisticData = {
             ...(marcoExistente || { 
                 marco_id: marco_id, 
-                marco_descricao: marco_descricao,
-                idade_marco: marco_id.split('_')[0],
+                // (descrição e idade serão adicionados no save real)
                 status: 'Pendente',
                 observacao: ''
             }),
             ...payload // Aplica as novas mudanças (ex: {alcançado: false} ou {observacao: '...'})
         };
         
-        // Se 'alcançado' foi mudado, atualiza o 'status' local
+        // Se 'alcançado' foi mudado (payload), atualiza o 'status' local
         if (payload.alcançado === true) optimisticData.status = 'Presente';
         else if (payload.alcançado === false) optimisticData.status = 'Ausente';
         else if (payload.alcançado === null) optimisticData.status = 'Pendente';
 
         setMarcosSalvos(prev => ({ ...prev, [marco_id]: optimisticData }));
-        // --- Fim Atualização Otimista ---
-
-        try {
-            // Prepara o payload completo para garantir que o backend receba todos os campos
-            const fullPayload = {
-                marco_id: marco_id,
-                marco_descricao: marco_descricao,
-                idade_marco: marco_id.split('_')[0],
-                // Mescla os dados otimistas com o payload
-                alcançado: optimisticData.alcançado !== undefined ? optimisticData.alcançado : null, 
-                observacao: optimisticData.observacao || ''
-            };
-            
-            // ★★★ NOVO DEBUG ★★★
-            console.log(`[DEBUG DNPM] 🚀 Enviando ${marcoExistente?.id ? 'PATCH' : 'POST'}...`, fullPayload);
-
-            if (marcoExistente?.id) {
-                // PATCH (Envia o payload COMPLETO)
-                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${marcoExistente.id}/`, fullPayload);
-            } else {
-                // POST (Envia o payload COMPLETO)
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, fullPayload);
-                
-                // Atualiza o estado local com o ID do banco
-                setMarcosSalvos(prev => ({ 
-                    ...prev, 
-                    [marco_id]: { ...res.data, status: optimisticData.status } 
-                }));
-            }
-            if (onDataChange) onDataChange();
-        } catch (err) {
-            console.error("[DEBUG DNPM] ❌ Erro ao salvar marco:", err); // ★★★ NOVO DEBUG ★★★
-            showSnackbar('Erro ao salvar marco.', 'error');
-            setMarcosSalvos(oldState); // Reverte em caso de erro
-        }
+        // --- Fim da Atualização ---
     };
 
-    // (handleResumoChange... sem alterações)
-    const handleResumoChange = async (event) => {
+    // --- 4. Função de MUDANÇA do Resumo (NÃO SALVA MAIS) ---
+    const handleResumoChange = (event) => {
         const { name, checked } = event.target;
         const newResumo = { ...dnpmResumo, [name]: checked };
         setDnpmResumo(newResumo);
         
-        // ★★★ NOVO DEBUG ★★★
-        console.log(`[DEBUG DNPM] 💾 Salvar Resumo...`, newResumo);
+        console.log(`[DEBUG DNPM] ✍️  Mudança local (Resumo)...`, newResumo);
+        // NENHUMA CHAMADA DE API AQUI
+    };
+
+
+    // --- 5. NOVA FUNÇÃO DE SALVAR (Chamada pelo PAI) ---
+    const saveData = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        console.log('[SAVE DATA - DNPM] Iniciando salvamento...');
+
+        const savePromises = [];
+
+        // 1. Salvar o Resumo (sempre envia, API é idempotente)
+        savePromises.push(
+            apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
+                pediatrica: { dnpm: dnpmResumo }
+            })
+        );
+        
+        // Mapeia todos os marcos das constantes para fácil acesso
+        const allMarcosInfo = marcosPorIdade.flatMap(g => [g.motorGrosso, g.motorFino, g.linguagem, g.social]);
+
+        // 2. Salvar os Marcos (apenas os alterados ou novos)
+        for (const marco_id in marcosSalvos) {
+            const localMarco = marcosSalvos[marco_id];
+            const marcoInicial = marcosIniciais[marco_id];
+
+            // Compara o estado atual com o inicial
+            if (JSON.stringify(localMarco) === JSON.stringify(marcoInicial)) {
+                continue; // Pula este marco, não mudou
+            }
+
+            console.log(`[SAVE DATA - DNPM] Alteração detectada em: ${marco_id}`);
+            
+            const marcoInfo = allMarcosInfo.find(m => m.id === marco_id);
+            if (!marcoInfo) {
+                console.error(`[SAVE DATA - DNPM] Marco ${marco_id} não encontrado nas constantes!`);
+                continue;
+            }
+
+            // Prepara o payload completo
+            const payload = {
+                marco_id: marco_id,
+                marco_descricao: marcoInfo.desc,
+                idade_marco: marco_id.split('_')[0],
+                alcançado: localMarco.status === 'Presente' ? true : (localMarco.status === 'Ausente' ? false : null),
+                observacao: localMarco.observacao || ''
+            };
+
+            // Decide se é POST (novo) ou PATCH (existente)
+            if (localMarco.id) { // 'id' é o ID do banco de dados
+                savePromises.push(
+                    apiClient.patch(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${localMarco.id}/`, payload)
+                );
+            } else {
+                savePromises.push(
+                    apiClient.post(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/`, payload)
+                );
+            }
+        }
+
         try {
-            await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
-                pediatrica: { dnpm: newResumo }
-            });
-            if (onDataChange) onDataChange();
-            showSnackbar('Resumo do DNPM atualizado!', 'success');
+            await Promise.all(savePromises);
+            console.log('[SAVE DATA - DNPM] Salvo com sucesso!');
+            // Opcional: Re-fetch para atualizar os estados iniciais e IDs
+            // await fetchData(); 
+            // O PAI dará o snackbar de sucesso
         } catch (err) {
-            console.error("[DEBUG DNPM] ❌ Erro ao salvar resumo:", err); // ★★★ NOVO DEBUG ★★★
-            showSnackbar('Erro ao salvar resumo do DNPM.', 'error');
-            setDnpmResumo(prev => ({...prev, [name]: !checked}));
+            console.error("[SAVE DATA - DNPM] ❌ Erro ao salvar:", err);
+            showSnackbar('Erro ao salvar dados do DNPM.', 'error');
+            throw err; // Re-lança o erro para o Promise.all do pai
+        } finally {
+            setIsSubmitting(false);
         }
     };
+
+    // --- 6. Expor a função de salvar para o PAI ---
+    useImperativeHandle(ref, () => ({
+        saveData: async () => {
+            await saveData();
+        }
+    }));
+
 
     // (useEffect de expansão... sem alterações)
     useEffect(() => {
@@ -198,11 +225,8 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                 const mf_status = marcosSalvos[grupo.motorFino.id]?.status || 'Pendente';
                 const ling_status = marcosSalvos[grupo.linguagem.id]?.status || 'Pendente';
                 const soc_status = marcosSalvos[grupo.social.id]?.status || 'Pendente';
-                
-                // Retorna true se QUALQUER marco não for 'Presente'
                 return (mg_status !== 'Presente' || mf_status !== 'Presente' || ling_status !== 'Presente' || soc_status !== 'Presente'); 
             });
-
             if (primeiroPendente) setExpanded(primeiroPendente.idade);
             else if (marcosPorIdade.length > 0) setExpanded(marcosPorIdade[marcosPorIdade.length - 1].idade);
         }
@@ -210,8 +234,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
     }, [isLoading]);
 
 
-    // (Componente MarcoAvaliacao e JSX... sem alterações)
-    // --- ALTERAÇÃO 5: Novo Componente (MarcoAvaliacao) ---
+    // --- 7. Componente MarcoAvaliacao (Atualizado) ---
     const MarcoAvaliacao = ({ marco }) => {
         if (!marco) return null;
 
@@ -236,8 +259,8 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                             else if (newStatus === 'Ausente') alcançado_payload = false;
                             else alcançado_payload = null;
                             
-                            // Salva o status (alcançado)
-                            saveMarco(marco.id, { alcançado: alcançado_payload });
+                            // Chama a função que SÓ MUDA O ESTADO
+                            handleMarcoChange(marco.id, { alcançado: alcançado_payload });
                         }}
                     >
                         {dnpmStatusOptions.map(opt => (
@@ -264,8 +287,8 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                             }));
                         }}
                         onBlur={() => {
-                            // Salva no banco QUANDO o usuário sai do campo
-                            saveMarco(marco.id, { observacao: currentObs });
+                            // Chama a função que SÓ MUDA O ESTADO
+                            handleMarcoChange(marco.id, { observacao: currentObs });
                         }}
                         sx={{ mb: 1 }}
                     />
@@ -278,12 +301,16 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
+    // --- 8. JSX (com indicador de loading) ---
     return (
         <React.Fragment>
             {/* Bloco de Resumo (sem alteração) */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderColor: 'grey.400' }}>
-                <FormControl component="fieldset" size="small">
-                    <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 500}}>Resumo da Avaliação</FormLabel>
+                <FormControl component="fieldset" size="small" sx={{width: '100%'}}>
+                    <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 500}}>Resumo da Avaliação</FormLabel>
+                        {isSubmitting && <CircularProgress size={20} />}
+                    </Box>
                     <FormGroup sx={{ display: 'flex', flexDirection: 'row' }}>
                          {dnpmOptions.map(opt => (
                             <FormControlLabel
@@ -292,7 +319,7 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                                     <Checkbox
                                         size="small"
                                         checked={dnpmResumo[opt.id] || false}
-                                        onChange={handleResumoChange}
+                                        onChange={handleResumoChange} // Chama a função que SÓ MUDA O ESTADO
                                         name={opt.id}
                                     />
                                 }
@@ -328,7 +355,6 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
                             </Typography>
                         </AccordionSummary>
                         <AccordionDetails>
-                            {/* --- ALTERAÇÃO 6: JSX com FormLabels e MarcoAvaliacao --- */}
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6} md={3}>
                                     <FormLabel sx={{fontSize: '0.8rem', fontWeight: 500, mb: 0.5, display: 'block'}}>Motor Grosso</FormLabel>
@@ -353,4 +379,6 @@ export default function DnpmDetalhado({ pacienteId, onDataChange }) {
             </Box>
         </React.Fragment>
     );
-}
+}); // --- Fim do forwardRef ---
+
+export default DnpmDetalhado;
