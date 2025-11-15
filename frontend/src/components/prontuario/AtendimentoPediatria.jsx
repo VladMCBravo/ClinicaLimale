@@ -125,6 +125,8 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     const dnpmRef = useRef(null);
     const vacinacaoRef = useRef(null);
 
+    // ★★★ MUDANÇA 1: Adicionar estado para o ID da Evolução da Sessão ★★★
+    const [evolucaoIdSessao, setEvolucaoIdSessao] = useState(null);
 
     // --- 3. NOVA FUNÇÃO PARA BUSCAR STATUS ---
     const fetchStatusResumos = useCallback(async () => {
@@ -146,7 +148,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     }, [pacienteId]);
 
 
-    // --- 4. useEffect DE CARREGAMENTO (Sem alterações) ---
+    // --- 4. useEffect DE CARREGAMENTO (MODIFICADO) ---
     useEffect(() => {
         console.log("🔥 [EFFECT] O useEffect principal foi disparado (Carregamento)");
         
@@ -158,6 +160,9 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             setTabIndex(0); 
             setVacinacaoStatus(null);
             setDnpmStatus(null);
+            
+            // ★★★ MUDANÇA 2: Resetar o ID da sessão ao trocar de paciente ★★★
+            setEvolucaoIdSessao(null); 
 
             console.log("   -> Iniciando GET /pacientes/...");
             apiClient.get(`/pacientes/${pacienteId}/`)
@@ -188,6 +193,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             setTabIndex(0); 
             setVacinacaoStatus(null);
             setDnpmStatus(null);
+            setEvolucaoIdSessao(null); // Limpa o ID da sessão
         }
     
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,8 +304,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     
     // --- 5. LÓGICA DE SALVAMENTO (REATORADA) ---
     
-    // ETAPA 1: Função que salva APENAS o SOAP e VITAIS
-    // (Antiga 'handleSubmit')
+    // ★★★ MUDANÇA 3: handleSaveSOAPAndVitals agora decide entre POST e PATCH ★★★
     const handleSaveSOAPAndVitals = async () => {
         const vitaisData = { 
             peso: exameFisicoData.peso || null, 
@@ -308,14 +313,33 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         
         let evolucaoId;
         
-        try {
-            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
-            evolucaoId = res.data.id; // Guarda o ID
-            console.log('SOAP salvo com sucesso.', evolucaoId);
-        } catch (error) {
-            console.error("Erro ao salvar evolução (SOAP):", error.response?.data || error);
-            showSnackbar('Erro ao salvar a consulta atual (SOAP).', 'error');
-            throw error; // Lança o erro para parar a execução
+        if (evolucaoIdSessao) {
+            // --- JÁ EXISTE UMA EVOLUÇÃO, ATUALIZAR (PATCH) ---
+            console.log(`   -> Atualizando SOAP da Evolução ID: ${evolucaoIdSessao}`);
+            evolucaoId = evolucaoIdSessao; // Use the existing ID
+            try {
+                // PATCH para a Evolução específica
+                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapData);
+                console.log('SOAP atualizado com sucesso.');
+            } catch (error) {
+                console.error("Erro ao ATUALIZAR evolução (SOAP):", error.response?.data || error);
+                showSnackbar('Erro ao atualizar a consulta atual (SOAP).', 'error');
+                throw error; // Lança o erro para parar a execução
+            }
+        } else {
+            // --- NÃO EXISTE, CRIAR UMA NOVA (POST) ---
+            console.log("   -> Criando NOVA Evolução (POST)...");
+            try {
+                // POST para a lista de Evoluções
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+                evolucaoId = res.data.id; // Guarda o NOVO ID
+                setEvolucaoIdSessao(evolucaoId); // ★★★ Salva o ID na sessão! ★★★
+                console.log(`SOAP salvo com sucesso. Nova Evolução ID: ${evolucaoId}`);
+            } catch (error) {
+                console.error("Erro ao CRIAR evolução (SOAP):", error.response?.data || error);
+                showSnackbar('Erro ao salvar a consulta atual (SOAP).', 'error');
+                throw error; // Lança o erro para parar a execução
+            }
         }
         
         // Salva os vitais (separadamente, erro aqui não para o processo)
@@ -327,7 +351,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
              showSnackbar('Erro ao atualizar dados vitais do paciente (consulta foi salva).', 'warning');
         }
         
-        return evolucaoId; // Retorna o ID da evolução criada
+        return evolucaoId; // Retorna o ID (seja novo ou antigo)
     };
 
     // ETAPA 2: A nova função "Mestra" que salva TUDO
@@ -336,10 +360,12 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         if (isSubmitting) return;
 
         setIsSubmitting(true);
+        // Verifica se a sessão já foi iniciada ANTES de salvar
+        const isSessaoIniciada = evolucaoIdSessao !== null;
         console.log("--- INICIANDO SALVAMENTO COMPLETO ---");
 
         try {
-            // 1. Salva o SOAP e VITAIS primeiro
+            // 1. Salva o SOAP e VITAIS primeiro (agora com lógica de PATCH/POST)
             console.log("   -> Etapa 1: Salvando SOAP e Vitais...");
             const evolucaoId = await handleSaveSOAPAndVitals();
             
@@ -370,16 +396,25 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             console.log("   -> Etapa 3: Histórico, DNPM e Vacinas salvos.");
 
             // 4. Sucesso total
-            showSnackbar('Atendimento completo salvo com sucesso!', 'success');
             
-            // Limpa o formulário
-            handleLimparConsultaAtual();
+            // ★★★ MUDANÇA 4: Mensagem de sucesso condicional ★★★
+            showSnackbar(
+                isSessaoIniciada 
+                    ? 'Atendimento atualizado com sucesso!' 
+                    : 'Atendimento salvo com sucesso!', 
+                'success'
+            );
+            
+            // ★★★ MUDANÇA 5: NÃO LIMPAR O FORMULÁRIO ★★★
+            // O formulário só deve ser limpo se o usuário clicar em "Limpar"
+            // ou trocar de paciente.
+            // handleLimparConsultaAtual(); // <-- LINHA REMOVIDA
             
             // Atualiza os badges
             fetchStatusResumos();
             
             // Chama a função do PAI (ProntuarioCompleto) para abrir o modal
-            if(onEvolucoesSalva) {
+            if(onEvoluccoesSalva) {
                 console.log(`   -> Etapa 4: Chamando onEvolucoesSalva com ID: ${evolucaoId}`);
                 onEvolucoesSalva(evolucaoId); 
             }
@@ -458,12 +493,11 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                         size="small"
                         disabled={isSubmitting || !pacienteId}
                     >
-                        {isSubmitting ? <CircularProgress size={20} /> : 'Salvar Atendimento'}
+                        {/* ★★★ MUDANÇA 6: Texto do botão condicional ★★★ */}
+                        {isSubmitting ? <CircularProgress size={20} /> : (evolucaoIdSessao ? 'Atualizar Atendimento' : 'Salvar Atendimento')}
                     </Button>
                 </Box>
                 {/* --- FIM DOS BOTÕES MESTRES --- */}
-
-                {/* --- BOTÃO PREENCHER NORMALIDADE (REMOVIDO DAQUI) --- */}
                 
             </Box>
 
@@ -588,7 +622,8 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                                     variant="contained" 
                                     disabled={isSubmitting || !pacienteId}
                                 >
-                                    {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento Completo'}
+                                    {/* ★★★ MUDANÇA 7: Texto do botão condicional ★★★ */}
+                                    {isSubmitting ? <CircularProgress size={24} /> : (evolucaoIdSessao ? 'Atualizar Atendimento' : 'Salvar Atendimento')}
                                 </Button>
                             </Box>
                         </Box>
