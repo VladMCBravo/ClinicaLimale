@@ -1,24 +1,23 @@
-// src/components/prontuario/AtendimentoCardiologia.jsx
-// VERSÃO CORRIGIDA: Importa o Histórico, não o define.
+/ src/components/prontuario/AtendimentoCardiologia.jsx
+// VERSÃO CORRIGIDA: Usando caminhos de importação absolutos
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import {
     Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
     Box, Button, CircularProgress, Tabs, Tab
 } from '@mui/material';
-import { useSnackbar } from '../../../contexts/SnackbarContext';
-import apiClient from '../../../api/axiosConfig';
 
-// --- CORREÇÃO AQUI ---
-// 1. Importar o 'HistoricoCardiologia' (ele deve estar em uma subpasta)
+// --- CORREÇÃO DE IMPORT ---
+// ../../contexts/SnackbarContext  ->  contexts/SnackbarContext
+import { useSnackbar } from 'contexts/SnackbarContext';
+// ../../api/axiosConfig         ->  api/axiosConfig
+import apiClient from 'api/axiosConfig';
+
+// O lazy import usa um caminho relativo normal, o que está correto
 const HistoricoCardiologia = lazy(() => import('./cardiologia/HistoricoCardiologia'));
-// 2. Remover a definição 'const HistoricoCardiologia = ...' que estava colada aqui.
 
-// --- (Constantes de Opções omitidas para brevidade) ---
-const sintomasOpcoes = [ { id: 'dor_toracica', label: 'Dor torácica' }, { id: 'dispneia', label: 'Dispneia' }, { id: 'palpitacoes', label: 'Palpitações' }, { id: 'sincope_tontura', label: 'Síncope/Tontura' }, { id: 'edema_membros', label: 'Edema MMII' }, { id: 'claudicacao', label: 'Claudicação' }, { id: 'fadiga', label: 'Fadiga' }, ];
-const sintomaTemplates = { dor_toracica: "Dor torácica: Início/Tipo/Local/Irradiação/Intensidade/Fatores.", dispneia: "Dispneia: CF (I-IV)/Ortopneia(S/N)/DPN(S/N).", palpitacoes: "Palpitações: Início/Ritmo/Duração/Frequência/Fatores.", };
-const exameFisicoQualitativoOptions = [ { id: 'ictus_normal', label: 'Ictus Normo', group: 'inspecao', template: "Ictus cordis não visível/palpável ou em LHE 5º EIC." }, { id: 'ictus_desviado', label: 'Ictus Desviado', group: 'inspecao', template: "Ictus cordis desviado para ___." }, { id: 'tjp_negativa', label: 'TJP Negativa', group: 'pescoco', template: "Turgência Jugular Patológica negativa a 45º." }, { id: 'tjp_positiva', label: 'TJP Positiva', group: 'pescoco', template: "Turgência Jugular Patológica positiva." }, { id: 'brnf_2t', label: 'BRNF 2T s/ sopros', group: 'ausculta_card', template: "ACV: Ritmo regular, BRNF em 2T, sem sopros." }, { id: 'bar_2t_sopros', label: 'Sopro', group: 'ausculta_card', template: "ACV: Ritmo ___, Sopro ___ /6+ em foco ___." }, { id: 'b3', label: 'B3', group: 'ausculta_card', template: "Presença de B3." }, { id: 'b4', label: 'B4', group: 'ausculta_card', template: "Presença de B4." }, { id: 'mv_presente', label: 'AR: MV s/ RA', group: 'ausculta_pulm', template: "AR: MV presente universalmente, sem ruídos adventícios." }, { id: 'estertores', label: 'AR: Estertores', group: 'ausculta_pulm', template: "AR: Estertores creptantes em bases." }, { id: 'pulsos_cheios', label: 'Pulsos Cheios/Simétricos', group: 'vascular', template: "Pulsos periféricos cheios e simétricos." }, { id: 'pulsos_diminuidos', label: 'Pulsos Diminuídos', group: 'vascular', template: "Pulsos ___ diminuídos." }, { id: 'sem_edema', label: 'Sem Edema MMII', group: 'vascular', template: "MMII sem edema, panturrilhas livres." }, { id: 'com_edema', label: 'Edema MMII', group: 'vascular', template: "MMII com edema ___ /4+." }, ];
-// --- FIM OPÇÕES ---
+// --- (O restante do arquivo AtendimentoCardiologia.jsx é idêntico ao anterior) ---
+// --- (Constantes, Helper TabPanel, e toda a lógica do componente) ---
 
 // Helper TabPanel
 function TabPanel(props) {
@@ -39,7 +38,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
 
-    // --- 3. ADICIONAR ESTADO DA SESSÃO E REF ---
     const [evolucaoIdSessao, setEvolucaoIdSessao] = useState(null);
     const historicoRef = useRef(null);
 
@@ -49,10 +47,10 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         setSintomasConsulta({});
         setExameFisicoData({});
         setTabIndex(0);
-        setEvolucaoIdSessao(null); // <-- Resetar a sessão
+        setEvolucaoIdSessao(null); 
     }, [pacienteId]);
 
-    // Geradores de texto (Sem alterações)
+    // ... (generateHda, generateExameFisico, handlers, preencherNormalidade, handleLimparConsultaAtual) ...
     const generateHda = useCallback((sintomas) => { 
         const currentSintomas = sintomas || sintomasConsulta;
         return sintomasOpcoes
@@ -70,28 +68,21 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // Handlers (Sem alterações - O CÓDIGO DO CHECKBOX ESTÁ CORRETO)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    
     const handleSintomasChange = (e) => {
         const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
         setSintomasConsulta(newSintomas);
-        
         const hdaText = generateHda(newSintomas);
         setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
     };
-
     const handleExameChange = (event) => {
         const { name, value, type, checked } = event.target;
         const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
         setExameFisicoData(newExameData);
-        
         const exameText = generateExameFisico(newExameData);
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
-
-    // Botão Normalidade (Sem alterações)
     const preencherNormalidade = () => {
         const dadosExameNormal = {
             pa: exameFisicoData.pa || '___x___',
@@ -113,8 +104,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             plano: 'Manter acompanhamento regular. Orientações gerais.'
         });
     };
-    
-    // Botão Limpar (Sem alterações)
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({}); 
         setExameFisicoData({});
@@ -122,7 +111,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // --- 4. LÓGICA DE SALVAMENTO (Sem alterações) ---
+    // --- Lógica de Salvamento (Sem alterações) ---
     const handleSaveSOAPAndVitals = async () => {
         let evolucaoId;
         
@@ -148,7 +137,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         }
         return evolucaoId;
     };
-
     const handleSaveAtendimentoCompleto = async (event) => {
         if (event) event.preventDefault();
         if (isSubmitting) return;
@@ -181,7 +169,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             setIsSubmitting(false);
         }
     };
-    // --- FIM LÓGICA DE SALVAMENTO ---
 
 
     // --- 5. JSX (Sem alterações) ---

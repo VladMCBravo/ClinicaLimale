@@ -1,12 +1,16 @@
 // src/components/prontuario/cardiologia/HistoricoCardiologia.jsx
-// VERSÃO CORRIGIDA: Padrão forwardRef e caminhos de import corretos
+// VERSÃO CORRIGIDA: Usando caminhos de importação absolutos
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
     Paper, Typography, TextField, Box, CircularProgress
 } from '@mui/material';
-import { useSnackbar } from '../../../contexts/SnackbarContext';
-import apiClient from '../../../api/axiosConfig';
+
+// --- CORREÇÃO DE IMPORT ---
+// ../../../contexts/SnackbarContext  ->  contexts/SnackbarContext
+import { useSnackbar } from 'contexts/SnackbarContext';
+// ../../../api/axiosConfig         ->  api/axiosConfig
+import apiClient from 'api/axiosConfig';
 
 // 1. Envolver o componente em forwardRef
 const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
@@ -25,7 +29,7 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
-            if (res.data && res.data.cardiologica) { // <-- Chave correta
+            if (res.data && res.data.cardiologica) {
                 setAnamneseData(res.data.cardiologica);
             } else {
                 setAnamneseData({});
@@ -54,7 +58,7 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
         } catch (error) { 
             console.error("Erro ao salvar histórico cardiológico:", error);
             showSnackbarRef.current('Erro ao salvar o histórico cardiológico.', 'error');
-            throw error; // Lança o erro para o PAI
+            throw error;
         }
     };
     
@@ -112,6 +116,6 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
             </Box>
         </Paper>
     );
-}); // Fim do forwardRef
+});
 
 export default HistoricoCardiologia;
