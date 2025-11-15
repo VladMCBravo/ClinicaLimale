@@ -1,39 +1,33 @@
 // src/components/prontuario/cardiologia/RelatoriosTab.jsx
+// VERSÃO CORRIGIDA: Permite gerar prévia sem uma consulta ativa
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Grid, Paper, Typography, FormControl, InputLabel, Select,
     MenuItem, Button, TextField, CircularProgress, List, ListItem,
     ListItemText, Divider,
-    IconButton, Tooltip // 1. IMPORTE IconButton E Tooltip
+    IconButton, Tooltip
 } from '@mui/material';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'; // 2. IMPORTE O ÍCONE
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
 export default function RelatoriosTab({ pacienteId, consultaAtualId, especialidade }) {
     const { showSnackbar } = useSnackbar();
     
-    // --- ESTADOS DE DADOS ---
+    // ... (Todos os 'useState' continuam iguais) ...
     const [templates, setTemplates] = useState([]); 
     const [savedReports, setSavedReports] = useState([]);
-    
-    // --- ESTADOS DA "ESTAÇÃO DE TRABALHO" (Lado Esquerdo) ---
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [titulo, setTitulo] = useState(''); 
     const [editorContent, setEditorContent] = useState('');
-    
-    // --- ESTADOS DE LOADING ---
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // 3. ADICIONE O NOVO ESTADO DE LOADING DO PDF
     const [pdfLoadingId, setPdfLoadingId] = useState(null); 
 
-
-    // ... (as funções fetchTemplates e fetchSavedReports continuam iguais) ...
+    // ... (fetchTemplates, fetchSavedReports e useEffect continuam iguais) ...
     const fetchTemplates = useCallback(async () => {
         setIsLoadingTemplates(true);
         try {
@@ -59,7 +53,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     }, [pacienteId, showSnackbar]);
 
 
-    // ... (o useEffect continua igual) ...
     useEffect(() => {
         if (pacienteId && especialidade) {
             fetchTemplates();
@@ -70,7 +63,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         setEditorContent('');
     }, [pacienteId, especialidade, fetchTemplates, fetchSavedReports]);
 
-    // ... (o handleGerarPreview continua igual) ...
+    // ... (handleGerarPreview continua igual) ...
     const handleGerarPreview = async () => {
         if (!selectedTemplateId) {
             showSnackbar('Selecione um modelo de relatório primeiro.', 'warning');
@@ -80,7 +73,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         try {
             const payload = {
                 template_id: selectedTemplateId,
-                consulta_id: consultaAtualId || null 
+                consulta_id: consultaAtualId || null // Envia null se não houver consulta ativa
             };
             const res = await apiClient.post(
                 `/prontuario/pacientes/${pacienteId}/gerar-preview-relatorio/`,
@@ -99,7 +92,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
 
-    // ... (o handleSalvarRelatorio continua igual) ...
+    // ... (handleSalvarRelatorio e handleGerarPdf continuam iguais) ...
     const handleSalvarRelatorio = async () => {
         if (!titulo || !editorContent) {
             showSnackbar('O título e o conteúdo do relatório não podem estar vazios.', 'warning');
@@ -131,29 +124,16 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
     
-    // 4. ADICIONE A NOVA FUNÇÃO PARA GERAR O PDF
     const handleGerarPdf = async (relatorioId) => {
-        // Impede cliques duplos
         if (pdfLoadingId) return; 
-        
-        setPdfLoadingId(relatorioId); // Ativa o loading para este item
+        setPdfLoadingId(relatorioId); 
         
         try {
-            // --- CORREÇÃO AQUI ---
-            
-            // ALTERE DE: (ERRADO)
-            // const response = await apiClient.get(
-            //     `/api/pdf/relatorio/${relatorioId}/`,
-            //     { responseType: 'blob' }
-            // );
-
-            // PARA: (CORRETO - Remova o /api do início)
             const response = await apiClient.get(
                 `/pdf/relatorio/${relatorioId}/`,
                 { responseType: 'blob' }
             );
 
-            // Cria e abre o PDF em uma nova aba
             const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             window.open(fileURL, '_blank');
             setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
@@ -166,12 +146,11 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 showSnackbar('Erro ao gerar PDF do relatório.', 'error');
             }
         } finally {
-            setPdfLoadingId(null); // Desativa o loading
+            setPdfLoadingId(null); 
         }
     };
 
     
-    // 5. ATUALIZE A RENDERIZAÇÃO
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Box sx={{
@@ -180,8 +159,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 gap: 3 
             }}>
 
-                {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO --- */}
-                {/* ... (Todo o Lado Esquerdo continua igual) ... */}
+                {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO (COM MUDANÇAS) --- */}
                 <Box sx={{ flex: { md: 2 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Gerar Novo Relatório
@@ -203,20 +181,31 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                             </Select>
                         </FormControl>
 
-                        {/* Botão Gerar */}
+                        {/* ★★★ MUDANÇA 1: LÓGICA DO BOTÃO E TEXTO ★★★ */}
                         <Button
                             variant="contained"
                             color="primary"
                             onClick={handleGerarPreview}
-                            disabled={!selectedTemplateId || isLoadingPreview || !consultaAtualId}
+                            // Agora só precisa de um template selecionado
+                            disabled={!selectedTemplateId || isLoadingPreview}
                         >
-                            {isLoadingPreview ? <CircularProgress size={24} /> : 'Gerar Prévia (Usando Consulta Atual)'}
+                            {isLoadingPreview ? <CircularProgress size={24} /> 
+                                : (consultaAtualId ? 'Gerar Prévia (Usando Consulta Atual)' : 'Gerar Prévia (Sem Consulta)')
+                            }
                         </Button>
-                        {!consultaAtualId && (
-                            <Typography variant="caption" color="error" sx={{textAlign: 'center', mt: -1}}>
-                                Salve a consulta atual (SOAP) antes de gerar um relatório.
+                        
+                        {/* ★★★ MUDANÇA 2: LÓGICA DO TEXTO DE AJUDA ★★★ */}
+                        {!consultaAtualId ? (
+                            <Typography variant="caption" color="warning.main" sx={{textAlign: 'center', mt: -1}}>
+                                Consulta (SOAP) não salva nesta sessão. A prévia usará apenas dados do paciente.
+                            </Typography>
+                        ) : (
+                             <Typography variant="caption" color="success.main" sx={{textAlign: 'center', mt: -1}}>
+                                Consulta atual (SOAP) será incluída na prévia.
                             </Typography>
                         )}
+                        {/* ★★★ FIM DAS MUDANÇAS ★★★ */}
+
 
                         {/* Editor de Texto */}
                         <TextField
@@ -249,7 +238,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 </Box>
 
 
-                {/* --- LADO DIREITO: HISTÓRICO (COM A MUDANÇA) --- */}
+                {/* --- LADO DIREITO: HISTÓRICO (Sem alterações) --- */}
                 <Box sx={{ flex: { md: 1 }, width: '100%' }}>
                     <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                         Relatórios Salvos
@@ -261,7 +250,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                                 {savedReports.map(report => (
                                     <React.Fragment key={report.id}>
                                         <ListItem
-                                            // Adiciona o botão de PDF no final do item
                                             secondaryAction={
                                                 <Tooltip title="Gerar PDF">
                                                     <span>
@@ -269,10 +257,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                                                             edge="end"
                                                             aria-label="gerar pdf"
                                                             onClick={() => handleGerarPdf(report.id)}
-                                                            // Desabilita se este PDF estiver carregando
                                                             disabled={pdfLoadingId === report.id}
                                                         >
-                                                            {/* Mostra loading ou ícone */}
                                                             {pdfLoadingId === report.id ? 
                                                                 <CircularProgress size={20} color="inherit" /> : 
                                                                 <PictureAsPdfIcon fontSize="small" />
