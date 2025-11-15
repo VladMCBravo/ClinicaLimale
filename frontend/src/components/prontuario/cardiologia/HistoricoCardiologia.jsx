@@ -5,7 +5,6 @@ import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandl
 import {
     Paper, Typography, TextField, Box, CircularProgress
 } from '@mui/material';
-// --- CORREÇÃO DE IMPORTAÇÃO (erro do deploy anterior) ---
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
@@ -111,7 +110,6 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
                     placeholder="Ex: CRM (data), Angioplastia (data, vaso)..." 
                 />
             </Box>
-            {/* O botão de salvar fica no componente PAI */}
         </Paper>
     );
 }); // Fim do forwardRef

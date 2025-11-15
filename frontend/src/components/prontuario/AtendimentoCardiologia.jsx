@@ -1,18 +1,18 @@
 // src/components/prontuario/AtendimentoCardiologia.jsx
-// VERSÃO REATORADA: Padrão de orquestração (igual Pediatria)
+// VERSÃO CORRIGIDA: Importa o Histórico, não o define.
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import {
     Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
     Box, Button, CircularProgress, Tabs, Tab
 } from '@mui/material';
-import { useSnackbar } from '../../contexts/SnackbarContext';
-import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
+import apiClient from '../../../api/axiosConfig';
 
 // --- CORREÇÃO AQUI ---
 // 1. Importar o 'HistoricoCardiologia' (ele deve estar em uma subpasta)
 const HistoricoCardiologia = lazy(() => import('./cardiologia/HistoricoCardiologia'));
-// 2. Remover a definição 'const HistoricoCardiologia = ...' que estava aqui.
+// 2. Remover a definição 'const HistoricoCardiologia = ...' que estava colada aqui.
 
 // --- (Constantes de Opções omitidas para brevidade) ---
 const sintomasOpcoes = [ { id: 'dor_toracica', label: 'Dor torácica' }, { id: 'dispneia', label: 'Dispneia' }, { id: 'palpitacoes', label: 'Palpitações' }, { id: 'sincope_tontura', label: 'Síncope/Tontura' }, { id: 'edema_membros', label: 'Edema MMII' }, { id: 'claudicacao', label: 'Claudicação' }, { id: 'fadiga', label: 'Fadiga' }, ];
@@ -70,7 +70,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // Handlers (Sem alterações)
+    // Handlers (Sem alterações - O CÓDIGO DO CHECKBOX ESTÁ CORRETO)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     
@@ -122,41 +122,33 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // --- 4. REESCREVER A LÓGICA DE SALVAMENTO ---
-    
-    // ETAPA 1: Salvar SOAP (POST ou PATCH)
+    // --- 4. LÓGICA DE SALVAMENTO (Sem alterações) ---
     const handleSaveSOAPAndVitals = async () => {
         let evolucaoId;
         
         if (evolucaoIdSessao) {
-            // JÁ EXISTE UMA EVOLUÇÃO, ATUALIZAR (PATCH)
             evolucaoId = evolucaoIdSessao;
             try {
                 await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapData);
             } catch (error) {
                 console.error("Erro ao ATUALIZAR evolução (SOAP):", error.response?.data || error);
                 showSnackbar('Erro ao atualizar a consulta atual (SOAP).', 'error');
-                throw error; // Para a execução
+                throw error;
             }
         } else {
-            // NÃO EXISTE, CRIAR UMA NOVA (POST)
             try {
                 const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
                 evolucaoId = res.data.id;
-                setEvolucaoIdSessao(evolucaoId); // <-- Guarda o ID na sessão
+                setEvolucaoIdSessao(evolucaoId);
             } catch (error) {
                 console.error("Erro ao CRIAR evolução (SOAP):", error.response?.data || error);
                 showSnackbar('Erro ao salvar a consulta atual (SOAP).', 'error');
-                throw error; // Para a execução
+                throw error;
             }
         }
-        
-        // (Opcional: Salvar vitais PA/FC no modelo Paciente, se existir)
-        
-        return evolucaoId; // Retorna o ID
+        return evolucaoId;
     };
 
-    // ETAPA 2: Função Mestra que salva TUDO
     const handleSaveAtendimentoCompleto = async (event) => {
         if (event) event.preventDefault();
         if (isSubmitting) return;
@@ -166,30 +158,25 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         console.log("--- INICIANDO SALVAMENTO COMPLETO (CARDIO) ---");
 
         try {
-            // 1. Salva o SOAP primeiro
             const evolucaoId = await handleSaveSOAPAndVitals();
             
-            // 2. Salva o Histórico (usando a Ref)
             if (historicoRef.current) {
                 await historicoRef.current.saveData();
             } else {
                 console.warn("Ref do Histórico (Cardio) não encontrada.");
             }
 
-            // 3. Sucesso total
             showSnackbar(
                 isSessaoIniciada ? 'Atendimento atualizado com sucesso!' : 'Atendimento salvo com sucesso!',
                 'success'
             );
             
-            // 4. Chama a função do PAI (ProntuarioCompleto)
             if(onEvolucaoSalva) {
                 onEvolucaoSalva(evolucaoId); 
             }
 
         } catch (error) {
             console.error("--- ERRO NO SALVAMENTO COMPLETO (CARDIO) ---", error);
-            // Os snackbars de erro já foram mostrados
         } finally {
             setIsSubmitting(false);
         }
@@ -197,10 +184,9 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
     // --- FIM LÓGICA DE SALVAMENTO ---
 
 
-    // --- 5. ATUALIZAR O JSX ---
+    // --- 5. JSX (Sem alterações) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
-            {/* --- CABEÇALHO COM BOTÕES MESTRES --- */}
             <Box sx={{ 
                 display: 'flex', 
                 flexDirection: { xs: 'column', sm: 'row' },
@@ -228,23 +214,18 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                 </Box>
             </Box>
 
-            {/* --- ABAS (COM RELATÓRIOS REMOVIDO) --- */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, mt: 1 }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas do prontuário cardiológico" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="cardio-tab-0" />
                     <Tab label="Histórico" id="cardio-tab-1" />
-                    {/* <Tab label="Relatórios" id="cardio-tab-2" /> */} {/* <-- REMOVIDO */}
-                    <Tab label="Exames (ECG/ECO)" id="cardio-tab-2" /> {/* <-- Re-indexado para 2 */}
+                    <Tab label="Exames (ECG/ECO)" id="cardio-tab-2" />
                 </Tabs>
             </Box>
 
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
                 
-                {/* --- ABA 1: CONSULTA ATUAL (SOAP) --- */}
                 <TabPanel value={tabIndex} index={0}>
-                    {/* Remover o 'component="form"' e 'onSubmit' */}
                     <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
-                        
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 0 }}>
                                 Consulta Atual (SOAP)
@@ -259,7 +240,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                             </Button>
                         </Box>
                         
-                        {/* (Todo o conteúdo do SOAP (Sintomas, Exame, A, P) permanece igual) */}
                         <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Queixa Atual (S)</Typography>
                         <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
                             {sintomasOpcoes.map(opt => ( 
@@ -277,7 +257,8 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                         </Box>
                         
                         <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                           {/* (Grupos de Exame Físico - sem alterações) */}
+                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Inspeção/Pescoço:</Typography>
                                 {exameFisicoQualitativoOptions.filter(o=>o.group === 'inspecao' || o.group === 'pescoco').map(opt => (
                                     <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
@@ -310,24 +291,18 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                             <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
-                            
-                            {/* --- Botões de salvar/limpar no final da aba REMOVIDOS --- */}
                         </Box>
                     </Paper>
                 </TabPanel>
 
-                {/* --- ABA 2: HISTÓRICO (com a Ref) --- */}
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoCardiologia 
                         pacienteId={pacienteId} 
                         ref={historicoRef} // <-- Passando a ref
                     />
                 </TabPanel>
-
-                {/* --- ABA 3: RELATÓRIOS (REMOVIDO) --- */}
                 
-                {/* --- ABA 3: EXAMES (Novo índice) --- */}
-                <TabPanel value={tabIndex} index={2}> {/* <-- Re-indexado para 2 */}
+                <TabPanel value={tabIndex} index={2}>
                     <Typography>Em breve: Visualizador de Exames (ECG, ECO, Laudos).</Typography>
                 </TabPanel>
             </Suspense>

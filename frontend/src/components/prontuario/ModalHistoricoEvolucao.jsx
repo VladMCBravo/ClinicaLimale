@@ -1,21 +1,24 @@
-/// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO CORRIGIDA:
-// 1. Corrige a função 'renderAnamnese' para exibir TODOS os dados preenchidos.
-// 2. Garante que o cacheBuster não crie uma barra dupla "//" na URL.
+// src/components/prontuario/ModalHistoricoEvolucao.jsx
+// VERSÃO CORRIGIDA: Estrutura de funções corrigida
 
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Removidos imports não usados de forwardRef
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Button // <-- ★★★ ADICIONE ESTA LINHA ★★★
+    Button 
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig.js';
 import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
-// Componente simples para renderizar seções (sem alteração)
+// Componente SecaoRelatorio (sem alterações)
 const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
-    if (!data || (Array.isArray(data) && data.length === 0)) return null;
+    if (!data || 
+        (Array.isArray(data) && data.length === 0) || 
+        (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0)
+    ) {
+        return null;
+    }
     return (
         <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'primary.main' }}>
@@ -69,35 +72,25 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
+    // useEffect para buscar dados (sem alterações)
     useEffect(() => {
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
             setRelatorioData(null); 
-            
-            console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}, Paciente ID: ${pacienteId}`);
-
             const cacheBuster = `?_=${new Date().getTime()}`;
-
             const fetchTudo = async () => {
                 try {
-                    // ★★★ CORREÇÃO AQUI ★★★
-        // Garante a barra "/" final ANTES do cacheBuster
-        
-        const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
-        const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-        const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
-        const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
-        
-        // ★★★ FIM DA CORREÇÃO ★★★
-
+                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
+                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
+                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
+                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
+                    
                     const dadosBrutos = {
                         evolucao: resEvolucao.data,
-                        anamnese: resAnamnese.data.pediatrica,
+                        anamnese: resAnamnese.data, // Correto
                         dnpm: resDnpm.data,
                         vacinas: resVacinas.data
                     };
-                    
-                    console.log('[DEBUG MODAL] 📦 Dados BRUTOS recebidos da API:', dadosBrutos);
                     setRelatorioData(dadosBrutos);
                 } catch (err) {
                     showSnackbar('Erro ao buscar o relatório completo da consulta.', 'error');
@@ -107,7 +100,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                     setIsLoading(false);
                 }
             };
-
             fetchTudo();
         }
     }, [pacienteId, evolucaoId, onClose, showSnackbar]);
@@ -206,25 +198,57 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             }
         });
 
-        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese:', itensPreenchidos);
+        // ★★★ MOVIDO PARA FORA: renderCardiologia estava aqui ★★★
 
+        // ★★★ ADICIONAR O RETURN QUE FALTAVA ★★★
         if (itensPreenchidos.length === 0) {
             return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Pediátrico.</Typography>;
         }
 
         return (
-            <ul>
+             <ul>
                 {itensPreenchidos.map((item, index) => (
                     <li key={index}>
-                        <Typography variant="body2">
+                        <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
                             <strong>{item.label}:</strong> {item.value}
                         </Typography>
                     </li>
                 ))}
             </ul>
         );
-    };
+    }; // <-- FIM DA FUNÇÃO renderAnamnese
 
+    // FUNÇÃO 2: Renderizar Anamnese CARDIOLÓGICA (AGORA NO ESCOPO CORRETO)
+    const renderCardiologia = (data) => {
+        if (!data || Object.keys(data).length === 0) {
+            return <Typography variant="body2">Nenhum dado de histórico cardiológico encontrado.</Typography>;
+        }
+
+        const itensPreenchidos = Object.entries(data)
+            .filter(([key, value]) => isFilled(value))
+            .map(([key, value]) => ({
+                label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                value: value
+            }));
+
+        if (itensPreenchidos.length === 0) {
+            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Cardiológico.</Typography>;
+        }
+
+        return (
+            <ul>
+                {itensPreenchidos.map((item, index) => (
+                    <li key={index}>
+                        <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
+                            <strong>{item.label}:</strong> {item.value}
+                        </Typography>
+                    </li>
+                ))}
+            </ul>
+        );
+    }; // <-- FIM DA FUNÇÃO renderCardiologia
+
+    // ★★★ RETURN PRINCIPAL DO COMPONENTE (AGORA NO ESCOPO CORRETO) ★★★
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>Relatório da Consulta</DialogTitle>
@@ -253,11 +277,18 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             )}
                         />
                         
-                        {/* 2. SEÇÃO DA ANAMNESE (HISTÓRICO) */}
+                        {/* 2A. SEÇÃO DA ANAMNESE (PEDIATRIA) */}
                         <SecaoRelatorio 
                             titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
-                            data={relatorioData.anamnese}
+                            data={relatorioData.anamnese.pediatrica}
                             renderFunc={renderAnamnese}
+                        />
+                        
+                        {/* 2B. SEÇÃO DA ANAMNESE (CARDIOLOGIA) */}
+                        <SecaoRelatorio 
+                            titulo="Resumo do Histórico Cardiológico (Cadastro Mestre)"
+                            data={relatorioData.anamnese.cardiologica}
+                            renderFunc={renderCardiologia}
                         />
                         
                         {/* 3. SEÇÃO DO DNPM (MARCOS) */}
