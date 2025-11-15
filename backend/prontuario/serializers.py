@@ -44,20 +44,16 @@ class AnamneseNeonatologiaSerializer(serializers.ModelSerializer):
         exclude = ['anamnese', 'id'] # Inclui todos os campos do modelo exceto estes
 
 
+# --- ★★★ AJUSTE NECESSÁRIO AQUI ★★★ ---
 # Serializer para o modelo Evolucao
 class EvolucaoSerializer(serializers.ModelSerializer):
-    # <<-- MUDANÇA 1: Seja mais explícito sobre o nome do médico -->>
-    # Em vez de depender do __str__, vamos pegar o nome diretamente.
-    # Isso cria um campo 'medico_nome' na sua API.
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
 
     class Meta:
         model = Evolucao
-        # <<-- MUDANÇA 2: Garanta que TODOS os campos necessários estejam na lista -->>
-        # Incluímos o novo 'medico_nome' e mantivemos os outros.
         fields = [
             'id',
-            'medico_nome', # Usaremos este no frontend
+            'medico_nome',
             'data_atendimento',
             'notas_subjetivas',
             'notas_objetivas',
@@ -67,10 +63,19 @@ class EvolucaoSerializer(serializers.ModelSerializer):
             'frequencia_cardiaca',
             'peso',
             'altura',
-            'exames_complementares'
+            'exames_complementares',
+            
+            # ★★★ CAMPO ADICIONADO ★★★
+            # Este é o campo que o ModalHistoricoEvolucao.jsx usará
+            # para decidir qual layout de resumo renderizar.
+            'especialidade' 
         ]
-        # Adicione 'medico' aqui apenas para leitura, se precisar do ID dele
-        read_only_fields = ['id', 'medico_nome']
+        
+        # Adiciona 'especialidade' aos campos read-only, pois
+        # ele deve ser definido pelo backend, não pelo frontend.
+        read_only_fields = ['id', 'medico_nome', 'especialidade']
+
+# -----------------------------------------------
 
 # Serializer para os Itens da Prescrição
 class ItemPrescricaoSerializer(serializers.ModelSerializer):

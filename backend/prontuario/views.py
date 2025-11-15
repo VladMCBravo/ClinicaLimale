@@ -35,17 +35,55 @@ from usuarios.permissions import CanViewProntuario # Verifique se esta permissã
 
 # --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
 
-class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
+class EvolucaoListAPIView(generics.ListAPIView):
+    """
+    View para APENAS LISTAR (GET) todas as evoluções de um paciente.
+    O ModalHistoricoEvolucao usará esta view.
+    """
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos
+    permission_classes = [CanViewProntuario]
 
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
         return Evolucao.objects.filter(paciente__id=paciente_id).order_by('-data_atendimento')
 
+class EvolucaoPediatriaCreateAPIView(generics.CreateAPIView):
+    """
+    View para CRIAR (POST) evoluções de PEDIATRIA.
+    O frontend 'AtendimentoPediatria.jsx' deve salvar AQUI.
+    """
+    serializer_class = EvolucaoSerializer
+    permission_classes = [CanViewProntuario]
+
     def perform_create(self, serializer):
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
-        serializer.save(medico=self.request.user, paciente=paciente)
+        # ★ Define a especialidade automaticamente no backend ★
+        serializer.save(
+            medico=self.request.user, 
+            paciente=paciente, 
+            especialidade='pediatria' # <-- MÁGICA AQUI
+        )
+
+class EvolucaoCardiologiaCreateAPIView(generics.CreateAPIView):
+    """
+    View para CRIAR (POST) evoluções de CARDIOLOGIA.
+    O frontend 'AtendimentoCardiologia.jsx' deve salvar AQUI.
+    """
+    serializer_class = EvolucaoSerializer
+    permission_classes = [CanViewProntuario]
+
+    def perform_create(self, serializer):
+        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        # ★ Define a especialidade automaticamente no backend ★
+        serializer.save(
+            medico=self.request.user, 
+            paciente=paciente, 
+            especialidade='cardiologia' # <-- MÁGICA AQUI
+        )
+
+# (Adicione outras views de create para as outras 7 especialidades seguindo este padrão)
+
+# --- FIM DA SUBSTITUIÇÃO ---
 
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Evolucao.objects.all()
@@ -262,7 +300,7 @@ class GerarAtestadoPDFView(APIView):
 
 
 class GerarEvolucaoPDFView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] # Ou CanViewProntuario
 
     def get(self, request, evolucao_id, *args, **kwargs):
         try:
@@ -272,34 +310,69 @@ class GerarEvolucaoPDFView(APIView):
         
         paciente = evolucao.paciente
         
-        # 1. Busca Prontuário Mestre (Anamnese)
+        # 1. Busca Prontuário Mestre (Anamnese) - Sempre busca
         try:
             anamnese = Anamnese.objects.get(paciente=paciente)
         except Anamnese.DoesNotExist:
             anamnese = None
             
-        # 2. Busca Marcos DNPM (Apenas os avaliados)
-        marcos = MarcoDNPM.objects.filter(paciente=paciente).order_by('data_registro')
+        # --- ★★★ LÓGICA CONDICIONAL ADICIONADA ★★★ ---
         
-        # 3. Busca Vacinas (Todas ou apenas as aplicadas/atrasadas)
-        vacinas = VacinaPaciente.objects.filter(paciente=paciente).order_by('id') # Ordenação simples
+        # 2. Inicializa variáveis de especialidade
+        marcos = []
+        vacinas = []
+        
+        # 3. Verifica a especialidade da *consulta*
+        if evolucao.especialidade == 'pediatria':
+            # Só busca marcos e vacinas se for uma consulta pediátrica
+            marcos = MarcoDNPM.objects.filter(paciente=paciente).order_by('data_registro')
+            vacinas = VacinaPaciente.objects.filter(paciente=paciente).order_by('id')
+        
+        # (futuramente)
+        # elif evolucao.especialidade == 'cardiologia':
+        #    laudos_ecg = LaudoECG.objects.filter(...) 
+        
+        # --- FIM DA LÓGICA CONDICIONAL ---
 
         context = {
             'evolucao': evolucao,
             'paciente': paciente,
             'medico': evolucao.medico,
             'anamnese': anamnese,
-            'marcos': marcos,
-            'vacinas': vacinas,
+            'marcos': marcos,   # <-- Agora só é preenchido se for Pediatria
+            'vacinas': vacinas, # <-- Agora só é preenchido se for Pediatria
         }
         
         filename = f'evolucao_{paciente.nome_completo}_{evolucao.id}'
         
-        return generate_pdf_response(
-            'pdfs/evolucao_template.html', 
-            context, 
-            filename
+        # A view de PDF genérica que você criou (generate_pdf_response)
+        # não pode ser usada aqui, pois esta view tem uma lógica de busca
+        # de dados muito mais complexa.
+        
+        # (Usando sua lógica original de renderização de PDF)
+        logo_path = finders.find(settings.CLINICA_INFO['LOGO_STATIC_PATH'])
+        full_context = {
+            'clinica': settings.CLINICA_INFO,
+            'logo_path': logo_path,
+            **context
+        }
+        
+        template = get_template('pdfs/evolucao_template.html')
+        html = template.render(full_context)
+        
+        result = BytesIO()
+        pdf = pisa.pisaDocument(
+            BytesIO(html.encode("UTF-8")), 
+            result, 
+            link_callback=lambda uri, rel: logo_path
         )
+        
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'filename="{filename}.pdf"'
+            return response
+            
+        return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
 
 class OpcaoClinicaListView(generics.ListAPIView):
     """

@@ -159,7 +159,16 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             }
         } else {
             try {
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+                // ★★★ MUDANÇA É AQUI ★★★
+
+                // ANTES:
+                // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+
+                // DEPOIS:
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-cardiologia/`, soapData);
+
+                // ★★★ FIM DA MUDANÇA ★★★
+
                 evolucaoId = res.data.id;
                 setEvolucaoIdSessao(evolucaoId);
             } catch (error) {

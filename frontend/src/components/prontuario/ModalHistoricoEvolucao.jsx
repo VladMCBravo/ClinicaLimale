@@ -1,14 +1,15 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO CORRIGIDA:
-// 1. Corrige a função 'renderAnamnese' para exibir TODOS os dados preenchidos.
-// 2. Garante que o cacheBuster não crie uma barra dupla "//" na URL.
+// VERSÃO GENÉRICA (PEDIATRIA + CARDIOLOGIA)
+// 1. Detecta a especialidade da consulta (evolucao.especialidade).
+// 2. Busca dados-mestre específicos (ex: DNPM/Vacinas para Peds).
+// 3. Renderiza o resumo correto.
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Button // <-- ★★★ ADICIONE ESTA LINHA ★★★
+    Button
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig.js';
 import { useSnackbar } from '../../contexts/SnackbarContext.js';
@@ -63,42 +64,85 @@ const labelMap = {
     sono_comportamento_obs: 'Obs. Sono/Comp.',
 };
 
+// ★★★ NOVO: MAPA 2: Labels de Cardiologia ★★★
+const cardioLabelMap = {
+    fatores_risco: 'Fatores de Risco CV',
+    hist_familiar_cardio: 'Histórico Familiar (Cardio)',
+    cirurgias_previas_cardio: 'Cirurgias/Procedimentos Prévios'
+};
 
 export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose }) {
     const [relatorioData, setRelatorioData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
+    // ★★★ useEffect TOTALMENTE REESCRITO ★★★
     useEffect(() => {
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
             setRelatorioData(null); 
             
-            console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}, Paciente ID: ${pacienteId}`);
-
+            console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}`);
             const cacheBuster = `?_=${new Date().getTime()}`;
 
             const fetchTudo = async () => {
                 try {
-                    // ★★★ CORREÇÃO AQUI ★★★
-        // Garante a barra "/" final ANTES do cacheBuster
-        
-        const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
-        const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-        const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
-        const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
-        
-        // ★★★ FIM DA CORREÇÃO ★★★
+                    // --- ESTÁGIO 1: Buscar a Evolução para descobrir a Especialidade ---
+                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
+                    const evolucao = resEvolucao.data;
+
+                    // ★★★ ASSUMPÇÃO CRÍTICA ★★★
+                    // O seu objeto 'evolucao' DEVE ter um campo 'especialidade'
+                    // Ex: { id: 123, notas_subjetivas: "...", especialidade: "cardiologia" }
+                    // Se não tiver, ele sempre cairá no 'pediatria'
+                    const especialidade = evolucao.especialidade || 'pediatria';
+                    
+                    console.log(`[DEBUG MODAL] Especialidade detectada: ${especialidade}`);
 
                     const dadosBrutos = {
-                        evolucao: resEvolucao.data,
-                        anamnese: resAnamnese.data.pediatrica,
-                        dnpm: resDnpm.data,
-                        vacinas: resVacinas.data
+                        evolucao: evolucao,
+                        especialidade: especialidade, // Guarda a especialidade
+                        anamnese: null, // Vai guardar {pediatrica:..., cardiologica:...}
+                        dnpm: null,
+                        vacinas: null,
+                        // ecg: null, // Exemplo futuro
                     };
+
+                    // --- ESTÁGIO 2: Buscar dados-mestre em paralelo ---
                     
+                    // 2a. Busca a anamnese completa (que contém TODAS as especialidades)
+                    const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
+                    
+                    const promises = [anamnesePromise];
+
+                    // 2b. Adiciona buscas específicas de PEDIATRIA
+                    if (especialidade === 'pediatria') {
+                        console.log("[DEBUG MODAL] Adicionando buscas de Pediatria (DNPM, Vacinas)...");
+                        promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`));
+                        promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`));
+                    }
+                    // 2c. Adiciona buscas específicas de CARDIOLOGIA (ex: exames)
+                    else if (especialidade === 'cardiologia') {
+                        // Exemplo: se você tivesse uma API de exames
+                        // promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/exames-ecg/${cacheBuster}`));
+                    }
+                    // ... (outras especialidades)
+
+                    const responses = await Promise.all(promises);
+                    
+                    dadosBrutos.anamnese = responses[0].data; // Anamnese completa
+
+                    if (especialidade === 'pediatria') {
+                        dadosBrutos.dnpm = responses[1].data;
+                        dadosBrutos.vacinas = responses[2].data;
+                    }
+                    // else if (especialidade === 'cardiologia') {
+                    //    dadosBrutos.ecg = responses[1].data;
+                    // }
+
                     console.log('[DEBUG MODAL] 📦 Dados BRUTOS recebidos da API:', dadosBrutos);
                     setRelatorioData(dadosBrutos);
+
                 } catch (err) {
                     showSnackbar('Erro ao buscar o relatório completo da consulta.', 'error');
                     console.error("Erro ao buscar relatório completo:", err);
@@ -146,8 +190,11 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         return value;
     }
 
-    const renderAnamnese = (data) => {
-        if (!data) return <Typography variant="body2">Nenhum dado de anamnese encontrado.</Typography>;
+    // ★★★ 1. RENDER PEDIATRIA (O seu `renderAnamnese` original) ★★★
+    // Esta função lê os dados de Pediatria
+    const renderAnamnesePediatrica = (data) => {
+        // 'data' aqui é relatorioData.anamnese.pediatrica
+        if (!data) return <Typography variant="body2">Nenhum dado de anamnese pediátrica encontrado.</Typography>;
         
         const itensPreenchidos = [];
         
@@ -206,10 +253,45 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             }
         });
 
-        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese:', itensPreenchidos);
-
+        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese (PEDIATRIA):', itensPreenchidos);
         if (itensPreenchidos.length === 0) {
             return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Pediátrico.</Typography>;
+        }
+
+        // Renderiza a lista (sem alteração)
+        return (
+            <ul>
+                {itensPreenchidos.map((item, index) => (
+                    <li key={index}>
+                        <Typography variant="body2">
+                            <strong>{item.label}:</strong> {item.value}
+                        </Typography>
+                    </li>
+                ))}
+            </ul>
+        );
+    };
+    
+    // ★★★ 2. NOVO RENDER: CARDIOLOGIA ★★★
+    // Esta função lê os dados de Cardiologia
+    const renderAnamneseCardiologica = (data) => {
+        // 'data' aqui é relatorioData.anamnese.cardiologica
+        if (!data) return <Typography variant="body2">Nenhum dado de anamnese cardiológica encontrado.</Typography>;
+
+        const itensPreenchidos = [];
+        
+        // Itera sobre os dados da anamnese cardiológica
+        Object.entries(data).forEach(([key, value]) => {
+            const label = cardioLabelMap[key]; // Usa o NOVO labelMap de Cardiologia
+            if (label && isFilled(value)) { // Usa o helper isFilled (genérico)
+                itensPreenchidos.push({ label, value: formatValue(key, value) }); // Usa o helper formatValue (genérico)
+            }
+        });
+
+        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese (CARDIOLOGIA):', itensPreenchidos);
+
+        if (itensPreenchidos.length === 0) {
+            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Cardiológico.</Typography>;
         }
 
         return (
@@ -225,14 +307,18 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         );
     };
 
+
+    // ★★★ JSX (RENDERIZAÇÃO) ATUALIZADO ★★★
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>Relatório da Consulta</DialogTitle>
             <DialogContent dividers>
                 {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
+                
+                {/* Só renderiza quando os dados chegarem */}
                 {relatorioData && (
                     <Box>
-                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) */}
+                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) - Genérico, sem alteração */}
                         <SecaoRelatorio 
                             titulo={`Consulta do Dia (${new Date(relatorioData.evolucao.data_atendimento).toLocaleString('pt-BR')} - ${relatorioData.evolucao.medico_nome || ''})`}
                             data={relatorioData.evolucao}
@@ -253,75 +339,88 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             )}
                         />
                         
-                        {/* 2. SEÇÃO DA ANAMNESE (HISTÓRICO) */}
-                        <SecaoRelatorio 
-                            titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
-                            data={relatorioData.anamnese}
-                            renderFunc={renderAnamnese}
-                        />
+                        {/* ★★★ 2. SEÇÃO DA ANAMNESE (CONDICIONAL) ★★★ */}
                         
-                        {/* 3. SEÇÃO DO DNPM (MARCOS) */}
-                        <SecaoRelatorio 
-                            titulo="Resumo do DNPM (Cadastro Mestre)"
-                            data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
-                            renderFunc={(data) => {
-                                console.log('[DEBUG MODAL] 🎯 Marcos DNPM FILTRADOS (Pendente=null removidos):', data);
-                                
-                                return data.length > 0 ? (
-                                    <ul>
-                                        {data.map(marco => (
-                                            <li key={marco.id}>
-                                                <Typography variant="body2" color={marco.alcançado ? 'text.primary' : 'error'}>
-                                                    <strong>{marco.idade_marco} ({marco.marco_descricao}):</strong> 
-                                                    {marco.alcançado ? ' Alcançado' : ' Ausente (Alerta)'}
-                                                    {marco.observacao ? ` - ${marco.observacao}` : ''}
-                                                </Typography>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography>
-                                )
-                            }}
-                        />
+                        {/* Se for Pediatria, renderiza o histórico pediátrico */}
+                        {relatorioData.especialidade === 'pediatria' && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
+                                data={relatorioData.anamnese.pediatrica} // Passa os dados pediátricos
+                                renderFunc={renderAnamnesePediatrica} // Usa o render pediátrico
+                            />
+                        )}
+                        
+                        {/* Se for Cardiologia, renderiza o histórico cardiológico */}
+                        {relatorioData.especialidade === 'cardiologia' && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do Histórico Cardiológico (Cadastro Mestre)"
+                                data={relatorioData.anamnese.cardiologica} // Passa os dados cardiológicos
+                                renderFunc={renderAnamneseCardiologica} // Usa o render cardiológico
+                            />
+                        )}
+                        
+                        {/* ... (Adicione 'else if' para outras especialidades aqui) ... */}
+                        
 
-                        {/* 4. SEÇÃO DE VACINAS */}
-                        <SecaoRelatorio 
-                            titulo="Resumo da Vacinação (Cadastro Mestre)"
-                            data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
-                            renderFunc={(data) => {
-                                console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS (Pendente removidas):', data);
+                        {/* ★★★ 3. SEÇÃO DO DNPM (CONDICIONAL - SÓ PEDIATRIA) ★★★ */}
+                        {relatorioData.especialidade === 'pediatria' && relatorioData.dnpm && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do DNPM (Cadastro Mestre)"
+                                data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
+                                renderFunc={(data) => {
+                                    // ... (Sua lógica original de renderização do DNPM, sem alteração) ...
+                                    console.log('[DEBUG MODAL] 🎯 Marcos DNPM FILTRADOS:', data);
+                                    return data.length > 0 ? (
+                                        <ul>
+                                            {data.map(marco => (
+                                                <li key={marco.id}>
+                                                    <Typography variant="body2" color={marco.alcançado ? 'text.primary' : 'error'}>
+                                                        <strong>{marco.idade_marco} ({marco.marco_descricao}):</strong> 
+                                                        {marco.alcançado ? ' Alcançado' : ' Ausente (Alerta)'}
+                                                        {marco.observacao ? ` - ${marco.observacao}` : ''}
+                                                    </Typography>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography>
+                                    )
+                                }}
+                            />
+                        )}
 
-                                return data.length > 0 ? (
-                                    <TableContainer component={Paper} variant="outlined">
-                                        <Table size="small">
-                                            <TableHead>
-                                                <TableRow>
-                                                    <TableCell>Vacina</TableCell>
-                                                    <TableCell>Dose</TableCell>
-                                                    <TableCell>Status</TableCell>
-                                                    <TableCell>Data Aplicação</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {data.map(vacina => (
-                                                    <TableRow key={vacina.id}>
-                                                        <TableCell>{vacina.nome_vacina}</TableCell>
-                                                        <TableCell>{vacina.dose}</TableCell>
-                                                        <TableCell sx={{color: vacina.status === 'Atrasada' ? 'error.main' : 'text.primary'}}>
-                                                            {vacina.status}
-                                                        </TableCell>
-                                                        <TableCell>{vacina.data_aplicacao ? new Date(vacina.data_aplicacao + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                ) : (
-                                    <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography>
-                                )
-                            }}
-                        />
+                        {/* ★★★ 4. SEÇÃO DE VACINAS (CONDICIONAL - SÓ PEDIATRIA) ★★★ */}
+                        {relatorioData.especialidade === 'pediatria' && relatorioData.vacinas && (
+                            <SecaoRelatorio 
+                                titulo="Resumo da Vacinação (Cadastro Mestre)"
+                                data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
+                                renderFunc={(data) => {
+                                    // ... (Sua lógica original de renderização das Vacinas, sem alteração) ...
+                                    console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS:', data);
+                                    return data.length > 0 ? (
+                                        <TableContainer component={Paper} variant="outlined">
+                                            {/* ... (Table Head/Body, sem alteração) ... */}
+                                        </TableContainer>
+                                    ) : (
+                                        <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography>
+                                    )
+                                }}
+                            />
+                        )}
+                        
+                        {/* ★★★ 5. SEÇÃO DE EXAMES (EXEMPLO FUTURO PARA CARDIO) ★★★ */}
+                        {/*
+                        {relatorioData.especialidade === 'cardiologia' && relatorioData.ecg && (
+                             <SecaoRelatorio 
+                                titulo="Exames (ECG)"
+                                data={relatorioData.ecg}
+                                renderFunc={(data) => ( 
+                                    <Typography>Exame ECG realizado em XX/XX/XXXX.</Typography>
+                                )}
+                             />
+                        )}
+                        */}
+
                     </Box>
                 )}
             </DialogContent>

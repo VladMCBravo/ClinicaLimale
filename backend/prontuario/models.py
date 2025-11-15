@@ -8,6 +8,17 @@ class Evolucao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='evolucoes')
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     data_atendimento = models.DateTimeField(auto_now_add=True)
+    # --- ★★★ CAMPO ADICIONADO ★★★ ---
+    # Este é o campo mais importante para a lógica de multi-especialidade.
+    # Ele dirá ao frontend qual resumo renderizar (pediatria, cardiologia, etc.)
+    especialidade = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        db_index=True, 
+        verbose_name="Especialidade da Consulta"
+    )
+    # --- FIM DA ADIÇÃO ---
 
     # <<-- CORREÇÃO: Campos SOAP definidos uma única vez e como opcionais (blank=True, null=True) -->>
     notas_subjetivas = models.TextField(blank=True, null=True, verbose_name="Subjetivo (Queixa Principal / HDA)")

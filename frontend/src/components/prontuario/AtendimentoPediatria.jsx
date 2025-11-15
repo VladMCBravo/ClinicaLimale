@@ -330,10 +330,18 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             // --- NÃO EXISTE, CRIAR UMA NOVA (POST) ---
             console.log("   -> Criando NOVA Evolução (POST)...");
             try {
-                // POST para a lista de Evoluções
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+                // ★★★ MUDANÇA É AQUI ★★★
+                
+                // ANTES:
+                // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+                
+                // DEPOIS:
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-pediatria/`, soapData);
+
+                // ★★★ FIM DA MUDANÇA ★★★
+
                 evolucaoId = res.data.id; // Guarda o NOVO ID
-                setEvolucaoIdSessao(evolucaoId); // ★★★ Salva o ID na sessão! ★★★
+                setEvolucaoIdSessao(evolucaoId); // Salva o ID na sessão!
                 console.log(`SOAP salvo com sucesso. Nova Evolução ID: ${evolucaoId}`);
             } catch (error) {
                 console.error("Erro ao CRIAR evolução (SOAP):", error.response?.data || error);
