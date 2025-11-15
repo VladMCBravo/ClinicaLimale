@@ -1,19 +1,17 @@
 // src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO REATORADA: Salva apenas quando o PAI (AtendimentoPediatria) mandar.
+// VERSÃO FINAL CORRIGIDA: Lógica de fetch e save alinhada com o modelo do Django.
 
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react'; // 1. Adicionar 'useRef'
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
     Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField,
     FormControl, InputLabel, Select, MenuItem, Box, CircularProgress,
-    Accordion, AccordionSummary, AccordionDetails, FormLabel, Button
+    Accordion, AccordgionSummary, AccordionDetails, FormLabel, Button
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-// import SaveIcon from '@mui/icons-material/Save'; // Removido
-// import { Tooltip, Fab } from '@mui/material'; // Removidos
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
-// --- Constantes (Mantidas iguais) ---
+// --- (Constantes... sem alteração) ---
 const tipoPartoOptions = ['Vaginal', 'Fórceps', 'Cesárea'];
 const igOptions = ['Pré-termo (<37s)', 'Termo (37-41s)', 'Pós-termo (>42s)'];
 const apgarScoreOptions = Array.from({ length: 11 }, (_, i) => i);
@@ -62,36 +60,39 @@ const initialState = {
     alimentacao_0_6m: {}, alimentacao_6_12m: {}, sono_comportamento: {},
     alimentacao_0_6m_obs: '', metodo_ia: '', copo_transicao: '', alimentacao_6_12m_obs: '', sono_comportamento_obs: '',
 };
+// --- Fim Constantes ---
 
-// --- 1. Envolver componente com forwardRef ---
+
 const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [expanded, setExpanded] = useState('panel1');
     const [anamneseData, setAnamneseData] = useState(initialState);
-    // --- ★★★ NOVA CORREÇÃO DE ESTABILIZAÇÃO ★★★ ---
-    // Guardamos a função showSnackbar em uma ref
-    // Isso evita que o 'fetchAnamnese' seja recriado a cada render
+    
     const showSnackbarRef = useRef(showSnackbar);
     useEffect(() => {
         showSnackbarRef.current = showSnackbar;
     }, [showSnackbar]);
-    // --- ★★★ FIM DA CORREÇÃO ★★★ ---
 
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpanded(isExpanded ? panel : false);
     };
 
-    // --- Fetch (Agora 100% estável) ---
+    // --- 1. Fetch (Corrigido) ---
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         const cacheBuster = `?_=${new Date().getTime()}`;
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-            if (res.data && res.data.pediatrica) {
-                const data = { ...initialState, ...(res.data.pediatrica || {}) };
-                // ... (lógica de merge dos 'data')
+            
+            // ★★★ CORREÇÃO AQUI ★★★
+            // Os dados NÃO estão em 'res.data.pediatrica', eles SÃO 'res.data'
+            if (res.data) {
+                // Usamos 'res.data' diretamente como base
+                const data = { ...initialState, ...(res.data || {}) };
+                
+                // Esta lógica de merge para os JSONFields internos está correta
                 data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
                 data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
                 data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
@@ -103,22 +104,21 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
         } catch (err) {
             if (err.response && err.response.status !== 404) {
                 console.error("Erro ao carregar histórico:", err);
-                // Usamos a 'ref' para chamar o snackbar
                 showSnackbarRef.current('Erro ao carregar histórico.', 'error');
             }
             setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId]); // <-- ★★★ 'showSnackbar' REMOVIDO DAQUI ★★★
+    }, [pacienteId]); // 'showSnackbar' foi removido, está correto
 
     useEffect(() => {
         fetchAnamnese();
-    }, [fetchAnamnese]); // Agora 'fetchAnamnese' só muda se 'pacienteId' mudar.
+    }, [fetchAnamnese]);
 
-    // --- 2. Função de Salvar (agora chamada pelo PAI) ---
+    // --- 2. Função de Salvar (Corrigida) ---
     const handleSaveManual = async () => {
-        if (isSubmitting) return; // Evita cliques duplos
+        if (isSubmitting) return;
         setIsSubmitting(true);
         
         const dataCopy = { ...anamneseData };
@@ -128,23 +128,25 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
             dataCopy[campo] = isNaN(valorNum) ? null : valorNum;
         });
 
-        const payload = { pediatria: dataCopy };
+        // ★★★ CORREÇÃO AQUI ★★★
+        // O payload é o próprio objeto 'dataCopy', não aninhado dentro de 'pediatria'
+        const payload = dataCopy;
+        
         console.log('[SAVE MANUAL - HISTÓRICO] Enviando:', payload);
 
         try {
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, payload);
             console.log('Histórico salvo com sucesso!');
-            // showSnackbar('Histórico salvo com sucesso!', 'success'); // O PAI dará o snackbar
         } catch (error) {
             console.error("Erro ao salvar anamnese:", error);
             showSnackbar('Erro ao salvar histórico.', 'error');
-            throw error; // Re-lança o erro para o Promise.all do pai saber que falhou
+            throw error; 
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // --- 3. Expor a função de salvar para o PAI ---
+    // --- 3. Expor a função de salvar (Sem alteração) ---
     useImperativeHandle(ref, () => ({
         saveData: async () => {
             await handleSaveManual();
@@ -173,23 +175,18 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
         handleJsonChange('triagens', name, value);
     };
 
-    // --- Handlers de Normalidade (Sem alteração) ---
-    // (handleNormalidadeGestacional, handleNormalidadeAlim06, etc... ficam iguais)
+    // --- Handlers de Normalidade (Snackbars removidos - Correto) ---
     const handleNormalidadeGestacional = () => {
         setAnamneseData(prev => ({ ...prev, tipo_parto: 'Vaginal', idade_gestacional: 'Termo (37-41s)', peso_nascimento: 3500, apgar_1: '9', apgar_5: '10', apgar_10: '10', triagens: { pezinho_status: 'Normal', pezinho_desc: '', orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '', orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '', olhinho_status: 'Presente', olhinho_desc: '', coracaozinho_status: 'Normal', coracaozinho_desc: '', linguinha_status: 'Normal', linguinha_desc: '', }, }));
-        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
     const handleNormalidadeAlim06 = () => {
         setAnamneseData(prev => ({ ...prev, alimentacao_0_6m: { tipo_aleitamento: 'AME', pega: 'Boa', succao: 'Eficaz', diurese: 'Adequada', evacuacao: 'Normal', vitamina_d: true, ferro: true }, }));
-        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
     const handleNormalidadeAlim612 = () => {
         setAnamneseData(prev => ({ ...prev, alimentacao_6_12m: { tipo_alimentacao: 'Mantem AM', refeicoes_dia: '2', textura: 'Amassada', aceitacao: 'Boa', agua: 'Adequada', vitamina_d: true, ferro: true, aceitacao_geral: 'Adequada' }, metodo_ia: 'Tradicional', copo_transicao: 'Aberto Pequeno' }));
-        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
     const handleNormalidadeSono = () => {
         setAnamneseData(prev => ({ ...prev, sono_comportamento: { sono_diurno: 'Adequado', sono_noturno: 'Adequado', colica: 'Ausente', choro: 'Adequado', vinculo: 'Adequado' }, }));
-        // showSnackbar('Pré-preenchido com normalidade.', 'info'); // <-- REMOVA ESTA LINHA
     };
 
 
@@ -197,22 +194,14 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
         return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // --- 4. JSX Atualizado (Sem botões de salvar) ---
+    // --- JSX (Sem alteração) ---
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400', position: 'relative' }}>
             
-            {/* --- BOTÃO FLUTUANTE DE SALVAR (REMOVIDO) --- */}
-            {/* <Tooltip title="Salvar Histórico"> ... </Fab> */}
-
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                     Histórico Pediátrico (Anamnese)
                 </Typography>
-                
-                {/* --- BOTÃO SALVAR NO TOPO (REMOVIDO) --- */}
-                {/* <Button ... > ... </Button> */}
-
-                {/* Adiciona um spinner se esta aba estiver salvando */}
                 {isSubmitting && <CircularProgress size={24} />}
             </Box>
 
@@ -242,7 +231,7 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
                         <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
                             <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Triagens Neonatais Realizadas</FormLabel>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5 }}>
-                                {/* Campos de Triagem (Resumido para brevidade, mantenha o código original dos selects) */}
+                                {/* (Campos de Triagem... sem alteração) */}
                                 <Box sx={{minWidth: 170, flex: '1 1 170px'}}><TextField select label="Teste do Pezinho" name="pezinho_status" value={anamneseData.triagens.pezinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>{normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}</TextField></Box>
                                 {anamneseData.triagens.pezinho_status === 'Alterado' && (<Box sx={{minWidth: 170, flex: '2 1 200px'}}><TextField label="Descrever (Pezinho)" name="pezinho_desc" value={anamneseData.triagens.pezinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/></Box>)}
                                 
@@ -321,7 +310,7 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
                         <Button size="small" variant="outlined" onClick={handleNormalidadeSono} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             {Object.entries(sonoComportamentoOptions).map(([key, options]) => (
-                                <TextField select key={key} label={key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')} name={key} value={anamneseData.sono_comportamento[key] || ''} onChange={(e) => handleJsonChange('sono_comportamento', key, e.target.value)} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
+                                <TextField select key={key} label={key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')} name={key} value={anamneseData.sono_comportamento[key] || ''} onChange={(e) => handleJsonChange('sono_comlogportamento', key, e.target.value)} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
                                     {options.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
                                 </TextField>
                             ))}
