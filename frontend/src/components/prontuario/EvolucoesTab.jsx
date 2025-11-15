@@ -29,25 +29,20 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
     console.log(`🔄 [RENDER PAI] EvolucoesTab renderizou. Especialidade: ${especialidade}`);
 
     // --- CORREÇÃO AVANÇADA: Estabilizando a prop com useRef ---
-
-    // 1. Criamos uma 'ref' para guardar a versão mais recente da função
     const onEvolucaoSalvaRef = useRef(onEvolucaoSalva);
-
-    // 2. Usamos useEffect para atualizar a 'ref' se a prop do "avô" mudar.
-    // Isso NÃO causa uma nova renderização.
     useEffect(() => {
         onEvolucaoSalvaRef.current = onEvolucaoSalva;
     }, [onEvolucaoSalva]);
 
-    // 3. Criamos uma função de callback 100% estável (com array vazio [])
-    // que chama a função mais recente guardada na 'ref'.
-    const stableOnEvolucaoSalva = useCallback(() => {
+    // --- ★★★ CORREÇÃO CRÍTICA AQUI ★★★ ---
+    // A função precisa ACEITAR o 'id' e PASSAR o 'id' para a ref.
+    const stableOnEvolucaoSalva = useCallback((idDaEvolucao) => {
         if (onEvolucaoSalvaRef.current) {
-            onEvolucaoSalvaRef.current();
+            // Passe o ID recebido para a função original
+            onEvolucaoSalvaRef.current(idDaEvolucao); 
         }
     }, []); // <-- Array vazio garante que esta função NUNCA mude.
-    
-    // --- FIM DA CORREÇÃO ---
+    // --- ★★★ FIM DA CORREÇÃO ★★★ ---
 
 
     // --- Define o TIPO de componente a ser renderizado ---
@@ -89,9 +84,7 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
             {/* 4. Passamos a função 100% estável para o filho */}
             <ComponenteDaEspecialidade 
                 pacienteId={pacienteId} 
-                
-                // --- CORREÇÃO AQUI ---
-                onEvolucaoSalva={stableOnEvolucaoSalva} // ANTES: onEvolucOESalva
+                onEvolucaoSalva={stableOnEvolucaoSalva} // Passa a função estável corrigida
             />
         </Suspense>
     );

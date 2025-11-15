@@ -120,7 +120,10 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   };
   
   // --- 2. CRIE A FUNÇÃO ESTÁVEL AQUI ---
-  const handleEvolucaoSalvaCompleta = useCallback((idDaEvolucao) => {
+  // Esta é a função que será passada para o EvolucaoTab
+  // Usamos useCallback para garantir que ela NUNCA mude, a menos que onEvolucaoSalva mude.
+  const handleEvolucaoSalvaChain = useCallback((idDaEvolucao) => {
+      console.log(`[ProntuarioCompleto] Recebido ID da evolução: ${idDaEvolucao}`);
       if (onEvolucaoSalva) {
           onEvolucaoSalva(); // Chama a função do "avô" (PainelMedicoPage) para recarregar a lista
       }
@@ -236,12 +239,12 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             
             {/* Usamos a função TabPanel corrigida para cada aba */}
             <TabPanel value={tabIndex} index={0}>
-              {/* --- 4. PASSE A NOVA FUNÇÃO ESTÁVEL --- */}
+              {/* --- 3. PASSE A NOVA FUNÇÃO ESTÁVEL --- */}
               <EvolucaoTab 
                 pacienteId={pacienteId} 
                 especialidade={especialidade} 
                 // Antes era: onEvolucoesSalva={(id) => { ... }}
-                onEvolucoesSalva={handleEvolucaoSalvaCompleta} // Agora passa a função estável
+                onEvolucoesSalva={handleEvolucaoSalvaChain} // Agora passa a função estável
               />
             </TabPanel>
             <TabPanel value={tabIndex} index={1}>
