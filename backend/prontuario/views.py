@@ -512,8 +512,12 @@ class GerarPreviewRelatorioView(APIView):
 
         # Dados do Médico
         try:
-            crm = medico.profile.crm
+            # Busca o CRM diretamente do modelo CustomUser
+            crm = medico.crm 
+            if not crm: # Verifica se o campo está em branco (None ou "")
+                crm = "CRM NÃO INFORMADO"
         except AttributeError:
+            # Este 'except' agora só pegaria se 'medico' não fosse um objeto válido
             crm = "CRM NÃO INFORMADO"
             
         context_data.update({
