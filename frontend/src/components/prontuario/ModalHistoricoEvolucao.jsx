@@ -1,31 +1,35 @@
 // src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO CORRIGIDA: Estrutura de funções corrigida
+// VERSÃO CORRIGIDA: Esconde seções vazias.
 
-import React, { useState, useEffect, useCallback } from 'react'; // Removidos imports não usados de forwardRef
+import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Button 
 } from '@mui/material';
-import apiClient from '../../api/axiosConfig.js';
-import { useSnackbar } from '../../contexts/SnackbarContext.js';
+import apiClient from 'api/axiosConfig'; // Usando import absoluto
+import { useSnackbar } from 'contexts/SnackbarContext'; // Usando import absoluto
 
-// Componente SecaoRelatorio (sem alterações)
+// Componente simples para renderizar seções
 const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
-    if (!data || 
-        (Array.isArray(data) && data.length === 0) || 
-        (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0)
-    ) {
+    
+    // ★★★ CORREÇÃO AQUI (Bug #2) ★★★
+    // Renderiza o conteúdo em memória primeiro
+    const renderedContent = renderFunc(data);
+
+    // Se a função de renderização retornar null, não renderiza a seção inteira
+    if (renderedContent === null) {
         return null;
     }
+    
     return (
         <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'primary.main' }}>
                 {titulo}
             </Typography>
             <Divider sx={{ mb: 1.5 }} />
-            {renderFunc(data)}
+            {renderedContent} {/* <-- Usa o conteúdo já renderizado */}
         </Box>
     );
 };
@@ -78,6 +82,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             setIsLoading(true);
             setRelatorioData(null); 
             const cacheBuster = `?_=${new Date().getTime()}`;
+
             const fetchTudo = async () => {
                 try {
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
@@ -87,7 +92,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                     
                     const dadosBrutos = {
                         evolucao: resEvolucao.data,
-                        anamnese: resAnamnese.data, // Correto
+                        anamnese: resAnamnese.data, 
                         dnpm: resDnpm.data,
                         vacinas: resVacinas.data
                     };
@@ -103,7 +108,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             fetchTudo();
         }
     }, [pacienteId, evolucaoId, onClose, showSnackbar]);
-    
+
     // (handleDownloadPdf... sem alterações)
     const handleDownloadPdf = async () => {
         if (!evolucaoId) return;
@@ -138,8 +143,9 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         return value;
     }
 
+    // --- FUNÇÃO DE RENDER PEDIATRIA ---
     const renderAnamnese = (data) => {
-        if (!data) return <Typography variant="body2">Nenhum dado de anamnese encontrado.</Typography>;
+        if (!data) return null; // <-- CORREÇÃO
         
         const itensPreenchidos = [];
         
@@ -200,9 +206,9 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
 
         // ★★★ MOVIDO PARA FORA: renderCardiologia estava aqui ★★★
 
-        // ★★★ ADICIONAR O RETURN QUE FALTAVA ★★★
+        // ★★★ CORREÇÃO AQUI (Bug #2) ★★★
         if (itensPreenchidos.length === 0) {
-            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Pediátrico.</Typography>;
+            return null; // <-- Em vez de "Nenhum dado", retorna nulo
         }
 
         return (
@@ -216,23 +222,24 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 ))}
             </ul>
         );
-    }; // <-- FIM DA FUNÇÃO renderAnamnese
+    };
 
-    // FUNÇÃO 2: Renderizar Anamnese CARDIOLÓGICA (AGORA NO ESCOPO CORRETO)
+    // --- FUNÇÃO DE RENDER CARDIOLOGIA ---
     const renderCardiologia = (data) => {
         if (!data || Object.keys(data).length === 0) {
-            return <Typography variant="body2">Nenhum dado de histórico cardiológico encontrado.</Typography>;
+            return null; // <-- CORREÇÃO
         }
 
         const itensPreenchidos = Object.entries(data)
-            .filter(([key, value]) => isFilled(value))
+            .filter(([key, value]) => isFilled(value)) // Esta é a lógica que pega TODOS os campos
             .map(([key, value]) => ({
                 label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
                 value: value
             }));
 
+        // ★★★ CORREÇÃO AQUI (Bug #2) ★★★
         if (itensPreenchidos.length === 0) {
-            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Cardiológico.</Typography>;
+            return null; // <-- Em vez de "Nenhum dado", retorna nulo
         }
 
         return (
@@ -246,7 +253,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 ))}
             </ul>
         );
-    }; // <-- FIM DA FUNÇÃO renderCardiologia
+    };
 
     // ★★★ RETURN PRINCIPAL DO COMPONENTE (AGORA NO ESCOPO CORRETO) ★★★
     return (
