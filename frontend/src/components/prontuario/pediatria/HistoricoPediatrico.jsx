@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandl
 import {
     Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField,
     FormControl, InputLabel, Select, MenuItem, Box, CircularProgress,
-    Accordion, AccordgionSummary, AccordionDetails, FormLabel, Button
+    Accordion, AccordionSummary, AccordionDetails, FormLabel, Button
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
