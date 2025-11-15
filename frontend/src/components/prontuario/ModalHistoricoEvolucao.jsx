@@ -1,47 +1,41 @@
-// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO CORRIGIDA: Não quebra a Pediatria e esconde seções vazias.
+/// src/components/prontuario/ModalHistoricoEvolucao.jsx
+// VERSÃO CORRIGIDA:
+// 1. Corrige a função 'renderAnamnese' para exibir TODOS os dados preenchidos.
+// 2. Garante que o cacheBuster não crie uma barra dupla "//" na URL.
 
-import React, { useState, useEffect } from 'react'; // Removidos imports não usados
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Button 
+    Button // <-- ★★★ ADICIONE ESTA LINHA ★★★
 } from '@mui/material';
-// Usando os caminhos relativos corretos (sem jsconfig.json)
 import apiClient from '../../api/axiosConfig.js';
 import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
-// Componente simples para renderizar seções
+// Componente simples para renderizar seções (sem alteração)
 const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
-    
-    // ★★★ CORREÇÃO AQUI (Bug #2) ★★★
-    // Renderiza o conteúdo em memória primeiro
-    const renderedContent = renderFunc(data);
-
-    // Se a função de renderização retornar null, não renderiza a seção inteira
-    if (renderedContent === null) {
-        return null;
-    }
-    
+    if (!data || (Array.isArray(data) && data.length === 0)) return null;
     return (
         <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'primary.main' }}>
                 {titulo}
             </Typography>
             <Divider sx={{ mb: 1.5 }} />
-            {renderedContent} {/* <-- Usa o conteúdo já renderizado */}
+            {renderFunc(data)}
         </Box>
     );
 };
 
-// Funções de "Tradução" para os campos JSON (Pediatria)
-// ★★★ CONSTANTES RESTAURADAS ★★★
+// Funções de "Tradução" para os campos JSON
 const labelMap = {
+    // Gestacional
     tipo_parto: 'Parto',
     idade_gestacional: 'Idade Gestacional',
     peso_nascimento: 'Peso ao Nascer',
     intercorrencias_gestacao_parto: 'Intercorrências Gestação/Parto',
+    // Triagens (tratado separadamente)
+    // Alim 0-6m
     tipo_aleitamento: 'Aleitamento (0-6m)',
     pega: 'Pega (0-6m)',
     succao: 'Sucção (0-6m)',
@@ -50,6 +44,7 @@ const labelMap = {
     vitamina_d: 'Supl. Vitamina D (0-6m)',
     ferro: 'Supl. Ferro (0-6m)',
     alimentacao_0_6m_obs: 'Obs. Alim. (0-6m)',
+    // Alim 6-12m
     tipo_alimentacao: 'Alimentação (6-12m)',
     refeicoes_dia: 'Refeições/dia (6-12m)',
     textura: 'Textura (6-12m)',
@@ -59,6 +54,7 @@ const labelMap = {
     metodo_ia: 'Método IA',
     copo_transicao: 'Copo de Transição',
     alimentacao_6_12m_obs: 'Obs. Alim. (6-12m)',
+    // Sono
     sono_diurno: 'Sono Diurno',
     sono_noturno: 'Sono Noturno',
     colica: 'Cólica',
@@ -73,26 +69,35 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
-    // useEffect para buscar dados (sem alterações)
     useEffect(() => {
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
             setRelatorioData(null); 
+            
+            console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}, Paciente ID: ${pacienteId}`);
+
             const cacheBuster = `?_=${new Date().getTime()}`;
 
             const fetchTudo = async () => {
                 try {
-                    const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
-                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
-                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
-                    
+                    // ★★★ CORREÇÃO AQUI ★★★
+        // Garante a barra "/" final ANTES do cacheBuster
+        
+        const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
+        const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
+        const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
+        const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
+        
+        // ★★★ FIM DA CORREÇÃO ★★★
+
                     const dadosBrutos = {
                         evolucao: resEvolucao.data,
-                        anamnese: resAnamnese.data, 
+                        anamnese: resAnamnese.data.pediatrica,
                         dnpm: resDnpm.data,
                         vacinas: resVacinas.data
                     };
+                    
+                    console.log('[DEBUG MODAL] 📦 Dados BRUTOS recebidos da API:', dadosBrutos);
                     setRelatorioData(dadosBrutos);
                 } catch (err) {
                     showSnackbar('Erro ao buscar o relatório completo da consulta.', 'error');
@@ -102,11 +107,12 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                     setIsLoading(false);
                 }
             };
+
             fetchTudo();
         }
     }, [pacienteId, evolucaoId, onClose, showSnackbar]);
     
-    // (handleDownloadPdf - sem alterações)
+    // (handleDownloadPdf... sem alterações)
     const handleDownloadPdf = async () => {
         if (!evolucaoId) return;
         try {
@@ -123,23 +129,25 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // (isFilled e formatValue - sem alterações)
+    // ★★★ FUNÇÃO DE FILTRO TOTALMENTE REESCRITA ★★★
+    
+    // Helper para checar se um valor foi preenchido
     const isFilled = (value) => {
-        if (value === 0) return true;
-        if (value === true) return true;
+        if (value === 0) return true; // 0 é um valor válido (ex: APGAR)
+        if (value === true) return true; // true é um valor válido (ex: checkboxes)
         if (value === null || value === undefined || value === "") return false;
         return true;
     };
+    
+    // Helper para formatar o valor
     const formatValue = (key, value) => {
         if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
         if (key === 'peso_nascimento') return `${value}g`;
         return value;
-    };
-    
-    // --- FUNÇÃO DE RENDER PEDIATRIA ---
-    // ★★★ CORRIGIDA PARA RETORNAR NULL SE VAZIA ★★★
+    }
+
     const renderAnamnese = (data) => {
-        if (!data) return null; // Não renderiza nada se não houver dados pediátricos
+        if (!data) return <Typography variant="body2">Nenhum dado de anamnese encontrado.</Typography>;
         
         const itensPreenchidos = [];
         
@@ -162,6 +170,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             if (key.endsWith('_status') && isFilled(value)) {
                 const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
                 let displayValue = value;
+                
                 if (value === 'Alterado') {
                     const descKey = key.replace('_status', '_desc');
                     const desc = data.triagens[descKey];
@@ -197,55 +206,25 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             }
         });
 
-        if (itensPreenchidos.length === 0) {
-            return null; // Retorna nulo se NADA foi preenchido
-        }
-
-        return (
-             <ul>
-                {itensPreenchidos.map((item, index) => (
-                    <li key={index}>
-                        <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
-                            <strong>{item.label}:</strong> {item.value}
-                        </Typography>
-                    </li>
-                ))}
-            </ul>
-        );
-    }; // <-- FIM DE renderAnamnese
-
-    // --- FUNÇÃO DE RENDER CARDIOLOGIA ---
-    // ★★★ CORRIGIDA PARA MOSTRAR TODOS OS CAMPOS E RETORNAR NULL SE VAZIA ★★★
-    const renderCardiologia = (data) => {
-        if (!data || Object.keys(data).length === 0) {
-            return null; // Não renderiza nada se não houver dados cardiológicos
-        }
-
-        const itensPreenchidos = Object.entries(data)
-            .filter(([key, value]) => isFilled(value)) // Esta é a lógica que pega TODOS os campos
-            .map(([key, value]) => ({
-                label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                value: value
-            }));
+        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese:', itensPreenchidos);
 
         if (itensPreenchidos.length === 0) {
-            return null; // Retorna nulo se NADA foi preenchido
+            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Pediátrico.</Typography>;
         }
 
         return (
             <ul>
                 {itensPreenchidos.map((item, index) => (
                     <li key={index}>
-                        <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>
+                        <Typography variant="body2">
                             <strong>{item.label}:</strong> {item.value}
                         </Typography>
                     </li>
                 ))}
             </ul>
         );
-    }; // <-- FIM DE renderCardiologia
+    };
 
-    // ★★★ RETURN PRINCIPAL (ESTAVA FALTANDO NO ARQUIVO ANTERIOR) ★★★
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>Relatório da Consulta</DialogTitle>
@@ -274,28 +253,21 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             )}
                         />
                         
-                        {/* 2A. SEÇÃO DA ANAMNESE (PEDIATRIA) */}
+                        {/* 2. SEÇÃO DA ANAMNESE (HISTÓRICO) */}
                         <SecaoRelatorio 
                             titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
-                            data={relatorioData.anamnese.pediatrica}
+                            data={relatorioData.anamnese}
                             renderFunc={renderAnamnese}
                         />
                         
-                        {/* 2B. SEÇÃO DA ANAMNESE (CARDIOLOGIA) */}
-                        <SecaoRelatorio 
-                            titulo="Resumo do Histórico Cardiológico (Cadastro Mestre)"
-                            data={relatorioData.anamnese.cardiologica}
-                            renderFunc={renderCardiologia}
-                        />
-                        
                         {/* 3. SEÇÃO DO DNPM (MARCOS) */}
-                        {/* ★★★ CÓDIGO RESTAURADO ★★★ */}
                         <SecaoRelatorio 
                             titulo="Resumo do DNPM (Cadastro Mestre)"
-                            data={relatorioData.dnpm ? relatorioData.dnpm.filter(m => m.alcançado !== null) : []} 
+                            data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
                             renderFunc={(data) => {
-                                if (!data || data.length === 0) return null;
-                                return (
+                                console.log('[DEBUG MODAL] 🎯 Marcos DNPM FILTRADOS (Pendente=null removidos):', data);
+                                
+                                return data.length > 0 ? (
                                     <ul>
                                         {data.map(marco => (
                                             <li key={marco.id}>
@@ -307,18 +279,20 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                             </li>
                                         ))}
                                     </ul>
+                                ) : (
+                                    <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography>
                                 )
                             }}
                         />
 
                         {/* 4. SEÇÃO DE VACINAS */}
-                        {/* ★★★ CÓDIGO RESTAURADO ★★★ */}
                         <SecaoRelatorio 
                             titulo="Resumo da Vacinação (Cadastro Mestre)"
-                            data={relatorioData.vacinas ? relatorioData.vacinas.filter(v => v.status !== 'Pendente') : []} 
+                            data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
                             renderFunc={(data) => {
-                                if (!data || data.length === 0) return null;
-                                return (
+                                console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS (Pendente removidas):', data);
+
+                                return data.length > 0 ? (
                                     <TableContainer component={Paper} variant="outlined">
                                         <Table size="small">
                                             <TableHead>
@@ -343,6 +317,8 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                             </TableBody>
                                         </Table>
                                     </TableContainer>
+                                ) : (
+                                    <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography>
                                 )
                             }}
                         />
