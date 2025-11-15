@@ -414,7 +414,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
             fetchStatusResumos();
             
             // Chama a função do PAI (ProntuarioCompleto) para abrir o modal
-            if(onEvoluccoesSalva) {
+            if(onEvolucoesSalva) {
                 console.log(`   -> Etapa 4: Chamando onEvolucoesSalva com ID: ${evolucaoId}`);
                 onEvolucoesSalva(evolucaoId); 
             }
