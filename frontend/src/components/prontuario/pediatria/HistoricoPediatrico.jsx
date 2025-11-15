@@ -1,5 +1,5 @@
 // src/components/prontuario/pediatria/HistoricoPediatrico.jsx
-// VERSÃO FINAL CORRIGIDA: Lógica de fetch e save alinhada com o modelo do Django.
+// VERSÃO CORRIGIDA: Lendo e salvando no formato aninhado { pediatrica: {...} }
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
@@ -86,19 +86,24 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
             
-            // ★★★ CORREÇÃO AQUI ★★★
-            // Os dados NÃO estão em 'res.data.pediatrica', eles SÃO 'res.data'
-            if (res.data) {
-                // Usamos 'res.data' diretamente como base
-                const data = { ...initialState, ...(res.data || {}) };
+            // ★★★ MUDANÇA 1: LER DENTRO DE 'res.data.pediatrica' ★★★
+            // O serializer do backend retorna a anamnese pediátrica aninhada
+            if (res.data && res.data.pediatrica) {
+                // Usamos 'res.data.pediatrica' como base
+                const pediatriaData = res.data.pediatrica;
                 
-                // Esta lógica de merge para os JSONFields internos está correta
+                // Merge com o initialState para garantir que todos os campos existam
+                const data = { ...initialState, ...(pediatriaData || {}) };
+                
+                // Merge dos JSONFields internos para evitar 'null'
                 data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
                 data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
                 data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
                 data.triagens = { ...initialState.triagens, ...(data.triagens || {}) };
+                
                 setAnamneseData(data);
             } else {
+                 // Se res.data.pediatrica não existir (ex: 404 ou anamnese nova)
                  setAnamneseData(initialState);
             }
         } catch (err) {
@@ -106,6 +111,7 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
                 console.error("Erro ao carregar histórico:", err);
                 showSnackbarRef.current('Erro ao carregar histórico.', 'error');
             }
+            // Se não encontrar, apenas começa com o estado inicial
             setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
@@ -128,9 +134,11 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
             dataCopy[campo] = isNaN(valorNum) ? null : valorNum;
         });
 
-        // ★★★ CORREÇÃO AQUI ★★★
-        // O payload é o próprio objeto 'dataCopy', não aninhado dentro de 'pediatria'
-        const payload = dataCopy;
+        // ★★★ MUDANÇA 2: ENVIAR OS DADOS DENTRO DA CHAVE 'pediatrica' ★★★
+        // O payload DEVE ser um objeto aninhado, conforme esperado pelo AnamneseSerializer
+        const payload = {
+            pediatrica: dataCopy
+        };
         
         console.log('[SAVE MANUAL - HISTÓRICO] Enviando:', payload);
 
@@ -175,7 +183,7 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
         handleJsonChange('triagens', name, value);
     };
 
-    // --- Handlers de Normalidade (Snackbars removidos - Correto) ---
+    // --- Handlers de Normalidade (Sem alteração) ---
     const handleNormalidadeGestacional = () => {
         setAnamneseData(prev => ({ ...prev, tipo_parto: 'Vaginal', idade_gestacional: 'Termo (37-41s)', peso_nascimento: 3500, apgar_1: '9', apgar_5: '10', apgar_10: '10', triagens: { pezinho_status: 'Normal', pezinho_desc: '', orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '', orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '', olhinho_status: 'Presente', olhinho_desc: '', coracaozinho_status: 'Normal', coracaozinho_desc: '', linguinha_status: 'Normal', linguinha_desc: '', }, }));
     };
@@ -310,7 +318,7 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
                         <Button size="small" variant="outlined" onClick={handleNormalidadeSono} sx={{mb: 2, float: 'right'}}>Preencher Normalidade</Button>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             {Object.entries(sonoComportamentoOptions).map(([key, options]) => (
-                                <TextField select key={key} label={key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')} name={key} value={anamneseData.sono_comportamento[key] || ''} onChange={(e) => handleJsonChange('sono_comlogportamento', key, e.target.value)} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
+                                <TextField select key={key} label={key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')} name={key} value={anamneseData.sono_comportamento[key] || ''} onChange={(e) => handleJsonChange('sono_comportamento', key, e.target.value)} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
                                     {options.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
                                 </TextField>
                             ))}
