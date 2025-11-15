@@ -1,7 +1,7 @@
 // src/components/prontuario/EvolucoesTab.jsx
 // VERSÃO CORRIGIDA: Usando useRef para garantir uma prop 100% estável
 
-import React, { Suspense, lazy, useCallback, useEffect, useRef } from 'react'; // 1. IMPORTAR useEffect e useRef
+import React, { Suspense, lazy, useCallback, useEffect, useRef, memo } from 'react'; // 1. IMPORTAR 'memo'
 import { Box, CircularProgress, Typography, Paper } from '@mui/material';
 
 // (Imports lazy... AtendimentoPediatria, AtendimentoCardiologia, etc.)
@@ -24,25 +24,23 @@ const GenericFallback = ({ especialidadeNome }) => (
     </Paper>
 );
 
-export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva }) {
+// 2. Renomeie a função para 'EvolucaoTabContent' (ou qualquer nome)
+function EvolucaoTabContent({ pacienteId, especialidade, onEvolucaoSalva }) {
     
     console.log(`🔄 [RENDER PAI] EvolucoesTab renderizou. Especialidade: ${especialidade}`);
 
-    // --- CORREÇÃO AVANÇADA: Estabilizando a prop com useRef ---
+    // --- (A lógica de estabilização do useRef/useCallback continua a mesma) ---
     const onEvolucaoSalvaRef = useRef(onEvolucaoSalva);
     useEffect(() => {
         onEvolucaoSalvaRef.current = onEvolucaoSalva;
     }, [onEvolucaoSalva]);
 
-    // --- ★★★ CORREÇÃO CRÍTICA AQUI ★★★ ---
-    // A função precisa ACEITAR o 'id' e PASSAR o 'id' para a ref.
     const stableOnEvolucaoSalva = useCallback((idDaEvolucao) => {
         if (onEvolucaoSalvaRef.current) {
-            // Passe o ID recebido para a função original
             onEvolucaoSalvaRef.current(idDaEvolucao); 
         }
-    }, []); // <-- Array vazio garante que esta função NUNCA mude.
-    // --- ★★★ FIM DA CORREÇÃO ★★★ ---
+    }, []); 
+    // --- (Fim da lógica de estabilização) ---
 
 
     // --- Define o TIPO de componente a ser renderizado ---
@@ -81,11 +79,14 @@ export default function EvolucaoTab({ pacienteId, especialidade, onEvolucaoSalva
 
     return (
         <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-            {/* 4. Passamos a função 100% estável para o filho */}
             <ComponenteDaEspecialidade 
                 pacienteId={pacienteId} 
-                onEvolucaoSalva={stableOnEvolucaoSalva} // Passa a função estável corrigida
+                onEvolucaoSalva={stableOnEvolucaoSalva}
             />
         </Suspense>
     );
 }
+
+// 3. Exporte a versão "memoizada" do componente.
+// Isso impede que ele re-renderize desnecessariamente.
+export default memo(EvolucaoTabContent);

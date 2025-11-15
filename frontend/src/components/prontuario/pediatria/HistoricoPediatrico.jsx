@@ -1,7 +1,7 @@
 // src/components/prontuario/pediatria/HistoricoPediatrico.jsx
 // VERSÃO REATORADA: Salva apenas quando o PAI (AtendimentoPediatria) mandar.
 
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react'; // 1. Adicionar 'useRef'
 import {
     Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField,
     FormControl, InputLabel, Select, MenuItem, Box, CircularProgress,
@@ -70,12 +70,20 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
     const [isLoading, setIsLoading] = useState(true);
     const [expanded, setExpanded] = useState('panel1');
     const [anamneseData, setAnamneseData] = useState(initialState);
+    // --- ★★★ NOVA CORREÇÃO DE ESTABILIZAÇÃO ★★★ ---
+    // Guardamos a função showSnackbar em uma ref
+    // Isso evita que o 'fetchAnamnese' seja recriado a cada render
+    const showSnackbarRef = useRef(showSnackbar);
+    useEffect(() => {
+        showSnackbarRef.current = showSnackbar;
+    }, [showSnackbar]);
+    // --- ★★★ FIM DA CORREÇÃO ★★★ ---
 
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpanded(isExpanded ? panel : false);
     };
 
-    // --- Fetch (Sem alteração) ---
+    // --- Fetch (Agora 100% estável) ---
     const fetchAnamnese = useCallback(async () => {
         setIsLoading(true);
         const cacheBuster = `?_=${new Date().getTime()}`;
@@ -83,6 +91,7 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
             if (res.data && res.data.pediatrica) {
                 const data = { ...initialState, ...(res.data.pediatrica || {}) };
+                // ... (lógica de merge dos 'data')
                 data.alimentacao_0_6m = { ...initialState.alimentacao_0_6m, ...(data.alimentacao_0_6m || {}) };
                 data.alimentacao_6_12m = { ...initialState.alimentacao_6_12m, ...(data.alimentacao_6_12m || {}) };
                 data.sono_comportamento = { ...initialState.sono_comportamento, ...(data.sono_comportamento || {}) };
@@ -94,17 +103,18 @@ const HistoricoPediatrico = forwardRef(({ pacienteId }, ref) => {
         } catch (err) {
             if (err.response && err.response.status !== 404) {
                 console.error("Erro ao carregar histórico:", err);
-                showSnackbar('Erro ao carregar histórico.', 'error');
+                // Usamos a 'ref' para chamar o snackbar
+                showSnackbarRef.current('Erro ao carregar histórico.', 'error');
             }
             setAnamneseData(initialState);
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId, showSnackbar]);
+    }, [pacienteId]); // <-- ★★★ 'showSnackbar' REMOVIDO DAQUI ★★★
 
     useEffect(() => {
         fetchAnamnese();
-    }, [fetchAnamnese]);
+    }, [fetchAnamnese]); // Agora 'fetchAnamnese' só muda se 'pacienteId' mudar.
 
     // --- 2. Função de Salvar (agora chamada pelo PAI) ---
     const handleSaveManual = async () => {
