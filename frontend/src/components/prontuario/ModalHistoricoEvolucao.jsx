@@ -64,11 +64,15 @@ const labelMap = {
     sono_comportamento_obs: 'Obs. Sono/Comp.',
 };
 
-// ★★★ NOVO: MAPA 2: Labels de Cardiologia ★★★
+// ★★★ MAPA 2: Labels de Cardiologia (CORRIGIDO) ★★★
+// Os 'keys' aqui (ex: 'historico_familiar') devem bater
+// com os 'name' do formulário E com os campos do 'models.py'
 const cardioLabelMap = {
     fatores_risco: 'Fatores de Risco CV',
-    hist_familiar_cardio: 'Histórico Familiar (Cardio)',
-    cirurgias_previas_cardio: 'Cirurgias/Procedimentos Prévios'
+    historico_familiar: 'Histórico Familiar (Cardio)', // ANTES: hist_familiar_cardio
+    cirurgias_cardiacas_previas: 'Cirurgias/Procedimentos Prévios' // ANTES: cirurgias_previas_cardio
+    // Adicione outros campos do seu modelo aqui se precisar
+    // ex: 'comorbidades_outras': 'Outras Comorbidades',
 };
 
 export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose }) {
@@ -272,8 +276,8 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         );
     };
     
-    // ★★★ 2. NOVO RENDER: CARDIOLOGIA ★★★
-    // Esta função lê os dados de Cardiologia
+    // ★★★ 2. RENDER CARDIOLOGIA (CORRIGIDO) ★★★
+    // Esta função agora usa o `cardioLabelMap` corrigido
     const renderAnamneseCardiologica = (data) => {
         // 'data' aqui é relatorioData.anamnese.cardiologica
         if (!data) return <Typography variant="body2">Nenhum dado de anamnese cardiológica encontrado.</Typography>;
@@ -282,9 +286,9 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         
         // Itera sobre os dados da anamnese cardiológica
         Object.entries(data).forEach(([key, value]) => {
-            const label = cardioLabelMap[key]; // Usa o NOVO labelMap de Cardiologia
-            if (label && isFilled(value)) { // Usa o helper isFilled (genérico)
-                itensPreenchidos.push({ label, value: formatValue(key, value) }); // Usa o helper formatValue (genérico)
+            const label = cardioLabelMap[key]; // Usa o cardioLabelMap
+            if (label && isFilled(value)) { 
+                itensPreenchidos.push({ label, value: formatValue(key, value) });
             }
         });
 
@@ -299,7 +303,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 {itensPreenchidos.map((item, index) => (
                     <li key={index}>
                         <Typography variant="body2">
-                            <strong>{item.label}:</strong> {item.value}
+                            <strong>{item.label}:</strong> {String(item.value)}
                         </Typography>
                     </li>
                 ))}
@@ -308,17 +312,16 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
     };
 
 
-    // ★★★ JSX (RENDERIZAÇÃO) ATUALIZADO ★★★
+    // --- JSX (RENDERIZAÇÃO) ---
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>Relatório da Consulta</DialogTitle>
             <DialogContent dividers>
                 {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
                 
-                {/* Só renderiza quando os dados chegarem */}
                 {relatorioData && (
                     <Box>
-                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) - Genérico, sem alteração */}
+                        {/* 1. SEÇÃO DO SOAP (EVOLUÇÃO) - Genérico */}
                         <SecaoRelatorio 
                             titulo={`Consulta do Dia (${new Date(relatorioData.evolucao.data_atendimento).toLocaleString('pt-BR')} - ${relatorioData.evolucao.medico_nome || ''})`}
                             data={relatorioData.evolucao}
@@ -326,50 +329,38 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                 <Box>
                                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Subjetivo (S)</Typography>
                                     <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.notas_subjetivas || 'N/A'}</Typography>
-                                    
                                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Objetivo (O)</Typography>
                                     <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.notas_objetivas || 'N/A'}</Typography>
-                                    
                                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Avaliação (A)</Typography>
                                     <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.avaliacao || 'N/A'}</Typography>
-                                    
                                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Plano (P)</Typography>
                                     <Typography variant="body2" paragraph style={{ whiteSpace: 'pre-wrap' }}>{data.plano || 'N/A'}</Typography>
                                 </Box>
                             )}
                         />
                         
-                        {/* ★★★ 2. SEÇÃO DA ANAMNESE (CONDICIONAL) ★★★ */}
-                        
-                        {/* Se for Pediatria, renderiza o histórico pediátrico */}
+                        {/* 2. SEÇÃO DA ANAMNESE (CONDICIONAL) */}
                         {relatorioData.especialidade === 'pediatria' && (
                             <SecaoRelatorio 
                                 titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
-                                data={relatorioData.anamnese.pediatrica} // Passa os dados pediátricos
-                                renderFunc={renderAnamnesePediatrica} // Usa o render pediátrico
+                                data={relatorioData.anamnese?.pediatrica} // Adiciona safe navigation
+                                renderFunc={renderAnamnesePediatrica}
                             />
                         )}
-                        
-                        {/* Se for Cardiologia, renderiza o histórico cardiológico */}
                         {relatorioData.especialidade === 'cardiologia' && (
                             <SecaoRelatorio 
                                 titulo="Resumo do Histórico Cardiológico (Cadastro Mestre)"
-                                data={relatorioData.anamnese.cardiologica} // Passa os dados cardiológicos
-                                renderFunc={renderAnamneseCardiologica} // Usa o render cardiológico
+                                data={relatorioData.anamnese?.cardiologica} // Adiciona safe navigation
+                                renderFunc={renderAnamneseCardiologica}
                             />
                         )}
                         
-                        {/* ... (Adicione 'else if' para outras especialidades aqui) ... */}
-                        
-
-                        {/* ★★★ 3. SEÇÃO DO DNPM (CONDICIONAL - SÓ PEDIATRIA) ★★★ */}
+                        {/* 3. SEÇÃO DO DNPM (CONDICIONAL - SÓ PEDIATRIA) */}
                         {relatorioData.especialidade === 'pediatria' && relatorioData.dnpm && (
                             <SecaoRelatorio 
                                 titulo="Resumo do DNPM (Cadastro Mestre)"
                                 data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
                                 renderFunc={(data) => {
-                                    // ... (Sua lógica original de renderização do DNPM, sem alteração) ...
-                                    console.log('[DEBUG MODAL] 🎯 Marcos DNPM FILTRADOS:', data);
                                     return data.length > 0 ? (
                                         <ul>
                                             {data.map(marco => (
@@ -389,17 +380,39 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             />
                         )}
 
-                        {/* ★★★ 4. SEÇÃO DE VACINAS (CONDICIONAL - SÓ PEDIATRIA) ★★★ */}
+                        {/* ★★★ 4. SEÇÃO DE VACINAS (CORRIGIDA) ★★★ */}
                         {relatorioData.especialidade === 'pediatria' && relatorioData.vacinas && (
                             <SecaoRelatorio 
                                 titulo="Resumo da Vacinação (Cadastro Mestre)"
                                 data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
                                 renderFunc={(data) => {
-                                    // ... (Sua lógica original de renderização das Vacinas, sem alteração) ...
                                     console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS:', data);
+                                    
+                                    // A LÓGICA DA TABELA ESTÁ DE VOLTA
                                     return data.length > 0 ? (
                                         <TableContainer component={Paper} variant="outlined">
-                                            {/* ... (Table Head/Body, sem alteração) ... */}
+                                            <Table size="small">
+                                                <TableHead>
+                                                    <TableRow>
+                                                        <TableCell>Vacina</TableCell>
+                                                        <TableCell>Dose</TableCell>
+                                                        <TableCell>Status</TableCell>
+                                                        <TableCell>Data Aplicação</TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {data.map(vacina => (
+                                                        <TableRow key={vacina.id}>
+                                                            <TableCell>{vacina.nome_vacina}</TableCell>
+                                                            <TableCell>{vacina.dose}</TableCell>
+                                                            <TableCell sx={{color: vacina.status === 'Atrasada' ? 'error.main' : 'text.primary'}}>
+                                                                {vacina.status}
+                                                            </TableCell>
+                                                            <TableCell>{vacina.data_aplicacao ? new Date(vacina.data_aplicacao + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
                                         </TableContainer>
                                     ) : (
                                         <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography>
@@ -408,19 +421,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             />
                         )}
                         
-                        {/* ★★★ 5. SEÇÃO DE EXAMES (EXEMPLO FUTURO PARA CARDIO) ★★★ */}
-                        {/*
-                        {relatorioData.especialidade === 'cardiologia' && relatorioData.ecg && (
-                             <SecaoRelatorio 
-                                titulo="Exames (ECG)"
-                                data={relatorioData.ecg}
-                                renderFunc={(data) => ( 
-                                    <Typography>Exame ECG realizado em XX/XX/XXXX.</Typography>
-                                )}
-                             />
-                        )}
-                        */}
-
                     </Box>
                 )}
             </DialogContent>

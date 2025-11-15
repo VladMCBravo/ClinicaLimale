@@ -217,30 +217,21 @@ class AnamneseOrtopedia(models.Model):
 class AnamneseCardiologia(models.Model):
     anamnese = models.OneToOneField(Anamnese, on_delete=models.CASCADE, related_name='cardiologica')
     
-    # --- CAMPO DE FATORES DE RISCO (Mantido) ---
-    fatores_risco = models.JSONField(default=dict, blank=True, null=True, help_text="Ex: { 'has': true, 'dm': false, 'sahos': true }")
+    # --- ★★★ CORREÇÃO AQUI ★★★ ---
+    # O seu formulário (HistoricoCardiologia.jsx) envia um texto simples,
+    # então o modelo deve esperar um TextField, não um JSONField.
+    
+    fatores_risco = models.TextField(blank=True, null=True, verbose_name="Fatores de Risco (Texto)")
+    # --- FIM DA CORREÇÃO ---
 
-    # --- NOVOS CAMPOS DE HISTÓRICO ---
+    # --- CAMPOS EXISTENTES (nomes corretos) ---
     comorbidades_outras = models.TextField(blank=True, null=True, verbose_name="Outras Comorbidades (Ex: DRC, DPOC)")
     cirurgias_cardiacas_previas = models.TextField(blank=True, null=True, verbose_name="Cirurgias Prévias (Ex: CRM, Angioplastia)")
-    
-    # --- CAMPOS EXISTENTES (Mantidos) ---
     medicamentos_em_uso = models.TextField(blank=True, null=True, verbose_name="Medicamentos Cardiológicos em Uso")
     historico_familiar = models.TextField(blank=True, null=True, verbose_name="Histórico Familiar Cardiológico (Ex: DAC precoce)")
-
-    # --- NOVOS CAMPOS DE HÁBITOS DE VIDA ---
     habito_tabagismo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Tabagismo (carga tabágica)")
     habito_etilismo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Etilismo (frequência, tipo)")
     habito_atividade_fisica = models.CharField(max_length=100, blank=True, null=True, verbose_name="Atividade Física")
-
-    # --- CAMPOS REMOVIDOS (Agora pertencem à Evolucao/SOAP) ---
-    # sintomas = models.JSONField(...) <-- REMOVIDO
-    # pa = models.CharField(...) <-- REMOVIDO
-    # fc = models.PositiveIntegerField(...) <-- REMOVIDO
-    # ictus_cordis = models.CharField(...) <-- REMOVIDO
-    # ausculta_cardiaca = models.TextField(...) <-- REMOVIDO
-    # pulsos = models.TextField(...) <-- REMOVIDO
-    # exame_fisico_outros = models.TextField(...) <-- REMOVIDO
 
     def __str__(self):
         return f"Dados Cardiológicos de {self.anamnese.paciente.nome_completo}"

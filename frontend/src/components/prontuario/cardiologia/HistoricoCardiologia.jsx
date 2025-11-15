@@ -1,18 +1,13 @@
 // src/components/prontuario/cardiologia/HistoricoCardiologia.jsx
-// VERSÃO CORRIGIDA: Usando caminhos de importação absolutos
+// VERSÃO CORRIGIDA: 'name' dos TextFields corrigidos
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
     Paper, Typography, TextField, Box, CircularProgress
 } from '@mui/material';
-
-// --- CORREÇÃO DE IMPORT ---
-// ../../../contexts/SnackbarContext  ->  contexts/SnackbarContext
 import { useSnackbar } from 'contexts/SnackbarContext';
-// ../../../api/axiosConfig         ->  api/axiosConfig
 import apiClient from 'api/axiosConfig';
 
-// 1. Envolver o componente em forwardRef
 const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
     const { showSnackbar } = useSnackbar();
     const [isLoading, setIsLoading] = useState(true);
@@ -23,14 +18,14 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
         showSnackbarRef.current = showSnackbar;
     }, [showSnackbar]);
 
-    // 2. FUNÇÃO DE CARREGAMENTO
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
         try {
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+            // ★★★ MUDANÇA AQUI (para garantir que dados nulos não quebrem) ★★★
             if (res.data && res.data.cardiologica) {
-                setAnamneseData(res.data.cardiologica);
+                setAnamneseData(res.data.cardiologica || {}); // Garante que seja um objeto
             } else {
                 setAnamneseData({});
             }
@@ -44,12 +39,10 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
 
     useEffect(() => { fetchAnamnese(); }, [fetchAnamnese]);
 
-    // 3. HANDLER
     const handleChange = (e) => {
         setAnamneseData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    // 4. FUNÇÃO DE SALVAR (REATORADA)
     const saveData = async () => {
         try {
             await apiClient.patch(`/prontuario/pacientes/${pacienteId}/anamnese/`, {
@@ -62,7 +55,6 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
         }
     };
     
-    // 5. EXPOR A FUNÇÃO 'saveData'
     useImperativeHandle(ref, () => ({
         saveData: saveData
     }));
@@ -72,7 +64,6 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
          return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
     }
 
-    // 6. JSX
     return (
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -82,7 +73,7 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
             <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1.5 }}>
                 <TextField 
                     label="Fatores de Risco Cardiovascular" 
-                    name="fatores_risco" 
+                    name="fatores_risco" // <-- Este estava correto
                     multiline 
                     rows={4} 
                     fullWidth 
@@ -91,25 +82,29 @@ const HistoricoCardiologia = forwardRef(({ pacienteId }, ref) => {
                     onChange={handleChange} 
                     placeholder="Ex: HAS, DM, Dislipidemia, Tabagismo (carga), Etilismo, Obesidade, Sedentarismo..."
                 />
+                
+                {/* ★★★ CORREÇÃO DE 'name' AQUI ★★★ */}
                 <TextField 
                     label="Histórico Familiar (Cardio)" 
-                    name="hist_familiar_cardio" 
+                    name="historico_familiar" // ANTES: hist_familiar_cardio
                     multiline 
                     rows={3} 
                     fullWidth 
                     size="small"
-                    value={anamneseData.hist_familiar_cardio || ''}
+                    value={anamneseData.historico_familiar || ''} // <-- Corrigido
                     onChange={handleChange}
                     placeholder="Ex: Mãe IAM aos 50 anos, Pai AVC..." 
                 />
+                
+                {/* ★★★ CORREÇÃO DE 'name' AQUI ★★★ */}
                  <TextField 
                     label="Cirurgias/Procedimentos Prévios" 
-                    name="cirurgias_previas_cardio" 
+                    name="cirurgias_cardiacas_previas" // ANTES: cirurgias_previas_cardio
                     multiline 
                     rows={3} 
                     fullWidth 
                     size="small"
-                    value={anamneseData.cirurgias_previas_cardio || ''}
+                    value={anamneseData.cirurgias_cardiacas_previas || ''} // <-- Corrigido
                     onChange={handleChange}
                     placeholder="Ex: CRM (data), Angioplastia (data, vaso)..." 
                 />
