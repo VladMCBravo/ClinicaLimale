@@ -1,7 +1,6 @@
 // src/components/prontuario/ProntuarioCompleto.jsx - VÍDEO INTEGRADO
 
-import React, { useState, Suspense, lazy, useEffect } from 'react';
-import { 
+import React, { useState, Suspense, lazy, useEffect, useCallback } from 'react';import { 
     Box, Tabs, Tab, CircularProgress, Paper, Typography, 
     IconButton, Tooltip, Link // Adicione Link
 } from '@mui/material';
@@ -119,6 +118,15 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
         setCriandoSala(false);
       });
   };
+  
+  // --- 2. CRIE A FUNÇÃO ESTÁVEL AQUI ---
+  const handleEvolucaoSalvaCompleta = useCallback((idDaEvolucao) => {
+      if (onEvolucaoSalva) {
+          onEvolucaoSalva(); // Chama a função do "avô" (PainelMedicoPage) para recarregar a lista
+      }
+      setConsultaAtualId(idDaEvolucao); // Define o ID local para passar para a aba "Relatórios"
+  }, [onEvolucaoSalva]); // Depende apenas de onEvolucaoSalva
+
   // --- FIM DA FUNÇÃO ---
 
   if (!agendamento) {
@@ -228,15 +236,12 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             
             {/* Usamos a função TabPanel corrigida para cada aba */}
             <TabPanel value={tabIndex} index={0}>
-              {/* --- 3A. PASSE A FUNÇÃO "SETER" PARA O FILHO --- */}
+              {/* --- 4. PASSE A NOVA FUNÇÃO ESTÁVEL --- */}
               <EvolucaoTab 
                 pacienteId={pacienteId} 
                 especialidade={especialidade} 
-                // Passa a função onEvolucaoSalva E a nova função para setar o ID
-                onEvolucoesSalva={(id) => {
-                  onEvolucaoSalva(); // A função original que recarrega o histórico
-                  setConsultaAtualId(id); // A nova função que salva o ID
-                }}
+                // Antes era: onEvolucoesSalva={(id) => { ... }}
+                onEvolucoesSalva={handleEvolucaoSalvaCompleta} // Agora passa a função estável
               />
             </TabPanel>
             <TabPanel value={tabIndex} index={1}>

@@ -431,7 +431,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             
-            {/* --- CABEÇALHO ATUALIZADO COM STATUS --- */}
+            {/* --- CABEÇALHO ATUALIZADO COM OS BOTÕES MESTRES --- */}
             <Box sx={{ 
                 display: 'flex', 
                 flexDirection: { xs: 'column', sm: 'row' },
@@ -446,11 +446,25 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                     </Typography>
                     {renderStatusBadges()}
                 </Box>
-                {tabIndex === 0 && (
-                    <Button variant="outlined" size="small" onClick={preencherNormalidade} sx={{flexShrink: 0}}> 
-                        Preencher Normalidade 
+                
+                {/* --- BOTÕES MESTRES MOVIDOS PARA CÁ --- */}
+                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                    <Button onClick={handleLimparConsultaAtual} variant="outlined" size="small" disabled={isSubmitting}>
+                        Limpar
                     </Button>
-                )}
+                    <Button 
+                        onClick={handleSaveAtendimentoCompleto} 
+                        variant="contained" 
+                        size="small"
+                        disabled={isSubmitting || !pacienteId}
+                    >
+                        {isSubmitting ? <CircularProgress size={20} /> : 'Salvar Atendimento'}
+                    </Button>
+                </Box>
+                {/* --- FIM DOS BOTÕES MESTRES --- */}
+
+                {/* --- BOTÃO PREENCHER NORMALIDADE (REMOVIDO DAQUI) --- */}
+                
             </Box>
 
             {/* --- NAVEGAÇÃO DAS ABAS (Sem alterações) --- */}
@@ -469,7 +483,22 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
                 {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
                     <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
-                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
+                        
+                        {/* --- BOTÃO PREENCHER NORMALIDADE MOVIDO PARA CÁ --- */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 0 }}>
+                                Consulta Atual (SOAP)
+                            </Typography>
+                            <Button 
+                                variant="outlined" 
+                                size="small" 
+                                onClick={preencherNormalidade}
+                                disabled={isSubmitting} // Desabilita enquanto salva
+                            > 
+                                Preencher Normalidade 
+                            </Button>
+                        </Box>
+                        {/* --- FIM DO BOTÃO --- */}
                         
                         {/* Queixa Atual (S) (Sem alterações) */}
                         <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Queixa Atual (S)</Typography>
