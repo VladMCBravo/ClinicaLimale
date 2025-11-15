@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoCardiologia.jsx
-// VERSÃO CORRIGIDA: Usando caminhos de importação absolutos
+// VERSÃO COMPLETA: Constantes restauradas e imports corrigidos
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import {
@@ -8,16 +8,40 @@ import {
 } from '@mui/material';
 
 // --- CORREÇÃO DE IMPORT ---
-// ../../contexts/SnackbarContext  ->  contexts/SnackbarContext
 import { useSnackbar } from 'contexts/SnackbarContext';
-// ../../api/axiosConfig         ->  api/axiosConfig
 import apiClient from 'api/axiosConfig';
 
 // O lazy import usa um caminho relativo normal, o que está correto
 const HistoricoCardiologia = lazy(() => import('./cardiologia/HistoricoCardiologia'));
 
-// --- (O restante do arquivo AtendimentoCardiologia.jsx é idêntico ao anterior) ---
-// --- (Constantes, Helper TabPanel, e toda a lógica do componente) ---
+// --- CONSTANTES RESTAURADAS ---
+const sintomasOpcoes = [
+  { id: 'dor_toracica', label: 'Dor torácica' }, { id: 'dispneia', label: 'Dispneia' },
+  { id: 'palpitacoes', label: 'Palpitações' }, { id: 'sincope_tontura', label: 'Síncope/Tontura' },
+  { id: 'edema_membros', label: 'Edema MMII' }, { id: 'claudicacao', label: 'Claudicação' }, { id: 'fadiga', label: 'Fadiga' },
+];
+const sintomaTemplates = {
+  dor_toracica: "Dor torácica: Início/Tipo/Local/Irradiação/Intensidade/Fatores.",
+  dispneia: "Dispneia: CF (I-IV)/Ortopneia(S/N)/DPN(S/N).",
+  palpitacoes: "Palpitações: Início/Ritmo/Duração/Frequência/Fatores.",
+};
+const exameFisicoQualitativoOptions = [
+    { id: 'ictus_normal', label: 'Ictus Normo', group: 'inspecao', template: "Ictus cordis não visível/palpável ou em LHE 5º EIC." },
+    { id: 'ictus_desviado', label: 'Ictus Desviado', group: 'inspecao', template: "Ictus cordis desviado para ___." },
+    { id: 'tjp_negativa', label: 'TJP Negativa', group: 'pescoco', template: "Turgência Jugular Patológica negativa a 45º." },
+    { id: 'tjp_positiva', label: 'TJP Positiva', group: 'pescoco', template: "Turgência Jugular Patológica positiva." },
+    { id: 'brnf_2t', label: 'BRNF 2T s/ sopros', group: 'ausculta_card', template: "ACV: Ritmo regular, BRNF em 2T, sem sopros." },
+    { id: 'bar_2t_sopros', label: 'Sopro', group: 'ausculta_card', template: "ACV: Ritmo ___, Sopro ___ /6+ em foco ___." },
+    { id: 'b3', label: 'B3', group: 'ausculta_card', template: "Presença de B3." },
+    { id: 'b4', label: 'B4', group: 'ausculta_card', template: "Presença de B4." },
+    { id: 'mv_presente', label: 'AR: MV s/ RA', group: 'ausculta_pulm', template: "AR: MV presente universalmente, sem ruídos adventícios." },
+    { id: 'estertores', label: 'AR: Estertores', group: 'ausculta_pulm', template: "AR: Estertores creptantes em bases." },
+    { id: 'pulsos_cheios', label: 'Pulsos Cheios/Simétricos', group: 'vascular', template: "Pulsos periféricos cheios e simétricos." },
+    { id: 'pulsos_diminuidos', label: 'Pulsos Diminuídos', group: 'vascular', template: "Pulsos ___ diminuídos." },
+    { id: 'sem_edema', label: 'Sem Edema MMII', group: 'vascular', template: "MMII sem edema, panturrilhas livres." },
+    { id: 'com_edema', label: 'Edema MMII', group: 'vascular', template: "MMII com edema ___ /4+." },
+];
+// --- FIM CONSTANTES ---
 
 // Helper TabPanel
 function TabPanel(props) {
@@ -50,14 +74,14 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         setEvolucaoIdSessao(null); 
     }, [pacienteId]);
 
-    // ... (generateHda, generateExameFisico, handlers, preencherNormalidade, handleLimparConsultaAtual) ...
+    // Geradores de texto
     const generateHda = useCallback((sintomas) => { 
         const currentSintomas = sintomas || sintomasConsulta;
         return sintomasOpcoes
             .filter(opt => currentSintomas[opt.id])
             .map(opt => sintomaTemplates[opt.id] || `${opt.label}: `)
             .join('\n');
-     }, [sintomasConsulta]);
+     }, [sintomasConsulta]); // <-- Dependência correta
 
     const generateExameFisico = useCallback((data) => {
         const currentData = data || exameFisicoData;
@@ -66,16 +90,19 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             .filter(opt => currentData[opt.id])
             .map(opt => opt.template).join(" ");
         return texto + (achados || "Nenhuma observação selecionada.");
-    }, [exameFisicoData]);
+    }, [exameFisicoData]); // <-- Dependência correta
 
+    // Handlers
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    
     const handleSintomasChange = (e) => {
         const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
         setSintomasConsulta(newSintomas);
         const hdaText = generateHda(newSintomas);
         setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
     };
+
     const handleExameChange = (event) => {
         const { name, value, type, checked } = event.target;
         const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
@@ -83,6 +110,8 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         const exameText = generateExameFisico(newExameData);
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
+    
+    // Botão Normalidade
     const preencherNormalidade = () => {
         const dadosExameNormal = {
             pa: exameFisicoData.pa || '___x___',
@@ -104,6 +133,8 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
             plano: 'Manter acompanhamento regular. Orientações gerais.'
         });
     };
+    
+    // Botão Limpar
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({}); 
         setExameFisicoData({});
@@ -170,8 +201,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
         }
     };
 
-
-    // --- 5. JSX (Sem alterações) ---
+    // --- JSX (Sem alterações) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             <Box sx={{ 
@@ -185,7 +215,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                 <Typography variant="h6" gutterBottom sx={{mb: 0}}> 
                     Atendimento Cardiológico 
                 </Typography>
-                
                 <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
                     <Button onClick={handleLimparConsultaAtual} variant="outlined" size="small" disabled={isSubmitting}>
                         Limpar
@@ -244,7 +273,6 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                         </Box>
                         
                         <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
-                           {/* (Grupos de Exame Físico - sem alterações) */}
                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                 <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Inspeção/Pescoço:</Typography>
                                 {exameFisicoQualitativoOptions.filter(o=>o.group === 'inspecao' || o.group === 'pescoco').map(opt => (
@@ -285,7 +313,7 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva }) 
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoCardiologia 
                         pacienteId={pacienteId} 
-                        ref={historicoRef} // <-- Passando a ref
+                        ref={historicoRef}
                     />
                 </TabPanel>
                 
