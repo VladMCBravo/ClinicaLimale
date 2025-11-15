@@ -31,7 +31,7 @@
     <div style="text-align: center; margin-top: 50px;">
         <p>___________________________________</p>
         <p>Dr(a). {{ prescricao.medico.get_full_name }}</p>
-        <p>CRM: {{ prescricao.medico.profile.crm|default:'N/A' }}</p>
+        <p>CRM: {{ prescricao.medico.crm|default:'N/A' }}</p>
     </div>
 
 {% endblock %}

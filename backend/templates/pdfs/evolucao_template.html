@@ -10,7 +10,7 @@
              * e a inferior para 2.5cm (espaço para o rodapé do timbrado).
              * Ajuste esses valores conforme necessário.
             */
-            margin-top: 4cm;
+            margin-top: 4.5cm; /* Alterado de 4cm para 4.5cm */
             margin-bottom: 2.5cm;
             margin-left: 1.5cm;
             margin-right: 1.5cm;
@@ -100,7 +100,7 @@
     <div class="info-paciente">
         <p><strong>Paciente:</strong> {{ paciente.nome_completo }}</p>
         <p><strong>Data Nasc.:</strong> {{ paciente.data_nascimento|date:"d/m/Y" }}</p>
-        <p><strong>Médico:</strong> {{ medico.get_full_name }} (CRM: {{ medico.profile.crm }})</p>
+        <p><strong>Médico:</strong> {{ medico.get_full_name }} (CRM: {{ medico.crm }})</p>
         <p><strong>Data da Consulta:</strong> {{ evolucao.data_atendimento|date:"d/m/Y H:i" }}</p>
     </div>
 

@@ -15,7 +15,7 @@
         </tr>
         <tr>
             <td class="label">Médico(a):</td>
-            <td colspan="3">{{ medico.get_full_name }} (CRM: {{ medico.profile.crm|default:'N/A' }})</td>
+            <td colspan="3">{{ medico.get_full_name }} (CRM: {{ medico.crm|default:'N/A' }})</td>
         </tr>
     </table>
 
@@ -30,7 +30,7 @@
     <div style="text-align: center; margin-top: 50px;">
         <p>___________________________________</p>
         <p>Dr(a). {{ medico.get_full_name }}</p>
-        <p>CRM: {{ medico.profile.crm|default:'N/A' }})</p>
+        <p>CRM: {{ medico.crm|default:'N/A' }})</p>
     </div>
 
 {% endblock %}
