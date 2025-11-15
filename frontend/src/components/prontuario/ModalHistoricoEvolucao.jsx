@@ -80,12 +80,12 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             const fetchTudo = async () => {
                 try {
                     // ★★★ CORREÇÃO AQUI ★★★
-                    // Removida a barra final ANTES de adicionar o cacheBuster
+                    // Garante a barra "/" final ANTES do cacheBuster
                     
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
-                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese${cacheBuster}`);
-                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm${cacheBuster}`);
-                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas${cacheBuster}`);
+                    const resAnamnese = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
+                    const resDnpm = await apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`);
+                    const resVacinas = await apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`);
                     
                     // ★★★ FIM DA CORREÇÃO ★★★
 

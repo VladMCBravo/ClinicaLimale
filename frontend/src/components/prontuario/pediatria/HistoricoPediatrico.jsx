@@ -107,8 +107,13 @@ export default function HistoricoPediatrico({ pacienteId }) {
     const fetchAnamnese = useCallback(async () => {
         console.log(`🔥 [EFFECT HISTÓRICO] fetchAnamnese foi DISPARADO! Paciente ID: ${pacienteId}`);
         setIsLoading(true);
+
+        // ★★★ CORREÇÃO AQUI ★★★
+        // Adiciona o cache buster para evitar ler dados antigos
+        const cacheBuster = `?_=${new Date().getTime()}`;
+        
         try {
-            const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/`);
+            const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
             console.log('   [DEBUG HISTÓRICO] 📦 Dados brutos da API:', res.data.pediatrica);
 
             if (res.data && res.data.pediatrica) {
@@ -127,7 +132,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
         } catch (err) {
             if (err.response && err.response.status !== 404) {
                 console.error("   ❌ [API HISTÓRICO] Erro no fetch:", err);
-                // Não podemos usar o showSnackbar aqui, pois ele não é estável e causa re-fetch
             } else {
                 console.log("   [API HISTÓRICO] 404 - Anamnese não encontrada, usando initialState.");
             }
@@ -135,8 +139,6 @@ export default function HistoricoPediatrico({ pacienteId }) {
         } finally {
             setIsLoading(false);
         }
-    // ★★★ CORREÇÃO AQUI ★★★
-    // Removido 'showSnackbar' das dependências. Isso impede o re-fetch.
     }, [pacienteId]); 
     // --- FIM fetchAnamnese ---
 

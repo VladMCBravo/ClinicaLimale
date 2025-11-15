@@ -219,17 +219,31 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucoesSalva }) {
         setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    // ★★★ CORREÇÃO AQUI ★★★
+    // Nova lógica para o handleSintomasChange
     const handleSintomasChange = (event) => {
         const { name, checked } = event.target;
         
         // 1. Atualiza o estado dos sintomas
-        const newSintomas = { ...sintomasConsulta, [name]: checked };
-        setSintomasConsulta(newSintomas);
+        setSintomasConsulta(prev => ({ ...prev, [name]: checked }));
         
-        // 2. Gera o texto HDA e atualiza o SOAP na mesma "tacada"
-        const hdaText = generateHda(newSintomas);
-        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText }));
+        // 2. Se FOI MARCADO, adiciona o template (se já não estiver lá)
+        if (checked) {
+            const template = sintomaTemplates[name];
+            setSoapData(prev => {
+                // Verifica se o template exato já existe para não duplicar
+                if (prev.notas_subjetivas.includes(template)) {
+                    return prev; // Já existe, não faz nada
+                }
+                // Adiciona o template
+                return { ...prev, notas_subjetivas: (prev.notas_subjetivas + '\n' + template).trim() };
+            });
+        }
+        // Se foi DESMARCADO, não fazemos nada no texto.
+        // O usuário pode apagar manualmente o texto que ele já editou.
+        // Isso evita que o sistema apague as edições do usuário.
     };
+    // ★★★ FIM DA CORREÇÃO ★★★
     
     const handleExameChange = (event) => {
         const { name, value } = event.target;
