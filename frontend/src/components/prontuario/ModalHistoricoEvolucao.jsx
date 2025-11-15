@@ -1,15 +1,16 @@
 // src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO CORRIGIDA: Esconde seções vazias.
+// VERSÃO CORRIGIDA: Não quebra a Pediatria e esconde seções vazias.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Removidos imports não usados
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions,
     Typography, Box, CircularProgress, Divider, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Button 
 } from '@mui/material';
-import apiClient from 'api/axiosConfig'; // Usando import absoluto
-import { useSnackbar } from 'contexts/SnackbarContext'; // Usando import absoluto
+// Usando os caminhos relativos corretos (sem jsconfig.json)
+import apiClient from '../../api/axiosConfig.js';
+import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
 // Componente simples para renderizar seções
 const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
@@ -34,15 +35,13 @@ const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
     );
 };
 
-// Funções de "Tradução" para os campos JSON
+// Funções de "Tradução" para os campos JSON (Pediatria)
+// ★★★ CONSTANTES RESTAURADAS ★★★
 const labelMap = {
-    // Gestacional
     tipo_parto: 'Parto',
     idade_gestacional: 'Idade Gestacional',
     peso_nascimento: 'Peso ao Nascer',
     intercorrencias_gestacao_parto: 'Intercorrências Gestação/Parto',
-    // Triagens (tratado separadamente)
-    // Alim 0-6m
     tipo_aleitamento: 'Aleitamento (0-6m)',
     pega: 'Pega (0-6m)',
     succao: 'Sucção (0-6m)',
@@ -51,7 +50,6 @@ const labelMap = {
     vitamina_d: 'Supl. Vitamina D (0-6m)',
     ferro: 'Supl. Ferro (0-6m)',
     alimentacao_0_6m_obs: 'Obs. Alim. (0-6m)',
-    // Alim 6-12m
     tipo_alimentacao: 'Alimentação (6-12m)',
     refeicoes_dia: 'Refeições/dia (6-12m)',
     textura: 'Textura (6-12m)',
@@ -61,7 +59,6 @@ const labelMap = {
     metodo_ia: 'Método IA',
     copo_transicao: 'Copo de Transição',
     alimentacao_6_12m_obs: 'Obs. Alim. (6-12m)',
-    // Sono
     sono_diurno: 'Sono Diurno',
     sono_noturno: 'Sono Noturno',
     colica: 'Cólica',
@@ -108,8 +105,8 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             fetchTudo();
         }
     }, [pacienteId, evolucaoId, onClose, showSnackbar]);
-
-    // (handleDownloadPdf... sem alterações)
+    
+    // (handleDownloadPdf - sem alterações)
     const handleDownloadPdf = async () => {
         if (!evolucaoId) return;
         try {
@@ -126,26 +123,23 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // ★★★ FUNÇÃO DE FILTRO TOTALMENTE REESCRITA ★★★
-    
-    // Helper para checar se um valor foi preenchido
+    // (isFilled e formatValue - sem alterações)
     const isFilled = (value) => {
-        if (value === 0) return true; // 0 é um valor válido (ex: APGAR)
-        if (value === true) return true; // true é um valor válido (ex: checkboxes)
+        if (value === 0) return true;
+        if (value === true) return true;
         if (value === null || value === undefined || value === "") return false;
         return true;
     };
-    
-    // Helper para formatar o valor
     const formatValue = (key, value) => {
         if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
         if (key === 'peso_nascimento') return `${value}g`;
         return value;
-    }
-
+    };
+    
     // --- FUNÇÃO DE RENDER PEDIATRIA ---
+    // ★★★ CORRIGIDA PARA RETORNAR NULL SE VAZIA ★★★
     const renderAnamnese = (data) => {
-        if (!data) return null; // <-- CORREÇÃO
+        if (!data) return null; // Não renderiza nada se não houver dados pediátricos
         
         const itensPreenchidos = [];
         
@@ -168,7 +162,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             if (key.endsWith('_status') && isFilled(value)) {
                 const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
                 let displayValue = value;
-                
                 if (value === 'Alterado') {
                     const descKey = key.replace('_status', '_desc');
                     const desc = data.triagens[descKey];
@@ -204,11 +197,8 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             }
         });
 
-        // ★★★ MOVIDO PARA FORA: renderCardiologia estava aqui ★★★
-
-        // ★★★ CORREÇÃO AQUI (Bug #2) ★★★
         if (itensPreenchidos.length === 0) {
-            return null; // <-- Em vez de "Nenhum dado", retorna nulo
+            return null; // Retorna nulo se NADA foi preenchido
         }
 
         return (
@@ -222,12 +212,13 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 ))}
             </ul>
         );
-    };
+    }; // <-- FIM DE renderAnamnese
 
     // --- FUNÇÃO DE RENDER CARDIOLOGIA ---
+    // ★★★ CORRIGIDA PARA MOSTRAR TODOS OS CAMPOS E RETORNAR NULL SE VAZIA ★★★
     const renderCardiologia = (data) => {
         if (!data || Object.keys(data).length === 0) {
-            return null; // <-- CORREÇÃO
+            return null; // Não renderiza nada se não houver dados cardiológicos
         }
 
         const itensPreenchidos = Object.entries(data)
@@ -237,9 +228,8 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 value: value
             }));
 
-        // ★★★ CORREÇÃO AQUI (Bug #2) ★★★
         if (itensPreenchidos.length === 0) {
-            return null; // <-- Em vez de "Nenhum dado", retorna nulo
+            return null; // Retorna nulo se NADA foi preenchido
         }
 
         return (
@@ -253,9 +243,9 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                 ))}
             </ul>
         );
-    };
+    }; // <-- FIM DE renderCardiologia
 
-    // ★★★ RETURN PRINCIPAL DO COMPONENTE (AGORA NO ESCOPO CORRETO) ★★★
+    // ★★★ RETURN PRINCIPAL (ESTAVA FALTANDO NO ARQUIVO ANTERIOR) ★★★
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>Relatório da Consulta</DialogTitle>
@@ -299,13 +289,13 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         />
                         
                         {/* 3. SEÇÃO DO DNPM (MARCOS) */}
+                        {/* ★★★ CÓDIGO RESTAURADO ★★★ */}
                         <SecaoRelatorio 
                             titulo="Resumo do DNPM (Cadastro Mestre)"
-                            data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
+                            data={relatorioData.dnpm ? relatorioData.dnpm.filter(m => m.alcançado !== null) : []} 
                             renderFunc={(data) => {
-                                console.log('[DEBUG MODAL] 🎯 Marcos DNPM FILTRADOS (Pendente=null removidos):', data);
-                                
-                                return data.length > 0 ? (
+                                if (!data || data.length === 0) return null;
+                                return (
                                     <ul>
                                         {data.map(marco => (
                                             <li key={marco.id}>
@@ -317,20 +307,18 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                             </li>
                                         ))}
                                     </ul>
-                                ) : (
-                                    <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography>
                                 )
                             }}
                         />
 
                         {/* 4. SEÇÃO DE VACINAS */}
+                        {/* ★★★ CÓDIGO RESTAURADO ★★★ */}
                         <SecaoRelatorio 
                             titulo="Resumo da Vacinação (Cadastro Mestre)"
-                            data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
+                            data={relatorioData.vacinas ? relatorioData.vacinas.filter(v => v.status !== 'Pendente') : []} 
                             renderFunc={(data) => {
-                                console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS (Pendente removidas):', data);
-
-                                return data.length > 0 ? (
+                                if (!data || data.length === 0) return null;
+                                return (
                                     <TableContainer component={Paper} variant="outlined">
                                         <Table size="small">
                                             <TableHead>
@@ -355,8 +343,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                             </TableBody>
                                         </Table>
                                     </TableContainer>
-                                ) : (
-                                    <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography>
                                 )
                             }}
                         />
