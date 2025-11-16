@@ -48,7 +48,8 @@ class AnamneseNeonatologiaSerializer(serializers.ModelSerializer):
 # Serializer para o modelo Evolucao
 class EvolucaoSerializer(serializers.ModelSerializer):
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
-
+    especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True, default=None)
+    
     class Meta:
         model = Evolucao
         fields = [
@@ -64,16 +65,11 @@ class EvolucaoSerializer(serializers.ModelSerializer):
             'peso',
             'altura',
             'exames_complementares',
-            
-            # ★★★ CAMPO ADICIONADO ★★★
-            # Este é o campo que o ModalHistoricoEvolucao.jsx usará
-            # para decidir qual layout de resumo renderizar.
-            'especialidade' 
+            'agendamento',      # O ID do agendamento
+            'especialidade',    # O ID da especialidade
+            'especialidade_nome' # O NOME da especialidade (ex: "Cardiologia")
         ]
-        
-        # Adiciona 'especialidade' aos campos read-only, pois
-        # ele deve ser definido pelo backend, não pelo frontend.
-        read_only_fields = ['id', 'medico_nome', 'especialidade']
+        read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome']
 
 # -----------------------------------------------
 

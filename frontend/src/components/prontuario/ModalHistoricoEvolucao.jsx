@@ -1,7 +1,7 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
 // VERSÃO CORRIGIDA:
 // 1. Mapa da Cardiologia corrigido (para 'historico_familiar')
-// 2. Especialidade padrão revertida para 'pediatria' (para consultas antigas)
+// 2. Lógica de detecção de especialidade corrigida
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
@@ -88,7 +88,7 @@ const neoLabelMap = {
     coombs_direto_rn: 'Coombs Dir.',
     eluato: 'Eluato',
     tipo_parto: 'Tipo de Parto',
-    bolsa_rota: 'Bolsa Amniótica',
+    bolsa_rota: 'Bolsa AmniótICA',
     profilaxia_bolsa: 'Profilaxia Bolsa Rota',
     liquido_amniotico: 'Líquido Amniótico',
     peso_nascimento: 'Peso Nasc. (g)',
@@ -169,7 +169,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
-    // useEffect
+    // ★★★ useEffect (CORRIGIDO) ★★★
     useEffect(() => {
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
@@ -182,30 +182,21 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
                     const evolucao = resEvolucao.data;
                     
-                    // ★★★ CORREÇÃO 2: Padrão para consultas antigas ★★★
-                    // Usa 'pediatria' como padrão se o campo for nulo (para consultas antigas)
-                    const especialidade = evolucao.especialidade || 'pediatria';
+                    // ★★★ LÓGICA DE ESPECIALIDADE CORRIGIDA (FINAL) ★★★
+                    // 1. O backend agora envia 'especialidade_nome' (ex: "Cardiologia")
+                    // 2. Se for nulo (consulta antiga, antes da v2), usamos 'pediatria' como padrão.
+                    // 3. NUNCA usamos 'evolucao.especialidade' (que é um ID)
+                    const especialidadeLimpa = (evolucao.especialidade_nome || 'pediatria').toLowerCase();
+                    // ★★★ FIM DA CORREÇÃO ★★★
                     
-                    console.log(`[DEBUG MODAL] Especialidade detectada: ${especialidade}`);
+                    console.log(`[DEBUG MODAL] Especialidade detectada: ${especialidadeLimpa}`);
 
                     const dadosBrutos = {
                         evolucao: evolucao,
-                        // O 'evolucao.especialidade' do backend agora é um ID
-                        // Mas o 'evolucao.especialidade_nome' (que o serializer.py deve enviar) é o texto
-                        // Vamos usar o nome da especialidade que vem do serializer
-                        especialidade: evolucao.especialidade_nome ? evolucao.especialidade_nome.toLowerCase() : especialidade,
+                        especialidade: especialidadeLimpa, // Usa o nome em minúsculo
                         anamnese: null, dnpm: null, vacinas: null,
                     };
                     
-                    // Se o seu serializer ainda não manda 'especialidade_nome',
-                    // a linha abaixo (que você tinha) é a melhor alternativa:
-                    // const especialidade = evolucao.especialidade || 'pediatria';
-                    
-                    // Ajuste final para garantir que o nome da especialidade esteja em minúsculo
-                    const especialidadeLimpa = (evolucao.especialidade_nome || especialidade).toLowerCase();
-                    dadosBrutos.especialidade = especialidadeLimpa;
-
-
                     // ESTÁGIO 2: Buscar dados-mestre
                     const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
                     const promises = [anamnesePromise];
@@ -257,7 +248,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // --- FUNÇÕES DE RENDERIZAÇÃO DE ANAMNESE ---
+    // --- FUNÇÕES DE RENDERIZAÇÃO DE ANAMNESE (Sem alterações) ---
 
     // Função genérica
     const renderAnamneseGenerica = (data, labelMap, titulo) => {
@@ -435,7 +426,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             )}
                         />
                         
-                        {/* ★★★ 2. SEÇÃO DA ANAMNESE (AGORA COMPLETA) ★★★ */}
+                        {/* 2. SEÇÃO DA ANAMNESE (AGORA COMPLETA) */}
                         
                         {relatorioData.especialidade === 'pediatria' && (
                             <SecaoRelatorio 
