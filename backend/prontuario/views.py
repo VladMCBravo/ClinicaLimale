@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from xhtml2pdf import pisa
 from django.shortcuts import get_object_or_404 # Para buscar objetos
+from agendamentos.models import Agendamento # <-- 1. Importe o Agendamento
 from django.template import Context, Template # Para renderizar o template
 from datetime import date # Para a data de hoje
 from django.db import transaction # Importar transaction
@@ -33,84 +34,54 @@ from .serializers import (
 )
 from usuarios.permissions import CanViewProntuario # Verifique se esta permissão está correta
 
-# --- Views de CRUD do Prontuário (Protegidas pela LGPD com a nova permissão) ---
+# --- ★★★ REVERTEMOS PARA A VIEW ÚNICA ★★★ ---
+# (Delete todas as classes BaseEvolucaoCreateAPIView e suas filhas)
 
-class EvolucaoListAPIView(generics.ListAPIView):
+class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
     """
-    View para APENAS LISTAR (GET) todas as evoluções de um paciente.
-    O ModalHistoricoEvolucao usará esta view.
+    View ÚNICA para Listar (GET) e Criar (POST) evoluções.
     """
     serializer_class = EvolucaoSerializer
     permission_classes = [CanViewProntuario]
 
     def get_queryset(self):
+        """ Lista evoluções do paciente (sem mudança) """
         paciente_id = self.kwargs.get('paciente_id')
         return Evolucao.objects.filter(paciente__id=paciente_id).order_by('-data_atendimento')
 
-# --- ★★★ NOVO BLOCO DE VIEWS DE CRIAÇÃO ★★★ ---
-# (Substitua as views de CreateAPIView individuais por este bloco)
-
-class BaseEvolucaoCreateAPIView(generics.CreateAPIView):
-    """
-    Classe base ABSTRATA para criar evoluções.
-    Define a especialidade automaticamente no backend.
-    """
-    serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario]
-    
-    # Esta variável DEVE ser definida na classe filha
-    especialidade = None
-
     def perform_create(self, serializer):
-        if self.especialidade is None:
-            # Medida de segurança para garantir que a classe filha definiu a especialidade
-            raise NotImplementedError("A classe filha deve definir 'self.especialidade'")
-        
+        """
+        Cria a evolução e HERDA A ESPECIALIDADE do agendamento.
+        """
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        
+        # --- 2. LÓGICA DE HERANÇA ---
+        agendamento_id = self.request.data.get('agendamento') # Espera o ID do agendamento
+        agendamento_obj = None
+        especialidade_herdada = None
+
+        if agendamento_id:
+            try:
+                # Busca o agendamento correspondente
+                agendamento_obj = Agendamento.objects.get(id=agendamento_id, paciente=paciente)
+                # Copia a especialidade do agendamento para a evolução
+                especialidade_herdada = agendamento_obj.especialidade
+            except Agendamento.DoesNotExist:
+                # Se o ID for inválido, apenas ignora
+                pass 
+        
+        # 3. Salva a evolução com os dados herdados
         serializer.save(
             medico=self.request.user, 
-            paciente=paciente, 
-            especialidade=self.especialidade
+            paciente=paciente,
+            agendamento=agendamento_obj,       # <-- Salva o link
+            especialidade=especialidade_herdada # <-- Salva a especialidade
         )
-
-# --- Agora, definimos todas as 10 views de criação ---
-
-class EvolucaoPediatriaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'pediatria'
-
-class EvolucaoCardiologiaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'cardiologia'
-
-class EvolucaoNeonatologiaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'neonatologia'
-
-class EvolucaoClinicaGeralCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'clinica_geral'
-
-class EvolucaoGinecologiaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'ginecologia'
-
-class EvolucaoOrtopediaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'ortopedia'
-
-class EvolucaoEcocardiografiaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'ecocardiografia'
-    
-class EvolucaoNeurologiaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'neurologia'
-    
-class EvolucaoObstetriciaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'obstetricia'
-    
-class EvolucaoReumatologiaPediatricaCreateAPIView(BaseEvolucaoCreateAPIView):
-    especialidade = 'reumatologia_pediatrica'
-
-# --- FIM DO NOVO BLOCO DE VIEWS ---
 
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Evolucao.objects.all()
     serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario] # Apenas médicos
+    permission_classes = [CanViewProntuario]
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer

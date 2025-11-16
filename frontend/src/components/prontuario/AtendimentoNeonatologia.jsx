@@ -247,20 +247,22 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva })
         try {
             const soapPayload = { 
                 ...soapData,
-                // Converte peso (g) para (kg) e altura (cm) para (m) para o modelo Evolucao
                 peso: vitalsData.peso ? (parseFloat(vitalsData.peso) / 1000).toFixed(3) : null,
                 altura: vitalsData.comprimento ? (parseFloat(vitalsData.comprimento) / 100).toFixed(2) : null,
+                
+                // --- ★★★ MUDANÇA 1: ADICIONE O ID DO AGENDAMENTO ★★★
+                agendamento: agendamentoId || null, 
             };
 
-            // ★★★ MUDANÇA É AQUI ★★★
+            // --- ★★★ MUDANÇA 2: VOLTE PARA A URL ÚNICA ★★★
             
             // ANTES:
-            // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+            // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-neonatologia/`, soapPayload);
             
             // DEPOIS:
-            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-neonatologia/`, soapPayload);
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
-            // ★★★ FIM DA MUDANÇA ★★★
+            // --- FIM DAS MUDANÇAS ---
             
             showSnackbar('Evolução salva com sucesso!', 'success');
             

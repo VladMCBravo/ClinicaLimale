@@ -1,4 +1,4 @@
-# backend/prontuario/models.py - VERSÃO CORRIGIDA E FINALIZADA
+# backend/prontuario/models.py
 
 from django.db import models
 from django.conf import settings
@@ -8,38 +8,48 @@ class Evolucao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='evolucoes')
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     data_atendimento = models.DateTimeField(auto_now_add=True)
-    # --- ★★★ CAMPO ADICIONADO ★★★ ---
-    # Este é o campo mais importante para a lógica de multi-especialidade.
-    # Ele dirá ao frontend qual resumo renderizar (pediatria, cardiologia, etc.)
-    especialidade = models.CharField(
-        max_length=50, 
-        blank=True, 
-        null=True, 
-        db_index=True, 
+    
+    # --- CAMPO DE TEXTO ANTIGO ---
+    # DELETE a definição inteira do campo 'especialidade' (o CharField)
+    # especialidade = models.CharField(...)  <-- DELETE ISTO
+    
+    # --- CAMPO DE AGENDAMENTO (Mantido) ---
+    agendamento = models.OneToOneField(
+        'agendamentos.Agendamento',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='evolucao'
+    )
+
+    # --- CAMPO FK (RENOMEADO) ---
+    # Renomeie 'especialidade_link' para 'especialidade'
+    especialidade = models.ForeignKey(
+        'usuarios.Especialidade',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
         verbose_name="Especialidade da Consulta"
     )
-    # --- FIM DA ADIÇÃO ---
-
-    # <<-- CORREÇÃO: Campos SOAP definidos uma única vez e como opcionais (blank=True, null=True) -->>
+    # (Campos SOAP - notas_subjetivas, notas_objetivas, etc... - Sem alteração)
     notas_subjetivas = models.TextField(blank=True, null=True, verbose_name="Subjetivo (Queixa Principal / HDA)")
     notas_objetivas = models.TextField(blank=True, null=True, verbose_name="Exame Físico (Ausculta, Sinais, etc.)")
     avaliacao = models.TextField(blank=True, null=True, verbose_name="Diagnóstico / Hipóteses")
     plano = models.TextField(blank=True, null=True, verbose_name="Plano Terapêutico / Condutas")
-
-    # <<-- NOVOS CAMPOS ESTRUTURADOS (Mantidos) -->>
+    
+    # (Campos de vitais - pressao_arterial, peso, etc... - Sem alteração)
     pressao_arterial = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pressão Arterial")
     frequencia_cardiaca = models.PositiveIntegerField(blank=True, null=True, verbose_name="Frequência Cardíaca (bpm)")
     peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, verbose_name="Peso (kg)")
     altura = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, verbose_name="Altura (m)")
     exames_complementares = models.TextField(blank=True, null=True, verbose_name="Exames Complementares (ECG, Eco, etc.)")
-
+    
     class Meta:
         ordering = ['-data_atendimento']
 
     def __str__(self):
         return f"Evolução de {self.paciente.nome_completo} em {self.data_atendimento.strftime('%d/%m/%Y')}"
 
-# --- Os modelos abaixo já estavam corretos e foram mantidos ---
+# --- ★★★ ADICIONE ESTE MODELO FALTANDO AQUI ★★★ ---
+# Este modelo foi acidentalmente removido e está causando o erro.
 
 class Prescricao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='prescricoes')
@@ -52,8 +62,10 @@ class Prescricao(models.Model):
     def __str__(self):
         return f"Prescrição para {self.paciente.nome_completo} em {self.data_prescricao.strftime('%d/%m/%Y')}"
 
+# --- FIM DA ADIÇÃO ---
+
 class ItemPrescricao(models.Model):
-    prescricao = models.ForeignKey(Prescricao, on_delete=models.CASCADE, related_name='itens')
+    prescricao = models.ForeignKey('Prescricao', on_delete=models.CASCADE, related_name='itens')
     medicamento = models.CharField(max_length=200)
     dosagem = models.CharField(max_length=100)
     instrucoes = models.TextField(verbose_name="Instruções de Uso")
