@@ -1,5 +1,4 @@
 // src/components/prontuario/neonatologia/HistoricoNeonatologia.jsx
-// VERSÃO COMPLETA: Com forwardRef, type="button" e JSX restaurado.
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
