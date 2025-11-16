@@ -1,6 +1,5 @@
 // src/components/prontuario/AtendimentoNeonatologia.jsx
-// VERSÃO CORRIGIDA: Removido <Paper component="form"> da aba SOAP
-// e adicionado type="button" aos botões auxiliares.
+// VERSÃO CORRIGIDA: Lógica de renderização do Exame Físico (FormGroup) restaurada.
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import {
@@ -16,7 +15,7 @@ const HistoricoNeonatologia = lazy(() => import('./neonatologia/HistoricoNeonato
 const DnpmDetalhado = lazy(() => import('./pediatria/DnpmDetalhado'));
 const VacinacaoTab = lazy(() => import('./pediatria/VacinacaoTab'));
 
-// --- (Constantes de Opções omitidas para brevidade) ---
+// --- (Constantes de Opções do Exame Físico) ---
 const exameFisicoNeoGroups = [
     { id: 'avaliacao_geral', label: 'Avaliação Geral', options: [{ value: 'BEG', label: 'BEG', template: 'Bom Estado Geral (BEG).'}, { value: 'REG', label: 'REG', template: 'Regular Estado Geral (REG).'}, { value: 'MEG', label: 'MEG', template: 'Mau Estado Geral (MEG).'}] },
     { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.'}, { value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.'}, { value: 'Letargico', label: 'Letárgico', template: 'Letárgico.'}] },
@@ -82,11 +81,11 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    // ... (states: vitalsData, evolucaoDiaria, exameFisicoData, soapData, etc.)
     const [vitalsData, setVitalsData] = useState({});
     const [evolucaoDiaria, setEvolucaoDiaria] = useState({ dieta: '', diurese: '', evacuacao: '' });
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+
     const [vacinacaoStatus, setVacinacaoStatus] = useState(null);
     const [dnpmStatus, setDnpmStatus] = useState(null);
     const [evolucaoIdSessao, setEvolucaoIdSessao] = useState(null);
@@ -96,7 +95,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
     const dnpmRef = useRef(null);
     const vacinacaoRef = useRef(null);
     
-    // ... (fetchStatusResumos, useEffect, Geradores de texto, Handlers)
+    // ... (fetchStatusResumos, useEffect)
     const fetchStatusResumos = useCallback(async () => {
         if (!pacienteId) {
             setVacinacaoStatus(null);
@@ -132,6 +131,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }
     }, [pacienteId, fetchStatusResumos, showSnackbar]);
 
+    // ... (Geradores de texto - inalterados)
     const generateSubjetivo = useCallback((vitals, evolucao) => {
         const currentVitals = vitals || vitalsData;
         const currentEvolucao = evolucao || evolucaoDiaria;
@@ -152,6 +152,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [vitalsData, exameFisicoData]);
 
+    // ... (Handlers - inalterados)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleVitalsChange = (e) => {
@@ -180,9 +181,8 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }));
     };
 
-    // --- preencherNormalidade ---
+    // --- preencherNormalidade (Corrigido para evitar clique duplo) ---
     const preencherNormalidade = () => {
-        // ... (lógica de preenchimento idêntica)
         const dadosExameNormal = {
             avaliacao_geral: 'BEG', cor: 'Corado', hidratacao: 'Hidratado', estado_febril: 'Afebril',
             atividade: 'Ativo', reatividade: 'Reativo', pele_lesoes: 'Integra',
@@ -200,8 +200,11 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
             reflexo_cutaneo_plantar: 'Normal', reflexo_marcha: 'Presente', reflexo_galant: 'Presente', reflexo_atnr: 'Presente',
         };
         const dadosEvolucaoNormal = { dieta: 'Seno materno sob livre demanda', diurese: 'Adequada', evacuacao: 'Presente' };
-        const textoSubjetivo = `RN com ${vitalsData.dias_vida || '___'} dias de vida, IGC ${vitalsData.igc_semanas || '__'}s ${vitalsData.igc_dias || '_'}d.\nMedicações em uso: ${vitalsData.medicacoes || 'Nenhuma'}.\nObservações: ${vitalsData.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${dadosEvolucaoNormal.dieta}\nDiurese: ${dadosEvolucaoNormal.diurese}\nEvacuação: ${dadosEvolucaoNormal.evacuacao}`;
-        const textoObjetivo = `Dados Vitais:\nPeso: ${vitalsData.peso || '___'} g\nCompr: ${vitalsData.comprimento || '___'} cm\nPC: ${vitalsData.pc || '___'} cm\n\nExame Físico:\nBom Estado Geral (BEG). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Pele íntegra, sem lesões. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, sem massas. Pupilas isocóricas. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente. Orofaringe normal, palato íntegro. Eupneico, boa expansibilidade. MV presente bilateralmente, sem ruídos adventícios. BRNF em 2T. Sem sopros. Perfusão periférica < 3s. Abdome plano. RHA presentes. Abdome flácido, indolor. Sem visceromegalias. Genitália tópica, sem alterações. Ânus pérvio. Membros e coluna sem alterações. Ortolani negativo. Pulsos simétricos e cheios. Tônus normal, ativo. Sinais meníngeos ausentes. Moro presente. Refl. Cócleo-Palpebral presente. Refl. Sucção presente. Preensão Palmar presente. Preensão Plantar presente. Refl. Cutâneo Plantar extensor. Refl. Marcha presente. Refl. Galant presente. Refl. ATNR presente.`;
+        
+        // Gera os textos USANDO os novos objetos
+        const textoSubjetivo = generateSubjetivo(vitalsData, dadosEvolucaoNormal);
+        const textoObjetivo = generateObjetivo(vitalsData, dadosExameNormal);
+
         setExameFisicoData(dadosExameNormal);
         setEvolucaoDiaria(dadosEvolucaoNormal);
         setSoapData(prev => ({
@@ -214,12 +217,16 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         showSnackbar('Exame físico preenchido com padrão normal.', 'info');
     };
 
-    // --- handleLimparConsultaAtual ---
+    // --- handleLimparConsultaAtual (Corrigido) ---
     const handleLimparConsultaAtual = () => {
-        setExameFisicoData({});
-        setEvolucaoDiaria({ dieta: '', diurese: '', evacuacao: '' });
-        const subjetivoLimpo = generateSubjetivo(vitalsData, { dieta: '', diurese: '', evacuacao: '' });
-        const objetivoLimpo = generateObjetivo(vitalsData, {});
+        const evolucaoVazia = { dieta: '', diurese: '', evacuacao: '' };
+        const exameVazio = {};
+        
+        const subjetivoLimpo = generateSubjetivo(vitalsData, evolucaoVazia);
+        const objetivoLimpo = generateObjetivo(vitalsData, exameVazio);
+        
+        setExameFisicoData(exameVazio);
+        setEvolucaoDiaria(evolucaoVazia);
         setSoapData({
             notas_subjetivas: subjetivoLimpo,
             notas_objetivas: objetivoLimpo,
@@ -229,9 +236,8 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // --- handleSaveSOAP (inalterado) ---
+    // ... (handleSaveSOAP e handleSaveAtendimentoCompleto - inalterados)
     const handleSaveSOAP = async () => {
-        // ... (lógica de salvar SOAP com POST/PATCH inalterada)
         const soapPayload = {
             ...soapData,
             peso: vitalsData.peso ? (parseFloat(vitalsData.peso) / 1000).toFixed(3) : null,
@@ -267,7 +273,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         return evolucaoId;
     };
     
-    // --- handleSaveAtendimentoCompleto (Orquestrador) ---
     const handleSaveAtendimentoCompleto = async (event) => {
         if (event) event.preventDefault();
         if (isSubmitting) return;
@@ -277,11 +282,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         console.log("--- INICIANDO SALVAMENTO COMPLETO (NEONATOLOGIA) ---");
 
         try {
-            // 1. Salva o SOAP
             console.log("   -> Etapa 1: Salvando SOAP e Vitais (Neo)...");
             const evolucaoId = await handleSaveSOAP();
 
-            // 2. Prepara as promessas
             console.log("   -> Etapa 2: Preparando salvamento das outras abas...");
             const savePromises = [];
 
@@ -301,11 +304,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                 console.warn("Ref da Vacinação (ou .saveData) não encontrada.");
             }
 
-            // 3. Executa
             await Promise.all(savePromises);
             console.log("   -> Etapa 3: Histórico, DNPM e Vacinas salvos.");
 
-            // 4. Sucesso
             showSnackbar(
                 isSessaoIniciada
                     ? 'Atendimento atualizado com sucesso!'
@@ -330,9 +331,8 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
             console.log("--- FIM DO SALVAMENTO COMPLETO (NEO) ---");
         }
     };
-
-
-    // --- renderStatusBadges (inalterado) ---
+    
+    // ... (renderStatusBadges - inalterado)
     const renderStatusBadges = () => (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             {vacinacaoStatus && (
@@ -362,7 +362,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                 </Box>
                 
                 <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-                    {/* ★★★ CORREÇÃO 1: Adicionado type="button" ★★★ */}
                     <Button onClick={handleLimparConsultaAtual} variant="outlined" size="small" disabled={isSubmitting} type="button">
                         Limpar Consulta
                     </Button>
@@ -371,6 +370,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                         variant="contained"
                         size="small"
                         disabled={isSubmitting || !pacienteId}
+                        type="button" 
                     >
                         {isSubmitting ? <CircularProgress size={20} /> : (evolucaoIdSessao ? 'Atualizar Atendimento' : 'Salvar Atendimento')}
                     </Button>
@@ -389,9 +389,8 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
 
                 <TabPanel value={tabIndex} index={0}>
-                    {/* ★★★ CORREÇÃO 2: Removido component="form" e onSubmit daqui ★★★ */}
+                    {/* ★★★ REMOVIDO component="form" daqui ★★★ */}
                     <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
-                        {/* ★★★ CORREÇÃO 3: Botão "Normalidade" movido para cá, com type="button" ★★★ */}
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 0 }}>
                                 Consulta Atual (SOAP)
@@ -407,7 +406,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                             </Button>
                         </Box>
 
-                        {/* --- (Restante do formulário SOAP inalterado) --- */}
                         <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Dados da Consulta e Evolução (S)</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                             <TextField label="Dias de Vida" name="dias_vida" type="number" value={vitalsData.dias_vida || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
@@ -431,16 +429,78 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                         </Box>
                         <TextField label="Observações (Queixas da Mãe, etc.)" name="observacoes" value={vitalsData.observacoes || ''} onChange={handleVitalsChange} size="small" fullWidth multiline rows={2} />
                         <TextField name="notas_subjetivas" label="Subjetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_subjetivas || ''} onChange={handleSoapChange} size="small" sx={{ mt: 1.5 }} />
+                        
                         <Divider sx={{ my: 2 }} />
+                        
                         <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
                             <TextField label="Peso (g)" name="peso" type="number" value={vitalsData.peso || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
                             <TextField label="Compr. (cm)" name="comprimento" type="number" value={vitalsData.comprimento || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
                             <TextField label="PC (cm)" name="pc" type="number" value={vitalsData.pc || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
                         </Box>
+                        
+                        {/* ★★★ BLOCO DE RENDERIZAÇÃO RESTAURADO ★★★ */}
                         <FormGroup sx={{ p: { xs: 1, sm: 2 }, border: '1px solid #ddd', borderRadius: 1 }}>
-                            {/* ... (Renderização dos selects do exame físico) ... */}
+                            {(() => {
+                                const secoes = [
+                                    { titulo: 'Geral e Pele', ids: ['avaliacao_geral', 'atividade', 'reatividade', 'cor', 'hidratacao', 'estado_febril', 'pele_lesoes'] },
+                                    { titulo: 'Cabeça, Pescoço e ORL', ids: ['fontanela', 'suturas', 'pescoco', 'olhos_estado', 'olhos_secrecao', 'reflexo_vermelho', 'orofaringe'] },
+                                    { titulo: 'Respiratório e Cardiovascular', ids: ['respiratorio_padrao', 'respiratorio_ausculta', 'cardio_ritmo', 'cardio_sopros', 'cardio_perfusao'] },
+                                    { titulo: 'Abdome e Genitália', ids: ['abdome_forma', 'abdome_rha', 'abdome_palpacao', 'abdome_viscero', 'cordao', 'genitalia', 'anus'] },
+                                    { titulo: 'Membros e Neurológico (Geral)', ids: ['membros_coluna', 'pulsos', 'neuro_tonus', 'sinais_meningeos'] },
+                                ];
+
+                                const renderSelect = (group) => (
+                                    <FormControl key={group.id} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
+                                        <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
+                                        <Select
+                                            labelId={`${group.id}-select-label`}
+                                            id={`${group.id}-select`}
+                                            name={group.id}
+                                            value={exameFisicoData[group.id] || ''}
+                                            label={group.label}
+                                            onChange={handleExameChange}
+                                        >
+                                            <MenuItem value=""><em>Nenhum</em></MenuItem>
+                                            {group.options.map(opt => (
+                                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                );
+
+                                const secoesHtml = secoes.map((secao, index) => (
+                                    <Box key={secao.titulo}>
+                                        {index > 0 && <Divider sx={{ my: 2 }} />}
+                                        <Typography variant="overline" color="textSecondary" sx={{ display: 'block', mb: 1.5, mt: index > 0 ? 1 : 0 }}>
+                                            {secao.titulo}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                            {exameFisicoNeoGroups
+                                                .filter(group => secao.ids.includes(group.id))
+                                                .map(group => renderSelect(group))
+                                            }
+                                        </Box>
+                                    </Box>
+                                ));
+
+                                secoesHtml.push(
+                                    <Box key="reflexos">
+                                        <Divider sx={{ my: 2 }} />
+                                        <Typography variant="overline" color="textSecondary" sx={{ display: 'block', mb: 1.5, mt: 1 }}>
+                                            Reflexos Primitivos
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                            {reflexosPrimitivosGroups.map(group => renderSelect(group))}
+                                        </Box>
+                                    </Box>
+                                );
+
+                                return secoesHtml;
+                            })()}
                         </FormGroup>
+                        {/* ★★★ FIM DO BLOCO RESTAURADO ★★★ */}
+
                         <TextField name="notas_objetivas" label="Objetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_objetivas || ''} onChange={handleSoapChange} size="small" sx={{ mt: 1.5 }} />
                         <Divider sx={{ my: 2 }} />
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
