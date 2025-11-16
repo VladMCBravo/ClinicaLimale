@@ -1,6 +1,5 @@
 // src/components/prontuario/neonatologia/HistoricoNeonatologia.jsx
-// VERSÃO CORRIGIDA: Adicionado type="button" a todos os botões
-// auxiliares para evitar a submissão acidental do formulário pai.
+// VERSÃO COMPLETA: Com forwardRef, type="button" e JSX restaurado.
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
@@ -8,7 +7,8 @@ import {
     FormGroup, FormControlLabel, Checkbox, FormControl, InputLabel, Select, MenuItem, FormLabel,
     Tooltip, IconButton
 } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-infoOutlined';
+// Correção do import do ícone:
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; 
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
@@ -314,7 +314,6 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
     }
 
     return (
-        // ★★★ CORREÇÃO 1: Removido component="form" daqui ★★★
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -324,7 +323,6 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
                     {isSubmitting && <CircularProgress size={24} />}
                 </Box>
                 <Box>
-                    {/* ★★★ CORREÇÃO 2: Adicionado type="button" ★★★ */}
                     <Button size="small" variant="outlined" onClick={handleLimpar} sx={{mr: 1}} type="button">
                         Limpar
                     </Button>
@@ -334,26 +332,342 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
                 </Box>
             </Box>
             
+            {/* --- JSX RESTAURADO --- */}
             <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }}>1. História Pré-Natal</Typography>
-            {/* ... (Campos Pré-Natal) ... */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1.5 }}>
+                <TextField select label="Gesta (G)" name="gpa_g" value={anamneseData.gpa_g || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {gpaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Para (P)" name="gpa_p" value={anamneseData.gpa_p || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {gpaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Aborto (A)" name="gpa_a" value={anamneseData.gpa_a || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {gpaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Pré-Natal" name="pre_natal" value={anamneseData.pre_natal || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {preNatalOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Tipo Gestação" name="tipo_gestacao" value={anamneseData.tipo_gestacao || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {gestacaoTipoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Corticoterapia" name="corticoterapia" value={anamneseData.corticoterapia || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {simNaoNaoSeAplicaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Neuroproteção MgSO4" name="neuroprotecao_mg" value={anamneseData.neuroprotecao_mg || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {simNaoNaoSeAplicaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+            </Box>
             
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Condições Maternas" name="condicoes_maternas" value={anamneseData.condicoes_maternas || 'Não'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    <MenuItem value="Não">Sem Comorbidades</MenuItem>
+                    <MenuItem value="Sim">Com Comorbidades</MenuItem>
+                </TextField>
+            </Box>
+            {anamneseData.condicoes_maternas === 'Sim' && (
+                <Box sx={{pl: 2, borderLeft: '2px solid', borderColor: 'divider', mt: 1.5, pb: 0.5}}>
+                    <FormControl component="fieldset" size="small" sx={{width: '100%'}}>
+                        <FormLabel component="legend" sx={{fontSize: '0.9rem'}}>Comorbidades:</FormLabel>
+                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                            {comorbidadesOptions.map(opt => (
+                                <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={comorbidades[opt.id] || false} onChange={handleCheckboxChange(setComorbidades)} name={opt.id} />} label={opt.label} />
+                            ))}
+                        </FormGroup>
+                    </FormControl>
+                    {comorbidades['Outras'] && (
+                        <TextField label="Descrever Outras Comorbidades" name="comorbidades_outras_desc" value={anamneseData.comorbidades_outras_desc || ''} onChange={handleChange} size="small" fullWidth sx={{mt: 1.5}}/>
+                    )}
+                </Box>
+            )}
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Vícios" name="vicios" value={anamneseData.vicios || 'Não'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    <MenuItem value="Não">Não</MenuItem>
+                    <MenuItem value="Sim">Sim</MenuItem>
+                </TextField>
+            </Box>
+            {anamneseData.vicios === 'Sim' && (
+                <Box sx={{pl: 2, borderLeft: '2px solid', borderColor: 'divider', mt: 1.5, pb: 0.5}}>
+                    <FormControl component="fieldset" size="small" sx={{width: '100%'}}>
+                        <FormLabel component="legend" sx={{fontSize: '0.9rem'}}>Vícios:</FormLabel>
+                        <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                            {viciosOptions.map(opt => (
+                                <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={vicios[opt.id] || false} onChange={handleCheckboxChange(setVicios)} name={opt.id} />} label={opt.label} />
+                            ))}
+                        </FormGroup>
+                    </FormControl>
+                    {vicios['Outros'] && (
+                        <TextField label="Descrever Outros Vícios" name="vicios_outros_desc" value={anamneseData.vicios_outros_desc || ''} onChange={handleChange} size="small" fullWidth sx={{mt: 1.5}}/>
+                    )}
+                </Box>
+            )}
+
+            <Typography variant="body2" sx={{ mt: 2, fontWeight: 'medium', color: 'text.secondary' }}>Tipagem Sanguínea e Fator Rh</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1, p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <TextField select label="TS Mãe" name="tipo_sanguineo_mae" value={anamneseData.tipo_sanguineo_mae || ''} onChange={handleChange} size="small" sx={{minWidth: 100, flex: '1 1 100px'}}>
+                    {tsMaeOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Rh Mãe" name="rh_mae" value={anamneseData.rh_mae || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {rhOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Coombs Ind." name="coombs_indireto" value={anamneseData.coombs_indireto || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}>
+                    {coombsOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Recebeu Anti-D?" name="anti_d" value={anamneseData.anti_d || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}>
+                    {simNaoNaoSeAplicaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="TS RN" name="tipo_sanguineo_rn" value={anamneseData.tipo_sanguineo_rn || ''} onChange={handleChange} size="small" sx={{minWidth: 100, flex: '1 1 100px'}}>
+                    {tsMaeOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Rh RN" name="rh_rn" value={anamneseData.rh_rn || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {rhOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Coombs Dir." name="coombs_direto_rn" value={anamneseData.coombs_direto_rn || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}>
+                    {coombsOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Eluato" name="eluato" value={anamneseData.eluato || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}>
+                    {coombsOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+            </Box>
+
             <Divider sx={{ my: 2 }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body1" sx={{ fontWeight: 'medium' }}>2. Sorologias Maternas</Typography>
-                {/* ★★★ CORREÇÃO 3: Adicionado type="button" ★★★ */}
                 <Button size="small" variant="outlined" onClick={handleNormalidadeSorologias} type="button">
                     Marcar Todas "Não Reagente"
                 </Button>
             </Box>
-            {/* ... (Campos Sorologias) ... */}
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1.5 }}>
+                <TextField select label="HIV" name="hiv_status" value={anamneseData.sorologias.hiv_status || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {hivVdrlStatusOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.sorologias.hiv_status === 'Reagente' && (
+                    <>
+                    <TextField select label="Carga Viral" name="hiv_cv" value={anamneseData.sorologias.hiv_cv || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                        {hivCVOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                    <TextField label="Outros (CD4, etc)" name="hiv_outros" value={anamneseData.sorologias.hiv_outros || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '2 1 170px'}}/>
+                    </>
+                )}
+            </Box>
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Sífilis (VDRL)" name="sifilis_status" value={anamneseData.sorologias.sifilis_status || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {hivVdrlStatusOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+            </Box>
+            {anamneseData.sorologias.sifilis_status === 'Reagente' && (
+                <Box sx={{pl: 2, borderLeft: '2px solid', borderColor: 'divider', mt: 1.5, pb: 0.5, display: 'flex', flexDirection: 'column', gap: 2}}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                        <TextField select label="TR (Teste Rápido)" name="sifilis_tr" value={anamneseData.sorologias.sifilis_tr || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                            <MenuItem value="Reagente">Reagente</MenuItem>
+                            <MenuItem value="Não reagente">Não reagente</MenuItem>
+                        </TextField>
+                        <TextField select label="VDRL 1ª Titulação" name="vdrl_1" value={anamneseData.sorologias.vdrl_1 || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                            {vdrlTituloOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                        <TextField select label="VDRL 2ª Titulação" name="vdrl_2" value={anamneseData.sorologias.vdrl_2 || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                            <MenuItem value="">-</MenuItem>
+                            {vdrlTituloOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                         <TextField select label="VDRL 3ª Titulação" name="vdrl_3" value={anamneseData.sorologias.vdrl_3 || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                            <MenuItem value="">-</MenuItem>
+                            {vdrlTituloOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                    </Box>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+                        <TextField select label="Tratamento (Penicilina)" name="tratamento_penicilina" value={anamneseData.sorologias.tratamento_penicilina || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                            {simNaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                        {anamneseData.sorologias.tratamento_penicilina === 'Sim' && (
+                            <>
+                            <TextField label="Dose 1 (Data)" name="dose_1" type="date" value={anamneseData.sorologias.dose_1 || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}} InputLabelProps={{ shrink: true }}/>
+                            <TextField label="Dose 2 (Data)" name="dose_2" type="date" value={anamneseData.sorologias.dose_2 || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}} InputLabelProps={{ shrink: true }}/>
+                            <TextField label="Dose 3 (Data)" name="dose_3" type="date" value={anamneseData.sorologias.dose_3 || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}} InputLabelProps={{ shrink: true }}/>
+                            </>
+                        )}
+                    </Box>
+                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+                        <TextField select label="Parceiro Tratado?" name="parceiro_tratado" value={anamneseData.sorologias.parceiro_tratado || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                            {simNaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                    </Box>
+                </Box>
+            )}
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Toxoplasmose" name="toxo_status" value={anamneseData.sorologias.toxo_status || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {sorologiaStatusOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.sorologias.toxo_status === 'Reagente' && (
+                    <>
+                    <TextField label="IgM" name="toxo_igm" value={anamneseData.sorologias.toxo_igm || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}} placeholder="Valor ou Pos/Neg"/>
+                    <TextField label="IgG" name="toxo_igg" value={anamneseData.sorologias.toxo_igg || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}} placeholder="Valor ou Pos/Neg"/>
+                    </>
+                )}
+            </Box>
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Hepatite B" name="hep_b_status" value={anamneseData.sorologias.hep_b_status || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {sorologiaStatusOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.sorologias.hep_b_status === 'Reagente' && (
+                    <TextField label="Conduta Neonatal" name="hep_b_conduta" value={anamneseData.sorologias.hep_b_conduta || ''} onChange={handleSorologiaChange} size="small" fullWidth sx={{minWidth: 170, flex: '2 1 170px'}} placeholder="Ex: Recebeu Ig + Vacina em 12h"/>
+                )}
+            </Box>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                 <TextField select label="Outras (HCV, CMV, Zika)" name="outras_inf_status" value={anamneseData.sorologias.outras_inf_status || ''} onChange={handleSorologiaChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {sorologiaStatusOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.sorologias.outras_inf_status === 'Reagente' && (
+                    <TextField label="Descrever Outras Infecções" name="outras_inf_detalhes" value={anamneseData.sorologias.outras_inf_detalhes || ''} onChange={handleSorologiaChange} size="small" fullWidth sx={{minWidth: 170, flex: '2 1 170px'}}/>
+                )}
+            </Box>
 
             <Divider sx={{ my: 2 }} />
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>3. Nascimento e Histórico do Parto</Typography>
-            {/* ... (Campos Nascimento/Parto) ... */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1.5 }}>
+                <TextField select label="Tipo de Parto" name="tipo_parto" value={anamneseData.tipo_parto || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {partoTipoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Bolsa Amniótica" name="bolsa_rota" value={anamneseData.bolsa_rota || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {bolsaRotaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.bolsa_rota === 'Rota ≥18h' && (
+                     <TextField select label="Profilaxia Adequada?" name="profilaxia_bolsa" value={anamneseData.profilaxia_bolsa || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                        {simNaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                )}
+                <TextField select label="Líquido Amniótico" name="liquido_amniotico" value={anamneseData.liquido_amniotico || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {liquidoAmnioticoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Apgar 1'" name="apgar_1" value={anamneseData.apgar_1 || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {apgarScoreOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Apgar 5'" name="apgar_5" value={anamneseData.apgar_5 || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                    {apgarScoreOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField select label="Apgar 10'" name="apgar_10" value={anamneseData.apgar_10 || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}>
+                     <MenuItem value="">-</MenuItem>
+                    {apgarScoreOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField label="Peso Nasc. (g)" name="peso_nascimento" type="number" value={anamneseData.peso_nascimento || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                <TextField label="Compr. (cm)" name="comprimento" type="number" value={anamneseData.comprimento || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                <TextField label="PC (cm)" name="pc_nascimento" type="number" value={anamneseData.pc_nascimento || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+            </Box>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2 }}>
+                <TextField select label="Reanimação" name="reanimacao_status" value={anamneseData.reanimacao_status || 'Não'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    <MenuItem value="Não">Não</MenuItem>
+                    <MenuItem value="Sim">Sim</MenuItem>
+                </TextField>
+            </Box>
+            {anamneseData.reanimacao_status === 'Sim' && (
+                <Box sx={{pl: 2, borderLeft: '2px solid', borderColor: 'divider', mt: 1.5, pb: 0.5}}>
+                <FormControl component="fieldset" size="small" sx={{width: '100%'}}>
+                    <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Manobras Realizadas:</FormLabel>
+                    <FormGroup sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1 }}>
+                        {reanimacaoOptions.map(opt => (
+                            <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={reanimacao[opt.id] || false} onChange={handleCheckboxChange(setReanimacao)} name={opt.id} />} label={opt.label} />
+                        ))}
+                    </FormGroup>
+                </FormControl>
+                <TextField label="Intercorrências do Parto/Reanimação" name="reanimacao_obs" multiline rows={2} fullWidth size="small" sx={{mt: 1.5}}
+                    value={anamneseData.reanimacao_obs || ''} onChange={handleChange} placeholder="Observações sobre reanimação, circular de cordão, etc." />
+                </Box>
+            )}
 
             <Divider sx={{ my: 2 }} />
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>4. Histórico Neonatal e Evolução Hospitalar</Typography>
-            {/* ... (Campos Histórico Hospitalar) ... */}
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1.5, alignItems: 'center' }}>
+                <TextField label="IG (Semanas)" name="ig_semanas" type="number" value={anamneseData.ig_semanas || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                <TextField label="IG (Dias)" name="ig_dias" type="number" value={anamneseData.ig_dias || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                <Tooltip title={igClassInfo} placement="top">
+                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                </Tooltip>
+                
+                <TextField label="Peso na Alta (g)" name="peso_alta" type="number" value={anamneseData.peso_alta || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                <Tooltip title={pesoClassInfo} placement="top">
+                    <IconButton size="small"><InfoOutlinedIcon fontSize="small" /></IconButton>
+                </Tooltip>
+
+                <TextField select label="Adequação Peso/IG" name="peso_adequacao" value={anamneseData.peso_adequacao || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {pesoAdequacaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                <TextField label="Tempo Internação (dias)" name="tempo_internacao" value={anamneseData.tempo_internacao || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}/>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2, alignItems: 'center' }}>
+                <TextField select label="Suporte Ventilatório" name="suporte_ventilatorio" value={anamneseData.suporte_ventilatorio || 'Não aplicável'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {simNaoNaoSeAplicaOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.suporte_ventilatorio === 'Sim' && (
+                    <>
+                    <TextField label="VM (dias)" name="suporte_vm_d" type="number" value={anamneseData.suporte_vm_d || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}/>
+                    <TextField label="CPAP (dias)" name="suporte_cpap_d" type="number" value={anamneseData.suporte_cpap_d || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}/>
+                    <TextField label="O2 (dias)" name="suporte_o2_d" type="number" value={anamneseData.suporte_o2_d || ''} onChange={handleChange} size="small" sx={{minWidth: 80, flex: '1 1 80px'}}/>
+                    </>
+                )}
+            </Box>
+
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2, alignItems: 'center' }}>
+                <TextField select label="Fototerapia" name="fototerapia" value={anamneseData.fototerapia || 'Não'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {simNaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.fototerapia === 'Sim' && (
+                    <TextField label="Fototerapia (dias)" name="fototerapia_d" type="number" value={anamneseData.fototerapia_d || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                )}
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2, alignItems: 'center' }}>
+                <TextField select label="NPP" name="npp" value={anamneseData.npp || 'Não'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {simNaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.npp === 'Sim' && (
+                     <TextField label="NPP (dias)" name="npp_d" type="number" value={anamneseData.npp_d || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                )}
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 2, alignItems: 'center' }}>
+                <TextField select label="Antibióticos" name="antibioticos" value={anamneseData.antibioticos || 'Não'} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}>
+                    {simNaoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                </TextField>
+                {anamneseData.antibioticos === 'Sim' && (
+                    <>
+                    <TextField label="ATB (dias)" name="antibioticos_d" type="number" value={anamneseData.antibioticos_d || ''} onChange={handleChange} size="small" sx={{minWidth: 120, flex: '1 1 120px'}}/>
+                    <TextField label="Esquema" name="antibioticos_esquema" value={anamneseData.antibioticos_esquema || ''} onChange={handleChange} size="small" sx={{minWidth: 170, flex: '1 1 170px'}}/>
+                    </>
+                )}
+            </Box>
+
+            <TextField label="Diagnósticos Principais (Alta)" name="diagnosticos_principais" multiline rows={2} fullWidth size="small" sx={{mt: 2}}
+                value={anamneseData.diagnosticos_principais || ''} onChange={handleChange} placeholder="Ex: Icterícia neonatal, Sepse precoce, Hipoglicemia..."/>
+
+            <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
+                <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Exames Hospitalares Principais (Data e Resultado):</FormLabel>
+                <FormGroup sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+                    {examesHospOptions.map(opt => (
+                        <Box key={opt.id} sx={{display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap'}}>
+                            <FormControlLabel 
+                                control={<Checkbox size="small" checked={examesHosp[opt.id] || false} onChange={handleCheckboxChange(setExamesHosp)} name={opt.id} />} 
+                                label={opt.label}
+                                sx={{minWidth: 180}}
+                            />
+                            {examesHosp[opt.id] && (
+                                <>
+                                <TextField type="date" name={`${opt.id}_data`} value={anamneseData[`${opt.id}_data`] || ''} onChange={handleChange} size="small" InputLabelProps={{ shrink: true }} sx={{minWidth: 150, flex: '1 1 150px'}}/>
+                                <TextField label="Resultado" name={`${opt.id}_resultado`} value={anamneseData[`${opt.id}_resultado`] || ''} onChange={handleChange} size="small" sx={{minWidth: 200, flex: '2 1 200px'}}/>
+                                </>
+                            )}
+                        </Box>
+                    ))}
+                </FormGroup>
+            </FormControl>
 
             <FormControl component="fieldset" size="small" sx={{mt: 2, width: '100%'}}>
                  <FormLabel component="legend" sx={{fontSize: '0.9rem', fontWeight: 'medium'}}>Outros Exames Hospitalares:</FormLabel>
@@ -368,7 +682,6 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
                             </IconButton>
                         </Box>
                     ))}
-                    {/* ★★★ CORREÇÃO 4: Adicionado type="button" ★★★ */}
                     <Button
                         size="small"
                         startIcon={<AddCircleOutlineIcon />}
@@ -383,9 +696,75 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
 
             <Divider sx={{ my: 2 }} />
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>5. Triagens e Testes Neonatais</Typography>
-            {/* ... (Campos Triagens) ... */}
             
-            {/* Botão de salvar removido */}
+            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste do Pezinho" name="pezinho_status" value={triagens.pezinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.pezinho_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Pezinho)" name="pezinho_desc" value={triagens.pezinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste da Orelhinha (EOAT)" name="orelhinha_eoat_status" value={triagens.orelhinha_eoat_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {eoatOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.orelhinha_eoat_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (EOAT)" name="orelhinha_eoat_desc" value={triagens.orelhinha_eoat_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="BERA" name="orelhinha_bera_status" value={triagens.orelhinha_bera_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.orelhinha_bera_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (BERA)" name="orelhinha_bera_desc" value={triagens.orelhinha_bera_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste do Olhinho (Refl. Verm.)" name="olhinho_status" value={triagens.olhinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {presenteAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.olhinho_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Olhinho)" name="olhinho_desc" value={triagens.olhinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+
+                <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste do Coraçãozinho" name="coracaozinho_status" value={triagens.coracaozinho_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.coracaozinho_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Coraçãozinho)" name="coracaozinho_desc" value={triagens.coracaozinho_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+                
+                 <Grid item xs={12} sm={4} md={3}>
+                    <TextField select label="Teste da Linguinha" name="linguinha_status" value={triagens.linguinha_status || ''} onChange={handleTriagensChange} size="small" fullWidth>
+                        {normalAlteradoOptions.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </TextField>
+                </Grid>
+                {triagens.linguinha_status === 'Alterado' && (
+                    <Grid item xs={12} sm={8} md={9}>
+                        <TextField label="Descrever (Linguinha)" name="linguinha_desc" value={triagens.linguinha_desc || ''} onChange={handleTriagensChange} size="small" fullWidth/>
+                    </Grid>
+                )}
+            </Grid>
+            
         </Paper>
     );
 });
