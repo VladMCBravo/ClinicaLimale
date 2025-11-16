@@ -74,7 +74,7 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
         setConsultaSalvaId(null);
     }, [pacienteId]);
 
-    // Geradores de texto (CORRIGIDOS)
+    // Geradores de texto
     const generateSubjetivo = useCallback((sintomas) => { 
         const currentSintomas = sintomas || sintomasConsulta;
         return sintomasNeurologiaOptions
@@ -92,12 +92,7 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // --- CORREÇÃO: useEffects automáticos REMOVIDOS ---
-    // useEffect(() => { ... }, [sintomasConsulta, generateSubjetivo]);
-    // useEffect(() => { ... }, [exameFisicoData, generateObjetivo]);
-    // --- FIM DA CORREÇÃO ---
-
-    // Handlers (CORRIGIDOS)
+    // Handlers
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     
@@ -118,7 +113,7 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
 
-    // Botão Normalidade (CORRIGIDO)
+    // Botão Normalidade
     const preencherNormalidade = () => {
         setSintomasConsulta({}); 
         
@@ -166,7 +161,7 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // handleSubmit (Salva SOAP e passa ID para RelatoriosTab)
+    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
@@ -176,11 +171,18 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
                 pressao_arterial: exameFisicoData.pa || null,
                 frequencia_cardiaca: exameFisicoData.fc || null,
                 peso: exameFisicoData.peso || null,
+                
+                // 1. Adiciona o agendamentoId ao payload
+                agendamento: agendamentoId || null,
             };
+
+            // 2. A URL genérica '/evolucoes/' já está correta.
             const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
             setConsultaSalvaId(res.data.id); 
             showSnackbar('Evolução salva com sucesso!', 'success');
+            
+            // 3. A prop 'onEvolucaoSalva' (singular) já está correta.
             if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
 
         } catch (error) {
@@ -216,7 +218,7 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
                 
                 {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
                         
                         {/* Queixa Atual (S) */}

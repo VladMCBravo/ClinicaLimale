@@ -1,5 +1,5 @@
 // src/components/prontuario/AtendimentoReumatologia.jsx
-// VERSÃO REFATORADA COM ABAS
+// VERSÃO REFATORADA COM ABAS E LÓGICA DE SALVAMENTO CORRIGIDA
 
 import React, { useState, Suspense, lazy } from 'react';
 import { Box, Button, CircularProgress, Grid, TextField, Typography, Paper, Tabs, Tab } from '@mui/material';
@@ -33,21 +33,33 @@ export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva, a
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
-    // (handleSubmit não precisa mudar, já salva apenas a evolução)
+    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            // --- CORREÇÃO AQUI ---
-            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, formData);
+            // 1. Criar o payload completo
+            // O 'formData' já contém 'notas_subjetivas', 'notas_objetivas', etc.
+            const payload = {
+                ...formData,
+                
+                // 2. Adicionar o agendamentoId
+                agendamento: agendamentoId || null,
+            };
+
+            // 3. Usar a URL genérica e enviar o novo 'payload'
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, payload);
             
             showSnackbar('Evolução salva com sucesso!', 'success');
             setFormData({}); 
             
-            // --- E AQUI ---
-            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Passe o ID
+            // 4. Chamar o callback (singular)
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
-        } catch (error) { showSnackbar('Erro ao salvar evolução.', 'error'); }
+        } catch (error) { 
+            console.error("Erro ao salvar evolução:", error.response?.data);
+            showSnackbar('Erro ao salvar evolução.', 'error'); 
+        }
         finally { setIsSubmitting(false); }
     };
     
@@ -75,6 +87,7 @@ export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva, a
                     <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
                         <Grid container spacing={2}>
+                            {/* O 'formData' já mapeia diretamente para os campos do SOAP */}
                             <Grid item xs={12}><TextField name="notas_subjetivas" label="Subjetivo (Padrão da dor, rigidez matinal, HDA)" multiline rows={4} fullWidth value={formData.notas_subjetivas || ''} onChange={handleChange} size="small" /></Grid>
                             <Grid item xs={12}><TextField name="notas_objetivas" label="Objetivo (Contagem articular, sinais flogísticos)" multiline rows={4} fullWidth value={formData.notas_objetivas || ''} onChange={handleChange} size="small" /></Grid>
                             <Grid item xs={12}><TextField name="avaliacao" label="Avaliação / Hipóteses" multiline rows={3} fullWidth value={formData.avaliacao || ''} onChange={handleChange} size="small" /></Grid>

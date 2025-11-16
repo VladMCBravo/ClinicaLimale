@@ -45,8 +45,6 @@ function TabPanel(props) {
 }
 
 // --- Componente Principal ---
-// --- CORREÇÃO AQUI ---
-// Certifique-se de que 'onEvolucaoSalva' está listado aqui nas props
 export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +64,7 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
         setTabIndex(0);
     }, [pacienteId]);
 
-    // Geradores de texto (Atualizados para aceitar argumentos)
+    // Geradores de texto
     const generateSubjetivo = useCallback((sintomas) => {
         const currentSintomas = sintomas || sintomasConsulta;
         const sintomasText = sintomasGeraisOptions
@@ -89,9 +87,6 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
          return texto + (achados || "Nenhuma observação selecionada.");
      }, [vitalsData, exameFisicoData]);
 
-    // --- CORREÇÃO: useEffects que atualizam SOAP foram removidos ---
-    // useEffect(() => { ... }, [sintomasConsulta, generateSubjetivo]);
-    // useEffect(() => { ... }, [vitalsData, exameFisicoData, generateObjetivo]);
 
     // Handlers (Atualizados para controlar o SOAP)
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
@@ -122,7 +117,7 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
 
-    // Botão Normalidade (Atualizado para ser auto-contido)
+    // Botão Normalidade
     const preencherNormalidade = () => {
         const dadosExameNormal = {
             ...vitalsData, // Mantém vitais
@@ -145,7 +140,7 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
         });
      };
 
-    // Botão Limpar (Atualizado)
+    // Botão Limpar
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
         setExameFisicoData({});
@@ -154,7 +149,7 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // handleSubmit (Salva apenas a Evolução SOAP)
+    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
@@ -164,14 +159,17 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
                 pressao_arterial: vitalsData.pa || null,
                 frequencia_cardiaca: vitalsData.fc || null,
                 peso: vitalsData.peso || null,
+                
+                // 1. Adiciona o agendamentoId ao payload
+                agendamento: agendamentoId || null, 
             };
-            // --- CORREÇÃO AQUI ---
+            
+            // 2. A URL genérica '/evolucoes/' já está correta.
             const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            // --- CORREÇÃO AQUI ---
-            // Mude de 'onEvolucoesSalva' (plural) para 'onEvolucaoSalva' (singular)
+            // 3. A prop 'onEvolucaoSalva' (singular) já está correta.
             if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
             handleLimparConsultaAtual();

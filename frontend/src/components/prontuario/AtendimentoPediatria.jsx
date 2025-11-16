@@ -108,7 +108,7 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva, agendamentoId }) {
+export default function AtendimentoPediatria({ pacienteId, agendamentoId, onEvolucaoSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
@@ -302,24 +302,30 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva, agen
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
-    // --- 5. LÓGICA DE SALVAMENTO (REATORADA) ---
+    // --- 5. LÓGICA DE SALVAMENTO (REATORADA E CORRIGIDA) ---
     
-    // ★★★ MUDANÇA 3: handleSaveSOAPAndVitals agora decide entre POST e PATCH ★★★
     const handleSaveSOAPAndVitals = async () => {
         const vitaisData = { 
             peso: exameFisicoData.peso || null, 
             altura: exameFisicoData.altura || null,
         };
         
+        // ★★★ 1. CRIAR O PAYLOAD CORRETO ★★★
+        // Aqui é onde usamos o 'agendamentoId' que estava sombreado
+        const soapPayload = {
+            ...soapData,
+            agendamento: agendamentoId || null 
+        };
+
         let evolucaoId;
         
         if (evolucaoIdSessao) {
             // --- JÁ EXISTE UMA EVOLUÇÃO, ATUALIZAR (PATCH) ---
             console.log(`   -> Atualizando SOAP da Evolução ID: ${evolucaoIdSessao}`);
-            evolucaoId = evolucaoIdSessao; // Use the existing ID
+            evolucaoId = evolucaoIdSessao;
             try {
-                // PATCH para a Evolução específica
-                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapData);
+                // ★★★ 2. ENVIAR O PAYLOAD CORRETO (com agendamentoId) ★★★
+                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapPayload);
                 console.log('SOAP atualizado com sucesso.');
             } catch (error) {
                 console.error("Erro ao ATUALIZAR evolução (SOAP):", error.response?.data || error);
@@ -330,15 +336,13 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva, agen
             // --- NÃO EXISTE, CRIAR UMA NOVA (POST) ---
             console.log("   -> Criando NOVA Evolução (POST)...");
             try {
-                // ★★★ MUDANÇA É AQUI ★★★
+                // ★★★ 3. USAR A URL ÚNICA E ENVIAR O PAYLOAD CORRETO ★★★
                 
-                // ANTES:
-                // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+                // ANTES (errado):
+                // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-pediatria/`, soapData);
                 
-                // DEPOIS:
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-pediatria/`, soapData);
-
-                // ★★★ FIM DA MUDANÇA ★★★
+                // DEPOIS (correto):
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
 
                 evolucaoId = res.data.id; // Guarda o NOVO ID
                 setEvolucaoIdSessao(evolucaoId); // Salva o ID na sessão!
@@ -350,7 +354,7 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva, agen
             }
         }
         
-        // Salva os vitais (separadamente, erro aqui não para o processo)
+        // Salva os vitais (separadamente, sem alteração)
         try {
             await apiClient.patch(`/pacientes/${pacienteId}/`, vitaisData);
             console.log('Dados vitais atualizados.');
@@ -422,9 +426,9 @@ export default function AtendimentoPediatria({ pacienteId, onEvolucaoSalva, agen
             fetchStatusResumos();
             
             // Chama a função do PAI (ProntuarioCompleto) para abrir o modal
-            if(onEvolucoesSalva) {
-                console.log(`   -> Etapa 4: Chamando onEvolucoesSalva com ID: ${evolucaoId}`);
-                onEvolucoesSalva(evolucaoId); 
+            if(onEvolucaoSalva) {
+                console.log(`   -> Etapa 4: Chamando onEvolucaoSalva com ID: ${evolucaoId}`);
+                onEvolucaoSalva(evolucaoId); 
             }
 
         } catch (error) {

@@ -27,7 +27,7 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
+export default function AtendimentoCardiologia({ pacienteId, agendamentoId, onEvolucaoSalva }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
@@ -144,14 +144,21 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva, ag
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // --- (Lógica de Salvamento - sem alterações) ---
+    // --- Lógica de Salvamento (CORRIGIDA) ---
     const handleSaveSOAPAndVitals = async () => {
+        // ★★★ 1. Crie o payload que inclui o agendamentoId ★★★
+        const soapPayload = {
+            ...soapData,
+            agendamento: agendamentoId || null
+        };
+
         let evolucaoId;
         
         if (evolucaoIdSessao) {
             evolucaoId = evolucaoIdSessao;
             try {
-                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapData);
+                // ★★★ 2. Envie o payload completo no PATCH ★★★
+                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapPayload);
             } catch (error) {
                 console.error("Erro ao ATUALIZAR evolução (SOAP):", error.response?.data || error);
                 showSnackbar('Erro ao atualizar a consulta atual (SOAP).', 'error');
@@ -159,15 +166,13 @@ export default function AtendimentoCardiologia({ pacienteId, onEvolucaoSalva, ag
             }
         } else {
             try {
-                // ★★★ MUDANÇA É AQUI ★★★
-
+                // ★★★ 3. Use a URL genérica e envie o payload completo ★★★
+                
                 // ANTES:
-                // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
-
+                // const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-cardiologia/`, soapData);
+                
                 // DEPOIS:
-                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes-cardiologia/`, soapData);
-
-                // ★★★ FIM DA MUDANÇA ★★★
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
 
                 evolucaoId = res.data.id;
                 setEvolucaoIdSessao(evolucaoId);

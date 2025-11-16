@@ -90,12 +90,7 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva, ag
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // --- CORREÇÃO: useEffects automáticos REMOVIDOS ---
-    // useEffect(() => { ... }, [sintomasConsulta, igAtual, generateHda]);
-    // useEffect(() => { ... }, [exameFisicoData, generateExameFisico]);
-    // --- FIM DA CORREÇÃO ---
-
-    // Handlers (CORRIGIDOS)
+    // Handlers
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     
@@ -116,7 +111,7 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva, ag
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
     
-    // Botão Normalidade (CORRIGIDO)
+    // Botão Normalidade
     const preencherNormalidade = () => { 
         const newSintomas = { mov_fetal_presente: true };
         setSintomasConsulta(newSintomas); 
@@ -141,7 +136,7 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva, ag
         });
      };
     
-    // Botão Limpar (CORRIGIDO)
+    // Botão Limpar
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
         setExameFisicoData({});
@@ -152,23 +147,28 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva, ag
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
-    // Submit (Salva SÓ a Evolução)
+    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
+            // 1. Criar o payload completo
             const soapPayload = {
                 ...soapData,
                 pressao_arterial: exameFisicoData.pa || null,
                 frequencia_cardiaca: exameFisicoData.fc || null,
+                
+                // 2. Adicionar o agendamentoId
+                agendamento: agendamentoId || null,
             };
-            // --- CORREÇÃO AQUI ---
+            
+            // 3. Usar a URL genérica
             const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            // --- E AQUI ---
-            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Passe o ID
+            // 4. Chamar o callback (singular)
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
             handleLimparConsultaAtual(); // Limpa consulta após salvar
         } catch (error) {
@@ -202,7 +202,7 @@ export default function AtendimentoObstetricia({ pacienteId, onEvolucaoSalva, ag
                 
                 {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual</Typography>
                        
                        {/* Queixa Atual (S) */}

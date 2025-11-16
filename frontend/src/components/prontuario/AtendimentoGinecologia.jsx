@@ -65,7 +65,7 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
         setTabIndex(0);
     }, [pacienteId]);
 
-    // Geradores de texto (CORRIGIDOS)
+    // Geradores de texto
     const generateSubjetivo = useCallback((sintomas) => {
         const currentSintomas = sintomas || sintomasConsulta;
         return sintomasGinecoOptions
@@ -92,12 +92,7 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
          return texto + (achados || "Nenhuma observação selecionada.");
      }, [vitalsData, exameFisicoData]);
 
-    // --- CORREÇÃO: useEffects automáticos REMOVIDOS ---
-    // useEffect(() => { ... }, [sintomasConsulta, generateSubjetivo]);
-    // useEffect(() => { ... }, [vitalsData, exameFisicoData, generateObjetivo]);
-    // --- FIM DA CORREÇÃO ---
-
-    // Handlers (CORRIGIDOS)
+    // Handlers
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     
@@ -126,7 +121,7 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
 
-    // Botão Normalidade (CORRIGIDO)
+    // Botão Normalidade
     const preencherNormalidade = () => {
         setSintomasConsulta({});
         
@@ -152,7 +147,7 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
         });
      };
 
-    // Botão Limpar (CORRIGIDO)
+    // Botão Limpar
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
         setExameFisicoData({});
@@ -165,24 +160,29 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // handleSubmit (Sem alterações)
+    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
+            // 1. Criar o payload completo
             const soapPayload = {
                 ...soapData,
                 pressao_arterial: vitalsData.pa || null,
                 frequencia_cardiaca: vitalsData.fc || null,
                 peso: vitalsData.peso || null,
+                
+                // 2. Adicionar o agendamentoId
+                agendamento: agendamentoId || null,
             };
-            // --- CORREÇÃO AQUI ---
+            
+            // 3. Usar a URL genérica
             const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            // --- E AQUI ---
-            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Envie o ID
+            // 4. Chamar o callback (singular)
+            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
             handleLimparConsultaAtual();
         } catch (error) {
@@ -215,7 +215,7 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
                 {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
 
                          {/* Queixa Atual (S) */}

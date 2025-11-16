@@ -59,7 +59,7 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
         setTabIndex(0);
     }, [pacienteId]);
 
-    // Geradores de texto (Atualizados para aceitar argumentos)
+    // Geradores de texto
     const generateHda = useCallback((sintomas) => {
          const currentSintomas = sintomas || sintomasConsulta;
          return sintomasOrtopediaOptions
@@ -83,11 +83,7 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [exameFisicoData]);
 
-    // --- CORREÇÃO: useEffects que atualizam SOAP foram removidos ---
-    // useEffect(() => { ... }, [sintomasConsulta, generateHda]);
-    // useEffect(() => { ... }, [exameFisicoData, generateExameFisico]);
-
-    // Handlers (Atualizados para controlar o SOAP)
+    // Handlers
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     
@@ -110,7 +106,7 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
         setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
     };
 
-    // Botão Normalidade (Atualizado para ser auto-contido)
+    // Botão Normalidade
     const preencherNormalidade = () => { 
         const dadosExameNormal = {
             ex_local: exameFisicoData.ex_local || '___',
@@ -132,7 +128,7 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
         });
      };
      
-    // Botão Limpar (Atualizado)
+    // Botão Limpar
     const handleLimparConsultaAtual = () => {
         setSintomasConsulta({});
         setExameFisicoData({});
@@ -140,18 +136,28 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
     
-    // Submit (Salva SÓ a Evolução)
+    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
-            // --- CORREÇÃO AQUI ---
-            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapData);
+            // 1. Criar o payload completo
+            const soapPayload = {
+                ...soapData,
+                // (Adicione aqui vitais se a ortopedia os coletar, ex: peso)
+                // peso: exameFisicoData.peso || null,
+                
+                // 2. Adicionar o agendamentoId
+                agendamento: agendamentoId || null,
+            };
+
+            // 3. Usar a URL genérica
+            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
             
             showSnackbar('Evolução salva com sucesso!', 'success');
             
-            // --- E AQUI ---
-            if (onEvolucaoSalva) onEvolucaoSalva(res.data.id); // Envie o ID
+            // 4. Chamar o callback (singular)
+            if (onEvolucaoSalva) onEvolucaoSalva(res.data.id);
             
             handleLimparConsultaAtual();
         } catch (error) {
@@ -161,7 +167,7 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
         setIsSubmitting(false); 
     };
 
-    // --- RETURN (Sem alterações no JSX, apenas removi o `name` duplicado que o linter achou) ---
+    // --- RETURN (Sem alterações no JSX) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
@@ -223,7 +229,6 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
                        <Divider sx={{ my: 2 }} />
 
                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {/* --- CORREÇÃO DO LINT: Removido 'name' duplicado --- */}
                           <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                           <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
                           <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
