@@ -47,43 +47,65 @@ class EvolucaoListAPIView(generics.ListAPIView):
         paciente_id = self.kwargs.get('paciente_id')
         return Evolucao.objects.filter(paciente__id=paciente_id).order_by('-data_atendimento')
 
-class EvolucaoPediatriaCreateAPIView(generics.CreateAPIView):
-    """
-    View para CRIAR (POST) evoluções de PEDIATRIA.
-    O frontend 'AtendimentoPediatria.jsx' deve salvar AQUI.
-    """
-    serializer_class = EvolucaoSerializer
-    permission_classes = [CanViewProntuario]
+# --- ★★★ NOVO BLOCO DE VIEWS DE CRIAÇÃO ★★★ ---
+# (Substitua as views de CreateAPIView individuais por este bloco)
 
-    def perform_create(self, serializer):
-        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
-        # ★ Define a especialidade automaticamente no backend ★
-        serializer.save(
-            medico=self.request.user, 
-            paciente=paciente, 
-            especialidade='pediatria' # <-- MÁGICA AQUI
-        )
-
-class EvolucaoCardiologiaCreateAPIView(generics.CreateAPIView):
+class BaseEvolucaoCreateAPIView(generics.CreateAPIView):
     """
-    View para CRIAR (POST) evoluções de CARDIOLOGIA.
-    O frontend 'AtendimentoCardiologia.jsx' deve salvar AQUI.
+    Classe base ABSTRATA para criar evoluções.
+    Define a especialidade automaticamente no backend.
     """
     serializer_class = EvolucaoSerializer
     permission_classes = [CanViewProntuario]
+    
+    # Esta variável DEVE ser definida na classe filha
+    especialidade = None
 
     def perform_create(self, serializer):
+        if self.especialidade is None:
+            # Medida de segurança para garantir que a classe filha definiu a especialidade
+            raise NotImplementedError("A classe filha deve definir 'self.especialidade'")
+        
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
-        # ★ Define a especialidade automaticamente no backend ★
         serializer.save(
             medico=self.request.user, 
             paciente=paciente, 
-            especialidade='cardiologia' # <-- MÁGICA AQUI
+            especialidade=self.especialidade
         )
 
-# (Adicione outras views de create para as outras 7 especialidades seguindo este padrão)
+# --- Agora, definimos todas as 10 views de criação ---
 
-# --- FIM DA SUBSTITUIÇÃO ---
+class EvolucaoPediatriaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'pediatria'
+
+class EvolucaoCardiologiaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'cardiologia'
+
+class EvolucaoNeonatologiaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'neonatologia'
+
+class EvolucaoClinicaGeralCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'clinica_geral'
+
+class EvolucaoGinecologiaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'ginecologia'
+
+class EvolucaoOrtopediaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'ortopedia'
+
+class EvolucaoEcocardiografiaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'ecocardiografia'
+    
+class EvolucaoNeurologiaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'neurologia'
+    
+class EvolucaoObstetriciaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'obstetricia'
+    
+class EvolucaoReumatologiaPediatricaCreateAPIView(BaseEvolucaoCreateAPIView):
+    especialidade = 'reumatologia_pediatrica'
+
+# --- FIM DO NOVO BLOCO DE VIEWS ---
 
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Evolucao.objects.all()

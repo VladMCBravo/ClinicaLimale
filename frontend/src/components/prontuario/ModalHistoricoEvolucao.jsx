@@ -1,8 +1,5 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO GENÉRICA (PEDIATRIA + CARDIOLOGIA)
-// 1. Detecta a especialidade da consulta (evolucao.especialidade).
-// 2. Busca dados-mestre específicos (ex: DNPM/Vacinas para Peds).
-// 3. Renderiza o resumo correto.
+// VERSÃO GENÉRICA COMPLETA (Peds, Cardio, Neo, Gineco, Orto, Clinica)
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
@@ -14,9 +11,12 @@ import {
 import apiClient from '../../api/axiosConfig.js';
 import { useSnackbar } from '../../contexts/SnackbarContext.js';
 
-// Componente simples para renderizar seções (sem alteração)
+// Componente simples para renderizar seções
 const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
-    if (!data || (Array.isArray(data) && data.length === 0)) return null;
+    // Adicionada checagem para objeto vazio
+    if (!data || (Array.isArray(data) && data.length === 0) || (typeof data === 'object' && Object.keys(data).length === 0)) {
+        return null;
+    }
     return (
         <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', color: 'primary.main' }}>
@@ -28,15 +28,14 @@ const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
     );
 };
 
-// Funções de "Tradução" para os campos JSON
-const labelMap = {
-    // Gestacional
+// --- MAPAS DE LABELS ---
+
+// MAPA 1: Labels de Pediatria
+const pedsLabelMap = {
     tipo_parto: 'Parto',
     idade_gestacional: 'Idade Gestacional',
-    peso_nascimento: 'Peso ao Nascer',
+    peso_nascimento: 'Peso ao Nascer (g)',
     intercorrencias_gestacao_parto: 'Intercorrências Gestação/Parto',
-    // Triagens (tratado separadamente)
-    // Alim 0-6m
     tipo_aleitamento: 'Aleitamento (0-6m)',
     pega: 'Pega (0-6m)',
     succao: 'Sucção (0-6m)',
@@ -45,7 +44,6 @@ const labelMap = {
     vitamina_d: 'Supl. Vitamina D (0-6m)',
     ferro: 'Supl. Ferro (0-6m)',
     alimentacao_0_6m_obs: 'Obs. Alim. (0-6m)',
-    // Alim 6-12m
     tipo_alimentacao: 'Alimentação (6-12m)',
     refeicoes_dia: 'Refeições/dia (6-12m)',
     textura: 'Textura (6-12m)',
@@ -55,7 +53,6 @@ const labelMap = {
     metodo_ia: 'Método IA',
     copo_transicao: 'Copo de Transição',
     alimentacao_6_12m_obs: 'Obs. Alim. (6-12m)',
-    // Sono
     sono_diurno: 'Sono Diurno',
     sono_noturno: 'Sono Noturno',
     colica: 'Cólica',
@@ -64,87 +61,156 @@ const labelMap = {
     sono_comportamento_obs: 'Obs. Sono/Comp.',
 };
 
-// ★★★ MAPA 2: Labels de Cardiologia (CORRIGIDO) ★★★
-// Os 'keys' aqui (ex: 'historico_familiar') devem bater
-// com os 'name' do formulário E com os campos do 'models.py'
+// MAPA 2: Labels de Cardiologia
 const cardioLabelMap = {
     fatores_risco: 'Fatores de Risco CV',
-    historico_familiar: 'Histórico Familiar (Cardio)', // ANTES: hist_familiar_cardio
-    cirurgias_cardiacas_previas: 'Cirurgias/Procedimentos Prévios' // ANTES: cirurgias_previas_cardio
-    // Adicione outros campos do seu modelo aqui se precisar
-    // ex: 'comorbidades_outras': 'Outras Comorbidades',
+    historico_familiar: 'Histórico Familiar (Cardio)',
+    cirurgias_cardiacas_previas: 'Cirurgias/Procedimentos Prévios'
 };
+
+// MAPA 3: Labels de Neonatologia
+const neoLabelMap = {
+    pre_natal: 'Pré-Natal',
+    tipo_gestacao: 'Tipo Gestação',
+    corticoterapia: 'Corticoterapia',
+    neuroprotecao_mg: 'Neuroproteção MgSO4',
+    comorbidades_outras_desc: 'Outras Comorbidades',
+    vicios_outros_desc: 'Outros Vícios',
+    tipo_sanguineo_mae: 'TS Mãe',
+    rh_mae: 'Rh Mãe',
+    coombs_indireto: 'Coombs Ind.',
+    anti_d: 'Recebeu Anti-D?',
+    tipo_sanguineo_rn: 'TS RN',
+    rh_rn: 'Rh RN',
+    coombs_direto_rn: 'Coombs Dir.',
+    eluato: 'Eluato',
+    tipo_parto: 'Tipo de Parto',
+    bolsa_rota: 'Bolsa Amniótica',
+    profilaxia_bolsa: 'Profilaxia Bolsa Rota',
+    liquido_amniotico: 'Líquido Amniótico',
+    peso_nascimento: 'Peso Nasc. (g)',
+    comprimento: 'Compr. (cm)',
+    pc_nascimento: 'PC (cm)',
+    reanimacao_obs: 'Intercorrências Parto/Reanimação',
+    peso_adequacao: 'Adequação Peso/IG',
+    tempo_internacao: 'Tempo Internação (dias)',
+    suporte_ventilatorio: 'Suporte Ventilatório',
+    fototerapia: 'Fototerapia',
+    npp: 'NPP',
+    antibioticos: 'Antibióticos',
+    diagnosticos_principais: 'Diagnósticos Principais (Alta)',
+};
+
+// ★★★ NOVO: MAPA 4: Labels de Ginecologia ★★★
+const ginecoLabelMap = {
+    menarca_idade: 'Idade da Menarca',
+    ciclo_regular: 'Ciclo Regular',
+    ciclo_intervalo: 'Intervalo do Ciclo',
+    ciclo_duracao: 'Duração do Ciclo',
+    dismenorreia: 'Dismenorreia',
+    ultimo_preventivo_resultado: 'Último Preventivo',
+    ultima_mamografia_resultado: 'Última Mamografia',
+    mac_atual: 'Método Contraceptivo Atual',
+    hists_ists: 'Histórico de ISTs',
+};
+
+// ★★★ NOVO: MAPA 5: Labels de Ortopedia ★★★
+const ortoLabelMap = {
+    antecedentes: 'Antecedentes Ortopédicos',
+    ex_local: 'Local Afetado / Articulação',
+    ex_inspecao: 'Inspeção',
+    ex_palpacao: 'Palpação',
+    ex_adm: 'Amplitude de Movimento (ADM)',
+    ex_forca: 'Força Muscular (0-5)',
+    ex_neurovascular: 'Exame Neurovascular',
+    ex_testes: 'Testes Especiais',
+};
+
+// ★★★ NOVO: MAPA 6: Labels de Clínica Geral ★★★
+const clinicaGeralLabelMap = {
+    hmp: 'Histórico Médico Pregresso',
+    habitos_sociais: 'Hábitos e Histórico Social',
+    vacina_adulto_status: 'Status Vacinal (Adulto)',
+};
+// --- FIM DOS MAPAS ---
+
+
+// --- HELPERS ---
+const isFilled = (value) => {
+    if (value === 0) return true; 
+    if (value === true) return true;
+    if (value === null || value === undefined || value === "") return false;
+    if (typeof value === 'object' && Object.keys(value).length === 0) return false;
+    return true;
+};
+const formatValue = (key, value) => {
+    if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+    if (key === 'peso_nascimento') return `${value}g`;
+    if (key === 'comprimento' || key === 'pc_nascimento') return `${value}cm`;
+    // Formata datas que podem vir do backend
+    if (key.includes('data') || key === 'dum') {
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+            // Adiciona 1 dia para corrigir fuso horário (comum em JS)
+            date.setDate(date.getDate() + 1);
+            return date.toLocaleDateString('pt-BR');
+        }
+    }
+    return String(value);
+};
+// --- FIM HELPERS ---
+
 
 export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose }) {
     const [relatorioData, setRelatorioData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
-    // ★★★ useEffect TOTALMENTE REESCRITO ★★★
+    // ★★★ useEffect (ATUALIZADO PARA SUPORTAR TODAS AS 10) ★★★
     useEffect(() => {
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
             setRelatorioData(null); 
-            
-            console.log(`[DEBUG MODAL] 🕵️‍♂️ Buscando dados para Evolução ID: ${evolucaoId}`);
             const cacheBuster = `?_=${new Date().getTime()}`;
 
             const fetchTudo = async () => {
                 try {
-                    // --- ESTÁGIO 1: Buscar a Evolução para descobrir a Especialidade ---
+                    // ESTÁGIO 1: Buscar a Evolução
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
                     const evolucao = resEvolucao.data;
-
-                    // ★★★ ASSUMPÇÃO CRÍTICA ★★★
-                    // O seu objeto 'evolucao' DEVE ter um campo 'especialidade'
-                    // Ex: { id: 123, notas_subjetivas: "...", especialidade: "cardiologia" }
-                    // Se não tiver, ele sempre cairá no 'pediatria'
-                    const especialidade = evolucao.especialidade || 'pediatria';
+                    
+                    // Usa 'clinica_geral' como padrão se o campo for nulo
+                    const especialidade = evolucao.especialidade || 'clinica_geral';
                     
                     console.log(`[DEBUG MODAL] Especialidade detectada: ${especialidade}`);
 
                     const dadosBrutos = {
                         evolucao: evolucao,
-                        especialidade: especialidade, // Guarda a especialidade
-                        anamnese: null, // Vai guardar {pediatrica:..., cardiologica:...}
-                        dnpm: null,
-                        vacinas: null,
-                        // ecg: null, // Exemplo futuro
+                        especialidade: especialidade,
+                        anamnese: null, dnpm: null, vacinas: null,
                     };
 
-                    // --- ESTÁGIO 2: Buscar dados-mestre em paralelo ---
-                    
-                    // 2a. Busca a anamnese completa (que contém TODAS as especialidades)
+                    // ESTÁGIO 2: Buscar dados-mestre
                     const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
-                    
                     const promises = [anamnesePromise];
 
-                    // 2b. Adiciona buscas específicas de PEDIATRIA
-                    if (especialidade === 'pediatria') {
-                        console.log("[DEBUG MODAL] Adicionando buscas de Pediatria (DNPM, Vacinas)...");
+                    // PediATRIA e NeoNATOLOGIA carregam as abas de DNPM e Vacinas
+                    if (especialidade === 'pediatria' || especialidade === 'neonatologia') {
+                        console.log(`[DEBUG MODAL] Adicionando buscas de ${especialidade} (DNPM, Vacinas)...`);
                         promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`));
                         promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`));
                     }
-                    // 2c. Adiciona buscas específicas de CARDIOLOGIA (ex: exames)
-                    else if (especialidade === 'cardiologia') {
-                        // Exemplo: se você tivesse uma API de exames
-                        // promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/exames-ecg/${cacheBuster}`));
-                    }
-                    // ... (outras especialidades)
+                    // (Outras especialidades não precisam de fetches extras... por enquanto)
 
                     const responses = await Promise.all(promises);
-                    
-                    dadosBrutos.anamnese = responses[0].data; // Anamnese completa
+                    dadosBrutos.anamnese = responses[0].data; 
 
-                    if (especialidade === 'pediatria') {
+                    if (especialidade === 'pediatria' || especialidade === 'neonatologia') {
                         dadosBrutos.dnpm = responses[1].data;
                         dadosBrutos.vacinas = responses[2].data;
                     }
-                    // else if (especialidade === 'cardiologia') {
-                    //    dadosBrutos.ecg = responses[1].data;
-                    // }
 
-                    console.log('[DEBUG MODAL] 📦 Dados BRUTOS recebidos da API:', dadosBrutos);
+                    console.log('[DEBUG MODAL] 📦 Dados BRUTOS recebidos:', dadosBrutos);
                     setRelatorioData(dadosBrutos);
 
                 } catch (err) {
@@ -155,7 +221,6 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                     setIsLoading(false);
                 }
             };
-
             fetchTudo();
         }
     }, [pacienteId, evolucaoId, onClose, showSnackbar]);
@@ -177,38 +242,16 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         }
     };
 
-    // ★★★ FUNÇÃO DE FILTRO TOTALMENTE REESCRITA ★★★
-    
-    // Helper para checar se um valor foi preenchido
-    const isFilled = (value) => {
-        if (value === 0) return true; // 0 é um valor válido (ex: APGAR)
-        if (value === true) return true; // true é um valor válido (ex: checkboxes)
-        if (value === null || value === undefined || value === "") return false;
-        return true;
-    };
-    
-    // Helper para formatar o valor
-    const formatValue = (key, value) => {
-        if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-        if (key === 'peso_nascimento') return `${value}g`;
-        return value;
-    }
+    // --- FUNÇÕES DE RENDERIZAÇÃO DE ANAMNESE ---
 
-    // ★★★ 1. RENDER PEDIATRIA (O seu `renderAnamnese` original) ★★★
-    // Esta função lê os dados de Pediatria
-    const renderAnamnesePediatrica = (data) => {
-        // 'data' aqui é relatorioData.anamnese.pediatrica
-        if (!data) return <Typography variant="body2">Nenhum dado de anamnese pediátrica encontrado.</Typography>;
+    // Função genérica para renderizar uma lista de itens de um mapa de labels
+    const renderAnamneseGenerica = (data, labelMap, titulo) => {
+        if (!data) return <Typography variant="body2">Nenhum dado de {titulo} encontrado.</Typography>;
         
         const itensPreenchidos = [];
         
-        // 1. Dados Gestacionais
-        const apgar = [data.apgar_1, data.apgar_5, data.apgar_10].filter(isFilled).join(' / ');
-        if (isFilled(apgar)) {
-            itensPreenchidos.push({ label: 'APGAR (1/5/10)', value: apgar });
-        }
-        
-        // 2. Todos os outros campos (exceto JSONs)
+        // Adiciona lógica para campos especiais (ex: datas, G/P/A) se necessário
+        // Por enquanto, uma busca simples no mapa:
         Object.entries(data).forEach(([key, value]) => {
             const label = labelMap[key];
             if (label && isFilled(value)) {
@@ -216,53 +259,10 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             }
         });
 
-        // 3. Campos JSON (Triagens)
-        Object.entries(data.triagens || {}).forEach(([key, value]) => {
-            if (key.endsWith('_status') && isFilled(value)) {
-                const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
-                let displayValue = value;
-                
-                if (value === 'Alterado') {
-                    const descKey = key.replace('_status', '_desc');
-                    const desc = data.triagens[descKey];
-                    if (isFilled(desc)) {
-                        displayValue = `Alterado (${desc})`;
-                    }
-                }
-                itensPreenchidos.push({ label: `Triagem ${label}`, value: displayValue });
-            }
-        });
-        
-        // 4. Campos JSON (Alimentação 0-6m)
-        Object.entries(data.alimentacao_0_6m || {}).forEach(([key, value]) => {
-            const label = labelMap[key];
-            if (label && isFilled(value)) {
-                 itensPreenchidos.push({ label, value: formatValue(key, value) });
-            }
-        });
-        
-        // 5. Campos JSON (Alimentação 6-12m)
-        Object.entries(data.alimentacao_6_12m || {}).forEach(([key, value]) => {
-            const label = labelMap[key];
-            if (label && isFilled(value)) {
-                 itensPreenchidos.push({ label, value: formatValue(key, value) });
-            }
-        });
-        
-        // 6. Campos JSON (Sono/Comportamento)
-        Object.entries(data.sono_comportamento || {}).forEach(([key, value]) => {
-            const label = labelMap[key];
-            if (label && isFilled(value)) {
-                 itensPreenchidos.push({ label, value: formatValue(key, value) });
-            }
-        });
-
-        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese (PEDIATRIA):', itensPreenchidos);
         if (itensPreenchidos.length === 0) {
-            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Pediátrico.</Typography>;
+            return <Typography variant="body2">Nenhum dado relevante preenchido no {titulo}.</Typography>;
         }
 
-        // Renderiza a lista (sem alteração)
         return (
             <ul>
                 {itensPreenchidos.map((item, index) => (
@@ -275,44 +275,128 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
             </ul>
         );
     };
-    
-    // ★★★ 2. RENDER CARDIOLOGIA (CORRIGIDO) ★★★
-    // Esta função agora usa o `cardioLabelMap` corrigido
-    const renderAnamneseCardiologica = (data) => {
-        // 'data' aqui é relatorioData.anamnese.cardiologica
-        if (!data) return <Typography variant="body2">Nenhum dado de anamnese cardiológica encontrado.</Typography>;
 
-        const itensPreenchidos = [];
+    // Helper de Triagens (usado por Peds e Neo)
+    const renderTriagens = (triagensData) => {
+        const itensTriagem = [];
+        Object.entries(triagensData || {}).forEach(([key, value]) => {
+            if (key.endsWith('_status') && isFilled(value)) {
+                const label = key.replace('_status', '').replace('orelhinha_', '').replace('pezinho', 'Pezinho').replace('olhinho', 'Olhinho').replace('coracaozinho', 'Coraçãozinho').replace('linguinha', 'Linguinha');
+                let displayValue = value;
+                if (value === 'Alterado') {
+                    const descKey = key.replace('_status', '_desc');
+                    const desc = triagensData[descKey];
+                    if (isFilled(desc)) { displayValue = `Alterado (${desc})`; }
+                }
+                itensTriagem.push({ label: `Triagem ${label}`, value: displayValue });
+            }
+        });
+        return itensTriagem;
+    };
+
+    // 1. RENDER PEDIATRIA (Customizado)
+    const renderAnamnesePediatrica = (data) => {
+        if (!data) return <Typography variant="body2">Nenhum dado de anamnese pediátrica encontrado.</Typography>;
         
-        // Itera sobre os dados da anamnese cardiológica
+        let itensPreenchidos = [];
+        
+        const apgar = [data.apgar_1, data.apgar_5, data.apgar_10].filter(isFilled).join(' / ');
+        if (isFilled(apgar)) {
+            itensPreenchidos.push({ label: 'APGAR (1/5/10)', value: apgar });
+        }
+        
         Object.entries(data).forEach(([key, value]) => {
-            const label = cardioLabelMap[key]; // Usa o cardioLabelMap
-            if (label && isFilled(value)) { 
+            const label = pedsLabelMap[key];
+            if (label && isFilled(value)) {
                 itensPreenchidos.push({ label, value: formatValue(key, value) });
             }
         });
 
-        console.log('[DEBUG MODAL] 📋 Itens FILTRADOS da Anamnese (CARDIOLOGIA):', itensPreenchidos);
+        itensPreenchidos = itensPreenchidos.concat(renderTriagens(data.triagens));
+        
+        Object.entries(data.alimentacao_0_6m || {}).forEach(([key, value]) => {
+            const label = pedsLabelMap[key];
+            if (label && isFilled(value)) { itensPreenchidos.push({ label, value: formatValue(key, value) }); }
+        });
+        Object.entries(data.alimentacao_6_12m || {}).forEach(([key, value]) => {
+            const label = pedsLabelMap[key];
+            if (label && isFilled(value)) { itensPreenchidos.push({ label, value: formatValue(key, value) }); }
+        });
+        Object.entries(data.sono_comportamento || {}).forEach(([key, value]) => {
+            const label = pedsLabelMap[key];
+            if (label && isFilled(value)) { itensPreenchidos.push({ label, value: formatValue(key, value) }); }
+        });
 
         if (itensPreenchidos.length === 0) {
-            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Cardiológico.</Typography>;
+            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Pediátrico.</Typography>;
         }
 
         return (
             <ul>
                 {itensPreenchidos.map((item, index) => (
-                    <li key={index}>
-                        <Typography variant="body2">
-                            <strong>{item.label}:</strong> {String(item.value)}
-                        </Typography>
-                    </li>
+                    <li key={index}> <Typography variant="body2"> <strong>{item.label}:</strong> {String(item.value)} </Typography> </li>
+                ))}
+            </ul>
+        );
+    };
+    
+    // 3. RENDER NEONATOLOGIA (Customizado)
+    const renderAnamneseNeonatologia = (data) => {
+        if (!data) return <Typography variant="body2">Nenhum dado de anamnese neonatal encontrado.</Typography>;
+        
+        let itensPreenchidos = [];
+
+        // Lógica Customizada
+        const gpa = [data.gpa_g, data.gpa_p, data.gpa_a].filter(isFilled).join(' / ');
+        if (isFilled(gpa)) {
+            itensPreenchidos.push({ label: 'G/P/A', value: gpa });
+        }
+        const apgar = [data.apgar_1, data.apgar_5, data.apgar_10].filter(isFilled).join(' / ');
+        if (isFilled(apgar)) {
+            itensPreenchidos.push({ label: 'APGAR (1/5/10)', value: apgar });
+        }
+        let ig = '';
+        if (isFilled(data.ig_semanas)) ig += `${data.ig_semanas}s`;
+        if (isFilled(data.ig_dias)) ig += ` ${data.ig_dias}d`;
+        if (isFilled(ig)) {
+            itensPreenchidos.push({ label: 'Idade Gestacional', value: ig.trim() });
+        }
+
+        // Outros campos (via neoLabelMap)
+        Object.entries(data).forEach(([key, value]) => {
+            const label = neoLabelMap[key];
+            if (label && isFilled(value)) {
+                itensPreenchidos.push({ label, value: formatValue(key, value) });
+            }
+        });
+
+        // Lógica Customizada para JSONs
+        if (data.condicoes_maternas === 'Sim' && isFilled(data.comorbidades_detalhes)) {
+            const comorbidades = Object.keys(data.comorbidades_detalhes).filter(k => data.comorbidades_detalhes[k] === true).join(', ');
+            if (isFilled(comorbidades)) { itensPreenchidos.push({ label: 'Comorbidades', value: comorbidades }); }
+        }
+        if (data.reanimacao_status === 'Sim' && isFilled(data.reanimacao_opcoes)) {
+            const reanimacao = Object.keys(data.reanimacao_opcoes).filter(k => data.reanimacao_opcoes[k] === true).join(', ');
+            if (isFilled(reanimacao)) { itensPreenchidos.push({ label: 'Reanimação', value: reanimacao }); }
+        }
+        
+        // Triagens (usando o helper)
+        itensPreenchidos = itensPreenchidos.concat(renderTriagens(data.triagens));
+        
+        if (itensPreenchidos.length === 0) {
+            return <Typography variant="body2">Nenhum dado relevante preenchido no Histórico Neonatal.</Typography>;
+        }
+
+        return (
+            <ul>
+                {itensPreenchidos.map((item, index) => (
+                    <li key={index}> <Typography variant="body2"> <strong>{item.label}:</strong> {String(item.value)} </Typography> </li>
                 ))}
             </ul>
         );
     };
 
-
-    // --- JSX (RENDERIZAÇÃO) ---
+    // --- JSX (RENDERIZAÇÃO ATUALIZADO) ---
     return (
         <Dialog open={!!evolucaoId} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>Relatório da Consulta</DialogTitle>
@@ -339,24 +423,55 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                             )}
                         />
                         
-                        {/* 2. SEÇÃO DA ANAMNESE (CONDICIONAL) */}
+                        {/* ★★★ 2. SEÇÃO DA ANAMNESE (AGORA COMPLETA) ★★★ */}
+                        
                         {relatorioData.especialidade === 'pediatria' && (
                             <SecaoRelatorio 
-                                titulo="Resumo do Histórico Pediátrico (Cadastro Mestre)"
-                                data={relatorioData.anamnese?.pediatrica} // Adiciona safe navigation
+                                titulo="Resumo do Histórico Pediátrico"
+                                data={relatorioData.anamnese?.pediatrica}
                                 renderFunc={renderAnamnesePediatrica}
+                            />
+                        )}
+                        {relatorioData.especialidade === 'neonatologia' && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do Histórico Neonatal"
+                                data={relatorioData.anamnese?.neonatologia}
+                                renderFunc={renderAnamneseNeonatologia}
                             />
                         )}
                         {relatorioData.especialidade === 'cardiologia' && (
                             <SecaoRelatorio 
-                                titulo="Resumo do Histórico Cardiológico (Cadastro Mestre)"
-                                data={relatorioData.anamnese?.cardiologica} // Adiciona safe navigation
-                                renderFunc={renderAnamneseCardiologica}
+                                titulo="Resumo do Histórico Cardiológico"
+                                data={relatorioData.anamnese?.cardiologica}
+                                renderFunc={(data) => renderAnamneseGenerica(data, cardioLabelMap, "Histórico Cardiológico")}
                             />
                         )}
+                        {relatorioData.especialidade === 'ginecologia' && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do Histórico Ginecológico"
+                                data={relatorioData.anamnese?.ginecologica}
+                                renderFunc={(data) => renderAnamneseGenerica(data, ginecoLabelMap, "Histórico Ginecológico")}
+                            />
+                        )}
+                        {relatorioData.especialidade === 'ortopedia' && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do Histórico Ortopédico"
+                                data={relatorioData.anamnese?.ortopedica}
+                                renderFunc={(data) => renderAnamneseGenerica(data, ortoLabelMap, "Histórico Ortopédico")}
+                            />
+                        )}
+                        {relatorioData.especialidade === 'clinica_geral' && (
+                            <SecaoRelatorio 
+                                titulo="Resumo do Histórico de Clínica Geral"
+                                data={relatorioData.anamnese?.clinica_geral}
+                                renderFunc={(data) => renderAnamneseGenerica(data, clinicaGeralLabelMap, "Histórico de Clínica Geral")}
+                            />
+                        )}
+                        {/* (Seções para Neuro, Obste, etc. podem ser adicionadas aqui) */}
                         
-                        {/* 3. SEÇÃO DO DNPM (CONDICIONAL - SÓ PEDIATRIA) */}
-                        {relatorioData.especialidade === 'pediatria' && relatorioData.dnpm && (
+
+                        {/* 3. SEÇÃO DO DNPM (Mostra para Peds e Neo) */}
+                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && (
                             <SecaoRelatorio 
                                 titulo="Resumo do DNPM (Cadastro Mestre)"
                                 data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
@@ -373,22 +488,17 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                                 </li>
                                             ))}
                                         </ul>
-                                    ) : (
-                                        <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography>
-                                    )
+                                    ) : ( <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography> )
                                 }}
                             />
                         )}
 
-                        {/* ★★★ 4. SEÇÃO DE VACINAS (CORRIGIDA) ★★★ */}
-                        {relatorioData.especialidade === 'pediatria' && relatorioData.vacinas && (
+                        {/* 4. SEÇÃO DE VACINAS (Mostra para Peds e Neo) */}
+                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && (
                             <SecaoRelatorio 
                                 titulo="Resumo da Vacinação (Cadastro Mestre)"
                                 data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
                                 renderFunc={(data) => {
-                                    console.log('[DEBUG MODAL] 💉 Vacinas FILTRADAS:', data);
-                                    
-                                    // A LÓGICA DA TABELA ESTÁ DE VOLTA
                                     return data.length > 0 ? (
                                         <TableContainer component={Paper} variant="outlined">
                                             <Table size="small">
@@ -405,7 +515,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                                         <TableRow key={vacina.id}>
                                                             <TableCell>{vacina.nome_vacina}</TableCell>
                                                             <TableCell>{vacina.dose}</TableCell>
-                                                            <TableCell sx={{color: vacina.status === 'Atrasada' ? 'error.main' : 'text.primary'}}>
+                                                            <TableCell sx={{color: vacina.status === 'Atrasada' ? 'error.main' : 'primary.main'}}>
                                                                 {vacina.status}
                                                             </TableCell>
                                                             <TableCell>{vacina.data_aplicacao ? new Date(vacina.data_aplicacao + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</TableCell>
@@ -414,9 +524,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                                                 </TableBody>
                                             </Table>
                                         </TableContainer>
-                                    ) : (
-                                        <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography>
-                                    )
+                                    ) : ( <Typography variant="body2">Nenhuma vacina (Aplicada, Atrasada, etc.) registrada.</Typography> )
                                 }}
                             />
                         )}
