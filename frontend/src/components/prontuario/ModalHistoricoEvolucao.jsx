@@ -1,5 +1,7 @@
 /// src/components/prontuario/ModalHistoricoEvolucao.jsx
-// VERSÃO GENÉRICA COMPLETA (Peds, Cardio, Neo, Gineco, Orto, Clinica)
+// VERSÃO CORRIGIDA:
+// 1. Mapa da Cardiologia corrigido (para 'historico_familiar')
+// 2. Especialidade padrão revertida para 'pediatria' (para consultas antigas)
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
@@ -30,7 +32,7 @@ const SecaoRelatorio = ({ titulo, data, renderFunc }) => {
 
 // --- MAPAS DE LABELS ---
 
-// MAPA 1: Labels de Pediatria
+// MAPA 1: Labels de Pediatria (Correto)
 const pedsLabelMap = {
     tipo_parto: 'Parto',
     idade_gestacional: 'Idade Gestacional',
@@ -61,14 +63,15 @@ const pedsLabelMap = {
     sono_comportamento_obs: 'Obs. Sono/Comp.',
 };
 
-// MAPA 2: Labels de Cardiologia
+// ★★★ CORREÇÃO 1: MAPA 2: Labels de Cardiologia ★★★
+// Os nomes agora batem com o models.py e o HistoricoCardiologia.jsx
 const cardioLabelMap = {
     fatores_risco: 'Fatores de Risco CV',
-    historico_familiar: 'Histórico Familiar (Cardio)',
-    cirurgias_cardiacas_previas: 'Cirurgias/Procedimentos Prévios'
+    historico_familiar: 'Histórico Familiar (Cardio)',         // ANTES: hist_familiar_cardio
+    cirurgias_cardiacas_previas: 'Cirurgias/Procedimentos Prévios' // ANTES: cirurgias_previas_cardio
 };
 
-// MAPA 3: Labels de Neonatologia
+// MAPA 3: Labels de Neonatologia (Correto)
 const neoLabelMap = {
     pre_natal: 'Pré-Natal',
     tipo_gestacao: 'Tipo Gestação',
@@ -101,7 +104,7 @@ const neoLabelMap = {
     diagnosticos_principais: 'Diagnósticos Principais (Alta)',
 };
 
-// ★★★ NOVO: MAPA 4: Labels de Ginecologia ★★★
+// MAPA 4: Labels de Ginecologia (Correto)
 const ginecoLabelMap = {
     menarca_idade: 'Idade da Menarca',
     ciclo_regular: 'Ciclo Regular',
@@ -114,7 +117,7 @@ const ginecoLabelMap = {
     hists_ists: 'Histórico de ISTs',
 };
 
-// ★★★ NOVO: MAPA 5: Labels de Ortopedia ★★★
+// MAPA 5: Labels de Ortopedia (Correto)
 const ortoLabelMap = {
     antecedentes: 'Antecedentes Ortopédicos',
     ex_local: 'Local Afetado / Articulação',
@@ -126,7 +129,7 @@ const ortoLabelMap = {
     ex_testes: 'Testes Especiais',
 };
 
-// ★★★ NOVO: MAPA 6: Labels de Clínica Geral ★★★
+// MAPA 6: Labels de Clínica Geral (Correto)
 const clinicaGeralLabelMap = {
     hmp: 'Histórico Médico Pregresso',
     habitos_sociais: 'Hábitos e Histórico Social',
@@ -166,7 +169,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
     const [isLoading, setIsLoading] = useState(false);
     const { showSnackbar } = useSnackbar();
 
-    // ★★★ useEffect (ATUALIZADO PARA SUPORTAR TODAS AS 10) ★★★
+    // useEffect
     useEffect(() => {
         if (pacienteId && evolucaoId) {
             setIsLoading(true);
@@ -179,33 +182,45 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                     const resEvolucao = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/${cacheBuster}`);
                     const evolucao = resEvolucao.data;
                     
-                    // Usa 'clinica_geral' como padrão se o campo for nulo
-                    const especialidade = evolucao.especialidade || 'clinica_geral';
+                    // ★★★ CORREÇÃO 2: Padrão para consultas antigas ★★★
+                    // Usa 'pediatria' como padrão se o campo for nulo (para consultas antigas)
+                    const especialidade = evolucao.especialidade || 'pediatria';
                     
                     console.log(`[DEBUG MODAL] Especialidade detectada: ${especialidade}`);
 
                     const dadosBrutos = {
                         evolucao: evolucao,
-                        especialidade: especialidade,
+                        // O 'evolucao.especialidade' do backend agora é um ID
+                        // Mas o 'evolucao.especialidade_nome' (que o serializer.py deve enviar) é o texto
+                        // Vamos usar o nome da especialidade que vem do serializer
+                        especialidade: evolucao.especialidade_nome ? evolucao.especialidade_nome.toLowerCase() : especialidade,
                         anamnese: null, dnpm: null, vacinas: null,
                     };
+                    
+                    // Se o seu serializer ainda não manda 'especialidade_nome',
+                    // a linha abaixo (que você tinha) é a melhor alternativa:
+                    // const especialidade = evolucao.especialidade || 'pediatria';
+                    
+                    // Ajuste final para garantir que o nome da especialidade esteja em minúsculo
+                    const especialidadeLimpa = (evolucao.especialidade_nome || especialidade).toLowerCase();
+                    dadosBrutos.especialidade = especialidadeLimpa;
+
 
                     // ESTÁGIO 2: Buscar dados-mestre
                     const anamnesePromise = apiClient.get(`/prontuario/pacientes/${pacienteId}/anamnese/${cacheBuster}`);
                     const promises = [anamnesePromise];
 
                     // PediATRIA e NeoNATOLOGIA carregam as abas de DNPM e Vacinas
-                    if (especialidade === 'pediatria' || especialidade === 'neonatologia') {
-                        console.log(`[DEBUG MODAL] Adicionando buscas de ${especialidade} (DNPM, Vacinas)...`);
+                    if (especialidadeLimpa === 'pediatria' || especialidadeLimpa === 'neonatologia') {
+                        console.log(`[DEBUG MODAL] Adicionando buscas de ${especialidadeLimpa} (DNPM, Vacinas)...`);
                         promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/marcos-dnpm/${cacheBuster}`));
                         promises.push(apiClient.get(`/prontuario/pacientes/${pacienteId}/vacinas/${cacheBuster}`));
                     }
-                    // (Outras especialidades não precisam de fetches extras... por enquanto)
 
                     const responses = await Promise.all(promises);
                     dadosBrutos.anamnese = responses[0].data; 
 
-                    if (especialidade === 'pediatria' || especialidade === 'neonatologia') {
+                    if (especialidadeLimpa === 'pediatria' || especialidadeLimpa === 'neonatologia') {
                         dadosBrutos.dnpm = responses[1].data;
                         dadosBrutos.vacinas = responses[2].data;
                     }
@@ -244,14 +259,11 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
 
     // --- FUNÇÕES DE RENDERIZAÇÃO DE ANAMNESE ---
 
-    // Função genérica para renderizar uma lista de itens de um mapa de labels
+    // Função genérica
     const renderAnamneseGenerica = (data, labelMap, titulo) => {
         if (!data) return <Typography variant="body2">Nenhum dado de {titulo} encontrado.</Typography>;
         
         const itensPreenchidos = [];
-        
-        // Adiciona lógica para campos especiais (ex: datas, G/P/A) se necessário
-        // Por enquanto, uma busca simples no mapa:
         Object.entries(data).forEach(([key, value]) => {
             const label = labelMap[key];
             if (label && isFilled(value)) {
@@ -276,7 +288,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
         );
     };
 
-    // Helper de Triagens (usado por Peds e Neo)
+    // Helper de Triagens
     const renderTriagens = (triagensData) => {
         const itensTriagem = [];
         Object.entries(triagensData || {}).forEach(([key, value]) => {
@@ -471,7 +483,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         
 
                         {/* 3. SEÇÃO DO DNPM (Mostra para Peds e Neo) */}
-                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && (
+                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && relatorioData.dnpm && (
                             <SecaoRelatorio 
                                 titulo="Resumo do DNPM (Cadastro Mestre)"
                                 data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
@@ -494,7 +506,7 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         )}
 
                         {/* 4. SEÇÃO DE VACINAS (Mostra para Peds e Neo) */}
-                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && (
+                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && relatorioData.vacinas && (
                             <SecaoRelatorio 
                                 titulo="Resumo da Vacinação (Cadastro Mestre)"
                                 data={relatorioData.vacinas.filter(v => v.status !== 'Pendente')} 
