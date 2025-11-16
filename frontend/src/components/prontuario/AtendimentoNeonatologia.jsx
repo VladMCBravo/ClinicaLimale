@@ -1,324 +1,586 @@
-// src/components/prontuario/AtendimentoNeurologia.jsx
-// CORRIGIDO: Removidos useEffects automáticos que causavam loop
+// src/components/prontuario/AtendimentoNeonatologia.jsx
+// VERSÃO REATORADA: Aplicado o padrão Orquestrador de Pediatria.
+// Utiliza um botão de salvar único e refs para salvar as abas filhas.
 
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import {
-    Paper, Typography, FormGroup, FormControlLabel, Checkbox, TextField, Divider,
-    Box, Button, CircularProgress, Tabs, Tab
+    Paper, Typography, TextField, Box, Button, CircularProgress, Tabs, Tab,
+    Grid, FormGroup, FormControlLabel, Checkbox, Divider,
+    FormControl, InputLabel, Select, MenuItem,
+    Chip
 } from '@mui/material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
-const HistoricoNeurologia = lazy(() => import('./neurologia/HistoricoNeurologia'));
-const RelatoriosTab = lazy(() => import('./RelatoriosTab')); 
+const HistoricoNeonatologia = lazy(() => import('./neonatologia/HistoricoNeonatologia'));
+const DnpmDetalhado = lazy(() => import('./pediatria/DnpmDetalhado'));
+const VacinacaoTab = lazy(() => import('./pediatria/VacinacaoTab'));
 
-// --- OPÇÕES E TEMPLATES (Consulta Atual Neurológica) ---
-const sintomasNeurologiaOptions = [
-    { id: 'cefaleia', label: 'Cefaleia', template: 'Refere cefaleia (início, tipo, localização, irradiação, intensidade, fatores).' },
-    { id: 'tontura_vertigem', label: 'Tontura / Vertigem', template: 'Refere tontura/vertigem (tipo, duração, fatores).' },
-    { id: 'fraqueza_muscular', label: 'Fraqueza Muscular', template: 'Refere fraqueza muscular em ___.' },
-    { id: 'alteracao_sensorial', label: 'Alteração Sensorial', template: 'Refere parestesia/dormência em ___.' },
-    { id: 'convulsao', label: 'Convulsão / Síncope', template: 'Relato de episódio de ___ (descrever).' },
-    { id: 'perda_memoria', label: 'Perda de Memória', template: 'Refere perda de memória / confusão.' },
-    { id: 'tremor', label: 'Tremor', template: 'Refere tremor (repouso/ação) em ___.' },
+// --- (Constantes de Opções do Exame Físico omitidas para brevidade) ---
+const exameFisicoNeoGroups = [
+    { id: 'avaliacao_geral', label: 'Avaliação Geral', options: [{ value: 'BEG', label: 'BEG', template: 'Bom Estado Geral (BEG).'}, { value: 'REG', label: 'REG', template: 'Regular Estado Geral (REG).'}, { value: 'MEG', label: 'MEG', template: 'Mau Estado Geral (MEG).'}] },
+    { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.'}, { value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.'}, { value: 'Letargico', label: 'Letárgico', template: 'Letárgico.'}] },
+    { id: 'reatividade', label: 'Reatividade', options: [{ value: 'Reativo', label: 'Reativo', template: 'Reativo.'}, { value: 'Hiporreativo', label: 'Hiporreativo', template: 'Hiporreativo.'}, { value: 'Irritado', label: 'Irritado', template: 'Irritado.'}] },
+    { id: 'cor', label: 'Coloração', options: [{ value: 'Corado', label: 'Corado', template: 'Corado.'},{ value: 'Descorado', label: 'Descorado', template: 'Descorado.'},{ value: 'Icterico', label: 'Ictérico', template: 'Ictérico (Zona ___).'},{ value: 'Cianotico', label: 'Cianótico', template: 'Cianótico.'}] },
+    { id: 'hidratacao', label: 'Hidratação', options: [{ value: 'Hidratado', label: 'Hidratado', template: 'Hidratado.'},{ value: 'Desidratado', label: 'Desidratado', template: 'Desidratado.'}] },
+    { id: 'estado_febril', label: 'Temperatura', options: [{ value: 'Afebril', label: 'Afebril', template: 'Afebril ao toque.'},{ value: 'Febril', label: 'Febril', template: 'Febril ao toque.'}] },
+    { id: 'pele_lesoes', label: 'Pele (Lesões)', options: [{ value: 'Integra', label: 'Íntegra / Sem Lesões', template: 'Pele íntegra, sem lesões.'},{ value: 'Eritema', label: 'Eritema Tóxico', template: 'Eritema tóxico neonatal.'},{ value: 'Petequias', label: 'Petéquias', template: 'Petéquias presentes.'},{ value: 'Outras', label: 'Outras Lesões', template: 'Lesões cutâneas (descrever).'}] },
+    { id: 'fontanela', label: 'Fontanela Anterior', options: [{ value: 'Normotensa', label: 'Normotensa', template: 'Fontanela anterior normotensa.'},{ value: 'Abaulada', label: 'FA Abaulada', template: 'Fontanela anterior abaulada.'},{ value: 'Deprimida', label: 'FA Deprimida', template: 'Fontanela anterior deprimida.'}] },
+    { id: 'suturas', label: 'Suturas', options: [{ value: 'Normais', label: 'Normais', template: 'Suturas cranianas normais.'},{ value: 'Acavalgadas', label: 'Acavalgadas', template: 'Suturas acavalgadas.'},{ value: 'Diastase', label: 'Diástase', template: 'Diástase de suturas.'}] },
+    { id: 'pescoco', label: 'Pescoço', options: [{ value: 'Livre', label: 'Livre / Indolor', template: 'Pescoço livre, sem massas.'},{ value: 'Massas', label: 'Massas / Gânglios', template: 'Massas ou gânglios palpáveis.'},{ value: 'Retracoes', label: 'Retrações', template: 'Retrações cervicais.'}] },
+    { id: 'olhos_estado', label: 'Olhos (Estado)', options: [{ value: 'Normal', label: 'Normal', template: 'Pupilas isocóricas. Conjuntivas coradas.'},{ value: 'Hiperemia', label: 'Hiperemia Conjuntival', template: 'Hiperemia conjuntival.'},{ value: 'Edema', label: 'Edema Palpebral', template: 'Edema palpebral.'}] },
+    { id: 'olhos_secrecao', label: 'Secreção Ocular', options: [{ value: 'Ausente', label: 'Ausente', template: 'Sem secreção ocular.'},{ value: 'Presente', label: 'Presente', template: 'Secreção ocular presente.'}] },
+    { id: 'reflexo_vermelho', label: 'Reflexo Vermelho', options: [{ value: 'Presente', label: 'Presente', template: 'Reflexo vermelho presente.'},{ value: 'Ausente', label: 'Ausente', template: 'Reflexo vermelho ausente.'}] },
+    { id: 'orofaringe', label: 'Orofaringe', options: [{ value: 'Normal', label: 'Normal', template: 'Orofaringe normal, palato íntegro.'},{ value: 'Frenulo_curto', label: 'Frênulo Curto', template: 'Frênulo lingual curto.'},{ value: 'Outros', label: 'Alterada', template: 'Orofaringe alterada (descrever).'}] },
+    { id: 'respiratorio_padrao', label: 'Padrão Respiratório', options: [{ value: 'Eupneico', label: 'Eupneico', template: 'Eupneico, boa expansibilidade.'},{ value: 'Dispneico', label: 'Dispneico/Taquipneico', template: 'Dispneico/Taquipneico, com retrações.'}] },
+    { id: 'respiratorio_ausculta', label: 'Ausculta Respiratória', options: [{ value: 'Normal', label: 'MV+ s/ RA', template: 'MV presente bilateralmente, sem ruídos adventícios.'},{ value: 'Roncos', label: 'Roncos', template: 'Roncos.'},{ value: 'Sibilos', label: 'Sibilos', template: 'Sibilos.'},{ value: 'Estertores', label: 'Estertores', template: 'Estertores.'}] },
+    { id: 'cardio_ritmo', label: 'Ritmo Cardíaco', options: [{ value: 'Normal', label: 'BRNF 2T', template: 'BRNF em 2T.'},{ value: 'Arritmia', label: 'Arritmia', template: 'Ritmo arrítmico.'}] },
+    { id: 'cardio_sopros', label: 'Sopros', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Sem sopros.'},{ value: 'Presentes', label: 'Presentes', template: 'Sopro (descrever /6+).'}] },
+    { id: 'cardio_perfusao', label: 'Perfusão', options: [{ value: 'Normal', label: 'Perfusão < 3s', template: 'Perfusão periférica < 3s.'},{ value: 'Lenta', label: 'Perfusão > 3s', template: 'Perfusão lentificada.'}] },
+    { id: 'abdome_forma', label: 'Abdome (Forma)', options: [{ value: 'Plano', label: 'Plano', template: 'Abdome plano.'},{ value: 'Globoso', label: 'Globoso', template: 'Abdome globoso.'},{ value: 'Distendido', label: 'Distendido', template: 'Abdome distendido.'}] },
+    { id: 'abdome_rha', label: 'Abdome (RHA)', options: [{ value: 'Presentes', label: 'RHA Presentes', template: 'RHA presentes.'},{ value: 'Aumentados', label: 'RHA Aumentados', template: 'RHA aumentados.'},{ value: 'Diminuidos', label: 'RHA Diminuídos', template: 'RHA diminuídos.'},{ value: 'Ausentes', label: 'RHA Ausentes', template: 'RHA ausentes.'}] },
+    { id: 'abdome_palpacao', label: 'Abdome (Palpação)', options: [{ value: 'Flacido', label: 'Flácido/Indolor', template: 'Abdome flácido, indolor.'},{ value: 'Doloroso', label: 'Doloroso', template: 'Abdome doloroso à palpação.'},{ value: 'Massas', label: 'Massas Palpáveis', template: 'Massa palpável em ___.'}] },
+    { id: 'abdome_viscero', label: 'Abdome (Viscerom.)', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Sem visceromegalias.'},{ value: 'Hepatomegalia', label: 'Hepatomegalia', template: 'Hepatomegalia.'},{ value: 'Esplenomegalia', label: 'Esplenomegalia', template: 'Esplenomegalia.'}] },
+    { id: 'cordao', label: 'Cordão Umbilical', options: [{ value: 'NaoAplica', label: 'Não se aplica', template: ''}, { value: 'Normal', label: 'Seco, sem sinais flogísticos', template: 'Coto umbilical seco, sem sinais flogísticos.'},{ value: 'Alterado', label: 'Alterado (Eritema/Secreção)', template: 'Coto umbilical com hiperemia/secreção.'}] },
+    { id: 'genitalia', label: 'Genitália', options: [{ value: 'Normal', label: 'Normal/Tópica', template: 'Genitália tópica, sem alterações.'},{ value: 'Anormal', label: 'Anormal', template: 'Genitália anormal (descrever).'}] },
+    { id: 'anus', label: 'Ânus', options: [{ value: 'Pervio', label: 'Pérvio', template: 'Ânus pérvio.'},{ value: 'Imperfurado', label: 'Imperfurado', template: 'Ânus imperfurado.'}] },
+    { id: 'membros_coluna', label: 'Membros e Coluna', options: [{ value: 'Normal', label: 'Normais, alinhados', template: 'Membros e coluna sem alterações. Ortolani negativo.'},{ value: 'Fosseta', label: 'Fosseta Sacral', template: 'Fosseta sacral.'},{ value: 'Alterado', label: 'Alterado', template: 'Alteração em membros/coluna (descrever).'}] },
+    { id: 'pulsos', label: 'Pulsos (Membros)', options: [{ value: 'Simetricos', label: 'Simétricos/Cheios', template: 'Pulsos simétricos e cheios.'},{ value: 'Assimetricos', label: 'Assimétricos/Diminuídos', template: 'Pulsos assimétricos ou diminuídos.'}] },
+    { id: 'neuro_tonus', label: 'Tônus', options: [{ value: 'Normal', label: 'Tônus Normal', template: 'Tônus normal, ativo.'}, { value: 'Hipotonia', label: 'Hipotonia', template: 'Hipotonia.'}, { value: 'Hipertonia', label: 'Hipertonia', template: 'Hipertonia.'}] },
+    { id: 'sinais_meningeos', label: 'Sinais Meníngeos', options: [{ value: 'Ausentes', label: 'Ausentes', template: 'Sinais meníngeos ausentes.'}, { value: 'Presentes', label: 'Presentes', template: 'Sinais meníngeos presentes.'}] },
 ];
-const exameFisicoNeurologiaOptions = [
-    { id: 'alerta_orientado', label: 'Alerta, Orientado (AOx3)', group: 'mental', template: "Estado Mental: Alerta, orientado em tempo, espaço e pessoa." },
-    { id: 'confuso_desorientado', label: 'Confuso / Desorientado', group: 'mental', template: "Estado Mental: Confuso / Desorientado." },
-    { id: 'linguagem_normal', label: 'Linguagem Normal', group: 'mental', template: "Linguagem preservada." },
-    { id: 'afasia', label: 'Afasia (Expressão/Compreensão)', group: 'mental', template: "Linguagem: Afasia de ___." },
-    { id: 'cn_normais', label: 'Pares Cranianos Normais', group: 'cranianos', template: "Pares Cranianos: Sem alterações." },
-    { id: 'cn_alterados', label: 'Alteração Pares Cranianos', group: 'cranianos', template: "Pares Cranianos: Alteração em ___ (descrever)." },
-    { id: 'forca_global_5', label: 'Força Global Grau 5/5', group: 'motor', template: "Motor: Força muscular global preservada (Grau 5/5)." },
-    { id: 'hemiparesia', label: 'Hemiparesia (D/E)', group: 'motor', template: "Motor: Hemiparesia em ___." },
-    { id: 'tonus_normal', label: 'Tônus Normal', group: 'motor', template: "Tônus normal." },
-    { id: 'espasticidade_rigidez', label: 'Espasticidade / Rigidez', group: 'motor', template: "Tônus: Presença de ___." },
-    { id: 'sem_mov_invol', label: 'Sem Mov. Involuntários', group: 'motor', template: "Sem movimentos involuntários." },
-    { id: 'reflexos_normo', label: 'Reflexos Normoativos', group: 'reflexos', template: "Reflexos profundos normoativos e simétricos." },
-    { id: 'reflexos_alterados', label: 'Hiper/Hiporreflexia', group: 'reflexos', template: "Reflexos profundos ___." },
-    { id: 'babinski_ausente', label: 'Babinski Ausente (Flexor)', group: 'reflexos', template: "Reflexo cutâneo-plantar flexor bilateral." },
-    { id: 'babinski_presente', label: 'Babinski Presente (Extensor)', group: 'reflexos', template: "Reflexo cutâneo-plantar extensor em ___." },
-    { id: 'sensibilidade_normal', label: 'Sensibilidade Normal', group: 'sensorial', template: "Sensibilidade (tátil, dolorosa, vibratória) preservada." },
-    { id: 'hipoestesia', label: 'Hipoestesia / Anestesia', group: 'sensorial', template: "Sensibilidade: Hipoestesia em ___." },
-    { id: 'marcha_normal', label: 'Marcha Normal', group: 'marcha', template: "Marcha e equilíbrio: Eutáxica, Romberg negativo." },
-    { id: 'marcha_ataxica', label: 'Marcha Atáxica', group: 'marcha', template: "Marcha atáxica." },
-    { id: 'romberg_positivo', label: 'Romberg Positivo', group: 'marcha', template: "Sinal de Romberg positivo." },
-    { id: 'sinais_meningeos_ausentes', label: 'Sinais Meníngeos Ausentes', group: 'marcha', template: "Sinais meníngeos (Rigidez Nucal, Kernig, Brudzinski) ausentes." },
+const reflexosPrimitivosGroups = [
+    { id: 'reflexo_moro', label: 'Moro', options: [{ value: 'Presente', label: 'Presente', template: 'Moro presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Moro ausente.'}, { value: 'Incompleto', label: 'Incompleto', template: 'Moro incompleto.'}] },
+    { id: 'reflexo_cocleo_palp', label: 'Cócleo-Palpebral', options: [{ value: 'Presente', label: 'Presente', template: 'Refl. Cócleo-Palpebral presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Refl. Cócleo-Palpebral ausente.'}] },
+    { id: 'reflexo_succao', label: 'Sucção', options: [{ value: 'Presente', label: 'Presente', template: 'Refl. Sucção presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Refl. Sucção ausente.'}, { value: 'Fraco', label: 'Fraco', template: 'Refl. Sucção fraco.'}] },
+    { id: 'reflexo_preensao_palmar', label: 'Preensão Palmar', options: [{ value: 'Presente', label: 'Presente', template: 'Preensão Palmar presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Preensão Palmar ausente.'}, { value: 'Fraco', label: 'Fraco', template: 'Preensão Palmar fraca.'}] },
+    { id: 'reflexo_preensao_plantar', label: 'Preensão Plantar', options: [{ value: 'Presente', label: 'Presente', template: 'Preensão Plantar presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Preensão Plantar ausente.'}, { value: 'Fraco', label: 'Fraco', template: 'Preensão Plantar fraca.'}] },
+    { id: 'reflexo_cutaneo_plantar', label: 'Cutâneo Plantar', options: [{ value: 'Normal', label: 'Normal (Extensor)', template: 'Refl. Cutâneo Plantar extensor.'}, { value: 'Ausente', label: 'Ausente', template: 'Refl. Cutâneo Plantar ausente.'}, { value: 'Flexor', label: 'Flexor (Anormal)', template: 'Refl. Cutâneo Plantar flexor.'}] },
+    { id: 'reflexo_marcha', label: 'Marcha', options: [{ value: 'Presente', label: 'Presente', template: 'Refl. Marcha presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Refl. Marcha ausente.'}] },
+    { id: 'reflexo_galant', label: 'Galant', options: [{ value: 'Presente', label: 'Presente', template: 'Refl. Galant presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Refl. Galant ausente.'}] },
+    { id: 'reflexo_atnr', label: 'ATNR', options: [{ value: 'Presente', label: 'Presente', template: 'Refl. ATNR presente.'}, { value: 'Ausente', label: 'Ausente', template: 'Refl. ATNR ausente.'}] },
 ];
+// --- FIM EXAME FÍSICO ---
 
 // Helper TabPanel
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
     return (
-        <div role="tabpanel" hidden={value !== index} id={`neuro-tabpanel-${index}`} {...other}>
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`neo-tabpanel-${index}`}
+            {...other}
+        >
             {value === index && (<Box sx={{ p: { xs: 1, sm: 2 } }}>{children}</Box>)}
         </div>
     );
 }
 
-export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
+// --- Componente Principal ---
+export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
-    const [sintomasConsulta, setSintomasConsulta] = useState({});
+    const [vitalsData, setVitalsData] = useState({});
+    const [evolucaoDiaria, setEvolucaoDiaria] = useState({ dieta: '', diurese: '', evacuacao: '' });
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-    const [consultaSalvaId, setConsultaSalvaId] = useState(null); 
 
-    useEffect(() => {
-        setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-        setSintomasConsulta({});
-        setExameFisicoData({});
-        setTabIndex(0);
-        setConsultaSalvaId(null);
+    const [vacinacaoStatus, setVacinacaoStatus] = useState(null);
+    const [dnpmStatus, setDnpmStatus] = useState(null);
+
+    // --- 1. ADICIONAR REFS PARA AS ABAS FILHAS ---
+    // (Não adicionamos ref para o Histórico, pois ele tem seu próprio botão de salvar)
+    const dnpmRef = useRef(null);
+    const vacinacaoRef = useRef(null);
+
+    // --- 2. ADICIONAR ESTADO PARA O ID DA EVOLUÇÃO DA SESSÃO ---
+    const [evolucaoIdSessao, setEvolucaoIdSessao] = useState(null);
+
+
+    const fetchStatusResumos = useCallback(async () => {
+        if (!pacienteId) {
+            setVacinacaoStatus(null);
+            setDnpmStatus(null);
+            return;
+        }
+        try {
+            // (endpoints desabilitados - Lógica de Pediatria)
+            console.log("Buscando status de DNPM e Vacinas...");
+        } catch (err) {
+            console.error("Erro ao buscar resumos de status", err);
+        }
     }, [pacienteId]);
 
-    // Geradores de texto
-    const generateSubjetivo = useCallback((sintomas) => { 
-        const currentSintomas = sintomas || sintomasConsulta;
-        return sintomasNeurologiaOptions
-            .filter(opt => currentSintomas[opt.id])
-            .map(opt => opt.template || `${opt.label}: `)
-            .join('\n');
-     }, [sintomasConsulta]);
+    // --- useEffect DE CARREGAMENTO (MODIFICADO) ---
+    useEffect(() => {
+        setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+        setExameFisicoData({});
+        setVitalsData({});
+        setEvolucaoDiaria({ dieta: '', diurese: '', evacuacao: '' });
+        setTabIndex(0);
+        setVacinacaoStatus(null);
+        setDnpmStatus(null);
 
-    const generateObjetivo = useCallback((exame) => {
+        // --- 3. RESETAR O ID DA SESSÃO AO TROCAR DE PACIENTE ---
+        setEvolucaoIdSessao(null);
+
+        if (pacienteId) {
+            apiClient.get(`/pacientes/${pacienteId}/`)
+                .then(res => {
+                    // Pré-popula os vitais (ex: peso, se vier da API)
+                    setVitalsData(prev => ({
+                        ...prev,
+                        // peso: res.data.peso_nascimento || '', // Exemplo
+                    }));
+                })
+                .catch(err => {
+                    console.error("Erro ao carregar dados do paciente:", err);
+                    showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
+                });
+
+            fetchStatusResumos();
+        }
+    }, [pacienteId, fetchStatusResumos, showSnackbar]);
+
+
+    // --- Geradores de texto (Sem alterações) ---
+    const generateSubjetivo = useCallback((vitals, evolucao) => {
+        const currentVitals = vitals || vitalsData;
+        const currentEvolucao = evolucao || evolucaoDiaria;
+        return `RN com ${currentVitals.dias_vida || '___'} dias de vida, IGC ${currentVitals.igc_semanas || '__'}s ${currentVitals.igc_dias || '_'}d.\nMedicações em uso: ${currentVitals.medicacoes || 'Nenhuma'}.\nObservações: ${currentVitals.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${currentEvolucao.dieta || 'Não informado'}\nDiurese: ${currentEvolucao.diurese || 'Não informado'}\nEvacuação: ${currentEvolucao.evacuacao || 'Não informado'}`;
+    }, [vitalsData, evolucaoDiaria]);
+
+    const generateObjetivo = useCallback((vitals, exame) => {
+        const currentVitals = vitals || vitalsData;
         const currentExame = exame || exameFisicoData;
-        let texto = `Dados Vitais:\nPA: ${currentExame.pa || '___x___'} mmHg\nFC: ${currentExame.fc || '___'} bpm\nPeso: ${currentExame.peso || '___'} kg\n\nExame Neurológico:\n`;
-        const achados = exameFisicoNeurologiaOptions
-            .filter(opt => currentExame[opt.id])
-            .map(opt => opt.template).join(" ");
+        let texto = `Dados Vitais:\nPeso: ${currentVitals.peso || '___'} g\nCompr: ${currentVitals.comprimento || '___'} cm\nPC: ${currentVitals.pc || '___'} cm\n\nExame Físico:\n`;
+        const todosOsGrupos = [...exameFisicoNeoGroups, ...reflexosPrimitivosGroups];
+        const achados = todosOsGrupos.map(group => {
+            const selectedValue = currentExame[group.id];
+            if (!selectedValue || selectedValue === 'Nenhum' || selectedValue === 'NaoAplica') return null;
+            const option = group.options.find(opt => opt.value === selectedValue);
+            return option ? option.template : '';
+        }).filter(Boolean).join(" ");
         return texto + (achados || "Nenhuma observação selecionada.");
-    }, [exameFisicoData]);
+    }, [vitalsData, exameFisicoData]);
 
-    // Handlers
+
+    // --- Handlers (Sem alterações) ---
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    
-    const handleSintomasChange = (e) => {
-        const newSintomas = { ...sintomasConsulta, [e.target.name]: e.target.checked };
-        setSintomasConsulta(newSintomas);
-        
-        const hdaText = generateSubjetivo(newSintomas);
-        setSoapData(prev => ({ ...prev, notas_subjetivas: hdaText || '' }));
-    };
-    
-    const handleExameChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        const newExameData = { ...exameFisicoData, [name]: type === 'checkbox' ? checked : value };
-        setExameFisicoData(newExameData);
 
-        const exameText = generateObjetivo(newExameData);
-        setSoapData(prev => ({ ...prev, notas_objetivas: exameText }));
-    };
+    const handleVitalsChange = (e) => {
+        const newVitals = { ...vitalsData, [e.target.name]: e.target.value };
+        setVitalsData(newVitals);
 
-    // Botão Normalidade
-    const preencherNormalidade = () => {
-        setSintomasConsulta({}); 
-        
-        const newExameData = {
-            ...exameFisicoData, // Mantém vitais (PA/FC/Peso)
-            alerta_orientado: true,
-            linguagem_normal: true,
-            cn_normais: true,
-            forca_global_5: true,
-            tonus_normal: true,
-            sem_mov_invol: true,
-            reflexos_normo: true,
-            babinski_ausente: true,
-            sensibilidade_normal: true,
-            marcha_normal: true,
-            sinais_meningeos_ausentes: true,
-            // Limpa os anormais
-            confuso_desorientado: false, afasia: false, cn_alterados: false, hemiparesia: false,
-            espasticidade_rigidez: false, reflexos_alterados: false, babinski_presente: false,
-            hipoestesia: false, marcha_ataxica: false, romberg_positivo: false,
-        };
-        setExameFisicoData(newExameData);
-
-        // Gera texto com os novos dados
-        const exameText = generateObjetivo(newExameData);
-        
         setSoapData(prev => ({
             ...prev,
-            notas_subjetivas: 'Paciente nega queixas neurológicas.',
-            notas_objetivas: exameText,
-            avaliacao: 'Exame neurológico sem alterações.',
-            plano: 'Manter acompanhamento de rotina.'
+            notas_subjetivas: generateSubjetivo(newVitals, evolucaoDiaria),
+            notas_objetivas: generateObjetivo(newVitals, exameFisicoData)
         }));
     };
-    
+    const handleEvolucaoDiariaChange = (e) => {
+        const newEvolucao = { ...evolucaoDiaria, [e.target.name]: e.target.value };
+        setEvolucaoDiaria(newEvolucao);
+
+        setSoapData(prev => ({
+            ...prev,
+            notas_subjetivas: generateSubjetivo(vitalsData, newEvolucao)
+        }));
+    };
+    const handleExameChange = (e) => {
+        const newExame = { ...exameFisicoData, [e.target.name]: e.target.value };
+        setExameFisicoData(newExame);
+
+        setSoapData(prev => ({
+            ...prev,
+            notas_objetivas: generateObjetivo(vitalsData, newExame)
+        }));
+    };
+
+    // --- preencherNormalidade (Sem alterações) ---
+    const preencherNormalidade = () => {
+        const dadosExameNormal = {
+            avaliacao_geral: 'BEG', cor: 'Corado', hidratacao: 'Hidratado', estado_febril: 'Afebril',
+            atividade: 'Ativo', reatividade: 'Reativo', pele_lesoes: 'Integra',
+            fontanela: 'Normotensa', suturas: 'Normais', pescoco: 'Livre',
+            olhos_estado: 'Normal', olhos_secrecao: 'Ausente', reflexo_vermelho: 'Presente',
+            orofaringe: 'Normal',
+            respiratorio_padrao: 'Eupneico', respiratorio_ausculta: 'Normal',
+            cardio_ritmo: 'Normal', cardio_sopros: 'Ausentes', cardio_perfusao: 'Normal',
+            abdome_forma: 'Plano', abdome_rha: 'Presentes', abdome_palpacao: 'Flacido', abdome_viscero: 'Ausentes',
+            cordao: 'NaoAplica', genitalia: 'Normal', anus: 'Pervio',
+            membros_coluna: 'Normal', pulsos: 'Simetricos',
+            neuro_tonus: 'Normal', sinais_meningeos: 'Ausentes',
+            reflexo_moro: 'Presente', reflexo_cocleo_palp: 'Presente', reflexo_succao: 'Presente',
+            reflexo_preensao_palmar: 'Presente', reflexo_preensao_plantar: 'Presente',
+            reflexo_cutaneo_plantar: 'Normal', reflexo_marcha: 'Presente', reflexo_galant: 'Presente', reflexo_atnr: 'Presente',
+        };
+        const dadosEvolucaoNormal = { dieta: 'Seno materno sob livre demanda', diurese: 'Adequada', evacuacao: 'Presente' };
+
+        const textoSubjetivo = `RN com ${vitalsData.dias_vida || '___'} dias de vida, IGC ${vitalsData.igc_semanas || '__'}s ${vitalsData.igc_dias || '_'}d.\nMedicações em uso: ${vitalsData.medicacoes || 'Nenhuma'}.\nObservações: ${vitalsData.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${dadosEvolucaoNormal.dieta}\nDiurese: ${dadosEvolucaoNormal.diurese}\nEvacuação: ${dadosEvolucaoNormal.evacuacao}`;
+        const textoObjetivo = `Dados Vitais:\nPeso: ${vitalsData.peso || '___'} g\nCompr: ${vitalsData.comprimento || '___'} cm\nPC: ${vitalsData.pc || '___'} cm\n\nExame Físico:\nBom Estado Geral (BEG). Ativo. Reativo. Corado. Hidratado. Afebril ao toque. Pele íntegra, sem lesões. Fontanela anterior normotensa. Suturas cranianas normais. Pescoço livre, sem massas. Pupilas isocóricas. Conjuntivas coradas. Sem secreção ocular. Reflexo vermelho presente. Orofaringe normal, palato íntegro. Eupneico, boa expansibilidade. MV presente bilateralmente, sem ruídos adventícios. BRNF em 2T. Sem sopros. Perfusão periférica < 3s. Abdome plano. RHA presentes. Abdome flácido, indolor. Sem visceromegalias. Genitália tópica, sem alterações. Ânus pérvio. Membros e coluna sem alterações. Ortolani negativo. Pulsos simétricos e cheios. Tônus normal, ativo. Sinais meníngeos ausentes. Moro presente. Refl. Cócleo-Palpebral presente. Refl. Sucção presente. Preensão Palmar presente. Preensão Plantar presente. Refl. Cutâneo Plantar extensor. Refl. Marcha presente. Refl. Galant presente. Refl. ATNR presente.`;
+
+        setExameFisicoData(dadosExameNormal);
+        setEvolucaoDiaria(dadosEvolucaoNormal);
+        setSoapData(prev => ({
+            ...prev,
+            notas_subjetivas: textoSubjetivo,
+            notas_objetivas: textoObjetivo,
+            avaliacao: 'RN hígido, em bom estado geral, sem queixas.',
+            plano: 'Alta da consulta. Orientações de puericultura.'
+        }));
+        showSnackbar('Exame físico preenchido com padrão normal.', 'info');
+    };
+
+    // --- handleLimparConsultaAtual (Sem alterações) ---
     const handleLimparConsultaAtual = () => {
-        setSintomasConsulta({}); 
         setExameFisicoData({});
-        
-        // Gera texto com dados vazios
-        const hdaText = generateSubjetivo({});
-        const exameText = generateObjetivo({});
-        
-        setSoapData({ notas_subjetivas: hdaText, notas_objetivas: exameText, avaliacao: '', plano: '' });
+        setEvolucaoDiaria({ dieta: '', diurese: '', evacuacao: '' });
+        // Gera o texto subjetivo e objetivo com os dados vitais (que não são limpos)
+        const subjetivoLimpo = generateSubjetivo(vitalsData, { dieta: '', diurese: '', evacuacao: '' });
+        const objetivoLimpo = generateObjetivo(vitalsData, {});
+
+        setSoapData({
+            notas_subjetivas: subjetivoLimpo,
+            notas_objetivas: objetivoLimpo,
+            avaliacao: '',
+            plano: ''
+        });
         showSnackbar('Campos da consulta atual limpos.', 'info');
     };
 
-    // --- ★★★ handleSubmit (CORRIGIDO) ★★★ ---
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        setIsSubmitting(true);
-        try {
-            const soapPayload = {
-                ...soapData,
-                pressao_arterial: exameFisicoData.pa || null,
-                frequencia_cardiaca: exameFisicoData.fc || null,
-                peso: exameFisicoData.peso || null,
-                
-                // 1. Adiciona o agendamentoId ao payload
-                agendamento: agendamentoId || null,
-            };
+    // --- 4. CRIAR A FUNÇÃO DE SALVAR SOAP (POST/PATCH) ---
+    const handleSaveSOAP = async () => {
+        // Cria o payload da evolução
+        const soapPayload = {
+            ...soapData,
+            // Adiciona vitais ao payload
+            peso: vitalsData.peso ? (parseFloat(vitalsData.peso) / 1000).toFixed(3) : null, // g para kg
+            altura: vitalsData.comprimento ? (parseFloat(vitalsData.comprimento) / 100).toFixed(2) : null, // cm para m
+            perimetro_cefalico: vitalsData.pc ? parseFloat(vitalsData.pc) : null, // cm
+            
+            // Adiciona a FK do agendamento
+            agendamento: agendamentoId || null,
+        };
 
-            // 2. A URL genérica '/evolucoes/' já está correta.
-            const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+        let evolucaoId;
+
+        if (evolucaoIdSessao) {
+            // --- JÁ EXISTE UMA EVOLUÇÃO, ATUALIZAR (PATCH) ---
+            console.log(`   -> Atualizando SOAP da Evolução ID: ${evolucaoIdSessao}`);
+            evolucaoId = evolucaoIdSessao;
+            try {
+                await apiClient.patch(`/prontuario/pacientes/${pacienteId}/evolucoes/${evolucaoId}/`, soapPayload);
+                console.log('SOAP atualizado com sucesso.');
+            } catch (error) {
+                console.error("Erro ao ATUALIZAR evolução (SOAP):", error.response?.data || error);
+                showSnackbar('Erro ao atualizar a consulta atual (SOAP).', 'error');
+                throw error; // Lança o erro para parar a execução
+            }
+        } else {
+            // --- NÃO EXISTE, CRIAR UMA NOVA (POST) ---
+            console.log("   -> Criando NOVA Evolução (POST)...");
+            try {
+                const res = await apiClient.post(`/prontuario/pacientes/${pacienteId}/evolucoes/`, soapPayload);
+                evolucaoId = res.data.id; // Guarda o NOVO ID
+                setEvolucaoIdSessao(evolucaoId); // Salva o ID na sessão!
+                console.log(`SOAP salvo com sucesso. Nova Evolução ID: ${evolucaoId}`);
+            } catch (error) {
+                console.error("Erro ao CRIAR evolução (SOAP):", error.response?.data || error);
+                showSnackbar('Erro ao salvar a consulta atual (SOAP).', 'error');
+                throw error; // Lança o erro para parar a execução
+            }
+        }
+
+        return evolucaoId; // Retorna o ID (seja novo ou antigo)
+    };
+
+    // --- 5. CRIAR A FUNÇÃO "MESTRA" ORQUESTRADORA ---
+    const handleSaveAtendimentoCompleto = async (event) => {
+        if (event) event.preventDefault();
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
+        // Verifica se a sessão já foi iniciada ANTES de salvar
+        const isSessaoIniciada = evolucaoIdSessao !== null;
+        console.log("--- INICIANDO SALVAMENTO COMPLETO (NEONATOLOGIA) ---");
+
+        try {
+            // 1. Salva o SOAP e VITAIS primeiro
+            console.log("   -> Etapa 1: Salvando SOAP e Vitais (Neo)...");
+            const evolucaoId = await handleSaveSOAP();
+
+            // 2. Prepara as promessas de salvamento das outras abas
+            console.log("   -> Etapa 2: Preparando salvamento das outras abas...");
+            const savePromises = [];
+
+            // (Não salvamos o Histórico aqui, pois ele é independente)
+
+            if (dnpmRef.current && dnpmRef.current.saveData) {
+                savePromises.push(dnpmRef.current.saveData());
+            } else {
+                console.warn("Ref do DNPM (ou .saveData) não encontrada.");
+            }
+
+            if (vacinacaoRef.current && vacinacaoRef.current.saveData) {
+                savePromises.push(vacinacaoRef.current.saveData());
+            } else {
+                console.warn("Ref da Vacinação (ou .saveData) não encontrada.");
+            }
+
+            // 3. Executa todas as promessas em paralelo
+            await Promise.all(savePromises);
+            console.log("   -> Etapa 3: DNPM e Vacinas salvos.");
+
+            // 4. Sucesso total
+            showSnackbar(
+                isSessaoIniciada
+                    ? 'Atendimento atualizado com sucesso!'
+                    : 'Atendimento salvo com sucesso!',
+                'success'
+            );
             
-            setConsultaSalvaId(res.data.id); 
-            showSnackbar('Evolução salva com sucesso!', 'success');
+            // Atualiza os badges
+            fetchStatusResumos();
             
-            // 3. A prop 'onEvolucaoSalva' (singular) já está correta.
-            if(onEvolucaoSalva) onEvolucaoSalva(res.data.id);
+            // Chama a função do PAI (ProntuarioCompleto) para abrir o modal
+            if (onEvolucaoSalva) {
+                console.log(`   -> Etapa 4: Chamando onEvolucaoSalva com ID: ${evolucaoId}`);
+                onEvolucaoSalva(evolucaoId);
+            }
 
         } catch (error) {
-            console.error("Erro ao salvar evolução:", error.response?.data); // Adicionado console.error
-            showSnackbar('Erro ao salvar evolução.', 'error');
+            console.error("--- ERRO NO SALVAMENTO COMPLETO (NEO) ---", error);
+            if (!error.response) { // Se for um erro que não é da API
+                showSnackbar('Ocorreu um erro ao orquestrar o salvamento.', 'error');
+            }
         } finally {
             setIsSubmitting(false);
+            console.log("--- FIM DO SALVAMENTO COMPLETO (NEO) ---");
         }
     };
 
-    // --- JSX COM ABAS ---
+
+    // --- FUNÇÃO PARA RENDERIZAR OS INDICADORES DE STATUS (Sem alterações) ---
+    const renderStatusBadges = () => (
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            {vacinacaoStatus && (
+                <Chip
+                    label={vacinacaoStatus === 'em_dia' ? 'Vacinação em Dia' : 'Vacinação Atrasada'}
+                    color={vacinacaoStatus === 'em_dia' ? 'success' : 'error'}
+                    size="small"
+                    variant="outlined"
+                />
+            )}
+            {dnpmStatus && (
+                <Chip
+                    label={
+                        dnpmStatus === 'normal' ? 'DNPM Adequado' :
+                            dnpmStatus === 'alerta' ? 'DNPM Sinais de Alerta' : 'DNPM Atraso'
+                    }
+                    color={
+                        dnpmStatus === 'normal' ? 'success' :
+                            dnpmStatus === 'alerta' ? 'warning' : 'error'
+                    }
+                    size="small"
+                    variant="outlined"
+                />
+            )}
+        </Box>
+    );
+
+    // --- 7. JSX (ATUALIZADO COM REFS E NOVO BOTÃO) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
-            {/* CABEÇALHO */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, pb: 0 }}>
-                <Typography variant="h6" gutterBottom> Atendimento Neurológico </Typography>
-                {tabIndex === 0 && (
-                    <Button variant="outlined" size="small" onClick={preencherNormalidade}> Preencher Normalidade </Button>
-                )}
+
+            {/* --- CABEÇALHO ATUALIZADO COM OS BOTÕES MESTRES --- */}
+            <Box sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                justifyContent: 'space-between',
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                gap: 1,
+                p: 2, pb: 0
+            }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                        Atendimento Neonatal
+                    </Typography>
+                    {renderStatusBadges()}
+                </Box>
+                
+                {/* --- BOTÕES MESTRES --- */}
+                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                    <Button onClick={handleLimparConsultaAtual} variant="outlined" size="small" disabled={isSubmitting}>
+                        Limpar Consulta
+                    </Button>
+                    {tabIndex === 0 && ( // Botão de normalidade só aparece na aba 0
+                         <Button variant="outlined" size="small" onClick={preencherNormalidade} sx={{flexShrink: 0}}> 
+                             Preencher Normalidade 
+                         </Button>
+                    )}
+                    <Button
+                        onClick={handleSaveAtendimentoCompleto}
+                        variant="contained"
+                        size="small"
+                        disabled={isSubmitting || !pacienteId}
+                    >
+                        {isSubmitting ? <CircularProgress size={20} /> : (evolucaoIdSessao ? 'Atualizar Atendimento' : 'Salvar Atendimento')}
+                    </Button>
+                </Box>
+                {/* --- FIM DOS BOTÕES MESTRES --- */}
             </Box>
 
-            {/* NAVEGAÇÃO DAS ABAS */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
-                <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas prontuário neurológico" variant="scrollable" scrollButtons="auto">
-                    <Tab label="Consulta Atual" id="neuro-tab-0" />
-                    <Tab label="Histórico" id="neuro-tab-1" />
-                    <Tab label="Relatórios" id="neuro-tab-2" />
-                    <Tab label="Exames (EEG/Neuroimagem)" id="neuro-tab-3" />
+            {/* --- NAVEGAÇÃO DAS ABAS (Sem alterações) --- */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, mt: 1 }}>
+                <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas prontuário neonatal" variant="scrollable" scrollButtons="auto">
+                    <Tab label="Consulta Atual" id="neo-tab-0" />
+                    <Tab label="Histórico" id="neo-tab-1" />
+                    <Tab label="DNPM" id="neo-tab-2" />
+                    <Tab label="Vacinação" id="neo-tab-3" />
                 </Tabs>
             </Box>
 
-            {/* CONTEÚDO DAS ABAS */}
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-                
+
                 {/* ABA 1: CONSULTA ATUAL (SOAP) */}
                 <TabPanel value={tabIndex} index={0}>
-                    <Paper component="form" onSubmit={handleSubmit} variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                    {/* --- REMOVIDO component="form" e onSubmit --- */}
+                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
                         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>Consulta Atual (SOAP)</Typography>
-                        
-                        {/* Queixa Atual (S) */}
-                        <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Queixa Atual (S)</Typography>
-                        <FormGroup sx={{ flexDirection: 'row', flexWrap: 'wrap', gap: 1, mb: 1, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
-                            {sintomasNeurologiaOptions.map(opt => ( 
-                                <FormControlLabel key={opt.id} control={<Checkbox size="small" checked={sintomasConsulta[opt.id] || false} onChange={handleSintomasChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                            ))}
-                        </FormGroup>
-                        <TextField name="notas_subjetivas" label="Subjetivo (HDA gerada / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_subjetivas || ''} onChange={handleSoapChange} size="small" />
-                        
+
+                        {/* --- DADOS (S) --- */}
+                        <Typography variant="body1" sx={{ mt: 1, fontWeight: 'medium' }}>Dados da Consulta e Evolução (S)</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
+                            <TextField label="Dias de Vida" name="dias_vida" type="number" value={vitalsData.dias_vida || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
+                            <TextField label="IGC (Sem)" name="igc_semanas" type="number" value={vitalsData.igc_semanas || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
+                            <TextField label="IGC (Dias)" name="igc_dias" type="number" value={vitalsData.igc_dias || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
+                            <TextField label="Medicações em Uso" name="medicacoes" value={vitalsData.medicacoes || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '150px', flex: '1 1 150px' }} />
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
+                            <TextField name="dieta" label="Dieta" fullWidth value={evolucaoDiaria.dieta} onChange={handleEvolucaoDiariaChange} size="small" sx={{ minWidth: 150, flex: '1 1 150px' }} placeholder="Tipo, Volume, Aceitação" />
+                            <TextField select label="Diurese" name="diurese" value={evolucaoDiaria.diurese || ''} onChange={handleEvolucaoDiariaChange} size="small" sx={{ minWidth: 150, flex: '1 1 150px' }}>
+                                <MenuItem value="">-</MenuItem>
+                                <MenuItem value="Adequada">Adequada</MenuItem>
+                                <MenuItem value="Diminuída">Diminuída</MenuItem>
+                                <MenuItem value="Aumentada">Aumentada</MenuItem>
+                            </TextField>
+                            <TextField select label="Evacuação" name="evacuacao" value={evolucaoDiaria.evacuacao || ''} onChange={handleEvolucaoDiariaChange} size="small" sx={{ minWidth: 150, flex: '1 1 150px' }}>
+                                <MenuItem value="">-</MenuItem>
+                                <MenuItem value="Presente">Presente</MenuItem>
+                                <MenuItem value="Ausente">Ausente</MenuItem>
+                            </TextField>
+                        </Box>
+                        <TextField label="Observações (Queixas da Mãe, etc.)" name="observacoes" value={vitalsData.observacoes || ''} onChange={handleVitalsChange} size="small" fullWidth multiline rows={2} />
+                        <TextField name="notas_subjetivas" label="Subjetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_subjetivas || ''} onChange={handleSoapChange} size="small" sx={{ mt: 1.5 }} />
+
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Exame Físico (O) */}
+                        {/* --- DADOS (O) --- */}
                         <Typography variant="body1" sx={{ fontWeight: 'medium' }}>Exame Físico (O)</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 1.5 }}>
-                            <TextField label="PA (mmHg)" name="pa" value={exameFisicoData.pa || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '100px' }}/>
-                            <TextField label="FC (bpm)" name="fc" type="number" value={exameFisicoData.fc || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
-                            <TextField label="Peso (kg)" name="peso" type="number" value={exameFisicoData.peso || ''} onChange={handleExameChange} size="small" sx={{ width: { xs: '45%', sm: 'auto' }, minWidth: '80px' }}/>
+                            <TextField label="Peso (g)" name="peso" type="number" value={vitalsData.peso || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
+                            <TextField label="Compr. (cm)" name="comprimento" type="number" value={vitalsData.comprimento || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
+                            <TextField label="PC (cm)" name="pc" type="number" value={vitalsData.pc || ''} onChange={handleVitalsChange} size="small" sx={{ minWidth: '80px', flex: '1 1 80px' }} />
                         </Box>
                         
-                        {/* Checkboxes Exame Físico Agrupados */}
-                        <FormGroup sx={{ p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Estado Mental:</Typography>
-                                {exameFisicoNeurologiaOptions.filter(o=>o.group === 'mental').map(opt => (
-                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                                ))}
-                            </Box>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Pares Cranianos:</Typography>
-                                {exameFisicoNeurologiaOptions.filter(o=>o.group === 'cranianos').map(opt => (
-                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                                ))}
-                            </Box>
-                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Motor:</Typography>
-                                {exameFisicoNeurologiaOptions.filter(o=>o.group === 'motor').map(opt => (
-                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                                ))}
-                            </Box>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Reflexos:</Typography>
-                                {exameFisicoNeurologiaOptions.filter(o=>o.group === 'reflexos').map(opt => (
-                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                                ))}
-                            </Box>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Sensorial:</Typography>
-                                {exameFisicoNeurologiaOptions.filter(o=>o.group === 'sensorial').map(opt => (
-                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                                ))}
-                            </Box>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                <Typography variant="caption" sx={{width: '100%', mb: -0.5, fontWeight: 'bold'}}>Marcha e Sinais Meníngeos:</Typography>
-                                {exameFisicoNeurologiaOptions.filter(o=>o.group === 'marcha').map(opt => (
-                                    <FormControlLabel sx={{mr:1}} key={opt.id} control={<Checkbox size="small" checked={exameFisicoData[opt.id] || false} onChange={handleExameChange} name={opt.id} />} label={<Typography variant="body2">{opt.label}</Typography>} />
-                                ))}
-                            </Box>
+                        {/* (Renderização dos selects do exame físico - sem alterações) */}
+                        <FormGroup sx={{ p: { xs: 1, sm: 2 }, border: '1px solid #ddd', borderRadius: 1 }}>
+                            {(() => {
+                                const secoes = [
+                                    { titulo: 'Geral e Pele', ids: ['avaliacao_geral', 'atividade', 'reatividade', 'cor', 'hidratacao', 'estado_febril', 'pele_lesoes'] },
+                                    { titulo: 'Cabeça, Pescoço e ORL', ids: ['fontanela', 'suturas', 'pescoco', 'olhos_estado', 'olhos_secrecao', 'reflexo_vermelho', 'orofaringe'] },
+                                    { titulo: 'Respiratório e Cardiovascular', ids: ['respiratorio_padrao', 'respiratorio_ausculta', 'cardio_ritmo', 'cardio_sopros', 'cardio_perfusao'] },
+                                    { titulo: 'Abdome e Genitália', ids: ['abdome_forma', 'abdome_rha', 'abdome_palpacao', 'abdome_viscero', 'cordao', 'genitalia', 'anus'] },
+                                    { titulo: 'Membros e Neurológico (Geral)', ids: ['membros_coluna', 'pulsos', 'neuro_tonus', 'sinais_meningeos'] },
+                                ];
+                                const renderSelect = (group) => (
+                                    <FormControl key={group.id} size="small" sx={{ minWidth: 170, flex: '1 1 170px' }}>
+                                        <InputLabel id={`${group.id}-select-label`}>{group.label}</InputLabel>
+                                        <Select
+                                            labelId={`${group.id}-select-label`}
+                                            id={`${group.id}-select`}
+                                            name={group.id}
+                                            value={exameFisicoData[group.id] || ''}
+                                            label={group.label}
+                                            onChange={handleExameChange}
+                                        >
+                                            <MenuItem value=""><em>Nenhum</em></MenuItem>
+                                            {group.options.map(opt => (
+                                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                );
+                                const secoesHtml = secoes.map((secao, index) => (
+                                    <Box key={secao.titulo}>
+                                        {index > 0 && <Divider sx={{ my: 2 }} />}
+                                        <Typography variant="overline" color="textSecondary" sx={{ display: 'block', mb: 1.5, mt: index > 0 ? 1 : 0 }}>
+                                            {secao.titulo}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                            {exameFisicoNeoGroups
+                                                .filter(group => secao.ids.includes(group.id))
+                                                .map(group => renderSelect(group))
+                                            }
+                                        </Box>
+                                    </Box>
+                                ));
+                                secoesHtml.push(
+                                    <Box key="reflexos">
+                                        <Divider sx={{ my: 2 }} />
+                                        <Typography variant="overline" color="textSecondary" sx={{ display: 'block', mb: 1.5, mt: 1 }}>
+                                            Reflexos Primitivos
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                                            {reflexosPrimitivosGroups.map(group => renderSelect(group))}
+                                        </Box>
+                                    </Box>
+                                );
+                                return secoesHtml;
+                            })()}
                         </FormGroup>
-
-                        <TextField name="notas_objetivas" label="Objetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_objetivas || ''} onChange={handleSoapChange} size="small" sx={{mt: 1.5}}/>
                         
+                        <TextField name="notas_objetivas" label="Objetivo (Gerado / Anotações Livres)" multiline rows={4} fullWidth value={soapData.notas_objetivas || ''} onChange={handleSoapChange} size="small" sx={{ mt: 1.5 }} />
                         <Divider sx={{ my: 2 }} />
 
-                        {/* Campos Finais (A, P) e Botões */}
+                        {/* --- DADOS (A, P) --- */}
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <TextField name="avaliacao" label="Avaliação / Hipóteses Diagnósticas (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
+                            <TextField name="avaliacao" label="Avaliação / Hipóteses (A)" multiline rows={3} fullWidth value={soapData.avaliacao || ''} onChange={handleSoapChange} size="small" />
                             <TextField name="plano" label="Plano / Conduta (P)" multiline rows={3} fullWidth value={soapData.plano || ''} onChange={handleSoapChange} size="small" />
-                            <Box sx={{ textAlign: 'right', mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                <Button onClick={handleLimparConsultaAtual} variant="outlined" disabled={isSubmitting}>
-                                    Limpar Consulta
-                                </Button>
-                                <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
-                                    {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Atendimento'}
-                                </Button>
-                            </Box>
+                            
+                            {/* --- BOTÕES REMOVIDOS DAQUI --- */}
+                            {/* O botão mestre no cabeçalho agora controla o salvamento */}
                         </Box>
                     </Paper>
                 </TabPanel>
 
-                {/* ABA 2: HISTÓRICO NEUROLÓGICO */}
+                {/* --- ABAS ATUALIZADAS COM AS REFS --- */}
                 <TabPanel value={tabIndex} index={1}>
-                    <HistoricoNeurologia pacienteId={pacienteId} />
+                    {/* Esta aba tem seu próprio botão de salvar e não é orquestrada */}
+                    <HistoricoNeonatologia pacienteId={pacienteId} />
                 </TabPanel>
-                
-                {/* ABA 3: RELATÓRIOS (Reutilizado) */}
+
                 <TabPanel value={tabIndex} index={2}>
-                    <RelatoriosTab 
-                        pacienteId={pacienteId}
-                        especialidade="neurologia" 
-                        consultaAtualId={consultaSalvaId}
+                    <DnpmDetalhado 
+                        pacienteId={pacienteId} 
+                        onDataChange={fetchStatusResumos} 
+                        ref={dnpmRef} 
                     />
                 </TabPanel>
-                
-                {/* ABA 4: EXAMES (Placeholder) */}
+
                 <TabPanel value={tabIndex} index={3}>
-                    <Typography>Em breve: Visualizador de Exames (TC, RM, EEG, Laudos).</Typography>
+                    <VacinacaoTab 
+                        pacienteId={pacienteId} 
+                        onDataChange={fetchStatusResumos} 
+                        ref={vacinacaoRef} 
+                    />
                 </TabPanel>
+
             </Suspense>
         </Paper>
     );
