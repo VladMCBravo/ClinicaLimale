@@ -47,7 +47,7 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva }) {
+export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);

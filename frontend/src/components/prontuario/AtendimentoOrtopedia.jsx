@@ -42,7 +42,7 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva }) {
+export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);

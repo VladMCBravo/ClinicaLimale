@@ -78,7 +78,7 @@ function TabPanel(props) {
 }
 
 // --- Componente Principal ---
-export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva }) {
+export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);

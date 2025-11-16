@@ -19,7 +19,7 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva }) {
+export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showSnackbar } = useSnackbar();

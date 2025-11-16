@@ -56,7 +56,7 @@ function TabPanel(props) {
     );
 }
 
-export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva }) {
+export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, agendamentoId }) {
     const { showSnackbar } = useSnackbar();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
