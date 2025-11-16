@@ -1,6 +1,6 @@
 // src/components/prontuario/AtendimentoNeonatologia.jsx
-// VERSÃO REVISADA: Movido o botão "Preencher Normalidade" para dentro da aba SOAP
-// e adicionado 'type="button"' para evitar reloads.
+// VERSÃO CORRIGIDA: Removido <Paper component="form"> da aba SOAP
+// e adicionado type="button" aos botões auxiliares.
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import {
@@ -16,9 +16,7 @@ const HistoricoNeonatologia = lazy(() => import('./neonatologia/HistoricoNeonato
 const DnpmDetalhado = lazy(() => import('./pediatria/DnpmDetalhado'));
 const VacinacaoTab = lazy(() => import('./pediatria/VacinacaoTab'));
 
-// --- (Constantes de Opções do Exame Físico omitidas para brevidade) ---
-// ... (const exameFisicoNeoGroups = [...])
-// ... (const reflexosPrimitivosGroups = [...])
+// --- (Constantes de Opções omitidas para brevidade) ---
 const exameFisicoNeoGroups = [
     { id: 'avaliacao_geral', label: 'Avaliação Geral', options: [{ value: 'BEG', label: 'BEG', template: 'Bom Estado Geral (BEG).'}, { value: 'REG', label: 'REG', template: 'Regular Estado Geral (REG).'}, { value: 'MEG', label: 'MEG', template: 'Mau Estado Geral (MEG).'}] },
     { id: 'atividade', label: 'Atividade', options: [{ value: 'Ativo', label: 'Ativo', template: 'Ativo.'}, { value: 'Hipoativo', label: 'Hipoativo', template: 'Hipoativo.'}, { value: 'Letargico', label: 'Letárgico', template: 'Letárgico.'}] },
@@ -84,24 +82,22 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [tabIndex, setTabIndex] = useState(0);
 
+    // ... (states: vitalsData, evolucaoDiaria, exameFisicoData, soapData, etc.)
     const [vitalsData, setVitalsData] = useState({});
     const [evolucaoDiaria, setEvolucaoDiaria] = useState({ dieta: '', diurese: '', evacuacao: '' });
     const [exameFisicoData, setExameFisicoData] = useState({});
     const [soapData, setSoapData] = useState({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-
     const [vacinacaoStatus, setVacinacaoStatus] = useState(null);
     const [dnpmStatus, setDnpmStatus] = useState(null);
-
-    // --- Refs para as abas filhas ---
-    const historicoRef = useRef(null); // Adicionado para o histórico
-    const dnpmRef = useRef(null);
-    const vacinacaoRef = useRef(null);
-
     const [evolucaoIdSessao, setEvolucaoIdSessao] = useState(null);
 
-
+    // --- Refs ---
+    const historicoRef = useRef(null); 
+    const dnpmRef = useRef(null);
+    const vacinacaoRef = useRef(null);
+    
+    // ... (fetchStatusResumos, useEffect, Geradores de texto, Handlers)
     const fetchStatusResumos = useCallback(async () => {
-        // ... (lógica inalterada)
         if (!pacienteId) {
             setVacinacaoStatus(null);
             setDnpmStatus(null);
@@ -115,7 +111,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
     }, [pacienteId]);
 
     useEffect(() => {
-        // ... (lógica de reset inalterada)
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setExameFisicoData({});
         setVitalsData({});
@@ -124,13 +119,10 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         setVacinacaoStatus(null);
         setDnpmStatus(null);
         setEvolucaoIdSessao(null);
-
         if (pacienteId) {
             apiClient.get(`/pacientes/${pacienteId}/`)
                 .then(res => {
-                    setVitalsData(prev => ({
-                        ...prev,
-                    }));
+                    setVitalsData(prev => ({ ...prev, }));
                 })
                 .catch(err => {
                     console.error("Erro ao carregar dados do paciente:", err);
@@ -140,17 +132,13 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }
     }, [pacienteId, fetchStatusResumos, showSnackbar]);
 
-
-    // --- Geradores de texto (inalterados) ---
     const generateSubjetivo = useCallback((vitals, evolucao) => {
-        // ... (lógica inalterada)
         const currentVitals = vitals || vitalsData;
         const currentEvolucao = evolucao || evolucaoDiaria;
         return `RN com ${currentVitals.dias_vida || '___'} dias de vida, IGC ${currentVitals.igc_semanas || '__'}s ${currentVitals.igc_dias || '_'}d.\nMedicações em uso: ${currentVitals.medicacoes || 'Nenhuma'}.\nObservações: ${currentVitals.observacoes || 'Nenhuma'}\n\nEvolução diária:\nDieta: ${currentEvolucao.dieta || 'Não informado'}\nDiurese: ${currentEvolucao.diurese || 'Não informado'}\nEvacuação: ${currentEvolucao.evacuacao || 'Não informado'}`;
     }, [vitalsData, evolucaoDiaria]);
 
     const generateObjetivo = useCallback((vitals, exame) => {
-        // ... (lógica inalterada)
         const currentVitals = vitals || vitalsData;
         const currentExame = exame || exameFisicoData;
         let texto = `Dados Vitais:\nPeso: ${currentVitals.peso || '___'} g\nCompr: ${currentVitals.comprimento || '___'} cm\nPC: ${currentVitals.pc || '___'} cm\n\nExame Físico:\n`;
@@ -164,12 +152,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         return texto + (achados || "Nenhuma observação selecionada.");
     }, [vitalsData, exameFisicoData]);
 
-
-    // --- Handlers (inalterados) ---
     const handleTabChange = (event, newIndex) => { setTabIndex(newIndex); };
     const handleSoapChange = (e) => setSoapData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleVitalsChange = (e) => {
-        // ... (lógica inalterada)
         const newVitals = { ...vitalsData, [e.target.name]: e.target.value };
         setVitalsData(newVitals);
         setSoapData(prev => ({
@@ -179,7 +164,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }));
     };
     const handleEvolucaoDiariaChange = (e) => {
-        // ... (lógica inalterada)
         const newEvolucao = { ...evolucaoDiaria, [e.target.name]: e.target.value };
         setEvolucaoDiaria(newEvolucao);
         setSoapData(prev => ({
@@ -188,7 +172,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }));
     };
     const handleExameChange = (e) => {
-        // ... (lógica inalterada)
         const newExame = { ...exameFisicoData, [e.target.name]: e.target.value };
         setExameFisicoData(newExame);
         setSoapData(prev => ({
@@ -197,9 +180,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }));
     };
 
-    // --- preencherNormalidade (inalterado) ---
+    // --- preencherNormalidade ---
     const preencherNormalidade = () => {
-        // ... (lógica de preenchimento inalterada)
+        // ... (lógica de preenchimento idêntica)
         const dadosExameNormal = {
             avaliacao_geral: 'BEG', cor: 'Corado', hidratacao: 'Hidratado', estado_febril: 'Afebril',
             atividade: 'Ativo', reatividade: 'Reativo', pele_lesoes: 'Integra',
@@ -231,8 +214,8 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         showSnackbar('Exame físico preenchido com padrão normal.', 'info');
     };
 
+    // --- handleLimparConsultaAtual ---
     const handleLimparConsultaAtual = () => {
-        // ... (lógica inalterada)
         setExameFisicoData({});
         setEvolucaoDiaria({ dieta: '', diurese: '', evacuacao: '' });
         const subjetivoLimpo = generateSubjetivo(vitalsData, { dieta: '', diurese: '', evacuacao: '' });
@@ -283,7 +266,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         }
         return evolucaoId;
     };
-
+    
     // --- handleSaveAtendimentoCompleto (Orquestrador) ---
     const handleSaveAtendimentoCompleto = async (event) => {
         if (event) event.preventDefault();
@@ -302,19 +285,16 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
             console.log("   -> Etapa 2: Preparando salvamento das outras abas...");
             const savePromises = [];
 
-            // *** AGORA TAMBÉM SALVA O HISTÓRICO ***
             if (historicoRef.current && historicoRef.current.saveData) {
                 savePromises.push(historicoRef.current.saveData());
             } else {
                 console.warn("Ref do Histórico (ou .saveData) não encontrada.");
             }
-
             if (dnpmRef.current && dnpmRef.current.saveData) {
                 savePromises.push(dnpmRef.current.saveData());
             } else {
                 console.warn("Ref do DNPM (ou .saveData) não encontrada.");
             }
-
             if (vacinacaoRef.current && vacinacaoRef.current.saveData) {
                 savePromises.push(vacinacaoRef.current.saveData());
             } else {
@@ -354,7 +334,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
 
     // --- renderStatusBadges (inalterado) ---
     const renderStatusBadges = () => (
-        // ... (lógica inalterada)
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             {vacinacaoStatus && (
                 <Chip label={vacinacaoStatus === 'em_dia' ? 'Vacinação em Dia' : 'Vacinação Atrasada'} color={vacinacaoStatus === 'em_dia' ? 'success' : 'error'} size="small" variant="outlined" />
@@ -365,7 +344,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         </Box>
     );
 
-    // --- JSX (Cabeçalho Corrigido) ---
     return (
         <Paper sx={{ mb: 2, overflow: 'hidden' }}>
             <Box sx={{
@@ -388,9 +366,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                     <Button onClick={handleLimparConsultaAtual} variant="outlined" size="small" disabled={isSubmitting} type="button">
                         Limpar Consulta
                     </Button>
-                    
-                    {/* ★★★ CORREÇÃO 2: Botão de Normalidade REMOVIDO daqui ★★★ */}
-                    
                     <Button
                         onClick={handleSaveAtendimentoCompleto}
                         variant="contained"
@@ -402,7 +377,6 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                 </Box>
             </Box>
 
-            {/* --- Abas (inaltederas) --- */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, mt: 1 }}>
                 <Tabs value={tabIndex} onChange={handleTabChange} aria-label="Abas prontuário neonatal" variant="scrollable" scrollButtons="auto">
                     <Tab label="Consulta Atual" id="neo-tab-0" />
@@ -414,9 +388,10 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
 
             <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
 
-                {/* ★★★ CORREÇÃO 3: Botão de Normalidade MOVIDO para cá ★★★ */}
                 <TabPanel value={tabIndex} index={0}>
+                    {/* ★★★ CORREÇÃO 2: Removido component="form" e onSubmit daqui ★★★ */}
                     <Paper variant="outlined" sx={{ p: 2, borderColor: 'primary.main' }}>
+                        {/* ★★★ CORREÇÃO 3: Botão "Normalidade" movido para cá, com type="button" ★★★ */}
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                             <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mb: 0 }}>
                                 Consulta Atual (SOAP)
@@ -426,7 +401,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                                 size="small"
                                 onClick={preencherNormalidade}
                                 disabled={isSubmitting}
-                                type="button"
+                                type="button" 
                             >
                                 Preencher Normalidade
                             </Button>
@@ -479,11 +454,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                 <TabPanel value={tabIndex} index={1}>
                     <HistoricoNeonatologia pacienteId={pacienteId} ref={historicoRef} />
                 </TabPanel>
-
                 <TabPanel value={tabIndex} index={2}>
                     <DnpmDetalhado pacienteId={pacienteId} onDataChange={fetchStatusResumos} ref={dnpmRef} />
                 </TabPanel>
-
                 <TabPanel value={tabIndex} index={3}>
                     <VacinacaoTab pacienteId={pacienteId} onDataChange={fetchStatusResumos} ref={vacinacaoRef} />
                 </TabPanel>

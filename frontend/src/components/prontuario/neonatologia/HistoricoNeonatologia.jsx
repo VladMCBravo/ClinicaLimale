@@ -1,6 +1,6 @@
 // src/components/prontuario/neonatologia/HistoricoNeonatologia.jsx
-// VERSÃO REVISADA: Adicionado 'type="button"' a todos os botões não-submit
-// para corrigir o bug de "reload" e troca de aba.
+// VERSÃO CORRIGIDA: Adicionado type="button" a todos os botões
+// auxiliares para evitar a submissão acidental do formulário pai.
 
 import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
@@ -8,15 +8,13 @@ import {
     FormGroup, FormControlLabel, Checkbox, FormControl, InputLabel, Select, MenuItem, FormLabel,
     Tooltip, IconButton
 } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import InfoOutlinedIcon from '@mui/icons-infoOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import apiClient from '../../../api/axiosConfig';
 
 // --- (Constantes de Opções omitidas para brevidade) ---
-// ... (const gpaOptions = [...])
-// ... (const initialState = {...})
 const gpaOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
 const preNatalOptions = ['Adequado', 'Inadequado', 'Sem PN', 'Ignorado'];
 const gestacaoTipoOptions = ['Única', 'Gemelar', 'Trigemelar'];
@@ -58,6 +56,7 @@ const examesHospOptions = [ //
 const normalAlteradoOptions = ['Normal', 'Alterado'];
 const presenteAlteradoOptions = ['Presente', 'Alterado'];
 const eoatOptions = ['Presente Bilateral', 'Alterado', 'Ausente'];
+// ... (initialState permanece o mesmo)
 const initialState = {
     gpa_g: '', gpa_p: '', gpa_a: '',
     pre_natal: '', tipo_gestacao: '', corticoterapia: '', neuroprotecao_mg: '',
@@ -116,7 +115,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
         showSnackbarRef.current = showSnackbar;
     }, [showSnackbar]);
 
-
+    // ... (fetchAnamnese, useEffect, Handlers... todos inalterados)
     const fetchAnamnese = useCallback(async () => {
         if (!pacienteId) return;
         setIsLoading(true);
@@ -125,7 +124,6 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
             if (res.data && res.data.neonatologia) {
                 const data = { ...initialState, ...res.data.neonatologia };
                 data.triagens = { ...initialState.triagens, ...(data.triagens || {}) }; 
-                
                 setAnamneseData(data);
                 setComorbidades(data.comorbidades_detalhes || {});
                 setVicios(data.vicios_detalhes || {});
@@ -155,7 +153,6 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
         fetchAnamnese();
     }, [fetchAnamnese]);
 
-    // --- Handlers (inalterados) ---
     const handleChange = (e) => {
         const { name, value } = e.target;
         setAnamneseData(prev => ({ ...prev, [name]: value }));
@@ -205,10 +202,10 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
         const { name, value } = e.target;
         setTriagens(prev => ({ ...prev, [name]: value }));
     };
-    
-    // --- Lógica de Salvar (para o Orquestrador) ---
+
+    // --- Lógica de Salvar (inalterada) ---
     const handleSaveManual = async () => {
-        if (isSubmitting) return; // Evita cliques duplos
+        if (isSubmitting) return; 
         setIsSubmitting(true);
         
         const dataToSend = { ...anamneseData };
@@ -253,7 +250,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
             } else {
                  showSnackbarRef.current('Erro ao salvar histórico neonatal.', 'error');
             }
-            throw error; // Lança o erro para o orquestrador
+            throw error; 
         } finally {
             setIsSubmitting(false);
         }
@@ -317,6 +314,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
     }
 
     return (
+        // ★★★ CORREÇÃO 1: Removido component="form" daqui ★★★
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -326,7 +324,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
                     {isSubmitting && <CircularProgress size={24} />}
                 </Box>
                 <Box>
-                    {/* ★★★ CORREÇÃO 1: Adicionado type="button" ★★★ */}
+                    {/* ★★★ CORREÇÃO 2: Adicionado type="button" ★★★ */}
                     <Button size="small" variant="outlined" onClick={handleLimpar} sx={{mr: 1}} type="button">
                         Limpar
                     </Button>
@@ -335,8 +333,6 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
                     </Button>
                 </Box>
             </Box>
-
-            {/* --- (Todo o restante do formulário é idêntico) --- */}
             
             <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }}>1. História Pré-Natal</Typography>
             {/* ... (Campos Pré-Natal) ... */}
@@ -344,7 +340,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
             <Divider sx={{ my: 2 }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body1" sx={{ fontWeight: 'medium' }}>2. Sorologias Maternas</Typography>
-                {/* ★★★ CORREÇÃO 2: Adicionado type="button" ★★★ */}
+                {/* ★★★ CORREÇÃO 3: Adicionado type="button" ★★★ */}
                 <Button size="small" variant="outlined" onClick={handleNormalidadeSorologias} type="button">
                     Marcar Todas "Não Reagente"
                 </Button>
@@ -372,7 +368,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
                             </IconButton>
                         </Box>
                     ))}
-                    {/* ★★★ CORREÇÃO 3: Adicionado type="button" ★★★ */}
+                    {/* ★★★ CORREÇÃO 4: Adicionado type="button" ★★★ */}
                     <Button
                         size="small"
                         startIcon={<AddCircleOutlineIcon />}
@@ -389,7 +385,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
             <Typography variant="body1" sx={{ fontWeight: 'medium' }}>5. Triagens e Testes Neonatais</Typography>
             {/* ... (Campos Triagens) ... */}
             
-            {/* O botão de salvar foi removido para ser controlado pelo pai */}
+            {/* Botão de salvar removido */}
         </Paper>
     );
 });
