@@ -266,14 +266,29 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
     const preencherNormalidade = () => {
         // ... (lógica inalterada)
         setAnamneseData(prev => ({
-            ...initialState, 
+            // ★★★ ESTA É A CORREÇÃO ★★★
+            // Troque "...initialState" por "...prev"
+            // para mesclar os dados de normalidade sem apagar o estado existente.
+            ...prev,
+            // Dados da normalidade (o resto da função permanece igual)
             gpa_g: '1', gpa_p: '1', gpa_a: '0', pre_natal: 'Adequado', tipo_gestacao: 'Única',
             corticoterapia: 'Não', neuroprotecao_mg: 'Não se aplica', condicoes_maternas: 'Não', vicios: 'Não',
             tipo_sanguineo_mae: 'O', rh_mae: '+', coombs_indireto: 'Negativo', anti_d: 'Não se aplica',
             tipo_sanguineo_rn: 'O', rh_rn: '+', coombs_direto_rn: 'Negativo', eluato: 'Negativo',
             sorologias: {
+                // ...prev.sorologias, // Mantém sorologias não listadas
                 hiv_status: 'Não reagente', sifilis_status: 'Não reagente', toxo_status: 'Imune',
                 hep_b_status: 'Não reagente', outras_inf_status: 'Não reagente',
+                
+                // Garante que campos reativos sejam limpos se o status mudar
+                hiv_cv: '', hiv_outros: '',
+                sifilis_tr: '', vdrl_1: '', vdrl_2: '', vdrl_3: '',
+                tratamento_penicilina: '', dose_1: null, dose_2: null, dose_3: null, 
+                tratamento_2_penicilina: '', dose_2_1: null, dose_2_2: null, dose_2_3: null,
+                parceiro_tratado: '',
+                toxo_igm: '', toxo_igg: '',
+                hep_b_conduta: '',
+                outras_inf_detalhes: '',
             },
             tipo_parto: 'Normal', bolsa_rota: 'Rota <18h', profilaxia_bolsa: 'Sim', liquido_amniotico: 'Claro',
             apgar_1: 9, apgar_5: 10, apgar_10: 10,
@@ -281,13 +296,20 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
             ig_semanas: '39', ig_dias: '0', peso_adequacao: 'AIG', tempo_internacao: '2',
             suporte_ventilatorio: 'Não aplicável', fototerapia: 'Não', npp: 'Não', antibioticos: 'Não',
             diagnosticos_principais: 'RN A Termo, AIG, sem intercorrências.',
+            
+            // Zera campos de exames (data/resultado) que não são parte do estado 'examesHosp'
+            us_tf_data: '', us_tf_resultado: '',
+            eco_data: '', eco_resultado: '',
+            fundo_olho_data: '', fundo_olho_resultado: '',
         }));
+        
+        // O restante das funções está correto, pois definem os outros estados
         setComorbidades({});
         setVicios({});
         setReanimacao({});
-        setExamesHosp({ us_tf: true, eco: true, fundo_olho: true });
+        setExamesHosp({ us_tf: true, eco: true, fundo_olho: true }); // Define normalidade para este estado
         setOutrosExames([]);
-        setTriagens({
+        setTriagens({ // Define normalidade para o estado de triagens
             pezinho_status: 'Normal', pezinho_desc: '',
             orelhinha_eoat_status: 'Presente Bilateral', orelhinha_eoat_desc: '',
             orelhinha_bera_status: 'Normal', orelhinha_bera_desc: '',
