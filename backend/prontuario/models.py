@@ -330,7 +330,7 @@ class AnamneseNeonatologia(models.Model):
     pre_natal = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pré-Natal") # Adequado/Inadequado/Ignorado
     tipo_gestacao = models.CharField(max_length=20, blank=True, null=True, verbose_name="Tipo Gestação") # Única/Gemelar
     corticoterapia = models.CharField(max_length=10, blank=True, null=True, verbose_name="Corticoterapia") # Sim/Não
-    neuroprotecao_mg = models.CharField(max_length=10, blank=True, null=True, verbose_name="Neuroproteção (Sulf. Magnésio)") # Sim/Não/Ignorado
+    neuroprotecao_mg = models.CharField(max_length=20, blank=True, null=True, verbose_name="Neuroproteção (Sulf. Magnésio)") # Sim/Não/Ignorado
     
     # --- DADOS DO PARTO (Já existentes) ---
     tipo_parto = models.CharField(max_length=50, blank=True, null=True)
