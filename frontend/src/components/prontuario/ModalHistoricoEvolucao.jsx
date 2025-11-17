@@ -474,27 +474,32 @@ export default function ModalHistoricoEvolucao({ pacienteId, evolucaoId, onClose
                         
 
                         {/* 3. SEÇÃO DO DNPM (Mostra para Peds e Neo) */}
-                        {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && relatorioData.dnpm && (
-                            <SecaoRelatorio 
-                                titulo="Resumo do DNPM (Cadastro Mestre)"
-                                data={relatorioData.dnpm.filter(m => m.alcançado !== null)} 
-                                renderFunc={(data) => {
-                                    return data.length > 0 ? (
-                                        <ul>
-                                            {data.map(marco => (
-                                                <li key={marco.id}>
-                                                    <Typography variant="body2" color={marco.alcançado ? 'text.primary' : 'error'}>
-                                                        <strong>{marco.idade_marco} ({marco.marco_descricao}):</strong> 
-                                                        {marco.alcançado ? ' Alcançado' : ' Ausente (Alerta)'}
-                                                        {marco.observacao ? ` - ${marco.observacao}` : ''}
-                                                    </Typography>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : ( <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography> )
-                                }}
-                            />
-                        )}
+{(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && relatorioData.dnpm && (
+    <SecaoRelatorio 
+        titulo="Resumo do DNPM (Cadastro Mestre)"
+        data={relatorioData.dnpm} // <-- 1. Passe a lista COMPLETA
+        renderFunc={(data) => {
+            // 2. Mova o filtro para DENTRO da função
+            const marcosRegistrados = data.filter(m => m.alcançado !== null);
+            
+            // 3. Verifique a lista filtrada aqui
+            return marcosRegistrados.length > 0 ? (
+                <ul>
+                    {/* 4. Mapeie a lista FILTRADA */}
+                    {marcosRegistrados.map(marco => ( 
+                        <li key={marco.id}>
+                            <Typography variant="body2" color={marco.alcançado ? 'text.primary' : 'error'}>
+                                <strong>{marco.idade_marco} ({marco.marco_descricao}):</strong> 
+                                {marco.alcançado ? ' Alcançado' : ' Ausente (Alerta)'}
+                                {marco.observacao ? ` - ${marco.observacao}` : ''}
+                            </Typography>
+                        </li>
+                    ))}
+                </ul>
+            ) : ( <Typography variant="body2">Nenhum marco (Presente ou Ausente) registrado.</Typography> )
+        }}
+    />
+)}
 
                         {/* 4. SEÇÃO DE VACINAS (Mostra para Peds e Neo) */}
                         {(relatorioData.especialidade === 'pediatria' || relatorioData.especialidade === 'neonatologia') && relatorioData.vacinas && (

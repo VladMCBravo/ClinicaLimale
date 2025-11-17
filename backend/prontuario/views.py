@@ -316,14 +316,14 @@ class GerarEvolucaoPDFView(APIView):
         vacinas = []
         
         # 3. Verifica a especialidade da *consulta*
-        if evolucao.especialidade == 'pediatria':
-            # Só busca marcos e vacinas se for uma consulta pediátrica
+        especialidade_nome = None
+        if evolucao.especialidade: # Verifica se a especialidade não é nula
+            especialidade_nome = evolucao.especialidade.nome.lower() # Pega o nome, ex: "pediatria"
+
+        # 4. Se for Pediatria OU Neonatologia, busca os dados
+        if especialidade_nome == 'pediatria' or especialidade_nome == 'neonatologia':
             marcos = MarcoDNPM.objects.filter(paciente=paciente).order_by('data_registro')
             vacinas = VacinaPaciente.objects.filter(paciente=paciente).order_by('id')
-        
-        # (futuramente)
-        # elif evolucao.especialidade == 'cardiologia':
-        #    laudos_ecg = LaudoECG.objects.filter(...) 
         
         # --- FIM DA LÓGICA CONDICIONAL ---
 
