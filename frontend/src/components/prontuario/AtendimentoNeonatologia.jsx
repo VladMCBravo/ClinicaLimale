@@ -273,7 +273,10 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
             altura: vitalsData.comprimento ? (parseFloat(vitalsData.comprimento) / 100).toFixed(2) : null,
             perimetro_cefalico: vitalsData.pc ? parseFloat(vitalsData.pc) : null,
             agendamento: agendamentoId || null,
-        };
+            // ★★★ ADICIONE ESTA LINHA ★★★
+        // Informa ao backend qual especialidade esta tela representa
+        especialidade_nome_fornecida: "Neonatologia"
+    };
         let evolucaoId;
         if (evolucaoIdSessao) {
             console.log(`   -> Atualizando SOAP da Evolução ID: ${evolucaoIdSessao}`);

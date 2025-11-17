@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from xhtml2pdf import pisa
 from django.shortcuts import get_object_or_404 # Para buscar objetos
 from agendamentos.models import Agendamento # <-- 1. Importe o Agendamento
+from usuarios.models import Especialidade # <-- 2. Importe Especialidade
 from django.template import Context, Template # Para renderizar o template
 from datetime import date # Para a data de hoje
 from django.db import transaction # Importar transaction
@@ -55,27 +56,41 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
         """
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         
-        # --- 2. LÓGICA DE HERANÇA ---
-        agendamento_id = self.request.data.get('agendamento') # Espera o ID do agendamento
+        # --- LÓGICA DE HERANÇA (ATUALIZADA) ---
+        agendamento_id = self.request.data.get('agendamento')
         agendamento_obj = None
         especialidade_herdada = None
 
+        # 1. Tenta pegar a especialidade do Agendamento (como antes)
         if agendamento_id:
             try:
-                # Busca o agendamento correspondente
                 agendamento_obj = Agendamento.objects.get(id=agendamento_id, paciente=paciente)
-                # Copia a especialidade do agendamento para a evolução
-                especialidade_herdada = agendamento_obj.especialidade
+                # Só pega se não for nulo
+                if agendamento_obj.especialidade:
+                    especialidade_herdada = agendamento_obj.especialidade
             except Agendamento.DoesNotExist:
-                # Se o ID for inválido, apenas ignora
                 pass 
         
-        # 3. Salva a evolução com os dados herdados
+        # ★★★ 2. O FALLBACK (A CORREÇÃO) ★★★
+        # Se, depois de tentar o agendamento, a especialidade AINDA for NULA...
+        if not especialidade_herdada:
+            # ...tente pegar o NOME da especialidade que o frontend enviou
+            especialidade_nome_fornecida = self.request.data.get('especialidade_nome_fornecida')
+            
+            if especialidade_nome_fornecida:
+                try:
+                    # Busca o objeto Especialidade pelo nome
+                    especialidade_herdada = Especialidade.objects.get(nome__iexact=especialidade_nome_fornecida)
+                except Especialidade.DoesNotExist:
+                    pass # Continua nulo se o nome for inválido
+
+        
+        # 3. Salva a evolução com os dados
         serializer.save(
             medico=self.request.user, 
             paciente=paciente,
-            agendamento=agendamento_obj,       # <-- Salva o link
-            especialidade=especialidade_herdada # <-- Salva a especialidade
+            agendamento=agendamento_obj,       
+            especialidade=especialidade_herdada # <-- Agora preenchido via fallback
         )
 
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
