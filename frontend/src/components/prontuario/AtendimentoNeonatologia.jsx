@@ -138,7 +138,7 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
                 });
             fetchStatusResumos();
         }
-    }, [pacienteId, fetchStatusResumos, showSnackbar]);
+    }, [pacienteId, fetchStatusResumos]);
 
     // ... (Geradores de texto - inalterados)
     const generateSubjetivo = useCallback((vitals, evolucao) => {
