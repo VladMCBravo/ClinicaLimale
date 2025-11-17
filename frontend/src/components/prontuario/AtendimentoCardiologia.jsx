@@ -149,7 +149,10 @@ export default function AtendimentoCardiologia({ pacienteId, agendamentoId, onEv
         // ★★★ 1. Crie o payload que inclui o agendamentoId ★★★
         const soapPayload = {
             ...soapData,
-            agendamento: agendamentoId || null
+            agendamento: agendamentoId || null,
+
+            // ★★★ ADICIONE ESTA LINHA ★★★
+            especialidade_nome_fornecida: "Cardiologia"
         };
 
         let evolucaoId;
