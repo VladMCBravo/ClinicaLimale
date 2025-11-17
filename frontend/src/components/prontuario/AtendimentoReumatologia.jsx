@@ -45,6 +45,9 @@ export default function AtendimentoReumatologia({ pacienteId, onEvolucaoSalva, a
                 
                 // 2. Adicionar o agendamentoId
                 agendamento: agendamentoId || null,
+            
+                // ★★★ ADICIONE ESTA LINHA ★★★
+                especialidade_nome_fornecida: "Reumatologia"
             };
 
             // 3. Usar a URL genérica e enviar o novo 'payload'

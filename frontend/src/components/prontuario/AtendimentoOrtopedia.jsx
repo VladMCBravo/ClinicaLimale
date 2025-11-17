@@ -149,6 +149,9 @@ export default function AtendimentoOrtopedia({ pacienteId, onEvolucaoSalva, agen
                 
                 // 2. Adicionar o agendamentoId
                 agendamento: agendamentoId || null,
+            
+                // ★★★ ADICIONE ESTA LINHA ★★★
+                especialidade_nome_fornecida: "Ortopedia"
             };
 
             // 3. Usar a URL genérica

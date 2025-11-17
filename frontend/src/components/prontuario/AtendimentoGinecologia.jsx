@@ -174,6 +174,9 @@ export default function AtendimentoGinecologia({ pacienteId, onEvolucaoSalva, ag
                 
                 // 2. Adicionar o agendamentoId
                 agendamento: agendamentoId || null,
+            
+                // ★★★ ADICIONE ESTA LINHA ★★★
+                especialidade_nome_fornecida: "Ginecologia"
             };
             
             // 3. Usar a URL genérica

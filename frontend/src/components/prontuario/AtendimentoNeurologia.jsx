@@ -174,6 +174,9 @@ export default function AtendimentoNeurologia({ pacienteId, onEvolucaoSalva, age
                 
                 // 1. Adiciona o agendamentoId ao payload
                 agendamento: agendamentoId || null,
+
+                // ★★★ ADICIONE ESTA LINHA ★★★
+                especialidade_nome_fornecida: "Neurologia"
             };
 
             // 2. A URL genérica '/evolucoes/' já está correta.

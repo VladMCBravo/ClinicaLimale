@@ -162,6 +162,9 @@ export default function AtendimentoClinicaGeral({ pacienteId, onEvolucaoSalva, a
                 
                 // 1. Adiciona o agendamentoId ao payload
                 agendamento: agendamentoId || null, 
+            
+                // ★★★ ADICIONE ESTA LINHA ★★★
+                especialidade_nome_fornecida: "Clinica Geral"
             };
             
             // 2. A URL genérica '/evolucoes/' já está correta.
