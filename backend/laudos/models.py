@@ -1,12 +1,11 @@
+# backend/laudos/models.py
 from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
-# Se você tiver um app de agendamentos, importe o modelo aqui. 
-# Ex: from agendamentos.models import Agendamento (Se não tiver, deixe comentado)
 
 class ModeloLaudo(models.Model):
     """
-    Substitui os templates do Turing.
+    Substitui os templates do Turing (.DAT).
     Aqui guardaremos os textos padrões (Ex: 'USG Obstétrico', 'USG Tireoide').
     """
     titulo = models.CharField(max_length=255, unique=True)
@@ -17,9 +16,9 @@ class ModeloLaudo(models.Model):
         help_text="Código TUSS ou interno para puxar automaticamente ao agendar"
     )
     
-    # Guardaremos o conteúdo como JSON para ser compatível com editores modernos (TipTap/Quill)
-    # ou HTML puro. JSON é melhor para as "variáveis clicáveis".
-    conteudo_padrao = models.JSONField(default=dict) 
+    # Guardaremos o conteúdo como JSON para ser compatível com editores modernos (TipTap)
+    # Se preferir HTML puro, pode mudar para TextField, mas JSONField é mais futuro-proof.
+    conteudo_padrao = models.JSONField(default=dict, blank=True) 
     
     especialidade = models.CharField(max_length=100, default='Radiologia')
     ativo = models.BooleanField(default=True)
@@ -56,7 +55,6 @@ class Laudo(models.Model):
     texto_puro = models.TextField(blank=True)
 
     # Imagens que o médico selecionou para sair no PDF
-    # Ex: ["http://orthanc.../preview1.jpg", "http://orthanc.../preview2.jpg"]
     imagens_selecionadas = models.JSONField(default=list, blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RASCUNHO')

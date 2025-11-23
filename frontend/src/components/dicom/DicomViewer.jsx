@@ -1,121 +1,120 @@
 // src/components/dicom/DicomViewer.jsx
-
-import React, { useEffect, useRef, useState } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Alert } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, CircularProgress, IconButton, Grid, Paper, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
-// Importações do Cornerstone
-import cornerstone from 'cornerstone-core';
-import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
-import dicomParser from 'dicom-parser';
+// IMPORTANTE: Usando a variável de ambiente ou fallback para o IP
+const orthancBaseUrl = import.meta.env.VITE_ORTHANC_URL || 'http://192.168.0.4:8042';
 
-// Configuração inicial do Cornerstone
-try {
-  cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-  cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
-  cornerstoneWADOImageLoader.configure({
-    beforeSend: function(xhr) {
-      // Configurações futuras de autenticação podem ir aqui
-    }
-  });
-} catch (error) {
-  console.error("Erro ao configurar o cornerstoneWADOImageLoader:", error);
-}
+export default function DicomViewer({ exame, onClose, onCapture, modoLaudo = false }) {
+  const [imagens, setImagens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [capturadas, setCapturadas] = useState([]); // IDs das imagens selecionadas
 
-
-export default function DicomViewer({ exame, onClose }) {
-  const elementRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
+  // Buscar a lista de TODAS as imagens do exame
   useEffect(() => {
-    const element = elementRef.current;
-    if (!element || !exame) return;
+    if (!exame?.orthanc_study_id) return;
 
-    // Coloque a URL base do seu servidor Orthanc aqui.
-    // Em um projeto real, isso viria de uma variável de ambiente (.env).
-    const orthancBaseUrl = 'http://192.168.0.4:8042';
-
-    const loadImage = async () => {
-      setIsLoading(true);
-      setError(null);
+    const fetchImagens = async () => {
+      setLoading(true);
       try {
-        // --- INÍCIO DA LÓGICA PRINCIPAL ---
+        // 1. Pega dados do estudo
+        const resStudy = await fetch(`${orthancBaseUrl}/studies/${exame.orthanc_study_id}`);
+        const studyData = await resStudy.json();
 
-        // 1. Buscar os detalhes do estudo na API do Orthanc
-        const studyResponse = await fetch(`${orthancBaseUrl}/studies/${exame.orthanc_study_id}`);
-        if (!studyResponse.ok) {
-          throw new Error(`Falha ao buscar detalhes do estudo no Orthanc: ${studyResponse.statusText}`);
-        }
-        const studyData = await studyResponse.json();
+        // 2. Pega a primeira série (Ultrassom geralmente tem 1 série com várias fotos)
+        const seriesId = studyData.Series?.[0];
+        if (!seriesId) throw new Error("Sem séries");
 
-        // 2. Extrair o ID da primeira imagem (instância) do estudo.
-        // A estrutura é: Estudo -> contém Séries -> que contêm Instâncias
-        const firstInstanceId = studyData?.Series?.[0]?.Instances?.[0];
-
-        if (!firstInstanceId) {
-          throw new Error("Nenhuma imagem (instância) foi encontrada neste estudo DICOM.");
-        }
-
-        // 3. Construir a URL final que o Cornerstone entende (WADO-URI)
-        // Esta URL aponta diretamente para o arquivo da imagem DICOM.
-        const imageId = `wadouri:${orthancBaseUrl}/instances/${firstInstanceId}/file`;
-
-        // 4. Habilitar o elemento HTML e pedir ao Cornerstone para carregar e exibir a imagem.
-        cornerstone.enable(element);
-        const image = await cornerstone.loadImage(imageId);
-        cornerstone.displayImage(element, image);
-
-        // --- FIM DA LÓGICA PRINCIPAL ---
-
-      } catch (err) {
-        console.error('Erro detalhado ao carregar imagem DICOM:', err);
-        setError(err.message);
+        // 3. Pega todas as instâncias (fotos) dessa série
+        const resSeries = await fetch(`${orthancBaseUrl}/series/${seriesId}`);
+        const seriesData = await resSeries.json();
+        
+        // Salva a lista de IDs das fotos
+        setImagens(seriesData.Instances || []);
+      } catch (error) {
+        console.error("Erro ao carregar galeria:", error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    loadImage();
-
-    // Função de limpeza: desabilita o elemento quando o componente for desmontado.
-    return () => {
-      if (element) {
-        try { cornerstone.disable(element); } catch(e) { /* ignora erro se já desabilitado */ }
-      }
-    };
+    fetchImagens();
   }, [exame]);
 
+  const toggleCaptura = (instanceId) => {
+    if (!onCapture) return;
+
+    // Cria a URL do preview (PNG leve) para salvar no laudo
+    const urlImagem = `${orthancBaseUrl}/instances/${instanceId}/preview`;
+    
+    // Lógica visual de seleção
+    if (capturadas.includes(instanceId)) {
+        setCapturadas(prev => prev.filter(id => id !== instanceId));
+        // Aqui você precisaria de uma lógica para remover do laudo também, se quiser
+    } else {
+        setCapturadas(prev => [...prev, instanceId]);
+        onCapture(urlImagem); // Envia para o EditorLaudo
+    }
+  };
 
   return (
-    <Box sx={{ p: 2, position: 'relative' }}>
-        <IconButton
-            onClick={onClose}
-            sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, color: 'white', backgroundColor: 'rgba(0,0,0,0.5)' }}
-        >
-            <CloseIcon />
-        </IconButton>
-        <Typography variant="h6" sx={{ mb:1 }}>
-            {exame?.study_description}
-        </Typography>
-        <Box 
-            sx={{
-                width: '100%',
-                height: '512px',
-                backgroundColor: 'black',
-                color: 'white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                position: 'relative' // Para posicionar o conteúdo interno
-            }}
-        >
-            {/* O ref é para o cornerstone saber onde desenhar a imagem */}
-            <div ref={elementRef} style={{width: '100%', height: '100%', position: 'absolute'}} />
-            
-            {/* Mensagens de estado para o usuário */}
-            {isLoading && <CircularProgress color="inherit" />}
-            {error && <Alert severity="error" sx={{width: '100%'}}>{error}</Alert>}
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'black', overflow: 'hidden' }}>
+        {/* Barra Superior */}
+        <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#333' }}>
+            <Typography variant="subtitle2" sx={{ color: 'white' }}>
+                {exame?.study_description || 'Imagens do Exame'} ({imagens.length} fotos)
+            </Typography>
+            {!modoLaudo && (
+                <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
+                    <CloseIcon />
+                </IconButton>
+            )}
+        </Box>
+
+        {/* Área de Galeria (Scrollável) */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1 }}>
+            {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
+                    <CircularProgress />
+                </Box>
+            ) : (
+                <Grid container spacing={1}>
+                    {imagens.map((instanceId) => (
+                        <Grid item xs={6} sm={4} md={modoLaudo ? 6 : 3} key={instanceId}>
+                            <Paper 
+                                sx={{ 
+                                    position: 'relative', 
+                                    cursor: 'pointer',
+                                    border: capturadas.includes(instanceId) ? '3px solid #00e676' : '1px solid #555',
+                                    lineHeight: 0
+                                }}
+                                onClick={() => modoLaudo && toggleCaptura(instanceId)}
+                            >
+                                {/* Imagem Preview (Rápida) */}
+                                <img 
+                                    src={`${orthancBaseUrl}/instances/${instanceId}/preview`} 
+                                    alt="USG" 
+                                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                                    loading="lazy"
+                                />
+                                
+                                {/* Ícone de Seleção (Só aparece no modo Laudo) */}
+                                {modoLaudo && (
+                                    <Box sx={{ position: 'absolute', top: 5, right: 5 }}>
+                                        {capturadas.includes(instanceId) 
+                                            ? <CheckCircleIcon sx={{ color: '#00e676', bgcolor:'black', borderRadius:'50%' }} />
+                                            : <RadioButtonUncheckedIcon sx={{ color: 'white', bgcolor:'rgba(0,0,0,0.3)', borderRadius:'50%' }} />
+                                        }
+                                    </Box>
+                                )}
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
         </Box>
     </Box>
   );
