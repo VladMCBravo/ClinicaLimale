@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'chatbot',
     'channels',
     'integracao_dicom',
+    'laudos', # <--- Adicione esta linha
 ]
 
 # --- Configurações de Middleware ---

@@ -34,7 +34,7 @@ export default function DicomViewer({ exame, onClose }) {
 
     // Coloque a URL base do seu servidor Orthanc aqui.
     // Em um projeto real, isso viria de uma variável de ambiente (.env).
-    const orthancBaseUrl = 'http://localhost:8042';
+    const orthancBaseUrl = 'http://192.168.0.4:8042';
 
     const loadImage = async () => {
       setIsLoading(true);

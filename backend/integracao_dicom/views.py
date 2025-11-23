@@ -10,7 +10,7 @@ from .serializers import ExameDicomSerializer # <-- 2. IMPORTE O NOVO SERIALIZER
 
 
 # Idealmente, coloque isso nas suas settings
-ORTHANC_API_URL = 'http://localhost:8042'
+ORTHANC_API_URL = 'http://192.168.0.4:8042'
 ORTHANC_AUTH = ('admin', 'password') # Lembre-se de usar variáveis de ambiente!
 
 # --- 3. ADICIONE ESTA NOVA VIEW ABAIXO ---

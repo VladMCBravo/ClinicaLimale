@@ -62,4 +62,5 @@ urlpatterns = [
  
     # --- 2. ADICIONE ESTA NOVA LINHA ---
     path('api/pdf/relatorio/<int:relatorio_id>/', GerarRelatorioPDFView.as_view(), name='pdf_relatorio'),
+    path('api/laudos/', include('laudos.urls')), # <--- Adicione esta linha
 ]
