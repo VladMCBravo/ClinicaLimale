@@ -1,15 +1,13 @@
-// src/components/PacienteModal.jsx - VERSÃO COM MÁSCARAS, GRID e VIACEP
-
-import React, { useState, useEffect, useCallback } from 'react'; // 1. Adicionado useCallback
+// src/components/PacienteModal.jsx
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, CircularProgress, Box, Autocomplete, Typography, Divider,
+  TextField, Button, CircularProgress, Box, Autocomplete, Typography,
   FormControl, InputLabel, Select, MenuItem,
-  Grid, InputAdornment // 2. Adicionado Grid e InputAdornment
+  Grid, InputAdornment
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
-// 3. Importar as máscaras que já criamos
 import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from './common/MaskedInput';
 
 const initialState = {
@@ -44,10 +42,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   const [convenios, setConvenios] = useState([]);
   const [convenioSelecionado, setConvenioSelecionado] = useState(null);
   const [planosFiltrados, setPlanosFiltrados] = useState([]);
-
-  // 4. Novo estado para o loading do CEP
   const [isCepLoading, setIsCepLoading] = useState(false);
 
+  // Carregar dados auxiliares (médicos e convênios)
   useEffect(() => {
     if (open) {
       apiClient.get('/usuarios/usuarios/?cargo=medico').then(response => setMedicos(response.data));
@@ -55,6 +52,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [open]);
 
+  // Carregar dados do paciente ou resetar formulário
   useEffect(() => {
     if (open) {
       if (pacienteParaEditar) {
@@ -85,12 +83,12 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         setFormData(initialState);
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
-        setIsCepLoading(false); // Reseta o loading do CEP
+        setIsCepLoading(false);
       }
     }
   }, [pacienteParaEditar, open]);
 
-  // Lógica de convênios (já estava correta)
+  // Lógica de pré-seleção do convênio ao editar
   useEffect(() => {
     if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
       const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
@@ -99,9 +97,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         setConvenioSelecionado(convenioPai);
         setPlanosFiltrados(convenioPai.planos);
       }
-    } else if (!pacienteParaEditar) {
-      setConvenioSelecionado(null);
-      setPlanosFiltrados([]);
     }
   }, [pacienteParaEditar, convenios]);
 
@@ -112,17 +107,15 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
   
-  // 5. Novo handler para campos com máscara
   const handleMaskedChange = (event) => {
-    setFormData({ ...formData, [event.target.name]: event.target.value });
+    setFormData(prev => ({ ...prev, [event.target.name]: event.target.value }));
   };
 
-  // 6. Nova função de busca do VIACEP
   const handleCepBlur = useCallback(async () => {
-    const cep = formData.cep?.replace(/[^0-9]/g, ''); // Limpa a máscara
+    const cep = formData.cep?.replace(/[^0-9]/g, '');
     if (cep && cep.length === 8) {
       setIsCepLoading(true);
       try {
@@ -133,10 +126,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
 
         setFormData(prev => ({
           ...prev,
-          endereco: data.logradouro, // Mapeia logradouro -> endereco
-          bairro: data.bairro,
-          cidade: data.localidade, // Mapeia localidade -> cidade
-          estado: data.uf,         // Mapeia uf -> estado
+          endereco: data.logradouro || '',
+          bairro: data.bairro || '',
+          cidade: data.localidade || '',
+          estado: data.uf || '',
           complemento: data.complemento || '',
         }));
         showSnackbar('Endereço preenchido!', 'success');
@@ -148,15 +141,38 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [formData.cep, showSnackbar]);
 
+  // CORREÇÃO 1: Evitar que Enter no CEP submeta o form (causando reload)
+  const handleCepKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Opcional: Se quiser que o Enter dispare a busca, chame handleCepBlur() aqui
+      // handleCepBlur(); 
+    }
+  };
+
+  // CORREÇÃO 2: Estabilizar o InputProps para evitar remount/flicker
+  const cepInputProps = useMemo(() => ({
+    inputComponent: TextMaskCEP,
+    endAdornment: (
+      <InputAdornment position="end">
+        {isCepLoading && <CircularProgress size={20} />}
+      </InputAdornment>
+    )
+  }), [isCepLoading]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Garante que não haverá reload
+    e.stopPropagation(); // Evita propagação indesejada
+
     setIsLoading(true);
     
+    // Tratamento de campos numéricos vazios
     const dataToSend = { 
       ...formData,
       peso: formData.peso || null,
       altura: formData.altura || null,
+      cpf: formData.cpf || null, // Garante envio null se vazio
+      email: formData.email || null // Garante envio null se vazio
     }; 
 
     try {
@@ -167,12 +183,14 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         await apiClient.post('/pacientes/', dataToSend);
         showSnackbar('Paciente criado com sucesso!', 'success');
       }
-      onSave();
-      onClose();
+      onSave(); // Atualiza a lista no pai
+      onClose(); // Fecha o modal
     } catch (error) {
+      console.error("Erro no submit:", error);
       const errorData = error.response?.data;
-      // O serializer agora envia erros amigáveis
-      const errorMsg = typeof errorData === 'object' ? Object.values(errorData).flat()[0] : 'Erro ao salvar paciente.';
+      const errorMsg = typeof errorData === 'object' 
+        ? Object.values(errorData).flat()[0] 
+        : 'Erro ao salvar paciente.';
       showSnackbar(errorMsg, 'error');
     } finally {
       setIsLoading(false);
@@ -183,12 +201,12 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   const planoValue = planosFiltrados.find(p => p.id === formData.plano_convenio) || null;
 
   return (
-    // 7. Aumentar a largura do modal
     <Dialog open={open} onClose={() => { onClose(); setConvenioSelecionado(null); }} fullWidth maxWidth="lg">
       <DialogTitle>{pacienteParaEditar ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-      <form onSubmit={handleSubmit}>
+      
+      {/* O form deve ter o onSubmit para capturar o Enter globalmente ou o clique no botão submit */}
+      <form onSubmit={handleSubmit} noValidate> 
         <DialogContent>
-          {/* 8. Reestruturação total com Grid */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
             
             <Typography variant="h6" sx={{ color: 'text.secondary' }}>Dados Pessoais</Typography>
@@ -221,15 +239,15 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Endereço (Opcional)</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={3}>
-                <TextField name="cep" label="CEP" value={formData.cep} onChange={handleMaskedChange} onBlur={handleCepBlur} fullWidth
-                  InputProps={{ 
-                    inputComponent: TextMaskCEP,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        {isCepLoading && <CircularProgress size={20} />}
-                      </InputAdornment>
-                    )
-                  }}
+                <TextField 
+                  name="cep" 
+                  label="CEP" 
+                  value={formData.cep} 
+                  onChange={handleMaskedChange} 
+                  onBlur={handleCepBlur} 
+                  onKeyDown={handleCepKeyDown} // Impede submit no Enter
+                  fullWidth
+                  InputProps={cepInputProps} // Objeto estabilizado com useMemo
                 />
               </Grid>
               <Grid item xs={12} sm={7}><TextField name="endereco" label="Endereço" value={formData.endereco} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} /></Grid>
@@ -240,6 +258,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               <Grid item xs={12} sm={1}><TextField name="estado" label="UF" value={formData.estado} onChange={handleChange} fullWidth inputProps={{ maxLength: 2 }} InputLabelProps={{ shrink: true }} /></Grid>
             </Grid>
 
+            {/* Resto do formulário permanece igual */}
             <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Responsável (Opcional)</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}><TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth /></Grid>
@@ -265,7 +284,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                   getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
                   value={medicoValue}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(event, newValue) => setFormData({ ...formData, medico_responsavel: newValue ? newValue.id : null })}
+                  onChange={(event, newValue) => setFormData(prev => ({ ...prev, medico_responsavel: newValue ? newValue.id : null }))}
                   renderInput={(params) => <TextField {...params} label="Médico Responsável" />}
                 />
               </Grid>
@@ -285,7 +304,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                   getOptionLabel={(option) => option.nome || ''}
                   value={planoValue}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(event, newValue) => setFormData({ ...formData, plano_convenio: newValue ? newValue.id : null })}
+                  onChange={(event, newValue) => setFormData(prev => ({ ...prev, plano_convenio: newValue ? newValue.id : null }))}
                   disabled={!convenioSelecionado} 
                   renderInput={(params) => <TextField {...params} label="Plano" />}
                 />
@@ -305,8 +324,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancelar</Button>
-          {/* 9. Botão de salvar atualizado */}
+          <Button onClick={onClose} type="button">Cancelar</Button>
           <Button type="submit" variant="contained" disabled={isLoading || isCepLoading}>
             {(isLoading || isCepLoading) ? <CircularProgress size={24} /> : 'Salvar'}
           </Button>
