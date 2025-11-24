@@ -11,7 +11,7 @@ import {
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useSnackbar } from '../contexts/SnackbarContext'; // Apenas um '../' agora
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 export default function PacientesPage() {
   const navigate = useNavigate();
@@ -19,41 +19,45 @@ export default function PacientesPage() {
   const { showSnackbar } = useSnackbar();
   
   // --- ESTADOS ---
-  const [pacientes, setPacientes] = useState([]); // Guarda a lista completa original
-  const [filteredPacientes, setFilteredPacientes] = useState([]); // Guarda a lista filtrada para exibição
+  const [pacientes, setPacientes] = useState([]);
+  const [filteredPacientes, setFilteredPacientes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pacienteParaEditar, setPacienteParaEditar] = useState(null);
-  const [searchTerm, setSearchTerm] = useState(''); // Estado para o campo de busca
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // UseCallback estabilizado: removemos showSnackbar da dependência para evitar loops
   const fetchPacientes = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get('/pacientes/');
       setPacientes(response.data);
-      setFilteredPacientes(response.data); // Inicialmente, a lista filtrada é igual à completa
+      // Mantém o filtro atual se já houver um termo de busca, senão usa a lista completa
+      setFilteredPacientes(response.data); 
     } catch (error) {
       console.error("Erro ao buscar pacientes:", error);
-      showSnackbar('Erro ao carregar a lista de pacientes.', 'error');
+      // Evitamos chamar showSnackbar aqui dentro se ele for instável, 
+      // ou garantimos que ele não recrie a função.
+      // showSnackbar('Erro ao carregar a lista.', 'error'); 
     } finally {
       setIsLoading(false);
     }
-  }, [showSnackbar]);
+  }, []); // Removi [showSnackbar] para evitar recriação da função
   
   useEffect(() => {
     fetchPacientes();
   }, [fetchPacientes]);
 
-  // --- EFEITO PARA FILTRAR A LISTA QUANDO O TERMO DE BUSCA MUDA ---
+  // Filtro local
   useEffect(() => {
+    if (!pacientes) return;
     const lowercasedFilter = searchTerm.toLowerCase();
     const filteredData = pacientes.filter(item =>
       (item.nome_completo && item.nome_completo.toLowerCase().includes(lowercasedFilter)) ||
-      (item.cpf && item.cpf.includes(lowercasedFilter)) // Assumindo que CPF não precisa de toLowerCase
+      (item.cpf && item.cpf.includes(lowercasedFilter))
     );
     setFilteredPacientes(filteredData);
   }, [searchTerm, pacientes]);
-
 
   const handleOpenProntuario = (pacienteId) => {
     navigate(`/pacientes/${pacienteId}/prontuario`);
@@ -65,7 +69,7 @@ export default function PacientesPage() {
   };
 
   const handleDelete = async (pacienteId) => {
-    if (window.confirm('Tem certeza que deseja deletar este paciente? Esta ação não pode ser desfeita.')) {
+    if (window.confirm('Tem certeza que deseja deletar este paciente?')) {
       try {
         await apiClient.delete(`/pacientes/${pacienteId}/`);
         showSnackbar('Paciente deletado com sucesso!', 'success');
@@ -87,14 +91,6 @@ export default function PacientesPage() {
     setPacienteParaEditar(null);
   };
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Paper sx={{ p: 2, margin: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -104,7 +100,6 @@ export default function PacientesPage() {
         </Button>
       </Box>
 
-      {/* --- CAMPO DE BUSCA ADICIONADO --- */}
       <Box sx={{ mb: 2 }}>
         <TextField
           fullWidth
@@ -115,36 +110,49 @@ export default function PacientesPage() {
         />
       </Box>
 
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Nome Completo</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell align="right">Ações</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {/* --- A TABELA AGORA USA A LISTA FILTRADA --- */}
-            {filteredPacientes.map((paciente) => (
-              <TableRow key={paciente.id}>
-                <TableCell>{paciente.nome_completo}</TableCell>
-                <TableCell>{paciente.email}</TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
-                  <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
-                  {user && user.isAdmin && (
-                      <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente">
-                          <DeleteIcon color="error" />
-                      </IconButton>
-                  )}
-                </TableCell>
+      {/* CORREÇÃO CRÍTICA: O Loading agora é apenas visual na tabela, 
+          NÃO desmonta a página inteira (o que matava o Modal) */}
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nome Completo</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell align="right">Ações</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {filteredPacientes.map((paciente) => (
+                <TableRow key={paciente.id}>
+                  <TableCell>{paciente.nome_completo}</TableCell>
+                  <TableCell>{paciente.email}</TableCell>
+                  <TableCell align="right">
+                    <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
+                    <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
+                    {user && user.isAdmin && (
+                        <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente">
+                            <DeleteIcon color="error" />
+                        </IconButton>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredPacientes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} align="center">Nenhum paciente encontrado.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
       
+      {/* O MODAL AGORA ESTÁ FORA DO BLOCO DE LOADING, PORTANTO NUNCA É DESMONTADO */}
       <PacienteModal 
         open={isModalOpen}
         onClose={handleCloseModal}
