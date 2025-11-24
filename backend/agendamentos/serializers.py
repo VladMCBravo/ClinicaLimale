@@ -88,10 +88,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                   
     def validate(self, data):
         """
-        Validação aprimorada:
-        1. Procedimentos são automaticamente alocados na Sala 1.
-        2. A sala é OBRIGATÓRIA para usuários do sistema (recepção/admin).
-        3. A capacidade (3 consultas/1 proc) é verificada APENAS se uma sala for definida.
+        Validação corrigida: Aceita a sala enviada pelo frontend.
         """
         CAPACIDADE_CONSULTAS = 3
         CAPACIDADE_PROCEDIMENTOS = 1
@@ -99,8 +96,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         tipo_agendamento_atual = data.get('tipo_agendamento')
         inicio = data.get('data_hora_inicio')
         fim = data.get('data_hora_fim')
-        # Removido daqui para ser definido após a lógica de procedimento
-        # sala_atual = data.get('sala') 
+        sala_atual = data.get('sala') # Pega a sala enviada pelo Frontend
 
         # --- REGRAS DE NEGÓCIO (Consulta vs Procedimento) ---
         if tipo_agendamento_atual == 'Consulta':
@@ -109,45 +105,43 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             if not data.get('especialidade'):
                 raise serializers.ValidationError({"especialidade": "É necessário selecionar uma especialidade para a consulta."})
             data['procedimento'] = None
+            
         elif tipo_agendamento_atual == 'Procedimento':
             if not data.get('procedimento'):
                 raise serializers.ValidationError({"procedimento": "É necessário selecionar um procedimento."})
+            
             data['medico'] = None
             data['especialidade'] = None
             data['modalidade'] = 'Presencial'
             
-            # <<-- NOVA REGRA: ALOCAR PROCEDIMENTO NA SALA 1 -->>
-            # Alinhando a busca com o nome correto do seu banco de dados.
-            try:
-                # Tenta primeiro o nome que sabemos que existe
-                sala_procedimento = Sala.objects.get(nome__iexact="Consultório 1")
-                data['sala'] = sala_procedimento
-            except Sala.DoesNotExist:
-                # Se falhar, tenta o nome alternativo
-                try:
-                    sala_procedimento = Sala.objects.get(nome__iexact="Sala 1")
-                    data['sala'] = sala_procedimento
-                except Sala.DoesNotExist:
-                    # Se ambos falharem, lança o erro.
-                    raise serializers.ValidationError({
-                        "sala": "A sala de procedimentos ('Consultório 1' ou 'Sala 1') não foi encontrada no sistema. Por favor, cadastre-a."
-                    })
-            # <<-- FIM DA NOVA REGRA -->>
-        
-        # Pega o valor da sala APÓS a lógica de alocação de procedimento
-        sala_atual = data.get('sala')
+            # --- CORREÇÃO AQUI: Removemos a busca fixa por "Sala 1" ---
+            if not sala_atual:
+                 # Tenta buscar uma sala configurada como de exame
+                 sala_padrao = Sala.objects.filter(e_sala_exame=True).first()
+                 if sala_padrao:
+                     data['sala'] = sala_padrao
+                     sala_atual = sala_padrao
+                 else:
+                    # Último recurso: pega qualquer sala para não travar
+                    sala_qualquer = Sala.objects.first()
+                    if sala_qualquer:
+                         data['sala'] = sala_qualquer
+                         sala_atual = sala_qualquer
+                    else:
+                        raise serializers.ValidationError({
+                            "sala": "Nenhuma sala selecionada e nenhuma sala cadastrada no sistema."
+                        })
 
-        # <<-- LÓGICA DE VALIDAÇÃO CONDICIONAL -->>
+        # --- VALIDAÇÃO DE OBRIGATORIEDADE DE SALA (Para Recepção) ---
         request = self.context.get('request')
         usuario_logado = request.user if request and hasattr(request, 'user') else None
 
-        # Passo 1: Verificar se a sala é obrigatória para este tipo de usuário.
         if usuario_logado and hasattr(usuario_logado, 'cargo') and usuario_logado.cargo in ['recepcao', 'admin']:
-            # A verificação só se aplica se não for um procedimento (que já tem sala obrigatória)
-            if tipo_agendamento_atual != 'Procedimento' and not sala_atual:
-                raise serializers.ValidationError({"sala": "A seleção da sala é obrigatória para agendamentos feitos pelo painel."})
+             modalidade = data.get('modalidade', 'Presencial')
+             if not sala_atual and modalidade == 'Presencial':
+                 raise serializers.ValidationError({"sala": "A seleção da sala é obrigatória."})
 
-        # Passo 2: Se uma sala foi informada, validar a capacidade.
+        # --- VALIDAÇÃO DE CAPACIDADE DA SALA ---
         if sala_atual:
             conflitos = Agendamento.objects.filter(
                 data_hora_inicio__lt=fim, 
@@ -162,9 +156,9 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             procedimentos_na_sala = conflitos.filter(tipo_agendamento='Procedimento').count()
 
             if tipo_agendamento_atual == 'Consulta' and consultas_na_sala >= CAPACIDADE_CONSULTAS:
-                raise serializers.ValidationError(f"A capacidade máxima de {CAPACIDADE_CONSULTAS} consultas para esta sala e horário já foi atingida.")
+                raise serializers.ValidationError(f"Capacidade esgotada ({CAPACIDADE_CONSULTAS} consultas) para esta sala.")
             elif tipo_agendamento_atual == 'Procedimento' and procedimentos_na_sala >= CAPACIDADE_PROCEDIMENTOS:
-                raise serializers.ValidationError(f"A capacidade máxima de {CAPACIDADE_PROCEDIMENTOS} procedimento(s) para esta sala e horário já foi atingida.")
+                raise serializers.ValidationError(f"A sala já está ocupada por um procedimento neste horário.")
         
         return data
     

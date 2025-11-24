@@ -77,39 +77,34 @@ def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
 
 def buscar_proximo_horario_procedimento(procedimento_id: int):
     """
-    <<-- NOVA LÓGICA -->>
-    Busca os próximos horários livres especificamente na SALA DE PROCEDIMENTOS.
-    Esta função é usada para EXAMES/PROCEDIMENTOS.
+    Busca horários livres na SALA DE PROCEDIMENTOS (Dinâmica).
     """
     try:
-        # Tenta encontrar a sala por um dos nomes comuns.
-        # IMPORTANTE: Garanta que o nome no seu banco de dados seja um destes.
-        try:
-            sala_procedimentos = Sala.objects.get(nome__iexact="Sala 1")
-        except Sala.DoesNotExist:
-            sala_procedimentos = Sala.objects.get(nome__iexact="Consultório 1")
+        # --- CORREÇÃO: Busca dinâmica da sala ---
+        # Pega a primeira sala marcada como 'e_sala_exame' ou qualquer uma disponível
+        sala_procedimentos = Sala.objects.filter(e_sala_exame=True).first()
+        
+        if not sala_procedimentos:
+            sala_procedimentos = Sala.objects.first()
+            if not sala_procedimentos:
+                logger.warning("Nenhuma sala cadastrada para buscar horários.")
+                return None
 
-        # Define uma jornada de trabalho padrão para a sala de procedimentos
-        # (Ex: Segunda a Sábado). Ajuste conforme necessário.
         jornada_sala = {'hora_inicio': time(8, 0), 'hora_fim': time(18, 0)}
         agora = timezone.localtime(timezone.now())
 
-        for i in range(90): # Busca nos próximos 90 dias
+        for i in range(90): 
             data_atual = agora.date() + timedelta(days=i)
-            # Ignora Domingos
-            if data_atual.weekday() == 6:
-                continue
+            if data_atual.weekday() == 6: continue # Ignora domingos
             
             horarios_disponiveis = []
             slot_atual = datetime.combine(data_atual, jornada_sala['hora_inicio'])
 
             while slot_atual.time() < jornada_sala['hora_fim']:
                 if timezone.make_aware(slot_atual) > agora:
-                    # Verifica se a SALA tem conflito de agendamento
                     conflito_sala = Agendamento.objects.filter(
                         sala=sala_procedimentos,
                         status__in=['Agendado', 'Confirmado', 'Realizado'],
-                        tipo_agendamento='Procedimento',
                         data_hora_inicio__lt=timezone.make_aware(slot_atual + timedelta(minutes=50)),
                         data_hora_fim__gt=timezone.make_aware(slot_atual)
                     ).exists()
@@ -126,9 +121,6 @@ def buscar_proximo_horario_procedimento(procedimento_id: int):
                 }
         return None
 
-    except Sala.DoesNotExist:
-        logger.error("A 'Sala 1' ou 'Consultório 1' não foi encontrada no banco de dados. Não é possível agendar procedimentos.")
-        return None
     except Exception as e:
         logger.error(f"Erro ao buscar horários para procedimento: {e}", exc_info=True)
         return None
