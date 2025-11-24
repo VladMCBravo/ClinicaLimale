@@ -1,4 +1,4 @@
-// src/components/PacienteModal.jsx
+// src/components/PacienteModal.jsx - VERSÃO DEBUGGABLE
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -10,7 +10,6 @@ import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from './common/MaskedInput';
 
-// Estado inicial movido para fora para evitar recriação desnecessária
 const initialState = {
   nome_completo: '',
   data_nascimento: '',
@@ -36,38 +35,35 @@ const initialState = {
 };
 
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
+  console.log('[DEBUG] RENDER: PacienteModal renderizou. Open:', open);
+
   const { showSnackbar } = useSnackbar();
   const [formData, setFormData] = useState(initialState);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Estados de dados auxiliares
   const [medicos, setMedicos] = useState([]);
   const [convenios, setConvenios] = useState([]);
   const [convenioSelecionado, setConvenioSelecionado] = useState(null);
   const [planosFiltrados, setPlanosFiltrados] = useState([]);
-  
-  // Estado de loading do CEP
   const [isCepLoading, setIsCepLoading] = useState(false);
 
-  // --- 1. CARREGAMENTO DE DADOS (MÉDICOS E CONVÊNIOS) ---
   useEffect(() => {
     if (open) {
-      // Usando Promise.all para carregar em paralelo e evitar re-renders picados
+      console.log('[DEBUG] EFFECT: Modal abriu. Buscando dados auxiliares...');
       Promise.all([
         apiClient.get('/usuarios/usuarios/?cargo=medico'),
         apiClient.get('/faturamento/convenios/')
       ]).then(([medicosRes, conveniosRes]) => {
+        console.log('[DEBUG] DADOS: Médicos e convênios carregados.');
         setMedicos(medicosRes.data);
         setConvenios(conveniosRes.data);
-      }).catch(err => console.error("Erro ao carregar dados auxiliares:", err));
+      }).catch(err => console.error('[DEBUG] ERRO: Falha ao carregar auxiliares', err));
     }
   }, [open]);
 
-  // --- 2. POPULAR FORMULÁRIO (EDIÇÃO OU NOVO) ---
   useEffect(() => {
     if (open) {
       if (pacienteParaEditar) {
-        // Previne valores null/undefined que causam erro de "Uncontrolled Input"
+        console.log('[DEBUG] EFFECT: Modo Edição iniciada para ID:', pacienteParaEditar.id);
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
@@ -92,6 +88,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           telefone_responsavel: pacienteParaEditar.telefone_responsavel || '',
         });
       } else {
+        console.log('[DEBUG] EFFECT: Modo Criação (Resetando form)');
         setFormData(initialState);
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
@@ -100,7 +97,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [pacienteParaEditar, open]);
 
-  // --- 3. LÓGICA DE CONVÊNIOS ---
+  // Lógica de convênios
   useEffect(() => {
     if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
       const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
@@ -119,76 +116,84 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // console.log(`[DEBUG] Change no campo: ${e.target.name} = ${e.target.value}`);
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
-
-  // --- 4. CORREÇÃO CRÍTICA DO CEP ---
   
-  // A. UseMemo para InputProps: Impede que o campo seja recriado (pisque/suma) quando o loading aparece
-  const cepInputProps = useMemo(() => ({
-    inputComponent: TextMaskCEP,
-    endAdornment: (
-      <InputAdornment position="end">
-        {isCepLoading && <CircularProgress size={20} />}
-      </InputAdornment>
-    )
-  }), [isCepLoading]);
-
-  // B. Bloqueio do Enter: Impede o Reload da página ao apertar Enter no CEP
-  const handleKeyDown = (e) => {
+  // LOGS ESPECÍFICOS PARA O CEP
+  const handleCepKeyDown = (e) => {
+    console.log('[DEBUG] CEP KeyDown:', e.key);
     if (e.key === 'Enter') {
-      e.preventDefault(); // MATA O RELOAD
+      console.log('[DEBUG] CEP: Enter pressionado! Bloqueando default...');
+      e.preventDefault();
       e.stopPropagation();
+      // Opcional: chamar busca manual aqui se quiser
+      // handleCepBlur();
     }
   };
 
   const handleCepBlur = useCallback(async () => {
-    // Remove caracteres não numéricos para verificar tamanho
-    const cepLimpo = formData.cep?.replace(/[^0-9]/g, '');
+    console.log('[DEBUG] CEP: Evento Blur disparado. Valor atual:', formData.cep);
     
+    const cepLimpo = formData.cep?.replace(/[^0-9]/g, '');
+    console.log('[DEBUG] CEP Limpo:', cepLimpo);
+
     if (cepLimpo && cepLimpo.length === 8) {
+      console.log('[DEBUG] CEP: Iniciando fetch no ViaCEP...');
       setIsCepLoading(true);
       try {
         const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
         if (!response.ok) throw new Error('Erro na requisição');
         
         const data = await response.json();
+        console.log('[DEBUG] CEP: Resposta recebida:', data);
+        
         if (data.erro) {
+          console.warn('[DEBUG] CEP: Erro na API (CEP inexistente)');
           showSnackbar('CEP não localizado.', 'warning');
           return;
         }
 
-        // Atualiza o form com os dados do ViaCEP
+        console.log('[DEBUG] CEP: Atualizando estado do formulário...');
         setFormData(prev => ({
           ...prev,
           endereco: data.logradouro || '',
           bairro: data.bairro || '',
           cidade: data.localidade || '',
           estado: data.uf || '',
-          complemento: data.complemento || '', // Opcional, alguns CEPs retornam
+          complemento: data.complemento || '',
         }));
         showSnackbar('Endereço encontrado!', 'success');
       } catch (error) {
-        console.error(error);
-        showSnackbar('Erro ao buscar CEP. Verifique a conexão.', 'error');
+        console.error('[DEBUG] CEP CRITICAL ERROR:', error);
+        showSnackbar('Erro ao buscar CEP.', 'error');
       } finally {
         setIsCepLoading(false);
+        console.log('[DEBUG] CEP: Loading finalizado');
       }
+    } else {
+        console.log('[DEBUG] CEP: Ignorando busca (tamanho inválido ou vazio)');
     }
   }, [formData.cep, showSnackbar]);
 
+  const cepInputProps = useMemo(() => {
+    // console.log('[DEBUG] Recalculando InputProps do CEP. Loading:', isCepLoading);
+    return {
+      inputComponent: TextMaskCEP,
+      endAdornment: (
+        <InputAdornment position="end">
+          {isCepLoading && <CircularProgress size={20} />}
+        </InputAdornment>
+      )
+    };
+  }, [isCepLoading]);
 
-  // --- 5. SUBMIT SEGURO ---
-  const handleSubmit = async (e) => {
-    e.preventDefault(); // 1ª Linha Obrigatória
-    e.stopPropagation(); // 2ª Linha de Segurança
-
-    console.log("Tentando salvar...", formData); // DEBUG: Veja se aparece no console
-
+  // FUNÇÃO DE SALVAR ISOLADA
+  const handleSaveClick = async () => {
+    console.log('[DEBUG] SAVE: Botão Salvar clicado. Dados:', formData);
+    
     setIsLoading(true);
     
-    // Tratamento de dados antes de enviar (evitar strings vazias em campos numéricos)
     const dataToSend = { 
       ...formData,
       peso: formData.peso === '' ? null : formData.peso,
@@ -198,29 +203,26 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }; 
 
     try {
-      let response;
       if (pacienteParaEditar) {
-        response = await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
+        console.log('[DEBUG] SAVE: Enviando PUT...');
+        await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
         showSnackbar('Paciente atualizado com sucesso!', 'success');
       } else {
-        response = await apiClient.post('/pacientes/', dataToSend);
+        console.log('[DEBUG] SAVE: Enviando POST...');
+        await apiClient.post('/pacientes/', dataToSend);
         showSnackbar('Paciente criado com sucesso!', 'success');
       }
       
-      console.log("Sucesso:", response.data); // DEBUG
-      
-      if (onSave) onSave(); // Atualiza a lista na página pai
-      onClose(); // Fecha o modal
+      console.log('[DEBUG] SAVE: Sucesso API. Fechando modal.');
+      if (onSave) onSave();
+      onClose();
     } catch (error) {
-      console.error("Erro no submit:", error); // DEBUG
+      console.error("[DEBUG] SAVE ERROR:", error);
       const errorData = error.response?.data;
       const errorMsg = typeof errorData === 'object' 
-        ? JSON.stringify(Object.values(errorData).flat()) // Converte array de erros em string legível
+        ? JSON.stringify(Object.values(errorData).flat()) 
         : 'Erro ao salvar paciente.';
-      
-      // Limpa caracteres feios do JSON se possível
-      const msgLimpa = errorMsg.replace(/[\[\]"]/g, '').replace(/,/g, ', ');
-      showSnackbar(msgLimpa, 'error');
+      showSnackbar(errorMsg.replace(/[\[\]"]/g, ''), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -235,13 +237,15 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       onClose={() => { onClose(); setConvenioSelecionado(null); }} 
       fullWidth 
       maxWidth="lg"
-      // Impede que clicar fora feche o modal acidentalmente enquanto carrega
       disableEscapeKeyDown={isLoading} 
     >
       <DialogTitle>{pacienteParaEditar ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
       
-      {/* O "noValidate" remove validações nativas do HTML5 que as vezes conflitam com Material UI */}
-      <form onSubmit={handleSubmit} noValidate>
+      {/* IMPORTANTE: REMOVI A TAG <form> E SUBSTITUI POR <Box> 
+         ISSO MATA O COMPORTAMENTO DE RELOAD DO NAVEGADOR.
+         AGORA O "SALVAR" DEPENDE EXCLUSIVAMENTE DO onClick.
+      */}
+      <Box component="div" sx={{ display: 'flex', flexDirection: 'column' }}> 
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
             
@@ -286,10 +290,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                   label="CEP" 
                   value={formData.cep} 
                   onChange={handleChange} 
-                  onBlur={handleCepBlur} // Busca ao sair do campo
-                  onKeyDown={handleKeyDown} // BLOQUEIA O ENTER
+                  onBlur={handleCepBlur} 
+                  onKeyDown={handleCepKeyDown} 
                   fullWidth
-                  InputProps={cepInputProps} // PROPS ESTABILIZADAS
+                  InputProps={cepInputProps} 
                 />
               </Grid>
               <Grid item xs={12} sm={7}>
@@ -312,11 +316,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               </Grid>
             </Grid>
 
-            <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Responsável (Opcional)</Typography>
+            {/* Campos de Responsável e Dados Clínicos mantidos igual... */}
+             <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Responsável (Opcional)</Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth />
-              </Grid>
+              <Grid item xs={12} sm={6}><TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth /></Grid>
               <Grid item xs={12} sm={3}>
                 <TextField name="cpf_responsavel" label="CPF do Responsável" value={formData.cpf_responsavel} onChange={handleChange} fullWidth
                   InputProps={{ inputComponent: TextMaskCPF }}
@@ -331,12 +334,8 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
 
             <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Dados Clínicos e Convênio</Typography>
             <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}>
-                <TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth />
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth />
-              </Grid>
+              <Grid item xs={6} sm={3}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth /></Grid>
+              <Grid item xs={6} sm={3}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth /></Grid>
               <Grid item xs={12} sm={6}>
                 <Autocomplete
                   options={medicos}
@@ -379,17 +378,16 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                 />
               </Grid>
             </Grid>
-            
           </Box>
         </DialogContent>
         <DialogActions>
-          {/* Botão Cancelar com type="button" para evitar submit acidental */}
-          <Button onClick={onClose} color="inherit" type="button">Cancelar</Button>
-          <Button type="submit" variant="contained" disabled={isLoading || isCepLoading}>
+          <Button onClick={onClose} color="inherit">Cancelar</Button>
+          {/* Botão agora chama handleSaveClick diretamente, sem depender de submit de form */}
+          <Button onClick={handleSaveClick} variant="contained" disabled={isLoading || isCepLoading}>
             {(isLoading || isCepLoading) ? <CircularProgress size={24} color="inherit" /> : 'Salvar'}
           </Button>
         </DialogActions>
-      </form>
+      </Box>
     </Dialog>
   );
 }
