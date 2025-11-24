@@ -2,24 +2,21 @@
 from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
+# Importamos agendamentos apenas como string para evitar ciclo, mas usamos no ForeignKey
 
 class ModeloLaudo(models.Model):
-    """
-    Substitui os templates do Turing (.DAT).
-    Aqui guardaremos os textos padrões (Ex: 'USG Obstétrico', 'USG Tireoide').
-    """
+    """Templates de Laudo (Substitui lógica antiga do Turing)"""
     titulo = models.CharField(max_length=255, unique=True)
-    codigo_procedimento = models.CharField(
-        max_length=50, 
-        blank=True, 
-        null=True, 
-        help_text="Código TUSS ou interno para puxar automaticamente ao agendar"
-    )
     
-    # Guardaremos o conteúdo como JSON para ser compatível com editores modernos (TipTap)
-    # Se preferir HTML puro, pode mudar para TextField, mas JSONField é mais futuro-proof.
+    # Código mnemônico para facilitar busca pelo médico
+    codigo_mnemonico = models.CharField(max_length=20, blank=True, null=True, help_text="Ex: USG-OBS-GEMELAR")
+    
+    # Conteúdo estruturado (TipTap/JSON)
     conteudo_padrao = models.JSONField(default=dict, blank=True) 
     
+    # Texto puro para fallback ou visualização simples
+    texto_padrao_html = models.TextField(blank=True, help_text="Versão HTML simples se não usar editor rico")
+
     especialidade = models.CharField(max_length=100, default='Radiologia')
     ativo = models.BooleanField(default=True)
 
@@ -27,39 +24,49 @@ class ModeloLaudo(models.Model):
         return self.titulo
 
 class Laudo(models.Model):
-    """
-    O documento final gerado para um paciente específico.
-    """
     STATUS_CHOICES = [
         ('RASCUNHO', 'Rascunho'),
+        ('REVISAO', 'Em Revisão'),
         ('ASSINADO', 'Assinado/Finalizado'),
     ]
 
+    # Vínculo Forte: Um agendamento gera UM laudo.
+    agendamento = models.OneToOneField(
+        'agendamentos.Agendamento', 
+        on_delete=models.PROTECT, 
+        related_name='laudo',
+        null=True, blank=True # Opcional pois pode haver laudo avulso (raro, mas possível)
+    )
+
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='laudos')
-    medico = models.ForeignKey(
+    
+    # Quem laudou (pode ser diferente de quem atendeu na sala, mas geralmente é o mesmo)
+    # ALTERAÇÃO AQUI: Adicione null=True, blank=True
+    medico_executante = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.PROTECT,
-        related_name='laudos_realizados'
+        related_name='laudos_assinados',
+        null=True,  # <--- Adicionado
+        blank=True  # <--- Adicionado
     )
     
-    # Vínculo opcional com o agendamento (para saber de qual consulta é esse laudo)
-    agendamento_id = models.IntegerField(null=True, blank=True)
-    
-    # Título do exame realizado
     titulo_exame = models.CharField(max_length=255)
     
-    # O conteúdo final editado pelo médico
+    # O conteúdo final
     conteudo_laudo = models.JSONField(default=dict)
+    texto_puro = models.TextField(blank=True) # Para indexação/busca
     
-    # Texto puro para facilitar busca (Full Text Search) no futuro
-    texto_puro = models.TextField(blank=True)
-
-    # Imagens que o médico selecionou para sair no PDF
-    imagens_selecionadas = models.JSONField(default=list, blank=True)
+    # Imagens Selecionadas do Orthanc (Armazenamos os UIDs ou Links)
+    imagens_ids = models.JSONField(default=list, blank=True, help_text="Lista de InstanceUIDs do DICOM selecionados")
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RASCUNHO')
+    
+    # Assinatura Digital
+    hash_assinatura = models.CharField(max_length=256, blank=True, null=True)
+    data_assinatura = models.DateTimeField(null=True, blank=True)
+
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.titulo_exame} - {self.paciente.nome_completo}"
+        return f"Laudo: {self.titulo_exame} - {self.paciente.nome_completo}"

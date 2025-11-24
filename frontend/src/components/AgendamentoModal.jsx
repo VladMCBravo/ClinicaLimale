@@ -1,4 +1,4 @@
-// src/components/AgendamentoModal.jsx - VERSÃO COMPLETA E CORRIGIDA
+// src/components/AgendamentoModal.jsx - VERSÃO COM FILTRO INTELIGENTE DE SALAS
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
@@ -25,35 +25,78 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     // --- ESTADOS ---
     const [formData, setFormData] = useState(getInitialFormData());
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Dados brutos
     const [pacientes, setPacientes] = useState([]);
     const [procedimentos, setProcedimentos] = useState([]);
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
-    const [salas, setSalas] = useState([]);
+    const [salas, setSalas] = useState([]); // Todas as salas do banco
+    
+    // Dados filtrados/calculados
+    const [salasFiltradas, setSalasFiltradas] = useState([]); // <--- NOVO ESTADO: Salas permitidas
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
 
-    // Efeito para buscar dados gerais (pacientes, médicos, salas, etc.)
+    // Efeito para buscar dados gerais
     useEffect(() => {
         if (open) {
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
                     setPacientes(pacientesRes.data);
+                    // Filtra procedimentos que não sejam 'consulta' genérica
                     setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
                     setMedicos(medicosRes.data);
                     setEspecialidades(especialidadesRes.data);
                 }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
             
             agendamentoService.getSalas()
-                .then(response => setSalas(response.data))
+                .then(response => {
+                    setSalas(response.data);
+                    setSalasFiltradas(response.data); // Inicialmente mostra todas
+                })
                 .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
         }
     }, [open, showSnackbar]);
 
+    // --- NOVA LÓGICA: FILTRO INTELIGENTE DE SALAS ---
+    useEffect(() => {
+        // Se não tem procedimento selecionado (ou é consulta), mostra todas as salas
+        if (!formData.procedimento || tipoAgendamento === 'Consulta') {
+            setSalasFiltradas(salas);
+            return;
+        }
 
-    // Efeito para preencher o formulário
+        // O backend precisa mandar o campo 'equipamento_obrigatorio' no objeto do procedimento
+        // Se o seu serializer ainda não manda, ele vai ser undefined e mostrar todas as salas (sem quebrar)
+        const equipamentoNecessario = formData.procedimento.equipamento_obrigatorio;
+
+        if (equipamentoNecessario) {
+            // Filtra apenas salas que tenham a tag do equipamento
+            const compativeis = salas.filter(sala => 
+                sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario)
+            );
+            
+            setSalasFiltradas(compativeis);
+
+            // Lógica de Segurança:
+            // Se já tinha uma sala selecionada, mas ela NÃO tem o equipamento, remove a seleção.
+            if (formData.sala) {
+                const salaTemEquipamento = formData.sala.equipamentos && formData.sala.equipamentos.includes(equipamentoNecessario);
+                if (!salaTemEquipamento) {
+                    setFormData(prev => ({ ...prev, sala: null }));
+                    showSnackbar(`A sala anterior não possui ${equipamentoNecessario}. Por favor, selecione uma sala compatível.`, 'warning');
+                }
+            }
+        } else {
+            // Se o procedimento não exige nada específico, libera todas
+            setSalasFiltradas(salas);
+        }
+    }, [formData.procedimento, tipoAgendamento, salas, formData.sala, showSnackbar]);
+
+    // Efeito para preencher o formulário (Edição ou Novo)
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -63,12 +106,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
 
         if (editingEvent) {
-            // <<-- CORREÇÃO PRINCIPAL APLICADA AQUI -->>
-            // Verifica se o evento vem do FullCalendar (tem .extendedProps) ou da Lista de Espera (objeto direto)
             const isFullCalendarEvent = !!editingEvent.extendedProps;
             const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
 
             setTipoAgendamento(dados.tipo_agendamento || 'Consulta');
+            
             setFormData({
                 paciente: pacientes.find(p => p.id === dados.paciente) || null,
                 data_hora_inicio: dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio),
@@ -85,19 +127,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 procedimento: procedimentos.find(p => p.id === dados.procedimento) || null,
             });
         } else if (initialData) {
-            // Lógica para criação (já estava correta)
             const startTime = dayjs(initialData.start);
             setFormData(prev => ({ 
                 ...prev, 
                 data_hora_inicio: startTime,
-                data_hora_fim: startTime.add(50, 'minute'),
+                data_hora_fim: startTime.add(50, 'minute'), // Valor padrão visual, o backend recalcula depois
                 sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
             }));
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
     
-    // ... (o restante dos seus useEffects, handlers e JSX já estavam corretos e foram mantidos abaixo)
-
+    // Verificação de Capacidade
     useEffect(() => {
         if (open && formData.data_hora_inicio && formData.data_hora_fim) {
             setCapacidade(prev => ({ ...prev, loading: true }));
@@ -210,12 +250,32 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={7}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                                <FormControl fullWidth><Autocomplete options={salas} getOptionLabel={(s) => s.nome || ''} value={formData.sala} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))} renderInput={(params) => (<TextField {...params} label="Sala *" size="small" />)} /></FormControl>
+                                {/* MUDANÇA AQUI: Usa 'salasFiltradas' ao invés de 'salas' */}
+                                <FormControl fullWidth>
+                                    <Autocomplete 
+                                        options={salasFiltradas} 
+                                        getOptionLabel={(s) => s.nome || ''} 
+                                        value={formData.sala} 
+                                        isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                        onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))} 
+                                        renderInput={(params) => (<TextField {...params} label="Sala *" size="small" />)} 
+                                        noOptionsText="Nenhuma sala compatível encontrada"
+                                    />
+                                </FormControl>
+
                                 <FormControl fullWidth><Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''} value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handlePacienteChange} renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" />)} /></FormControl>
                                 {pacienteDetalhes?.plano_convenio_detalhes && (<Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}><Typography variant="body2" color="text.secondary">Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome} - {pacienteDetalhes.plano_convenio_detalhes.nome}</strong></Typography></Box>)}
                                 <Divider sx={{ my: 1 }}><Chip label="Detalhes do Agendamento" size="small" /></Divider>
                                 <FormControl fullWidth size="small"><InputLabel>Tipo de Agendamento</InputLabel><Select value={tipoAgendamento} label="Tipo de Agendamento" onChange={(e) => setTipoAgendamento(e.target.value)}><MenuItem value="Consulta">Consulta</MenuItem><MenuItem value="Procedimento">Procedimento</MenuItem></Select></FormControl>
-                                {tipoAgendamento === 'Consulta' ? (<><Autocomplete options={especialidades} getOptionLabel={(e) => e.nome || ''} value={formData.especialidade} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, especialidade: value, medico: null })} renderInput={(params) => <TextField {...params} label="Especialidade *" size="small" />} /><Autocomplete options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} /></>) : (<Autocomplete options={procedimentos} getOptionLabel={(p) => p.descricao || ''} value={formData.procedimento} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, procedimento: value })} renderInput={(params) => (<TextField {...params} label="Procedimento *" size="small" />)} />)}
+                                
+                                {tipoAgendamento === 'Consulta' ? (
+                                    <>
+                                        <Autocomplete options={especialidades} getOptionLabel={(e) => e.nome || ''} value={formData.especialidade} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, especialidade: value, medico: null })} renderInput={(params) => <TextField {...params} label="Especialidade *" size="small" />} />
+                                        <Autocomplete options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} />
+                                    </>
+                                ) : (
+                                    <Autocomplete options={procedimentos} getOptionLabel={(p) => p.descricao || ''} value={formData.procedimento} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, procedimento: value })} renderInput={(params) => (<TextField {...params} label="Procedimento *" size="small" />)} />
+                                )}
                             </Box>
                         </Grid>
                         <Grid item xs={12} md={5}>

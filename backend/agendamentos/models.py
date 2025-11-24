@@ -1,63 +1,81 @@
-# agendamentos/models.py - VERSÃO CORRIGIDA
+# backend/agendamentos/models.py
 
 from django.db import models
 from pacientes.models import Paciente
 from django.utils import timezone
 from django.conf import settings
+from datetime import timedelta
 
-# <<-- NOVO MODELO ADICIONADO -->>
 class Sala(models.Model):
-    """Representa uma sala física na clínica."""
-    nome = models.CharField(max_length=100, unique=True, help_text="Ex: Consultório 1, Sala de Ultrassom")
-    descricao = models.TextField(blank=True, null=True, help_text="Qualquer detalhe adicional sobre a sala.")
+    """Representa uma sala física ou um recurso (Ex: Aparelho Samsung V7)."""
+    nome = models.CharField(max_length=100, unique=True, help_text="Ex: Sala 1 - Ultrassom Samsung")
+    descricao = models.TextField(blank=True, null=True)
+    
+    # Define se esta sala é exclusiva para exames
+    e_sala_exame = models.BooleanField(default=False, verbose_name="É sala de exames?")
+    
+    # Tags de equipamentos para o algoritmo de busca saber onde agendar
+    equipamentos = models.CharField(
+        max_length=255, 
+        blank=True, 
+        help_text="Tags separadas por vírgula. Ex: SAMSUNG_V7, DOPPLER, 4D"
+    )
 
     def __str__(self):
         return self.nome
+
+class ConfiguracaoExame(models.Model):
+    """
+    Vincula o item financeiro (Procedimento) às regras clínicas e de agenda.
+    """
+    procedimento = models.OneToOneField(
+        'faturamento.Procedimento', 
+        on_delete=models.CASCADE, 
+        related_name='configuracao_clinica'
+    )
+    
+    # Regra de Agenda: Duração específica
+    duracao_padrao = models.DurationField(default=timedelta(minutes=20))
+    
+    # Regra de Recurso: Qual equipamento este exame EXIGE?
+    equipamento_obrigatorio = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True,
+        help_text="Ex: SAMSUNG_V7. Se preenchido, só agenda em salas com esse equipamento."
+    )
+    
+    # Regra de Laudo: Qual template usar?
+    modelo_laudo_padrao = models.ForeignKey(
+        'laudos.ModeloLaudo', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='procedimentos_associados'
+    )
+
+    def __str__(self):
+        return f"Regra Clínica: {self.procedimento.descricao}"
     
 class Agendamento(models.Model):
     TIPO_ATENDIMENTO_CHOICES = [('Convenio', 'Convênio'), ('Particular', 'Particular')]
     STATUS_CHOICES = [
-    ('Agendado', 'Agendado'),
-    ('Confirmado', 'Confirmado'),
-    ('Aguardando', 'Aguardando na Recepção'), # NOVO
-    ('Em Atendimento', 'Em Atendimento'),   # NOVO
-    ('Realizado', 'Realizado'),
-    ('Cancelado', 'Cancelado'),
-    ('Não Compareceu', 'Não Compareceu')
-]
- # --- A DEFINIÇÃO QUE FALTAVA ESTÁ AQUI ---
-    TIPO_AGENDAMENTO_CHOICES = [
-        ('Consulta', 'Consulta'),
-        ('Procedimento', 'Procedimento'),
+        ('Agendado', 'Agendado'), ('Confirmado', 'Confirmado'),
+        ('Aguardando', 'Aguardando na Recepção'), ('Em Atendimento', 'Em Atendimento'),
+        ('Laudando', 'Em Processo de Laudo'),
+        ('Realizado', 'Realizado'), ('Cancelado', 'Cancelado'), ('Não Compareceu', 'Não Compareceu')
     ]
- # --- NOVOS CAMPOS PARA CLASSIFICAÇÃO ---
-    TIPO_VISITA_CHOICES = [
-        ('Primeira Consulta', 'Primeira Consulta'),
-        ('Retorno', 'Retorno'),
-    ]
-    MODALIDADE_CHOICES = [
-        ('Presencial', 'Presencial'),
-        ('Telemedicina', 'Telemedicina'),
-    ]
-# <<-- A MUDANÇA ESTÁ AQUI -->>
-    # Trocamos 'blank=False' por 'blank=True'.
-    # Isso permite que agendamentos (como os do chatbot) sejam criados sem uma sala definida.
-    sala = models.ForeignKey(
-        Sala, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, # <-- ALTERADO
-        related_name='agendamentos',
-        verbose_name="Sala de Atendimento"
-    )
+    TIPO_AGENDAMENTO_CHOICES = [('Consulta', 'Consulta'), ('Procedimento', 'Procedimento')]
+    TIPO_VISITA_CHOICES = [('Primeira Consulta', 'Primeira Consulta'), ('Retorno', 'Retorno')]
+    MODALIDADE_CHOICES = [('Presencial', 'Presencial'), ('Telemedicina', 'Telemedicina')]
 
-# --- CAMPOS DA NOVA LÓGICA ---
+    sala = models.ForeignKey(Sala, on_delete=models.SET_NULL, null=True, blank=True, related_name='agendamentos')
+    
     tipo_agendamento = models.CharField(max_length=20, choices=TIPO_AGENDAMENTO_CHOICES, default='Consulta')
     medico = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='agendamentos_como_medico',
-        limit_choices_to={'cargo': 'medico'} 
+        related_name='agendamentos_como_medico'
     )
     especialidade = models.ForeignKey('usuarios.Especialidade', on_delete=models.SET_NULL, null=True, blank=True)
     tipo_visita = models.CharField(max_length=20, choices=TIPO_VISITA_CHOICES, default='Primeira Consulta', blank=True, null=True)
@@ -76,13 +94,39 @@ class Agendamento(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        hora_local = timezone.localtime(self.data_hora_inicio)
-        data_formatada = hora_local.strftime('%d/%m/%Y às %H:%M')
-        # Adiciona o nome da sala na representação do objeto
-        return f"{self.paciente.nome_completo} em {self.sala.nome if self.sala else 'Sala não definida'} - {data_formatada}"
+    def save(self, *args, **kwargs):
+        # LÓGICA AUTOMÁTICA DE DURAÇÃO
+        is_new = self.pk is None
+        
+        # Se é novo, é procedimento e não tem fim definido:
+        if is_new and self.procedimento and not self.data_hora_fim:
+            try:
+                # Tenta acessar a configuração clínica via related_name
+                config = self.procedimento.configuracao_clinica
+                
+                # 1. Aplica a duração correta
+                if config.duracao_padrao:
+                    self.data_hora_inicio = self.data_hora_inicio or timezone.now() # Safety check
+                    self.data_hora_fim = self.data_hora_inicio + config.duracao_padrao
+                
+                # 2. (Opcional) Validação de Equipamento no Backend
+                if config.equipamento_obrigatorio and self.sala:
+                    # Verifica se a sala escolhida tem a tag do equipamento
+                    tags_sala = [t.strip() for t in self.sala.equipamentos.split(',')]
+                    if config.equipamento_obrigatorio not in tags_sala:
+                        # Aqui você pode lançar erro ou apenas logar
+                        print(f"AVISO: Agendamento criado em sala sem {config.equipamento_obrigatorio}")
 
-# --- ADICIONE ESTE MODELO ---
+            except Exception:
+                # Fallback seguro: se não tiver config ou der erro, usa 30 min padrão
+                if self.data_hora_inicio:
+                    self.data_hora_fim = self.data_hora_inicio + timedelta(minutes=30)
+                
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.paciente.nome_completo} - {self.get_tipo_agendamento_display()}"
+
 class BloqueioAgenda(models.Model):
     """Representa um período de bloqueio na agenda de um médico."""
     medico = models.ForeignKey(
@@ -105,5 +149,3 @@ class BloqueioAgenda(models.Model):
         verbose_name = "Bloqueio de Agenda"
         verbose_name_plural = "Bloqueios de Agenda"
         ordering = ['data_inicio']
-
-# --- FIM DO NOVO MODELO ---

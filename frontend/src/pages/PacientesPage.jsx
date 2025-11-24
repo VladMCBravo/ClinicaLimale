@@ -31,18 +31,22 @@ export default function PacientesPage() {
     setIsLoading(true);
     try {
       const response = await apiClient.get('/pacientes/');
-      setPacientes(response.data);
-      // Mantém o filtro atual se já houver um termo de busca, senão usa a lista completa
-      setFilteredPacientes(response.data); 
+      
+      // --- ORDENAÇÃO ALFABÉTICA ADICIONADA AQUI ---
+      const dadosOrdenados = response.data.sort((a, b) => 
+        a.nome_completo.localeCompare(b.nome_completo, 'pt-BR', { sensitivity: 'base' })
+      );
+
+      setPacientes(dadosOrdenados);
+      // Inicialmente, a lista filtrada é igual à completa (e já ordenada)
+      setFilteredPacientes(dadosOrdenados); 
     } catch (error) {
       console.error("Erro ao buscar pacientes:", error);
-      // Evitamos chamar showSnackbar aqui dentro se ele for instável, 
-      // ou garantimos que ele não recrie a função.
-      // showSnackbar('Erro ao carregar a lista.', 'error'); 
+      // showSnackbar('Erro ao carregar a lista.', 'error'); // Mantido comentado conforme ajuste anterior
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removi [showSnackbar] para evitar recriação da função
+  }, []); // Dependências vazias
   
   useEffect(() => {
     fetchPacientes();
