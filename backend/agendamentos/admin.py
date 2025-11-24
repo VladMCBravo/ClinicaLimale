@@ -1,32 +1,56 @@
-# Em: backend/agendamentos/admin.py - VERSÃO FINAL CORRIGIDA E UNIFICADA
+# backend/agendamentos/admin.py - VERSÃO FINAL UNIFICADA (COM EXAMES)
 
 from django.contrib import admin
-from .models import Agendamento, Sala
+from .models import Agendamento, Sala, BloqueioAgenda, ConfiguracaoExame # <-- Adicionei os novos models
 from django.utils import timezone
 
+# --- 1. ADMIN DE SALA (ATUALIZADO PARA EXAMES) ---
+@admin.register(Sala)
+class SalaAdmin(admin.ModelAdmin):
+    # Agora mostramos os equipamentos para você poder editar as tags
+    list_display = ('nome', 'e_sala_exame', 'equipamentos') 
+    search_fields = ('nome', 'equipamentos')
+    list_filter = ('e_sala_exame',)
+    ordering = ('nome',)
+
+# --- 2. ADMIN DE CONFIGURAÇÃO (NOVO - O "CÉREBRO") ---
+@admin.register(ConfiguracaoExame)
+class ConfiguracaoExameAdmin(admin.ModelAdmin):
+    """
+    Aqui vinculamos o Procedimento (Financeiro) à Regra (Equipamento/Tempo).
+    """
+    list_display = ('get_procedimento_nome', 'duracao_padrao', 'equipamento_obrigatorio')
+    search_fields = ('procedimento__descricao', 'equipamento_obrigatorio')
+    autocomplete_fields = ['procedimento', 'modelo_laudo_padrao']
+
+    def get_procedimento_nome(self, obj):
+        return obj.procedimento.descricao
+    get_procedimento_nome.short_description = 'Procedimento'
+
+# --- 3. ADMIN DE AGENDAMENTO (MANTENDO SUA ORGANIZAÇÃO VISUAL) ---
 @admin.register(Agendamento)
 class AgendamentoAdmin(admin.ModelAdmin):
-    # --- LISTA PRINCIPAL (COMBINANDO O MELHOR DAS DUAS VERSÕES) ---
     list_display = (
         'paciente',
         'data_formatada',
         'horario_formatado',
         'tipo_agendamento',
         'medico',
-        'sala',  # <-- Adicionado da segunda versão
+        'sala',
         'status',
     )
     
-    # --- FILTROS E BUSCA (COMBINANDO O MELHOR DAS DUAS VERSÕES) ---
-    list_filter = ('status', 'tipo_agendamento', 'medico', 'sala', 'data_hora_inicio') # <-- Adicionado 'sala'
-    search_fields = ('paciente__nome_completo', 'medico__first_name', 'medico__last_name')
+    list_filter = ('status', 'tipo_agendamento', 'medico', 'sala', 'data_hora_inicio')
+    search_fields = ('paciente__nome_completo', 'medico__first_name', 'medico__last_name', 'observacoes')
+    
+    # Adicionado para facilitar a busca se tiver muitos pacientes/médicos
+    autocomplete_fields = ['paciente', 'medico'] 
 
-    # --- FORMULÁRIO DE EDIÇÃO (ORGANIZADO E COM O CAMPO 'SALA') ---
     fieldsets = (
         ('Informações Principais', {
             'fields': (
                 'paciente',
-                'sala', # <-- Adicionado o campo 'sala' aqui para edição
+                'sala',
                 'status',
                 'data_hora_inicio',
                 'data_hora_fim'
@@ -37,7 +61,7 @@ class AgendamentoAdmin(admin.ModelAdmin):
                 'tipo_agendamento',
                 'medico',
                 'especialidade',
-                'procedimento',
+                'procedimento', # <-- Importante para o novo fluxo
             )
         }),
         ('Detalhes do Atendimento', {
@@ -51,13 +75,12 @@ class AgendamentoAdmin(admin.ModelAdmin):
         }),
         ('Telemedicina (Opcional)', {
             'fields': ('link_telemedicina', 'id_sala_telemedicina'),
-            'classes': ('collapse',) # Deixa esta seção recolhida
+            'classes': ('collapse',)
         }),
     )
     
     readonly_fields = ('link_telemedicina', 'id_sala_telemedicina')
 
-    # --- MÉTODOS PERSONALIZADOS PARA A LISTA ---
     def data_formatada(self, obj):
         if obj.data_hora_inicio:
             return timezone.localtime(obj.data_hora_inicio).strftime('%d/%m/%Y')
@@ -72,12 +95,8 @@ class AgendamentoAdmin(admin.ModelAdmin):
     horario_formatado.admin_order_field = 'data_hora_inicio'
     horario_formatado.short_description = 'Horário'
 
-# --- Registro do modelo Sala (correto e mantido) ---
-@admin.register(Sala)
-class SalaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome')
-    search_fields = ('nome',)
-    ordering = ('nome',) # <-- ADICIONE ESTA LINHA para ordenar por nome
-
-
-# A segunda definição de AgendamentoAdmin foi REMOVIDA para corrigir o erro.
+# --- 4. ADMIN DE BLOQUEIOS (ADICIONADO TAMBÉM) ---
+@admin.register(BloqueioAgenda)
+class BloqueioAgendaAdmin(admin.ModelAdmin):
+    list_display = ('medico', 'data_inicio', 'data_fim', 'motivo')
+    list_filter = ('medico',)
