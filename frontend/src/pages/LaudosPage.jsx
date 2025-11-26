@@ -2,59 +2,82 @@
 import React, { useState } from 'react';
 import { FaPrint, FaFileAlt } from 'react-icons/fa';
 
-// --- DADOS DOS TEMPLATES (Mantidos) ---
+// --- TODOS OS 10 TEMPLATES ---
 const templates = [
     {
       id: 1,
-      nome: "USG Pélvica Transvaginal",
+      nome: "1. USG Pélvica Transvaginal",
       texto: `ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL (COLO UTERINO)
   
-  Exame realizado com bexiga vazia.
-  Colo uterino com morfologia e ecotextura habitual.
-  O orifício interno permanece fechado.
-  Canal endocervical virtual.
+Exame realizado com bexiga vazia.
+Colo uterino com morfologia e ecotextura habitual.
+O orifício interno permanece fechado.
+Canal endocervical virtual.
   
-  Comprimento do colo, medindo: ____ mm.
+Comprimento do colo, medindo: ____ mm.
   
-  Favor trazer este exame quando vier realizar o próximo.
-  A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`
+Favor trazer este exame quando vier realizar o próximo.
+A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`
     },
     {
       id: 2,
-      nome: "USG Obstétrica Básica",
-      texto: `ULTRASSONOGRAFIA OBSTÉTRICA
-  
-  DPP: --/--/----, compatível com __ semanas e __ dias.
-  
-  Gestação tópica, feto único.
-  Situação longitudinal, apresentação cefálica e com dorso à direita.
-  
-  Batimentos cardíacos e movimentos fetais presentes (____ bpm).
-  Estômago fetal repleto e de conteúdo anecóide.
-  Bexiga fetal repleta e de conteúdo anecóide.
-  
-  Placenta de inserção corporal, homogênea, grau 0, na escala de Grannum e de espessura normal, medindo ____ mm.
-  Líquido amniótico em quantidade normal (ILA= ____ mm).
-  
-  MEDIDAS:
-  Diâmetro Biparietal:          ____ mm.
-  Diâmetro Occipto Frontal:     ____ mm.
-  Circunferência Cefálica:      ____ mm.
-  Circunferência Abdominal:     ____ mm.
-  Comprimento do Fêmur:         ____ mm.
-  Comprimento do Úmero:         ____ mm.
-  
-  IMPRESSÃO DIAGNÓSTICA:
-  - Biometria fetal compatível com aproximadamente __ semanas e __ dias +/- 14 dias.
-  - Peso Fetal: ____ gr (+/- 10%).
-  - Percentil: ____
-  - Sexo: Genitália compatível com ____.
-  
-  Favor trazer este exame quando vier realizar o próximo.`
+      nome: "2. USG Obstétrica Transvaginal (Inicial)",
+      texto: `ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL
+
+IG: compatível com __ semanas e __ dias.
+
+Bexiga vazia.
+Útero globoso, aumentado de volume, de contornos regulares e miométrio homogêneo.
+
+Observa-se na cavidade uterina, saco gestacional de contornos regulares medindo ____, contendo no seu interior embrião, com batimentos cardíacos presentes (____ BPM), medindo ____ cm de CCN.
+
+As vilosidades placentárias tem inserção normal.
+Não se observa coágulo intra uterino.
+O orifício interno do colo permanece fechado, medindo ____.
+Anexos parauterinos normais.
+
+IMPRESSÃO DIAGNÓSTICA:
+- Gestação tópica de aproximadamente __ semanas e __ dias (+/- 5 dias).
+
+Favor trazer este exame quando vier realizar o próximo.
+A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`
     },
     {
-        id: 3,
-        nome: "USG Obstétrica com Doppler",
+      id: 3,
+      nome: "3. USG Obstétrica Básica",
+      texto: `ULTRASSONOGRAFIA OBSTÉTRICA
+  
+DPP: --/--/----, compatível com __ semanas e __ dias.
+  
+Gestação tópica, feto único.
+Situação longitudinal, apresentação cefálica e com dorso à direita.
+  
+Batimentos cardíacos e movimentos fetais presentes (____ bpm).
+Estômago fetal repleto e de conteúdo anecóide.
+Bexiga fetal repleta e de conteúdo anecóide.
+  
+Placenta de inserção corporal, homogênea, grau 0, na escala de Grannum e de espessura normal, medindo ____ mm.
+Líquido amniótico em quantidade normal (ILA= ____ mm).
+  
+MEDIDAS:
+Diâmetro Biparietal:          ____ mm.
+Diâmetro Occipto Frontal:     ____ mm.
+Circunferência Cefálica:      ____ mm.
+Circunferência Abdominal:     ____ mm.
+Comprimento do Fêmur:         ____ mm.
+Comprimento do Úmero:         ____ mm.
+  
+IMPRESSÃO DIAGNÓSTICA:
+- Biometria fetal compatível com aproximadamente __ semanas e __ dias +/- 14 dias.
+- Peso Fetal: ____ gr (+/- 10%).
+- Percentil: ____
+- Sexo: Genitália compatível com ____.
+  
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 4,
+        nome: "4. USG Obstétrica com Doppler",
         texto: `ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER
 
 DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
@@ -99,8 +122,76 @@ IMPRESSÃO DIAGNÓSTICA:
 Favor trazer este exame quando vier realizar o próximo.`
     },
     {
-        id: 4,
-        nome: "USG Morfológico 1º Trimestre",
+        id: 5,
+        nome: "5. USG Obstétrica Gemelar com Doppler",
+        texto: `ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER GEMELAR
+
+DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
+
+Gestação gemelar, dicoriônica e diamniótica com feto I à direita da mãe e feto II à esquerda da mãe.
+
+FETO I:
+Situação longitudinal, apresentação pélvica e com dorso à direita.
+Batimentos cardíacos e movimentos fetais presentes (____ bpm).
+Estômago fetal repleto e de conteúdo anecóide.
+Bexiga fetal repleta e de conteúdo anecóide.
+Placenta de inserção corporal posterior, homogênea, grau __, medindo ____ mm.
+Líquido amniótico em quantidade normal (MBV= ____ mm).
+
+FETO II:
+Situação longitudinal, apresentação pélvica e com dorso à direita.
+Batimentos cardíacos e movimentos fetais presentes (____ bpm).
+Estômago fetal repleto e de conteúdo anecóide.
+Bexiga fetal repleta e de conteúdo anecóide.
+Placenta de inserção corporal ____, homogênea, grau 0, medindo ____ mm.
+Líquido amniótico em quantidade normal (MBV= ____ mm).
+
+MEDIDAS (FETO I | FETO II):
+Diâmetro Biparietal:          ____ mm | ____ mm
+Diâmetro Occipto Frontal:     ____ mm | ____ mm
+Circunferência Cefálica:      ____ mm | ____ mm
+Circunferência Abdominal:     ____ mm | ____ mm
+Comprimento do Fêmur:         ____ mm | ____ mm
+Comprimento do Úmero:         ____ mm | ____ mm
+
+ESTUDO DOPPLER FETO I:
+Artéria cerebral: ____
+Artéria umbilical: ____
+Relação cerebro/umbilical: ____
+
+ESTUDO DOPPLER FETO II:
+Artéria cerebral: ____
+Artéria umbilical: ____
+Relação cerebro/umbilical: ____
+
+ESTUDO UTERINAS:
+Artéria uterina direita: ____
+Artéria uterina esquerda: ____
+IP médio: ____
+
+IMPRESSÃO DIAGNÓSTICA FETO I:
+- Gestação gemelar, dicoriônica e diamniótica.
+- Biometria fetal compatível com aprox. __ semanas e __ dias +/- 14 dias.
+- Líquido amniótico normal (MBV= ____ mm).
+- Peso Fetal: ____ gr (+/- 10%).
+- Percentil: ____ % (Tabela Alexander).
+- Sexo: ____.
+- Dopplerfluxometria sem anormalidades.
+
+IMPRESSÃO DIAGNÓSTICA FETO II:
+- Gestação gemelar, dicoriônica e diamniótica.
+- Biometria fetal compatível com aprox. __ semanas e __ dias +/- 7 dias.
+- Líquido amniótico normal (MBV= ____ mm).
+- Peso Fetal: ____ gr (+/- 10%).
+- Percentil: ____ % (Tabela Alexander).
+- Sexo: ____.
+- Dopplerfluxometria sem anormalidades.
+
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 6,
+        nome: "6. USG Morfológico 1º Trimestre",
         texto: `ULTRASSOM MORFOLÓGICO FETAL DE PRIMEIRO TRIMESTRE
 
 DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
@@ -160,8 +251,53 @@ OBSERVAÇÕES:
 Favor trazer este exame quando vier realizar o próximo.`
     },
     {
-        id: 5,
-        nome: "USG Morfológico 2º Trimestre",
+        id: 7,
+        nome: "7. USG Morfológico 1º Trimestre Gemelar",
+        texto: `ULTRASSOM MORFOLÓGICO FETAL GEMELAR DE PRIMEIRO TRIMESTRE
+
+DPP: --/--/----, compatível com __ semanas e __ dias.
+
+Gestação tópica, gemelar dicoriônica e diamniótica.
+Feto I localizado à direita da mãe mais acima.
+Feto II localizado à direita da mãe mais embaixo.
+
+ANÁLISE FETAL (Ambos os fetos):
+Segmento cefálico: Crânio normal, linha média presente, osso nasal presente.
+Tórax: Normal.
+Batimentos cardíacos: (F.C.F = FETO I - ____ bpm | FETO II - ____ bpm).
+Abdomem: Estômago e bexiga repletos e normais.
+Membros: Visualizados, sem anormalidades grosseiras.
+
+BIOMETRIA FETAL (FETO I | FETO II):
+CCN:                        ____ mm | ____ mm
+Diâmetro Biparietal:        ____ mm | ____ mm
+Diâmetro Occipto Frontal:   ____ mm | ____ mm
+Circunferência Cefálica:    ____ mm | ____ mm
+Circunferência Abdominal:   ____ mm | ____ mm
+Comprimento do Fêmur:       ____ mm | ____ mm
+Comprimento do Úmero:       ____ mm | ____ mm
+Osso próprio do nariz:      ____ mm | ____ mm
+Translucência Nucal:        ____ mm | ____ mm
+
+PLACENTA:
+Feto I: Inserção corporal anterior, homogênea, grau 0, medindo ____ mm.
+Feto II: Inserção corporal ____, homogênea, grau 0, medindo ____ mm.
+Líquido amniótico normal.
+Ducto Venoso com Onda A positiva.
+
+IMPRESSÃO DIAGNÓSTICA FETO I:
+- Biometria compatível com __ semanas e __ dias. Peso: ____ gr.
+- RISCO TRISSOMIAS (Idade Materna): ____ / (Exame): ____
+
+IMPRESSÃO DIAGNÓSTICA FETO II:
+- Biometria compatível com __ semanas e __ dias. Peso: ____ gr.
+- RISCO TRISSOMIAS (Idade Materna): ____ / (Exame): ____
+
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 8,
+        nome: "8. USG Morfológico 2º Trimestre",
         texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE
 
 DPP: --/--/----, compatível com __ semanas e __ dias.
@@ -205,6 +341,87 @@ IMPRESSÃO DIAGNÓSTICA:
 OBSERVAÇÕES:
 - A eficácia do exame entre 20 e 24 semanas é de 83%.
 - Este exame não substitui a ecocardiografia fetal.
+
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 9,
+        nome: "9. USG Morfológico 2º Trimestre Gemelar",
+        texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE GEMELAR COM DOPPLER
+
+DPP: --/--/----, compatível com __ semanas e __ dias.
+
+Gestação tópica, gemelar dicoriônica e diamniótica.
+Feto I: Longitudinal, cefálica, dorso à direita.
+Feto II: Longitudinal, cefálica, dorso à esquerda.
+
+ANÁLISE FETAL (Ambos):
+SNC, Face, Coluna, Tórax, Abdome e Membros com características ecográficas habituais e preservadas.
+Batimentos cardíacos rítmicos.
+
+BIOMETRIA (FETO I | FETO II):
+DBP: ____ | ____ mm
+DOF: ____ | ____ mm
+CC:  ____ | ____ mm
+CA:  ____ | ____ mm
+Fêmur: ____ | ____ mm
+Úmero: ____ | ____ mm
+Cerebelo: ____ | ____ mm
+(Demais medidas conforme padrão...)
+
+ESTUDO DOPPLER (FETO I | FETO II):
+Artéria Cerebral: ____ | ____
+Artéria Umbilical: ____ | ____
+Relação C/U: ____ | ____
+
+Artérias Uterinas (D/E): ____ / ____ (IP Médio: ____)
+
+PLACENTA:
+Feto I: Anterior, grau 0, ____ mm. Líquido normal.
+Feto II: Posterior, grau 0, ____ mm. Líquido normal.
+
+IMPRESSÃO DIAGNÓSTICA:
+FETO I: Gemelar, Biometria __ sem, Peso ____ gr, Percentil ____, Sexo ____, Doppler normal.
+FETO II: Gemelar, Biometria __ sem, Peso ____ gr, Percentil ____, Sexo ____, Doppler normal.
+
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 10,
+        nome: "10. USG Trigemelar Morfológico",
+        texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE TRIGEMELAR COM DOPPLER
+
+DPP: --/--/----, compatível com __ semanas e __ dias.
+Gestação tópica, trigemelar monocoriônica e diamniótica.
+
+Feto I: Longitudinal, cefálica, dorso à direita.
+Feto II: Longitudinal, cefálica, dorso à esquerda.
+Feto III: Longitudinal, cefálica, dorso à esquerda.
+
+ANÁLISE FETAL (I, II e III):
+SNC, Face, Coluna, Tórax (4 câmaras), Abdome e Membros normais.
+FCF: I: __ bpm | II: __ bpm | III: __ bpm.
+
+BIOMETRIA (FETO I | FETO II | FETO III):
+DBP: ____ | ____ | ____ mm
+CC:  ____ | ____ | ____ mm
+CA:  ____ | ____ | ____ mm
+Fêmur: ____ | ____ | ____ mm
+(Demais medidas conforme padrão...)
+
+DOPPLER (I | II | III):
+Cerebral / Umbilical / Rel C/U (>1): Normais.
+
+PLACENTA:
+Feto I, II e III: Inserção corporal, homogênea, grau 0. Líquido normal.
+
+IMPRESSÃO DIAGNÓSTICA (Repetir para FETO I, II e III):
+- Gestação trigemelar monocoriônica e diamniótica.
+- Biometria compatível com __ semanas.
+- Líquido amniótico normal.
+- Peso: ____ gr. Percentil: ____.
+- Doppler normal.
+- Sexo: ____.
 
 Favor trazer este exame quando vier realizar o próximo.`
     }
@@ -261,17 +478,21 @@ const LaudosPage = () => {
             top: 0;
             width: 100%;
             margin: 0;
-            /* AQUI ESTÁ O AJUSTE: 
-               2cm (20mm) igual à tela. 
-               Isso fará a impressão sair exatamente onde você vê na tela.
-               Se o logotipo do papel timbrado for muito grande e cobrir o texto,
-               aumente este número para 3cm ou 4cm.
-            */
-            padding-top: 2cm !important; 
+            
+            /* CORREÇÕES PARA O PAPEL TIMBRADO: */
+            /* 1. Remove qualquer borda ou sombra */
+            box-shadow: none !important;
+            border: none !important;
+            
+            /* 2. Reduz o topo para 1cm apenas (o navegador já soma a margem dele) */
+            padding-top: 1cm !important; 
+            
+            /* 3. Ajuste as laterais se necessário */
             padding-left: 2cm !important;
             padding-right: 2cm !important;
             padding-bottom: 2cm !important;
-            background: white;
+            
+            background: transparent !important; /* Garante fundo transparente */
           }
         }
       `}</style>
@@ -358,15 +579,16 @@ const LaudosPage = () => {
         background: 'white',
         width: '210mm',
         minHeight: '297mm',
-        padding: '20mm', // Margem na tela (2cm)
+        padding: '20mm', // Margem VISUAL na tela
         margin: '0 auto',
-        boxShadow: '0 0 15px rgba(0,0,0,0.1)',
+        // Sombra VISUAL na tela (na impressão será removida pelo CSS acima)
+        boxShadow: '0 0 15px rgba(0,0,0,0.1)', 
         fontFamily: 'Arial, sans-serif',
         color: '#000',
         position: 'relative'
       }}>
         
-        {/* Bloco de Dados do Paciente (Sem logo, apenas dados) */}
+        {/* Bloco de Dados do Paciente */}
         <div style={{ marginBottom: '30px', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
           <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
             <p style={{margin: 0}}><strong>NOME:</strong> {paciente}</p>
@@ -382,14 +604,14 @@ const LaudosPage = () => {
           placeholder="Selecione um modelo acima para começar..."
           style={{
             width: '100%',
-            minHeight: '600px', // Altura do corpo do laudo
+            minHeight: '600px', 
             border: 'none',
             resize: 'none',
             fontFamily: 'Arial, sans-serif',
             fontSize: '14px',
             lineHeight: '1.5',
             outline: 'none',
-            whiteSpace: 'pre-wrap', // Mantém parágrafos
+            whiteSpace: 'pre-wrap', 
             background: 'transparent'
           }}
         />
