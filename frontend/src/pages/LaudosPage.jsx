@@ -2,7 +2,14 @@
 import React, { useState } from 'react';
 import { FaPrint, FaFileAlt } from 'react-icons/fa';
 
-// --- TODOS OS 10 TEMPLATES ---
+// Importação do PDFMake
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+
+// Configuração necessária para o PDFMake funcionar no React
+pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
+
+// --- SEUS TEMPLATES (Mesmos de antes) ---
 const templates = [
     {
       id: 1,
@@ -427,12 +434,12 @@ Favor trazer este exame quando vier realizar o próximo.`
     }
   ];
 
-// --- COMPONENTE DA PÁGINA ---
+// --- COMPONENTE ---
 const LaudosPage = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [laudoContent, setLaudoContent] = useState('');
   
-  // Dados do Cabeçalho Manual
+  // Dados
   const [paciente, setPaciente] = useState('');
   const [medico, setMedico] = useState('Dr. Antonio José Orsi Falleiros - CRM 37460 - SP');
   const [data, setData] = useState(new Date().toLocaleDateString('pt-BR'));
@@ -446,75 +453,100 @@ const LaudosPage = () => {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  // --- AQUI ESTÁ A MÁGICA DO PDF ---
+  const handleGeneratePDF = () => {
+    if (!laudoContent) {
+        alert("Selecione um modelo primeiro.");
+        return;
+    }
+
+    // Definição do documento para o PDFMake
+    // Usamos pontos (pts). 1cm ≈ 28.35pts.
+    // 4.5cm de topo = ~128 pts (vamos usar 135 para segurança)
+    // 2.0cm de lateral = ~57 pts
+    
+    const docDefinition = {
+        pageSize: 'A4',
+        // [margemEsquerda, margemTopo, margemDireita, margemFundo]
+        pageMargins: [60, 135, 60, 60], 
+        
+        content: [
+            // Bloco de Identificação (Negrito nos títulos)
+            {
+                text: [
+                    { text: 'NOME: ', bold: true, fontSize: 11 },
+                    { text: paciente || '__________________________', fontSize: 11 }
+                ],
+                margin: [0, 0, 0, 2] // margem inferior pequena
+            },
+            {
+                text: [
+                    { text: 'CONVÊNIO: ', bold: true, fontSize: 11 },
+                    { text: 'PARTICULAR', fontSize: 11 }
+                ],
+                margin: [0, 0, 0, 2]
+            },
+            {
+                text: [
+                    { text: 'DATA: ', bold: true, fontSize: 11 },
+                    { text: data, fontSize: 11 }
+                ],
+                margin: [0, 0, 0, 25] // Espaço maior antes do texto do laudo
+            },
+
+            // O Texto do Laudo (Editável)
+            {
+                text: laudoContent,
+                fontSize: 12,
+                alignment: 'justify',
+                lineHeight: 1.2
+            },
+
+            // Assinatura
+            {
+                text: '__________________________________________',
+                alignment: 'center',
+                margin: [0, 50, 0, 5] // Espaço grande antes da linha
+            },
+            {
+                text: medico,
+                alignment: 'center',
+                bold: true,
+                fontSize: 11
+            }
+        ],
+        defaultStyle: {
+            font: 'Roboto' // Fonte padrão do PDFMake
+        }
+    };
+
+    // Abre o PDF em nova aba pronto para imprimir
+    pdfMake.createPdf(docDefinition).open(); 
   };
 
   return (
-    <div className="laudos-page-container" style={{ padding: '20px' }}>
+    <div className="laudos-page-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       
-      {/* ESTILO DE IMPRESSÃO */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          /* Esconde classes comuns de layout */
-          .main-header, .sidebar, nav, header, .user-actions, .MuiDrawer-root, .MuiSnackbar-root {
-            display: none !important;
-          }
-          /* Remove margens padrão do navegador */
-          @page {
-            size: A4;
-            margin: 0;
-          }
-          /* Mostra apenas a área de impressão */
-          #printable-area, #printable-area * {
-            visibility: visible;
-          }
-          #printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            
-            /* CORREÇÕES PARA O PAPEL TIMBRADO: */
-            /* 1. Remove qualquer borda ou sombra */
-            box-shadow: none !important;
-            border: none !important;
-            
-            /* 2. Reduz o topo para 1cm apenas (o navegador já soma a margem dele) */
-            padding-top: 1cm !important; 
-            
-            /* 3. Ajuste as laterais se necessário */
-            padding-left: 2cm !important;
-            padding-right: 2cm !important;
-            padding-bottom: 2cm !important;
-            
-            background: transparent !important; /* Garante fundo transparente */
-          }
-        }
-      `}</style>
-
-      {/* ÁREA DE CONTROLES (Não imprime) */}
-      <div className="no-print" style={{ 
-          marginBottom: '20px', 
-          padding: '20px', 
+      {/* Container Principal */}
+      <div style={{ 
           background: '#fff', 
           borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          padding: '25px'
       }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#2E7D32' }}>
-            <FaFileAlt /> Emissor Rápido de Laudos (Papel Timbrado)
+        
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#2E7D32', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
+            <FaFileAlt /> Emissor de Laudos (PDF A4)
         </h2>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '20px' }}>
+        {/* Formulário de Configuração */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginTop: '20px' }}>
+             
              {/* Seleção de Modelo */}
              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}>1. Escolha o Modelo:</label>
+                <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555'}}>1. Escolha o Modelo:</label>
                 <select 
-                    style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} 
+                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '16px' }} 
                     onChange={handleSelectTemplate} 
                     value={selectedTemplateId}
                 >
@@ -527,101 +559,79 @@ const LaudosPage = () => {
 
             {/* Campos Manuais */}
             <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em'}}>Nome da Paciente:</label>
+                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em', fontWeight: 'bold'}}>Nome da Paciente:</label>
                 <input 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
                     value={paciente} 
                     onChange={e => setPaciente(e.target.value)} 
                     placeholder="Ex: Maria da Silva"
                 />
             </div>
             <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em'}}>Médico Responsável:</label>
+                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em', fontWeight: 'bold'}}>Médico Responsável:</label>
                 <input 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
                     value={medico} 
                     onChange={e => setMedico(e.target.value)} 
                 />
             </div>
             <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em'}}>Data do Exame:</label>
+                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em', fontWeight: 'bold'}}>Data do Exame:</label>
                 <input 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
                     value={data} 
                     onChange={e => setData(e.target.value)} 
                 />
             </div>
         </div>
 
-        <button 
-            onClick={handlePrint}
-            style={{ 
-                marginTop: '20px', 
-                padding: '12px 25px', 
-                background: '#007bff', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '5px', 
-                cursor: 'pointer', 
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '16px'
+        {/* Área de Edição (Visual apenas, não é o que imprime) */}
+        <div style={{ marginTop: '30px' }}>
+            <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555'}}>2. Edite o Texto do Laudo:</label>
+            <textarea
+            value={laudoContent}
+            onChange={(e) => setLaudoContent(e.target.value)}
+            placeholder="O texto do laudo aparecerá aqui..."
+            style={{
+                width: '100%',
+                minHeight: '400px', 
+                padding: '15px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '14px',
+                lineHeight: '1.5',
+                resize: 'vertical'
             }}
-        >
-            <FaPrint /> IMPRIMIR LAUDO
-        </button>
-      </div>
+            />
+        </div>
 
-      {/* ÁREA DE PAPEL (A4) */}
-      <div id="printable-area" style={{
-        background: 'white',
-        width: '210mm',
-        minHeight: '297mm',
-        padding: '20mm', // Margem VISUAL na tela
-        margin: '0 auto',
-        // Sombra VISUAL na tela (na impressão será removida pelo CSS acima)
-        boxShadow: '0 0 15px rgba(0,0,0,0.1)', 
-        fontFamily: 'Arial, sans-serif',
-        color: '#000',
-        position: 'relative'
-      }}>
+        {/* Botão de Ação */}
+        <div style={{ marginTop: '20px', textAlign: 'right' }}>
+            <button 
+                onClick={handleGeneratePDF}
+                style={{ 
+                    padding: '15px 30px', 
+                    background: '#007bff', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer', 
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                }}
+            >
+                <FaPrint /> GERAR PDF PARA IMPRESSÃO
+            </button>
+        </div>
         
-        {/* Bloco de Dados do Paciente */}
-        <div style={{ marginBottom: '30px', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
-          <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
-            <p style={{margin: 0}}><strong>NOME:</strong> {paciente}</p>
-            <p style={{margin: 0}}><strong>CONVÊNIO:</strong> PARTICULAR</p>
-            <p style={{margin: 0}}><strong>DATA:</strong> {data}</p>
-          </div>
-        </div>
-
-        {/* Editor de Texto "Invisível" */}
-        <textarea
-          value={laudoContent}
-          onChange={(e) => setLaudoContent(e.target.value)}
-          placeholder="Selecione um modelo acima para começar..."
-          style={{
-            width: '100%',
-            minHeight: '600px', 
-            border: 'none',
-            resize: 'none',
-            fontFamily: 'Arial, sans-serif',
-            fontSize: '14px',
-            lineHeight: '1.5',
-            outline: 'none',
-            whiteSpace: 'pre-wrap', 
-            background: 'transparent'
-          }}
-        />
-
-        {/* Assinatura */}
-        <div style={{ marginTop: '50px', textAlign: 'center', pageBreakInside: 'avoid' }}>
-           <div style={{ width: '60%', margin: '0 auto', borderTop: '1px solid #000', paddingTop: '5px' }}>
-                <p style={{fontWeight: 'bold', margin: 0}}>{medico}</p>
-           </div>
-        </div>
+        <p style={{marginTop: '10px', fontSize: '12px', color: '#777', textAlign: 'right'}}>
+            * O PDF será gerado com margem superior de 4.5cm para respeitar o papel timbrado.
+        </p>
 
       </div>
     </div>
