@@ -11,7 +11,8 @@ import {
     FaSignOutAlt,
     FaTachometerAlt,
     FaVideo,
-    FaStethoscope // Adicionamos o novo ícone aqui
+    FaStethoscope, // Adicionamos o novo ícone aqui
+    FaFileMedical
 } from 'react-icons/fa';
 import { IconButton } from '@mui/material';
 import logoImage from '../assets/logo.png';
@@ -69,6 +70,11 @@ const Navbar = () => {
                         {/* Telemedicina (Todos) */}
                         <NavLink to="/telemedicina">
                             <FaVideo /> <span>Telemedicina</span>
+                        </NavLink>
+                        
+                        {/* NOVO LINK DE LAUDOS (Todos ou restrinja se quiser) */}
+                        <NavLink to="/laudos">
+                            <FaFileMedical /> <span>Laudos</span>
                         </NavLink>
                         
                         {/* Pacientes (Todos) */}

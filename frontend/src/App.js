@@ -28,7 +28,7 @@ import TelemedicinaPage from './pages/TelemedicinaPage';
 import JornadaTrabalhoPage from './pages/JornadaTrabalhoPage';
 import ProcedimentosPage from './pages/ProcedimentosPage';
 import SalasPage from './pages/SalasPage';
-
+import LaudosPage from './pages/LaudosPage'; // <-- Adicione isso lá em cima
 function App() {
   return (
     <SnackbarProvider>
@@ -45,6 +45,8 @@ function App() {
                 <Route path="/" element={<PainelMedicoPage />} />
                 {/* A ROTA /painel CONTINUA CORRETA PARA A RECEPÇÃO */}
                 <Route path="/painel" element={<PainelRecepcaoPage />} /> 
+                {/* ADICIONE ESTA LINHA AQUI: */}
+                <Route path="/laudos" element={<LaudosPage />} />
                 <Route path="/pacientes" element={<PacientesPage />} />
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
                 <Route path="/telemedicina" element={<TelemedicinaPage />} />

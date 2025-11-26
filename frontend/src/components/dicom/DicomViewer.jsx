@@ -1,12 +1,13 @@
-// src/components/dicom/DicomViewer.jsx
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, CircularProgress, IconButton, Grid, Paper, Button } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Grid, Paper } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 
-// IMPORTANTE: Usando a variável de ambiente ou fallback para o IP
-const orthancBaseUrl = import.meta.env.VITE_ORTHANC_URL || 'http://192.168.0.4:8042';
+// --- CORREÇÃO APLICADA AQUI ---
+// Removemos o "import.meta.env" que causou o erro.
+// Usamos o IP fixo do Orthanc (PC da Clínica).
+const orthancBaseUrl = 'http://192.168.0.4:8042'; 
 
 export default function DicomViewer({ exame, onClose, onCapture, modoLaudo = false }) {
   const [imagens, setImagens] = useState([]);
@@ -53,7 +54,6 @@ export default function DicomViewer({ exame, onClose, onCapture, modoLaudo = fal
     // Lógica visual de seleção
     if (capturadas.includes(instanceId)) {
         setCapturadas(prev => prev.filter(id => id !== instanceId));
-        // Aqui você precisaria de uma lógica para remover do laudo também, se quiser
     } else {
         setCapturadas(prev => [...prev, instanceId]);
         onCapture(urlImagem); // Envia para o EditorLaudo
