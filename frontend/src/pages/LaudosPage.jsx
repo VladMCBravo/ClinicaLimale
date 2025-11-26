@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { FaPrint, FaFileAlt } from 'react-icons/fa';
 
-// --- DADOS DOS TEMPLATES (Mantidos aqui para evitar erros) ---
+// --- DADOS DOS TEMPLATES (Mantidos) ---
 const templates = [
     {
       id: 1,
@@ -246,6 +246,11 @@ const LaudosPage = () => {
           .main-header, .sidebar, nav, header, .user-actions, .MuiDrawer-root, .MuiSnackbar-root {
             display: none !important;
           }
+          /* Remove margens padrão do navegador */
+          @page {
+            size: A4;
+            margin: 0;
+          }
           /* Mostra apenas a área de impressão */
           #printable-area, #printable-area * {
             visibility: visible;
@@ -256,16 +261,17 @@ const LaudosPage = () => {
             top: 0;
             width: 100%;
             margin: 0;
-            /* AQUI ESTÁ A MARGEM PARA O PAPEL TIMBRADO (4.5cm) */
-            padding-top: 4.5cm !important; 
+            /* AQUI ESTÁ O AJUSTE: 
+               2cm (20mm) igual à tela. 
+               Isso fará a impressão sair exatamente onde você vê na tela.
+               Se o logotipo do papel timbrado for muito grande e cobrir o texto,
+               aumente este número para 3cm ou 4cm.
+            */
+            padding-top: 2cm !important; 
             padding-left: 2cm !important;
             padding-right: 2cm !important;
             padding-bottom: 2cm !important;
             background: white;
-          }
-          @page {
-            size: A4;
-            margin: 0;
           }
         }
       `}</style>
@@ -352,8 +358,7 @@ const LaudosPage = () => {
         background: 'white',
         width: '210mm',
         minHeight: '297mm',
-        // Na tela, deixamos um padding visual normal, na impressão o CSS @media print assume 4.5cm
-        padding: '20mm',
+        padding: '20mm', // Margem na tela (2cm)
         margin: '0 auto',
         boxShadow: '0 0 15px rgba(0,0,0,0.1)',
         fontFamily: 'Arial, sans-serif',
@@ -395,8 +400,6 @@ const LaudosPage = () => {
                 <p style={{fontWeight: 'bold', margin: 0}}>{medico}</p>
            </div>
         </div>
-
-        {/* SEM RODAPÉ (Papel Timbrado já tem) */}
 
       </div>
     </div>
