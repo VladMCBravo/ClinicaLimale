@@ -1,8 +1,216 @@
 // src/pages/LaudosPage.jsx
 import React, { useState } from 'react';
-import { templates } from '../components/laudos/templatesLaudos';
 import { FaPrint, FaFileAlt } from 'react-icons/fa';
 
+// --- DADOS DOS TEMPLATES (Mantidos aqui para evitar erros) ---
+const templates = [
+    {
+      id: 1,
+      nome: "USG Pélvica Transvaginal",
+      texto: `ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL (COLO UTERINO)
+  
+  Exame realizado com bexiga vazia.
+  Colo uterino com morfologia e ecotextura habitual.
+  O orifício interno permanece fechado.
+  Canal endocervical virtual.
+  
+  Comprimento do colo, medindo: ____ mm.
+  
+  Favor trazer este exame quando vier realizar o próximo.
+  A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`
+    },
+    {
+      id: 2,
+      nome: "USG Obstétrica Básica",
+      texto: `ULTRASSONOGRAFIA OBSTÉTRICA
+  
+  DPP: --/--/----, compatível com __ semanas e __ dias.
+  
+  Gestação tópica, feto único.
+  Situação longitudinal, apresentação cefálica e com dorso à direita.
+  
+  Batimentos cardíacos e movimentos fetais presentes (____ bpm).
+  Estômago fetal repleto e de conteúdo anecóide.
+  Bexiga fetal repleta e de conteúdo anecóide.
+  
+  Placenta de inserção corporal, homogênea, grau 0, na escala de Grannum e de espessura normal, medindo ____ mm.
+  Líquido amniótico em quantidade normal (ILA= ____ mm).
+  
+  MEDIDAS:
+  Diâmetro Biparietal:          ____ mm.
+  Diâmetro Occipto Frontal:     ____ mm.
+  Circunferência Cefálica:      ____ mm.
+  Circunferência Abdominal:     ____ mm.
+  Comprimento do Fêmur:         ____ mm.
+  Comprimento do Úmero:         ____ mm.
+  
+  IMPRESSÃO DIAGNÓSTICA:
+  - Biometria fetal compatível com aproximadamente __ semanas e __ dias +/- 14 dias.
+  - Peso Fetal: ____ gr (+/- 10%).
+  - Percentil: ____
+  - Sexo: Genitália compatível com ____.
+  
+  Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 3,
+        nome: "USG Obstétrica com Doppler",
+        texto: `ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER
+
+DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
+
+Bexiga materna não visualizada.
+Gestação tópica, feto único.
+Situação longitudinal, apresentação cefálica e com dorso à esquerda.
+
+Batimentos cardíacos e movimentos fetais presentes (____ bpm).
+Estômago fetal repleto e de conteúdo anecóide.
+Bexiga fetal repleta e de conteúdo anecóide.
+
+Placenta de inserção corporal, homogênea, grau 0, na escala de Grannum e de espessura normal, medindo ____ mm.
+Líquido amniótico em quantidade normal para idade gestacional (ILA = ____ mm) (Ref: - ).
+
+MEDIDAS:
+Diâmetro Biparietal:          ____ mm.
+Diâmetro Occipto Frontal:     ____ mm.
+Circunferência Cefálica:      ____ mm.
+Circunferência Abdominal:     ____ mm.
+Comprimento do Fêmur:         ____ mm.
+Comprimento do Úmero:         ____ mm.
+
+ESTUDO DOPPLER (ÍNDICES DE PULSATILIDADE):
+Artéria cerebral: ____________
+Artéria umbilical: ____________
+Relação cerebro/umbilical: ____ (n/l maior / igual à 1,0)
+
+Artéria uterina direita: ____________
+Artéria uterina esquerda: ____________
+IP médio: ____________
+
+IMPRESSÃO DIAGNÓSTICA:
+- Feto único vivo.
+- Biometria fetal compatível com aproximadamente __ semanas e __ dias +/- 14 dias.
+- Líquido amniótico em quantidade normal para idade gestacional (ILA = ____ mm) (Ref: - ).
+- Peso Fetal: ____ gr (+/- 10%) (P10= ____ P90= ____).
+- Percentil: ____
+- Sexo: Genitália aparentemente compatível com ____.
+- Dopplerfluxometria sem anormalidades no presente estudo.
+
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 4,
+        nome: "USG Morfológico 1º Trimestre",
+        texto: `ULTRASSOM MORFOLÓGICO FETAL DE PRIMEIRO TRIMESTRE
+
+DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
+
+Gestação tópica de feto único, em situação variável.
+
+ANÁLISE FETAL:
+
+Segmento cefálico:
+Crânio de contornos regulares e dimensões normais.
+Estruturas da linha média presentes e plexo coróide visualizado.
+Osso nasal presente.
+
+Tórax:
+Forma e características ecográficas habituais.
+Área cardíaca de dimensões e relação com o diâmetro torácico preservados.
+Batimentos cardíacos presentes e rítmicos (F.C.F = ____ bpm).
+
+Abdomem:
+Forma preservada.
+Estômago repleto e visualizado em sua topografia habitual.
+Bexiga repleta, de dimensões e aspectos preservados.
+
+Membros:
+Membros inferiores e superiores visibilizados, sem anormalidades grosseiras.
+Movimentação fetal ativa e tônus adequado.
+
+BIOMETRIA FETAL:
+Comprimento Cabeça-Nádega (CCN): ____ mm
+Diâmetro Biparietal:             ____ mm
+Diâmetro Occipto Frontal:        ____ mm
+Circunferência Cefálica:         ____ mm
+Circunferência Abdominal:        ____ mm
+Comprimento da Bexiga:           ____ mm (Ref. até 7 mm)
+Comprimento do Fêmur:            ____ mm
+Comprimento do Úmero:            ____ mm
+Osso próprio do nariz:           ____ mm
+Translucência Nucal:             ____ mm
+
+Placenta de inserção corporal, homogênea, grau 0, espessura normal, medindo ____ mm.
+Líquido amniótico em quantidade normal para idade gestacional.
+Ducto Venoso com Onda A positiva.
+
+IMPRESSÃO DIAGNÓSTICA:
+- Biometria fetal compatível com __ semanas e __ dias (+/- 7 dias).
+- Peso: ____ gramas.
+
+CÁLCULO DE RISCO PARA AS TRISSOMIAS:
+- SEGUNDO A IDADE MATERNA: ____
+- SEGUNDO O EXAME: ____
+
+OBSERVAÇÕES:
+- A medida da translucência nucal consiste apenas em teste de rastreio e não um teste diagnóstico (realizar entre 11 e 14 semanas).
+- Este exame não substitui a ecocardiografia fetal.
+- Nem todas as alterações que um feto possa vir apresentar após o nascimento podem ser identificadas pelo exame ultrassonográfico.
+
+Favor trazer este exame quando vier realizar o próximo.`
+    },
+    {
+        id: 5,
+        nome: "USG Morfológico 2º Trimestre",
+        texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE
+
+DPP: --/--/----, compatível com __ semanas e __ dias.
+
+Gestação tópica de feto único, situação longitudinal, apresentação cefálica e dorso à direita.
+
+ANÁLISE FETAL:
+SNC: Crânio normal, tábua óssea íntegra, corpo caloso e tálamos preservados. Ventrículos não dilatados. Cerebelo normal.
+Face: Órbitas, perfil, nariz e lábios normais.
+Coluna: Corpos vertebrais íntegros.
+Tórax: Área cardíaca normal, FCF= ____ bpm, 4 câmaras simétricas.
+Abdome: Diafragma, parede abdominal, fígado e rins normais. Estômago e bexiga repletos.
+Membros: Íntegros, mãos e pés visíveis. Movimentação ativa.
+
+BIOMETRIA FETAL:
+Diâmetro Biparietal:        ____ mm.
+Diâmetro Occipto Frontal:   ____ mm.
+Circunferência Cefálica:    ____ mm.
+Cerebelo:                   ____ mm.
+Cisterna Magna:             ____ mm.
+Prega Nucal:                ____ mm.
+Ventrículo posterior:       ____ mm.
+Órbita externa/interna:     ____ / ____ mm.
+Osso nasal:                 ____ mm.
+Úmero / Ulna / Rádio:       ____ / ____ / ____ mm.
+Fêmur / Tíbia / Fíbula:     ____ / ____ / ____ mm.
+Pé:                         ____ mm.
+Circunferência Abdominal:   ____ mm.
+
+Placenta corporal, grau 0, medindo ____ mm.
+Líquido amniótico normal (ILA = ____ mm).
+Cordão umbilical: 2 artérias e 1 veia.
+
+IMPRESSÃO DIAGNÓSTICA:
+- Feto único vivo.
+- Biometria compatível com __ semanas e __ dias +/- 14 dias.
+- Líquido amniótico normal.
+- Peso Fetal: ____ gr (+/- 10%). Percentil: ____.
+- Sexo: Genitália compatível com ____.
+
+OBSERVAÇÕES:
+- A eficácia do exame entre 20 e 24 semanas é de 83%.
+- Este exame não substitui a ecocardiografia fetal.
+
+Favor trazer este exame quando vier realizar o próximo.`
+    }
+  ];
+
+// --- COMPONENTE DA PÁGINA ---
 const LaudosPage = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [laudoContent, setLaudoContent] = useState('');
@@ -28,14 +236,14 @@ const LaudosPage = () => {
   return (
     <div className="laudos-page-container" style={{ padding: '20px' }}>
       
-      {/* ESTILO DE IMPRESSÃO (Esconde Menu e Navbar) */}
+      {/* ESTILO DE IMPRESSÃO */}
       <style>{`
         @media print {
           body * {
             visibility: hidden;
           }
           /* Esconde classes comuns de layout */
-          .main-header, .sidebar, nav, header, .user-actions, .MuiDrawer-root {
+          .main-header, .sidebar, nav, header, .user-actions, .MuiDrawer-root, .MuiSnackbar-root {
             display: none !important;
           }
           /* Mostra apenas a área de impressão */
@@ -48,7 +256,11 @@ const LaudosPage = () => {
             top: 0;
             width: 100%;
             margin: 0;
-            padding: 20mm !important;
+            /* AQUI ESTÁ A MARGEM PARA O PAPEL TIMBRADO (4.5cm) */
+            padding-top: 4.5cm !important; 
+            padding-left: 2cm !important;
+            padding-right: 2cm !important;
+            padding-bottom: 2cm !important;
             background: white;
           }
           @page {
@@ -67,7 +279,7 @@ const LaudosPage = () => {
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#2E7D32' }}>
-            <FaFileAlt /> Emissor Rápido de Laudos
+            <FaFileAlt /> Emissor Rápido de Laudos (Papel Timbrado)
         </h2>
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '20px' }}>
@@ -135,11 +347,12 @@ const LaudosPage = () => {
         </button>
       </div>
 
-      {/* ÁREA DE PAPEL (Preview e Edição) */}
+      {/* ÁREA DE PAPEL (A4) */}
       <div id="printable-area" style={{
         background: 'white',
         width: '210mm',
         minHeight: '297mm',
+        // Na tela, deixamos um padding visual normal, na impressão o CSS @media print assume 4.5cm
         padding: '20mm',
         margin: '0 auto',
         boxShadow: '0 0 15px rgba(0,0,0,0.1)',
@@ -148,12 +361,9 @@ const LaudosPage = () => {
         position: 'relative'
       }}>
         
-        {/* Cabeçalho Visual */}
-        <div style={{ borderBottom: '2px solid #2E7D32', paddingBottom: '15px', marginBottom: '30px' }}>
-          <h1 style={{color: '#2E7D32', margin: 0, fontSize: '24px', textAlign: 'center'}}>CLÍNICA DE IMAGEM SÃO VICENTE</h1>
-          <p style={{margin: '5px 0', fontSize: '14px', fontWeight: 'bold', textAlign: 'center', color: '#555'}}>ULTRASSONOGRAFIA</p>
-          
-          <div style={{ marginTop: '25px', fontSize: '14px', lineHeight: '1.6' }}>
+        {/* Bloco de Dados do Paciente (Sem logo, apenas dados) */}
+        <div style={{ marginBottom: '30px', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
+          <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
             <p style={{margin: 0}}><strong>NOME:</strong> {paciente}</p>
             <p style={{margin: 0}}><strong>CONVÊNIO:</strong> PARTICULAR</p>
             <p style={{margin: 0}}><strong>DATA:</strong> {data}</p>
@@ -186,19 +396,7 @@ const LaudosPage = () => {
            </div>
         </div>
 
-        {/* Rodapé Fixo */}
-        <div style={{
-            position: 'absolute',
-            bottom: '20mm',
-            left: '0',
-            width: '100%',
-            textAlign: 'center', 
-            fontSize: '11px', 
-            color: '#666'
-        }}>
-          RUA IPIRANGA, Nº 333 - CENTRO - CEP 11310-421 - SÃO VICENTE/SP<br/>
-          (13) 3469-2226 / WHATSAPP (13) 99628-1691
-        </div>
+        {/* SEM RODAPÉ (Papel Timbrado já tem) */}
 
       </div>
     </div>
