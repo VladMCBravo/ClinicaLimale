@@ -7,7 +7,8 @@ import apiClient from '../api/axiosConfig';
 
 // Importe suas máscaras aqui
 import FormObstetrico from '../components/laudos/FormObstetrico';
-// import FormTransvaginal from '../components/laudos/FormTransvaginal'; // Futuro
+import FormTransvaginal from '../components/laudos/FormTransvaginal';
+
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
@@ -101,7 +102,7 @@ const LaudosPage = () => {
                 style={{width: '100%', padding: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', color: theme.primary}}
             >
                 <option value="OBSTETRICO">Ultrassom Obstétrico / Morfológico</option>
-                <option value="TRANSVAGINAL">Ultrassom Transvaginal (Em Breve)</option>
+                <option value="TRANSVAGINAL">Ultrassom Transvaginal / Pélvico</option> {/* <-- Atualizado */}
                 <option value="ABDOME">Ultrassom Abdome Total (Em Breve)</option>
             </select>
         </div>
@@ -135,14 +136,11 @@ const LaudosPage = () => {
             )}
         </div>
 
-        {/* 3. A MÁSCARA DINÂMICA (AQUI ENTRA O COMPONENTE ESPECÍFICO) */}
+        {/* 3. A MÁSCARA DINÂMICA */}
         {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} />}
-        
-        {tipoExame === 'TRANSVAGINAL' && (
-            <div style={{padding: '20px', textAlign: 'center', color: '#888'}}>
-                Máscara Transvaginal em desenvolvimento...
-            </div>
-        )}
+
+        {/* ADICIONE ESTA LINHA: */}
+        {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} />}
 
       </div>
 
