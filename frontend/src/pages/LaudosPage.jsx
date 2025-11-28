@@ -1,639 +1,410 @@
 // src/pages/LaudosPage.jsx
-import React, { useState } from 'react';
-import { FaPrint, FaFileAlt } from 'react-icons/fa';
-
-// Importação do PDFMake
+import React, { useState, useEffect } from 'react';
+import { FaPrint, FaCalculator, FaSave, FaFileAlt } from 'react-icons/fa';
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 
-// Configuração necessária para o PDFMake funcionar no React
+// Configuração do PDFMake
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
-// --- SEUS TEMPLATES (Mesmos de antes) ---
-const templates = [
-    {
-      id: 1,
-      nome: "1. USG Pélvica Transvaginal",
-      texto: `ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL (COLO UTERINO)
-  
-Exame realizado com bexiga vazia.
-Colo uterino com morfologia e ecotextura habitual.
-O orifício interno permanece fechado.
-Canal endocervical virtual.
-  
-Comprimento do colo, medindo: ____ mm.
-  
-Favor trazer este exame quando vier realizar o próximo.
-A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`
-    },
-    {
-      id: 2,
-      nome: "2. USG Obstétrica Transvaginal (Inicial)",
-      texto: `ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL
+// --- ESTILOS VISUAIS (Imitando o sistema Turing/QUEO) ---
+const styles = {
+  container: { padding: '20px', display: 'flex', gap: '20px', background: '#f0f2f5', minHeight: '100vh', fontFamily: 'Arial, sans-serif' },
+  leftCol: { flex: 1, maxWidth: '650px' },
+  rightCol: { flex: 1 },
+  section: { border: '1px solid #ccc', borderRadius: '4px', marginBottom: '15px', background: '#f9f9f9', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+  header: { background: '#4A55A3', color: 'white', padding: '8px 10px', fontSize: '14px', fontWeight: 'bold', borderTopLeftRadius: '3px', borderTopRightRadius: '3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  body: { padding: '15px', display: 'grid', gap: '15px' },
+  row: { display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' },
+  label: { fontSize: '12px', fontWeight: 'bold', color: '#333', marginBottom: '4px' },
+  input: { padding: '6px', border: '1px solid #aaa', borderRadius: '3px', fontSize: '13px', width: '100%' },
+  checkboxLabel: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#444' },
+  smallText: { fontSize: '11px', color: '#666' },
+  button: { background: '#2E7D32', color: 'white', border: 'none', padding: '12px 25px', borderRadius: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '14px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }
+};
 
-IG: compatível com __ semanas e __ dias.
-
-Bexiga vazia.
-Útero globoso, aumentado de volume, de contornos regulares e miométrio homogêneo.
-
-Observa-se na cavidade uterina, saco gestacional de contornos regulares medindo ____, contendo no seu interior embrião, com batimentos cardíacos presentes (____ BPM), medindo ____ cm de CCN.
-
-As vilosidades placentárias tem inserção normal.
-Não se observa coágulo intra uterino.
-O orifício interno do colo permanece fechado, medindo ____.
-Anexos parauterinos normais.
-
-IMPRESSÃO DIAGNÓSTICA:
-- Gestação tópica de aproximadamente __ semanas e __ dias (+/- 5 dias).
-
-Favor trazer este exame quando vier realizar o próximo.
-A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`
-    },
-    {
-      id: 3,
-      nome: "3. USG Obstétrica Básica",
-      texto: `ULTRASSONOGRAFIA OBSTÉTRICA
-  
-DPP: --/--/----, compatível com __ semanas e __ dias.
-  
-Gestação tópica, feto único.
-Situação longitudinal, apresentação cefálica e com dorso à direita.
-  
-Batimentos cardíacos e movimentos fetais presentes (____ bpm).
-Estômago fetal repleto e de conteúdo anecóide.
-Bexiga fetal repleta e de conteúdo anecóide.
-  
-Placenta de inserção corporal, homogênea, grau 0, na escala de Grannum e de espessura normal, medindo ____ mm.
-Líquido amniótico em quantidade normal (ILA= ____ mm).
-  
-MEDIDAS:
-Diâmetro Biparietal:          ____ mm.
-Diâmetro Occipto Frontal:     ____ mm.
-Circunferência Cefálica:      ____ mm.
-Circunferência Abdominal:     ____ mm.
-Comprimento do Fêmur:         ____ mm.
-Comprimento do Úmero:         ____ mm.
-  
-IMPRESSÃO DIAGNÓSTICA:
-- Biometria fetal compatível com aproximadamente __ semanas e __ dias +/- 14 dias.
-- Peso Fetal: ____ gr (+/- 10%).
-- Percentil: ____
-- Sexo: Genitália compatível com ____.
-  
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 4,
-        nome: "4. USG Obstétrica com Doppler",
-        texto: `ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER
-
-DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
-
-Bexiga materna não visualizada.
-Gestação tópica, feto único.
-Situação longitudinal, apresentação cefálica e com dorso à esquerda.
-
-Batimentos cardíacos e movimentos fetais presentes (____ bpm).
-Estômago fetal repleto e de conteúdo anecóide.
-Bexiga fetal repleta e de conteúdo anecóide.
-
-Placenta de inserção corporal, homogênea, grau 0, na escala de Grannum e de espessura normal, medindo ____ mm.
-Líquido amniótico em quantidade normal para idade gestacional (ILA = ____ mm) (Ref: - ).
-
-MEDIDAS:
-Diâmetro Biparietal:          ____ mm.
-Diâmetro Occipto Frontal:     ____ mm.
-Circunferência Cefálica:      ____ mm.
-Circunferência Abdominal:     ____ mm.
-Comprimento do Fêmur:         ____ mm.
-Comprimento do Úmero:         ____ mm.
-
-ESTUDO DOPPLER (ÍNDICES DE PULSATILIDADE):
-Artéria cerebral: ____________
-Artéria umbilical: ____________
-Relação cerebro/umbilical: ____ (n/l maior / igual à 1,0)
-
-Artéria uterina direita: ____________
-Artéria uterina esquerda: ____________
-IP médio: ____________
-
-IMPRESSÃO DIAGNÓSTICA:
-- Feto único vivo.
-- Biometria fetal compatível com aproximadamente __ semanas e __ dias +/- 14 dias.
-- Líquido amniótico em quantidade normal para idade gestacional (ILA = ____ mm) (Ref: - ).
-- Peso Fetal: ____ gr (+/- 10%) (P10= ____ P90= ____).
-- Percentil: ____
-- Sexo: Genitália aparentemente compatível com ____.
-- Dopplerfluxometria sem anormalidades no presente estudo.
-
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 5,
-        nome: "5. USG Obstétrica Gemelar com Doppler",
-        texto: `ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER GEMELAR
-
-DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
-
-Gestação gemelar, dicoriônica e diamniótica com feto I à direita da mãe e feto II à esquerda da mãe.
-
-FETO I:
-Situação longitudinal, apresentação pélvica e com dorso à direita.
-Batimentos cardíacos e movimentos fetais presentes (____ bpm).
-Estômago fetal repleto e de conteúdo anecóide.
-Bexiga fetal repleta e de conteúdo anecóide.
-Placenta de inserção corporal posterior, homogênea, grau __, medindo ____ mm.
-Líquido amniótico em quantidade normal (MBV= ____ mm).
-
-FETO II:
-Situação longitudinal, apresentação pélvica e com dorso à direita.
-Batimentos cardíacos e movimentos fetais presentes (____ bpm).
-Estômago fetal repleto e de conteúdo anecóide.
-Bexiga fetal repleta e de conteúdo anecóide.
-Placenta de inserção corporal ____, homogênea, grau 0, medindo ____ mm.
-Líquido amniótico em quantidade normal (MBV= ____ mm).
-
-MEDIDAS (FETO I | FETO II):
-Diâmetro Biparietal:          ____ mm | ____ mm
-Diâmetro Occipto Frontal:     ____ mm | ____ mm
-Circunferência Cefálica:      ____ mm | ____ mm
-Circunferência Abdominal:     ____ mm | ____ mm
-Comprimento do Fêmur:         ____ mm | ____ mm
-Comprimento do Úmero:         ____ mm | ____ mm
-
-ESTUDO DOPPLER FETO I:
-Artéria cerebral: ____
-Artéria umbilical: ____
-Relação cerebro/umbilical: ____
-
-ESTUDO DOPPLER FETO II:
-Artéria cerebral: ____
-Artéria umbilical: ____
-Relação cerebro/umbilical: ____
-
-ESTUDO UTERINAS:
-Artéria uterina direita: ____
-Artéria uterina esquerda: ____
-IP médio: ____
-
-IMPRESSÃO DIAGNÓSTICA FETO I:
-- Gestação gemelar, dicoriônica e diamniótica.
-- Biometria fetal compatível com aprox. __ semanas e __ dias +/- 14 dias.
-- Líquido amniótico normal (MBV= ____ mm).
-- Peso Fetal: ____ gr (+/- 10%).
-- Percentil: ____ % (Tabela Alexander).
-- Sexo: ____.
-- Dopplerfluxometria sem anormalidades.
-
-IMPRESSÃO DIAGNÓSTICA FETO II:
-- Gestação gemelar, dicoriônica e diamniótica.
-- Biometria fetal compatível com aprox. __ semanas e __ dias +/- 7 dias.
-- Líquido amniótico normal (MBV= ____ mm).
-- Peso Fetal: ____ gr (+/- 10%).
-- Percentil: ____ % (Tabela Alexander).
-- Sexo: ____.
-- Dopplerfluxometria sem anormalidades.
-
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 6,
-        nome: "6. USG Morfológico 1º Trimestre",
-        texto: `ULTRASSOM MORFOLÓGICO FETAL DE PRIMEIRO TRIMESTRE
-
-DPP: --/--/---- (calculada pelo primeiro ultrassom), compatível com __ semanas e __ dias.
-
-Gestação tópica de feto único, em situação variável.
-
-ANÁLISE FETAL:
-
-Segmento cefálico:
-Crânio de contornos regulares e dimensões normais.
-Estruturas da linha média presentes e plexo coróide visualizado.
-Osso nasal presente.
-
-Tórax:
-Forma e características ecográficas habituais.
-Área cardíaca de dimensões e relação com o diâmetro torácico preservados.
-Batimentos cardíacos presentes e rítmicos (F.C.F = ____ bpm).
-
-Abdomem:
-Forma preservada.
-Estômago repleto e visualizado em sua topografia habitual.
-Bexiga repleta, de dimensões e aspectos preservados.
-
-Membros:
-Membros inferiores e superiores visibilizados, sem anormalidades grosseiras.
-Movimentação fetal ativa e tônus adequado.
-
-BIOMETRIA FETAL:
-Comprimento Cabeça-Nádega (CCN): ____ mm
-Diâmetro Biparietal:             ____ mm
-Diâmetro Occipto Frontal:        ____ mm
-Circunferência Cefálica:         ____ mm
-Circunferência Abdominal:        ____ mm
-Comprimento da Bexiga:           ____ mm (Ref. até 7 mm)
-Comprimento do Fêmur:            ____ mm
-Comprimento do Úmero:            ____ mm
-Osso próprio do nariz:           ____ mm
-Translucência Nucal:             ____ mm
-
-Placenta de inserção corporal, homogênea, grau 0, espessura normal, medindo ____ mm.
-Líquido amniótico em quantidade normal para idade gestacional.
-Ducto Venoso com Onda A positiva.
-
-IMPRESSÃO DIAGNÓSTICA:
-- Biometria fetal compatível com __ semanas e __ dias (+/- 7 dias).
-- Peso: ____ gramas.
-
-CÁLCULO DE RISCO PARA AS TRISSOMIAS:
-- SEGUNDO A IDADE MATERNA: ____
-- SEGUNDO O EXAME: ____
-
-OBSERVAÇÕES:
-- A medida da translucência nucal consiste apenas em teste de rastreio e não um teste diagnóstico (realizar entre 11 e 14 semanas).
-- Este exame não substitui a ecocardiografia fetal.
-- Nem todas as alterações que um feto possa vir apresentar após o nascimento podem ser identificadas pelo exame ultrassonográfico.
-
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 7,
-        nome: "7. USG Morfológico 1º Trimestre Gemelar",
-        texto: `ULTRASSOM MORFOLÓGICO FETAL GEMELAR DE PRIMEIRO TRIMESTRE
-
-DPP: --/--/----, compatível com __ semanas e __ dias.
-
-Gestação tópica, gemelar dicoriônica e diamniótica.
-Feto I localizado à direita da mãe mais acima.
-Feto II localizado à direita da mãe mais embaixo.
-
-ANÁLISE FETAL (Ambos os fetos):
-Segmento cefálico: Crânio normal, linha média presente, osso nasal presente.
-Tórax: Normal.
-Batimentos cardíacos: (F.C.F = FETO I - ____ bpm | FETO II - ____ bpm).
-Abdomem: Estômago e bexiga repletos e normais.
-Membros: Visualizados, sem anormalidades grosseiras.
-
-BIOMETRIA FETAL (FETO I | FETO II):
-CCN:                        ____ mm | ____ mm
-Diâmetro Biparietal:        ____ mm | ____ mm
-Diâmetro Occipto Frontal:   ____ mm | ____ mm
-Circunferência Cefálica:    ____ mm | ____ mm
-Circunferência Abdominal:   ____ mm | ____ mm
-Comprimento do Fêmur:       ____ mm | ____ mm
-Comprimento do Úmero:       ____ mm | ____ mm
-Osso próprio do nariz:      ____ mm | ____ mm
-Translucência Nucal:        ____ mm | ____ mm
-
-PLACENTA:
-Feto I: Inserção corporal anterior, homogênea, grau 0, medindo ____ mm.
-Feto II: Inserção corporal ____, homogênea, grau 0, medindo ____ mm.
-Líquido amniótico normal.
-Ducto Venoso com Onda A positiva.
-
-IMPRESSÃO DIAGNÓSTICA FETO I:
-- Biometria compatível com __ semanas e __ dias. Peso: ____ gr.
-- RISCO TRISSOMIAS (Idade Materna): ____ / (Exame): ____
-
-IMPRESSÃO DIAGNÓSTICA FETO II:
-- Biometria compatível com __ semanas e __ dias. Peso: ____ gr.
-- RISCO TRISSOMIAS (Idade Materna): ____ / (Exame): ____
-
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 8,
-        nome: "8. USG Morfológico 2º Trimestre",
-        texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE
-
-DPP: --/--/----, compatível com __ semanas e __ dias.
-
-Gestação tópica de feto único, situação longitudinal, apresentação cefálica e dorso à direita.
-
-ANÁLISE FETAL:
-SNC: Crânio normal, tábua óssea íntegra, corpo caloso e tálamos preservados. Ventrículos não dilatados. Cerebelo normal.
-Face: Órbitas, perfil, nariz e lábios normais.
-Coluna: Corpos vertebrais íntegros.
-Tórax: Área cardíaca normal, FCF= ____ bpm, 4 câmaras simétricas.
-Abdome: Diafragma, parede abdominal, fígado e rins normais. Estômago e bexiga repletos.
-Membros: Íntegros, mãos e pés visíveis. Movimentação ativa.
-
-BIOMETRIA FETAL:
-Diâmetro Biparietal:        ____ mm.
-Diâmetro Occipto Frontal:   ____ mm.
-Circunferência Cefálica:    ____ mm.
-Cerebelo:                   ____ mm.
-Cisterna Magna:             ____ mm.
-Prega Nucal:                ____ mm.
-Ventrículo posterior:       ____ mm.
-Órbita externa/interna:     ____ / ____ mm.
-Osso nasal:                 ____ mm.
-Úmero / Ulna / Rádio:       ____ / ____ / ____ mm.
-Fêmur / Tíbia / Fíbula:     ____ / ____ / ____ mm.
-Pé:                         ____ mm.
-Circunferência Abdominal:   ____ mm.
-
-Placenta corporal, grau 0, medindo ____ mm.
-Líquido amniótico normal (ILA = ____ mm).
-Cordão umbilical: 2 artérias e 1 veia.
-
-IMPRESSÃO DIAGNÓSTICA:
-- Feto único vivo.
-- Biometria compatível com __ semanas e __ dias +/- 14 dias.
-- Líquido amniótico normal.
-- Peso Fetal: ____ gr (+/- 10%). Percentil: ____.
-- Sexo: Genitália compatível com ____.
-
-OBSERVAÇÕES:
-- A eficácia do exame entre 20 e 24 semanas é de 83%.
-- Este exame não substitui a ecocardiografia fetal.
-
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 9,
-        nome: "9. USG Morfológico 2º Trimestre Gemelar",
-        texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE GEMELAR COM DOPPLER
-
-DPP: --/--/----, compatível com __ semanas e __ dias.
-
-Gestação tópica, gemelar dicoriônica e diamniótica.
-Feto I: Longitudinal, cefálica, dorso à direita.
-Feto II: Longitudinal, cefálica, dorso à esquerda.
-
-ANÁLISE FETAL (Ambos):
-SNC, Face, Coluna, Tórax, Abdome e Membros com características ecográficas habituais e preservadas.
-Batimentos cardíacos rítmicos.
-
-BIOMETRIA (FETO I | FETO II):
-DBP: ____ | ____ mm
-DOF: ____ | ____ mm
-CC:  ____ | ____ mm
-CA:  ____ | ____ mm
-Fêmur: ____ | ____ mm
-Úmero: ____ | ____ mm
-Cerebelo: ____ | ____ mm
-(Demais medidas conforme padrão...)
-
-ESTUDO DOPPLER (FETO I | FETO II):
-Artéria Cerebral: ____ | ____
-Artéria Umbilical: ____ | ____
-Relação C/U: ____ | ____
-
-Artérias Uterinas (D/E): ____ / ____ (IP Médio: ____)
-
-PLACENTA:
-Feto I: Anterior, grau 0, ____ mm. Líquido normal.
-Feto II: Posterior, grau 0, ____ mm. Líquido normal.
-
-IMPRESSÃO DIAGNÓSTICA:
-FETO I: Gemelar, Biometria __ sem, Peso ____ gr, Percentil ____, Sexo ____, Doppler normal.
-FETO II: Gemelar, Biometria __ sem, Peso ____ gr, Percentil ____, Sexo ____, Doppler normal.
-
-Favor trazer este exame quando vier realizar o próximo.`
-    },
-    {
-        id: 10,
-        nome: "10. USG Trigemelar Morfológico",
-        texto: `ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE TRIGEMELAR COM DOPPLER
-
-DPP: --/--/----, compatível com __ semanas e __ dias.
-Gestação tópica, trigemelar monocoriônica e diamniótica.
-
-Feto I: Longitudinal, cefálica, dorso à direita.
-Feto II: Longitudinal, cefálica, dorso à esquerda.
-Feto III: Longitudinal, cefálica, dorso à esquerda.
-
-ANÁLISE FETAL (I, II e III):
-SNC, Face, Coluna, Tórax (4 câmaras), Abdome e Membros normais.
-FCF: I: __ bpm | II: __ bpm | III: __ bpm.
-
-BIOMETRIA (FETO I | FETO II | FETO III):
-DBP: ____ | ____ | ____ mm
-CC:  ____ | ____ | ____ mm
-CA:  ____ | ____ | ____ mm
-Fêmur: ____ | ____ | ____ mm
-(Demais medidas conforme padrão...)
-
-DOPPLER (I | II | III):
-Cerebral / Umbilical / Rel C/U (>1): Normais.
-
-PLACENTA:
-Feto I, II e III: Inserção corporal, homogênea, grau 0. Líquido normal.
-
-IMPRESSÃO DIAGNÓSTICA (Repetir para FETO I, II e III):
-- Gestação trigemelar monocoriônica e diamniótica.
-- Biometria compatível com __ semanas.
-- Líquido amniótico normal.
-- Peso: ____ gr. Percentil: ____.
-- Doppler normal.
-- Sexo: ____.
-
-Favor trazer este exame quando vier realizar o próximo.`
-    }
-  ];
-
-// --- COMPONENTE ---
 const LaudosPage = () => {
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [laudoContent, setLaudoContent] = useState('');
+  // --- ESTADO DO FORMULÁRIO ---
+  const [formData, setFormData] = useState({
+    // Cabeçalho
+    paciente: '',
+    medico: 'Dr. Antonio José Orsi Falleiros', // Pode vir do contexto de usuário depois
+    dataExame: new Date().toISOString().split('T')[0],
+
+    // DUM e Datas
+    dum: '',
+    igDum: '', // Calculado
+    dpp: '',   // Calculado
+
+    // Biometria
+    dbp: '',
+    cc: '',
+    ca: '',
+    femur: '',
+    pesoFetal: '', // Calculado ou manual
+    ila: '', // Liquido amniótico
+
+    // Morfologia (Checkboxes - Padrão TRUE para facilitar)
+    cranioNormal: true,
+    faceNormal: true,
+    coracaoNormal: true,
+    colunaNormal: true,
+    estomagoNormal: true,
+    rinsNormais: true,
+    bexigaNormal: true,
+    membrosNormais: true,
+
+    // Placenta
+    placentaPosicao: 'Corporal Posterior',
+    placentaGrau: '0',
+    placentaEspessura: '',
+
+    // Apresentação
+    situacao: 'Longitudinal',
+    apresentacao: 'Cefálica',
+    dorso: 'Esquerda'
+  });
+
+  const [textoGerado, setTextoGerado] = useState('');
+
+  // --- LÓGICA DE CÁLCULOS ---
   
-  // Dados
-  const [paciente, setPaciente] = useState('');
-  const [medico, setMedico] = useState('Dr. Antonio José Orsi Falleiros - CRM 37460 - SP');
-  const [data, setData] = useState(new Date().toLocaleDateString('pt-BR'));
+  // 1. Calcular IG e DPP quando a DUM muda
+  useEffect(() => {
+    if (formData.dum) {
+      const dumDate = new Date(formData.dum);
+      const today = new Date();
+      
+      // Diferença em dias
+      const diffTime = Math.abs(today - dumDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      const semanas = Math.floor(diffDays / 7);
+      const dias = diffDays % 7;
 
-  const handleSelectTemplate = (e) => {
-    const id = e.target.value;
-    setSelectedTemplateId(id);
-    const template = templates.find(t => t.id == id);
-    if (template) {
-      setLaudoContent(template.texto);
+      // DPP = DUM + 280 dias (Regra de Naegele simplificada para JS)
+      const dppDate = new Date(dumDate);
+      dppDate.setDate(dumDate.getDate() + 280);
+
+      setFormData(prev => ({
+        ...prev,
+        igDum: `${semanas} semanas e ${dias} dias`,
+        dpp: dppDate.toLocaleDateString('pt-BR')
+      }));
     }
-  };
+  }, [formData.dum]);
 
-  // --- AQUI ESTÁ A MÁGICA DO PDF ---
-  const handleGeneratePDF = () => {
-    if (!laudoContent) {
-        alert("Selecione um modelo primeiro.");
+  // 2. Calcular Peso Fetal Estimado (Fórmula visual/exemplo)
+  useEffect(() => {
+    const { ca, femur } = formData;
+    if (ca && femur) {
+        // Exemplo simplificado. Na prática médica real, use a fórmula de Hadlock.
+        // Aqui é apenas para mostrar que o sistema "reage" aos números.
+        const pesoEstimado = (parseInt(ca) * 4) + (parseInt(femur) * 10) + 150; 
+        if (!isNaN(pesoEstimado)) {
+            setFormData(prev => ({ ...prev, pesoFetal: pesoEstimado.toFixed(0) }));
+        }
+    }
+  }, [formData.ca, formData.femur]);
+
+
+  // --- GERADOR DE TEXTO DINÂMICO ---
+  useEffect(() => {
+    const gerarLaudo = () => {
+      let t = `ULTRASSONOGRAFIA OBSTÉTRICA\n\n`;
+
+      // Seção 1: Datação
+      t += `DUM: ${formData.dum ? new Date(formData.dum).toLocaleDateString('pt-BR') : 'Não informada'}.\n`;
+      if (formData.igDum) t += `Idade Gestacional pela DUM: ${formData.igDum}.\n`;
+      if (formData.dpp) t += `Data Provável do Parto (DPP): ${formData.dpp}.\n\n`;
+
+      // Seção 2: Situação
+      t += `Feto único, em situação ${formData.situacao.toLowerCase()}, apresentação ${formData.apresentacao.toLowerCase()} com dorso à ${formData.dorso.toLowerCase()}.\n`;
+      t += `Batimentos cardíacos fetais presentes e rítmicos. Movimentação fetal ativa.\n\n`;
+
+      // Seção 3: Morfologia
+      let morfologia = [];
+      if (formData.cranioNormal) morfologia.push("Crânio e encéfalo");
+      if (formData.faceNormal) morfologia.push("Face");
+      if (formData.coracaoNormal) morfologia.push("Coração (4 câmaras)");
+      if (formData.colunaNormal) morfologia.push("Coluna vertebral");
+      if (formData.estomagoNormal) morfologia.push("Estômago");
+      if (formData.rinsNormais) morfologia.push("Rins");
+      if (formData.bexigaNormal) morfologia.push("Bexiga");
+      if (formData.membrosNormais) morfologia.push("Membros");
+      
+      if (morfologia.length > 0) {
+        t += `Análise Morfológica:\nVisualizados com aspecto ecográfico habitual: ${morfologia.join(', ')}.\n\n`;
+      }
+
+      // Seção 4: Biometria
+      t += `Biometria Fetal:\n`;
+      if (formData.dbp) t += `Diâmetro Biparietal (DBP): ${formData.dbp} mm\n`;
+      if (formData.cc) t += `Circunferência Cefálica (CC): ${formData.cc} mm\n`;
+      if (formData.ca) t += `Circunferência Abdominal (CA): ${formData.ca} mm\n`;
+      if (formData.femur) t += `Comprimento do Fêmur (CF): ${formData.femur} mm\n`;
+      if (formData.pesoFetal) t += `Peso Fetal Estimado: ${formData.pesoFetal} g (+/- 10%)\n`;
+      t += `\n`;
+
+      // Seção 5: Placenta e Líquido
+      t += `Placenta de inserção ${formData.placentaPosicao.toLowerCase()}, grau ${formData.placentaGrau} (Grannum).`;
+      if (formData.placentaEspessura) t += ` Espessura: ${formData.placentaEspessura} mm.`;
+      t += `\n`;
+      
+      if (formData.ila) {
+        t += `Líquido amniótico: ILA de ${formData.ila} cm (Normal).\n`;
+      } else {
+        t += `Líquido amniótico em quantidade normal.\n`;
+      }
+
+      // Conclusão
+      t += `\nCONCLUSÃO:\n`;
+      t += `- Gestação tópica compatível com a idade gestacional calculada.\n`;
+      t += `- Avaliação morfológica básica sem anormalidades evidentes no presente estudo.\n`;
+
+      setTextoGerado(t);
+    };
+
+    gerarLaudo();
+  }, [formData]);
+
+
+  // --- FUNÇÃO DE IMPRESSÃO (PDFMAKE) ---
+  const handlePrint = () => {
+    if (!formData.paciente) {
+        alert("Por favor, preencha o nome da paciente.");
         return;
     }
 
-    // Definição do documento para o PDFMake
-    // Usamos pontos (pts). 1cm ≈ 28.35pts.
-    // 4.5cm de topo = ~128 pts (vamos usar 135 para segurança)
-    // 2.0cm de lateral = ~57 pts
-    
     const docDefinition = {
         pageSize: 'A4',
-        // [margemEsquerda, margemTopo, margemDireita, margemFundo]
-        pageMargins: [60, 135, 60, 60], 
-        
+        // [esquerda, topo, direita, baixo]
+        // Topo 130pts = Aprox 4.5cm para pular o cabeçalho do papel timbrado
+        pageMargins: [60, 130, 60, 60], 
         content: [
-            // Bloco de Identificação (Negrito nos títulos)
+            // Cabeçalho do Laudo (Dados Paciente)
             {
-                text: [
-                    { text: 'NOME: ', bold: true, fontSize: 11 },
-                    { text: paciente || '__________________________', fontSize: 11 }
+                columns: [
+                    { width: 'auto', text: 'NOME: ', bold: true, fontSize: 11 },
+                    { width: '*', text: formData.paciente.toUpperCase(), fontSize: 11 }
                 ],
-                margin: [0, 0, 0, 2] // margem inferior pequena
+                margin: [0, 0, 0, 3]
             },
             {
-                text: [
-                    { text: 'CONVÊNIO: ', bold: true, fontSize: 11 },
-                    { text: 'PARTICULAR', fontSize: 11 }
+                columns: [
+                    { width: 'auto', text: 'CONVÊNIO: ', bold: true, fontSize: 11 },
+                    { width: '*', text: 'PARTICULAR', fontSize: 11 }
                 ],
-                margin: [0, 0, 0, 2]
+                margin: [0, 0, 0, 3]
             },
             {
-                text: [
-                    { text: 'DATA: ', bold: true, fontSize: 11 },
-                    { text: data, fontSize: 11 }
+                columns: [
+                    { width: 'auto', text: 'DATA: ', bold: true, fontSize: 11 },
+                    { width: '*', text: new Date(formData.dataExame).toLocaleDateString('pt-BR'), fontSize: 11 }
                 ],
-                margin: [0, 0, 0, 25] // Espaço maior antes do texto do laudo
+                margin: [0, 0, 0, 25] // Espaço antes do texto começar
             },
-
-            // O Texto do Laudo (Editável)
-            {
-                text: laudoContent,
-                fontSize: 12,
-                alignment: 'justify',
-                lineHeight: 1.2
-            },
-
+            
+            // O Texto do Laudo
+            { text: textoGerado, fontSize: 12, lineHeight: 1.3, alignment: 'justify' },
+            
             // Assinatura
-            {
-                text: '__________________________________________',
-                alignment: 'center',
-                margin: [0, 50, 0, 5] // Espaço grande antes da linha
-            },
-            {
-                text: medico,
-                alignment: 'center',
-                bold: true,
-                fontSize: 11
-            }
+            { text: '_______________________________', alignment: 'center', margin: [0, 60, 0, 5] },
+            { text: formData.medico, alignment: 'center', bold: true, fontSize: 11 }
         ],
         defaultStyle: {
-            font: 'Roboto' // Fonte padrão do PDFMake
+            font: 'Roboto'
         }
     };
+    pdfMake.createPdf(docDefinition).open();
+  };
 
-    // Abre o PDF em nova aba pronto para imprimir
-    pdfMake.createPdf(docDefinition).open(); 
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
   return (
-    <div className="laudos-page-container" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={styles.container}>
       
-      {/* Container Principal */}
-      <div style={{ 
-          background: '#fff', 
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          padding: '25px'
-      }}>
+      {/* --- COLUNA DA ESQUERDA: FORMULÁRIO --- */}
+      <div style={styles.leftCol}>
         
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#2E7D32', borderBottom: '1px solid #eee', paddingBottom: '15px' }}>
-            <FaFileAlt /> Emissor de Laudos (PDF A4)
+        <h2 style={{color: '#4A55A3', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px'}}>
+             <FaFileAlt /> Emissor de Laudo Obstétrico
         </h2>
-        
-        {/* Formulário de Configuração */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginTop: '20px' }}>
-             
-             {/* Seleção de Modelo */}
-             <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555'}}>1. Escolha o Modelo:</label>
-                <select 
-                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '16px' }} 
-                    onChange={handleSelectTemplate} 
-                    value={selectedTemplateId}
-                >
-                    <option value="">Selecione um Modelo...</option>
-                    {templates.map(t => (
-                    <option key={t.id} value={t.id}>{t.nome}</option>
-                    ))}
-                </select>
-            </div>
 
-            {/* Campos Manuais */}
-            <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em', fontWeight: 'bold'}}>Nome da Paciente:</label>
-                <input 
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
-                    value={paciente} 
-                    onChange={e => setPaciente(e.target.value)} 
-                    placeholder="Ex: Maria da Silva"
-                />
-            </div>
-            <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em', fontWeight: 'bold'}}>Médico Responsável:</label>
-                <input 
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
-                    value={medico} 
-                    onChange={e => setMedico(e.target.value)} 
-                />
-            </div>
-            <div>
-                <label style={{display: 'block', marginBottom: '5px', fontSize: '0.9em', fontWeight: 'bold'}}>Data do Exame:</label>
-                <input 
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} 
-                    value={data} 
-                    onChange={e => setData(e.target.value)} 
-                />
-            </div>
+        {/* Bloco 0: Paciente */}
+        <div style={styles.section}>
+             <div style={styles.header}>Identificação</div>
+             <div style={styles.body}>
+                <div style={styles.row}>
+                    <div style={{flex: 2}}>
+                        <div style={styles.label}>Nome da Paciente</div>
+                        <input name="paciente" value={formData.paciente} onChange={handleChange} style={styles.input} placeholder="Digite o nome..." />
+                    </div>
+                    <div style={{flex: 1}}>
+                         <div style={styles.label}>Data do Exame</div>
+                         <input type="date" name="dataExame" value={formData.dataExame} onChange={handleChange} style={styles.input} />
+                    </div>
+                </div>
+             </div>
         </div>
 
-        {/* Área de Edição (Visual apenas, não é o que imprime) */}
-        <div style={{ marginTop: '30px' }}>
-            <label style={{display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#555'}}>2. Edite o Texto do Laudo:</label>
-            <textarea
-            value={laudoContent}
-            onChange={(e) => setLaudoContent(e.target.value)}
-            placeholder="O texto do laudo aparecerá aqui..."
-            style={{
-                width: '100%',
-                minHeight: '400px', 
-                padding: '15px',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
-                fontFamily: 'Arial, sans-serif',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                resize: 'vertical'
-            }}
-            />
+        {/* Bloco 1: DUM / IG */}
+        <div style={styles.section}>
+          <div style={styles.header}>
+             <span>DUM / DPP / Idade Gestacional</span>
+             <FaCalculator color="#fff" />
+          </div>
+          <div style={styles.body}>
+            <div style={styles.row}>
+                <div>
+                    <div style={styles.label}>DUM</div>
+                    <input type="date" name="dum" value={formData.dum} onChange={handleChange} style={styles.input} />
+                </div>
+                <div>
+                    <div style={styles.label}>IG (Calculada)</div>
+                    <input type="text" value={formData.igDum} readOnly style={{...styles.input, background: '#eee', color: '#000', fontWeight: 'bold'}} placeholder="Auto" />
+                </div>
+                <div>
+                    <div style={styles.label}>DPP</div>
+                    <input type="text" value={formData.dpp} readOnly style={{...styles.input, background: '#eee', color: '#000'}} placeholder="Auto" />
+                </div>
+            </div>
+            
+            <div style={{borderTop: '1px solid #eee', paddingTop: '10px', marginTop: '5px'}}>
+                 <div style={styles.label}>Apresentação Fetal</div>
+                 <div style={styles.row}>
+                    <select name="situacao" value={formData.situacao} onChange={handleChange} style={styles.input}>
+                        <option>Longitudinal</option>
+                        <option>Transversa</option>
+                        <option>Oblíqua</option>
+                    </select>
+                    <select name="apresentacao" value={formData.apresentacao} onChange={handleChange} style={styles.input}>
+                        <option>Cefálica</option>
+                        <option>Pélvica</option>
+                    </select>
+                    <select name="dorso" value={formData.dorso} onChange={handleChange} style={styles.input}>
+                        <option>Esquerda</option>
+                        <option>Direita</option>
+                        <option>Anterior</option>
+                        <option>Posterior</option>
+                    </select>
+                 </div>
+            </div>
+          </div>
         </div>
 
-        {/* Botão de Ação */}
-        <div style={{ marginTop: '20px', textAlign: 'right' }}>
-            <button 
-                onClick={handleGeneratePDF}
-                style={{ 
-                    padding: '15px 30px', 
-                    background: '#007bff', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '6px', 
-                    cursor: 'pointer', 
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                }}
-            >
-                <FaPrint /> GERAR PDF PARA IMPRESSÃO
-            </button>
+        {/* Bloco 2: Biometria */}
+        <div style={styles.section}>
+          <div style={styles.header}>Biometria Fetal</div>
+          <div style={styles.body}>
+             <div style={styles.row}>
+                <div><div style={styles.label}>DBP (mm)</div><input name="dbp" value={formData.dbp} onChange={handleChange} style={{...styles.input, width: '70px'}} /></div>
+                <div><div style={styles.label}>CC (mm)</div><input name="cc" value={formData.cc} onChange={handleChange} style={{...styles.input, width: '70px'}} /></div>
+                <div><div style={styles.label}>CA (mm)</div><input name="ca" value={formData.ca} onChange={handleChange} style={{...styles.input, width: '70px'}} /></div>
+                <div><div style={styles.label}>Fêmur (mm)</div><input name="femur" value={formData.femur} onChange={handleChange} style={{...styles.input, width: '70px'}} /></div>
+             </div>
+             <div style={{marginTop: '5px', padding: '10px', background: '#e3f2fd', borderRadius: '4px', border: '1px solid #bbdefb', display: 'flex', alignItems: 'center', gap: '10px'}}>
+                 <div style={styles.label}>Peso Fetal Estimado:</div>
+                 <input name="pesoFetal" value={formData.pesoFetal} onChange={handleChange} style={{...styles.input, width: '100px', fontWeight: 'bold', fontSize: '14px'}} placeholder="0 g" />
+                 <span style={styles.smallText}>(Cálculo automático aproximado ao digitar CA e Fêmur)</span>
+             </div>
+          </div>
         </div>
-        
-        <p style={{marginTop: '10px', fontSize: '12px', color: '#777', textAlign: 'right'}}>
-            * O PDF será gerado com margem superior de 4.5cm para respeitar o papel timbrado.
-        </p>
+
+        {/* Bloco 3: Morfologia */}
+        <div style={styles.section}>
+           <div style={styles.header}>Morfologia Fetal (Marque o que visualizou NORMAL)</div>
+           <div style={styles.body}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="cranioNormal" checked={formData.cranioNormal} onChange={handleChange}/> Crânio/Encéfalo</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="faceNormal" checked={formData.faceNormal} onChange={handleChange}/> Face / Lábios</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="colunaNormal" checked={formData.colunaNormal} onChange={handleChange}/> Coluna Vertebral</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="coracaoNormal" checked={formData.coracaoNormal} onChange={handleChange}/> Coração (4 câmaras)</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="estomagoNormal" checked={formData.estomagoNormal} onChange={handleChange}/> Estômago</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="rinsNormais" checked={formData.rinsNormais} onChange={handleChange}/> Rins</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="bexigaNormal" checked={formData.bexigaNormal} onChange={handleChange}/> Bexiga</label>
+                  <label style={styles.checkboxLabel}><input type="checkbox" name="membrosNormais" checked={formData.membrosNormais} onChange={handleChange}/> Membros Sup/Inf</label>
+              </div>
+           </div>
+        </div>
+
+        {/* Bloco 4: Placenta e Líquido */}
+        <div style={styles.section}>
+            <div style={styles.header}>Placenta e Líquido Amniótico</div>
+            <div style={styles.body}>
+                <div style={styles.row}>
+                    <div>
+                        <div style={styles.label}>Placenta Inserção</div>
+                        <select name="placentaPosicao" value={formData.placentaPosicao} onChange={handleChange} style={styles.input}>
+                            <option>Corporal Anterior</option>
+                            <option>Corporal Posterior</option>
+                            <option>Fúndica</option>
+                            <option>Prévia</option>
+                            <option>Baixa</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style={styles.label}>Grau (Grannum)</div>
+                        <select name="placentaGrau" value={formData.placentaGrau} onChange={handleChange} style={{...styles.input, width: '60px'}}>
+                            <option>0</option>
+                            <option>1</option>
+                            <option>2</option>
+                            <option>3</option>
+                        </select>
+                    </div>
+                     <div>
+                        <div style={styles.label}>Espessura (mm)</div>
+                        <input name="placentaEspessura" value={formData.placentaEspessura} onChange={handleChange} style={{...styles.input, width: '60px'}} />
+                    </div>
+                     <div>
+                        <div style={styles.label}>ILA (cm)</div>
+                        <input name="ila" value={formData.ila} onChange={handleChange} style={{...styles.input, width: '60px'}} placeholder="Ex: 14" />
+                    </div>
+                </div>
+            </div>
+        </div>
 
       </div>
+
+      {/* --- COLUNA DA DIREITA: PREVIEW --- */}
+      <div style={styles.rightCol}>
+        <div style={{ position: 'sticky', top: '20px' }}>
+            <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: '#333' }}>Pré-visualização</h3>
+                <button onClick={handlePrint} style={styles.button}>
+                    <FaPrint /> IMPRIMIR PDF
+                </button>
+            </div>
+            
+            <textarea 
+                value={textoGerado}
+                onChange={(e) => setTextoGerado(e.target.value)}
+                style={{
+                    width: '100%',
+                    height: '650px',
+                    padding: '25px',
+                    border: '1px solid #ccc',
+                    borderRadius: '8px',
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    resize: 'none',
+                    outline: 'none'
+                }}
+            />
+            <p style={{ fontSize: '12px', color: '#777', marginTop: '10px', textAlign: 'center' }}>
+                Edite o texto acima livremente se necessário antes de imprimir.
+            </p>
+        </div>
+      </div>
+
     </div>
   );
 };
