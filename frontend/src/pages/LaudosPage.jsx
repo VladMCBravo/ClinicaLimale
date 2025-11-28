@@ -8,7 +8,7 @@ import apiClient from '../api/axiosConfig';
 // Importe suas máscaras aqui
 import FormObstetrico from '../components/laudos/FormObstetrico';
 import FormTransvaginal from '../components/laudos/FormTransvaginal';
-
+import FormEcocardiograma from '../components/laudos/FormEcocardiograma';
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
@@ -104,6 +104,7 @@ const LaudosPage = () => {
                 <option value="OBSTETRICO">Ultrassom Obstétrico / Morfológico</option>
                 <option value="TRANSVAGINAL">Ultrassom Transvaginal / Pélvico</option> {/* <-- Atualizado */}
                 <option value="ABDOME">Ultrassom Abdome Total (Em Breve)</option>
+                <option value="ECOCARDIOGRAMA">Ecocardiograma (Adulto)</option>
             </select>
         </div>
 
@@ -138,9 +139,8 @@ const LaudosPage = () => {
 
         {/* 3. A MÁSCARA DINÂMICA */}
         {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} />}
-
-        {/* ADICIONE ESTA LINHA: */}
         {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} />}
+        {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} />}
 
       </div>
 
