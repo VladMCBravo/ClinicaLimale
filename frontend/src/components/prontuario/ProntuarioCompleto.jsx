@@ -18,8 +18,8 @@ const RelatoriosTab = lazy(() => import('./RelatoriosTab'));
 const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
-// Importamos a nova estação que criamos
-const EstacaoLaudo = lazy(() => import('../laudos/EstacaoLaudo'));
+
+
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -227,15 +227,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             <TabPanel value={tabIndex} index={4}>
               <ExamesDicomTab pacienteId={pacienteId} />
             </TabPanel>
-            
-            {/* ABA 5: Estação de Trabalho (Split Screen: Imagem + Editor) */}
-            <TabPanel value={tabIndex} index={5}>
-                <EstacaoLaudo 
-                    pacienteId={pacienteId}
-                    agendamento={agendamento}
-                />
-            </TabPanel>
-
+                   
           </Suspense>
         </Box>
       </Box>
