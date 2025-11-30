@@ -1,284 +1,236 @@
-// src/components/laudos/FormEcocardiograma.jsx
-import React, { useState, useEffect } from 'react';
-import { FaHeartbeat, FaRulerCombined, FaCalculator, FaExpand } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaHeartbeat } from 'react-icons/fa';
+import '../Laudos.css'; 
 
-// Estilos densos (Desktop-like)
-const styles = {
-  section: { border: '1px solid #999', borderRadius: '4px', marginBottom: '8px', background: '#F9F9F9', overflow: 'hidden' },
-  header: { background: '#2E7D32', color: 'white', padding: '4px 8px', fontSize: '12px', fontWeight: 'bold', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' },
-  body: { padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px' },
-  row: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'nowrap' },
-  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
-  grid3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' },
-  grid4: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' },
-  label: { fontWeight: 'bold', fontSize: '11px', marginBottom: '2px', whiteSpace: 'nowrap', color: '#333' },
-  input: { padding: '2px 5px', border: '1px solid #AAA', borderRadius: '2px', fontSize: '11px', height: '22px', width: '100%' },
-  readOnly: { background: '#E0E0E0', fontWeight: 'bold', color: '#000' },
-  groupTitle: { fontSize: '11px', fontWeight: 'bold', color: '#2E7D32', borderBottom: '1px solid #ccc', marginBottom: '5px', marginTop: '5px' },
-  radioGroup: { display: 'flex', gap: '10px', fontSize: '11px' }
-};
+// Importação das Seções
+import SecaoTecnicaEco from './sections_eco/SecaoTecnicaEco';
+import SecaoMedidasEco from './sections_eco/SecaoMedidasEco';
+import SecaoRitmoCamaras from './sections_eco/SecaoRitmoCamaras';
+import SecaoEspessura from './sections_eco/SecaoEspessura';
+import SecaoValvaMitral from './sections_eco/SecaoValvaMitral';
+import SecaoValvaTricuspide from './sections_eco/SecaoValvaTricuspide';
+import SecaoValvaPulmonar from './sections_eco/SecaoValvaPulmonar'; // (Agora contém Artéria + Valva)
+import SecaoFuncaoVentricular from './sections_eco/SecaoFuncaoVentricular';
+import SecaoAortaVenaCava from './sections_eco/SecaoAortaVenaCava';
+import SecaoPericardio from './sections_eco/SecaoPericardio'; // NOVO
 
 const FormEcocardiograma = ({ onUpdate }) => {
-  const [sections, setSections] = useState({ medidas: true, valvas: true, conclusao: true });
-  const toggle = (s) => setSections(p => ({ ...p, [s]: !p[s] }));
+  
+  const initialState = {
+      subtipo: 'ECO_TRANSTORACICO',
+      // ... (Dados anteriores mantidos) ...
+      peso: '', altura: '', sc: '', citarTecnica: true, tecnicaQualidade: 'boa', localExame: 'nao_citar', posicaoPaciente: 'nao_citar',
+      raizAorta: '', aortaAsc: '', arcoAorta: '', atrioEsq: '', volAe: '', ventriculoDir: '', volAd: '', volDiastVd: '', volSistVd: '',
+      siv: '', ppve: '', ddve: '', dsve: '', volDiast: '', volSist: '', metodoFe: 'Teichholz',
+      resFe: '', resEncurtamento: '', resMassaVE: '', resImVE: '', resRwt: '', ritmo: 'Regular',
+      camaras: 'Normal', camIndAd: 'normal', camIndAe: 'normal', camIndVd: 'normal', camIndVe: 'normal', camDeformidade: false,
+      espessuraVe: 'normal', espessuraVeTipo: 'concentrica', septoSigmoide: '', espessuraVd: 'nao_citar',
+      sistolicoGlobal: 'normal', sistolicoReduzidoVe: false, sistolicoReduzidoVeGrau: 'discreto', sistolicoReduzidoVd: false, sistolicoReduzidoVdGrau: 'discreto', contratilidadeAlterada: false, movAnomaloSepto: false, diastolica: 'normal',
+      mitralAspecto: 'normal', mitralEspessura: 'normal', mitralMobilidade: 'normal', mitralAbertura: 'normal', mitralCorda: 'normal', mitralAnel: 'normal', mitralRefluxo: 'ausente', mitralEstenose: 'ausente', mitralArea: '',
+      triAspecto: 'normal', triEspessura: 'normal', triCorda: 'normal', triRefluxo: 'ausente', triEstenose: 'nao_citar', triSeveraArea: '', triAbertura: 'normal', triMobilidade: 'normal',
+      aortaEstrutura: 'normal', aortaEctasiaRaiz: false, aortaEctasiaAsc: false, aortaEctasiaArco: false, aortaObsNaoVis: false, aortaPlacas: false, aortaAteromatose: false, aortaDisseccao: false, veiaCava: 'nao_citar',
+      pulEstenose: 'ausente', pulPicoVel: '', pulPicoGrad: '', pulAspecto: 'normal', pulRefluxo: 'ausente',
 
-  const [data, setData] = useState({
-    tipoExame: 'ECO_TRANSTORACICO_DOPPLER', // ou 'ECO_TRANSTORACICO'
-    
-    // DADOS BIOMÉTRICOS
-    peso: '', altura: '', sc: '', // Superfície Corpórea
-    ritmo: 'Sinusal', fc: '',
+      // --- NOVOS ESTADOS (Print Atual) ---
+      
+      // ARTÉRIA PULMONAR
+      artPulmonar: 'normal', // normal, ectasia, dificil
+      sinaisHipertensao: false, ausenciaSinaisHipertensao: false,
+      checkPsap: false, psap: '', 
+      checkPmap: false, pmap: '',
 
-    // MEDIDAS (Modo M / 2D)
-    aorta: '', ae: '', 
-    ddve: '', dsve: '', // Diâmetros Diastólico e Sistólico do VE
-    siv: '', ppve: '',  // Septo e Parede Posterior
-    ddvd: '', // Diâmetro do VD
+      // PERICÁRDIO
+      pericardioDerra: 'sem_derrame',
+      periLoculado: false, periCircunferencial: false, periHomogeneo: false, periHeterogeneo: false,
+      periRepercussao: 'nao_citar',
+  };
 
-    // CÁLCULOS (Automáticos)
-    feTeich: '', // Fração Ejeção
-    encurtamento: '', // Delta D%
-    massaVE: '', imVE: '', // Índice de Massa
-    relAeAo: '', // Relação AE/Aorta
+  const [data, setData] = useState(initialState);
+  const dadosRef = useRef(initialState);
 
-    // FUNÇÃO SISTÓLICA / DIASTÓLICA
-    funcaoVE: 'Preservada',
-    contratilidade: 'Normal', // ou 'Hipocinesia difusa', etc.
-    funcaoDiastolica: 'Normal', // ou 'Disfunção Grau 1'
+  // --- AUTOMAÇÃO MATEMÁTICA ---
+  useEffect(() => {
+    let updates = {};
+    let houveMudanca = false;
 
-    // VALVAS (Checkboxes simplificados para o exemplo, pode expandir)
-    mitral: 'Normal', mitralRefluxo: 'Ausente',
-    aortica: 'Normal', aorticaRefluxo: 'Ausente',
-    tricuspide: 'Normal', tricuspideRefluxo: 'Ausente', psap: '', // Pressão Sistólica Artéria Pulmonar
-    pulmonar: 'Normal', pulmonarRefluxo: 'Ausente',
+    const safeFloat = (v) => { const f = parseFloat(v); return isNaN(f) ? 0 : f; };
 
-    // PERICÁRDIO / AORTA
-    pericardio: 'Normal',
-    aortaAsc: '', arcoAortico: ''
-  });
+    // 1. SC (Du Bois)
+    if (data.peso && data.altura) {
+        const p = safeFloat(data.peso);
+        const a = safeFloat(data.altura);
+        if (p > 0 && a > 0) {
+            const sc = 0.007184 * Math.pow(p, 0.425) * Math.pow(a, 0.725);
+            const novoSc = sc.toFixed(4);
+            if (data.sc !== novoSc) { updates.sc = novoSc; houveMudanca = true; }
+        }
+    }
 
+    // 2. FE, Massa, RWT
+    if (data.ddve && data.dsve && data.siv && data.ppve) {
+        const d = safeFloat(data.ddve);
+        const s = safeFloat(data.dsve);
+        const siv = safeFloat(data.siv);
+        const pp = safeFloat(data.ppve);
+
+        if (d > 0 && s > 0 && d > s) {
+            // FE Teichholz
+            const fe = ((Math.pow(d, 3) - Math.pow(s, 3)) / Math.pow(d, 3)) * 100;
+            const enc = ((d - s) / d) * 100;
+            const novaFe = fe.toFixed(1).replace('.', ',');
+            const novoEnc = enc.toFixed(1).replace('.', ',');
+            
+            if (data.resFe !== novaFe) { updates.resFe = novaFe; houveMudanca = true; }
+            if (data.resEncurtamento !== novoEnc) { updates.resEncurtamento = novoEnc; houveMudanca = true; }
+
+            // RWT (Espessura Relativa da Parede) = (2 * PP) / DDVE
+            const rwt = (2 * pp) / d;
+            const novoRwt = rwt.toFixed(2).replace('.', ',');
+            if (data.resRwt !== novoRwt) { updates.resRwt = novoRwt; houveMudanca = true; }
+
+            // Massa VE (ASE) -> converter para cm
+            const d_cm = d/10; const siv_cm = siv/10; const pp_cm = pp/10;
+            const massa = 0.8 * (1.04 * (Math.pow(d_cm + siv_cm + pp_cm, 3) - Math.pow(d_cm, 3))) + 0.6;
+            const novaMassa = massa.toFixed(0);
+            if (data.resMassaVE !== novaMassa) { updates.resMassaVE = novaMassa; houveMudanca = true; }
+
+            // Índice de Massa
+            if (data.sc && safeFloat(data.sc) > 0) {
+                const im = massa / safeFloat(data.sc);
+                const novoIm = im.toFixed(2).replace('.', ',');
+                if (data.resImVE !== novoIm) { updates.resImVE = novoIm; houveMudanca = true; }
+            }
+        }
+    }
+
+    if (houveMudanca) {
+        setData(prev => ({ ...prev, ...updates }));
+    }
+
+  }, [data.peso, data.altura, data.ddve, data.dsve, data.siv, data.ppve, data.sc, data.resFe]);
+
+  // --- HANDLER GENÉRICO ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // --- O CÉREBRO MATEMÁTICO ---
+  // --- GERAÇÃO DE TEXTO ---
   useEffect(() => {
-    let updates = {};
+    dadosRef.current = data; 
+    let t = `ECOCARDIOGRAMA TRANSTORÁCICO\n\n`;
 
-    // 1. Superfície Corpórea (Du Bois): 0.007184 * peso^0.425 * altura^0.725
-    if (data.peso && data.altura) {
-        const p = parseFloat(data.peso);
-        const a = parseFloat(data.altura); // em cm
-        const sc = 0.007184 * Math.pow(p, 0.425) * Math.pow(a, 0.725);
-        updates.sc = sc.toFixed(2);
-    }
+    // 1. Dados Iniciais
+    t += `Ritmo: ${data.ritmo}.\n`;
+    
+    // 2. Artéria Pulmonar
+    if (data.artPulmonar === 'normal') t += `Artéria Pulmonar: Calibre preservado.\n`;
+    else if (data.artPulmonar === 'ectasia') t += `Artéria Pulmonar: Ectasia do tronco.\n`;
+    
+    if (data.checkPsap && data.psap) t += `Pressão Sistólica da Artéria Pulmonar (PSAP) estimada em ${data.psap} mmHg.\n`;
+    if (data.sinaisHipertensao) t += `Presença de sinais indiretos de hipertensão pulmonar.\n`;
 
-    // 2. Fração de Ejeção (Teichholz): ((DDVE³ - DSVE³) / DDVE³) * 100
-    //    Encurtamento: ((DDVE - DSVE) / DDVE) * 100
-    if (data.ddve && data.dsve) {
-        const d = parseFloat(data.ddve); // mm
-        const s = parseFloat(data.dsve); // mm
-        if (d > s && d > 0) {
-            const fe = ((Math.pow(d, 3) - Math.pow(s, 3)) / Math.pow(d, 3)) * 100;
-            const enc = ((d - s) / d) * 100;
-            updates.feTeich = fe.toFixed(0);
-            updates.encurtamento = enc.toFixed(0);
-        }
-    }
-
-    // 3. Massa do VE (ASE): 0.8 * (1.04 * ((DDVE + SIV + PPVE)³ - DDVE³) + 0.6
-    if (data.ddve && data.siv && data.ppve) {
-        const d = parseFloat(data.ddve) / 10; // converter para cm
-        const siv = parseFloat(data.siv) / 10;
-        const pp = parseFloat(data.ppve) / 10;
-        const massa = 0.8 * (1.04 * (Math.pow(d + siv + pp, 3) - Math.pow(d, 3))) + 0.6;
-        updates.massaVE = massa.toFixed(0);
+    // 3. Pericárdio
+    if (data.pericardioDerra === 'sem_derrame') {
+        t += `Pericárdio: Aspecto normal, sem derrame.\n`;
+    } else {
+        const tipoDerrame = data.pericardioDerra.replace('_', '/');
+        t += `Pericárdio: Presença de derrame pericárdico ${tipoDerrame}.\n`;
         
-        // Índice de Massa (Massa / SC)
-        if (updates.sc || data.sc) {
-            const scVal = parseFloat(updates.sc || data.sc);
-            if(scVal > 0) updates.imVE = (massa / scVal).toFixed(0);
-        }
+        const caracs = [];
+        if(data.periLoculado) caracs.push('loculado');
+        if(data.periCircunferencial) caracs.push('circunferencial');
+        if(data.periHomogeneo) caracs.push('conteúdo homogêneo');
+        if(data.periHeterogeneo) caracs.push('conteúdo heterogêneo');
+        if(caracs.length > 0) t += `Características: ${caracs.join(', ')}.\n`;
+
+        if(data.periRepercussao === 'com_repercussao') t += `Com sinais de repercussão hemodinâmica.\n`;
     }
 
-    // 4. Relação AE/Aorta
-    if (data.ae && data.aorta) {
-        const ae = parseFloat(data.ae);
-        const ao = parseFloat(data.aorta);
-        if(ao > 0) updates.relAeAo = (ae / ao).toFixed(2);
+    // 2. Função Sistólica
+    t += `\nFUNÇÃO SISTÓLICA:\n`;
+    if (data.sistolicoGlobal === 'normal') {
+        t += `Desempenho sistólico biventricular preservado.\n`;
+    } else {
+        if (data.sistolicoReduzidoVe) t += `VE: Desempenho sistólico reduzido em grau ${data.sistolicoReduzidoVeGrau}.\n`;
+        if (data.sistolicoReduzidoVd) t += `VD: Desempenho sistólico reduzido em grau ${data.sistolicoReduzidoVdGrau}.\n`;
     }
-
-    // Atualiza estado apenas se houve mudança nos cálculos
-    if (Object.keys(updates).length > 0) {
-        // Verifica se os valores são diferentes para evitar loop infinito
-        const hasChanges = Object.keys(updates).some(k => updates[k] !== data[k]);
-        if(hasChanges) setData(prev => ({ ...prev, ...updates }));
-    }
-
-    // --- GERADOR DE TEXTO ---
-    let t = `ECOCARDIOGRAMA TRANSTORÁCICO${data.tipoExame.includes('DOPPLER') ? ' COM DOPPLER COLORIDO' : ''}\n\n`;
+    if (data.contratilidadeAlterada) t += `Alteração da contratilidade segmentar do VE presente.\n`;
+    if (data.movAnomaloSepto) t += `Movimento anômalo do septo interventricular.\n`;
     
-    t += `DADOS DO PACIENTE: Peso: ${data.peso||'--'} kg. Altura: ${data.altura||'--'} cm. SC: ${data.sc||'--'} m².\n`;
-    t += `Ritmo: ${data.ritmo}. FC: ${data.fc||'--'} bpm.\n\n`;
+    // FE (Cálculo)
+    if (data.resFe) t += `Fração de Ejeção (${data.metodoFe}): ${data.resFe} %. (Ref: >55%).\n`;
 
-    t += `MEDIDAS E CÁLCULOS (VE):\n`;
-    t += `Aorta: ${data.aorta||'-'} mm. Átrio Esquerdo: ${data.ae||'-'} mm (Rel AE/Ao: ${data.relAeAo||'-'}).\n`;
-    t += `VE Diástole: ${data.ddve||'-'} mm. VE Sístole: ${data.dsve||'-'} mm.\n`;
-    t += `Septo IV: ${data.siv||'-'} mm. Parede Posterior: ${data.ppve||'-'} mm.\n`;
-    t += `Massa VE: ${data.massaVE||'-'} g. Índice de Massa: ${data.imVE||'-'} g/m².\n`;
-    t += `Fração de Ejeção (Teichholz): ${data.feTeich||'-'} %. Encurtamento: ${data.encurtamento||'-'} %.\n\n`;
+    // 3. Função Diastólica
+    t += `\nFUNÇÃO DIASTÓLICA:\n`;
+    const mapDiast = {
+        'normal': 'Índices de função diastólica normais.',
+        'grau_I': 'Disfunção diastólica grau I (Alteração do relaxamento).',
+        'grau_II': 'Disfunção diastólica grau II (Pseudonormal).',
+        'grau_III': 'Disfunção diastólica grau III (Restritivo reversível).',
+        'grau_IV': 'Disfunção diastólica grau IV (Restritivo fixo).',
+        'indeterminada': 'Função diastólica indeterminada.',
+        'pressao_aum': 'Sinais de aumento das pressões de enchimento do VE.'
+    };
+    t += `${mapDiast[data.diastolica]}\n`;
 
-    t += `ANÁLISE FUNCIONAL:\n`;
-    t += `Ventrículo Esquerdo: Dimensões ${data.ddve > 58 ? 'aumentadas' : 'normais'}. Função sistólica ${data.funcaoVE.toLowerCase()}. ${data.contratilidade}.\n`;
-    t += `Função Diastólica: ${data.funcaoDiastolica}.\n`;
-    t += `Ventrículo Direito: Dimensões e função preservadas.\n\n`;
+    // 4. Valvas (Mitral, Tricúspide, Pulmonar)
+    t += `\nVALVAS:\n`;
+    t += `Mitral: ${data.mitralRefluxo}.\n`; // Resumido
+    t += `Tricúspide: ${data.triRefluxo}.\n`; // Resumido
+    t += `Pulmonar: Aspecto ${data.pulAspecto}. Refluxo ${data.pulRefluxo}.`;
+    if(data.pulEstenose !== 'ausente') t += ` Estenose ${data.pulEstenose} (Grad: ${data.pulPicoGrad} mmHg).`;
+    t += `\n`;
 
-    t += `VALVAS E FLUXOS:\n`;
-    t += `Mitral: ${data.mitral}. ${data.mitralRefluxo !== 'Ausente' ? `Refluxo ${data.mitralRefluxo.toLowerCase()}.` : ''}\n`;
-    t += `Aórtica: ${data.aortica}. ${data.aorticaRefluxo !== 'Ausente' ? `Refluxo ${data.aorticaRefluxo.toLowerCase()}.` : ''}\n`;
-    t += `Tricúspide: ${data.tricuspide}. ${data.psap ? `PSAP estimada em ${data.psap} mmHg.` : ''}\n`;
-    
+    // 5. Aorta e Cava
+    if (data.aortaEstrutura === 'ectasia') {
+        const locs = [];
+        if(data.aortaEctasiaRaiz) locs.push('Raiz');
+        if(data.aortaEctasiaAsc) locs.push('Ascendente');
+        if(data.aortaEctasiaArco) locs.push('Arco');
+        t += `Aorta: Ectasia de ${locs.join(', ')}.\n`;
+    }
+    if (data.veiaCava !== 'nao_citar') {
+        t += `Veia Cava Inferior: ${data.veiaCava.includes('normal') ? 'Calibre normal' : 'Calibre aumentado'} (${data.veiaCava.includes('maior') ? '>50%' : '<50%'} variação resp.).\n`;
+    }
+
     t += `\nCONCLUSÃO:\n`;
-    t += `- Exame ecocardiográfico dentro dos limites da normalidade (se valores normais).\n`; // Lógica de conclusão pode ser melhorada depois
+    if (data.pericardioDerra === 'sem_derrame' && data.artPulmonar === 'normal') {
+        t += `Exame dentro dos limites da normalidade.\n`;
+    }
 
-    onUpdate({ texto: t, dadosEstruturados: data, tituloExame: t.split('\n')[0] });
-
-  }, [data, onUpdate]); // Dependências
-
-  // Handlers de input com parse para evitar NaN nos cálculos
-  const handleNum = (e) => {
-      const { name, value } = e.target;
-      // Permite apenas números e ponto
-      if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
-          setData(prev => ({...prev, [name]: value}));
-      }
-  };
+    onUpdate({ texto: t, dadosEstruturados: data, tituloExame: 'ECOCARDIOGRAMA' });
+  }, [data, onUpdate]);
 
   return (
-    <div style={styles.container}>
-      {/* 1. CONFIGURAÇÃO DO EXAME */}
-      <div style={{marginBottom: '10px'}}>
-          <label style={styles.label}>Tipo de Exame</label>
-          <select name="tipoExame" value={data.tipoExame} onChange={handleChange} style={{...styles.input, height: '28px', fontWeight: 'bold'}}>
-              <option value="ECO_TRANSTORACICO_DOPPLER">Ecocardiograma Transtorácico com Doppler Colorido</option>
-              <option value="ECO_TRANSTORACICO">Ecocardiograma Transtorácico (Simples)</option>
-          </select>
-      </div>
+    <div className="laudo-container">
+        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px', paddingBottom:'10px', borderBottom:'1px solid #ccc' }}>
+             <FaHeartbeat size={20} color="#1565C0" />
+             <span style={{fontWeight:'bold', color:'#333'}}>CONFIGURAÇÃO DO EXAME</span>
+        </div>
 
-      {/* 2. DADOS BIOMÉTRICOS (Para cálculo de SC) */}
-      <div style={styles.section}>
-          <div style={styles.header}>Dados do Paciente (Cálculo de SC)</div>
-          <div style={styles.body}>
-              <div style={styles.grid4}>
-                  <div><span style={styles.label}>Peso (kg)</span><input name="peso" value={data.peso} onChange={handleNum} style={styles.input} /></div>
-                  <div><span style={styles.label}>Altura (cm)</span><input name="altura" value={data.altura} onChange={handleNum} style={styles.input} /></div>
-                  <div><span style={styles.label}>SC (m²)</span><input value={data.sc} readOnly style={{...styles.input, ...styles.readOnly}} /></div>
-                  <div><span style={styles.label}>FC (bpm)</span><input name="fc" value={data.fc} onChange={handleNum} style={styles.input} /></div>
-              </div>
-          </div>
-      </div>
+        <div style={{display:'flex', gap:'10px', alignItems:'flex-start'}}>
+            {/* COLUNA ESQUERDA */}
+            <div style={{flex: '1', minWidth: '350px'}}>
+                <SecaoTecnicaEco data={data} handleChange={handleChange} />
+                <SecaoMedidasEco data={data} handleChange={handleChange} />
+                <SecaoRitmoCamaras data={data} handleChange={handleChange} />
+                <SecaoEspessura data={data} handleChange={handleChange} />
+                <SecaoFuncaoVentricular data={data} handleChange={handleChange} />
+            </div>
 
-      {/* 3. MEDIDAS E CÁLCULOS (O Coração do Sistema) */}
-      <div style={styles.section}>
-          <div style={styles.header} onClick={() => toggle('medidas')}>
-              <span><FaCalculator/> Medidas e Cálculos (VE/AE/Ao)</span> <FaExpand/>
-          </div>
-          {sections.medidas && (
-              <div style={styles.body}>
-                  <div style={styles.grid3}>
-                      {/* Coluna 1: Diâmetros Básicos */}
-                      <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                          <div style={styles.groupTitle}>Diâmetros (mm)</div>
-                          <div style={styles.row}><span style={{...styles.label, width:'40px'}}>Aorta</span><input name="aorta" value={data.aorta} onChange={handleNum} style={styles.input} /></div>
-                          <div style={styles.row}><span style={{...styles.label, width:'40px'}}>AE</span><input name="ae" value={data.ae} onChange={handleNum} style={styles.input} /></div>
-                          <div style={styles.row}><span style={{...styles.label, width:'40px'}}>DDVD</span><input name="ddvd" value={data.ddvd} onChange={handleNum} style={styles.input} /></div>
-                      </div>
-
-                      {/* Coluna 2: Ventrículo Esquerdo */}
-                      <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                          <div style={styles.groupTitle}>Ventrículo Esq. (mm)</div>
-                          <div style={styles.row}><span style={{...styles.label, width:'60px'}}>Diástole</span><input name="ddve" value={data.ddve} onChange={handleNum} style={styles.input} /></div>
-                          <div style={styles.row}><span style={{...styles.label, width:'60px'}}>Sístole</span><input name="dsve" value={data.dsve} onChange={handleNum} style={styles.input} /></div>
-                          <div style={styles.row}><span style={{...styles.label, width:'60px'}}>Septo</span><input name="siv" value={data.siv} onChange={handleNum} style={styles.input} /></div>
-                          <div style={styles.row}><span style={{...styles.label, width:'60px'}}>Parede P.</span><input name="ppve" value={data.ppve} onChange={handleNum} style={styles.input} /></div>
-                      </div>
-
-                      {/* Coluna 3: Resultados Automáticos */}
-                      <div style={{display:'flex', flexDirection:'column', gap:'5px', background:'#E8F5E9', padding:'5px', borderRadius:'4px', border:'1px solid #C8E6C9'}}>
-                          <div style={{...styles.groupTitle, color:'#1B5E20', borderBottom:'1px solid #A5D6A7'}}>Resultados Auto</div>
-                          <div style={styles.row}><span style={styles.label}>FE (Teich) %</span><input value={data.feTeich} readOnly style={{...styles.input, fontWeight:'bold'}} /></div>
-                          <div style={styles.row}><span style={styles.label}>Massa (g)</span><input value={data.massaVE} readOnly style={styles.input} /></div>
-                          <div style={styles.row}><span style={styles.label}>Índice (g/m²)</span><input value={data.imVE} readOnly style={styles.input} /></div>
-                          <div style={styles.row}><span style={styles.label}>Encurt. (%)</span><input value={data.encurtamento} readOnly style={styles.input} /></div>
-                      </div>
-                  </div>
-              </div>
-          )}
-      </div>
-
-      {/* 4. VALVAS (Layout em Grade) */}
-      <div style={styles.section}>
-          <div style={styles.header} onClick={() => toggle('valvas')}>
-              <span><FaHeartbeat/> Valvas Cardíacas</span> <FaExpand/>
-          </div>
-          {sections.valvas && (
-              <div style={styles.body}>
-                  <div style={styles.grid2}>
-                      {/* Mitral */}
-                      <div style={{border:'1px solid #eee', padding:'5px'}}>
-                          <div style={styles.groupTitle}>Mitral</div>
-                          <div style={{marginBottom:'5px'}}>
-                              <span style={styles.label}>Morfologia</span>
-                              <select name="mitral" value={data.mitral} onChange={handleChange} style={styles.input}>
-                                  <option>Normal</option><option>Espessada</option><option>Calcificada</option><option>Prolapso</option>
-                              </select>
-                          </div>
-                          <div>
-                              <span style={styles.label}>Refluxo (Ao Doppler)</span>
-                              <select name="mitralRefluxo" value={data.mitralRefluxo} onChange={handleChange} style={styles.input}>
-                                  <option>Ausente</option><option>Discreto</option><option>Moderado</option><option>Importante</option>
-                              </select>
-                          </div>
-                      </div>
-
-                      {/* Aórtica */}
-                      <div style={{border:'1px solid #eee', padding:'5px'}}>
-                          <div style={styles.groupTitle}>Aórtica</div>
-                          <div style={{marginBottom:'5px'}}>
-                              <span style={styles.label}>Morfologia</span>
-                              <select name="aortica" value={data.aortica} onChange={handleChange} style={styles.input}>
-                                  <option>Normal</option><option>Espessada</option><option>Calcificada</option><option>Bicúspide</option>
-                              </select>
-                          </div>
-                          <div>
-                              <span style={styles.label}>Refluxo</span>
-                              <select name="aorticaRefluxo" value={data.aorticaRefluxo} onChange={handleChange} style={styles.input}>
-                                  <option>Ausente</option><option>Discreto</option><option>Moderado</option><option>Importante</option>
-                              </select>
-                          </div>
-                      </div>
-
-                      {/* Tricúspide */}
-                      <div style={{border:'1px solid #eee', padding:'5px'}}>
-                          <div style={styles.groupTitle}>Tricúspide</div>
-                          <div style={styles.row}>
-                              <div style={{flex:1}}>
-                                <span style={styles.label}>Refluxo</span>
-                                <select name="tricuspideRefluxo" value={data.tricuspideRefluxo} onChange={handleChange} style={styles.input}>
-                                    <option>Ausente</option><option>Discreto</option><option>Moderado</option>
-                                </select>
-                              </div>
-                              <div style={{width:'60px'}}>
-                                  <span style={styles.label}>PSAP</span>
-                                  <input name="psap" value={data.psap} onChange={handleNum} style={styles.input} placeholder="mmHg"/>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          )}
-      </div>
+            {/* COLUNA DIREITA */}
+            <div style={{flex: '1', minWidth: '350px'}}>
+                {/* Valvas Mitral, Tricúspide, Pulmonar (Atualizada com Artéria) */}
+                <SecaoValvaMitral data={data} handleChange={handleChange} />
+                <SecaoValvaTricuspide data={data} handleChange={handleChange} />
+                <SecaoValvaPulmonar data={data} handleChange={handleChange} />
+                
+                {/* Vasos e Pericárdio */}
+                <SecaoAortaVenaCava data={data} handleChange={handleChange} />
+                <SecaoPericardio data={data} handleChange={handleChange} />
+            </div>
+        </div>
     </div>
   );
 };
