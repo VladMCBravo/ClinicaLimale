@@ -19,7 +19,7 @@ const BioRow = ({
         if (!value || isNaN(value)) return "...";
         // Fórmulas Aproximadas (Apenas para demonstração visual)
         const v = parseFloat(value);
-        let semanas = 0;
+        let weeks = 0; // CORRIGIDO: Nome da variável alterado de 'semanas' para 'weeks'
         
         if (label === 'DBP') weeks = Math.sqrt(v) * 3.2; 
         else if (label === 'CC') weeks = v / 10;
@@ -78,19 +78,12 @@ const BioRow = ({
 const SecaoBiometria = ({ data, handleChange }) => {
 
   // Função auxiliar para manipular os checkboxes específicos desta seção
-  // Como não criamos "activeDBP" no estado global ainda, vamos usar uma lógica visual:
-  // Se tem valor, considera ativo. Se quiser estrito igual ao vídeo, 
-  // precisamos adicionar activeDBP: true no FormObstetrico.jsx. 
-  // POR ENQUANTO: Vamos simular que sempre está ativo se não implementamos o state ainda,
-  // ou criar um handler wrapper simples.
-  
   const handleToggleActive = (name, checked) => {
       // Se desmarcar, limpamos o valor para simular "desativado" 
       // ou idealmente atualizamos um estado 'activeX'
       if (!checked) {
           handleChange({ target: { name: name, value: '' } });
       }
-      // Nota: Para ficar perfeito igual ao vídeo, adicione activeDBP, activeCC, etc no FormObstetrico
   };
 
   const handleToggleInclude = (name, checked) => {
