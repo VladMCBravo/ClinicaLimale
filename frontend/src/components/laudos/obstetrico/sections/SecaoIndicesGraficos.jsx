@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { FaLightbulb, FaChartArea } from 'react-icons/fa';
 
 const GraphItem = ({ label, name, checked, onChange }) => (
@@ -15,18 +15,7 @@ const GraphItem = ({ label, name, checked, onChange }) => (
 );
 
 const SecaoIndicesGraficos = ({ data, handleChange }) => {
-  const calculos = useMemo(() => {
-      const dbp = parseFloat(data.dbp); const dof = parseFloat(data.dof);
-      const cc = parseFloat(data.cc); const ca = parseFloat(data.ca); const fl = parseFloat(data.femur);
-      const safeCalc = (val) => isFinite(val) && !isNaN(val) ? val.toFixed(2).replace('.', ',') : '';
-      return {
-          ic: (dbp && dof) ? safeCalc((dbp/dof)*100) : '',
-          ccCa: (cc && ca) ? safeCalc(cc/ca) : '',
-          cfCa: (fl && ca) ? safeCalc((fl/ca)*100) : '',
-          cfDbp: (fl && dbp) ? safeCalc((fl/dbp)*100) : '',
-          cfCc: (fl && cc) ? safeCalc((fl/cc)*100) : ''
-      };
-  }, [data.dbp, data.dof, data.cc, data.ca, data.femur]);
+  // REMOVIDO useMemo. Agora usamos data.res... calculados no Pai.
 
   return (
     <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
@@ -44,25 +33,25 @@ const SecaoIndicesGraficos = ({ data, handleChange }) => {
                     <div className="laudo-col">
                         <div className="laudo-row" style={{justifyContent:'space-between'}}>
                             <label className="laudo-checkbox-label"><input type="checkbox" name="checkIndiceCefalico" checked={data.checkIndiceCefalico} onChange={handleChange} /> Índice cefálico</label>
-                            <span style={{color:'#1565C0', fontWeight:'bold'}}>{calculos.ic}</span>
+                            <span style={{color:'#1565C0', fontWeight:'bold'}}>{data.resIc}</span>
                         </div>
                         <div className="laudo-row" style={{justifyContent:'space-between'}}>
                             <label className="laudo-checkbox-label"><input type="checkbox" name="checkRelacaoCcCa" checked={data.checkRelacaoCcCa} onChange={handleChange} /> Relação CC/CA</label>
-                            <span style={{color:'#000', fontWeight:'bold'}}>{calculos.ccCa}</span>
+                            <span style={{color:'#000', fontWeight:'bold'}}>{data.resCcCa}</span>
                         </div>
                         <div className="laudo-row" style={{justifyContent:'space-between'}}>
                             <label className="laudo-checkbox-label"><input type="checkbox" name="checkRelacaoCfCa" checked={data.checkRelacaoCfCa} onChange={handleChange} /> Relação CF/CA</label>
-                            <span style={{color:'#1565C0', fontWeight:'bold'}}>{calculos.cfCa}</span>
+                            <span style={{color:'#1565C0', fontWeight:'bold'}}>{data.resCfCa}</span>
                         </div>
                     </div>
                     <div className="laudo-col">
                         <div className="laudo-row" style={{justifyContent:'space-between'}}>
                             <label className="laudo-checkbox-label"><input type="checkbox" name="checkRelacaoCfDbp" checked={data.checkRelacaoCfDbp} onChange={handleChange} /> Relação CF/DBP</label>
-                            <span style={{color:'#1565C0', fontWeight:'bold'}}>{calculos.cfDbp}</span>
+                            <span style={{color:'#1565C0', fontWeight:'bold'}}>{data.resCfDbp}</span>
                         </div>
                         <div className="laudo-row" style={{justifyContent:'space-between'}}>
                             <label className="laudo-checkbox-label"><input type="checkbox" name="checkRelacaoCfCc" checked={data.checkRelacaoCfCc} onChange={handleChange} /> Relação CF/CC</label>
-                            <span style={{color:'#000', fontWeight:'bold'}}>{calculos.cfCc}</span>
+                            <span style={{color:'#000', fontWeight:'bold'}}>{data.resCfCc}</span>
                         </div>
                     </div>
                 </div>
@@ -99,7 +88,6 @@ const SecaoIndicesGraficos = ({ data, handleChange }) => {
                     </div>
                     <div style={{fontSize: '10px', color: '#777', lineHeight: '1.4', paddingLeft: '10px', borderLeft: '1px solid #eee'}}>
                         <p style={{marginBottom: '8px'}}>É possível inserir até 6 gráficos no laudo simultaneamente.</p>
-                        <p>Para escolher se os gráficos devem ser impressos com fundo branco ou colorido, acesse a janela de configurações.</p>
                     </div>
                 </div>
             </div>
