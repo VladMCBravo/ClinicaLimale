@@ -13,6 +13,7 @@ import SecaoValvaPulmonar from './sections_eco/SecaoValvaPulmonar';
 import SecaoFuncaoVentricular from './sections_eco/SecaoFuncaoVentricular';
 import SecaoAortaVenaCava from './sections_eco/SecaoAortaVenaCava';
 import SecaoPericardio from './sections_eco/SecaoPericardio';
+import SecaoStrain from './sections_eco/SecaoStrain'; // <--- IMPORT NOVO
 
 const FormEcocardiograma = ({ onUpdate }) => {
   
@@ -194,8 +195,14 @@ const FormEcocardiograma = ({ onUpdate }) => {
     if(data.resFe) t += `Fração de Ejeção (${data.metodoFe}): ${data.resFe}%. `;
     if(data.contratilidadeAlterada) t += `Alteração da contratilidade segmentar presente. `;
     if(data.movAnomaloSepto) t += `Movimento anômalo do septo interventricular. `;
-    
     t += `\n`;
+    // --- NOVO: TEXTO STRAIN ---
+    if(data.subtipo === 'ECO_STRAIN' && data.strainGls) {
+        t += `Análise de Deformação Miocárdica (Speckle Tracking): Strain Longitudinal Global (GLS) de ${data.strainGls}%. `;
+        t += `${data.strainConclusao === 'preservado' ? 'Deformação miocárdica global preservada.' : 'Deformação miocárdica global reduzida.'}\n`;
+    }
+    // -------------------------
+
     t += `Função Diastólica: ${data.diastolica.replace(/_/g, ' ')}.\n`;
 
     // 5. VENTRÍCULO DIREITO
@@ -322,6 +329,9 @@ const FormEcocardiograma = ({ onUpdate }) => {
                 <SecaoFuncaoVentricular data={data} handleChange={handleChange} />
             </div>
             <div style={{flex: '1', minWidth: '400px'}}>
+                {/* Lógica de Renderização: Se for Strain, mostra seção extra */}
+                {data.subtipo === 'ECO_STRAIN' && <SecaoStrain data={data} handleChange={handleChange} />}
+                
                 <SecaoValvaMitral data={data} handleChange={handleChange} />
                 <SecaoValvaTricuspide data={data} handleChange={handleChange} />
                 <SecaoValvaPulmonar data={data} handleChange={handleChange} />
