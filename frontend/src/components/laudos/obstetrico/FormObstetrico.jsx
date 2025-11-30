@@ -18,10 +18,23 @@ const FormObstetrico = ({ onUpdate }) => {
   // --- ESTADO GLOBAL ---
   const [data, setData] = useState({
     subtipo: 'OBSTETRICO_MORFOLOGICO',
-    // Datação
-    dum: '', usarDum: true, dumDesconhecida: false, naoUsarDum: false,
+    // 2. DATAÇÃO (ATUALIZADO COM CAMPOS DO PRINT)
+    dum: '', 
+    usarDum: true, dumDesconhecida: false, naoUsarDum: false,
     igDum: '', dppDum: '',
-    usarIgAnterior: false, dataExameAnterior: '', igAnteriorSemanas: '', igAnteriorDias: '',
+    
+    exibirDataDum: true,           // Checkbox: "exibir a data"
+    citarDppDum: false,            // Checkbox: "citar D.P.P. pela D.U.M."
+    usarDumComoBase: false,        // Checkbox: "Usar a D.U.M. como base..."
+    
+    citarDppBiometria: true,       // Checkbox: "citar D.P.P. pela biometria..."
+    
+    referirIgAnterior: true,       // Checkbox: "referir Idade Gestacional..."
+    usarIgAnteriorComoBase: false, // Checkbox: "usar o exame anterior como base..."
+    dataExameAnterior: '', 
+    igAnteriorSemanas: '', igAnteriorDias: '',
+    citarDppIgCorrigida: false,    // Checkbox: "citar D.P.P. pela I.G. corrigida"
+
     // Colo e Dados
     citarColoNormal: false, citarComprimentoColo: false, medidaColo: '',
     situacao: 'Longitudinal', apresentacao: 'Cefálica', dorso: 'Esquerda',
