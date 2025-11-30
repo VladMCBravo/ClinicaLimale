@@ -10,6 +10,7 @@ import SecaoBiometria from './sections/SecaoBiometria';
 import SecaoMorfologia from './sections/SecaoMorfologia';
 import SecaoAnexos from './sections/SecaoAnexos';
 import SecaoDoppler from './sections/SecaoDoppler';
+import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos';
 import SecaoConclusao from './sections/SecaoConclusao';
 
 const FormObstetrico = ({ onUpdate }) => {
@@ -60,13 +61,73 @@ const FormObstetrico = ({ onUpdate }) => {
     cordaoNormal: true, cordaoCircular: 'não citar',
     placentaInsercao: 'Corporal Posterior', placentaAspecto: 'Normal', placentaEspessura: '',
     liquidoVolume: 'Normal', ila: '', maiorBolso: '',
-    // Doppler
-    usarDoppler: false,
-    utDirSD: '', utDirIR: '', utDirIP: '', utDirInc: false,
-    utEsqSD: '', utEsqIR: '', utEsqIP: '', utEsqInc: false,
-    umbSD: '', umbIR: '', umbIP: '',
-    acmPVS: '', acmSD: '', acmIR: '', acmIP: '',
-    ductoVenosoIP: '', ductoVenosoOndaA: 'Positiva',
+    
+    // DOPPLER (ATUALIZADO FIEL AO PRINT)
+    usarDoppler: false, // Checkbox principal "Incluir Doppler"
+
+    // Uterina Direita
+    checkUtDir: true, // Checkbox do Título
+    checkUtDirSD: false, utDirSD: '',
+    checkUtDirIR: true,  utDirIR: '',
+    checkUtDirIP: true,  utDirIP: '',
+    utDirIncisura: false,
+
+    // Uterina Esquerda
+    checkUtEsq: true,
+    checkUtEsqSD: false, utEsqSD: '',
+    checkUtEsqIR: true,  utEsqIR: '',
+    checkUtEsqIP: true,  utEsqIP: '',
+    utEsqIncisura: false,
+    
+    // IP Médio (Calculado visualmente, mas bom ter no estado se precisar salvar)
+    utIpMedio: '', 
+
+    // Umbilicais
+    checkUmb: true,
+    checkUmbSD: false, umbSD: '',
+    checkUmbIR: true,  umbIR: '',
+    checkUmbIP: true,  umbIP: '',
+    umbTraçadoNormal: true,
+    umbDiastoleBaixa: false,
+    umbDiastoleZero: false,
+    umbDiastoleReversa: false,
+
+    // Cerebral Média
+    checkAcm: true,
+    checkAcmPVS: true, acmPVS: '',
+    checkAcmSD: false, acmSD: '',
+    checkAcmIR: true,  acmIR: '',
+    checkAcmIP: true,  acmIP: '',
+    acmTraçadoNormal: true,
+    acmDiastoleAlta: false,
+
+    // Ducto Venoso
+    checkDv: true,
+    checkDvIP: false, dvIP: '',
+    dvTraçadoNormal: true,
+    dvOndaAZero: false,
+    dvOndaAReversa: false,
+
+    // ÍNDICES E GRÁFICOS (NOVOS CAMPOS)
+    // Índices
+    citarValoresNormais: true,
+    checkIndiceCefalico: true,
+    checkRelacaoCcCa: true,
+    checkRelacaoCfCa: true,
+    checkRelacaoCfDbp: false,
+    checkRelacaoCfCc: false,
+
+    // Peso
+    checkPeso: true, // Checkbox do "Peso estimado em"
+
+    // Gráficos (Curvas)
+    checkGraficoPeso: true,
+    checkGraficoDbp: true,
+    checkGraficoFemur: true,
+    checkGraficoUmero: true,
+    checkGraficoCa: true,
+    checkGraficoCc: true,
+    
     // Conclusão
     obsAdicionais: ''
   });
@@ -206,6 +267,9 @@ const FormObstetrico = ({ onUpdate }) => {
       </div>
 
       <SecaoBiometria data={data} handleChange={handleChange} />
+      <div style={{ margin: '5px 0' }}>
+          <SecaoIndicesGraficos data={data} handleChange={handleChange} />
+      </div>
       <SecaoMorfologia data={data} handleChange={handleChange} />
       <SecaoAnexos data={data} handleChange={handleChange} />
       <SecaoDoppler data={data} handleChange={handleChange} />

@@ -1,101 +1,164 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import ModalTabelaVPS from './ModalTabelaVPS'; // <--- IMPORTANTE
 
 const styles = {
-    section: { border: '1px solid #ccc', borderRadius: '4px', marginBottom: '5px', background: '#fff' },
-    // O cabeçalho muda de cor se estiver ativo ou não
-    body: { padding: '8px', fontSize: '11px', color: '#555' },
-    row: { display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '4px' },
-    col: { flex: 1 },
-    inputTiny: { width: '35px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '2px', marginLeft: '3px' },
-    subTitle: { fontWeight: 'bold', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '5px' }
+    section: { border: '1px solid #ccc', borderRadius: '4px', marginBottom: '5px', background: '#F2F2F2' }, 
+    header: { background: '#4A3B80', color: 'white', padding: '4px 8px', fontSize: '11px', fontWeight: 'bold' },
+    body: { padding: '10px', fontSize: '11px', color: '#333' },
+    grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
+    column: { display: 'flex', flexDirection: 'column', gap: '10px' },
+    groupTitle: { fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px', color: '#000' },
+    row: { display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' },
+    inputNum: { width: '50px', border: '1px solid #aaa', borderRadius: '2px', padding: '2px', textAlign: 'right' },
+    labelWidth: { width: '25px', display: 'inline-block' }, 
+    disclaimerBox: { border: '1px solid #ccc', background: '#E0E0E0', padding: '8px', fontSize: '9px', color: '#666', marginTop: '10px', textAlign: 'justify' },
+    btnVps: { background: '#5C6BC0', color: 'white', border: 'none', borderRadius: '2px', padding: '4px', fontSize: '10px', cursor: 'pointer', boxShadow: '1px 1px 2px rgba(0,0,0,0.2)' }
 };
 
-const DopplerGroup = ({ title, active, children }) => (
-    <div style={{marginBottom: '10px', opacity: active ? 1 : 0.6}}>
-        <div style={styles.subTitle}>
-            <input type="checkbox" checked={active} readOnly /> {title}
-        </div>
-        <div style={{paddingLeft: '15px'}}>{children}</div>
+const MetricLine = ({ label, checkName, checkValue, inputName, inputValue, onChange, unit }) => (
+    <div style={styles.row}>
+        <input type="checkbox" name={checkName} checked={checkValue} onChange={onChange} />
+        <span style={styles.labelWidth}>{label}</span>
+        <input type="number" step="0.01" name={inputName} value={inputValue} onChange={onChange} disabled={!checkValue} style={styles.inputNum} />
+        {unit && <span>{unit}</span>}
     </div>
 );
 
 const SecaoDoppler = ({ data, handleChange }) => {
-  const headerColor = data.usarDoppler ? '#2E7D32' : '#757575'; // Verde se ativo, Cinza se inativo
+  // Estado para controlar o Modal
+  const [showModalVPS, setShowModalVPS] = useState(false);
+
+  const ipMedio = useMemo(() => {
+      const dir = parseFloat(data.utDirIP);
+      const esq = parseFloat(data.utEsqIP);
+      if (!isNaN(dir) && !isNaN(esq)) return ((dir + esq) / 2).toFixed(2);
+      if (!isNaN(dir)) return dir.toFixed(2);
+      if (!isNaN(esq)) return esq.toFixed(2);
+      return '';
+  }, [data.utDirIP, data.utEsqIP]);
 
   return (
     <div style={styles.section}>
-        <div style={{ background: headerColor, color: 'white', padding: '4px 8px', fontSize: '11px', fontWeight: 'bold' }}>
+        <div style={styles.header}>
             <label style={{display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', width:'100%'}}>
                 <input type="checkbox" checked={data.usarDoppler} onChange={(e) => handleChange({target: {name: 'usarDoppler', value: e.target.checked}})} />
-                DOPPLER (Incluir Doppler)
+                Doppler / Incluir Doppler
             </label>
         </div>
 
         {data.usarDoppler && (
             <div style={styles.body}>
-                <div style={{display:'flex', gap:'20px'}}>
-                    {/* Coluna Esquerda: Uterinas */}
-                    <div style={styles.col}>
-                        <DopplerGroup title="Artéria uterina DIR" active={true}>
-                            <div style={styles.row}>
-                                <span>S/D</span> <input name="utDirSD" value={data.utDirSD} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.R.</span> <input name="utDirIR" value={data.utDirIR} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.P.</span> <input name="utDirIP" value={data.utDirIP} onChange={handleChange} style={styles.inputTiny}/>
+                <div style={styles.grid2Col}>
+                    
+                    {/* COLUNA ESQUERDA */}
+                    <div style={styles.column}>
+                        <div>
+                            <div style={styles.groupTitle}>
+                                <input type="checkbox" name="checkUtDir" checked={data.checkUtDir} onChange={handleChange} /> Artéria uterina DIR
                             </div>
-                            <label style={{cursor:'pointer'}}><input type="checkbox" name="utDirInc" checked={data.utDirInc} onChange={handleChange}/> incisura protodiastólica presente</label>
-                        </DopplerGroup>
+                            <div style={{paddingLeft: '5px'}}>
+                                <MetricLine label="S/D" checkName="checkUtDirSD" checkValue={data.checkUtDirSD} inputName="utDirSD" inputValue={data.utDirSD} onChange={handleChange} />
+                                <MetricLine label="I.R." checkName="checkUtDirIR" checkValue={data.checkUtDirIR} inputName="utDirIR" inputValue={data.utDirIR} onChange={handleChange} />
+                                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                                    <MetricLine label="I.P." checkName="checkUtDirIP" checkValue={data.checkUtDirIP} inputName="utDirIP" inputValue={data.utDirIP} onChange={handleChange} />
+                                    {ipMedio && (
+                                        <div style={{background:'#E3F2FD', padding:'2px 5px', borderRadius:'2px', border:'1px solid #90CAF9', fontWeight:'bold', fontSize:'10px', color:'#1565C0'}}>
+                                            I.P. médio: {ipMedio.replace('.',',')}
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{marginTop: '5px'}}>
+                                    <label style={styles.row}><input type="checkbox" name="utDirIncisura" checked={data.utDirIncisura} onChange={handleChange} /> incisura protodiastólica presente</label>
+                                </div>
+                            </div>
+                        </div>
 
-                        <DopplerGroup title="Artérias umbilicais" active={true}>
-                             <div style={styles.row}>
-                                <span>S/D</span> <input name="umbSD" value={data.umbSD} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.R.</span> <input name="umbIR" value={data.umbIR} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.P.</span> <input name="umbIP" value={data.umbIP} onChange={handleChange} style={styles.inputTiny}/>
+                        <div style={{marginTop: '10px'}}>
+                            <div style={styles.groupTitle}>
+                                <input type="checkbox" name="checkUmb" checked={data.checkUmb} onChange={handleChange} /> Artérias umbilicais
                             </div>
-                            <label><input type="checkbox" checked disabled/> traçado normal</label>
-                            <label><input type="checkbox" disabled/> diástole 'zero'</label>
-                        </DopplerGroup>
+                            <div style={{paddingLeft: '5px'}}>
+                                <MetricLine label="S/D" checkName="checkUmbSD" checkValue={data.checkUmbSD} inputName="umbSD" inputValue={data.umbSD} onChange={handleChange} />
+                                <MetricLine label="I.R." checkName="checkUmbIR" checkValue={data.checkUmbIR} inputName="umbIR" inputValue={data.umbIR} onChange={handleChange} />
+                                <MetricLine label="I.P." checkName="checkUmbIP" checkValue={data.checkUmbIP} inputName="umbIP" inputValue={data.umbIP} onChange={handleChange} />
+                                
+                                <div style={{marginTop: '5px', display:'flex', flexDirection:'column', gap:'2px'}}>
+                                    <label style={styles.row}><input type="checkbox" name="umbTraçadoNormal" checked={data.umbTraçadoNormal} onChange={handleChange} /> traçado normal</label>
+                                    <label style={styles.row}><input type="checkbox" name="umbDiastoleBaixa" checked={data.umbDiastoleBaixa} onChange={handleChange} /> diástole 'baixa'</label>
+                                    <label style={styles.row}><input type="checkbox" name="umbDiastoleZero" checked={data.umbDiastoleZero} onChange={handleChange} /> diástole 'zero'</label>
+                                    <label style={styles.row}><input type="checkbox" name="umbDiastoleReversa" checked={data.umbDiastoleReversa} onChange={handleChange} /> diástole reversa</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Coluna Direita: Uterina ESQ / ACM / DV */}
-                    <div style={styles.col}>
-                         <DopplerGroup title="Artéria uterina ESQ" active={true}>
-                            <div style={styles.row}>
-                                <span>S/D</span> <input name="utEsqSD" value={data.utEsqSD} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.R.</span> <input name="utEsqIR" value={data.utEsqIR} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.P.</span> <input name="utEsqIP" value={data.utEsqIP} onChange={handleChange} style={styles.inputTiny}/>
+                    {/* COLUNA DIREITA */}
+                    <div style={styles.column}>
+                         <div>
+                            <div style={styles.groupTitle}>
+                                <input type="checkbox" name="checkUtEsq" checked={data.checkUtEsq} onChange={handleChange} /> Artéria uterina ESQ
                             </div>
-                            <label style={{cursor:'pointer'}}><input type="checkbox" name="utEsqInc" checked={data.utEsqInc} onChange={handleChange}/> incisura protodiastólica presente</label>
-                        </DopplerGroup>
+                            <div style={{paddingLeft: '5px'}}>
+                                <MetricLine label="S/D" checkName="checkUtEsqSD" checkValue={data.checkUtEsqSD} inputName="utEsqSD" inputValue={data.utEsqSD} onChange={handleChange} />
+                                <MetricLine label="I.R." checkName="checkUtEsqIR" checkValue={data.checkUtEsqIR} inputName="utEsqIR" inputValue={data.utEsqIR} onChange={handleChange} />
+                                <MetricLine label="I.P." checkName="checkUtEsqIP" checkValue={data.checkUtEsqIP} inputName="utEsqIP" inputValue={data.utEsqIP} onChange={handleChange} />
+                                <div style={{marginTop: '5px'}}>
+                                    <label style={styles.row}><input type="checkbox" name="utEsqIncisura" checked={data.utEsqIncisura} onChange={handleChange} /> incisura protodiastólica presente</label>
+                                </div>
+                            </div>
+                        </div>
 
-                        <DopplerGroup title="Artéria cerebral média" active={true}>
-                            <div style={styles.row}>
-                                <span>PVS</span> <input name="acmPVS" value={data.acmPVS} onChange={handleChange} style={styles.inputTiny}/> cm/s
-                            </div>
-                            <div style={styles.row}>
-                                <span>S/D</span> <input name="acmSD" value={data.acmSD} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.R.</span> <input name="acmIR" value={data.acmIR} onChange={handleChange} style={styles.inputTiny}/>
-                                <span>I.P.</span> <input name="acmIP" value={data.acmIP} onChange={handleChange} style={styles.inputTiny}/>
-                            </div>
-                        </DopplerGroup>
+                        <div style={{marginTop: '10px', position: 'relative'}}>
+                            {/* BOTÃO QUE ABRE O MODAL */}
+                            <button 
+                                onClick={() => setShowModalVPS(true)} 
+                                style={{position: 'absolute', top: 0, right: 0, ...styles.btnVps}}
+                            >
+                                Tabela VPS<br/>da ACM
+                            </button>
 
-                        <div style={{marginTop:'5px', borderTop:'1px solid #eee', paddingTop:'5px'}}>
-                            <span style={{fontWeight:'bold'}}>Ducto Venoso</span>
-                            <div style={styles.row}>
-                                <span>I.P.</span> <input name="ductoVenosoIP" value={data.ductoVenosoIP} onChange={handleChange} style={styles.inputTiny}/>
-                                <select name="ductoVenosoOndaA" value={data.ductoVenosoOndaA} onChange={handleChange} style={{marginLeft:'5px', fontSize:'10px'}}>
-                                    <option>Positiva</option><option>Zero</option><option>Reversa</option>
-                                </select>
+                            <div style={styles.groupTitle}>
+                                <input type="checkbox" name="checkAcm" checked={data.checkAcm} onChange={handleChange} /> Artéria cerebral média
+                            </div>
+                            <div style={{paddingLeft: '5px'}}>
+                                <MetricLine label="PVS" checkName="checkAcmPVS" checkValue={data.checkAcmPVS} inputName="acmPVS" inputValue={data.acmPVS} onChange={handleChange} unit="cm/s" />
+                                <MetricLine label="S/D" checkName="checkAcmSD" checkValue={data.checkAcmSD} inputName="acmSD" inputValue={data.acmSD} onChange={handleChange} />
+                                <MetricLine label="I.R." checkName="checkAcmIR" checkValue={data.checkAcmIR} inputName="acmIR" inputValue={data.acmIR} onChange={handleChange} />
+                                <MetricLine label="I.P." checkName="checkAcmIP" checkValue={data.checkAcmIP} inputName="acmIP" inputValue={data.acmIP} onChange={handleChange} />
+                                <div style={{marginTop: '5px', display:'flex', flexDirection:'column', gap:'2px'}}>
+                                    <label style={styles.row}><input type="checkbox" name="acmTraçadoNormal" checked={data.acmTraçadoNormal} onChange={handleChange} /> traçado normal</label>
+                                    <label style={styles.row}><input type="checkbox" name="acmDiastoleAlta" checked={data.acmDiastoleAlta} onChange={handleChange} /> diástole 'alta' (vasodilatação)</label>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                {/* Caixa de Aviso do Print */}
-                <div style={{background:'#F5F5F5', padding:'5px', fontSize:'9px', textAlign:'center', marginTop:'5px', color:'#777'}}>
-                    A avaliação dos parâmetros do Doppler é muitas vezes subjetiva e consiste em ato exclusivamente médico.
+
+                <div style={{marginTop: '15px', display: 'flex', gap: '20px', alignItems: 'flex-start'}}>
+                     <div style={{flex: 1}}>
+                        <div style={styles.groupTitle}>
+                            <input type="checkbox" name="checkDv" checked={data.checkDv} onChange={handleChange} /> Ducto Venoso
+                        </div>
+                        <div style={{paddingLeft: '5px'}}>
+                            <MetricLine label="I.P." checkName="checkDvIP" checkValue={data.checkDvIP} inputName="dvIP" inputValue={data.dvIP} onChange={handleChange} />
+                            <div style={{marginTop: '5px', display:'flex', flexDirection:'column', gap:'2px'}}>
+                                <label style={styles.row}><input type="checkbox" name="dvTraçadoNormal" checked={data.dvTraçadoNormal} onChange={handleChange} /> traçado normal</label>
+                                <label style={styles.row}><input type="checkbox" name="dvOndaAZero" checked={data.dvOndaAZero} onChange={handleChange} /> onda A 'zero'</label>
+                                <label style={styles.row}><input type="checkbox" name="dvOndaAReversa" checked={data.dvOndaAReversa} onChange={handleChange} /> onda A reversa</label>
+                            </div>
+                        </div>
+                     </div>
+                     <div style={{flex: 1}}>
+                        <div style={styles.disclaimerBox}>
+                            A avaliação dos parâmetros do Doppler é muitas vezes subjetiva e consiste em ato exclusivamente médico, portanto os achados do Doppler não serão referidos automaticamente na Conclusão.
+                        </div>
+                     </div>
                 </div>
             </div>
         )}
+
+        {/* MODAL RENDERIZADO CONDICIONALMENTE */}
+        {showModalVPS && <ModalTabelaVPS onClose={() => setShowModalVPS(false)} />}
     </div>
   );
 };
