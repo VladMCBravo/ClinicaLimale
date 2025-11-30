@@ -10,6 +10,7 @@ const styles = {
     vitalidadeRow: { display: 'flex', gap: '15px', alignItems: 'center', marginTop: '5px', fontSize: '11px', background: '#F9F9F9', padding: '5px', borderRadius: '3px' }
 };
 
+// Componente auxiliar interno para evitar repetição
 const CheckItem = ({ label, name, checked, onChange }) => (
     <label style={styles.checkLabel}>
         <input type="checkbox" name={name} checked={checked} onChange={onChange} /> 
@@ -20,6 +21,7 @@ const CheckItem = ({ label, name, checked, onChange }) => (
 const SecaoMorfologia = ({ data, handleChange }) => {
   return (
     <>
+        {/* Bloco de Morfologia (Checklist) */}
         <div style={styles.section}>
             <div style={styles.header}><FaCheckSquare size={10}/> Morfologia fetal</div>
             <div style={styles.body}>
@@ -75,4 +77,4 @@ const SecaoMorfologia = ({ data, handleChange }) => {
   );
 };
 
-export default Sec
+export default SecaoMorfologia;

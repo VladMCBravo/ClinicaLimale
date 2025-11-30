@@ -7,8 +7,8 @@ import apiClient from '../api/axiosConfig';
 
 // Importe suas máscaras aqui
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
-import FormTransvaginal from '../components/laudos/FormTransvaginal';
-import FormEcocardiograma from '../components/laudos/FormEcocardiograma';
+import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
+import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
