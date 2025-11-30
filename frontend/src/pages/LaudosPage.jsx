@@ -5,6 +5,9 @@ import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import apiClient from '../api/axiosConfig';
 
+// 1. IMPORTANTE: Importar o CSS global dos laudos para aplicar a fonte
+import '../components/laudos/Laudos.css'; 
+
 // Importe suas máscaras aqui
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
@@ -15,94 +18,108 @@ pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F4F6F8', surface: '#FFFFFF', border: '#E0E0E0' };
 
 const styles = {
-  // 1. CONTAINER: Ocupa toda a tela
+  // 1. CONTAINER: Aplica a fonte padrão (Segoe UI) e tamanho base (11px) em tudo
   container: { 
     display: 'flex', 
     background: theme.bg, 
     height: '100vh',        
     overflow: 'hidden',     
-    fontFamily: 'Arial, sans-serif' 
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", // Fonte do Laudos.css
+    fontSize: '11px', // Tamanho padrão compacto
+    color: '#333'
   },
 
-  // 2. COLUNA ESQUERDA (FORMULÁRIO): AJUSTADA PARA SER MAIOR
+  // 2. COLUNA ESQUERDA
   leftCol: { 
-    flex: 2,                // <--- MUDANÇA: Ocupa 2 partes do espaço (aprox 66%)
-    minWidth: '800px',      // <--- MUDANÇA: Garante largura suficiente para o Eco (2 colunas) não quebrar
+    flex: 2,                
+    minWidth: '800px',      
     height: '100%',         
     overflowY: 'auto',      
-    padding: '20px',        
+    padding: '10px', // Padding reduzido
     borderRight: `1px solid ${theme.border}`, 
     display: 'flex', 
     flexDirection: 'column', 
-    gap: '15px',
-    background: '#fff'      // Garante fundo branco para contraste
+    gap: '10px', // Gap reduzido
+    background: '#fff'      
   },
 
-  // 3. COLUNA DIREITA (LAUDO): AJUSTADA PARA SER MENOR
+  // 3. COLUNA DIREITA
   rightCol: { 
-    flex: 1,                // <--- MUDANÇA: Ocupa 1 parte do espaço (aprox 33%)
-    minWidth: '400px',      // Garante que o texto não suma em telas pequenas
+    flex: 1,                
+    minWidth: '400px',      
     height: '100%',         
-    padding: '20px',
+    padding: '10px',
     display: 'flex', 
     flexDirection: 'column',
     overflowY: 'auto',
-    background: theme.bg    // Fundo levemente cinza para destacar que é a área de output
+    background: theme.bg    
   },
 
-  // MANTIDOS IGUAIS:
   card: { 
     background: '#fff', 
-    borderRadius: '8px', 
+    borderRadius: '4px', 
     border: `1px solid ${theme.border}`, 
-    padding: '15px', 
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)' 
+    padding: '10px', // Padding interno dos cards reduzido
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)' 
   },
+  
   header: { 
-    fontSize: '16px', 
+    fontSize: '12px', // Reduzido de 16px para 12px (Título dos Cards)
     fontWeight: 'bold', 
     color: theme.primary, 
-    marginBottom: '10px', 
+    marginBottom: '8px', 
     display: 'flex', 
     alignItems: 'center', 
-    gap: '10px' 
+    gap: '6px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
   },
+  
+  // Inputs e Selects da Barra Lateral (Padronizados com os formulários)
+  inputControl: {
+    width: '100%',
+    padding: '4px 8px', // Padding compacto
+    fontSize: '11px',   // Fonte igual ao laudo
+    borderRadius: '2px',
+    border: '1px solid #aaa',
+    height: '24px',     // Altura controlada
+    fontWeight: 'bold',
+    color: theme.primary,
+    outline: 'none'
+  },
+
   button: { 
     background: theme.accent, 
     color: 'white', 
     border: 'none', 
-    padding: '10px 20px', 
-    borderRadius: '5px', 
+    padding: '6px 12px', // Botão mais compacto
+    borderRadius: '3px', 
     cursor: 'pointer', 
     fontWeight: 'bold', 
+    fontSize: '11px',
     display: 'flex', 
     alignItems: 'center', 
-    gap: '8px' 
+    gap: '5px' 
   }
 };
 
 const LaudosPage = () => {
-  // --- ESTADO GERAL ---
   const [tipoExame, setTipoExame] = useState('OBSTETRICO'); 
-  
   const [paciente, setPaciente] = useState(null);
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
-  
   const [textoFinal, setTextoFinal] = useState('');
   const [dadosEstruturados, setDadosEstruturados] = useState({});
   const [tituloExame, setTituloExame] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // --- CALLBACK ---
   const handleFormUpdate = useCallback((dados) => {
       setTextoFinal(dados.texto);
       setDadosEstruturados(dados.dadosEstruturados);
       setTituloExame(dados.tituloExame);
   }, []);
 
-  // --- BUSCA ---
   const buscarPacientes = async (termo) => {
       if (termo.length < 3) { setPacientesEncontrados([]); return; }
       setLoadingBusca(true);
@@ -112,7 +129,6 @@ const LaudosPage = () => {
       } catch (e) { console.error(e); } finally { setLoadingBusca(false); }
   };
 
-  // --- SALVAR ---
   const handleSave = async () => {
       if (!paciente) return alert("Selecione um paciente!");
       setSaving(true);
@@ -128,7 +144,6 @@ const LaudosPage = () => {
       } catch (e) { alert("Erro ao salvar."); } finally { setSaving(false); }
   };
 
-  // --- IMPRIMIR ---
   const handlePrint = () => {
       const docDefinition = {
           pageSize: 'A4', pageMargins: [60, 135, 60, 60],
@@ -146,16 +161,16 @@ const LaudosPage = () => {
   return (
     <div style={styles.container}>
       
-      {/* COLUNA ESQUERDA: FORMULÁRIO (Agora mais larga) */}
+      {/* COLUNA ESQUERDA */}
       <div style={styles.leftCol}>
         
-        {/* SELETOR DE MÁSCARA */}
+        {/* CARD TIPO DE LAUDO */}
         <div style={styles.card}>
             <div style={styles.header}><FaFileAlt /> Tipo de Laudo</div>
             <select 
                 value={tipoExame} 
                 onChange={(e) => setTipoExame(e.target.value)}
-                style={{width: '100%', padding: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc', fontWeight: 'bold', color: theme.primary}}
+                style={styles.inputControl} // Aplicado estilo compacto
             >
                 <option value="ECOCARDIOGRAMA">Ecocardiograma (Adulto)</option>
                 <option value="OBSTETRICO">Ultrassom Obstétrico / Morfológico</option>
@@ -164,13 +179,13 @@ const LaudosPage = () => {
             </select>
         </div>
 
-        {/* SELETOR DE PACIENTE */}
+        {/* CARD PACIENTE */}
         <div style={styles.card}>
             <div style={styles.header}><FaSearch /> Paciente</div>
             {paciente ? (
-                <div style={{background: '#e8f5e9', padding: '10px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6c9'}}>
-                    <span style={{fontWeight: 'bold', color: '#2e7d32'}}>{paciente.nome_completo}</span>
-                    <button onClick={() => setPaciente(null)} style={{border: 'none', background: 'transparent', color: '#d32f2f', fontWeight: 'bold', cursor: 'pointer'}}>X</button>
+                <div style={{background: '#e8f5e9', padding: '4px 8px', borderRadius: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6c9', height: '24px'}}>
+                    <span style={{fontWeight: 'bold', color: '#2e7d32', fontSize: '11px'}}>{paciente.nome_completo}</span>
+                    <button onClick={() => setPaciente(null)} style={{border: 'none', background: 'transparent', color: '#d32f2f', fontWeight: 'bold', cursor: 'pointer', fontSize:'10px'}}>X</button>
                 </div>
             ) : (
                 <div style={{position: 'relative'}}>
@@ -178,12 +193,12 @@ const LaudosPage = () => {
                         placeholder="Buscar paciente..." 
                         value={termoBusca}
                         onChange={(e) => { setTermoBusca(e.target.value); buscarPacientes(e.target.value); }}
-                        style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px'}}
+                        style={styles.inputControl} // Aplicado estilo compacto
                     />
                     {pacientesEncontrados.length > 0 && (
                         <div style={{position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 10px rgba(0,0,0,0.1)'}}>
                             {pacientesEncontrados.map(p => (
-                                <div key={p.id} onClick={() => { setPaciente(p); setTermoBusca(''); setPacientesEncontrados([]); }} style={{padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee'}}>
+                                <div key={p.id} onClick={() => { setPaciente(p); setTermoBusca(''); setPacientesEncontrados([]); }} style={{padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: '11px'}}>
                                     {p.nome_completo || p.nome}
                                 </div>
                             ))}
@@ -194,18 +209,21 @@ const LaudosPage = () => {
         </div>
 
         {/* MÁSCARAS */}
-        {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} />}
-        {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} />}
-        {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} />}
+        <div className="laudo-container"> {/* Garante que o CSS global se aplique aqui dentro */}
+            {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} />}
+            {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} />}
+            {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} />}
+        </div>
 
       </div>
 
-      {/* COLUNA DIREITA: LAUDO (Agora mais estreita, focada no texto) */}
+      {/* COLUNA DIREITA */}
       <div style={styles.rightCol}>
-         <div style={{...styles.card, height: '100%', display: 'flex', flexDirection: 'column'}}>
-             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '15px', borderBottom: `2px solid ${theme.secondary}`, paddingBottom: '10px'}}>
-                 <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '18px'}}>Laudo Final</span>
-                 <div style={{display: 'flex', gap: '10px'}}>
+         <div style={{...styles.card, height: '100%', display: 'flex', flexDirection: 'column', padding: '0'}}> 
+             {/* Header do Laudo */}
+             <div style={{display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
+                 <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '13px'}}>LAUDO FINAL</span>
+                 <div style={{display: 'flex', gap: '8px'}}>
                      <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>
                          {saving ? <FaSpinner className="spin"/> : <FaSave/>} SALVAR
                      </button>
@@ -214,20 +232,22 @@ const LaudosPage = () => {
                      </button>
                  </div>
              </div>
+             
+             {/* Área de Texto */}
              <textarea 
                  value={textoFinal} 
                  onChange={(e) => setTextoFinal(e.target.value)}
                  style={{
                      flex: 1, 
-                     border: '1px solid #eee', 
-                     padding: '10px',
+                     border: 'none', 
+                     padding: '15px',
                      resize: 'none', 
                      outline: 'none', 
-                     fontFamily: 'Times New Roman', 
-                     fontSize: '14px', // Fonte levemente reduzida para caber mais
+                     fontFamily: 'Times New Roman, serif', // Mantém Times para simular impressão
+                     fontSize: '13px', // Levemente maior que a UI para leitura, mas compacto
                      lineHeight: '1.4', 
                      color: '#000',
-                     background: '#fafafa'
+                     background: '#fff'
                  }}
              />
          </div>
