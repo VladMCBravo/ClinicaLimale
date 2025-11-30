@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaChartLine } from 'react-icons/fa';
-import GraficosObstetricos from '../../GraficosObstetricos'; // Ajuste o caminho se necessário
+import GraficosObstetricos from '../GraficosObstetricos'; // Ajuste o caminho se necessário
 
 // Importação das Seções Modulares
 import SecaoSubtipo from './sections/SecaoSubtipo';
