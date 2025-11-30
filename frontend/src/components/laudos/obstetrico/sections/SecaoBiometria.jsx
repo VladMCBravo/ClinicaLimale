@@ -1,66 +1,180 @@
-import React from 'react';
-// As classes vêm do ../Laudos.css importado no Pai
+import React, { useMemo } from 'react';
+// CSS já importado no Pai
 
-const BiometriaRow = ({ label, name, value, onChange, checkName, checkValue }) => (
-    <div className="laudo-row" style={{ justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            {checkName && <input type="checkbox" name={checkName} checked={checkValue} onChange={onChange} />}
-            <span style={{ fontWeight: 'bold', color: '#1565C0' }}>{label}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+// --- HELPER: Componente de Linha de Biometria Inteligente ---
+const BioRow = ({ 
+    label, 
+    name, 
+    value, 
+    onChange, 
+    active, // Novo: Estado do checkbox esquerdo
+    toggleActive, // Novo: Função para alternar ativo
+    include, // Estado do checkbox direito
+    toggleInclude // Função para alternar inclusão
+}) => {
+    
+    // Simulação de cálculo de IG reverso (mm -> semanas)
+    // No sistema real, você usaria as tabelas de Hadlock aqui
+    const igCalculada = useMemo(() => {
+        if (!value || isNaN(value)) return "...";
+        // Fórmulas Aproximadas (Apenas para demonstração visual)
+        const v = parseFloat(value);
+        let semanas = 0;
+        
+        if (label === 'DBP') weeks = Math.sqrt(v) * 3.2; 
+        else if (label === 'CC') weeks = v / 10;
+        else if (label === 'CA') weeks = v / 9.5;
+        else if (label === 'Fêmur') weeks = v / 2.8 + 8;
+        else weeks = v / 3 + 5; // Genérico
+
+        if(isNaN(weeks)) return "...";
+        return `${weeks.toFixed(1)}`;
+    }, [value, label]);
+
+    return (
+        <div className="bio-row" style={{ opacity: active ? 1 : 0.6 }}>
+            {/* 1. Checkbox Ativar (Esquerda - Azul) */}
+            <input 
+                type="checkbox" 
+                className="bio-check-left"
+                checked={active}
+                onChange={(e) => toggleActive(name, e.target.checked)}
+                title={active ? "Desativar medida" : "Ativar medida"}
+            />
+
+            {/* 2. Label e Input */}
+            <span className="bio-label">{label}</span>
             <input 
                 name={name} 
                 value={value} 
                 onChange={onChange} 
-                className="laudo-input laudo-input-small" 
+                disabled={!active}
+                className="bio-input"
+                autoComplete="off"
             />
-            <span style={{ color: '#777', fontSize: '9px' }}>mm</span>
+            <span style={{fontSize:'10px', color:'#777'}}>mm</span>
+
+            {/* 3. IG Calculada Automaticamente */}
+            <span className="bio-ig-display">
+                I.G.: {active && value ? igCalculada : '.......'}
+            </span>
+
+            {/* 4. Checkbox Incluir (Direita) */}
+            {include !== undefined && (
+                <label className="bio-check-include-label">
+                    <input 
+                        type="checkbox" 
+                        checked={include} 
+                        onChange={(e) => toggleInclude(name, e.target.checked)}
+                        disabled={!active}
+                    />
+                    incluir no cálculo da I.G.
+                </label>
+            )}
         </div>
-    </div>
-);
+    );
+};
 
 const SecaoBiometria = ({ data, handleChange }) => {
+
+  // Função auxiliar para manipular os checkboxes específicos desta seção
+  // Como não criamos "activeDBP" no estado global ainda, vamos usar uma lógica visual:
+  // Se tem valor, considera ativo. Se quiser estrito igual ao vídeo, 
+  // precisamos adicionar activeDBP: true no FormObstetrico.jsx. 
+  // POR ENQUANTO: Vamos simular que sempre está ativo se não implementamos o state ainda,
+  // ou criar um handler wrapper simples.
+  
+  const handleToggleActive = (name, checked) => {
+      // Se desmarcar, limpamos o valor para simular "desativado" 
+      // ou idealmente atualizamos um estado 'activeX'
+      if (!checked) {
+          handleChange({ target: { name: name, value: '' } });
+      }
+      // Nota: Para ficar perfeito igual ao vídeo, adicione activeDBP, activeCC, etc no FormObstetrico
+  };
+
+  const handleToggleInclude = (name, checked) => {
+      // Mapeia o nome do input para o nome do checkbox de inclusão
+      const mapInclude = {
+          'dbp': 'incDbp', 'dof': 'incDof', 'cc': 'incCc', 
+          'ca': 'incCa', 'umero': 'incUmero', 'femur': 'incFemur'
+      };
+      if (mapInclude[name]) {
+          handleChange({ target: { name: mapInclude[name], value: checked, type: 'checkbox', checked: checked } });
+      }
+  };
+
   return (
     <div className="laudo-section">
         <div className="header-base header-green">Biometria fetal</div>
         <div className="laudo-section-body">
-            <div className="laudo-grid-3">
+            <div className="laudo-grid-2" style={{gap: '30px'}}>
                 
-                {/* Coluna 1: Principais */}
+                {/* COLUNA 1: Principais (Com cálculo de IG) */}
                 <div className="laudo-col">
-                    <BiometriaRow label="DBP" name="dbp" value={data.dbp} onChange={handleChange} checkName="incDbp" checkValue={data.incDbp} />
-                    <BiometriaRow label="DOF" name="dof" value={data.dof} onChange={handleChange} checkName="incDof" checkValue={data.incDof} />
-                    <BiometriaRow label="CC" name="cc" value={data.cc} onChange={handleChange} checkName="incCc" checkValue={data.incCc} />
-                    <BiometriaRow label="CA" name="ca" value={data.ca} onChange={handleChange} checkName="incCa" checkValue={data.incCa} />
-                    <BiometriaRow label="Fêmur" name="femur" value={data.femur} onChange={handleChange} checkName="incFemur" checkValue={data.incFemur} />
-                    <BiometriaRow label="Úmero" name="umero" value={data.umero} onChange={handleChange} />
+                    <BioRow 
+                        label="DBP" name="dbp" value={data.dbp} onChange={handleChange}
+                        active={true} toggleActive={()=>{}} // Placeholder até atualizar estado
+                        include={data.incDbp} toggleInclude={handleToggleInclude}
+                    />
+                    <BioRow 
+                        label="DOF" name="dof" value={data.dof} onChange={handleChange}
+                        active={true} toggleActive={()=>{}}
+                        include={data.incDof} toggleInclude={handleToggleInclude}
+                    />
+                    <BioRow 
+                        label="CC" name="cc" value={data.cc} onChange={handleChange}
+                        active={true} toggleActive={()=>{}}
+                        include={data.incCc} toggleInclude={handleToggleInclude}
+                    />
+                    <BioRow 
+                        label="CA" name="ca" value={data.ca} onChange={handleChange}
+                        active={true} toggleActive={()=>{}}
+                        include={data.incCa} toggleInclude={handleToggleInclude}
+                    />
+                    <BioRow 
+                        label="Úmero" name="umero" value={data.umero} onChange={handleChange}
+                        active={true} toggleActive={()=>{}}
+                        include={data.incUmero} toggleInclude={handleToggleInclude} // Adicionei incUmero no estado
+                    />
+                    <BioRow 
+                        label="Fêmur" name="femur" value={data.femur} onChange={handleChange}
+                        active={true} toggleActive={()=>{}}
+                        include={data.incFemur} toggleInclude={handleToggleInclude}
+                    />
                 </div>
 
-                {/* Coluna 2: Ossos Longos */}
+                {/* COLUNA 2: Ossos Longos e Detalhes (Sem IG checkbox no vídeo) */}
                 <div className="laudo-col">
-                    <BiometriaRow label="Ulna" name="ulna" value={data.ulna} onChange={handleChange} />
-                    <BiometriaRow label="Tíbia" name="tibia" value={data.tibia} onChange={handleChange} />
-                    <BiometriaRow label="Rádio" name="radio" value={data.radio} onChange={handleChange} />
-                    <BiometriaRow label="Fíbula" name="fibula" value={data.fibula} onChange={handleChange} />
-                    <BiometriaRow label="Comp. pé" name="pe" value={data.pe} onChange={handleChange} />
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
+                        <BioRow label="Ulna" name="ulna" value={data.ulna} onChange={handleChange} active={!!data.ulna} toggleActive={()=>{}} />
+                        <BioRow label="Tíbia" name="tibia" value={data.tibia} onChange={handleChange} active={!!data.tibia} toggleActive={()=>{}} />
+                        <BioRow label="Rádio" name="radio" value={data.radio} onChange={handleChange} active={!!data.radio} toggleActive={()=>{}} />
+                        <BioRow label="Fíbula" name="fibula" value={data.fibula} onChange={handleChange} active={!!data.fibula} toggleActive={()=>{}} />
+                    </div>
                     
-                    <div style={{ height: '1px', background: '#eee', margin: '5px 0' }} />
-                    
-                    <BiometriaRow label="D. Binocular" name="diametroBinocular" value={data.diametroBinocular} onChange={handleChange} />
-                    <BiometriaRow label="D. Interoc." name="diametroInterocular" value={data.diametroInterocular} onChange={handleChange} />
+                    <div style={{marginTop: '10px', borderTop:'1px solid #eee', paddingTop:'5px'}}>
+                        <BioRow label="Comp. pé" name="pe" value={data.pe} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="D. Binoc." name="diametroBinocular" value={data.diametroBinocular} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="D. Inter." name="diametroInterocular" value={data.diametroInterocular} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="Cerebelo" name="cerebelo" value={data.cerebelo} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="C. Magna" name="cisternaMagna" value={data.cisternaMagna} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="Ventrículo" name="ventriculoLat" value={data.ventriculoLat} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="Osso Nasal" name="ossoNasal" value={data.ossoNasal} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                        <BioRow label="P. Nucal" name="pregaNucal" value={data.pregaNucal} onChange={handleChange} active={true} toggleActive={()=>{}} />
+                    </div>
                 </div>
 
-                {/* Coluna 3: Neuro/Torax */}
-                <div className="laudo-col">
-                    <BiometriaRow label="Cerebelo" name="cerebelo" value={data.cerebelo} onChange={handleChange} />
-                    <BiometriaRow label="Ventrículo Lat." name="ventriculoLat" value={data.ventriculoLat} onChange={handleChange} />
-                    <BiometriaRow label="Cist. Magna" name="cisternaMagna" value={data.cisternaMagna} onChange={handleChange} />
-                    <BiometriaRow label="Tórax Trans." name="toraxTrans" value={data.toraxTrans} onChange={handleChange} />
-                    <BiometriaRow label="Tórax AP" name="toraxAP" value={data.toraxAP} onChange={handleChange} />
-                    <BiometriaRow label="Osso Nasal" name="ossoNasal" value={data.ossoNasal} onChange={handleChange} />
-                    <BiometriaRow label="Prega Nucal" name="pregaNucal" value={data.pregaNucal} onChange={handleChange} />
+            </div>
+            
+            {/* RODAPÉ: ÍNDICES (CÁLCULO AUTOMÁTICO VISUAL) */}
+            <div style={{borderTop: '2px solid #2E7D32', marginTop:'10px', paddingTop:'5px', background:'#E8F5E9', padding:'5px'}}>
+                <div style={{fontWeight:'bold', fontSize:'11px', color:'#2E7D32', marginBottom:'5px'}}>Índices Calculados:</div>
+                <div style={{display:'flex', gap:'20px', fontSize:'11px'}}>
+                    <span>I.Cefálico: <strong>{((data.dbp/data.dof)*100 || 0).toFixed(1)}</strong></span>
+                    <span>CC/CA: <strong>{(data.cc/data.ca || 0).toFixed(2)}</strong></span>
+                    <span>CF/CA: <strong>{((data.femur/data.ca)*100 || 0).toFixed(1)}</strong></span>
                 </div>
-
             </div>
         </div>
     </div>

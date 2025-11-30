@@ -113,3 +113,87 @@
   margin-bottom: -1px;
   z-index: 1;
 }
+
+/* --- BIOMETRIA ESPECÍFICO --- */
+.bio-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  border-bottom: 1px dotted #eee;
+}
+
+/* O Checkbox da Esquerda (Estilo Botão) */
+.bio-check-left {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #aaa;
+  border-radius: 2px;
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  background-color: #fff;
+}
+
+.bio-check-left::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  background-color: white;
+  transform-origin: center;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.bio-check-left:checked {
+  background-color: #1565C0; /* Azul forte */
+  border-color: #1565C0;
+}
+
+.bio-check-left:checked::before {
+  transform: scale(1);
+}
+
+/* Label do Campo (DBP, CC...) */
+.bio-label {
+  font-weight: bold;
+  font-size: 11px;
+  width: 40px; /* Largura fixa para alinhar */
+  color: #333;
+}
+
+/* Input de mm */
+.bio-input {
+  width: 45px;
+  text-align: center;
+  font-weight: bold;
+  color: #C62828; /* Vermelho igual ao vídeo */
+  border: 1px solid #ccc;
+  height: 20px;
+}
+
+.bio-input:disabled {
+  background-color: #f0f0f0;
+  color: #999;
+}
+
+/* Texto da IG Calculada */
+.bio-ig-display {
+  font-size: 10px;
+  font-weight: bold;
+  color: #333;
+  margin-left: 5px;
+  width: 60px;
+}
+
+/* Checkbox da Direita (Incluir) */
+.bio-check-include-label {
+  font-size: 10px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto; /* Empurra para a direita */
+  cursor: pointer;
+}
