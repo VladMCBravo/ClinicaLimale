@@ -12,6 +12,7 @@ import '../components/laudos/Laudos.css';
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
+import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
@@ -176,6 +177,7 @@ const LaudosPage = () => {
                 <option value="OBSTETRICO">Ultrassom Obstétrico / Morfológico</option>
                 <option value="TRANSVAGINAL">Ultrassom Transvaginal / Pélvico</option>
                 <option value="ABDOME">Ultrassom Abdome Total (Em Breve)</option>
+                <option value="DOPPLER_CAROTIDAS">Doppler de Carótidas e Vertebrais</option> {/* NOVO */}
             </select>
         </div>
 
@@ -213,6 +215,7 @@ const LaudosPage = () => {
             {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} />}
             {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} />}
             {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} />}
+            {tipoExame === 'DOPPLER_CAROTIDAS' && <FormDopplerCarotidas onUpdate={handleFormUpdate} />}
         </div>
 
       </div>
