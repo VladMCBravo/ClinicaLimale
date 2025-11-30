@@ -16,16 +16,19 @@ import SecaoPericardio from './sections_eco/SecaoPericardio';
 
 const FormEcocardiograma = ({ onUpdate }) => {
   
+  // --- ESTADO COMPLETO (AUDITADO) ---
   const initialState = {
       subtipo: 'ECO_TRANSTORACICO',
       
-      // TÉCNICA E DADOS
+      // TÉCNICA
       peso: '', altura: '', sc: '', citarTecnica: true, tecnicaQualidade: 'boa', localExame: 'nao_citar', posicaoPaciente: 'nao_citar',
 
       // MEDIDAS
       raizAorta: '', aortaAsc: '', arcoAorta: '', atrioEsq: '', volAe: '', 
       ventriculoDir: '', volAd: '', volDiastVd: '', volSistVd: '',
-      siv: '', ppve: '', ddve: '', dsve: '', volDiast: '', volSist: '', metodoFe: 'Teichholz',
+      siv: '', ppve: '', ddve: '', dsve: '', 
+      volDiast: '', volSist: '', // <--- Volumes VE
+      metodoFe: 'Teichholz',
       
       // RESULTADOS CALCULADOS
       resFe: '', resEncurtamento: '', resMassaVE: '', resImVE: '', resRwt: '', 
@@ -40,16 +43,21 @@ const FormEcocardiograma = ({ onUpdate }) => {
       contratilidadeAlterada: false, movAnomaloSepto: false, 
       diastolica: 'normal',
 
-      // VALVAS (MITRAL)
-      mitralAspecto: 'normal', mitralEspessura: 'normal', mitralMobilidade: 'normal', mitralAbertura: 'normal', 
-      mitralCorda: 'normal', mitralAnel: 'normal', mitralRefluxo: 'ausente', mitralEstenose: 'ausente', mitralArea: '',
+      // VALVA MITRAL (Tudo mapeado)
+      mitralAspecto: 'normal', mitralEspessura: 'normal', 
+      mitralMobilidade: 'normal', mitralAbertura: 'normal', // <--- Faltava no texto
+      mitralCorda: 'normal', mitralAnel: 'normal', 
+      mitralRefluxo: 'ausente', mitralEstenose: 'ausente', mitralArea: '',
       
-      // VALVAS (TRICÚSPIDE)
-      triAspecto: 'normal', triEspessura: 'normal', triCorda: 'normal', triRefluxo: 'ausente', triEstenose: 'nao_citar', 
-      triSeveraArea: '', triAbertura: 'normal', triMobilidade: 'normal',
+      // VALVA TRICÚSPIDE (Tudo mapeado)
+      triAspecto: 'normal', triEspessura: 'normal', 
+      triMobilidade: 'normal', triAbertura: 'normal', // <--- Faltava no texto
+      triCorda: 'normal', 
+      triRefluxo: 'ausente', triEstenose: 'nao_citar', triSeveraArea: '', 
       
       // PULMONAR
-      artPulmonar: 'normal', sinaisHipertensao: false, ausenciaSinaisHipertensao: false, checkPsap: false, psap: '', checkPmap: false, pmap: '',
+      artPulmonar: 'normal', sinaisHipertensao: false, ausenciaSinaisHipertensao: false, 
+      checkPsap: false, psap: '', checkPmap: false, pmap: '',
       pulEstenose: 'ausente', pulPicoVel: '', pulPicoGrad: '', pulAspecto: 'normal', pulRefluxo: 'ausente',
 
       // VASOS E PERICÁRDIO
@@ -85,6 +93,7 @@ const FormEcocardiograma = ({ onUpdate }) => {
             const fe = ((Math.pow(d, 3) - Math.pow(s, 3)) / Math.pow(d, 3)) * 100;
             const enc = ((d - s) / d) * 100;
             const rwt = (2 * pp) / d;
+            
             const d_cm = d/10; const siv_cm = siv/10; const pp_cm = pp/10;
             const massa = 0.8 * (1.04 * (Math.pow(d_cm + siv_cm + pp_cm, 3) - Math.pow(d_cm, 3))) + 0.6;
 
@@ -107,7 +116,7 @@ const FormEcocardiograma = ({ onUpdate }) => {
     setData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // --- GERAÇÃO DE TEXTO COMPLETA ---
+  // --- GERAÇÃO DE TEXTO AUDITADA ---
   useEffect(() => {
     dadosRef.current = data; 
     const mapTitulos = {
@@ -117,23 +126,14 @@ const FormEcocardiograma = ({ onUpdate }) => {
     };
     let t = `${mapTitulos[data.subtipo] || 'ECOCARDIOGRAMA'}\n\n`;
 
-    // 1. TÉCNICA E DADOS (AGORA INCLUINDO PESO/ALTURA/LOCAL)
+    // 1. TÉCNICA / BIOMETRIA
     if (data.citarTecnica) {
         if(data.tecnicaQualidade === 'boa') t += `Exame realizado com boa qualidade técnica (janela acústica adequada). `;
-        if(data.tecnicaQualidade === 'limitada') t += `Exame realizado com janela acústica limitada. `;
-        
-        if(data.localExame === 'ambulatorio') t += `Realizado em ambulatório. `;
-        else if(data.localExame === 'leito_enfermaria') t += `Realizado à beira do leito (enfermaria). `;
-        else if(data.localExame === 'leito_uti') t += `Realizado à beira do leito (UTI). `;
-
-        if(data.posicaoPaciente === 'decubito_lateral') t += `Paciente em decúbito lateral. `;
-        else if(data.posicaoPaciente === 'decubito_dorsal') t += `Paciente em decúbito dorsal. `;
-        else if(data.posicaoPaciente === 'sentado') t += `Paciente sentado. `;
-        
+        else t += `Exame realizado com janela acústica limitada. `;
+        if(data.localExame !== 'nao_citar') t += `Local: ${data.localExame.replace('_', ' ')}. `;
+        if(data.posicaoPaciente !== 'nao_citar') t += `Posição: ${data.posicaoPaciente.replace('_', ' ')}. `;
         t += `\n`;
     }
-
-    // DADOS BIOMÉTRICOS
     if (data.peso || data.altura || data.sc) {
         const bio = [];
         if(data.peso) bio.push(`Peso: ${data.peso} kg`);
@@ -141,7 +141,6 @@ const FormEcocardiograma = ({ onUpdate }) => {
         if(data.sc) bio.push(`SC: ${data.sc} m²`);
         t += `Dados Biométricos: ${bio.join(' | ')}.\n`;
     }
-
     t += `Ritmo: ${data.ritmo}.\n\n`;
     
     // 2. AORTA E ÁTRIO ESQUERDO
@@ -155,11 +154,19 @@ const FormEcocardiograma = ({ onUpdate }) => {
     } else {
         t += `Diâmetro normal. `;
     }
-    if(data.aortaPlacas) t += `Placas de ateroma na curvatura do arco. `;
-    if(data.aortaDisseccao) t += `Sinais sugestivos de dissecção. `;
-    t += `(${data.raizAorta ? `Raiz: ${data.raizAorta} mm` : ''}).\n`;
+    if(data.aortaPlacas) t += `Placas de ateroma no arco. `;
+    if(data.aortaDisseccao) t += `Sinais de dissecção. `;
     
-    t += `Átrio Esquerdo: ${data.atrioEsq ? `${data.atrioEsq} mm` : ''}. `;
+    // Medidas Aorta
+    const medidasAo = [];
+    if(data.raizAorta) medidasAo.push(`Raiz: ${data.raizAorta}mm`);
+    if(data.aortaAsc) medidasAo.push(`Asc: ${data.aortaAsc}mm`);
+    if(data.arcoAorta) medidasAo.push(`Arco: ${data.arcoAorta}mm`);
+    if(medidasAo.length > 0) t += `(${medidasAo.join(', ')}).`;
+    t += `\n`;
+    
+    // Medidas AE
+    t += `Átrio Esquerdo: ${data.atrioEsq ? `${data.atrioEsq} mm` : 'Não aferido'}. `;
     if(data.volAe) t += `Volume AE: ${data.volAe} ml/m². `;
     t += `\n`;
 
@@ -173,64 +180,100 @@ const FormEcocardiograma = ({ onUpdate }) => {
     if(data.septoSigmoide) t += `(Septo sigmoide: ${data.septoSigmoide} mm). `;
     
     t += `\n(DDVE: ${data.ddve} mm | DSVE: ${data.dsve} mm | Septo: ${data.siv} mm | Parede Post: ${data.ppve} mm).\n`;
+    
+    // --- CORREÇÃO: ADICIONADO VOLUMES VE NO TEXTO ---
+    if(data.volDiast || data.volSist) {
+        t += `Volumes: Diastólico ${data.volDiast || '--'} ml, Sistólico ${data.volSist || '--'} ml. `;
+    }
     if(data.resMassaVE) t += `Massa VE: ${data.resMassaVE} g. Índice: ${data.resImVE} g/m². RWT: ${data.resRwt}.\n`;
 
-    // Função VE
+    // 4. FUNÇÃO
     t += `Função Sistólica VE: `;
     if(data.sistolicoGlobal === 'normal' || (!data.sistolicoReduzidoVe)) t += `Preservada. `;
     else t += `Reduzida (${data.sistolicoReduzidoVeGrau}). `;
     if(data.resFe) t += `Fração de Ejeção (${data.metodoFe}): ${data.resFe}%. `;
     if(data.contratilidadeAlterada) t += `Alteração da contratilidade segmentar presente. `;
     t += `\n`;
-
     t += `Função Diastólica: ${data.diastolica.replace(/_/g, ' ')}.\n`;
 
-    // 4. VENTRÍCULO DIREITO (AGORA COMPLETO)
+    // 5. VENTRÍCULO DIREITO
     t += `Ventrículo Direito: ${data.camIndVd === 'normal' ? 'Dimensões normais' : `Aumento ${data.camIndVd}`}. `;
     if(data.ventriculoDir) t += `(Diâmetro: ${data.ventriculoDir} mm). `;
-    if(data.espessuraVd !== 'nao_citar') t += `Espessura parietal ${data.espessuraVd === 'normal' ? 'normal' : 'aumentada (hipertrofia)'}. `;
-    
+    if(data.espessuraVd !== 'nao_citar') t += `Espessura parietal ${data.espessuraVd === 'normal' ? 'normal' : 'aumentada'}. `;
     if(data.sistolicoReduzidoVd) t += `Função sistólica reduzida (${data.sistolicoReduzidoVdGrau}). `;
     else t += `Função sistólica preservada. `;
+    
+    // Volumes VD se houver
+    if(data.volAd || data.volDiastVd) {
+        const volsVd = [];
+        if(data.volAd) volsVd.push(`Vol AD: ${data.volAd} ml/m²`);
+        if(data.volDiastVd) volsVd.push(`VDF VD: ${data.volDiastVd} ml`);
+        t += `(${volsVd.join(', ')}).`;
+    }
     t += `\n`;
 
-    // 5. ANÁLISE VALVAR (DETALHADA)
+    // 6. VALVAS (AUDITORIA COMPLETA)
     t += `\n--- ANÁLISE VALVAR ---\n`;
     
-    // Mitral
+    // MITRAL
     t += `Mitral: `;
-    if(data.mitralAspecto !== 'normal') t += `Aspecto ${data.mitralAspecto}. `;
-    if(data.mitralEspessura !== 'normal') t += `Espessura: ${data.mitralEspessura.replace(/_/g, ' ')}. `;
-    // CORDA E ANEL (Novos)
-    if(data.mitralCorda !== 'normal') t += `Corda tendínea: ${data.mitralCorda.replace(/_/g, ' ')}. `;
-    if(data.mitralAnel !== 'normal') t += `Anel: ${data.mitralAnel.replace(/_/g, ' ')}. `;
+    const mitralDesc = [];
+    if(data.mitralAspecto !== 'normal') mitralDesc.push(`Aspecto ${data.mitralAspecto.replace(/_/g, ' ')}`);
+    if(data.mitralEspessura !== 'normal') mitralDesc.push(`Espessura ${data.mitralEspessura.replace(/_/g, ' ')}`);
+    // CORREÇÃO: MOBILIDADE E ABERTURA
+    if(data.mitralMobilidade !== 'normal') mitralDesc.push(`Mobilidade ${data.mitralMobilidade.replace(/_/g, ' ')}`);
+    if(data.mitralAbertura !== 'normal') mitralDesc.push(`Abertura ${data.mitralAbertura.replace(/_/g, ' ')}`);
     
-    if(data.mitralRefluxo !== 'ausente') t += `Refluxo ${data.mitralRefluxo.replace('_', '/')}. `;
-    else t += `Sem refluxo significativo. `;
-    if(data.mitralEstenose !== 'ausente') t += `Estenose ${data.mitralEstenose}. `;
+    if(data.mitralCorda !== 'normal') mitralDesc.push(`Corda tendínea ${data.mitralCorda.replace(/_/g, ' ')}`);
+    if(data.mitralAnel !== 'normal') mitralDesc.push(`Anel ${data.mitralAnel.replace(/_/g, ' ')}`);
+    
+    if(mitralDesc.length > 0) t += mitralDesc.join(', ') + '. ';
+    else t += `Aspecto anatômico e mobilidade preservados. `;
+
+    if(data.mitralRefluxo !== 'ausente') t += `Refluxo ${data.mitralRefluxo.replace(/_/g, '/')}. `;
+    if(data.mitralEstenose !== 'ausente') t += `Estenose ${data.mitralEstenose} (Área: ${data.mitralArea || '--'}). `;
     t += `\n`;
 
-    // Tricúspide
+    // TRICÚSPIDE
     t += `Tricúspide: `;
-    if(data.triAspecto !== 'normal') t += `Aspecto ${data.triAspecto}. `;
-    if(data.triCorda !== 'normal') t += `Corda tendínea: ${data.triCorda.replace(/_/g, ' ')}. `;
+    const triDesc = [];
+    if(data.triAspecto !== 'normal') triDesc.push(`Aspecto ${data.triAspecto.replace(/_/g, ' ')}`);
+    if(data.triEspessura !== 'normal') triDesc.push(`Espessura ${data.triEspessura.replace(/_/g, ' ')}`);
+    // CORREÇÃO: MOBILIDADE E ABERTURA
+    if(data.triMobilidade !== 'normal') triDesc.push(`Mobilidade ${data.triMobilidade.replace(/_/g, ' ')}`);
+    if(data.triAbertura !== 'normal') triDesc.push(`Abertura ${data.triAbertura.replace(/_/g, ' ')}`);
     
-    if(data.triRefluxo !== 'ausente') t += `Refluxo ${data.triRefluxo.replace('_', '/')}. `;
-    else t += `Sem refluxo significativo. `;
+    if(data.triCorda !== 'normal') triDesc.push(`Corda tendínea ${data.triCorda.replace(/_/g, ' ')}`);
+    
+    if(triDesc.length > 0) t += triDesc.join(', ') + '. ';
+    else t += `Aspecto anatômico e mobilidade preservados. `;
+
+    if(data.triRefluxo !== 'ausente') t += `Refluxo ${data.triRefluxo.replace(/_/g, '/')}. `;
     if(data.checkPsap && data.psap) t += `PSAP estimada: ${data.psap} mmHg. `;
+    if(data.triEstenose === 'severa') t += `Estenose severa (Área: ${data.triSeveraArea}). `;
     t += `\n`;
 
-    // Pulmonar
+    // PULMONAR
     t += `Pulmonar: `;
+    const pulDesc = [];
+    if(data.pulAspecto !== 'normal') pulDesc.push(`Aspecto ${data.pulAspecto.replace(/_/g, ' ')}`);
+    if(pulDesc.length > 0) t += pulDesc.join(', ') + '. ';
+    else t += `Aspecto normal. `;
+
     if(data.pulRefluxo !== 'ausente') t += `Refluxo ${data.pulRefluxo}. `;
-    if(data.pulEstenose !== 'ausente') t += `Estenose ${data.pulEstenose}. `;
+    if(data.pulEstenose !== 'ausente') t += `Estenose ${data.pulEstenose} (Pico: ${data.pulPicoVel}m/s, Grad: ${data.pulPicoGrad}mmHg). `;
     if(data.artPulmonar !== 'normal') t += `Tronco da Artéria Pulmonar: ${data.artPulmonar}. `;
     t += `\n`;
 
-    // 6. PERICÁRDIO E CAVA
+    // 7. PERICÁRDIO E CAVA
     if(data.pericardioDerra !== 'sem_derrame') {
         t += `Pericárdio: Derrame ${data.pericardioDerra.replace('_', ' ')}. `;
-        if(data.periLoculado) t += `Loculado. `;
+        const periDesc = [];
+        if(data.periLoculado) periDesc.push('Loculado');
+        if(data.periCircunferencial) periDesc.push('Circunferencial');
+        if(data.periHomogeneo) periDesc.push('Conteúdo homogêneo');
+        if(data.periHeterogeneo) periDesc.push('Conteúdo heterogêneo');
+        if(periDesc.length > 0) t += `(${periDesc.join(', ')}). `;
         if(data.periRepercussao === 'com_repercussao') t += `Com repercussão hemodinâmica.`;
         t += `\n`;
     }
