@@ -193,6 +193,8 @@ const FormEcocardiograma = ({ onUpdate }) => {
     else t += `Reduzida (${data.sistolicoReduzidoVeGrau}). `;
     if(data.resFe) t += `Fração de Ejeção (${data.metodoFe}): ${data.resFe}%. `;
     if(data.contratilidadeAlterada) t += `Alteração da contratilidade segmentar presente. `;
+    if(data.movAnomaloSepto) t += `Movimento anômalo do septo interventricular. `;
+    
     t += `\n`;
     t += `Função Diastólica: ${data.diastolica.replace(/_/g, ' ')}.\n`;
 
@@ -263,6 +265,9 @@ const FormEcocardiograma = ({ onUpdate }) => {
     if(data.pulRefluxo !== 'ausente') t += `Refluxo ${data.pulRefluxo}. `;
     if(data.pulEstenose !== 'ausente') t += `Estenose ${data.pulEstenose} (Pico: ${data.pulPicoVel}m/s, Grad: ${data.pulPicoGrad}mmHg). `;
     if(data.artPulmonar !== 'normal') t += `Tronco da Artéria Pulmonar: ${data.artPulmonar}. `;
+    if(data.sinaisHipertensao) t += `Presença de sinais indiretos de hipertensão pulmonar. `;
+    if(data.ausenciaSinaisHipertensao) t += `Ausência de sinais indiretos de hipertensão pulmonar. `;
+    
     t += `\n`;
 
     // 7. PERICÁRDIO E CAVA
