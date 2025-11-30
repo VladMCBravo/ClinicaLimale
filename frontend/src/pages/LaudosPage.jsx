@@ -15,12 +15,67 @@ pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F4F6F8', surface: '#FFFFFF', border: '#E0E0E0' };
 
 const styles = {
-  container: { padding: '20px', display: 'flex', gap: '20px', background: theme.bg, minHeight: '100vh', fontFamily: 'Arial, sans-serif' },
-  leftCol: { flex: 1, maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '15px' },
-  rightCol: { flex: 1, display: 'flex', flexDirection: 'column' },
-  card: { background: '#fff', borderRadius: '8px', border: `1px solid ${theme.border}`, padding: '15px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
-  header: { fontSize: '16px', fontWeight: 'bold', color: theme.primary, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' },
-  button: { background: theme.accent, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }
+  // 1. CONTAINER: Trava a altura da tela em 100% e remove a rolagem da janela inteira
+  container: { 
+    display: 'flex', 
+    background: theme.bg, 
+    height: '100vh',        // Ocupa toda a altura da janela
+    overflow: 'hidden',     // Impede que a página inteira role
+    fontFamily: 'Arial, sans-serif' 
+  },
+
+  // 2. COLUNA ESQUERDA (FORMULÁRIO): Ganha sua própria barra de rolagem
+  leftCol: { 
+    width: '600px',         // Largura fixa generosa para os inputs não quebrarem
+    minWidth: '500px',      // Garante que não fique muito estreito
+    height: '100%',         // Ocupa toda a altura disponível
+    overflowY: 'auto',      // <--- AQUI ESTÁ A MÁGICA: Barra de rolagem só aqui
+    padding: '20px',        // Espaçamento interno
+    borderRight: `1px solid ${theme.border}`, // Linha divisória visual
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '15px' 
+  },
+
+  // 3. COLUNA DIREITA (LAUDO): Fica fixa (ou rola independente se o texto for gigante)
+  rightCol: { 
+    flex: 1, 
+    height: '100%',         // Ocupa toda a altura
+    padding: '20px',
+    display: 'flex', 
+    flexDirection: 'column',
+    overflowY: 'auto'       // Se o texto for muito longo, ele também pode rolar, mas independente da esquerda
+  },
+
+  // MANTIDOS IGUAIS:
+  card: { 
+    background: '#fff', 
+    borderRadius: '8px', 
+    border: `1px solid ${theme.border}`, 
+    padding: '15px', 
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)' 
+  },
+  header: { 
+    fontSize: '16px', 
+    fontWeight: 'bold', 
+    color: theme.primary, 
+    marginBottom: '10px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '10px' 
+  },
+  button: { 
+    background: theme.accent, 
+    color: 'white', 
+    border: 'none', 
+    padding: '10px 20px', 
+    borderRadius: '5px', 
+    cursor: 'pointer', 
+    fontWeight: 'bold', 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '8px' 
+  }
 };
 
 const LaudosPage = () => {

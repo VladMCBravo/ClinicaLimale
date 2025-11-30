@@ -1,0 +1,115 @@
+/* src/components/laudos/Laudos.css */
+
+/* --- CONTAINER GERAL --- */
+.laudo-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 11px;
+  color: #333;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* --- SEÇÕES (CAIXAS) --- */
+.laudo-section {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  margin-bottom: 5px;
+  overflow: hidden;
+}
+
+.laudo-section-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* --- CABEÇALHOS --- */
+.header-base {
+  padding: 3px 8px;
+  font-weight: bold;
+  color: white;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.header-purple { background-color: #4A3B80; } /* Subtipo */
+.header-green { background-color: #2E7D32; }  /* Padrão (Biometria, etc) */
+.header-blue { background-color: #1565C0; }   /* Doppler Ativo */
+.header-gray { background-color: #757575; }   /* Doppler Inativo */
+
+/* --- INPUTS E CONTROLES --- */
+.laudo-input {
+  border: 1px solid #aaa;
+  border-radius: 2px;
+  padding: 2px 4px;
+  font-size: 11px;
+  height: 22px; /* Altura fixa para alinhar */
+}
+
+.laudo-select {
+  border: 1px solid #aaa;
+  border-radius: 2px;
+  padding: 1px;
+  font-size: 11px;
+  height: 22px;
+  background-color: #fff;
+}
+
+.laudo-input-small { width: 40px; text-align: center; }
+.laudo-input-date { width: 110px; }
+
+/* --- GRIDS E LAYOUTS --- */
+.laudo-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.laudo-col { display: flex; flex-direction: column; gap: 4px; }
+.laudo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.laudo-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+/* --- ELEMENTOS ESPECÍFICOS --- */
+.laudo-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.laudo-info-box {
+  background-color: #F5F5F5;
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 3px;
+}
+
+/* --- ABAS GEMELAR --- */
+.gemelar-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+  padding: 0 2px;
+}
+
+.gemelar-tab {
+  flex: 1;
+  padding: 6px;
+  text-align: center;
+  background: #e0e0e0;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-weight: bold;
+  color: #666;
+}
+
+.gemelar-tab.active {
+  background: #fff;
+  border-top: 3px solid #2E7D32; /* Verde destaque */
+  color: #2E7D32;
+  border-bottom: 1px solid #fff; /* Conecta com o conteúdo */
+  margin-bottom: -1px;
+  z-index: 1;
+}

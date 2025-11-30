@@ -1,28 +1,21 @@
 import React from 'react';
-
-const styles = {
-    section: { border: '1px solid #ccc', borderRadius: '4px', marginBottom: '5px', background: '#fff' },
-    header: { background: '#2E7D32', color: 'white', padding: '2px 8px', fontSize: '11px', fontWeight: 'bold' },
-    body: { padding: '5px', display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '11px' },
-    row: { display: 'flex', gap: '10px', alignItems: 'center' },
-    select: { border: '1px solid #aaa', borderRadius: '2px', padding: '1px' },
-    inputSmall: { width: '40px', border: '1px solid #aaa', borderRadius: '2px', textAlign: 'center' }
-};
+// CSS importado no Pai
 
 const SecaoAnexos = ({ data, handleChange }) => {
   return (
     <>
-        <div style={styles.section}>
-            <div style={styles.header}>Cordão umbilical</div>
-            <div style={styles.body}>
-                <div style={styles.row}>
-                    <label style={{display:'flex', alignItems:'center', gap:'4px'}}>
+        {/* CORDÃO UMBILICAL */}
+        <div className="laudo-section">
+            <div className="header-base header-green">Cordão umbilical</div>
+            <div className="laudo-section-body">
+                <div className="laudo-row" style={{justifyContent: 'space-between'}}>
+                    <label className="laudo-checkbox-label">
                         <input type="checkbox" name="cordaoNormal" checked={data.cordaoNormal} onChange={handleChange} /> 
                         citar cordão normal (c/2 artérias e 1 veia)
                     </label>
-                    <div style={{marginLeft:'auto'}}>
-                        Circular: 
-                        <select name="cordaoCircular" value={data.cordaoCircular} onChange={handleChange} style={styles.select}>
+                    <div className="laudo-row">
+                        <span>Circular:</span>
+                        <select name="cordaoCircular" value={data.cordaoCircular} onChange={handleChange} className="laudo-select">
                             <option>não citar</option>
                             <option>ausente</option>
                             <option>cervical (1 volta)</option>
@@ -32,48 +25,62 @@ const SecaoAnexos = ({ data, handleChange }) => {
             </div>
         </div>
 
-        <div style={styles.section}>
-            <div style={styles.header}>Placenta</div>
-            <div style={styles.body}>
-                <div style={styles.row}>
+        {/* PLACENTA */}
+        <div className="laudo-section">
+            <div className="header-base header-green">Placenta</div>
+            <div className="laudo-section-body">
+                <div className="laudo-row">
                     <span>inserção</span>
-                    <select name="placentaInsercao" value={data.placentaInsercao} onChange={handleChange} style={styles.select}>
+                    <select name="placentaInsercao" value={data.placentaInsercao} onChange={handleChange} className="laudo-select">
                         <option>Corporal Posterior</option><option>Corporal Anterior</option><option>Fúndica</option><option>Prévia</option>
                     </select>
                     <span>aspecto</span>
-                    <select name="placentaAspecto" value={data.placentaAspecto} onChange={handleChange} style={styles.select}>
+                    <select name="placentaAspecto" value={data.placentaAspecto} onChange={handleChange} className="laudo-select">
                         <option>Normal</option><option>Heterogêneo</option>
                     </select>
                 </div>
-                <div style={styles.row}>
-                     <label style={{display:'flex', alignItems:'center', gap:'4px'}}>
+                <div className="laudo-row">
+                     <label className="laudo-checkbox-label">
                         <input type="checkbox" checked={!!data.placentaEspessura} readOnly /> 
                         citar espessura:
                      </label>
-                     <input name="placentaEspessura" value={data.placentaEspessura} onChange={handleChange} style={styles.inputSmall} /> mm
+                     <input name="placentaEspessura" value={data.placentaEspessura} onChange={handleChange} className="laudo-input laudo-input-small" /> 
+                     <span>mm</span>
                 </div>
             </div>
         </div>
 
-        <div style={styles.section}>
-            <div style={styles.header}>Líquido amniótico</div>
-            <div style={styles.body}>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px'}}>
-                    <div style={{display:'flex', flexDirection:'column', gap:'2px'}}>
-                        <label><input type="radio" name="liquidoVolume" value="Normal" checked={data.liquidoVolume === 'Normal'} onChange={handleChange}/> volume normal</label>
-                        <label><input type="radio" name="liquidoVolume" value="Reduzido" checked={data.liquidoVolume === 'Reduzido'} onChange={handleChange}/> volume reduzido</label>
-                        <label><input type="radio" name="liquidoVolume" value="Aumentado" checked={data.liquidoVolume === 'Aumentado'} onChange={handleChange}/> volume aumentado</label>
+        {/* LÍQUIDO AMNIÓTICO */}
+        <div className="laudo-section">
+            <div className="header-base header-green">Líquido amniótico</div>
+            <div className="laudo-section-body">
+                <div className="laudo-grid-2">
+                    <div className="laudo-col">
+                        <label className="laudo-checkbox-label">
+                            <input type="radio" name="liquidoVolume" value="Normal" checked={data.liquidoVolume === 'Normal'} onChange={handleChange}/> 
+                            volume normal
+                        </label>
+                        <label className="laudo-checkbox-label">
+                            <input type="radio" name="liquidoVolume" value="Reduzido" checked={data.liquidoVolume === 'Reduzido'} onChange={handleChange}/> 
+                            volume reduzido
+                        </label>
+                        <label className="laudo-checkbox-label">
+                            <input type="radio" name="liquidoVolume" value="Aumentado" checked={data.liquidoVolume === 'Aumentado'} onChange={handleChange}/> 
+                            volume aumentado
+                        </label>
                     </div>
-                    <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                        <div style={styles.row}>
+                    <div className="laudo-col">
+                        <div className="laudo-row">
                              <input type="checkbox" checked={!!data.ila} readOnly/> 
                              <span>citar ILA = </span>
-                             <input name="ila" value={data.ila} onChange={handleChange} style={styles.inputSmall} /> cm
+                             <input name="ila" value={data.ila} onChange={handleChange} className="laudo-input laudo-input-small" /> 
+                             <span>cm</span>
                         </div>
-                        <div style={styles.row}>
+                        <div className="laudo-row">
                              <input type="checkbox" checked={!!data.maiorBolso} readOnly/> 
                              <span>MBV = </span>
-                             <input name="maiorBolso" value={data.maiorBolso} onChange={handleChange} style={styles.inputSmall} /> cm
+                             <input name="maiorBolso" value={data.maiorBolso} onChange={handleChange} className="laudo-input laudo-input-small" /> 
+                             <span>cm</span>
                         </div>
                     </div>
                 </div>

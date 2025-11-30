@@ -1,18 +1,8 @@
 import React from 'react';
 import { FaHeartbeat, FaCheckSquare } from 'react-icons/fa';
 
-const styles = {
-    section: { border: '1px solid #ccc', borderRadius: '4px', marginBottom: '5px', background: '#fff' },
-    header: { background: '#2E7D32', color: 'white', padding: '2px 8px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' },
-    body: { padding: '5px' },
-    gridCheck: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', fontSize: '11px' },
-    checkLabel: { display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' },
-    vitalidadeRow: { display: 'flex', gap: '15px', alignItems: 'center', marginTop: '5px', fontSize: '11px', background: '#F9F9F9', padding: '5px', borderRadius: '3px' }
-};
-
-// Componente auxiliar interno para evitar repetição
 const CheckItem = ({ label, name, checked, onChange }) => (
-    <label style={styles.checkLabel}>
+    <label className="laudo-checkbox-label">
         <input type="checkbox" name={name} checked={checked} onChange={onChange} /> 
         {label}
     </label>
@@ -21,13 +11,12 @@ const CheckItem = ({ label, name, checked, onChange }) => (
 const SecaoMorfologia = ({ data, handleChange }) => {
   return (
     <>
-        {/* Bloco de Morfologia (Checklist) */}
-        <div style={styles.section}>
-            <div style={styles.header}><FaCheckSquare size={10}/> Morfologia fetal</div>
-            <div style={styles.body}>
-                <div style={styles.gridCheck}>
+        <div className="laudo-section">
+            <div className="header-base header-green"><FaCheckSquare size={10}/> Morfologia fetal</div>
+            <div className="laudo-section-body">
+                <div className="laudo-grid-2" style={{gap: '5px'}}>
                     {/* Coluna Esquerda */}
-                    <div>
+                    <div className="laudo-col" style={{gap: '2px'}}>
                         <CheckItem label="citar coluna normal" name="morfColuna" checked={data.morfColuna} onChange={handleChange} />
                         <CheckItem label="citar crânio normal" name="morfCranio" checked={data.morfCranio} onChange={handleChange} />
                         <CheckItem label="citar cérebro normal" name="morfCerebro" checked={data.morfCerebro} onChange={handleChange} />
@@ -38,7 +27,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         <CheckItem label="citar vasos da base normais" name="morfVasosBase" checked={data.morfVasosBase} onChange={handleChange} />
                     </div>
                     {/* Coluna Direita */}
-                    <div>
+                    <div className="laudo-col" style={{gap: '2px'}}>
                         <CheckItem label="citar estômago normal" name="morfEstomago" checked={data.morfEstomago} onChange={handleChange} />
                         <CheckItem label="citar fígado normal" name="morfFigado" checked={data.morfFigado} onChange={handleChange} />
                         <CheckItem label="citar rins normais" name="morfRins" checked={data.morfRins} onChange={handleChange} />
@@ -47,9 +36,9 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         <CheckItem label="citar genitália externa normal" name="morfGenitalia" checked={data.morfGenitalia} onChange={handleChange} />
                         <CheckItem label="citar membros normais" name="morfMembros" checked={data.morfMembros} onChange={handleChange} />
                         
-                        <div style={{marginTop: '5px', paddingLeft: '18px', display:'flex', alignItems:'center', gap:'5px'}}>
+                        <div className="laudo-row" style={{marginTop: '5px', paddingLeft: '18px'}}>
                              <span>Sexo:</span>
-                             <select name="sexoFetal" value={data.sexoFetal} onChange={handleChange} style={{border:'1px solid #ccc', fontSize:'10px', fontWeight:'bold'}}>
+                             <select name="sexoFetal" value={data.sexoFetal} onChange={handleChange} className="laudo-select" style={{fontWeight:'bold'}}>
                                  <option>MASCULINO</option>
                                  <option>FEMININO</option>
                                  <option>NÃO VISUALIZADO</option>
@@ -60,15 +49,18 @@ const SecaoMorfologia = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* Vitalidade Fetal (Print 3 - Esquerda) */}
-        <div style={styles.section}>
-             <div style={styles.header}><FaHeartbeat size={10}/> Vitalidade fetal</div>
-             <div style={styles.body}>
-                 <div style={styles.vitalidadeRow}>
-                     <div>BCF presentes com frequência de <input name="bcf" value={data.bcf} onChange={handleChange} style={{width:'35px', textAlign:'center', border:'1px solid #aaa'}} /> bpm</div>
+        {/* Vitalidade Fetal */}
+        <div className="laudo-section">
+             <div className="header-base header-green"><FaHeartbeat size={10}/> Vitalidade fetal</div>
+             <div className="laudo-section-body">
+                 <div className="laudo-info-box laudo-row">
+                     <span>BCF presentes com frequência de</span>
+                     <input name="bcf" value={data.bcf} onChange={handleChange} className="laudo-input laudo-input-small" /> 
+                     <span>bpm</span>
                  </div>
-                 <div style={styles.vitalidadeRow}>
+                 <div className="laudo-info-box laudo-row">
                      <CheckItem label="movimentação ativa" name="movFetal" checked={data.movFetal} onChange={handleChange} />
+                     <span style={{margin: '0 10px'}}>|</span>
                      <CheckItem label="deglutição presente" name="degluticao" checked={data.degluticao} onChange={handleChange} />
                  </div>
              </div>
