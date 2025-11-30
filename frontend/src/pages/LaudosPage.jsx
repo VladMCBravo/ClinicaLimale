@@ -6,7 +6,7 @@ import pdfFonts from "pdfmake/build/vfs_fonts";
 import apiClient from '../api/axiosConfig';
 
 // Importe suas máscaras aqui
-import FormObstetrico from '../components/laudos/FormObstetrico';
+import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormTransvaginal from '../components/laudos/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/FormEcocardiograma';
 
