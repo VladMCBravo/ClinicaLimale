@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ModalTabelaEstenose from './ModalTabelaEstenose'; // <--- Importando o Modal
 
 const SecaoCarotidaInterna = ({ data, handleChange }) => {
-  
-  // Componente interno para renderizar UM lado (evita repetição de código dentro do arquivo)
+  const [showModal, setShowModal] = useState(false); // <--- Estado para controlar o modal
+
+  // Componente interno para renderizar UM lado
   const RenderLado = ({ lado, label, prefix, color }) => (
     <div style={{ flex: 1, border: `1px solid ${color}`, borderRadius: '4px', padding: '5px', background: '#fff' }}>
         {/* Cabeçalho Vermelho Estilo Turing */}
@@ -78,9 +80,21 @@ const SecaoCarotidaInterna = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* Botão Tabela Estenose (Visual apenas, lógica pode ser adicionada depois) */}
+        {/* Botão Tabela Estenose com Lógica de Abrir Modal */}
         <div style={{ marginTop: '10px', textAlign: 'right' }}>
-            <button style={{ background: '#D32F2F', color: 'white', border: 'none', fontSize: '10px', padding: '4px 8px', borderRadius: '2px', cursor: 'pointer' }}>
+            <button 
+                onClick={() => setShowModal(true)} 
+                style={{ 
+                    background: '#D32F2F', 
+                    color: 'white', 
+                    border: 'none', 
+                    fontSize: '10px', 
+                    padding: '4px 8px', 
+                    borderRadius: '2px', 
+                    cursor: 'pointer',
+                    fontWeight: 'bold' 
+                }}
+            >
                 TABELA ESTENOSE
             </button>
         </div>
@@ -94,6 +108,9 @@ const SecaoCarotidaInterna = ({ data, handleChange }) => {
             <RenderLado lado="DIREITO" label="A. Carótida Interna Direita" prefix="aciDir" color="#C62828" />
             <RenderLado lado="ESQUERDO" label="A. Carótida Interna Esquerda" prefix="aciEsq" color="#C62828" />
         </div>
+
+        {/* Renderização condicional do Modal */}
+        {showModal && <ModalTabelaEstenose onClose={() => setShowModal(false)} />}
     </div>
   );
 };
