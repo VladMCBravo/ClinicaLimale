@@ -1,232 +1,211 @@
-// src/components/laudos/FormTransvaginal.jsx
+// src/components/laudos/trasnvaginal/FormTransvaginal.jsx
 import React, { useState, useEffect } from 'react';
-import { FaRulerCombined, FaVenus, FaWaveSquare } from 'react-icons/fa';
+import { FaFemale } from 'react-icons/fa';
+import '../Laudos.css';
 
-// Estilos (Reaproveitados para manter consistência)
-const styles = {
-  section: { border: '1px solid #E0E0E0', borderRadius: '8px', marginBottom: '15px', background: '#FFFFFF', boxShadow: '0 2px 5px rgba(0,0,0,0.03)' },
-  header: { background: '#7B1FA2', color: 'white', padding: '10px 15px', fontSize: '13px', fontWeight: 'bold', borderTopLeftRadius: '8px', borderTopRightRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }, // Roxo para diferenciar do Obstétrico
-  body: { padding: '15px', display: 'grid', gap: '15px' },
-  row: { display: 'flex', gap: '15px', flexWrap: 'wrap' },
-  label: { fontSize: '11px', fontWeight: 'bold', color: '#555', marginBottom: '4px', display: 'block', textTransform: 'uppercase' },
-  input: { padding: '8px', border: '1px solid #CCC', borderRadius: '4px', fontSize: '13px', width: '100%' },
-  checkboxLabel: { fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#444' },
-  readOnly: { background: '#F5F5F5', color: '#333', fontWeight: 'bold', border: '1px solid #DDD' }
-};
+// Importação das Seções
+import SecaoTecnicaBexiga from './sections/SecaoTecnicaBexiga';
+import SecaoUtero from './sections/SecaoUtero';
+import SecaoOvarios from './sections/SecaoOvarios';
+import SecaoRegiaoAnexial from './sections/SecaoRegiaoAnexial';
 
 const FormTransvaginal = ({ onUpdate }) => {
-  const [data, setData] = useState({
-    // ÚTERO
-    uteroPosicao: 'Anteversoflexão',
-    uteroTextura: 'Homogênea',
-    uteroL: '', uteroAP: '', uteroT: '', uteroVol: '',
-    endometrio: '', endometrioAspecto: 'Ecogênico',
-    
-    // OVÁRIO DIREITO (OD)
-    odVisualizado: true,
-    odL: '', odAP: '', odT: '', odVol: '',
-    odAspecto: 'Aspecto habitual',
-    
-    // OVÁRIO ESQUERDO (OE)
-    oeVisualizado: true,
-    oeL: '', oeAP: '', oeT: '', oeVol: '',
-    oeAspecto: 'Aspecto habitual',
-    
-    // FUNDO DE SACO
-    fundoSaco: 'Livre', // ou 'Líquido', 'Aderências'
-    
-    // DOPPLER (Opcional)
-    usarDoppler: false,
-    irUterinaD: '', irUterinaE: ''
-  });
+  
+  const initialState = {
+      // TÉCNICA
+      subtipo: 'TRANSVAGINAL_PELVICA', // ou ABDOME_PELVE
+      limitacao: 'nenhuma', // meteorismo, obesidade, etc.
+      
+      // BEXIGA
+      bexiga: 'vazia', // vazia, replecao_insuficiente, normal, sonda
+      volPre1: '', volPre2: '', volPre3: '', resVolPre: '',
+      volPos1: '', volPos2: '', volPos3: '', resVolPos: '',
+      calcResiduo: false,
+
+      // ÚTERO
+      uteroAusente: false,
+      uteroPosicao: 'anteversoflexão',
+      ut1: '', ut2: '', ut3: '', resVolUtero: '', // Medidas e Volume
+      miometrio: 'homogêneo', // heterogêneo, nodulos
+      citarNodulos: false,
+      nod1_d1: '', nod1_d2: '', nod1_loc: 'corpórea anterior', nod1_tipo: 'intramural',
+      
+      // ENDOMÉTRIO
+      endometrioEspessura: '',
+      endometrioAspecto: 'ecogênico e homogêneo', // trilaminar, heterogêneo
+      cavidadeUterina: 'virtual', // conteudo liquido, DIU
+      diuPosicao: 'bem posicionado',
+      diuDistanciaFundo: '',
+
+      // OVÁRIOS (OD = Ovário Direito, OE = Ovário Esquerdo)
+      odVisibilizado: true, od1: '', od2: '', od3: '', resVolOd: '',
+      odAspecto: 'normal', // policistico, folicular, cisto_simples
+      odCistoMedida: '', odCistoTipo: 'simples',
+      
+      oeVisibilizado: true, oe1: '', oe2: '', oe3: '', resVolOe: '',
+      oeAspecto: 'normal', 
+      oeCistoMedida: '', oeCistoTipo: 'simples',
+
+      // REGIÃO ANEXIAL / FUNDO DE SACO
+      liquidoLivre: 'ausente', // pequena quantidade, moderada
+      hidrossalpinge: false,
+      massasAnexiais: false,
+
+      conclusaoNormal: false,
+      obsGerais: ''
+  };
+
+  const [data, setData] = useState(initialState);
+
+  // --- CÁLCULO AUTOMÁTICO DE VOLUMES ---
+  useEffect(() => {
+    const calcVolume = (d1, d2, d3) => {
+        const v1 = parseFloat(d1); const v2 = parseFloat(d2); const v3 = parseFloat(d3);
+        if(!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
+            return (v1 * v2 * v3 * 0.523).toFixed(1).replace('.', ',');
+        }
+        return '';
+    };
+
+    let updates = {};
+    let mudou = false;
+
+    // Volume Útero
+    const vUt = calcVolume(data.ut1, data.ut2, data.ut3);
+    if(vUt !== data.resVolUtero) { updates.resVolUtero = vUt; mudou = true; }
+
+    // Volume OD
+    const vOd = calcVolume(data.od1, data.od2, data.od3);
+    if(vOd !== data.resVolOd) { updates.resVolOd = vOd; mudou = true; }
+
+    // Volume OE
+    const vOe = calcVolume(data.oe1, data.oe2, data.oe3);
+    if(vOe !== data.resVolOe) { updates.resVolOe = vOe; mudou = true; }
+
+    // Volume Bexiga (Pré/Pós)
+    if(data.calcResiduo) {
+        const vPre = (parseFloat(data.volPre1) * parseFloat(data.volPre2) * parseFloat(data.volPre3) * 0.523).toFixed(0);
+        const vPos = (parseFloat(data.volPos1) * parseFloat(data.volPos2) * parseFloat(data.volPos3) * 0.523).toFixed(0);
+        if(!isNaN(parseFloat(vPre)) && vPre !== data.resVolPre) { updates.resVolPre = vPre; mudou = true; }
+        if(!isNaN(parseFloat(vPos)) && vPos !== data.resVolPos) { updates.resVolPos = vPos; mudou = true; }
+    }
+
+    if(mudou) setData(prev => ({ ...prev, ...updates }));
+
+  }, [data.ut1, data.ut2, data.ut3, data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3, data.volPre1, data.volPre2, data.volPre3, data.volPos1, data.volPos2, data.volPos3, data.calcResiduo]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // --- CÁLCULOS E TEXTO ---
+  // --- GERAÇÃO DE TEXTO ---
   useEffect(() => {
-    // 1. Cálculos de Volume (Elipsoide: A x B x C x 0.523)
-    const calcVol = (l, ap, t) => {
-        if(l && ap && t) return (l * ap * t * 0.523 / 1000).toFixed(1);
-        return '';
+    let t = `ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL\n\n`;
+
+    // 1. TÉCNICA E BEXIGA
+    if (data.limitacao !== 'nenhuma') t += `Exame com limitações técnicas devido a ${data.limitacao}.\n`;
+    
+    if (data.bexiga === 'vazia') t += `Bexiga vazia.\n`;
+    else if (data.bexiga === 'normal') t += `Bexiga com boa repleção, paredes finas e conteúdo anecóico.\n`;
+    
+    if (data.calcResiduo && data.resVolPre) {
+        t += `Volume vesical pré-miccional estimado em ${data.resVolPre} ml. `;
+        t += `Volume pós-miccional (resíduo) estimado em ${data.resVolPos || '0'} ml.\n`;
+    }
+
+    // 2. ÚTERO
+    t += `\nÚtero: `;
+    if(data.uteroAusente) {
+        t += `Não visibilizado (Histerectomia).\n`;
+    } else {
+        t += `Em ${data.uteroPosicao}, com contornos regulares e ecotextura ${data.miometrio}. `;
+        if (data.ut1 && data.ut2 && data.ut3) {
+            t += `Dimensões: ${data.ut1} x ${data.ut2} x ${data.ut3} cm. Volume: ${data.resVolUtero} cm³. `;
+        }
+        
+        // Miomas / Nódulos
+        if (data.miometrio === 'heterogêneo' || data.citarNodulos) {
+            if (data.citarNodulos && data.nod1_d1) {
+                t += `Presença de nódulo miometrial (${data.nod1_tipo}), medindo ${data.nod1_d1}x${data.nod1_d2} mm, localizado na parede ${data.nod1_loc}. `;
+            } else {
+                t += `Ecotextura miometrial heterogênea sugere miomatose/adenomiose incipiente. `;
+            }
+        }
+        t += `\n`;
+
+        // Endométrio
+        t += `Eco endometrial ${data.endometrioAspecto}`;
+        if (data.endometrioEspessura) t += `, espessura de ${data.endometrioEspessura} mm`;
+        t += `.\n`;
+
+        // DIU
+        if (data.cavidadeUterina.includes('DIU')) {
+            t += `Dispositivo Intrauterino (DIU) visibilizado na cavidade. ${data.diuPosicao}.`;
+            if (data.diuDistanciaFundo) t += ` Distância do fundo: ${data.diuDistanciaFundo} mm.`;
+            t += `\n`;
+        }
+    }
+
+    // 3. OVÁRIOS
+    const descOvario = (lado, prefix, vol) => {
+        let txt = `Ovário ${lado}: `;
+        if (!data[`${prefix}Visibilizado`]) return txt + `Não visibilizado (interposição gasosa/cirurgia prévia).\n`;
+        
+        txt += `Tópico, forma e ecotextura preservadas. `;
+        if (data[`${prefix}1`]) txt += `Dimensões: ${data[`${prefix}1`]} x ${data[`${prefix}2`]} x ${data[`${prefix}3`]} cm (${vol} cm³). `;
+        
+        // Cistos / Aspecto
+        if (data[`${prefix}Aspecto`] === 'policistico') txt += `Presença de múltiplos microfolículos periféricos (sugestivo de SOP). `;
+        else if (data[`${prefix}Aspecto`] === 'cisto_simples') {
+            txt += `Nota-se imagem anecóica, paredes finas (cisto simples), medindo ${data[`${prefix}CistoMedida`]} mm. `;
+        }
+        
+        return txt + `\n`;
     };
 
-    const volUtero = calcVol(data.uteroL, data.uteroAP, data.uteroT);
-    const volOD = calcVol(data.odL, data.odAP, data.odT);
-    const volOE = calcVol(data.oeL, data.oeAP, data.oeT);
+    t += `\n`;
+    t += descOvario('Direito', 'od', data.resVolOd);
+    t += descOvario('Esquerdo', 'oe', data.resVolOe);
 
-    // 2. Montagem do Texto
-    let t = `ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL\n\n`;
-    
-    // Útero
-    t += `ÚTERO:\n`;
-    t += `Em ${data.uteroPosicao.toLowerCase()}, com contornos regulares e ecotextura ${data.uteroTextura.toLowerCase()}.\n`;
-    t += `Medidas: ${data.uteroL || '-'} x ${data.uteroAP || '-'} x ${data.uteroT || '-'} mm. Volume: ${volUtero || '-'} cm³ (VN: 25-90 cm³).\n`;
-    t += `Eco endometrial ${data.endometrioAspecto.toLowerCase()}, centrado, medindo ${data.endometrio || '-'} mm de espessura.\n\n`;
+    // 4. REGIÃO ANEXIAL / CONCLUSÃO
+    if (data.liquidoLivre !== 'ausente') t += `\nLíquido livre: Presença de ${data.liquidoLivre} quantidade de líquido livre em fundo de saco posterior.\n`;
+    if (data.hidrossalpinge) t += `Imagem tubular anecóica em região anexial sugerindo hidrossalpinge.\n`;
 
-    // Ovários
-    t += `ANEXOS:\n`;
-    if (data.odVisualizado) {
-        t += `Ovário Direito: ${data.odAspecto}. Medidas: ${data.odL} x ${data.odAP} x ${data.odT} mm. Vol: ${volOD} cm³.\n`;
-    } else {
-        t += `Ovário Direito: Não visualizado (interposição gasosa/cirurgia prévia).\n`;
-    }
-
-    if (data.oeVisualizado) {
-        t += `Ovário Esquerdo: ${data.oeAspecto}. Medidas: ${data.oeL} x ${data.oeAP} x ${data.oeT} mm. Vol: ${volOE} cm³.\n`;
-    } else {
-        t += `Ovário Esquerdo: Não visualizado.\n`;
-    }
-    
-    t += `\nFundo de Saco Posterior (Douglas): ${data.fundoSaco}.\n`;
-
-    // Doppler (Se ativado)
-    if (data.usarDoppler) {
-        t += `\nDOPPLERFLUXOMETRIA:\n`;
-        t += `Artérias Uterinas com fluxo preservado. `;
-        if (data.irUterinaD) t += `IR Dir: ${data.irUterinaD}. `;
-        if (data.irUterinaE) t += `IR Esq: ${data.irUterinaE}.`;
-        t += `\n`;
-    }
-
-    // Conclusão
     t += `\nCONCLUSÃO:\n`;
-    if (data.uteroTextura === 'Homogênea' && (!data.endometrio || data.endometrio < 12)) {
-        t += `- Exame ecográfico pélvico dentro dos padrões de normalidade.`;
-    } else {
-        t += `- A critério clínico.`;
+    if (data.conclusaoNormal) {
+        t += `Exame ecográfico pélvico dentro dos limites da normalidade.\n`;
     }
+    if (data.obsGerais) t += `OBS: ${data.obsGerais}`;
 
-    // Enviar para o Pai
-    onUpdate({
-        texto: t,
-        dadosEstruturados: { ...data, uteroVol: volUtero, odVol: volOD, oeVol: volOE },
-        tituloExame: 'USG Transvaginal'
-    });
-
+    onUpdate({ texto: t, dadosEstruturados: data, tituloExame: 'ULTRASSONOGRAFIA TRANSVAGINAL' });
   }, [data, onUpdate]);
 
   return (
-    <>
-      {/* SEÇÃO ÚTERO */}
-      <div style={styles.section}>
-        <div style={styles.header}><FaVenus/> <span>Útero & Endométrio</span></div>
-        <div style={styles.body}>
-            <div style={styles.row}>
-                <div style={{flex: 1}}>
-                    <span style={styles.label}>Posição</span>
-                    <select name="uteroPosicao" value={data.uteroPosicao} onChange={handleChange} style={styles.input}>
-                        <option>Anteversoflexão</option>
-                        <option>Retroversoflexão</option>
-                        <option>Medioversão</option>
-                    </select>
-                </div>
-                <div style={{flex: 1}}>
-                    <span style={styles.label}>Textura</span>
-                    <select name="uteroTextura" value={data.uteroTextura} onChange={handleChange} style={styles.input}>
-                        <option>Homogênea</option>
-                        <option>Heterogênea (Miomatose?)</option>
-                        <option>Heterogênea (Adenomiose?)</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div style={{borderTop: '1px solid #eee', paddingTop: '10px'}}>
-                <span style={styles.label}>Medidas (Long x AP x Transv) mm</span>
-                <div style={styles.row}>
-                    <input name="uteroL" placeholder="L" value={data.uteroL} onChange={handleChange} style={{...styles.input, flex: 1}} />
-                    <input name="uteroAP" placeholder="AP" value={data.uteroAP} onChange={handleChange} style={{...styles.input, flex: 1}} />
-                    <input name="uteroT" placeholder="T" value={data.uteroT} onChange={handleChange} style={{...styles.input, flex: 1}} />
-                    <input value={data.uteroVol ? `${data.uteroVol} cm³` : ''} readOnly style={{...styles.input, ...styles.readOnly, flex: 1, textAlign: 'center'}} placeholder="Vol. Auto" />
-                </div>
-            </div>
+    <div className="laudo-container">
+        <h3 style={{borderBottom: '2px solid #880E4F', color: '#880E4F', paddingBottom: '5px'}}>
+           <FaFemale /> PELVE TRANSVAGINAL
+        </h3>
 
-            <div style={styles.row}>
-                <div style={{flex: 1}}>
-                    <span style={styles.label}>Endométrio (mm)</span>
-                    <input name="endometrio" value={data.endometrio} onChange={handleChange} style={styles.input} />
-                </div>
-                <div style={{flex: 1}}>
-                    <span style={styles.label}>Aspecto Endométrio</span>
-                    <select name="endometrioAspecto" value={data.endometrioAspecto} onChange={handleChange} style={styles.input}>
-                        <option>Ecogênico</option>
-                        <option>Trilaminar</option>
-                        <option>Fino/Linear</option>
-                        <option>Espessado/Heterogêneo</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-      </div>
-
-      {/* SEÇÃO OVÁRIOS */}
-      <div style={styles.section}>
-        <div style={styles.header}><FaRulerCombined/> <span>Ovários</span></div>
-        <div style={styles.body}>
-            {/* Ovário Direito */}
-            <div style={{marginBottom: '10px'}}>
-                <label style={styles.checkboxLabel}>
-                    <input type="checkbox" name="odVisualizado" checked={data.odVisualizado} onChange={handleChange}/> 
-                    <strong style={{color: '#7B1FA2'}}>Ovário Direito</strong>
-                </label>
-                {data.odVisualizado && (
-                    <div style={styles.row}>
-                        <input name="odL" placeholder="L" value={data.odL} onChange={handleChange} style={{...styles.input, width: '50px'}} />
-                        <input name="odAP" placeholder="AP" value={data.odAP} onChange={handleChange} style={{...styles.input, width: '50px'}} />
-                        <input name="odT" placeholder="T" value={data.odT} onChange={handleChange} style={{...styles.input, width: '50px'}} />
-                        <select name="odAspecto" value={data.odAspecto} onChange={handleChange} style={{...styles.input, flex: 1}}>
-                            <option>Aspecto habitual</option>
-                            <option>Micropolicístico</option>
-                            <option>Cisto simples</option>
-                            <option>Folicular</option>
-                        </select>
-                    </div>
-                )}
-            </div>
-
-            {/* Ovário Esquerdo */}
-            <div>
-                <label style={styles.checkboxLabel}>
-                    <input type="checkbox" name="oeVisualizado" checked={data.oeVisualizado} onChange={handleChange}/> 
-                    <strong style={{color: '#7B1FA2'}}>Ovário Esquerdo</strong>
-                </label>
-                {data.oeVisualizado && (
-                    <div style={styles.row}>
-                        <input name="oeL" placeholder="L" value={data.oeL} onChange={handleChange} style={{...styles.input, width: '50px'}} />
-                        <input name="oeAP" placeholder="AP" value={data.oeAP} onChange={handleChange} style={{...styles.input, width: '50px'}} />
-                        <input name="oeT" placeholder="T" value={data.oeT} onChange={handleChange} style={{...styles.input, width: '50px'}} />
-                        <select name="oeAspecto" value={data.oeAspecto} onChange={handleChange} style={{...styles.input, flex: 1}}>
-                            <option>Aspecto habitual</option>
-                            <option>Micropolicístico</option>
-                            <option>Cisto simples</option>
-                            <option>Folicular</option>
-                        </select>
-                    </div>
-                )}
-            </div>
-        </div>
-      </div>
-
-      {/* SEÇÃO DOPPLER */}
-      <div style={styles.section}>
-        <div style={styles.header}>
-            <label style={{...styles.checkboxLabel, color: 'white'}}>
-                <input type="checkbox" name="usarDoppler" checked={data.usarDoppler} onChange={handleChange}/> 
-                <FaWaveSquare/> <span>Incluir Doppler</span>
+        <SecaoTecnicaBexiga data={data} handleChange={handleChange} />
+        <SecaoUtero data={data} handleChange={handleChange} />
+        <SecaoOvarios data={data} handleChange={handleChange} />
+        <SecaoRegiaoAnexial data={data} handleChange={handleChange} />
+        
+        <div className="laudo-section">
+            <label className="laudo-checkbox-label" style={{fontWeight: 'bold', fontSize: '14px'}}>
+                <input type="checkbox" name="conclusaoNormal" checked={data.conclusaoNormal} onChange={handleChange} />
+                CONCLUSÃO NORMAL
             </label>
+            <textarea 
+                className="laudo-textarea"
+                placeholder="Observações Gerais / Conclusão Específica"
+                name="obsGerais"
+                value={data.obsGerais}
+                onChange={handleChange}
+            />
         </div>
-        {data.usarDoppler && (
-            <div style={styles.body}>
-                <div style={styles.row}>
-                    <div style={{flex: 1}}><span style={styles.label}>IR Art. Uterina Dir</span><input name="irUterinaD" value={data.irUterinaD} onChange={handleChange} style={styles.input} /></div>
-                    <div style={{flex: 1}}><span style={styles.label}>IR Art. Uterina Esq</span><input name="irUterinaE" value={data.irUterinaE} onChange={handleChange} style={styles.input} /></div>
-                </div>
-            </div>
-        )}
-      </div>
-    </>
+    </div>
   );
 };
 
