@@ -5,19 +5,34 @@ import { FaTable } from 'react-icons/fa';
 const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
   const [expandEndo, setExpandEndo] = useState(false);
 
-  // Renderiza um Ovário completo (Direito ou Esquerdo)
+  // Lista de Cistos conforme Vídeo
+  const tiposCisto = [
+      "cisto simples", "corpo lúteo", "cisto unilocular", 
+      "cisto unilocular com componente sólido", "cisto hemorrágico", 
+      "endometrioma", "cisto dermoide", "cisto bilocular", 
+      "cisto multilocular", "cisto multilocular com componente sólido", 
+      "nódulo sólido irregular (sem atenuação acústica)"
+  ];
+  
+  // Lista de Doppler conforme Vídeo
+  const opcoesDoppler = [
+      "não citar", "avascular", "fluxo indefinível", 
+      "fluxo periférico escasso (score de cor 2)", 
+      "fluxo moderado (score de cor 3)", 
+      "fluxo intenso (score de cor 4)", 
+      "fluxo periférico escasso", "fluxo central"
+  ];
+
   const renderOvario = (label, prefix) => (
     <div className="laudo-group-box" style={{marginBottom: '10px', border:'1px solid #e0e0e0'}}>
         <div style={{fontWeight:'bold', color: '#333', marginBottom:'5px', borderBottom:'1px solid #eee'}}>{label}</div>
         
-        {/* Medidas */}
         <div className="laudo-row">
             Mede: <input type="number" name={`${prefix}1`} value={data[`${prefix}1`]} onChange={handleChange} className="laudo-input-small" style={{color:'red'}}/> x
             <input type="number" name={`${prefix}2`} value={data[`${prefix}2`]} onChange={handleChange} className="laudo-input-small" style={{color:'red'}}/> x
             <input type="number" name={`${prefix}3`} value={data[`${prefix}3`]} onChange={handleChange} className="laudo-input-small" style={{color:'red'}}/> mm
         </div>
 
-        {/* Checkboxes Estado */}
         <div className="laudo-row-wrap" style={{marginTop:'5px'}}>
             <label><input type="checkbox" name={`${prefix}Normal`} checked={data[`${prefix}Normal`]} onChange={handleChange} /> normal</label>
             <label><input type="checkbox" name={`${prefix}Multifolicular`} checked={data[`${prefix}Multifolicular`]} onChange={handleChange} /> padrão multifolicular</label>
@@ -25,7 +40,6 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
             <label><input type="checkbox" name={`${prefix}Policistico`} checked={data[`${prefix}Policistico`]} onChange={handleChange} /> padrão policístico</label>
         </div>
 
-        {/* Cistos 1 e 2 */}
         {[1, 2].map(num => (
             <div key={num} style={{marginTop:'5px', padding:'4px', border:'1px dashed #ccc', background:'#fafafa'}}>
                 <div className="laudo-row">
@@ -34,20 +48,14 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
                     <input type="number" name={`${prefix}C${num}d1`} value={data[`${prefix}C${num}d1`]} onChange={handleChange} className="laudo-input-tiny"/> x
                     <input type="number" name={`${prefix}C${num}d2`} value={data[`${prefix}C${num}d2`]} onChange={handleChange} className="laudo-input-tiny"/> mm
                     <select name={`${prefix}C${num}Tipo`} value={data[`${prefix}C${num}Tipo`]} onChange={handleChange} className="laudo-select-small" style={{flex:1}}>
-                        <option value="cisto simples">cisto simples</option>
-                        <option value="cisto hemorrágico">cisto hemorrágico</option>
-                        <option value="endometrioma">endometrioma</option>
-                        <option value="teratoma">teratoma</option>
+                        {tiposCisto.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
-                {/* Linha Doppler e O-RADS do Cisto */}
                 <div className="laudo-row" style={{opacity: data[`${prefix}Cisto${num}`] ? 1 : 0.5}}>
                     <span style={{fontSize:'10px'}}>Doppler:</span>
-                    <select name={`${prefix}C${num}Doppler`} value={data[`${prefix}C${num}Doppler`]} onChange={handleChange} className="laudo-select-small" style={{width:'80px'}}>
-                        <option>não citar</option><option>avascular</option><option>vascularização periférica</option>
+                    <select name={`${prefix}C${num}Doppler`} value={data[`${prefix}C${num}Doppler`]} onChange={handleChange} className="laudo-select-small" style={{width:'120px'}}>
+                        {opcoesDoppler.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
-                    <label style={{fontSize:'10px', marginLeft:'5px'}}><input type="checkbox" name={`${prefix}C${num}CitarIR`} checked={data[`${prefix}C${num}CitarIR`]} onChange={handleChange} /> citar I.R.:</label>
-                    <input name={`${prefix}C${num}IR`} value={data[`${prefix}C${num}IR`]} onChange={handleChange} className="laudo-input-tiny" disabled={!data[`${prefix}C${num}CitarIR`]}/>
                     
                     <span style={{fontSize:'10px', marginLeft:'5px', fontWeight:'bold'}}>O-RADS:</span>
                     <select name={`${prefix}C${num}Orads`} value={data[`${prefix}C${num}Orads`]} onChange={handleChange} className="laudo-select-small" style={{width:'40px'}}>
@@ -87,7 +95,7 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
       {renderOvario('Ovário direito', 'od')}
       {renderOvario('Ovário esquerdo', 'oe')}
 
-      {/* CISTOS PARAOVARIANOS / INCLUSÃO */}
+      {/* CISTOS EXTRAS */}
       <div className="laudo-header-sub">Outros cistos</div>
       <div className="laudo-group-box">
           <div className="laudo-row">
@@ -108,18 +116,20 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
           </div>
           {data.cistoInclusao && (
               <div className="laudo-row">
-                  <select name="cistoIncLoc" value={data.cistoIncLoc} onChange={handleChange} className="laudo-select-small"><option>presente na região anexial</option></select>
+                  <select name="cistoIncLoc" value={data.cistoIncLoc} onChange={handleChange} className="laudo-select-small">
+                      <option value="presente na região anexial">presente na região anexial</option>
+                      <option value="à direita">à direita</option>
+                      <option value="à esquerda">à esquerda</option>
+                  </select>
                   medindo <input name="cistoIncD1" value={data.cistoIncD1} onChange={handleChange} className="laudo-input-tiny"/> x <input name="cistoIncD2" value={data.cistoIncD2} onChange={handleChange} className="laudo-input-tiny"/> mm
               </div>
           )}
       </div>
 
-      {/* HIDROSSALPINGE */}
       <div className="laudo-header-sub">Hidrossalpinge?</div>
       <div className="laudo-row"><label><input type="checkbox" name="hidrossalpingeDir" checked={data.hidrossalpingeDir} onChange={handleChange} /> presente à DIREITA, medindo <input name="hidroDirD1" value={data.hidroDirD1} className="laudo-input-tiny"/> mm</label></div>
       <div className="laudo-row"><label><input type="checkbox" name="hidrossalpingeEsq" checked={data.hidrossalpingeEsq} onChange={handleChange} /> presente à ESQUERDA, medindo <input name="hidroEsqD1" value={data.hidroEsqD1} className="laudo-input-tiny"/> mm</label></div>
 
-      {/* ENDOMETRIOSE (EXPANDÍVEL) */}
       <div 
         className="laudo-header-dark" 
         style={{marginTop:'10px', background:'#78909c', cursor:'pointer', display:'flex', justifyContent:'space-between'}}
@@ -136,7 +146,6 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
           </div>
       )}
 
-      {/* LÍQUIDO LIVRE */}
       <div className="laudo-header-dark" style={{marginTop:'10px', background:'#78909c'}}>Líquido livre</div>
       <div className="laudo-row" style={{background:'#e0e0e0', padding:'5px'}}>
           <select name="liquidoLivreLocal" value={data.liquidoLivreLocal} onChange={handleChange} className="laudo-select" style={{width:'50%', fontWeight:'bold'}}>

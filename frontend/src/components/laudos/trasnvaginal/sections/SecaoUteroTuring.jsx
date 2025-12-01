@@ -3,6 +3,20 @@ import React from 'react';
 import { FaImage } from 'react-icons/fa';
 
 const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
+  
+  // Lista exata de localizações mostrada no vídeo
+  const opcoesLocalizacao = [
+      "fúndica",
+      "corporal anterior",
+      "corporal posterior",
+      "corporal à direita",
+      "corporal à esquerda",
+      "istmica anterior",
+      "istmica posterior",
+      "istmica à direita",
+      "istmica à esquerda"
+  ];
+
   return (
     <div className="laudo-section" style={{borderTop: '3px solid #5c6bc0'}}>
       <div className="laudo-header-dark" style={{background: '#5c6bc0', color:'white', padding:'4px 8px'}}>Útero</div>
@@ -15,7 +29,6 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
                   <label style={{marginRight:'10px'}}><input type="radio" name="statusHormonal" value="menopausada" checked={data.statusHormonal === 'menopausada'} onChange={handleChange} /> menopausada</label>
                   <label><input type="radio" name="statusHormonal" value="idade_fertil" checked={data.statusHormonal === 'idade_fertil'} onChange={handleChange} /> idade fértil</label>
               </div>
-              
               {data.statusHormonal === 'idade_fertil' && (
                   <div style={{marginLeft:'auto', display:'flex', alignItems:'center'}}>
                       <label style={{fontSize:'11px', marginRight:'5px'}}>gesta</label>
@@ -138,7 +151,6 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
              <button onClick={() => setShowModalFigo(true)} style={{border:'none', background:'transparent', cursor:'pointer'}} title="Ver Classificação FIGO"><FaImage color="#e91e63" size={16} /></button>
           </div>
           
-          {/* SLOTS 1 a 4 */}
           {[1, 2, 3, 4].map(num => (
               <div key={num} className="laudo-row" style={{opacity: data.citarNodulos ? 1 : 0.5}}>
                   <input type="checkbox" name={`nod${num}`} checked={data[`nod${num}`]} onChange={handleChange} disabled={!data.citarNodulos} />
@@ -149,7 +161,10 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
                       <option value="subseroso">subseroso</option><option value="intramural">intramural</option><option value="submucoso">submucoso</option>
                   </select>
                   <div style={{marginLeft:'20px', width:'100%', fontSize:'10px', color:'#666'}}>
-                      em localização <select name={`nod${num}Loc`} value={data[`nod${num}Loc`]} onChange={handleChange} className="laudo-select-small"><option value="fúndica">fúndica</option><option value="anterior">anterior</option><option value="posterior">posterior</option></select>
+                      em localização 
+                      <select name={`nod${num}Loc`} value={data[`nod${num}Loc`]} onChange={handleChange} className="laudo-select-small">
+                          {opcoesLocalizacao.map(op => <option key={op} value={op}>{op}</option>)}
+                      </select>
                   </div>
               </div>
           ))}
@@ -162,11 +177,9 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
           </div>
       </div>
 
-      {/* CIRURGIAS */}
       <div className="laudo-header-sub">Cirurgias</div>
       <div className="laudo-row"><label><input type="checkbox" name="histerectomiaParcial" checked={data.histerectomiaParcial} onChange={handleChange} /> histerectomia parcial</label></div>
       <div className="laudo-row"><label><input type="checkbox" name="histerectomiaTotal" checked={data.histerectomiaTotal} onChange={handleChange} /> histerectomia total</label></div>
-
     </div>
   );
 };

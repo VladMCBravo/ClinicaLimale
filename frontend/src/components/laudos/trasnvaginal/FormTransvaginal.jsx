@@ -1,3 +1,4 @@
+// src/components/laudos/trasnvaginal/FormTransvaginal.jsx
 import React, { useState, useEffect } from 'react';
 import { FaFemale, FaTable, FaImage } from 'react-icons/fa';
 import '../Laudos.css';
@@ -35,7 +36,7 @@ const FormTransvaginal = ({ onUpdate }) => {
       
       polipoEndometrial: false, polipoEndoLocal: 'fúndico', polipoEndoD1: '4', polipoEndoD2: '4',
       polipoEndocervical: false, polipoCervixD1: '4', polipoCervixD2: '4',
-      cervicite: false, // Espessamento da endocérvice
+      cervicite: false, 
       
       diuBemPosicionado: false,
       diuDeslocado: false, diuDistFundo: '2', diuDistSerosa: '10',
@@ -91,8 +92,7 @@ const FormTransvaginal = ({ onUpdate }) => {
       hidrossalpingeDir: false, hidroDirD1:'30', hidroDirD2:'20', hidroDirD3:'20', hidroDirOrads:'',
       hidrossalpingeEsq: false, hidroEsqD1:'30', hidroEsqD2:'20', hidroEsqD3:'20', hidroEsqOrads:'',
 
-      // Endometriose (Seção Expansível)
-      endometrioseExpandido: false,
+      // Endometriose
       endoToro: false, endoLigS: false, endoVagina: false, endoReto: false,
 
       // Líquido Livre
@@ -103,8 +103,6 @@ const FormTransvaginal = ({ onUpdate }) => {
   };
 
   const [data, setData] = useState(initialState);
-  
-  // Modais
   const [showModalFigo, setShowModalFigo] = useState(false);
   const [showModalOrads, setShowModalOrads] = useState(false);
 
@@ -124,28 +122,21 @@ const FormTransvaginal = ({ onUpdate }) => {
     if(novoVolOe !== data.resVolOe) updates.resVolOe = novoVolOe;
 
     if(Object.keys(updates).length > 0) setData(prev => ({ ...prev, ...updates }));
-  }, [data.ut1, data.ut2, data.ut3, data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3, data.resVolUtero, data.resVolOd, data.resVolOe]);
+  }, [data.ut1, data.ut2, data.ut3, data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3]);
 
-  // --- HANDLER ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     let newData = { ...data, [name]: type === 'checkbox' ? checked : value };
 
-    // Lógica Útero Homogêneo
+    // Lógicas de reset de checkboxes
     if (name === 'uteroHomogeneo' && checked) {
-        newData.miometrioHeterogeneo = false;
-        newData.adenomiose = false;
-        newData.citarNodulos = false;
-        newData.nodMultiplos = false;
+        newData.miometrioHeterogeneo = false; newData.adenomiose = false; newData.citarNodulos = false; newData.nodMultiplos = false;
     }
-    // Lógica Ovário Normal
     if (name === 'odNormal' && checked) {
-        newData.odMultifolicular = false; newData.odPolicistico = false; newData.odNaoCaracterizado = false;
-        newData.odCisto1 = false; newData.odCisto2 = false;
+        newData.odMultifolicular = false; newData.odPolicistico = false; newData.odNaoCaracterizado = false; newData.odCisto1 = false; newData.odCisto2 = false;
     }
     if (name === 'oeNormal' && checked) {
-        newData.oeMultifolicular = false; newData.oePolicistico = false; newData.oeNaoCaracterizado = false;
-        newData.oeCisto1 = false; newData.oeCisto2 = false;
+        newData.oeMultifolicular = false; newData.oePolicistico = false; newData.oeNaoCaracterizado = false; newData.oeCisto1 = false; newData.oeCisto2 = false;
     }
 
     setData(newData);
@@ -168,20 +159,16 @@ const FormTransvaginal = ({ onUpdate }) => {
             if (data.uteroHomogeneo) t += `Ecotextura miometrial homogênea. `;
             if (data.citarRelacaoCorpoColo) t += `Relação corpo/colo: ${data.relacaoCorpoColo}. `;
             
-            // Patologias Miométrio
             if (data.miometrioHeterogeneo) t += `Miométrio heterogêneo. `;
             if (data.adenomiose) t += `Sinais sugestivos de adenomiose (indefinição da zona juncional e diminutas imagens císticas). `;
             
-            // Nódulos
             const nods = [];
             if (data.citarNodulos) {
-                if (data.nod1) nods.push(`Nódulo (1): ${data.nod1Tipo}, ${data.nod1Loc}, medindo ${data.nod1d1}x${data.nod1d2} mm`);
-                if (data.nod2) nods.push(`Nódulo (2): ${data.nod2Tipo}, ${data.nod2Loc}, medindo ${data.nod2d1}x${data.nod2d2} mm`);
-                if (data.nod3) nods.push(`Nódulo (3): ${data.nod3Tipo}, ${data.nod3Loc}, medindo ${data.nod3d1}x${data.nod3d2} mm`);
-                if (data.nod4) nods.push(`Nódulo (4): ${data.nod4Tipo}, ${data.nod4Loc}, medindo ${data.nod4d1}x${data.nod4d2} mm`);
+                [1,2,3,4].forEach(i => {
+                    if(data[`nod${i}`]) nods.push(`Nódulo (${i}): ${data[`nod${i}Tipo`]}, ${data[`nod${i}Loc`]}, medindo ${data[`nod${i}d1`]}x${data[`nod${i}d2`]} mm`);
+                });
             }
             if (data.nodMultiplos) nods.push(`Múltiplos nódulos miometriais, o maior ${data.nodMultTipo} em ${data.nodMultLoc} (${data.nodMultD1}x${data.nodMultD2} mm)`);
-            
             if (nods.length > 0) t += `\nIdentificam-se imagens nodulares: ${nods.join('. ')}. `;
         }
         t += `\n`;
@@ -190,7 +177,6 @@ const FormTransvaginal = ({ onUpdate }) => {
         t += `Eco endometrial `;
         if(data.aspectoEndometrio !== 'não citar o aspecto') t += `${data.aspectoEndometrio}, `;
         if(data.citarEspessuraEndometrio) t += `com espessura de ${data.espessuraEndometrio} mm. `;
-        
         if(data.endometrioHeterogeneo) t += `Endométrio heterogêneo${data.areasCisticas ? ' com áreas císticas' : ''}. `;
         if(data.laminaLiquida) t += `Presença de lâmina líquida na cavidade. `;
         if(data.cervicite) t += `Espessamento da endocérvice (sugestivo de cervicite). `;
@@ -199,10 +185,8 @@ const FormTransvaginal = ({ onUpdate }) => {
         if(data.polipoEndometrial) t += `Imagem sugestiva de pólipo endometrial ${data.polipoEndoLocal} (${data.polipoEndoD1}x${data.polipoEndoD2} mm). `;
         if(data.polipoEndocervical) t += `Imagem sugestiva de pólipo endocervical (${data.polipoCervixD1}x${data.polipoCervixD2} mm). `;
         
-        // DIU
         if(data.diuBemPosicionado) t += `DIU visibilizado na cavidade uterina, bem posicionado. `;
         if(data.diuDeslocado) t += `DIU deslocado (distando ${data.diuDistFundo} mm do fundo e ${data.diuDistSerosa} mm da serosa). `;
-        
         t += `\n`;
     }
 
@@ -234,10 +218,9 @@ const FormTransvaginal = ({ onUpdate }) => {
     t += printOvario('Direito', 'od', data.resVolOd);
     t += printOvario('Esquerdo', 'oe', data.resVolOe);
 
-    // 3. ANEXOS / EXTRA
+    // 3. ANEXOS
     if (data.cistoParaovariano) t += `Cisto paraovariano (${data.cistoParaLoc}) medindo ${data.cistoParaD1}x${data.cistoParaD2}x${data.cistoParaD3} mm.\n`;
     if (data.cistoInclusao) t += `Cisto de inclusão peritoneal (${data.cistoIncLoc}) medindo ${data.cistoIncD1}x${data.cistoIncD2}x${data.cistoIncD3} mm.\n`;
-    
     if (data.hidrossalpingeDir) t += `Hidrossalpinge à Direita (${data.hidroDirD1}x${data.hidroDirD2} mm).\n`;
     if (data.hidrossalpingeEsq) t += `Hidrossalpinge à Esquerda (${data.hidroEsqD1}x${data.hidroEsqD2} mm).\n`;
 
@@ -247,13 +230,10 @@ const FormTransvaginal = ({ onUpdate }) => {
 
     if(data.endoToro || data.endoReto) t += `Pesquisa de Endometriose: Mapeamento positivo (detalhes no laudo completo).\n`;
 
-    // Conclusão
     t += `\nCONCLUSÃO:\n`;
     if(data.oradsFinal !== 'não citar') t += `Classificação O-RADS Global: ${data.oradsFinal}.\n`;
-    
     const isNormal = data.uteroHomogeneo && data.odNormal && data.oeNormal && data.liquidoLivreLocal === 'ausente';
     if (isNormal) t += `Exame ecográfico pélvico dentro dos limites da normalidade.\n`;
-    
     if(data.obsGerais) t += `OBS: ${data.obsGerais}`;
 
     onUpdate({ texto: t, dadosEstruturados: data, tituloExame: 'ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL' });
@@ -267,43 +247,47 @@ const FormTransvaginal = ({ onUpdate }) => {
         </div>
 
         <div style={{display: 'flex', gap: '10px', overflowY: 'auto', flex: 1, padding:'5px'}}>
-            
-            {/* COLUNA ESQUERDA: ÚTERO */}
             <div style={{flex: 1, minWidth: '380px', display:'flex', flexDirection:'column', gap:'10px'}}>
-                <SecaoUteroTuring 
-                    data={data} 
-                    handleChange={handleChange} 
-                    setShowModalFigo={setShowModalFigo} 
-                />
+                <SecaoUteroTuring data={data} handleChange={handleChange} setShowModalFigo={setShowModalFigo} />
             </div>
-
-            {/* COLUNA DIREITA: OVÁRIOS */}
             <div style={{flex: 1, minWidth: '380px', display:'flex', flexDirection:'column', gap:'10px'}}>
-                <SecaoOvariosTuring 
-                    data={data} 
-                    handleChange={handleChange} 
-                    setShowModalOrads={setShowModalOrads}
-                />
+                <SecaoOvariosTuring data={data} handleChange={handleChange} setShowModalOrads={setShowModalOrads} />
             </div>
-
         </div>
 
-        {/* MODAIS SIMULADOS */}
+        {/* MODAL FIGO (Corrigido para evitar erro de Identifier Expected) */}
         {showModalFigo && (
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000}} onClick={() => setShowModalFigo(false)}>
                 <div style={{background:'white', padding:'20px', borderRadius:'8px', maxWidth:'500px'}} onClick={e => e.stopPropagation()}>
                     <h4>Classificação FIGO (Miomas)</h4>
-                    <p>0 - Pediculado Intracavitário<br/>1 - Submucoso &lt; 50% intramural<br/>2 - Submucoso &ge; 50% intramural<br/>3 - Contato com endométrio/intramural<br/>4 - Intramural<br/>5 - Subseroso &ge; 50% intramural<br/>6 - Subseroso &lt; 50% intramural<br/>7 - Subseroso pediculado</p>
+                    <ul style={{listStyle:'none', padding:0, fontSize:'12px'}}>
+                        <li>0 - Pediculado Intracavitário</li>
+                        <li>1 - Submucoso {"<"} 50% intramural</li>
+                        <li>2 - Submucoso {">="} 50% intramural</li>
+                        <li>3 - Contato com endométrio/intramural</li>
+                        <li>4 - Intramural</li>
+                        <li>5 - Subseroso {">="} 50% intramural</li>
+                        <li>6 - Subseroso {"<"} 50% intramural</li>
+                        <li>7 - Subseroso pediculado</li>
+                    </ul>
                     <button onClick={() => setShowModalFigo(false)}>Fechar</button>
                 </div>
             </div>
         )}
         
+        {/* MODAL O-RADS (Corrigido) */}
         {showModalOrads && (
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000}} onClick={() => setShowModalOrads(false)}>
                 <div style={{background:'white', padding:'20px', borderRadius:'8px', maxWidth:'600px'}} onClick={e => e.stopPropagation()}>
                     <h4>Tabela O-RADS</h4>
-                    <p>O-RADS 0: Avaliação incompleta<br/>O-RADS 1: Normal (Ovário fisiológico)<br/>O-RADS 2: Quase certamente benigno (&lt;1% risco)<br/>O-RADS 3: Baixo risco (1-10%)<br/>O-RADS 4: Risco intermediário (10-50%)<br/>O-RADS 5: Alto risco (&gt;50%)</p>
+                    <ul style={{listStyle:'none', padding:0, fontSize:'12px'}}>
+                        <li>O-RADS 0: Avaliação incompleta</li>
+                        <li>O-RADS 1: Normal (Ovário fisiológico)</li>
+                        <li>O-RADS 2: Quase certamente benigno (risco {"<"} 1%)</li>
+                        <li>O-RADS 3: Baixo risco (1-10%)</li>
+                        <li>O-RADS 4: Risco intermediário (10-50%)</li>
+                        <li>O-RADS 5: Alto risco ({">"} 50%)</li>
+                    </ul>
                     <button onClick={() => setShowModalOrads(false)}>Fechar</button>
                 </div>
             </div>
