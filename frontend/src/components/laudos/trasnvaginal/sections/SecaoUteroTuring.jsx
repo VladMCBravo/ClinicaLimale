@@ -4,38 +4,19 @@ import { FaImage } from 'react-icons/fa';
 
 const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
   
-  // Lista exata de localizações mostrada no vídeo
   const opcoesLocalizacao = [
-      "fúndica",
-      "corporal anterior",
-      "corporal posterior",
-      "corporal à direita",
-      "corporal à esquerda",
-      "istmica anterior",
-      "istmica posterior",
-      "istmica à direita",
-      "istmica à esquerda"
+      "fúndica", "corporal anterior", "corporal posterior",
+      "corporal à direita", "corporal à esquerda",
+      "istmica anterior", "istmica posterior",
+      "istmica à direita", "istmica à esquerda"
   ];
 
   return (
     <div className="laudo-section" style={{borderTop: '3px solid #5c6bc0'}}>
       <div className="laudo-header-dark" style={{background: '#5c6bc0', color:'white', padding:'4px 8px'}}>Útero</div>
       
-      {/* STATUS */}
+      {/* DUM (Mantido aqui, mas Status Hormonal movido para Ovario) */}
       <div className="laudo-group-box">
-          <div className="laudo-row">
-              <label style={{fontWeight:'bold'}}>Status hormonal</label>
-              <div style={{marginLeft:'10px'}}>
-                  <label style={{marginRight:'10px'}}><input type="radio" name="statusHormonal" value="menopausada" checked={data.statusHormonal === 'menopausada'} onChange={handleChange} /> menopausada</label>
-                  <label><input type="radio" name="statusHormonal" value="idade_fertil" checked={data.statusHormonal === 'idade_fertil'} onChange={handleChange} /> idade fértil</label>
-              </div>
-              {data.statusHormonal === 'idade_fertil' && (
-                  <div style={{marginLeft:'auto', display:'flex', alignItems:'center'}}>
-                      <label style={{fontSize:'11px', marginRight:'5px'}}>gesta</label>
-                      <input type="number" name="gesta" value={data.gesta} onChange={handleChange} className="laudo-input-small" style={{width:'40px'}}/>
-                  </div>
-              )}
-          </div>
           <div className="laudo-row">
                <label><input type="checkbox" name="incluirDum" checked={data.incluirDum} onChange={handleChange} /> incluir D.U.M:</label>
                {data.incluirDum && <input type="date" name="dum" value={data.dum} onChange={handleChange} className="laudo-input" style={{marginLeft:'5px'}} />}
@@ -103,7 +84,6 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
           <label><input type="checkbox" name="laminaLiquida" checked={data.laminaLiquida} onChange={handleChange} /> lâmina líquida na cavidade uterina</label>
       </div>
 
-      {/* PÓLIPOS E CERVICITE */}
       <div className="laudo-row">
           <input type="checkbox" name="polipoEndometrial" checked={data.polipoEndometrial} onChange={handleChange} /> pólipo endometrial
           {data.polipoEndometrial && (
@@ -113,37 +93,22 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
              </>
           )}
       </div>
-      <div className="laudo-row">
-          <input type="checkbox" name="polipoEndocervical" checked={data.polipoEndocervical} onChange={handleChange} /> pólipo endocervical
-          {data.polipoEndocervical && (
-             <>medindo <input name="polipoCervixD1" value={data.polipoCervixD1} onChange={handleChange} className="laudo-input-tiny"/> x <input name="polipoCervixD2" value={data.polipoCervixD2} onChange={handleChange} className="laudo-input-tiny"/> mm</>
-          )}
-      </div>
-      <div className="laudo-row">
-          <label><input type="checkbox" name="cervicite" checked={data.cervicite} onChange={handleChange} /> espessamento da endocérvice (cervicite)</label>
-      </div>
 
       {/* DIU */}
       <div className="laudo-row">
-          <label><input type="checkbox" name="diuBemPosicionado" checked={data.diuBemPosicionado} onChange={handleChange} /> D.I.U. bem posicionado (não citar medidas)</label>
+          <label><input type="checkbox" name="diuBemPosicionado" checked={data.diuBemPosicionado} onChange={handleChange} /> D.I.U. bem posicionado</label>
       </div>
       <div className="laudo-row">
           <label><input type="checkbox" name="diuDeslocado" checked={data.diuDeslocado} onChange={handleChange} /> D.I.U.</label>
           {data.diuDeslocado && (
-             <span style={{fontSize:'11px'}}> a <input name="diuDistFundo" value={data.diuDistFundo} onChange={handleChange} className="laudo-input-tiny"/> mm do fundo e a <input name="diuDistSerosa" value={data.diuDistSerosa} onChange={handleChange} className="laudo-input-tiny"/> mm da serosa</span>
-          )}
-      </div>
-      <div className="laudo-row">
-          <label><input type="checkbox" name="cistoRetencao" checked={data.cistoRetencao} onChange={handleChange} /> cistos de retenção no colo, o maior</label>
-          {data.cistoRetencao && (
-              <><select name="cistoRetencaoTipo" value={data.cistoRetencaoTipo} onChange={handleChange} className="laudo-select-small"><option>anecogênico</option></select> com <input name="cistoRetencaoD1" value={data.cistoRetencaoD1} onChange={handleChange} className="laudo-input-tiny"/> mm</>
+             <span style={{fontSize:'11px'}}> a <input name="diuDistFundo" value={data.diuDistFundo} onChange={handleChange} className="laudo-input-tiny"/> mm do fundo</span>
           )}
       </div>
 
       {/* MIOMÉTRIO / NÓDULOS */}
       <div className="laudo-header-sub">Miométrio</div>
-      <div className="laudo-row"><label><input type="checkbox" name="miometrioHeterogeneo" checked={data.miometrioHeterogeneo} onChange={handleChange} /> miométrio heterogêneo, sem nódulos ou cistos</label></div>
-      <div className="laudo-row"><label><input type="checkbox" name="adenomiose" checked={data.adenomiose} onChange={handleChange} /> miométrio heterogêneo com sinais de adenomiose</label></div>
+      <div className="laudo-row"><label><input type="checkbox" name="miometrioHeterogeneo" checked={data.miometrioHeterogeneo} onChange={handleChange} /> miométrio heterogêneo</label></div>
+      <div className="laudo-row"><label><input type="checkbox" name="adenomiose" checked={data.adenomiose} onChange={handleChange} /> sinais de adenomiose</label></div>
 
       <div style={{marginTop:'10px', background:'#fafafa', padding:'5px', border:'1px solid #eee'}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -161,25 +126,14 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
                       <option value="subseroso">subseroso</option><option value="intramural">intramural</option><option value="submucoso">submucoso</option>
                   </select>
                   <div style={{marginLeft:'20px', width:'100%', fontSize:'10px', color:'#666'}}>
-                      em localização 
+                      loc: 
                       <select name={`nod${num}Loc`} value={data[`nod${num}Loc`]} onChange={handleChange} className="laudo-select-small">
                           {opcoesLocalizacao.map(op => <option key={op} value={op}>{op}</option>)}
                       </select>
                   </div>
               </div>
           ))}
-          
-          <div className="laudo-row" style={{marginTop:'5px', borderTop:'1px dashed #ccc', paddingTop:'5px'}}>
-               <input type="checkbox" name="nodMultiplos" checked={data.nodMultiplos} onChange={handleChange} />
-               <span style={{fontSize:'10px'}}>múltiplos, maior:</span>
-               <input name="nodMultD1" value={data.nodMultD1} onChange={handleChange} className="laudo-input-tiny"/> x <input name="nodMultD2" value={data.nodMultD2} onChange={handleChange} className="laudo-input-tiny"/> mm
-               <select name="nodMultTipo" value={data.nodMultTipo} onChange={handleChange} className="laudo-select-small"><option>subseroso</option><option>intramural</option></select>
-          </div>
       </div>
-
-      <div className="laudo-header-sub">Cirurgias</div>
-      <div className="laudo-row"><label><input type="checkbox" name="histerectomiaParcial" checked={data.histerectomiaParcial} onChange={handleChange} /> histerectomia parcial</label></div>
-      <div className="laudo-row"><label><input type="checkbox" name="histerectomiaTotal" checked={data.histerectomiaTotal} onChange={handleChange} /> histerectomia total</label></div>
     </div>
   );
 };

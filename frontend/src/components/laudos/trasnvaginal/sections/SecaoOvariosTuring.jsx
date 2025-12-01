@@ -5,22 +5,18 @@ import { FaTable } from 'react-icons/fa';
 const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
   const [expandEndo, setExpandEndo] = useState(false);
 
-  // Lista de Cistos conforme Vídeo
   const tiposCisto = [
       "cisto simples", "corpo lúteo", "cisto unilocular", 
       "cisto unilocular com componente sólido", "cisto hemorrágico", 
       "endometrioma", "cisto dermoide", "cisto bilocular", 
-      "cisto multilocular", "cisto multilocular com componente sólido", 
-      "nódulo sólido irregular (sem atenuação acústica)"
+      "cisto multilocular", 
+      "nódulo sólido irregular"
   ];
   
-  // Lista de Doppler conforme Vídeo
   const opcoesDoppler = [
       "não citar", "avascular", "fluxo indefinível", 
-      "fluxo periférico escasso (score de cor 2)", 
-      "fluxo moderado (score de cor 3)", 
-      "fluxo intenso (score de cor 4)", 
-      "fluxo periférico escasso", "fluxo central"
+      "fluxo periférico escasso (score 2)", "fluxo moderado (score 3)", 
+      "fluxo intenso (score 4)"
   ];
 
   const renderOvario = (label, prefix) => (
@@ -53,7 +49,7 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
                 </div>
                 <div className="laudo-row" style={{opacity: data[`${prefix}Cisto${num}`] ? 1 : 0.5}}>
                     <span style={{fontSize:'10px'}}>Doppler:</span>
-                    <select name={`${prefix}C${num}Doppler`} value={data[`${prefix}C${num}Doppler`]} onChange={handleChange} className="laudo-select-small" style={{width:'120px'}}>
+                    <select name={`${prefix}C${num}Doppler`} value={data[`${prefix}C${num}Doppler`]} onChange={handleChange} className="laudo-select-small" style={{width:'100px'}}>
                         {opcoesDoppler.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                     
@@ -71,18 +67,37 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
     <div className="laudo-section" style={{borderTop: '3px solid #5c6bc0'}}>
       <div className="laudo-header-dark" style={{background: '#5c6bc0', color:'white', padding:'4px 8px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
           <span>Ovários e regiões anexiais</span>
-          <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
-              <button onClick={() => setShowModalOrads(true)} className="laudo-btn-small" style={{display:'flex', gap:'5px', alignItems:'center'}}><FaTable/> Tabela O-RADS</button>
-              <select name="oradsFinal" value={data.oradsFinal} onChange={handleChange} className="laudo-select-small" style={{background:'white'}}>
-                  <option value="não citar">O-RADS final: não citar</option>
-                  <option value="O-RADS 1">O-RADS 1</option>
-                  <option value="O-RADS 2">O-RADS 2</option>
-                  <option value="O-RADS 3">O-RADS 3</option>
-              </select>
+      </div>
+
+      {/* STATUS HORMONAL E O-RADS HEADER (Conforme print 20.40.40) */}
+      <div className="laudo-group-box" style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f5f5f5'}}>
+          <div>
+              <div style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Status hormonal</div>
+              <div style={{display:'flex', gap:'10px', marginTop:'2px'}}>
+                  <label><input type="radio" name="statusHormonal" value="menopausada" checked={data.statusHormonal === 'menopausada'} onChange={handleChange} /> menopausada</label>
+                  <label><input type="radio" name="statusHormonal" value="idade_fertil" checked={data.statusHormonal === 'idade_fertil'} onChange={handleChange} /> idade fértil</label>
+              </div>
+          </div>
+          
+          <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+              <button onClick={() => setShowModalOrads(true)} className="laudo-btn-small" style={{background:'#546E7A', color:'white', border:'none', padding:'5px 10px', borderRadius:'4px', cursor:'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
+                  <FaTable/> Tabela O-RADS
+              </button>
+              <div>
+                  <div style={{fontSize:'10px', fontWeight:'bold'}}>O-RADS final:</div>
+                  <select name="oradsFinal" value={data.oradsFinal} onChange={handleChange} className="laudo-select-small" style={{background:'white', width:'80px'}}>
+                      <option value="não citar">não citar</option>
+                      <option value="O-RADS 1">1</option>
+                      <option value="O-RADS 2">2</option>
+                      <option value="O-RADS 3">3</option>
+                      <option value="O-RADS 4">4</option>
+                      <option value="O-RADS 5">5</option>
+                  </select>
+              </div>
           </div>
       </div>
 
-      <div className="laudo-row" style={{background:'#eceff1', padding:'5px', marginBottom:'10px'}}>
+      <div className="laudo-row" style={{background:'#eceff1', padding:'5px', marginBottom:'10px', marginTop:'10px'}}>
           <label style={{fontWeight:'bold', fontSize:'11px'}}><input type="checkbox" name="incluirDopplerOvario" checked={data.incluirDopplerOvario} onChange={handleChange} /> Incluir Doppler das artérias ovarianas</label>
           {data.incluirDopplerOvario && (
              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', fontSize:'10px', marginTop:'2px'}}>
@@ -118,8 +133,6 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
               <div className="laudo-row">
                   <select name="cistoIncLoc" value={data.cistoIncLoc} onChange={handleChange} className="laudo-select-small">
                       <option value="presente na região anexial">presente na região anexial</option>
-                      <option value="à direita">à direita</option>
-                      <option value="à esquerda">à esquerda</option>
                   </select>
                   medindo <input name="cistoIncD1" value={data.cistoIncD1} onChange={handleChange} className="laudo-input-tiny"/> x <input name="cistoIncD2" value={data.cistoIncD2} onChange={handleChange} className="laudo-input-tiny"/> mm
               </div>
