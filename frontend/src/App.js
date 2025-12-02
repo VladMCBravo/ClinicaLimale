@@ -41,9 +41,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             {/* --- NOVA ROTA DO PACIENTE (Pública) --- */}
             <Route path="/resultados" element={<PortalResultados />} />
-            {/* Rotas Protegidas (Apenas para médicos e staff) */}
-            <Route element={<ProtectedRoute />}></Route>
-
+            
             {/* Rotas Protegidas */}
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
