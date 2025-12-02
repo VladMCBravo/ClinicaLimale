@@ -13,22 +13,22 @@ import SecaoValvaPulmonar from './sections_eco/SecaoValvaPulmonar';
 import SecaoFuncaoVentricular from './sections_eco/SecaoFuncaoVentricular';
 import SecaoAortaVenaCava from './sections_eco/SecaoAortaVenaCava';
 import SecaoPericardio from './sections_eco/SecaoPericardio';
-import SecaoStrain from './sections_eco/SecaoStrain'; // <--- IMPORT NOVO
+import SecaoStrain from './sections_eco/SecaoStrain'; 
 
 const FormEcocardiograma = ({ onUpdate }) => {
   
-  // --- ESTADO COMPLETO (AUDITADO) ---
   const initialState = {
       subtipo: 'ECO_TRANSTORACICO',
       
-      // TÉCNICA
-      peso: '', altura: '', sc: '', citarTecnica: true, tecnicaQualidade: 'boa', localExame: 'nao_citar', posicaoPaciente: 'nao_citar',
+      // TÉCNICA (Adicionado IMC aqui)
+      peso: '', altura: '', sc: '', imc: '', // <--- NOVO
+      citarTecnica: true, tecnicaQualidade: 'boa', localExame: 'nao_citar', posicaoPaciente: 'nao_citar',
 
       // MEDIDAS
       raizAorta: '', aortaAsc: '', arcoAorta: '', atrioEsq: '', volAe: '', 
       ventriculoDir: '', volAd: '', volDiastVd: '', volSistVd: '',
       siv: '', ppve: '', ddve: '', dsve: '', 
-      volDiast: '', volSist: '', // <--- Volumes VE
+      volDiast: '', volSist: '',
       metodoFe: 'Teichholz',
       
       // RESULTADOS CALCULADOS
@@ -44,50 +44,42 @@ const FormEcocardiograma = ({ onUpdate }) => {
       contratilidadeAlterada: false, movAnomaloSepto: false, 
       diastolica: 'normal',
 
-      // VALVA MITRAL (Tudo mapeado)
-      mitralAspecto: 'normal', mitralEspessura: 'normal', 
-      mitralMobilidade: 'normal', mitralAbertura: 'normal', // <--- Faltava no texto
-      mitralCorda: 'normal', mitralAnel: 'normal', 
-      mitralRefluxo: 'ausente', mitralEstenose: 'ausente', mitralArea: '',
-      
-      // VALVA TRICÚSPIDE (Tudo mapeado)
-      triAspecto: 'normal', triEspessura: 'normal', 
-      triMobilidade: 'normal', triAbertura: 'normal', // <--- Faltava no texto
-      triCorda: 'normal', 
-      triRefluxo: 'ausente', triEstenose: 'nao_citar', triSeveraArea: '', 
-      
-      // PULMONAR
-      artPulmonar: 'normal', sinaisHipertensao: false, ausenciaSinaisHipertensao: false, 
-      checkPsap: false, psap: '', checkPmap: false, pmap: '',
-      pulEstenose: 'ausente', pulPicoVel: '', pulPicoGrad: '', pulAspecto: 'normal', pulRefluxo: 'ausente',
-
-      // VASOS E PERICÁRDIO
-      aortaEstrutura: 'normal', aortaEctasiaRaiz: false, aortaEctasiaAsc: false, aortaEctasiaArco: false, 
-      aortaObsNaoVis: false, aortaPlacas: false, aortaAteromatose: false, aortaDisseccao: false, 
-      veiaCava: 'nao_citar',
-      
+      // VALVAS E OUTROS
+      mitralAspecto: 'normal', mitralEspessura: 'normal', mitralMobilidade: 'normal', mitralAbertura: 'normal', mitralCorda: 'normal', mitralAnel: 'normal', mitralRefluxo: 'ausente', mitralEstenose: 'ausente', mitralArea: '',
+      triAspecto: 'normal', triEspessura: 'normal', triMobilidade: 'normal', triAbertura: 'normal', triCorda: 'normal', triRefluxo: 'ausente', triEstenose: 'nao_citar', triSeveraArea: '', 
+      artPulmonar: 'normal', sinaisHipertensao: false, ausenciaSinaisHipertensao: false, checkPsap: false, psap: '', checkPmap: false, pmap: '', pulEstenose: 'ausente', pulPicoVel: '', pulPicoGrad: '', pulAspecto: 'normal', pulRefluxo: 'ausente',
+      aortaEstrutura: 'normal', aortaEctasiaRaiz: false, aortaEctasiaAsc: false, aortaEctasiaArco: false, aortaObsNaoVis: false, aortaPlacas: false, aortaAteromatose: false, aortaDisseccao: false, veiaCava: 'nao_citar',
       pericardioDerra: 'sem_derrame', periLoculado: false, periCircunferencial: false, periHomogeneo: false, periHeterogeneo: false, periRepercussao: 'nao_citar',
+      strainGls: '', strainConclusao: 'preservado'
   };
 
   const [data, setData] = useState(initialState);
   const dadosRef = useRef(initialState);
 
-  // --- AUTOMAÇÃO MATEMÁTICA ---
+  // --- AUTOMAÇÃO MATEMÁTICA (SC, IMC, FE, ETC) ---
   useEffect(() => {
     let updates = {};
     let houveMudanca = false;
     const safeFloat = (v) => { const f = parseFloat(v); return isNaN(f) ? 0 : f; };
 
-    // SC (Du Bois)
+    // CÁLCULO SC (Du Bois) E IMC (Peso / Altura²)
     if (data.peso && data.altura) {
-        const p = safeFloat(data.peso); const a = safeFloat(data.altura);
+        const p = safeFloat(data.peso); const a = safeFloat(data.altura); // altura em cm
         if (p > 0 && a > 0) {
+            // SC
             const sc = 0.007184 * Math.pow(p, 0.425) * Math.pow(a, 0.725);
-            const novoSc = sc.toFixed(4);
+            const novoSc = sc.toFixed(2); // Ajustado para 2 casas decimais padrão visual
             if (data.sc !== novoSc) { updates.sc = novoSc; houveMudanca = true; }
+
+            // IMC (Altura deve ser em metros para a fórmula)
+            const alturaMetros = a / 100;
+            const imc = p / (alturaMetros * alturaMetros);
+            const novoImc = imc.toFixed(1).replace('.', ',');
+            if (data.imc !== novoImc) { updates.imc = novoImc; houveMudanca = true; }
         }
     }
-    // FE, Massa, RWT
+
+    // CÁLCULOS CARDÍACOS (FE, Massa, RWT)
     if (data.ddve && data.dsve && data.siv && data.ppve) {
         const d = safeFloat(data.ddve); const s = safeFloat(data.dsve); const siv = safeFloat(data.siv); const pp = safeFloat(data.ppve);
         if (d > 0 && s > 0 && d > s) {
@@ -110,14 +102,14 @@ const FormEcocardiograma = ({ onUpdate }) => {
         }
     }
     if (houveMudanca) setData(prev => ({ ...prev, ...updates }));
-  }, [data.peso, data.altura, data.ddve, data.dsve, data.siv, data.ppve, data.sc, data.resFe]);
+  }, [data.peso, data.altura, data.ddve, data.dsve, data.siv, data.ppve, data.sc, data.imc, data.resFe]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // --- GERAÇÃO DE TEXTO E DADOS ESTRUTURADOS ---
+  // --- GERAÇÃO DE TEXTO AUDITADA (COM TABELA E LISTAS) ---
   useEffect(() => {
     dadosRef.current = data; 
     const mapTitulos = {
@@ -126,7 +118,7 @@ const FormEcocardiograma = ({ onUpdate }) => {
         'ECO_STRAIN': 'ECOCARDIOGRAMA COM ANÁLISE DE DEFORMAÇÃO (STRAIN)',
     };
 
-    // 1. LÓGICA DA TABELA DE MEDIDAS (Igual ao print Turing)
+    // 1. Tabela de Medidas
     const tabelaMedidas = [
         { estrutura: 'Raiz aórtica', medida: data.raizAorta ? `${data.raizAorta} mm` : '-', ref: '21-37 mm' },
         { estrutura: 'Átrio esquerdo (AE)', medida: data.atrioEsq ? `${data.atrioEsq} mm` : '-', ref: '25-40 mm' },
@@ -142,17 +134,23 @@ const FormEcocardiograma = ({ onUpdate }) => {
         { estrutura: 'Espessura relativa de parede (RWT)', medida: data.resRwt || '-', ref: '<0,42' },
     ];
 
-    // 2. LÓGICA DE COMENTÁRIOS (Texto descritivo)
+    // 2. Comentários (Texto Corrido)
     let comentarios = [];
     
-    // Ritmo
+    // --- Dados Biométricos no Texto ---
+    if (data.peso || data.altura || data.sc) {
+        const bio = [];
+        if(data.peso) bio.push(`Peso: ${data.peso} kg`);
+        if(data.altura) bio.push(`Altura: ${data.altura} cm`);
+        if(data.imc) bio.push(`IMC: ${data.imc} kg/m²`); // <--- NOVO
+        if(data.sc) bio.push(`SC: ${data.sc} m²`);
+        comentarios.push(`Dados Biométricos: ${bio.join(' | ')}.`);
+    }
+
     comentarios.push(`Ritmo cardíaco ${data.ritmo.toLowerCase()}.`);
-    
-    // Câmaras
     if(data.camaras === 'Normal') comentarios.push('Tamanho normal das câmaras cardíacas.');
     else comentarios.push(`Alteração das câmaras: ${data.camIndVe !== 'normal' ? 'VE aumentado. ' : ''}${data.camIndAe !== 'normal' ? 'AE aumentado.' : ''}`);
 
-    // VE (Espessura e Função)
     comentarios.push(data.espessuraVe === 'normal' ? 'Espessura miocárdica normal do ventrículo esquerdo.' : `Hipertrofia do ventrículo esquerdo (${data.espessuraVeTipo}).`);
     
     if(data.sistolicoGlobal === 'normal' && !data.sistolicoReduzidoVe) comentarios.push('Desempenho sistólico biventricular preservado.');
@@ -160,11 +158,9 @@ const FormEcocardiograma = ({ onUpdate }) => {
     
     comentarios.push(`Índices de função diastólica ${data.diastolica === 'normal' ? 'normais' : `alterados (${data.diastolica.replace(/_/g, ' ')})`}.`);
 
-    // Valvas (Resumo inteligente)
     const valvaAortica = [];
     if(data.aortaEstrutura !== 'normal') valvaAortica.push(`estrutura alterada (${data.aortaEstrutura})`);
     if(data.aortaPlacas) valvaAortica.push('placas de ateroma');
-    // Obs: Adicione lógica específica para estenose aórtica se tiver o campo no formulário, senão usamos genérico
     comentarios.push(`Valva aórtica: ${valvaAortica.length > 0 ? valvaAortica.join(', ') : 'Morfologia e dinâmica normais'}.`);
 
     const mitralResumo = [];
@@ -176,44 +172,26 @@ const FormEcocardiograma = ({ onUpdate }) => {
     if(data.triRefluxo !== 'ausente') tricuspideResumo.push(`insuficiência ${data.triRefluxo}`);
     comentarios.push(`Valva tricúspide: ${tricuspideResumo.length > 0 ? tricuspideResumo.join(', ') : 'Morfologia e dinâmica normais'}.`);
 
-    // Aorta e Cava
     if(data.raizAorta) comentarios.push(`Raiz da aorta medindo ${data.raizAorta} mm.`);
     if(data.veiaCava.includes('normal')) comentarios.push('Veia cava inferior com calibre normal e variação respiratória preservada.');
 
-    // Pericardio
     if(data.pericardioDerra === 'sem_derrame') comentarios.push('Ausência de derrame pericárdico.');
     else comentarios.push(`Derrame pericárdico ${data.pericardioDerra.replace('_', ' ')}.`);
 
-
-    // 3. LÓGICA DE CONCLUSÃO AUTOMÁTICA
+    // 3. Conclusão Automática
     let conclusao = [];
-    
-    // Ritmo
-    if(data.ritmo !== 'Sinusal') conclusao.push(`Ritmo ${data.ritmo}.`);
-    
-    // Função VE
+    if(data.ritmo !== 'Regular' && data.ritmo !== 'Sinusal') conclusao.push(`Ritmo ${data.ritmo}.`);
     if(data.sistolicoReduzidoVe) conclusao.push(`Disfunção sistólica do VE de grau ${data.sistolicoReduzidoVeGrau}.`);
     if(data.diastolica !== 'normal') conclusao.push(`Disfunção diastólica do VE (${data.diastolica.replace(/_/g, ' ')}).`);
-    
-    // Hipertrofia
     if(data.espessuraVe !== 'normal') conclusao.push(`Hipertrofia ventricular esquerda ${data.espessuraVeTipo}.`);
-
-    // Valvas (Só cita na conclusão se tiver problema)
     if(data.mitralEstenose !== 'ausente') conclusao.push(`Estenose mitral ${data.mitralEstenose}.`);
     if(data.mitralRefluxo !== 'ausente' && data.mitralRefluxo !== 'discreto') conclusao.push(`Insuficiência mitral ${data.mitralRefluxo}.`);
-    
     if(data.triEstenose === 'severa') conclusao.push(`Estenose tricúspide severa.`);
     if(data.triRefluxo !== 'ausente' && data.triRefluxo !== 'discreto') conclusao.push(`Insuficiência tricúspide ${data.triRefluxo}.`);
-
-    // Hipertensão Pulmonar
     if(data.sinaisHipertensao) conclusao.push('Sinais ecocardiográficos de hipertensão pulmonar.');
-
-    // Normalidade
     if(conclusao.length === 0) conclusao.push('Exame ecocardiográfico dentro dos limites da normalidade.');
 
-
-    // Monta o texto de "preview" para a tela (apenas visualização)
-    // O PDF usará os dados estruturados, não esse texto cru.
+    // Preview
     let textoPreview = "=== TABELA DE MEDIDAS (Ver PDF) ===\n";
     tabelaMedidas.forEach(m => textoPreview += `${m.estrutura}: ${m.medida}\n`);
     textoPreview += "\n=== COMENTÁRIOS ===\n" + comentarios.join('\n');
@@ -247,9 +225,7 @@ const FormEcocardiograma = ({ onUpdate }) => {
                 <SecaoFuncaoVentricular data={data} handleChange={handleChange} />
             </div>
             <div style={{flex: '1', minWidth: '400px'}}>
-                {/* Lógica de Renderização: Se for Strain, mostra seção extra */}
                 {data.subtipo === 'ECO_STRAIN' && <SecaoStrain data={data} handleChange={handleChange} />}
-                
                 <SecaoValvaMitral data={data} handleChange={handleChange} />
                 <SecaoValvaTricuspide data={data} handleChange={handleChange} />
                 <SecaoValvaPulmonar data={data} handleChange={handleChange} />
