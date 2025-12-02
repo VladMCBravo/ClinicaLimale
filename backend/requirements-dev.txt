@@ -1,0 +1,12 @@
+# Dependências para desenvolvimento (linters, formatadores, etc.)
+# Para instalar todas as dependências (dev e prod), execute:
+# pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+# Ferramentas de Qualidade de Código e Formatação
+isort==6.1.0
+pylint==3.3.8
+
+# Utilitários de Dependências
+pipreqs==0.4.13
