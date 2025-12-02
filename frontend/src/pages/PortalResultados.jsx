@@ -1,13 +1,31 @@
 import React, { useState } from 'react';
-import { acessarExame } from '../services/exames'; // Importe o arquivo do Passo 2
+import { 
+  Box, 
+  Button, 
+  Paper, 
+  TextField, 
+  Typography, 
+  Grid, 
+  Card, 
+  CardMedia, 
+  Alert,
+  AppBar,
+  Toolbar,
+  Container,
+  IconButton
+} from '@mui/material';
+import LogoutIcon from '@mui/icons-material/Logout';
+import DownloadIcon from '@mui/icons-material/Download';
+import logoImage from '../assets/logo.png'; // Garanta que o logo está aqui
+import { acessarExame } from '../services/exames';
 
-const PortalResultados = () => {
-  // Estados da tela
+export default function PortalResultados() {
+  // Estados
   const [step, setStep] = useState('LOGIN'); // LOGIN ou RESULTADOS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Dados do formulário e do exame
+  // Dados
   const [codigo, setCodigo] = useState('');
   const [senha, setSenha] = useState('');
   const [exame, setExame] = useState(null);
@@ -22,136 +40,197 @@ const PortalResultados = () => {
       setExame(dados);
       setStep('RESULTADOS');
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Erro ao acessar exame.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Separa os arquivos por tipo para organizar a tela
+  const handleLogout = () => {
+    setExame(null);
+    setCodigo('');
+    setSenha('');
+    setStep('LOGIN');
+  };
+
+  // --- TELA DE LOGIN (ESTILO PADRÃO DO SISTEMA) ---
+  if (step === 'LOGIN') {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#f0f2f5',
+        }}
+      >
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 4, 
+            width: '100%', 
+            maxWidth: '400px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center' 
+          }}
+        >
+          <Box sx={{ mb: 2 }}>
+            <img src={logoImage} alt="Logo da Clínica" style={{ height: '80px' }} />
+          </Box>
+          
+          <Typography component="h1" variant="h5" sx={{ mb: 1, color: '#1976d2', fontWeight: 'bold' }}>
+            Portal de Resultados
+          </Typography>
+          
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+            Digite o código e a senha do seu exame
+          </Typography>
+
+          <Box component="form" onSubmit={handleLogin} sx={{ width: '100%' }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Código do Exame"
+              placeholder="Ex: EX-A1B2"
+              autoFocus
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+              inputProps={{ style: { textTransform: 'uppercase' } }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Senha"
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+            />
+            
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading}
+              sx={{ mt: 3, mb: 2 }}
+            >
+              {loading ? 'Buscando...' : 'Acessar Resultados'}
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
+
+  // --- TELA DE RESULTADOS (Visual Clean e Responsivo) ---
   const videos = exame?.arquivos.filter(a => a.tipo === 'VIDEO') || [];
   const imagens = exame?.arquivos.filter(a => a.tipo === 'IMAGEM') || [];
   const laudos = exame?.arquivos.filter(a => a.tipo === 'LAUDO') || [];
 
-  /* --- TELA DE LOGIN --- */
-  if (step === 'LOGIN') {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-blue-800">Resultados de Exames</h1>
-            <p className="text-gray-500">Acesse seus laudos e imagens online</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Código do Exame</label>
-              <input
-                type="text"
-                placeholder="Ex: EX-A1B2"
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Senha</label>
-              <input
-                type="password"
-                placeholder="******"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                required
-              />
-            </div>
-
-            {error && <div className="text-red-500 text-sm text-center">{error}</div>}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition disabled:bg-blue-300"
-            >
-              {loading ? 'Buscando...' : 'Acessar Resultados'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  /* --- TELA DE RESULTADOS --- */
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        
-        {/* Cabeçalho */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">{exame.paciente}</h2>
-            <p className="text-gray-500">Data do Exame: {new Date(exame.data_exame).toLocaleDateString('pt-BR')}</p>
-          </div>
-          <button onClick={() => setStep('LOGIN')} className="text-sm text-blue-600 hover:underline">
+    <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+      {/* Barra Superior */}
+      <AppBar position="static" color="default" elevation={1}>
+        <Toolbar>
+          <img src={logoImage} alt="Logo" style={{ height: '40px', marginRight: '15px' }} />
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
+              {exame.paciente}
+            </Typography>
+            <Typography variant="caption" color="textSecondary">
+              Data do Exame: {new Date(exame.data_exame).toLocaleDateString('pt-BR')}
+            </Typography>
+          </Box>
+          <Button 
+            color="error" 
+            onClick={handleLogout} 
+            startIcon={<LogoutIcon />}
+          >
             Sair
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
+      </AppBar>
 
-        {/* Botão de Laudo (Destaque) */}
+      <Container maxWidth="lg" sx={{ mt: 4, pb: 8 }}>
+        
+        {/* Botão de Laudo PDF */}
         {laudos.length > 0 && (
-          <div className="mb-8">
-            <a 
-              href={laudos[0].url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="block bg-green-600 text-white text-center py-4 rounded-lg shadow hover:bg-green-700 transition font-bold text-lg"
-            >
-              📄 Baixar Laudo Completo (PDF)
-            </a>
-          </div>
+          <Button
+            variant="contained"
+            color="success"
+            fullWidth
+            size="large"
+            href={laudos[0].url}
+            target="_blank"
+            startIcon={<DownloadIcon />}
+            sx={{ mb: 4, py: 2, fontSize: '1.1rem' }}
+          >
+            Baixar Laudo Completo (PDF)
+          </Button>
         )}
 
-        {/* Galeria de Vídeos */}
+        {/* Seção de Vídeos */}
         {videos.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Vídeos do Exame</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h5" sx={{ mb: 2, borderLeft: '4px solid #1976d2', pl: 2 }}>
+              Vídeos do Exame
+            </Typography>
+            <Grid container spacing={2}>
               {videos.map((vid) => (
-                <div key={vid.id} className="bg-black rounded-lg overflow-hidden shadow">
-                  <video controls className="w-full h-auto">
-                    <source src={vid.url} type="video/mp4" />
-                    Seu navegador não suporta vídeos.
-                  </video>
-                </div>
+                <Grid item xs={12} md={6} key={vid.id}>
+                  <Card elevation={3} sx={{ bgcolor: 'black' }}>
+                    <video controls style={{ width: '100%', height: 'auto', display: 'block' }}>
+                      <source src={vid.url} type="video/mp4" />
+                      Seu navegador não suporta vídeos.
+                    </video>
+                  </Card>
+                </Grid>
               ))}
-            </div>
-          </div>
+            </Grid>
+          </Box>
         )}
 
-        {/* Galeria de Imagens */}
+        {/* Seção de Imagens */}
         {imagens.length > 0 && (
-          <div>
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Imagens Capturadas</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <Box>
+            <Typography variant="h5" sx={{ mb: 2, borderLeft: '4px solid #1976d2', pl: 2 }}>
+              Imagens Capturadas
+            </Typography>
+            <Grid container spacing={2}>
               {imagens.map((img) => (
-                <div key={img.id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden shadow">
-                  <img 
-                    src={img.url} 
-                    alt="Ultrassom" 
-                    className="w-full h-full object-cover hover:scale-105 transition duration-300 cursor-pointer"
+                <Grid item xs={6} sm={4} md={3} key={img.id}>
+                  <Card 
+                    elevation={2}
+                    sx={{ 
+                      cursor: 'pointer', 
+                      transition: '0.2s',
+                      '&:hover': { transform: 'scale(1.03)', boxShadow: 6 } 
+                    }}
                     onClick={() => window.open(img.url, '_blank')}
-                  />
-                </div>
+                  >
+                    <CardMedia
+                      component="img"
+                      image={img.url}
+                      alt="Imagem do exame"
+                      sx={{ height: 200, objectFit: 'cover' }}
+                    />
+                  </Card>
+                </Grid>
               ))}
-            </div>
-          </div>
+            </Grid>
+          </Box>
         )}
-
-      </div>
-    </div>
+      </Container>
+    </Box>
   );
-};
-
-export default PortalResultados;
+}
