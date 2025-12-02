@@ -181,25 +181,24 @@ const LaudosPage = () => {
 
   const handlePrint = () => {
       // 1. Configuração do Papel Timbrado
-      // 4.5 cm de margem superior = aprox 128 pontos (1cm = 28.35pt)
       // Margens: [Esquerda, Topo, Direita, Base]
+      // Topo 128pt = ~4.5cm para pular o logo
       const pageMargins = [60, 128, 60, 60]; 
       
       // 2. Preparar Grade de Imagens (2 Colunas)
       const imagesContent = [];
       if (imagens.length > 0) {
-        imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 20, 0, 10] });
+        // Título da seção de fotos com menos margem superior
+        imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 10, 0, 5] });
         
-        // Agrupa imagens em pares para fazer 2 colunas
-        // Largura da página A4 (595pt) - Margens (120pt) = Área útil (475pt)
-        // Cada imagem terá ~230pt de largura
         for (let i = 0; i < imagens.length; i += 2) {
             const row = {
                 columns: [
-                    { image: imagens[i], width: 230, margin: [0, 5, 0, 10] }, // Coluna 1
-                    imagens[i + 1] ? { image: imagens[i + 1], width: 230, margin: [0, 5, 0, 10] } : null // Coluna 2 (se existir)
+                    // Ajustei a largura para 225 e margens menores para caber melhor
+                    { image: imagens[i], width: 225, margin: [0, 2, 0, 10] }, 
+                    imagens[i + 1] ? { image: imagens[i + 1], width: 225, margin: [0, 2, 0, 10] } : null 
                 ],
-                columnGap: 15
+                columnGap: 10
             };
             imagesContent.push(row);
         }
@@ -209,7 +208,7 @@ const LaudosPage = () => {
           pageSize: 'A4', 
           pageMargins: pageMargins,
           content: [
-              // Cabeçalho Interno (Dados do Paciente)
+              // --- CABEÇALHO DO PACIENTE ---
               {
                 columns: [
                     { width: 'auto', text: 'PACIENTE: ', bold: true, fontSize: 11 },
@@ -222,20 +221,29 @@ const LaudosPage = () => {
                     { width: 'auto', text: 'DATA: ', bold: true, fontSize: 11 },
                     { width: '*', text: new Date().toLocaleDateString('pt-BR'), bold: false, fontSize: 11 }
                 ],
-                margin: [0, 0, 0, 25]
+                margin: [0, 0, 0, 20] // Reduzi margem inferior
               },
 
-              // Título do Exame
-              { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 15] },
+              // --- TÍTULO DO EXAME ---
+              { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 10] },
 
-              // Corpo do Texto
-              { text: textoFinal, fontSize: 12, lineHeight: 1.3, alignment: 'justify' },
+              // --- CORPO DO TEXTO ---
+              { text: textoFinal, fontSize: 12, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 20] },
 
-              // Assinatura
-              { text: '_______________________________', alignment: 'center', margin: [0, 40, 0, 5], pageBreak: 'before' }, // pageBreak 'before' garante que assinatura não fique órfã se houver pouco espaço, ou remova se preferir
-              { text: 'Dr. Antonio José Orsi Falleiros', alignment: 'center', bold: true, fontSize: 11 },
+              // --- ASSINATURA (CORRIGIDO) ---
+              // Usamos 'stack' com 'unbreakable: true'. 
+              // Isso garante que linha e nome fiquem juntos, mas só pula página se não couber na atual.
+              {
+                stack: [
+                    { text: '_______________________________', alignment: 'center', margin: [0, 0, 0, 2] },
+                    { text: 'Dr. Antonio José Orsi Falleiros', alignment: 'center', bold: true, fontSize: 11 }
+                ],
+                unbreakable: true, 
+                margin: [0, 20, 0, 20], // Espaço antes e depois da assinatura
+                alignment: 'center'
+              },
               
-              // Adiciona as Imagens no final (quebrará página automaticamente se necessário)
+              // --- IMAGENS ---
               ...imagesContent
           ],
           styles: {
@@ -244,7 +252,6 @@ const LaudosPage = () => {
           }
       };
       
-      // Abre o PDF
       pdfMake.createPdf(docDefinition).open();
   };
 
