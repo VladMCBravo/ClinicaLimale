@@ -1,14 +1,12 @@
 // src/pages/LaudosPage.jsx
 import React, { useState, useCallback } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash } from 'react-icons/fa'; // Adicionado FaCamera e FaTrash
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import apiClient from '../api/axiosConfig';
 
-// 1. IMPORTANTE: Importar o CSS global dos laudos para aplicar a fonte
 import '../components/laudos/Laudos.css'; 
 
-// Importe suas máscaras aqui
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
@@ -19,32 +17,27 @@ pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F4F6F8', surface: '#FFFFFF', border: '#E0E0E0' };
 
 const styles = {
-  // 1. CONTAINER: Aplica a fonte padrão (Segoe UI) e tamanho base (11px) em tudo
   container: { 
     display: 'flex', 
     background: theme.bg, 
     height: '100vh',        
     overflow: 'hidden',     
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", // Fonte do Laudos.css
-    fontSize: '11px', // Tamanho padrão compacto
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
+    fontSize: '11px', 
     color: '#333'
   },
-
-  // 2. COLUNA ESQUERDA
   leftCol: { 
     flex: 2,                
     minWidth: '800px',      
     height: '100%',         
     overflowY: 'auto',      
-    padding: '10px', // Padding reduzido
+    padding: '10px', 
     borderRight: `1px solid ${theme.border}`, 
     display: 'flex', 
     flexDirection: 'column', 
-    gap: '10px', // Gap reduzido
+    gap: '10px', 
     background: '#fff'      
   },
-
-  // 3. COLUNA DIREITA
   rightCol: { 
     flex: 1,                
     minWidth: '400px',      
@@ -55,17 +48,15 @@ const styles = {
     overflowY: 'auto',
     background: theme.bg    
   },
-
   card: { 
     background: '#fff', 
     borderRadius: '4px', 
     border: `1px solid ${theme.border}`, 
-    padding: '10px', // Padding interno dos cards reduzido
+    padding: '10px', 
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)' 
   },
-  
   header: { 
-    fontSize: '12px', // Reduzido de 16px para 12px (Título dos Cards)
+    fontSize: '12px', 
     fontWeight: 'bold', 
     color: theme.primary, 
     marginBottom: '8px', 
@@ -75,25 +66,22 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
-  
-  // Inputs e Selects da Barra Lateral (Padronizados com os formulários)
   inputControl: {
     width: '100%',
-    padding: '4px 8px', // Padding compacto
-    fontSize: '11px',   // Fonte igual ao laudo
+    padding: '4px 8px', 
+    fontSize: '11px',   
     borderRadius: '2px',
     border: '1px solid #aaa',
-    height: '24px',     // Altura controlada
+    height: '24px',     
     fontWeight: 'bold',
     color: theme.primary,
     outline: 'none'
   },
-
   button: { 
     background: theme.accent, 
     color: 'white', 
     border: 'none', 
-    padding: '6px 12px', // Botão mais compacto
+    padding: '6px 12px', 
     borderRadius: '3px', 
     cursor: 'pointer', 
     fontWeight: 'bold', 
@@ -101,6 +89,23 @@ const styles = {
     display: 'flex', 
     alignItems: 'center', 
     gap: '5px' 
+  },
+  // Estilo para a grade de preview de imagens
+  imagePreviewGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '5px',
+    marginTop: '10px',
+    padding: '5px',
+    background: '#eee',
+    borderRadius: '4px'
+  },
+  thumbContainer: {
+    position: 'relative',
+    aspectRatio: '1',
+    overflow: 'hidden',
+    borderRadius: '3px',
+    border: '1px solid #ccc'
   }
 };
 
@@ -110,10 +115,14 @@ const LaudosPage = () => {
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
+  
   const [textoFinal, setTextoFinal] = useState('');
   const [dadosEstruturados, setDadosEstruturados] = useState({});
   const [tituloExame, setTituloExame] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // NOVO: Estado para armazenar as imagens em Base64
+  const [imagens, setImagens] = useState([]);
 
   const handleFormUpdate = useCallback((dados) => {
       setTextoFinal(dados.texto);
@@ -130,15 +139,40 @@ const LaudosPage = () => {
       } catch (e) { console.error(e); } finally { setLoadingBusca(false); }
   };
 
+  // NOVO: Função para ler arquivos do computador e converter para Base64
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const promises = files.map(file => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    });
+
+    Promise.all(promises).then(base64Images => {
+        setImagens(prev => [...prev, ...base64Images]);
+    }).catch(err => console.error("Erro ao ler imagens", err));
+  };
+
+  const removeImage = (index) => {
+    setImagens(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = async () => {
       if (!paciente) return alert("Selecione um paciente!");
       setSaving(true);
       try {
+          // NOTA: Você precisará ajustar seu backend para aceitar um array de imagens (base64 ou multipart)
           await apiClient.post('/laudos/', {
               paciente: paciente.id,
               titulo_exame: tituloExame,
               dados_estruturados: dadosEstruturados,
               texto_laudo: textoFinal,
+              imagens_anexas: imagens, // Envia as imagens
               status: "FINALIZADO"
           });
           alert("Laudo salvo!");
@@ -146,16 +180,71 @@ const LaudosPage = () => {
   };
 
   const handlePrint = () => {
+      // 1. Configuração do Papel Timbrado
+      // 4.5 cm de margem superior = aprox 128 pontos (1cm = 28.35pt)
+      // Margens: [Esquerda, Topo, Direita, Base]
+      const pageMargins = [60, 128, 60, 60]; 
+      
+      // 2. Preparar Grade de Imagens (2 Colunas)
+      const imagesContent = [];
+      if (imagens.length > 0) {
+        imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 20, 0, 10] });
+        
+        // Agrupa imagens em pares para fazer 2 colunas
+        // Largura da página A4 (595pt) - Margens (120pt) = Área útil (475pt)
+        // Cada imagem terá ~230pt de largura
+        for (let i = 0; i < imagens.length; i += 2) {
+            const row = {
+                columns: [
+                    { image: imagens[i], width: 230, margin: [0, 5, 0, 10] }, // Coluna 1
+                    imagens[i + 1] ? { image: imagens[i + 1], width: 230, margin: [0, 5, 0, 10] } : null // Coluna 2 (se existir)
+                ],
+                columnGap: 15
+            };
+            imagesContent.push(row);
+        }
+      }
+
       const docDefinition = {
-          pageSize: 'A4', pageMargins: [60, 135, 60, 60],
+          pageSize: 'A4', 
+          pageMargins: pageMargins,
           content: [
-              { text: [`PACIENTE: `, { text: paciente ? paciente.nome_completo.toUpperCase() : '___', bold: false }], bold: true, fontSize: 11, margin: [0, 0, 0, 3] },
-              { text: [`DATA: `, { text: new Date().toLocaleDateString('pt-BR'), bold: false }], bold: true, fontSize: 11, margin: [0, 0, 0, 25] },
+              // Cabeçalho Interno (Dados do Paciente)
+              {
+                columns: [
+                    { width: 'auto', text: 'PACIENTE: ', bold: true, fontSize: 11 },
+                    { width: '*', text: paciente ? paciente.nome_completo.toUpperCase() : '___', bold: false, fontSize: 11 }
+                ],
+                margin: [0, 0, 0, 3]
+              },
+              {
+                columns: [
+                    { width: 'auto', text: 'DATA: ', bold: true, fontSize: 11 },
+                    { width: '*', text: new Date().toLocaleDateString('pt-BR'), bold: false, fontSize: 11 }
+                ],
+                margin: [0, 0, 0, 25]
+              },
+
+              // Título do Exame
+              { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 15] },
+
+              // Corpo do Texto
               { text: textoFinal, fontSize: 12, lineHeight: 1.3, alignment: 'justify' },
-              { text: '_______________________________', alignment: 'center', margin: [0, 60, 0, 5] },
-              { text: 'Dr. Antonio José Orsi Falleiros', alignment: 'center', bold: true, fontSize: 11 }
-          ]
+
+              // Assinatura
+              { text: '_______________________________', alignment: 'center', margin: [0, 40, 0, 5], pageBreak: 'before' }, // pageBreak 'before' garante que assinatura não fique órfã se houver pouco espaço, ou remova se preferir
+              { text: 'Dr. Antonio José Orsi Falleiros', alignment: 'center', bold: true, fontSize: 11 },
+              
+              // Adiciona as Imagens no final (quebrará página automaticamente se necessário)
+              ...imagesContent
+          ],
+          styles: {
+            header: { fontSize: 14, bold: true },
+            subheader: { fontSize: 12, bold: true, decoration: 'underline' }
+          }
       };
+      
+      // Abre o PDF
       pdfMake.createPdf(docDefinition).open();
   };
 
@@ -171,13 +260,13 @@ const LaudosPage = () => {
             <select 
                 value={tipoExame} 
                 onChange={(e) => setTipoExame(e.target.value)}
-                style={styles.inputControl} // Aplicado estilo compacto
+                style={styles.inputControl} 
             >
                 <option value="ECOCARDIOGRAMA">Ecocardiograma (Adulto)</option>
                 <option value="OBSTETRICO">Ultrassom Obstétrico / Morfológico</option>
                 <option value="TRANSVAGINAL">Ultrassom Transvaginal / Pélvico</option>
                 <option value="ABDOME">Ultrassom Abdome Total (Em Breve)</option>
-                <option value="DOPPLER_CAROTIDAS">Doppler de Carótidas e Vertebrais</option> {/* NOVO */}
+                <option value="DOPPLER_CAROTIDAS">Doppler de Carótidas e Vertebrais</option> 
             </select>
         </div>
 
@@ -195,7 +284,7 @@ const LaudosPage = () => {
                         placeholder="Buscar paciente..." 
                         value={termoBusca}
                         onChange={(e) => { setTermoBusca(e.target.value); buscarPacientes(e.target.value); }}
-                        style={styles.inputControl} // Aplicado estilo compacto
+                        style={styles.inputControl} 
                     />
                     {pacientesEncontrados.length > 0 && (
                         <div style={{position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 10px rgba(0,0,0,0.1)'}}>
@@ -211,7 +300,7 @@ const LaudosPage = () => {
         </div>
 
         {/* MÁSCARAS */}
-        <div className="laudo-container"> {/* Garante que o CSS global se aplique aqui dentro */}
+        <div className="laudo-container"> 
             {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} />}
             {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} />}
             {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} />}
@@ -227,6 +316,19 @@ const LaudosPage = () => {
              <div style={{display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
                  <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '13px'}}>LAUDO FINAL</span>
                  <div style={{display: 'flex', gap: '8px'}}>
+                     {/* INPUT DE ARQUIVO INVISÍVEL */}
+                     <input 
+                        type="file" 
+                        id="img-upload" 
+                        multiple 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        style={{display: 'none'}} 
+                     />
+                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}>
+                        <FaCamera/> FOTOS
+                     </label>
+
                      <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>
                          {saving ? <FaSpinner className="spin"/> : <FaSave/>} SALVAR
                      </button>
@@ -246,13 +348,34 @@ const LaudosPage = () => {
                      padding: '15px',
                      resize: 'none', 
                      outline: 'none', 
-                     fontFamily: 'Times New Roman, serif', // Mantém Times para simular impressão
-                     fontSize: '13px', // Levemente maior que a UI para leitura, mas compacto
+                     fontFamily: 'Times New Roman, serif', 
+                     fontSize: '13px', 
                      lineHeight: '1.4', 
                      color: '#000',
                      background: '#fff'
                  }}
              />
+
+             {/* PREVIEW DAS IMAGENS (NOVO) */}
+             {imagens.length > 0 && (
+                 <div style={{padding: '10px', borderTop: `1px solid ${theme.border}`, background: '#f1f1f1'}}>
+                     <span style={{fontSize: '10px', fontWeight: 'bold', color: '#666'}}>IMAGENS ANEXADAS ({imagens.length})</span>
+                     <div style={styles.imagePreviewGrid}>
+                        {imagens.map((img, idx) => (
+                            <div key={idx} style={styles.thumbContainer}>
+                                <img src={img} alt={`img-${idx}`} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                <button 
+                                    onClick={() => removeImage(idx)}
+                                    style={{position: 'absolute', top: 0, right: 0, background: 'rgba(255,0,0,0.7)', color: 'white', border: 'none', cursor: 'pointer', padding: '2px 4px'}}
+                                >
+                                    <FaTrash size={10} />
+                                </button>
+                            </div>
+                        ))}
+                     </div>
+                 </div>
+             )}
+
          </div>
       </div>
 
