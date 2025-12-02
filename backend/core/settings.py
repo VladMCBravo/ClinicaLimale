@@ -10,8 +10,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- Configurações de Segurança ---
 # Lendo a partir de variáveis de ambiente para maior segurança em produção.
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key-for-development')
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+SECRET_KEY = os.environ.get('SECRET_KEY')
+
+if not SECRET_KEY:
+    if DEBUG:
+        # Em desenvolvimento, usamos uma chave fraca se nenhuma for fornecida.
+        SECRET_KEY = 'django-insecure-fallback-key-for-development'
+    else:
+        # Em produção, a SECRET_KEY é obrigatória.
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("A variável de ambiente SECRET_KEY é obrigatória em produção.")
 
 # --- Configurações de Acesso (Hosts e CORS) ---
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'clinicalimale.onrender.com']
@@ -190,16 +199,14 @@ else:
     }
 
 # --- INFORMAÇÕES DA CLÍNICA PARA TEMPLATES ---
-# (Adicione este dicionário no final do arquivo)
+# Estes valores são carregados a partir de variáveis de ambiente.
+# Em desenvolvimento, valores padrão são fornecidos.
+# Em produção, configure estas variáveis no seu ambiente de hospedagem.
 
 CLINICA_INFO = {
-    'NOME': 'Clinica Limalé - Especialidades Médicas e Imagem',
-    'ENDERECO': 'R. Orense, 41 - sala 512, Edifício D - Office, Diadema - SP, 09920-650',
-    'TELEFONE': '(11) 919511842',
-    'EMAIL': 'contato@limale.com.br',
-    
-    # --- MUDE ESTA LINHA ---
-    # DE: 'LOGO_STATIC_PATH': 'images/logo.png'
-    # PARA:
-    'LOGO_STATIC_PATH': 'images/logo_limale.jpg' 
+    'NOME': os.environ.get('CLINICA_NOME', 'Clinica Limalé - Especialidades Médicas e Imagem'),
+    'ENDERECO': os.environ.get('CLINICA_ENDERECO', 'R. Orense, 41 - sala 512, Edifício D - Office, Diadema - SP, 09920-650'),
+    'TELEFONE': os.environ.get('CLINICA_TELEFONE', '(11) 919511842'),
+    'EMAIL': os.environ.get('CLINICA_EMAIL', 'contato@limale.com.br'),
+    'LOGO_STATIC_PATH': os.environ.get('CLINICA_LOGO_PATH', 'images/logo_limale.jpg'),
 }

@@ -125,13 +125,9 @@ class ListaEsperaListView(generics.ListAPIView):
 
 
 class EnviarLembretesCronView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [HasAPIKey]
 
     def get(self, request, *args, **kwargs):
-        SECRET_KEY_CRON = os.environ.get('SECRET_KEY_CRON')
-        if request.query_params.get('key') != SECRET_KEY_CRON:
-            return Response({'detail': 'Não autorizado.'}, status=status.HTTP_401_UNAUTHORIZED)
-
         agora = timezone.localtime(timezone.now())
         amanha = agora.date() + datetime.timedelta(days=1)
         inicio = timezone.make_aware(datetime.datetime.combine(amanha, datetime.time.min))
