@@ -7,10 +7,10 @@ import GraficosObstetricos from '../GraficosObstetricos';
 // Importação das Seções
 import SecaoSubtipo from './sections/SecaoSubtipo';
 import SecaoDatacao from './sections/SecaoDatacao';
-import SecaoColoDados from './sections/SecaoColoDados';
-import SecaoBiometria from './sections/SecaoBiometria';
+import SecaoColoDados from './sections/SecaoColoDados'; // Situação, Apresentação
+import SecaoBiometria from './sections/SecaoBiometria'; // Medidas
 import SecaoMorfologia from './sections/SecaoMorfologia';
-import SecaoAnexos from './sections/SecaoAnexos';
+import SecaoAnexos from './sections/SecaoAnexos'; // Placenta, Líquido, Cordão
 import SecaoDoppler from './sections/SecaoDoppler';
 import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos';
 import SecaoConclusao from './sections/SecaoConclusao';
@@ -33,16 +33,16 @@ const FormObstetrico = ({ onUpdate }) => {
   const initialState = {
       subtipo: 'OBSTETRICO_MORFOLOGICO',
 
-      // DATAÇÃO (Revisada)
+      // DATAÇÃO
       dum: '', usarDum: true, dumDesconhecida: false, naoUsarDum: false,
       igDum: '', dppDum: '',
       exibirDataDum: true, citarDppDum: false, usarDumComoBase: false,
-      citarDppBiometria: false, // Default false, usuário ativa se quiser
+      citarDppBiometria: false,
       referirIgAnterior: false, usarIgAnteriorComoBase: false,
       dataExameAnterior: '', igAnteriorSemanas: '', igAnteriorDias: '',
       citarDppIgCorrigida: false,
 
-      // 1º TRIMESTRE
+      // 1º TRIMESTRE (Dados Maternos e Saco)
       viaExame: 'transvaginal',
       citarUteroMedidas: true, ut1:'', ut2:'', ut3:'',
       citarNodulo: false, nod1:'', nod2:'', nodTipo: 'subseroso', nodLocal: 'fúndica',
@@ -55,23 +55,23 @@ const FormObstetrico = ({ onUpdate }) => {
       morf1Cerebro: true, morf1Estomago: true, morf1Cordao: true, morf1Membros: true, morf1Globos: true, morf1OssoNasal: 'não citar',
       citarTn: false, tnMedida: '', tnObs: true, tnRisco: false, riscoBasal: '1000', riscoCorrigido: '1000',
 
-      // 2º/3º TRIMESTRE
+      // 2º/3º TRIMESTRE - DADOS GERAIS
       citarColoNormal: false, citarComprimentoColo: false, medidaColo: '',
-      situacao: 'Longitudinal', apresentacao: 'Cefálica', dorso: 'Esquerda',
+      situacao: 'longitudinal', apresentacao: 'cefálica', dorso: 'à esquerda', // Default minúsculo para texto corrido
       
       // BIOMETRIA
       dbp: '', dof: '', cc: '', ca: '', femur: '', umero: '',
       ulna: '', tibia: '', radio: '', fibula: '', pe: '',
-      diametroBinocular: '', diametroInterocular: '',
-      cerebelo: '', cisternaMagna: '', ventriculoLat: '', toraxTrans: '', toraxAP: '',
+      cerebelo: '', cisternaMagna: '', ventriculoLat: '', 
       ossoNasal: '', pregaNucal: '',
       incDbp: true, incDof: true, incCc: true, incCa: true, incFemur: true,
       
-      // CÁLCULOS
+      // CÁLCULOS E ÍNDICES
       pesoEstimado: '', percentil: '', checkPeso: true,
       resIc: '', resCcCa: '', resCfCa: '', resCfDbp: '', resCfCc: '',
-      citarValoresNormais: true, checkIndiceCefalico: false, checkRelacaoCcCa: false, 
-      checkRelacaoCfCa: false, checkRelacaoCfDbp: false, checkRelacaoCfCc: false,
+      citarValoresNormais: true, 
+      checkIndiceCefalico: false, checkRelacaoCcCa: false, checkRelacaoCfCa: false, 
+      checkRelacaoCfDbp: false, checkRelacaoCfCc: false,
       
       // GRÁFICOS
       checkGraficoPeso: true, checkGraficoDbp: true, checkGraficoFemur: true, 
@@ -121,25 +121,16 @@ const FormObstetrico = ({ onUpdate }) => {
       return d.toLocaleDateString('pt-BR');
   };
 
-  const calcularDPP_IG = (igSemanas, igDias = 0) => {
-      // Data de Hoje + (280 - dias_gestacionais_atuais)
-      const diasAtuais = (parseInt(igSemanas) * 7) + parseInt(igDias);
-      const diasRestantes = 280 - diasAtuais;
-      const hoje = new Date();
-      hoje.setDate(hoje.getDate() + diasRestantes);
-      return hoje.toLocaleDateString('pt-BR');
-  };
-
-  // --- CÁLCULOS AUTOMÁTICOS (Matemática) ---
+  // --- CÁLCULOS AUTOMÁTICOS ---
   useEffect(() => {
-    // 1. DADOS 1º TRI (DMSG)
+    // 1º Tri (DMSG)
     const sg1 = parseFloat(data.sg1); const sg2 = parseFloat(data.sg2); const sg3 = parseFloat(data.sg3);
     let novoDmsg = '';
     if (!isNaN(sg1) && !isNaN(sg2) && !isNaN(sg3)) {
         novoDmsg = ((sg1 + sg2 + sg3) / 3).toFixed(1).replace('.', ',');
     }
 
-    // 2. DADOS 2º TRI (Índices e Gráficos)
+    // 2º Tri (Índices e Gráficos)
     const dbp = parseFloat(data.dbp); const dof = parseFloat(data.dof);
     const cc = parseFloat(data.cc); const ca = parseFloat(data.ca);
     const femur = parseFloat(data.femur);
@@ -150,10 +141,9 @@ const FormObstetrico = ({ onUpdate }) => {
       const newState = { ...prev };
       let houveMudanca = false;
 
-      // 1º Tri
       if (prev.resDmsg !== novoDmsg) { newState.resDmsg = novoDmsg; houveMudanca = true; }
 
-      // 2º Tri
+      // Índices
       const novoIc = (dbp && dof) ? safeCalc((dbp/dof)*100) : '';
       if(prev.resIc !== novoIc) { newState.resIc = novoIc; houveMudanca = true; }
       
@@ -169,24 +159,19 @@ const FormObstetrico = ({ onUpdate }) => {
       const novoCfCc = (femur && cc) ? safeCalc((femur/cc)*100) : '';
       if(prev.resCfCc !== novoCfCc) { newState.resCfCc = novoCfCc; houveMudanca = true; }
 
-      // Ativa checkboxes automaticamente se o cálculo existir
+      // Ativa checkboxes se houver valor
       if (prev.checkIndiceCefalico !== (!!novoIc)) { newState.checkIndiceCefalico = !!novoIc; houveMudanca = true; }
       if (prev.checkRelacaoCcCa !== (!!novoCcCa)) { newState.checkRelacaoCcCa = !!novoCcCa; houveMudanca = true; }
       if (prev.checkRelacaoCfCa !== (!!novoCfCa)) { newState.checkRelacaoCfCa = !!novoCfCa; houveMudanca = true; }
-      
-      // Ativa gráficos se a medida existir
-      if (prev.checkGraficoDbp !== !!dbp) { newState.checkGraficoDbp = !!dbp; houveMudanca = true; }
-      if (prev.checkGraficoCc !== !!cc) { newState.checkGraficoCc = !!cc; houveMudanca = true; }
-      if (prev.checkGraficoCa !== !!ca) { newState.checkGraficoCa = !!ca; houveMudanca = true; }
-      if (prev.checkGraficoFemur !== !!femur) { newState.checkGraficoFemur = !!femur; houveMudanca = true; }
-      if (prev.checkGraficoPeso !== !!peso) { newState.checkGraficoPeso = !!peso; houveMudanca = true; }
+      if (prev.checkRelacaoCfDbp !== (!!novoCfDbp)) { newState.checkRelacaoCfDbp = !!novoCfDbp; houveMudanca = true; }
+      if (prev.checkRelacaoCfCc !== (!!novoCfCc)) { newState.checkRelacaoCfCc = !!novoCfCc; houveMudanca = true; }
 
       return houveMudanca ? newState : prev;
     });
 
   }, [data.sg1, data.sg2, data.sg3, data.dbp, data.dof, data.cc, data.ca, data.femur, data.pesoEstimado]);
 
-  // --- GERENCIAMENTO DE ABAS GEMELARES ---
+  // --- GERENCIAMENTO DE FETOS ---
   useEffect(() => {
     if (!dadosFeto1.current) dadosFeto1.current = { ...initialState };
     if (!dadosFeto2.current) dadosFeto2.current = { ...initialState };
@@ -212,7 +197,6 @@ const FormObstetrico = ({ onUpdate }) => {
         if(dadosFeto1.current) setData({ ...dadosFeto1.current });
     } else {
         dadosFeto1.current = { ...data };
-        // Copia dados básicos para feto 2 se estiver vazio
         if (!dadosFeto2.current || !dadosFeto2.current.subtipo) {
             dadosFeto2.current = { 
                 ...initialState, 
@@ -231,21 +215,20 @@ const FormObstetrico = ({ onUpdate }) => {
       setFetoAtivo(novoFeto);
   };
 
-  // --- GERAÇÃO DE TEXTO AUDITADA (Foco DUM/DPP + Checklist) ---
+  // --- GERAÇÃO DE TEXTO AUDITADA (GARANTINDO TODOS OS CAMPOS) ---
   useEffect(() => {
     if (fetoAtivo === 1) dadosFeto1.current = data;
     else dadosFeto2.current = data;
 
-    // --- FUNÇÃO DE PROCESSAMENTO INDIVIDUAL DO FETO ---
     const processarFeto = (d) => {
         const tabelaBiometria = [];
         const comentarios = [];
         const conclusao = [];
 
-        // 1. DATAÇÃO E APRESENTAÇÃO (Lógica DUM/DPP/Exame Anterior AQUI)
+        // 1. DATAÇÃO E APRESENTAÇÃO 
         let introTxt = "";
         
-        // --- Lógica DUM / DPP ---
+        // DUM / DPP
         if (d.usarDum && d.dum) {
             if (d.exibirDataDum) introTxt += `DUM: ${formatData(d.dum)}. `;
             if (d.citarDppDum) introTxt += `DPP (DUM): ${calcularDPP(d.dum)}. `;
@@ -253,26 +236,56 @@ const FormObstetrico = ({ onUpdate }) => {
             introTxt += `DUM: Desconhecida. `;
         }
         
-        // --- Lógica Exame Anterior ---
+        // Exame Anterior
         if (d.referirIgAnterior && d.dataExameAnterior) {
             introTxt += `IG por exame anterior (${formatData(d.dataExameAnterior)}): ${d.igAnteriorSemanas || 0}s ${d.igAnteriorDias || 0}d. `;
-            if (d.citarDppIgCorrigida) {
-                // Cálculo complexo de DPP corrigida (simplificado aqui para lógica visual)
-                // Idealmente, calcula-se a concepção baseada no exame anterior e soma-se 280
-                // Para simplificar, vou deixar um placeholder ou usar a lógica de DUM se disponível, ou omitir se complexo
-                // Se precisar exato, seria: DataExameAnt - (IG_ant_dias) = Concepção. Concepção + 280 = DPP.
-            }
         }
-        
         if (introTxt) comentarios.push(introTxt);
 
-        // Situação/Apresentação (Só se não for 1 Tri)
-        if (d.subtipo !== 'OBSTETRICO_1_TRI') {
-            comentarios.push(`Feto em situação ${d.situacao ? d.situacao.toLowerCase() : 'longitudinal'}, apresentação ${d.apresentacao ? d.apresentacao.toLowerCase() : 'cefálica'}, dorso ${d.dorso ? d.dorso.toLowerCase() : 'lateral'}.`);
-        }
+        // --- 1º TRIMESTRE: DADOS MATERNOS ---
+        if (d.subtipo === 'OBSTETRICO_1_TRI') {
+            let materno = '';
+            if (d.viaExame && d.viaExame !== 'não citar') materno += `Exame realizado por via ${d.viaExame}. `;
+            materno += `Útero em AVF, contornos regulares e ecotextura homogênea. `;
+            if (d.citarUteroMedidas && d.ut1) materno += `Dimensões: ${d.ut1} x ${d.ut2} x ${d.ut3} mm. `;
+            
+            if (d.citarNodulo) {
+                materno += `Nódulo miometrial ${d.nodTipo}, parede ${d.nodLocal}, medindo ${d.nod1} x ${d.nod2} mm. `;
+            }
 
-        if (d.citarColoNormal) comentarios.push(`Colo uterino de aspecto ecográfico normal (fechado).`);
-        if (d.citarComprimentoColo && d.medidaColo) comentarios.push(`Comprimento do colo aferido em ${d.medidaColo} mm.`);
+            // Colo 1º Tri
+            if (d.citarColo1Tri) materno += `Colo uterino normal. `;
+            if (d.citarCompColo1Tri && d.medidaColo1Tri) materno += `Comp.: ${d.medidaColo1Tri} mm. `;
+
+            // Anexos (Ovários) 1º Tri
+            if (d.corpoLuteo !== 'não citar') {
+                materno += `Corpo lúteo no ovário ${d.corpoLuteo}. `;
+                if (d.citarMedidasAnexo && d.anx1) {
+                    materno += `Medidas: ${d.anx1}x${d.anx2}x${d.anx3} mm. `;
+                    if (d.calcVolAnexo && d.resVolAnexo) materno += `Vol: ${d.resVolAnexo} cm³. `;
+                }
+            }
+            comentarios.push(materno);
+
+            // Saco Gestacional
+            if (d.citarSg) {
+                let sgTxt = `Saco gestacional tópico, ${d.sgLocalizacao}. `;
+                if (d.sg1) sgTxt += `Medidas: ${d.sg1}x${d.sg2}x${d.sg3} mm (DMSG: ${d.resDmsg} mm). `;
+                if (d.trofoblasto !== 'não citar') sgTxt += `Trofoblasto ${d.trofoblasto}. `;
+                if (d.sgComDescolamento) sgTxt += `Descolamento de ${d.desc1}x${d.desc2} mm. `;
+                comentarios.push(sgTxt);
+            }
+        } 
+        
+        // --- 2º/3º TRIMESTRE: SITUAÇÃO E COLO ---
+        else {
+            // Situação, Apresentação, Dorso
+            comentarios.push(`Feto em situação ${d.situacao ? d.situacao.toLowerCase() : 'longitudinal'}, apresentação ${d.apresentacao ? d.apresentacao.toLowerCase() : 'cefálica'}, dorso ${d.dorso ? d.dorso.toLowerCase() : 'lateral'}.`);
+            
+            // Colo Uterino (2º Tri)
+            if (d.citarColoNormal) comentarios.push(`Colo uterino de aspecto ecográfico normal (fechado).`);
+            if (d.citarComprimentoColo && d.medidaColo) comentarios.push(`Comprimento do colo aferido em ${d.medidaColo} mm.`);
+        }
 
         // 2. VITALIDADE
         let vitalidade = '';
@@ -285,10 +298,9 @@ const FormObstetrico = ({ onUpdate }) => {
         }
         comentarios.push(vitalidade);
 
-        // 3. TABELA BIOMETRIA (Preenche apenas se tiver valor)
+        // 3. TABELA BIOMETRIA (Atualizada com Ossos Longos e Pé)
         const addBio = (label, val) => { if(val) tabelaBiometria.push({ estrutura: label, medida: val + ' mm' }); };
         
-        // 1º Tri medidas na tabela? Geralmente CCN vai no texto, mas se tiver biometria precoce...
         if(d.subtipo !== 'OBSTETRICO_1_TRI') {
             addBio('Diâmetro Biparietal (DBP)', d.dbp);
             addBio('Diâmetro Occipitofrontal (DOF)', d.dof);
@@ -296,35 +308,38 @@ const FormObstetrico = ({ onUpdate }) => {
             addBio('Circunferência Abdominal (CA)', d.ca);
             addBio('Fêmur', d.femur);
             addBio('Úmero', d.umero);
+            // Novos itens do print
+            addBio('Ulna', d.ulna);
+            addBio('Tíbia', d.tibia);
+            addBio('Rádio', d.radio);
+            addBio('Fíbula', d.fibula);
+            addBio('Pé', d.pe);
+            
             addBio('Cerebelo', d.cerebelo);
             addBio('Cisterna Magna', d.cisternaMagna);
             addBio('Ventrículo Lateral', d.ventriculoLat);
             addBio('Osso Nasal', d.ossoNasal);
             addBio('Prega Nucal', d.pregaNucal);
             
-            // Peso na tabela
             if(d.pesoEstimado && d.checkPeso) {
                 tabelaBiometria.push({ estrutura: 'Peso Fetal Estimado', medida: d.pesoEstimado + ' g' });
             }
         }
         
-        // DPP Pela Biometria (Se solicitado)
-        // Isso requer uma estimativa de IG atual. Vamos assumir que a IG do laudo é a "Média" ou DUM.
-        // Se quisermos calcular, precisamos saber a IG Atual.
-        // Como o PDF não recalcula IG média aqui, vamos adicionar se o usuário marcou, 
-        // mas idealmente isso viria de um campo calculado "IG Média Atual".
-        // Para garantir, adicione isso ao final da tabela se houver biometria.
-        
-        // Comentários de Índices
+        // Comentários de Índices (Incluindo os novos do Print)
         if (d.subtipo !== 'OBSTETRICO_1_TRI') {
             const indices = [];
             if(d.checkIndiceCefalico && d.resIc) indices.push(`IC: ${d.resIc}%`);
             if(d.checkRelacaoCcCa && d.resCcCa) indices.push(`CC/CA: ${d.resCcCa}`);
             if(d.checkRelacaoCfCa && d.resCfCa) indices.push(`Fêmur/CA: ${d.resCfCa}%`);
+            // Novos do print
+            if(d.checkRelacaoCfDbp && d.resCfDbp) indices.push(`Fêmur/DBP: ${d.resCfDbp}%`);
+            if(d.checkRelacaoCfCc && d.resCfCc) indices.push(`Fêmur/CC: ${d.resCfCc}%`);
+
             if(indices.length > 0) comentarios.push(`Relações biométricas: ${indices.join(' | ')}.`);
         }
 
-        // 4. MORFOLOGIA (Checklist Completo)
+        // 4. MORFOLOGIA (Checklist)
         const morfList = [];
         if (d.morfCranio) morfList.push("crânio");
         if (d.morfCerebro) morfList.push("encéfalo");
@@ -338,30 +353,36 @@ const FormObstetrico = ({ onUpdate }) => {
         if (d.morfBexiga) morfList.push("bexiga");
         if (d.morfParedeAbd) morfList.push("parede abdominal");
         if (d.morfMembros) morfList.push("membros");
+        // Se 1 tri
+        if (d.morf1Globos) morfList.push("globos oculares");
+        if (d.morf1OssoNasal === 'presente') morfList.push("osso nasal");
 
         if (morfList.length > 0) {
             comentarios.push(`Anatomia Fetal: Visualizados com aspecto habitual: ${morfList.join(', ')}.`);
         }
-        
         if (d.sexoFetal && d.sexoFetal !== 'NÃO VISUALIZADO') {
             comentarios.push(`Genitália externa compatível com sexo ${d.sexoFetal.toLowerCase()}.`);
         }
 
-        // 5. ANEXOS
-        let placentaTxt = `Placenta: Inserção ${d.placentaInsercao.toLowerCase()}, aspecto ${d.placentaAspecto.toLowerCase()}.`;
-        if(d.placentaEspessura) placentaTxt += ` Espessura: ${d.placentaEspessura} mm.`;
-        comentarios.push(placentaTxt);
+        // 5. ANEXOS (Placenta, Líquido, Cordão) - INSERIDOS PARA 2º/3º TRI
+        if (d.subtipo !== 'OBSTETRICO_1_TRI') {
+            let placentaTxt = `Placenta: Inserção ${d.placentaInsercao.toLowerCase()}, aspecto ${d.placentaAspecto.toLowerCase()}.`;
+            if(d.placentaEspessura) placentaTxt += ` Espessura: ${d.placentaEspessura} mm.`;
+            comentarios.push(placentaTxt);
 
-        let liquidoTxt = `Líquido Amniótico: Volume ${d.liquidoVolume.toLowerCase()}.`;
-        if(d.ila) liquidoTxt += ` ILA: ${d.ila} cm.`;
-        if(d.maiorBolso) liquidoTxt += ` Maior bolso: ${d.maiorBolso} cm.`;
-        comentarios.push(liquidoTxt);
+            let liquidoTxt = `Líquido Amniótico: Volume ${d.liquidoVolume.toLowerCase()}.`;
+            if(d.ila) liquidoTxt += ` ILA: ${d.ila} cm.`;
+            if(d.maiorBolso) liquidoTxt += ` Maior bolso: ${d.maiorBolso} cm.`;
+            comentarios.push(liquidoTxt);
 
-        if(d.cordaoCircular !== 'não citar' && d.cordaoCircular !== 'ausente') {
-            comentarios.push(`Cordão Umbilical: Presença de circular ${d.cordaoCircular}.`);
+            if(d.cordaoCircular !== 'não citar' && d.cordaoCircular !== 'ausente') {
+                comentarios.push(`Cordão Umbilical: Presença de circular ${d.cordaoCircular}.`);
+            } else if (d.cordaoNormal) {
+                comentarios.push(`Cordão Umbilical: 3 vasos, inserção normal.`);
+            }
         }
 
-        // 6. DOPPLER (Checklist Completo)
+        // 6. DOPPLER
         if (d.usarDoppler) {
             const dopComments = [];
             if(d.checkUtDir) {
@@ -409,7 +430,6 @@ const FormObstetrico = ({ onUpdate }) => {
     const dadosF1 = processarFeto(dadosFeto1.current || data);
     const dadosF2 = isGemelar ? processarFeto(dadosFeto2.current) : null;
 
-    // Preview de Texto
     let textoPreview = `--- FETO 1 ---\n`;
     textoPreview += "MEDIDAS:\n" + dadosF1.tabelaBiometria.map(x=>`${x.estrutura}: ${x.medida}`).join('\n') + "\n\n";
     textoPreview += "RELATÓRIO:\n" + dadosF1.listaComentarios.join('\n') + "\n\n";
