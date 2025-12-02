@@ -1,7 +1,6 @@
-// src/components/laudos/trasnvaginal/FormTransvaginal.jsx
 import React, { useState, useEffect } from 'react';
-import { FaFemale, FaTable, FaImage, FaTimes } from 'react-icons/fa';
-import '../Laudos.css';
+import { FaFemale, FaTable, FaTimes } from 'react-icons/fa';
+import '../Laudos.css'; // Importa o padrão global
 
 import SecaoUteroTuring from './sections/SecaoUteroTuring';
 import SecaoOvariosTuring from './sections/SecaoOvariosTuring';
@@ -75,10 +74,8 @@ const FormTransvaginal = ({ onUpdate }) => {
       hidrossalpingeDir: false, hidroDirD1:'30', hidroDirD2:'20', hidroDirD3:'20', hidroDirOrads:'',
       hidrossalpingeEsq: false, hidroEsqD1:'30', hidroEsqD2:'20', hidroEsqD3:'20', hidroEsqOrads:'',
 
-      endoToro: false, endoLigS: false, endoVagina: false, endoReto: false,
-
       liquidoLivreLocal: 'ausente', liquidoLivreQtd: 'pequena quantidade',
-      obsGerais: '', // <--- A VÍRGULA QUE FALTAVA ESTAVA AQUI
+      obsGerais: '',
 
       // --- ENDOMETRIOSE DETALHADA ---
       endoOvariosFixos: false,
@@ -120,14 +117,13 @@ const FormTransvaginal = ({ onUpdate }) => {
     if(novoVolOe !== data.resVolOe) updates.resVolOe = novoVolOe;
 
     if(Object.keys(updates).length > 0) setData(prev => ({ ...prev, ...updates }));
-  }, [data.ut1, data.ut2, data.ut3, data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3]);
+  }, [data.ut1, data.ut2, data.ut3, data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3, data.resVolUtero, data.resVolOd, data.resVolOe]);
 
-  // --- HANDLER ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     let newData = { ...data, [name]: type === 'checkbox' ? checked : value };
 
-    // Reset lógicas
+    // Resets
     if (name === 'uteroHomogeneo' && checked) {
         newData.miometrioHeterogeneo = false; newData.adenomiose = false; newData.citarNodulos = false; newData.nodMultiplos = false;
     }
@@ -171,7 +167,6 @@ const FormTransvaginal = ({ onUpdate }) => {
         }
         t += `\n`;
 
-        // Endométrio
         t += `Eco endometrial `;
         if(data.aspectoEndometrio !== 'não citar o aspecto') t += `${data.aspectoEndometrio}, `;
         if(data.citarEspessuraEndometrio) t += `espessura: ${data.espessuraEndometrio} mm. `;
@@ -206,6 +201,31 @@ const FormTransvaginal = ({ onUpdate }) => {
 
     if (data.liquidoLivreLocal !== 'ausente') t += `Líquido livre: ${data.liquidoLivreQtd} ${data.liquidoLivreLocal}.\n`;
 
+    // 3. ENDOMETRIOSE
+    const temEndo = data.endoOvariosFixos || data.endoEspessamento || data.endoNod1 || data.endoNod2 || data.endoNod3 || data.endoPlaca1 || data.endoPlaca2 || data.endoPlaca3 || data.endoNormais;
+    if (temEndo) {
+        t += `\nMAPEAMENTO DE ENDOMETRIOSE PROFUNDA:\n`;
+        if (data.endoOvariosFixos) t += `- Ovários medianizados e fixos (sinal do "beijo" positivo).\n`;
+        if (data.endoEspessamento) t += `- Espessamento na região ${data.endoEspessamentoLoc}, medindo ${data.endoEspD1}x${data.endoEspD2}x${data.endoEspD3} mm, estendendo-se para ${data.endoEspExtensao}.\n`;
+        
+        [1, 2, 3].forEach(i => {
+            if (data[`endoNod${i}`]) {
+                t += `- Nódulo hipoecogênico sólido na região ${data[`endoNod${i}Loc`]}, medindo ${data[`endoNod${i}D1`]}x${data[`endoNod${i}D2`]}x${data[`endoNod${i}D3`]} mm`;
+                if(data[`endoNod${i}Inv`] !== 'não citar invasão muscular') t += ` (${data[`endoNod${i}Inv`]})`;
+                t += `.\n`;
+            }
+        });
+
+        [1, 2, 3].forEach(i => {
+            if (data[`endoPlaca${i}`]) {
+                t += `- Placa hipoecogênica na parede do ${data[`endoPlaca${i}Loc`]}, medindo ${data[`endoPlaca${i}D1`]}x${data[`endoPlaca${i}D2`]}x${data[`endoPlaca${i}D3`]} mm. `;
+                t += `Acomete a ${data[`endoPlaca${i}Camada`]}, envolvendo ${data[`endoPlaca${i}Circ`]}% da circunferência, a ${data[`endoPlaca${i}Dist`]} mm da borda anal.\n`;
+            }
+        });
+
+        if (data.endoNormais) t += `- Demais estruturas avaliadas com aspecto normal (recesso vesicouterino, septo retovaginal, região retrocervical, ligamentos uterossacros e alças intestinais).\n`;
+    }
+
     t += `\nCONCLUSÃO:\n`;
     if(data.oradsFinal !== 'não citar') t += `Classificação O-RADS Global: ${data.oradsFinal}.\n`;
     if(data.obsGerais) t += `OBS: ${data.obsGerais}`;
@@ -213,27 +233,31 @@ const FormTransvaginal = ({ onUpdate }) => {
     onUpdate({ texto: t, dadosEstruturados: data, tituloExame: 'ULTRASSONOGRAFIA PÉLVICA TRANSVAGINAL' });
   }, [data, onUpdate]);
 
-  // ESTILOS PARA TABELAS
+  // Estilo para tabela O-RADS (Corrigido para usar padrão onde possível, mas cores especificas ficam aqui)
   const thStyle = { padding: '5px', border: '1px solid #ccc', textAlign: 'center', fontSize: '11px', background: '#e0e0e0', fontWeight: 'bold' };
   const tdStyle = { padding: '5px', border: '1px solid #ccc', fontSize: '11px' };
 
   return (
-    <div className="laudo-container" style={{display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Segoe UI, sans-serif'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px', borderBottom:'1px solid #ddd', background:'#f0f4c3', padding:'8px'}}>
-             <FaFemale size={16} color="#558b2f" />
-             <span style={{fontWeight:'bold', color:'#33691e', fontSize:'13px'}}>US de Pelve Feminina Transvaginal</span>
+    <div className="laudo-container" style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'5px', padding:'5px', borderBottom:'1px solid #ddd'}}>
+             <FaFemale size={18} color="#4A3B80" />
+             <div className="laudo-row" style={{flex:1}}>
+                 <select className="laudo-select" style={{fontWeight:'bold', width:'100%'}}>
+                     <option>US de Pelve Feminina Transvaginal</option>
+                 </select>
+             </div>
         </div>
 
-        <div style={{display: 'flex', gap: '10px', overflowY: 'auto', flex: 1, padding:'5px'}}>
-            <div style={{flex: 1, minWidth: '380px', display:'flex', flexDirection:'column', gap:'10px'}}>
+        <div style={{display: 'flex', gap: '10px', overflowY: 'auto', flex: 1, padding:'2px'}}>
+            <div style={{flex: 1, minWidth: '380px', display:'flex', flexDirection:'column'}}>
                 <SecaoUteroTuring data={data} handleChange={handleChange} setShowModalFigo={setShowModalFigo} />
             </div>
-            <div style={{flex: 1, minWidth: '380px', display:'flex', flexDirection:'column', gap:'10px'}}>
+            <div style={{flex: 1, minWidth: '380px', display:'flex', flexDirection:'column'}}>
                 <SecaoOvariosTuring data={data} handleChange={handleChange} setShowModalOrads={setShowModalOrads} />
             </div>
         </div>
 
-        {/* MODAL FIGO - TABELA COMPLETA */}
+        {/* MODAL FIGO */}
         {showModalFigo && (
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000}} onClick={() => setShowModalFigo(false)}>
                 <div style={{background:'white', padding:'20px', borderRadius:'8px', maxWidth:'600px', maxHeight:'90vh', overflowY:'auto'}} onClick={e => e.stopPropagation()}>
@@ -251,7 +275,6 @@ const FormTransvaginal = ({ onUpdate }) => {
                             <tr><td style={tdStyle}><b>5</b></td><td style={tdStyle}>Subseroso &ge; 50% intramural</td></tr>
                             <tr><td style={tdStyle}><b>6</b></td><td style={tdStyle}>Subseroso &lt; 50% intramural</td></tr>
                             <tr><td style={tdStyle}><b>7</b></td><td style={tdStyle}>Subseroso pediculado</td></tr>
-                            <tr><td style={tdStyle}><b>8</b></td><td style={tdStyle}>Outros (ex: cervical, parasita)</td></tr>
                             <tr><td style={tdStyle}><b>2-5</b></td><td style={tdStyle}>Híbrido (submucoso + subseroso)</td></tr>
                         </tbody>
                     </table>
@@ -259,7 +282,7 @@ const FormTransvaginal = ({ onUpdate }) => {
             </div>
         )}
         
-        {/* MODAL O-RADS - TABELA COLORIDA */}
+        {/* MODAL O-RADS */}
         {showModalOrads && (
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000}} onClick={() => setShowModalOrads(false)}>
                 <div style={{background:'white', padding:'20px', borderRadius:'8px', maxWidth:'800px', maxHeight:'90vh', overflowY:'auto'}} onClick={e => e.stopPropagation()}>
@@ -277,61 +300,35 @@ const FormTransvaginal = ({ onUpdate }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {/* O-RADS 0 */}
                             <tr style={{background:'#CFD8DC'}}>
                                 <td style={{...tdStyle, textAlign:'center', fontWeight:'bold'}}>0</td>
                                 <td style={tdStyle}>Avaliação incompleta</td>
                                 <td style={tdStyle}>Dados insuficientes ou fatores técnicos.</td>
                             </tr>
-                            {/* O-RADS 1 */}
                             <tr style={{background:'#E3F2FD'}}>
                                 <td style={{...tdStyle, textAlign:'center', fontWeight:'bold'}}>1</td>
                                 <td style={tdStyle}>Ovário Normal</td>
-                                <td style={tdStyle}>Folículo (&le; 3 cm) ou corpo lúteo (&le; 3 cm). Nenhuma lesão.</td>
+                                <td style={tdStyle}>Folículo (&le; 3 cm) ou corpo lúteo (&le; 3 cm).</td>
                             </tr>
-                            {/* O-RADS 2 */}
                             <tr style={{background:'#C8E6C9'}}>
                                 <td style={{...tdStyle, textAlign:'center', fontWeight:'bold'}}>2</td>
                                 <td style={tdStyle}>Quase certamente benigno (&lt;1%)</td>
-                                <td style={tdStyle}>
-                                    <b>Cisto simples</b> &lt; 10 cm.<br/>
-                                    <b>Cisto unilocular</b> não simples &lt; 10 cm (parede lisa).<br/>
-                                    <b>Lesões típicas:</b> Hemorrágico, Dermoide, Endometrioma (&lt; 10 cm).<br/>
-                                    <b>Extra ovarianas:</b> Paraovariano, Inclusão peritoneal, Hidrossalpinge.
-                                </td>
+                                <td style={tdStyle}>Cisto simples &lt; 10 cm. Cisto unilocular &lt; 10 cm. Dermoide/Endometrioma &lt; 10 cm.</td>
                             </tr>
-                            {/* O-RADS 3 */}
                             <tr style={{background:'#FFF9C4'}}>
                                 <td style={{...tdStyle, textAlign:'center', fontWeight:'bold'}}>3</td>
                                 <td style={tdStyle}>Baixo risco (1 - &lt;10%)</td>
-                                <td style={tdStyle}>
-                                    Cisto unilocular &ge; 10 cm (simples ou não simples).<br/>
-                                    Lesões típicas (Dermoide, etc) &ge; 10 cm.<br/>
-                                    Cisto multilocular &lt; 10 cm, parede lisa, score cor &lt; 4.<br/>
-                                    Lesão sólida (contorno regular, score cor 1).
-                                </td>
+                                <td style={tdStyle}>Cisto unilocular &ge; 10 cm. Lesão sólida score cor 1.</td>
                             </tr>
-                            {/* O-RADS 4 */}
                             <tr style={{background:'#FFCCBC'}}>
                                 <td style={{...tdStyle, textAlign:'center', fontWeight:'bold'}}>4</td>
                                 <td style={tdStyle}>Risco intermediário (10 - &lt;50%)</td>
-                                <td style={tdStyle}>
-                                    Cisto multilocular &ge; 10 cm (parede lisa, score cor &lt; 4).<br/>
-                                    Cisto multilocular (parede irregular ou score cor 4).<br/>
-                                    Cisto unilocular c/ componente sólido (&lt; 4 projeções papilares).<br/>
-                                    Lesão sólida (contorno regular, score cor 2-3).
-                                </td>
+                                <td style={tdStyle}>Cisto multilocular &ge; 10 cm. Lesão sólida score cor 2-3.</td>
                             </tr>
-                            {/* O-RADS 5 */}
                             <tr style={{background:'#FFCDD2'}}>
                                 <td style={{...tdStyle, textAlign:'center', fontWeight:'bold', color:'#B71C1C'}}>5</td>
                                 <td style={{...tdStyle, color:'#B71C1C', fontWeight:'bold'}}>Alto risco (&ge;50%)</td>
-                                <td style={tdStyle}>
-                                    Cisto unilocular c/ &ge; 4 projeções papilares.<br/>
-                                    Cisto multilocular c/ componente sólido (score cor 3-4).<br/>
-                                    Lesão sólida (contorno regular score 4, ou irregular qq score).<br/>
-                                    Ascite e/ou nódulos peritoneais.
-                                </td>
+                                <td style={tdStyle}>Lesão sólida score 4. Ascite. Nódulos peritoneais.</td>
                             </tr>
                         </tbody>
                     </table>
