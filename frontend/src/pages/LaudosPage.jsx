@@ -180,21 +180,74 @@ const LaudosPage = () => {
   };
 
   const handlePrint = () => {
-      // 1. Configuração do Papel Timbrado
-      // Margens: [Esquerda, Topo, Direita, Base]
-      // Topo 128pt = ~4.5cm para pular o logo
       const pageMargins = [60, 128, 60, 60]; 
       
-      // 2. Preparar Grade de Imagens (2 Colunas)
+      // PREPARAR CONTEÚDO DINÂMICO
+      let conteudoLaudo = [];
+
+      // A) Se tiver tabela de medidas (Vem do FormEcocardiograma)
+      if (dadosEstruturados.tabelaMedidas) {
+          
+          // Título da seção
+          conteudoLaudo.push({ text: 'Medidas e cálculos:', style: 'subheader', margin: [0, 0, 0, 5] });
+
+          // Construção da Tabela PDFMake
+          const bodyTable = [
+              // Cabeçalho da Tabela
+              [
+                  { text: 'Estrutura', bold: true, fillColor: '#f0f0f0' }, 
+                  { text: 'Medida', bold: true, fillColor: '#f0f0f0' }, 
+                  { text: 'Valores normais', bold: true, fillColor: '#f0f0f0' }
+              ]
+          ];
+
+          // Linhas da Tabela
+          dadosEstruturados.tabelaMedidas.forEach(item => {
+              bodyTable.push([
+                  { text: item.estrutura, fontSize: 10 },
+                  { text: item.medida, fontSize: 10 },
+                  { text: item.ref, fontSize: 10, color: '#555' }
+              ]);
+          });
+
+          conteudoLaudo.push({
+              table: {
+                  widths: ['*', 'auto', 'auto'], // Coluna 1 expande, 2 e 3 ajustam ao texto
+                  body: bodyTable
+              },
+              layout: 'lightHorizontalLines', // Linhas finas horizontais apenas
+              margin: [0, 0, 0, 15]
+          });
+
+          // B) Comentários (Lista)
+          if (dadosEstruturados.listaComentarios) {
+              conteudoLaudo.push({ text: 'Comentários:', style: 'subheader', margin: [0, 10, 0, 5] });
+              // Mapeia para linhas de texto
+              dadosEstruturados.listaComentarios.forEach(c => {
+                  conteudoLaudo.push({ text: c, fontSize: 11, margin: [0, 2, 0, 2] });
+              });
+          }
+
+          // C) Conclusão (Em negrito e separada)
+          if (dadosEstruturados.listaConclusao) {
+              conteudoLaudo.push({ text: 'CONCLUSÃO:', style: 'header', fontSize: 12, margin: [0, 20, 0, 5] });
+              dadosEstruturados.listaConclusao.forEach(c => {
+                  conteudoLaudo.push({ text: c, bold: true, fontSize: 11, margin: [0, 2, 0, 2] });
+              });
+          }
+
+      } else {
+          // FALLBACK: Se for outro exame (Obstétrico, etc) que ainda usa texto corrido
+          conteudoLaudo.push({ text: textoFinal, fontSize: 12, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 20] });
+      }
+
+      // --- PROCESSAMENTO DAS IMAGENS (Seu código anterior) ---
       const imagesContent = [];
       if (imagens.length > 0) {
-        // Título da seção de fotos com menos margem superior
-        imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 10, 0, 5] });
-        
+        imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 10, 0, 5], pageBreak: 'before' });
         for (let i = 0; i < imagens.length; i += 2) {
             const row = {
                 columns: [
-                    // Ajustei a largura para 225 e margens menores para caber melhor
                     { image: imagens[i], width: 225, margin: [0, 2, 0, 10] }, 
                     imagens[i + 1] ? { image: imagens[i + 1], width: 225, margin: [0, 2, 0, 10] } : null 
                 ],
@@ -204,11 +257,12 @@ const LaudosPage = () => {
         }
       }
 
+      // --- MONTAGEM FINAL DO DOCUMENTO ---
       const docDefinition = {
           pageSize: 'A4', 
           pageMargins: pageMargins,
           content: [
-              // --- CABEÇALHO DO PACIENTE ---
+              // Cabeçalho Paciente
               {
                 columns: [
                     { width: 'auto', text: 'PACIENTE: ', bold: true, fontSize: 11 },
@@ -221,29 +275,27 @@ const LaudosPage = () => {
                     { width: 'auto', text: 'DATA: ', bold: true, fontSize: 11 },
                     { width: '*', text: new Date().toLocaleDateString('pt-BR'), bold: false, fontSize: 11 }
                 ],
-                margin: [0, 0, 0, 20] // Reduzi margem inferior
+                margin: [0, 0, 0, 20]
               },
 
-              // --- TÍTULO DO EXAME ---
-              { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 10] },
+              // Título
+              { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 15] },
 
-              // --- CORPO DO TEXTO ---
-              { text: textoFinal, fontSize: 12, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 20] },
+              // INSERE O CONTEÚDO GERADO (TABELA OU TEXTO)
+              ...conteudoLaudo,
 
-              // --- ASSINATURA (CORRIGIDO) ---
-              // Usamos 'stack' com 'unbreakable: true'. 
-              // Isso garante que linha e nome fiquem juntos, mas só pula página se não couber na atual.
+              // Assinatura
               {
                 stack: [
                     { text: '_______________________________', alignment: 'center', margin: [0, 0, 0, 2] },
                     { text: 'Dr. Antonio José Orsi Falleiros', alignment: 'center', bold: true, fontSize: 11 }
                 ],
                 unbreakable: true, 
-                margin: [0, 20, 0, 20], // Espaço antes e depois da assinatura
+                margin: [0, 30, 0, 20], 
                 alignment: 'center'
               },
               
-              // --- IMAGENS ---
+              // Imagens
               ...imagesContent
           ],
           styles: {
