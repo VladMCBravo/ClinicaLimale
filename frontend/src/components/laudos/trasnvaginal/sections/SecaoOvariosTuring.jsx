@@ -143,19 +143,91 @@ const SecaoOvariosTuring = ({ data, handleChange, setShowModalOrads }) => {
       <div className="laudo-row"><label><input type="checkbox" name="hidrossalpingeDir" checked={data.hidrossalpingeDir} onChange={handleChange} /> presente à DIREITA, medindo <input name="hidroDirD1" value={data.hidroDirD1} className="laudo-input-tiny"/> mm</label></div>
       <div className="laudo-row"><label><input type="checkbox" name="hidrossalpingeEsq" checked={data.hidrossalpingeEsq} onChange={handleChange} /> presente à ESQUERDA, medindo <input name="hidroEsqD1" value={data.hidroEsqD1} className="laudo-input-tiny"/> mm</label></div>
 
+      {/* PESQUISA DE ENDOMETRIOSE DETALHADA */}
       <div 
         className="laudo-header-dark" 
-        style={{marginTop:'10px', background:'#78909c', cursor:'pointer', display:'flex', justifyContent:'space-between'}}
+        style={{marginTop:'10px', background:'#546E7A', cursor:'pointer', display:'flex', justifyContent:'space-between', color:'white', padding:'5px'}}
         onClick={() => setExpandEndo(!expandEndo)}
       >
           <span>Pesquisa de ENDOMETRIOSE (clique para expandir)</span>
           <span>{expandEndo ? '▲' : '▼'}</span>
       </div>
+      
       {expandEndo && (
-          <div className="laudo-group-box">
-             <div className="laudo-row"><label><input type="checkbox" name="endoToro" checked={data.endoToro} onChange={handleChange} /> Tórus uterino espessado</label></div>
-             <div className="laudo-row"><label><input type="checkbox" name="endoLigS" checked={data.endoLigS} onChange={handleChange} /> Ligamentos uterossacros espessados</label></div>
-             <div className="laudo-row"><label><input type="checkbox" name="endoReto" checked={data.endoReto} onChange={handleChange} /> Nódulo retossigmoide</label></div>
+          <div className="laudo-group-box" style={{background:'#fcfcfc', border:'1px solid #cfd8dc'}}>
+             
+             {/* Ovários Fixos */}
+             <div className="laudo-row" style={{marginBottom:'10px'}}>
+                 <label><input type="checkbox" name="endoOvariosFixos" checked={data.endoOvariosFixos} onChange={handleChange} /> Ovários medianizados e fixos</label>
+             </div>
+
+             {/* 1. ESPESSAMENTO */}
+             <div style={{fontWeight:'bold', fontSize:'11px', marginBottom:'5px', color:'#333'}}>Espessamento</div>
+             <div className="laudo-group-box" style={{background:'#fff', marginBottom:'10px'}}>
+                 <div className="laudo-row">
+                     <input type="checkbox" name="endoEspessamento" checked={data.endoEspessamento} onChange={handleChange} />
+                     espessamento na região 
+                     <select name="endoEspessamentoLoc" value={data.endoEspessamentoLoc} onChange={handleChange} className="laudo-select-small" style={{width:'100px'}}><option>retrocervical</option><option>paracervical</option></select>
+                     medindo
+                 </div>
+                 <div className="laudo-row" style={{paddingLeft:'20px'}}>
+                     <input name="endoEspD1" value={data.endoEspD1} onChange={handleChange} className="laudo-input-tiny"/> x <input name="endoEspD2" value={data.endoEspD2} onChange={handleChange} className="laudo-input-tiny"/> x <input name="endoEspD3" value={data.endoEspD3} onChange={handleChange} className="laudo-input-tiny"/> mm, estendendo-se
+                 </div>
+                 <div className="laudo-row" style={{paddingLeft:'20px'}}>
+                     para <select name="endoEspExtensao" value={data.endoEspExtensao} onChange={handleChange} className="laudo-select-small"><option>a parede anterior do reto</option><option>o ligamento uterossacro</option></select>
+                 </div>
+             </div>
+
+             {/* 2. FORMAÇÕES NODULARES (3 Slots) */}
+             <div style={{fontWeight:'bold', fontSize:'11px', marginBottom:'5px', color:'#333'}}>Formações nodulares hipoecogênicas de aspecto sólido</div>
+             {[1, 2, 3].map(i => (
+                 <div key={i} className="laudo-group-box" style={{background:'#fff', marginBottom:'5px'}}>
+                     <div className="laudo-row">
+                         <input type="checkbox" name={`endoNod${i}`} checked={data[`endoNod${i}`]} onChange={handleChange} />
+                         na região <select name={`endoNod${i}Loc`} value={data[`endoNod${i}Loc`]} onChange={handleChange} className="laudo-select-small" style={{flex:1}}><option>retrocervical</option><option>septovaginal</option><option>lig. uterossacro</option></select>
+                     </div>
+                     {data[`endoNod${i}`] && (
+                        <>
+                         <div className="laudo-row" style={{paddingLeft:'20px'}}>
+                             medindo <input name={`endoNod${i}D1`} value={data[`endoNod${i}D1`]} onChange={handleChange} className="laudo-input-tiny"/> x <input name={`endoNod${i}D2`} value={data[`endoNod${i}D2`]} onChange={handleChange} className="laudo-input-tiny"/> x <input name={`endoNod${i}D3`} value={data[`endoNod${i}D3`]} onChange={handleChange} className="laudo-input-tiny"/> mm,
+                         </div>
+                         <div className="laudo-row" style={{paddingLeft:'20px'}}>
+                             <select name={`endoNod${i}Inv`} value={data[`endoNod${i}Inv`]} onChange={handleChange} className="laudo-select-small"><option>não citar invasão muscular</option><option>com invasão muscular</option></select>
+                         </div>
+                        </>
+                     )}
+                 </div>
+             ))}
+
+             {/* 3. PLACAS EM PAREDES DE ALÇAS (3 Slots) */}
+             <div style={{fontWeight:'bold', fontSize:'11px', marginBottom:'5px', marginTop:'10px', color:'#333'}}>Placas em paredes de alças intestinais</div>
+             {[1, 2, 3].map(i => (
+                 <div key={i} className="laudo-group-box" style={{background:'#fff', marginBottom:'5px'}}>
+                     <div className="laudo-row">
+                         <input type="checkbox" name={`endoPlaca${i}`} checked={data[`endoPlaca${i}`]} onChange={handleChange} />
+                         placa hipoecogênica na parede do <select name={`endoPlaca${i}Loc`} value={data[`endoPlaca${i}Loc`]} onChange={handleChange} className="laudo-select-small"><option>retosigmoide</option><option>reto</option><option>sigmoide</option></select> medindo
+                     </div>
+                     {data[`endoPlaca${i}`] && (
+                        <>
+                         <div className="laudo-row" style={{paddingLeft:'20px'}}>
+                             <input name={`endoPlaca${i}D1`} value={data[`endoPlaca${i}D1`]} onChange={handleChange} className="laudo-input-tiny"/> x <input name={`endoPlaca${i}D2`} value={data[`endoPlaca${i}D2`]} onChange={handleChange} className="laudo-input-tiny"/> x <input name={`endoPlaca${i}D3`} value={data[`endoPlaca${i}D3`]} onChange={handleChange} className="laudo-input-tiny"/> mm incluindo <select name={`endoPlaca${i}Camada`} value={data[`endoPlaca${i}Camada`]} onChange={handleChange} className="laudo-select-small"><option>serosa</option><option>muscular própria</option></select>
+                         </div>
+                         <div className="laudo-row" style={{paddingLeft:'20px'}}>
+                             envolvendo <input type="number" name={`endoPlaca${i}Circ`} value={data[`endoPlaca${i}Circ`]} onChange={handleChange} className="laudo-input-tiny"/> % da circunferência, a <input type="number" name={`endoPlaca${i}Dist`} value={data[`endoPlaca${i}Dist`]} onChange={handleChange} className="laudo-input-tiny"/> mm da borda anal
+                         </div>
+                        </>
+                     )}
+                 </div>
+             ))}
+
+             {/* Checkbox Normais */}
+             <div className="laudo-row" style={{marginTop:'10px', borderTop:'1px solid #eee', paddingTop:'5px'}}>
+                 <label style={{display:'flex', alignItems:'start', gap:'5px', fontSize:'10px', color:'#555'}}>
+                     <input type="checkbox" name="endoNormais" checked={data.endoNormais} onChange={handleChange} style={{marginTop:'2px'}}/> 
+                     citar como NORMAIS as demais estruturas avaliadas com preparo intestinal (recesso vesicouterino, septo retovaginal, região retrocervical, ligamentos uterossacros e alças intestinais)
+                 </label>
+             </div>
+
           </div>
       )}
 

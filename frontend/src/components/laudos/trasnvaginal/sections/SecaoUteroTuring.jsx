@@ -134,6 +134,25 @@ const SecaoUteroTuring = ({ data, handleChange, setShowModalFigo }) => {
               </div>
           ))}
       </div>
+      {/* SEÇÃO CIRURGIAS (REINSERIDA) */}
+      <div className="laudo-header-sub">Cirurgias</div>
+      <div className="laudo-group-box">
+          <div className="laudo-row">
+              <input type="checkbox" name="histerectomiaParcial" checked={data.histerectomiaParcial} onChange={handleChange} /> 
+              <span style={{marginLeft:'5px'}}>histerectomia parcial</span>
+              {data.histerectomiaParcial && (
+                  <span style={{marginLeft:'5px'}}>
+                      <input type="number" name="cotoD1" value={data.cotoD1} onChange={handleChange} className="laudo-input-tiny"/> x 
+                      <input type="number" name="cotoD2" value={data.cotoD2} onChange={handleChange} className="laudo-input-tiny"/> x 
+                      <input type="number" name="cotoD3" value={data.cotoD3} onChange={handleChange} className="laudo-input-tiny"/> mm
+                  </span>
+              )}
+          </div>
+          <div className="laudo-row">
+              <input type="checkbox" name="histerectomiaTotal" checked={data.histerectomiaTotal} onChange={handleChange} /> 
+              <span style={{marginLeft:'5px'}}>histerectomia total</span>
+          </div>
+      </div>
     </div>
   );
 };

@@ -11,7 +11,7 @@ const FormTransvaginal = ({ onUpdate }) => {
   const initialState = {
       subtipo: 'PELVE_TRANSVAGINAL',
 
-      // --- STATUS HORMONAL (Agora na seção Ovarios/Geral) ---
+      // --- STATUS HORMONAL ---
       statusHormonal: 'menopausada', 
       
       // --- ÚTERO ---
@@ -78,7 +78,26 @@ const FormTransvaginal = ({ onUpdate }) => {
       endoToro: false, endoLigS: false, endoVagina: false, endoReto: false,
 
       liquidoLivreLocal: 'ausente', liquidoLivreQtd: 'pequena quantidade',
-      obsGerais: ''
+      obsGerais: '', // <--- A VÍRGULA QUE FALTAVA ESTAVA AQUI
+
+      // --- ENDOMETRIOSE DETALHADA ---
+      endoOvariosFixos: false,
+      
+      // Espessamento
+      endoEspessamento: false, endoEspessamentoLoc: 'retrocervical', 
+      endoEspD1:'20', endoEspD2:'20', endoEspD3:'20', endoEspExtensao:'a parede anterior do reto',
+
+      // Formações Nodulares (3 Slots)
+      endoNod1: false, endoNod1Loc: 'retrocervical', endoNod1D1:'20', endoNod1D2:'20', endoNod1D3:'20', endoNod1Inv: 'não citar invasão muscular',
+      endoNod2: false, endoNod2Loc: 'retrocervical', endoNod2D1:'20', endoNod2D2:'20', endoNod2D3:'20', endoNod2Inv: 'não citar invasão muscular',
+      endoNod3: false, endoNod3Loc: 'retrocervical', endoNod3D1:'20', endoNod3D2:'20', endoNod3D3:'20', endoNod3Inv: 'não citar invasão muscular',
+
+      // Placas Intestinais (3 Slots)
+      endoPlaca1: false, endoPlaca1Loc: 'retosigmoide', endoPlaca1D1:'20', endoPlaca1D2:'20', endoPlaca1D3:'20', endoPlaca1Camada: 'serosa', endoPlaca1Circ:'30', endoPlaca1Dist:'20',
+      endoPlaca2: false, endoPlaca2Loc: 'retosigmoide', endoPlaca2D1:'20', endoPlaca2D2:'20', endoPlaca2D3:'20', endoPlaca2Camada: 'serosa', endoPlaca2Circ:'30', endoPlaca2Dist:'20',
+      endoPlaca3: false, endoPlaca3Loc: 'retosigmoide', endoPlaca3D1:'20', endoPlaca3D2:'20', endoPlaca3D3:'20', endoPlaca3Camada: 'serosa', endoPlaca3Circ:'30', endoPlaca3Dist:'20',
+
+      endoNormais: false,
   };
 
   const [data, setData] = useState(initialState);
