@@ -7,26 +7,23 @@ from pacientes.models import Paciente
 from datetime import datetime
 
 class UploadExameView(APIView):
-    parser_classes = (MultiPartParser, FormParser) # Permite upload de arquivos
+    parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        # 1. Recebe os dados básicos
         nome_pasta = request.data.get('nome_paciente')
-        data_str = request.data.get('data_exame') # Formato esperado: YYYY-MM-DD
-        files = request.FILES.getlist('arquivos') # Lista de arquivos enviados
+        data_str = request.data.get('data_exame') 
+        files = request.FILES.getlist('arquivos') 
 
         if not nome_pasta or not data_str:
             return Response({'erro': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. Tenta achar o paciente automaticamente (Lógica de Match)
+        # 2. Tenta achar o paciente (CORRIGIDO PARA nome_completo)
         paciente_encontrado = None
         
-        # Busca simples: Pacientes com agendamento no dia ou nome similar
-        # (Podemos refinar essa busca depois para ser mais inteligente)
-        # Note que mudou de 'nome' para 'nome_completo'
+        # Busca simples
         candidatos = Paciente.objects.filter(nome_completo__icontains=nome_pasta.split('_')[-1].strip())
         if candidatos.exists():
-            paciente_encontrado = candidatos.first() # Pega o primeiro match por enquanto
+            paciente_encontrado = candidatos.first()
 
         # 3. Cria o Exame
         exame = Exame.objects.create(
@@ -36,10 +33,9 @@ class UploadExameView(APIView):
             status='DISPONIVEL' if paciente_encontrado else 'PENDENTE'
         )
 
-        # 4. Salva os Arquivos no Supabase
+        # 4. Salva os Arquivos
         count_imgs = 0
         for f in files:
-            # Detecta se é video ou imagem pela extensão
             tipo = 'VIDEO' if f.name.lower().endswith(('.mp4', '.avi', '.mov')) else 'IMAGEM'
             if f.name.lower().endswith('.pdf'): tipo = 'LAUDO'
             
@@ -50,5 +46,7 @@ class UploadExameView(APIView):
             'status': 'sucesso',
             'exame_id': exame.id,
             'arquivos_salvos': count_imgs,
-            'paciente_vinculado': paciente_encontrado.nome if paciente_encontrado else None
+            # --- A CORREÇÃO É AQUI EMBAIXO ---
+            # Antes estava .nome, agora é .nome_completo
+            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else None
         }, status=status.HTTP_201_CREATED)
