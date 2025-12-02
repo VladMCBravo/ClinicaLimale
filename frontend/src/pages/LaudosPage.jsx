@@ -1,6 +1,6 @@
 // src/pages/LaudosPage.jsx
 import React, { useState, useCallback } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash, FaUserMd } from 'react-icons/fa';
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import apiClient from '../api/axiosConfig';
@@ -35,7 +35,10 @@ const LaudosPage = () => {
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
-  
+  // NOVO: Estado para Médico e CRM
+  const [medicoNome, setMedicoNome] = useState('');
+  const [medicoCrm, setMedicoCrm] = useState('');
+
   const [textoFinal, setTextoFinal] = useState('');
   const [dadosEstruturados, setDadosEstruturados] = useState({});
   const [tituloExame, setTituloExame] = useState('');
@@ -83,7 +86,9 @@ const LaudosPage = () => {
               titulo_exame: tituloExame,
               dados_estruturados: dadosEstruturados,
               texto_laudo: textoFinal,
-              imagens_anexas: imagens, 
+              imagens_anexas: imagens,
+              medico_responsavel: medicoNome, // Envia o nome do médico para o banco também
+              crm_medico: medicoCrm, 
               status: "FINALIZADO"
           });
           alert("Laudo salvo!");
@@ -221,12 +226,11 @@ const LaudosPage = () => {
         }
       }
 
-      // --- DEFINIÇÃO DO PDF ---
+      // --- PDF DEFINITION ---
       const docDefinition = {
           pageSize: 'A4', 
           pageMargins: pageMargins,
           content: [
-              // Cabeçalho Paciente
               {
                 columns: [
                     { width: 'auto', text: 'PACIENTE: ', bold: true, fontSize: 11 },
@@ -241,25 +245,21 @@ const LaudosPage = () => {
                 ],
                 margin: [0, 0, 0, 20]
               },
-
-              // Título do Exame
               { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 15] },
-
-              // Conteúdo Dinâmico
               ...conteudoLaudo,
-
-              // Assinatura (Grudada no texto)
+              
+              // --- ASSINATURA DINÂMICA ---
               {
                 stack: [
                     { text: '_______________________________', alignment: 'center', margin: [0, 0, 0, 2] },
-                    { text: 'Dr. Antonio José Orsi Falleiros', alignment: 'center', bold: true, fontSize: 11 }
+                    // Usa as variáveis de estado aqui
+                    { text: medicoNome || 'Médico Responsável', alignment: 'center', bold: true, fontSize: 11 },
+                    { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 10 }
                 ],
                 unbreakable: true, 
                 margin: [0, 30, 0, 20], 
                 alignment: 'center'
               },
-              
-              // Imagens
               ...imagesContent
           ],
           styles: {
@@ -285,6 +285,25 @@ const LaudosPage = () => {
                 <option value="ABDOME">Ultrassom Abdome Total (Em Breve)</option>
                 <option value="DOPPLER_CAROTIDAS">Doppler de Carótidas e Vertebrais</option> 
             </select>
+        </div>
+
+        {/* --- NOVO CARD: MÉDICO EXAMINADOR --- */}
+        <div style={styles.card}>
+            <div style={styles.header}><FaUserMd /> Médico Examinador</div>
+            <div style={{display:'flex', gap:'10px'}}>
+                <input 
+                    placeholder="Nome do Médico"
+                    value={medicoNome}
+                    onChange={(e) => setMedicoNome(e.target.value)}
+                    style={{...styles.inputControl, flex: 2}}
+                />
+                <input 
+                    placeholder="CRM"
+                    value={medicoCrm}
+                    onChange={(e) => setMedicoCrm(e.target.value)}
+                    style={{...styles.inputControl, flex: 1}}
+                />
+            </div>
         </div>
 
         <div style={styles.card}>
