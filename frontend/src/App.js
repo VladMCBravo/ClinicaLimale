@@ -29,6 +29,8 @@ import JornadaTrabalhoPage from './pages/JornadaTrabalhoPage';
 import ProcedimentosPage from './pages/ProcedimentosPage';
 import SalasPage from './pages/SalasPage';
 import LaudosPage from './pages/LaudosPage'; // <-- Adicione isso lá em cima
+import PortalResultados from './pages/PortalResultados'; // <--- Adicione esta linha
+
 function App() {
   return (
     <SnackbarProvider>
@@ -37,6 +39,10 @@ function App() {
           <Routes>
             {/* Rota de Login (Pública) */}
             <Route path="/login" element={<LoginPage />} />
+            {/* --- NOVA ROTA DO PACIENTE (Pública) --- */}
+            <Route path="/resultados" element={<PortalResultados />} />
+            {/* Rotas Protegidas (Apenas para médicos e staff) */}
+            <Route element={<ProtectedRoute />}></Route>
 
             {/* Rotas Protegidas */}
             <Route element={<ProtectedRoute />}>
