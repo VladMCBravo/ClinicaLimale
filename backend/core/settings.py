@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'channels',
     'integracao_dicom',
     'laudos',
+    'exames',
 ]
 
 # --- Configurações de Middleware ---
