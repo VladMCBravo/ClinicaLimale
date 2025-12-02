@@ -136,7 +136,13 @@ AWS_ACCESS_KEY_ID = os.environ.get('SUPABASE_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('SUPABASE_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('SUPABASE_STORAGE_BUCKET_NAME', 'exames')
 AWS_S3_ENDPOINT_URL = os.environ.get('SUPABASE_S3_ENDPOINT_URL')
-AWS_S3_REGION_NAME = os.environ.get('SUPABASE_S3_REGION_NAME', 'sa-east-1')
+# --- A CORREÇÃO ESTÁ AQUI ---
+# O Supabase S3 Wrapper geralmente valida assinaturas como 'us-east-1', 
+# independentemente da região física do bucket.
+AWS_S3_REGION_NAME = 'us-east-1' 
+
+# Força o boto3 a usar 'endpoint/bucket' em vez de 'bucket.endpoint'
+AWS_S3_ADDRESSING_STYLE = "path"
 
 # Segurança dos Links
 AWS_QUERYSTRING_AUTH = True
