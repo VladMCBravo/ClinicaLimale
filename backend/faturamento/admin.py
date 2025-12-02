@@ -4,7 +4,8 @@ from django.contrib import admin
 # 1. Importe TODOS os modelos que vamos usar, incluindo o novo
 from .models import (
     Pagamento, CategoriaDespesa, Despesa, 
-    Convenio, PlanoConvenio, Procedimento, ValorProcedimentoConvenio
+    Convenio, PlanoConvenio, Procedimento, ValorProcedimentoConvenio,
+    LoteFaturamento, GuiaTiss
 )
 
 # 2. Crie uma classe "Inline" para a tabela de preços
@@ -36,6 +37,8 @@ admin.site.register(Pagamento)
 admin.site.register(CategoriaDespesa)
 admin.site.register(Despesa)
 admin.site.register(Convenio)
+admin.site.register(LoteFaturamento)
+admin.site.register(GuiaTiss)
 
 # 6. Removemos os registros antigos e usamos os novos, customizados
 admin.site.register(PlanoConvenio, PlanoConvenioAdmin)

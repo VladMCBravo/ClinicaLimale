@@ -19,6 +19,7 @@ from usuarios.models import Especialidade # <-- 2. Importe Especialidade
 from django.template import Context, Template # Para renderizar o template
 from datetime import date # Para a data de hoje
 from django.db import transaction # Importar transaction
+from core.models import Clinica # Importa o modelo de configuração
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
@@ -213,7 +214,8 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     Função helper centralizada para renderizar qualquer template HTML para PDF.
     VERSÃO ATUALIZADA: Agora também busca a Anamnese (Prontuário Mestre).
     """
-    logo_path = finders.find(settings.CLINICA_INFO['LOGO_STATIC_PATH'])
+    clinica_info = Clinica.get_instance()
+    logo_path = finders.find(clinica_info.logo) if clinica_info else None
     
     # --- NOVA LÓGICA ---
     anamnese_obj = None
@@ -237,7 +239,7 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     # --- FIM DA NOVA LÓGICA ---
             
     full_context = {
-        'clinica': settings.CLINICA_INFO,
+        'clinica': clinica_info,
         'logo_path': logo_path,
         'anamnese': anamnese_obj, # <-- ADICIONA A ANAMNESE AO CONTEXTO
         **context
@@ -358,9 +360,10 @@ class GerarEvolucaoPDFView(APIView):
         # de dados muito mais complexa.
         
         # (Usando sua lógica original de renderização de PDF)
-        logo_path = finders.find(settings.CLINICA_INFO['LOGO_STATIC_PATH'])
+        clinica_info = Clinica.get_instance()
+        logo_path = finders.find(clinica_info.logo) if clinica_info else None
         full_context = {
-            'clinica': settings.CLINICA_INFO,
+            'clinica': clinica_info,
             'logo_path': logo_path,
             **context
         }

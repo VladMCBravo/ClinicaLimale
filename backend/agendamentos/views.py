@@ -30,9 +30,9 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AgendamentoSerializer # Default para GET
     
     def get_queryset(self):
-        queryset = Agendamento.objects.all().select_related(
-            'paciente', 'medico', 'especialidade', 'sala'
-        ).order_by('data_hora_inicio')
+        queryset = Agendamento.objects.select_related(
+            'paciente', 'medico', 'especialidade', 'sala', 'procedimento', 'plano_utilizado'
+        ).prefetch_related('pagamento').all().order_by('data_hora_inicio')
         
         # Filtros (usados pelo FullCalendar e Frontend)
         sala_id = self.request.query_params.get('sala_id')
@@ -59,7 +59,9 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [AllowRead_WriteRecepcaoAdmin]
-    queryset = Agendamento.objects.all()
+    queryset = Agendamento.objects.select_related(
+        'paciente', 'medico', 'especialidade', 'sala', 'procedimento', 'plano_utilizado'
+    ).prefetch_related('pagamento').all()
     
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
@@ -71,7 +73,9 @@ class AgendamentosNaoPagosListAPIView(generics.ListAPIView):
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
     def get_queryset(self):
-        return Agendamento.objects.filter(pagamento__isnull=True).order_by('data_hora_inicio')
+        return Agendamento.objects.select_related(
+            'paciente', 'medico', 'especialidade', 'sala', 'procedimento', 'plano_utilizado'
+        ).filter(pagamento__isnull=True).order_by('data_hora_inicio')
 
 
 class AgendamentosHojeListView(generics.ListAPIView):
@@ -79,7 +83,9 @@ class AgendamentosHojeListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
         hoje = timezone.localtime(timezone.now()).date()
-        queryset = Agendamento.objects.filter(data_hora_inicio__date=hoje).order_by('data_hora_inicio')
+        queryset = Agendamento.objects.select_related(
+            'paciente', 'medico', 'especialidade', 'sala', 'procedimento', 'plano_utilizado'
+        ).prefetch_related('pagamento').filter(data_hora_inicio__date=hoje).order_by('data_hora_inicio')
         
         medico_id = self.request.query_params.get('medico_id')
         if medico_id:

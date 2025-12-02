@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'allauth',
 
     # Meus Apps
+    'core',
     'usuarios',
     'pacientes',
     'agendamentos',
@@ -197,16 +198,3 @@ else:
             },
         },
     }
-
-# --- INFORMAÇÕES DA CLÍNICA PARA TEMPLATES ---
-# Estes valores são carregados a partir de variáveis de ambiente.
-# Em desenvolvimento, valores padrão são fornecidos.
-# Em produção, configure estas variáveis no seu ambiente de hospedagem.
-
-CLINICA_INFO = {
-    'NOME': os.environ.get('CLINICA_NOME', 'Clinica Limalé - Especialidades Médicas e Imagem'),
-    'ENDERECO': os.environ.get('CLINICA_ENDERECO', 'R. Orense, 41 - sala 512, Edifício D - Office, Diadema - SP, 09920-650'),
-    'TELEFONE': os.environ.get('CLINICA_TELEFONE', '(11) 919511842'),
-    'EMAIL': os.environ.get('CLINICA_EMAIL', 'contato@limale.com.br'),
-    'LOGO_STATIC_PATH': os.environ.get('CLINICA_LOGO_PATH', 'images/logo_limale.jpg'),
-}
