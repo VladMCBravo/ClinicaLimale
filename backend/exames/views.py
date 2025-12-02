@@ -23,7 +23,8 @@ class UploadExameView(APIView):
         
         # Busca simples: Pacientes com agendamento no dia ou nome similar
         # (Podemos refinar essa busca depois para ser mais inteligente)
-        candidatos = Paciente.objects.filter(nome__icontains=nome_pasta.split('_')[-1].strip())
+        # Note que mudou de 'nome' para 'nome_completo'
+        candidatos = Paciente.objects.filter(nome_completo__icontains=nome_pasta.split('_')[-1].strip())
         if candidatos.exists():
             paciente_encontrado = candidatos.first() # Pega o primeiro match por enquanto
 
