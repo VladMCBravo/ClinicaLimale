@@ -1,4 +1,4 @@
-# core/settings.py - VERSÃO REVISADA E ORGANIZADA
+# core/settings.py - VERSÃO FINAL PARA PRODUÇÃO
 
 import os
 import dj_database_url
@@ -9,16 +9,13 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- Configurações de Segurança ---
-# Lendo a partir de variáveis de ambiente para maior segurança em produção.
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 if not SECRET_KEY:
     if DEBUG:
-        # Em desenvolvimento, usamos uma chave fraca se nenhuma for fornecida.
         SECRET_KEY = 'django-insecure-fallback-key-for-development'
     else:
-        # Em produção, a SECRET_KEY é obrigatória.
         from django.core.exceptions import ImproperlyConfigured
         raise ImproperlyConfigured("A variável de ambiente SECRET_KEY é obrigatória em produção.")
 
@@ -27,6 +24,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'clinicalimale.onrender.com']
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 CSRF_TRUSTED_ORIGINS = [
     'https://clinicalimale.onrender.com',
     'https://clinicalimale-dc0r.onrender.com',
@@ -40,42 +38,29 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').lower() == 'true'
 CORS_ALLOWED_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
+    'accept', 'accept-encoding', 'authorization', 'content-type',
+    'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
 ]
-CORS_ALLOWED_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
+CORS_ALLOWED_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 
 # --- Configurações de Aplicações (Apps) ---
 INSTALLED_APPS = [
     # Apps do Django Core
-    'daphne', # <-- ADICIONE ESTA LINHA NO TOPO
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic', # Whitenoise para arquivos estáticos
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
       
     # Apps de Terceiros
     'rest_framework',
+    'storages', # <-- ADICIONADO: Necessário para o Supabase/S3 funcionar
     'rest_framework.authtoken',
     'rest_framework_api_key',
-    'corsheaders', # <-- CORREÇÃO: Removida a duplicata
+    'corsheaders',
     'dj_rest_auth',
     'allauth',
 
@@ -90,14 +75,14 @@ INSTALLED_APPS = [
     'chatbot',
     'channels',
     'integracao_dicom',
-    'laudos', # <--- Adicione esta linha
+    'laudos',
 ]
 
 # --- Configurações de Middleware ---
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # Posição correta, alta na lista
+    'whitenoise.middleware.WhiteNoiseMiddleware', # WhiteNoise aqui
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -113,7 +98,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')], # <-- ADICIONE ESTA LINHA
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -141,10 +126,34 @@ TIME_ZONE = 'Etc/UTC'
 USE_I18N = True
 USE_TZ = True
 
-# --- Arquivos Estáticos ---
+# --- Arquivos Estáticos e Mídia ---
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Configurações do Supabase Storage (Lidas do Environment)
+AWS_ACCESS_KEY_ID = os.environ.get('SUPABASE_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('SUPABASE_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('SUPABASE_STORAGE_BUCKET_NAME', 'exames')
+AWS_S3_ENDPOINT_URL = os.environ.get('SUPABASE_S3_ENDPOINT_URL')
+AWS_S3_REGION_NAME = os.environ.get('SUPABASE_S3_REGION_NAME', 'sa-east-1')
+
+# Segurança dos Links
+AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_EXPIRE = 3600
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_DEFAULT_ACL = None
+
+# Configuração UNIFICADA (Django 4.2+)
+STORAGES = {
+    "default": {
+        # Mídia (Uploads) -> Vai para o Supabase
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        # Estáticos (CSS/JS) -> Fica local/WhiteNoise
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # --- Configurações do Django Rest Framework ---
 REST_FRAMEWORK = {
@@ -157,14 +166,13 @@ REST_FRAMEWORK = {
     ]
 }
 
-# --- Configurações de Cookies para Cross-Domain ---
+# --- Configurações de Cookies ---
 SESSION_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# --- Configurações de Serviços Externos (Email e Pagamento) ---
-# Email (SendGrid)
+# --- Email ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.sendgrid.net'
 EMAIL_HOST_USER = 'apikey'
@@ -173,28 +181,21 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'nao-responda@suaclinica.com')
 
-# --- Configurações do Django Channels ---
+# --- Django Channels ---
 ASGI_APPLICATION = 'core.asgi.application'
-
 REDIS_URL = os.environ.get('REDIS_URL')
 
 if REDIS_URL:
-    # Configuração para produção (Render)
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [REDIS_URL],
-            },
+            'CONFIG': {"hosts": [REDIS_URL]},
         },
     }
 else:
-    # Configuração para desenvolvimento (sua máquina local)
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [('127.0.0.1', 6379)],
-            },
+            'CONFIG': {"hosts": [('127.0.0.1', 6379)]},
         },
     }
