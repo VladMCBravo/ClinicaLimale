@@ -103,7 +103,7 @@ const LaudosPage = () => {
               [
                   { text: 'Estrutura', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }, 
                   { text: 'Medida', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }, 
-                  // Se tiver referência (Eco), adiciona coluna, senão (Obstétrico) mantém 2
+                  // CORREÇÃO: Usar dadosTabela[0] em vez de item
                   ...(dadosTabela[0].ref ? [{ text: 'Referência', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }] : [])
               ]
           ];
@@ -121,7 +121,8 @@ const LaudosPage = () => {
               { text: titulo, style: 'subheader', margin: [0, 5, 0, 2] },
               {
                   table: {
-                      widths: item.ref ? ['*', 'auto', 'auto'] : ['*', 'auto'],
+                      // CORREÇÃO: Usar dadosTabela[0] para verificar a estrutura
+                      widths: dadosTabela[0].ref ? ['*', 'auto', 'auto'] : ['*', 'auto'],
                       body: bodyTable
                   },
                   layout: 'lightHorizontalLines',
@@ -162,7 +163,6 @@ const LaudosPage = () => {
           
           // DUM e Info Geral (Se disponível no nível superior)
           if (textoFinal.includes("DUM:")) {
-              // Extrai a linha da DUM do texto cru para exibir no topo
               const dumLine = textoFinal.split('\n').find(l => l.includes("DUM:"));
               if(dumLine) conteudoLaudo.push({ text: dumLine, fontSize: 11, bold: true, margin: [0, 0, 0, 10] });
           }
@@ -173,14 +173,14 @@ const LaudosPage = () => {
           const f1 = dadosEstruturados.feto1;
           const tab1 = criarTabela(f1.tabelaBiometria, 'Biometria Fetal:');
           const com1 = criarListaComentarios(f1.listaComentarios);
-          const con1 = criarConclusao(f1.listaConclusao); // Obstétrico pode ter conclusão por feto ou geral
+          const con1 = criarConclusao(f1.listaConclusao);
 
           if (tab1) conteudoLaudo.push(tab1);
           if (com1) conteudoLaudo.push(com1);
           
           // FETO 2 (Se Gemelar)
           if (dadosEstruturados.isGemelar && dadosEstruturados.feto2) {
-              conteudoLaudo.push({ text: 'FETO 2', style: 'header', color: '#2E7D32', margin: [0, 20, 0, 5] }); // Mais margem antes do feto 2
+              conteudoLaudo.push({ text: 'FETO 2', style: 'header', color: '#2E7D32', margin: [0, 20, 0, 5] }); 
               const f2 = dadosEstruturados.feto2;
               const tab2 = criarTabela(f2.tabelaBiometria, 'Biometria Fetal:');
               const com2 = criarListaComentarios(f2.listaComentarios);
@@ -189,11 +189,9 @@ const LaudosPage = () => {
               if (com2) conteudoLaudo.push(com2);
           }
 
-          // CONCLUSÃO GERAL (Normalmente a conclusão obstétrica é única no final)
+          // CONCLUSÃO GERAL
           if (con1 && !dadosEstruturados.isGemelar) conteudoLaudo.push(con1);
           if (dadosEstruturados.isGemelar) {
-               // Se for gemelar, pegamos a conclusão do feto 1 + feto 2 ou uma geral se você implementou assim. 
-               // No código anterior, cada feto tinha sua lista. Vamos imprimir ambas se existirem.
                if(con1) conteudoLaudo.push([{ text: 'CONCLUSÃO (Feto 1):', bold:true, margin:[0,10,0,0] }, ...con1.slice(1)]);
                if(dadosEstruturados.feto2?.listaConclusao) {
                    const con2 = criarConclusao(dadosEstruturados.feto2.listaConclusao);

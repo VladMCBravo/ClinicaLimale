@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { FaChartLine, FaUserFriends } from 'react-icons/fa';
 import '../Laudos.css'; 
