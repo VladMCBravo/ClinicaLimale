@@ -1,17 +1,29 @@
-// src/services/pacienteService.js
 import apiClient from '../api/axiosConfig';
 
-// O backend espera GET /api/pacientes/
-export const getPacientes = () => {
+// 1. Definição das funções
+const getPacientes = () => {
     return apiClient.get('/pacientes/');
 };
 
-export const getPacienteDetalhes = (id) => {
+const getPacienteDetalhes = (id) => {
     return apiClient.get(`/pacientes/${id}/`);
 };
 
-export const createPaciente = (pacienteData) => {
+const createPaciente = (pacienteData) => {
     return apiClient.post('/pacientes/', pacienteData);
 };
 
-// Não precisa mais do export default ou export const pacienteService = {...}
+// 2. Exportação Nomeada Individual (O jeito moderno - Best Practice)
+// Isso permite: import { getPacientes } from ...
+export { getPacientes, getPacienteDetalhes, createPaciente };
+
+// 3. Exportação do Objeto Legado (Para corrigir o seu erro atual)
+// Isso permite: import { pacienteService } from ...
+export const pacienteService = {
+    getPacientes,
+    getPacienteDetalhes,
+    createPaciente
+};
+
+// 4. Exportação Default (Por segurança)
+export default pacienteService;
