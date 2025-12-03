@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import { listarPendentes, vincularPaciente } from '../services/exames';
-import { getPacientes } from '../services/pacientesService'; // Ajuste o import conforme seu projeto
+import { getPacientes } from '../services/pacienteService'; // Ajuste o import conforme seu projeto
 
 export default function VincularExames() {
   const [exames, setExames] = useState([]);
