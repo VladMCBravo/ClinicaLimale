@@ -1,31 +1,8 @@
-import React, { useMemo } from 'react';
+// src/components/laudos/obstetrico/sections/SecaoDatacao.jsx
+import React from 'react';
 import { FaQuestionCircle } from 'react-icons/fa';
-// CSS vem do Pai
 
 const SecaoDatacao = ({ data, handleChange, handleDatacaoChange }) => {
-
-  // Cálculos rápidos para exibição visual
-  const calculos = useMemo(() => {
-      let igTxt = "0 sem";
-      let dppBiometria = "--/--/----";
-
-      if (data.dum && data.usarDum) {
-          const d = new Date(data.dum + 'T12:00:00');
-          const hoje = new Date();
-          if (!isNaN(d)) {
-              const diff = Math.floor((hoje - d) / (1000 * 60 * 60 * 24));
-              const sem = Math.floor(diff/7);
-              const dias = diff%7;
-              igTxt = `${sem} sem ${dias > 0 ? `e ${dias}d` : ''}`;
-              
-              const dpp = new Date(d);
-              dpp.setDate(d.getDate() + 280);
-              dppBiometria = dpp.toLocaleDateString('pt-BR');
-          }
-      }
-      return { igTxt, dppBiometria };
-  }, [data.dum, data.usarDum]);
-
   return (
     <div className="laudo-section">
         <div className="header-base header-purple">DUM / DPP / Idade gestacional</div>
@@ -52,7 +29,9 @@ const SecaoDatacao = ({ data, handleChange, handleDatacaoChange }) => {
                         className="laudo-input laudo-input-date"
                     />
 
-                    <span style={{fontWeight:'bold', marginLeft:'10px'}}>I.G. pela D.U.M.: {calculos.igTxt}</span>
+                    <span style={{fontWeight:'bold', marginLeft:'10px'}}>
+                        I.G. (DUM): {data.usarDum && data.igDumCalculada ? data.igDumCalculada : '---'}
+                    </span>
                 </div>
 
                 {/* Linha 2 */}
@@ -96,7 +75,7 @@ const SecaoDatacao = ({ data, handleChange, handleDatacaoChange }) => {
                     <input type="checkbox" name="citarDppBiometria" checked={data.citarDppBiometria} onChange={handleChange} />
                     citar D.P.P. pela biometria do exame atual
                 </label>
-                <span style={{fontWeight:'bold'}}>{calculos.dppBiometria}</span>
+                <span style={{fontWeight:'bold'}}>{data.dppBiometriaCalculada || '--/--/----'}</span>
             </div>
 
             {/* --- CAIXA 2: EXAME ANTERIOR --- */}
@@ -112,7 +91,6 @@ const SecaoDatacao = ({ data, handleChange, handleDatacaoChange }) => {
                      <label className="laudo-checkbox-label">
                         <input type="checkbox" name="usarIgAnteriorComoBase" checked={data.usarIgAnteriorComoBase} onChange={handleChange} />
                         usar o exame anterior como base da idade gestacional deste exame
-                        <FaQuestionCircle style={{color:'#42A5F5', marginLeft:'5px'}} size={12} />
                     </label>
 
                     <div className="laudo-row">
@@ -129,7 +107,9 @@ const SecaoDatacao = ({ data, handleChange, handleDatacaoChange }) => {
                             <input type="checkbox" name="citarDppIgCorrigida" checked={data.citarDppIgCorrigida} onChange={handleChange} />
                             citar D.P.P. pela I.G. corrigida
                         </label>
-                        <span style={{fontWeight:'bold'}}>I.G. corrigida:</span>
+                        <span style={{fontWeight:'bold'}}>
+                             {data.dppIgCorrigidaCalculada ? `DPP: ${data.dppIgCorrigidaCalculada}` : '---'}
+                        </span>
                     </div>
                 </div>
             </div>

@@ -35,7 +35,7 @@ const LaudosPage = () => {
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
-  // NOVO: Estado para Médico e CRM
+  
   const [medicoNome, setMedicoNome] = useState('');
   const [medicoCrm, setMedicoCrm] = useState('');
 
@@ -46,6 +46,7 @@ const LaudosPage = () => {
   const [imagens, setImagens] = useState([]);
 
   const handleFormUpdate = useCallback((dados) => {
+      // Aqui garantimos que o texto editável seja a fonte da verdade para o estado
       setTextoFinal(dados.texto);
       setDadosEstruturados(dados.dadosEstruturados || {});
       setTituloExame(dados.tituloExame);
@@ -78,139 +79,83 @@ const LaudosPage = () => {
   };
 
   const handleSave = async () => {
-      if (!paciente) return alert("Selecione um paciente!");
+      // Validação mais robusta para evitar erro 500
+      if (!paciente) return alert("Erro: Selecione um paciente antes de salvar.");
+      if (!paciente.id) return alert("Erro: ID do paciente inválido.");
+      if (!medicoNome) return alert("Erro: Preencha o nome do médico.");
+
       setSaving(true);
       try {
-          await apiClient.post('/laudos/', {
+          const payload = {
               paciente: paciente.id,
               titulo_exame: tituloExame,
               dados_estruturados: dadosEstruturados,
-              texto_laudo: textoFinal,
+              texto_laudo: textoFinal, // Salva o texto exatamente como está no textarea
               imagens_anexas: imagens,
-              medico_responsavel: medicoNome, // Envia o nome do médico para o banco também
+              medico_responsavel: medicoNome,
               crm_medico: medicoCrm, 
               status: "FINALIZADO"
-          });
-          alert("Laudo salvo!");
-      } catch (e) { alert("Erro ao salvar."); } finally { setSaving(false); }
+          };
+          
+          await apiClient.post('/laudos/', payload);
+          alert("Laudo salvo com sucesso!");
+      } catch (e) { 
+          console.error("Erro ao salvar laudo:", e);
+          alert(`Erro ao salvar: ${e.response?.data?.detail || e.message}`);
+      } finally { setSaving(false); }
   };
 
-  // --- FUNÇÃO DE IMPRESSÃO INTELIGENTE ---
+  // --- FUNÇÃO DE IMPRESSÃO CORRIGIDA (Respeita o Texto Editável) ---
   const handlePrint = () => {
       const pageMargins = [60, 128, 60, 60]; 
       let conteudoLaudo = [];
 
-      // --- HELPERS PARA GERAR TABELAS E LISTAS ---
-      const criarTabela = (dadosTabela, titulo = 'Medidas e cálculos:') => {
+      // HELPER: Criar Tabela de Biometria (Apenas isso será estruturado)
+      const criarTabelaBiometria = (dadosTabela) => {
           if (!dadosTabela || dadosTabela.length === 0) return null;
-          
           const bodyTable = [
               [
                   { text: 'Estrutura', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }, 
-                  { text: 'Medida', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }, 
-                  // CORREÇÃO: Usar dadosTabela[0] em vez de item
-                  ...(dadosTabela[0].ref ? [{ text: 'Referência', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }] : [])
+                  { text: 'Medida', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }
               ]
           ];
-
           dadosTabela.forEach(item => {
-              const row = [
+              bodyTable.push([
                   { text: item.estrutura, fontSize: 10 },
                   { text: item.medida, fontSize: 10 }
-              ];
-              if (item.ref) row.push({ text: item.ref, fontSize: 10, color: '#555' });
-              bodyTable.push(row);
+              ]);
           });
-
-          return [
-              { text: titulo, style: 'subheader', margin: [0, 5, 0, 2] },
-              {
-                  table: {
-                      // CORREÇÃO: Usar dadosTabela[0] para verificar a estrutura
-                      widths: dadosTabela[0].ref ? ['*', 'auto', 'auto'] : ['*', 'auto'],
-                      body: bodyTable
-                  },
-                  layout: 'lightHorizontalLines',
-                  margin: [0, 0, 0, 10]
-              }
-          ];
+          return {
+              table: { widths: ['*', 'auto'], body: bodyTable },
+              layout: 'lightHorizontalLines',
+              margin: [0, 5, 0, 15] // Margem abaixo da tabela
+          };
       };
 
-      const criarListaComentarios = (lista, titulo = 'Relatório:') => {
-          if (!lista || lista.length === 0) return null;
-          return [
-              { text: titulo, style: 'subheader', margin: [0, 5, 0, 2] },
-              ...lista.map(c => ({ text: c, fontSize: 11, margin: [0, 1, 0, 1], alignment: 'justify' }))
-          ];
-      };
-
-      const criarConclusao = (lista) => {
-          if (!lista || lista.length === 0) return null;
-          return [
-              { text: 'CONCLUSÃO:', style: 'header', fontSize: 12, margin: [0, 15, 0, 5] },
-              ...lista.map(c => ({ text: c, bold: true, fontSize: 11, margin: [0, 1, 0, 1] }))
-          ];
-      };
-
-      // --- LÓGICA DE DECISÃO POR TIPO DE EXAME ---
-
-      // 1. ECOCARDIOGRAMA (Estrutura Simples)
-      if (dadosEstruturados.tabelaMedidas) {
-          const tab = criarTabela(dadosEstruturados.tabelaMedidas);
-          const com = criarListaComentarios(dadosEstruturados.listaComentarios, 'Comentários:');
-          const con = criarConclusao(dadosEstruturados.listaConclusao);
-          if (tab) conteudoLaudo.push(tab);
-          if (com) conteudoLaudo.push(com);
-          if (con) conteudoLaudo.push(con);
-      } 
-      // 2. OBSTÉTRICO (Pode ser Gemelar)
-      else if (dadosEstruturados.feto1) {
-          
-          // DUM e Info Geral (Se disponível no nível superior)
-          if (textoFinal.includes("DUM:")) {
-              const dumLine = textoFinal.split('\n').find(l => l.includes("DUM:"));
-              if(dumLine) conteudoLaudo.push({ text: dumLine, fontSize: 11, bold: true, margin: [0, 0, 0, 10] });
-          }
-
-          // FETO 1
-          if (dadosEstruturados.isGemelar) conteudoLaudo.push({ text: 'FETO 1', style: 'header', color: '#2E7D32', margin: [0, 10, 0, 5] });
-          
-          const f1 = dadosEstruturados.feto1;
-          const tab1 = criarTabela(f1.tabelaBiometria, 'Biometria Fetal:');
-          const com1 = criarListaComentarios(f1.listaComentarios);
-          const con1 = criarConclusao(f1.listaConclusao);
-
+      // 1. INSERIR TABELAS DE BIOMETRIA (Se houver)
+      if (dadosEstruturados.feto1 && dadosEstruturados.feto1.tabelaBiometria.length > 0) {
+          if (dadosEstruturados.isGemelar) conteudoLaudo.push({ text: 'Biometria Feto 1:', bold: true, fontSize: 11 });
+          const tab1 = criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria);
           if (tab1) conteudoLaudo.push(tab1);
-          if (com1) conteudoLaudo.push(com1);
-          
-          // FETO 2 (Se Gemelar)
-          if (dadosEstruturados.isGemelar && dadosEstruturados.feto2) {
-              conteudoLaudo.push({ text: 'FETO 2', style: 'header', color: '#2E7D32', margin: [0, 20, 0, 5] }); 
-              const f2 = dadosEstruturados.feto2;
-              const tab2 = criarTabela(f2.tabelaBiometria, 'Biometria Fetal:');
-              const com2 = criarListaComentarios(f2.listaComentarios);
-              
-              if (tab2) conteudoLaudo.push(tab2);
-              if (com2) conteudoLaudo.push(com2);
-          }
-
-          // CONCLUSÃO GERAL
-          if (con1 && !dadosEstruturados.isGemelar) conteudoLaudo.push(con1);
-          if (dadosEstruturados.isGemelar) {
-               if(con1) conteudoLaudo.push([{ text: 'CONCLUSÃO (Feto 1):', bold:true, margin:[0,10,0,0] }, ...con1.slice(1)]);
-               if(dadosEstruturados.feto2?.listaConclusao) {
-                   const con2 = criarConclusao(dadosEstruturados.feto2.listaConclusao);
-                   conteudoLaudo.push([{ text: 'CONCLUSÃO (Feto 2):', bold:true, margin:[0,5,0,0] }, ...con2.slice(1)]);
-               }
-          }
-
-      } 
-      // 3. OUTROS (Texto Corrido - Fallback)
-      else {
-          conteudoLaudo.push({ text: textoFinal, fontSize: 12, lineHeight: 1.3, alignment: 'justify', margin: [0, 0, 0, 20] });
+      }
+      
+      if (dadosEstruturados.isGemelar && dadosEstruturados.feto2 && dadosEstruturados.feto2.tabelaBiometria.length > 0) {
+          conteudoLaudo.push({ text: 'Biometria Feto 2:', bold: true, fontSize: 11, margin: [0, 10, 0, 0] });
+          const tab2 = criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria);
+          if (tab2) conteudoLaudo.push(tab2);
       }
 
-      // --- IMAGENS (Grade 2 Colunas) ---
+      // 2. INSERIR O TEXTO DO LAUDO (Exatamente como editado pelo usuário)
+      // Usamos white-space: pre-wrap behavior para manter parágrafos
+      conteudoLaudo.push({ 
+          text: textoFinal, 
+          fontSize: 12, 
+          lineHeight: 1.3, 
+          alignment: 'justify', 
+          margin: [0, 0, 0, 20] 
+      });
+
+      // --- IMAGENS ---
       const imagesContent = [];
       if (imagens.length > 0) {
         imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 10, 0, 5], pageBreak: 'before' });
@@ -246,13 +191,12 @@ const LaudosPage = () => {
                 margin: [0, 0, 0, 20]
               },
               { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 15] },
+              
               ...conteudoLaudo,
               
-              // --- ASSINATURA DINÂMICA ---
               {
                 stack: [
                     { text: '_______________________________', alignment: 'center', margin: [0, 0, 0, 2] },
-                    // Usa as variáveis de estado aqui
                     { text: medicoNome || 'Médico Responsável', alignment: 'center', bold: true, fontSize: 11 },
                     { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 10 }
                 ],
@@ -287,7 +231,6 @@ const LaudosPage = () => {
             </select>
         </div>
 
-        {/* --- NOVO CARD: MÉDICO EXAMINADOR --- */}
         <div style={styles.card}>
             <div style={styles.header}><FaUserMd /> Médico Examinador</div>
             <div style={{display:'flex', gap:'10px'}}>
