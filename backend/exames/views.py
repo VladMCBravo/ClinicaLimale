@@ -57,35 +57,32 @@ class AcessarResultadosView(APIView):
     """
     API pública para o paciente acessar seus exames via Código e Senha.
     """
-    permission_classes = [AllowAny] # Permite que qualquer pessoa tente acessar (se tiver a senha)
+    permission_classes = [AllowAny]
 
     def post(self, request):
         codigo = request.data.get('codigo_acesso')
         senha = request.data.get('senha_acesso')
 
-        # 1. Validação Básica
         if not codigo or not senha:
             return Response({'erro': 'Código e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. Busca o exame (independente de maiúsculas/minúsculas no código)
-        # Filtra também se o status é DISPONIVEL (opcional, por enquanto vamos liberar tudo)
+        # Busca exame pelo código (case insensitive)
         exame = get_object_or_404(Exame, codigo_acesso__iexact=codigo)
 
-        # 3. Verifica a senha
         if exame.senha_acesso != senha:
             return Response({'erro': 'Senha incorreta.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 4. Monta a resposta com os links assinados do Supabase
         arquivos_data = []
         for arquivo in exame.arquivos.all():
             arquivos_data.append({
                 'id': arquivo.id,
-                'tipo': arquivo.tipo, # VIDEO, IMAGEM, LAUDO
-                'url': arquivo.arquivo.url, # O Django/Boto3 gera o link assinado aqui automaticamente!
+                'tipo': arquivo.tipo,
+                'url': arquivo.arquivo.url,
             })
 
         return Response({
-            'paciente': exame.paciente.nome_completo if exame.paciente else "Paciente não identificado",
+            # CORREÇÃO AQUI: Mostra o nome da pasta se não tiver paciente vinculado
+            'paciente': exame.paciente.nome_completo if exame.paciente else exame.nome_paciente_pasta,
             'data_exame': exame.data_exame,
             'arquivos': arquivos_data
         })
