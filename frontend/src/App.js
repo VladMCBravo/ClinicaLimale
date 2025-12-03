@@ -30,6 +30,7 @@ import ProcedimentosPage from './pages/ProcedimentosPage';
 import SalasPage from './pages/SalasPage';
 import LaudosPage from './pages/LaudosPage'; // <-- Adicione isso lá em cima
 import PortalResultados from './pages/PortalResultados'; // <--- Adicione esta linha
+import VincularExames from './pages/VincularExames';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
                 <Route path="/painel" element={<PainelRecepcaoPage />} /> 
                 {/* ADICIONE ESTA LINHA AQUI: */}
                 <Route path="/laudos" element={<LaudosPage />} />
+                <Route path="/vincular" element={<VincularExames />} />
                 <Route path="/pacientes" element={<PacientesPage />} />
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
                 <Route path="/telemedicina" element={<TelemedicinaPage />} />
@@ -64,6 +66,7 @@ function App() {
                 <Route path="convenios" element={<ConveniosPage />} />
                 <Route path="categorias-despesa" element={<CategoriasDespesaPage />} />
                 <Route path="procedimentos" element={<ProcedimentosPage />} /> {/* <-- NOVO */}
+                <Route path="/recepcao/vincular" element={<VincularExames />} />
                 <Route path="salas" element={<SalasPage />} /> {/* <-- NOVO */}
                 </Route> {/* <-- Esta linha (60) fecha o </ProtectedRoute> */}
               </Route>

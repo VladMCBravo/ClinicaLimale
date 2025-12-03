@@ -21,3 +21,23 @@ export const acessarExame = async (codigo, senha) => {
     throw new Error("Erro ao buscar resultados. Tente novamente.");
   }
 };
+
+// Pega o token do usuário logado (Staff)
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token'); // Ou onde você guarda o token
+  return { headers: { Authorization: `Token ${token}` } };
+};
+
+export const listarPendentes = async () => {
+  const response = await axios.get(`${API_URL}/exames/pendentes/`, getAuthHeader());
+  return response.data;
+};
+
+export const vincularPaciente = async (exameId, pacienteId) => {
+  const response = await axios.post(
+    `${API_URL}/exames/${exameId}/vincular/`, 
+    { paciente_id: pacienteId },
+    getAuthHeader()
+  );
+  return response.data;
+};

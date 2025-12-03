@@ -7,6 +7,9 @@ from pacientes.models import Paciente
 from datetime import datetime
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import ListAPIView, UpdateAPIView
+from .serializers import ExameSerializer
 
 class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -86,3 +89,32 @@ class AcessarResultadosView(APIView):
             'data_exame': exame.data_exame,
             'arquivos': arquivos_data
         })
+
+class ListarExamesPendentesView(ListAPIView):
+    """ Lista apenas exames que ainda não têm paciente vinculado """
+    permission_classes = [IsAuthenticated] # Apenas staff logado
+    serializer_class = ExameSerializer
+
+    def get_queryset(self):
+        # Traz exames sem paciente e ordena pelos mais recentes
+        return Exame.objects.filter(paciente__isnull=True).order_by('-criado_em')
+
+class VincularPacienteView(APIView):
+    """ Recebe o ID do exame e o ID do paciente para fazer o casamento """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        exame = get_object_or_404(Exame, pk=pk)
+        paciente_id = request.data.get('paciente_id')
+        
+        if not paciente_id:
+            return Response({'erro': 'ID do paciente necessário'}, status=status.HTTP_400_BAD_REQUEST)
+
+        paciente = get_object_or_404(Paciente, pk=paciente_id)
+        
+        # Realiza o vínculo
+        exame.paciente = paciente
+        exame.status = 'DISPONIVEL' # Libera para visualização
+        exame.save()
+        
+        return Response({'status': 'vínculo realizado', 'paciente': paciente.nome_completo})
