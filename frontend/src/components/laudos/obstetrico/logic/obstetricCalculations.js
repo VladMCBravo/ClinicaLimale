@@ -47,7 +47,6 @@ export const calcularIGeDPP_DUM = (dumIso) => {
 
     // IG Atual
     const diff = diffDays(hoje, dataDum);
-    // Nota: Se a DUM for no futuro, a lógica deve tratar, mas assumimos passado
     const ig = diasParaTextoIG(diff);
 
     // DPP (DUM + 280 dias)
@@ -78,7 +77,6 @@ export const calcularIGeDPP_Anterior = (dataExameAnt, semanasAnt, diasAnt) => {
     const ig = diasParaTextoIG(igAtualTotalDias);
 
     // DPP Corrigida (Data Anterior + (280 - IG Anterior))
-    // Lógica: Se ela tinha X dias, faltavam (280 - X) para o parto.
     const diasFaltantes = 280 - igAnteriorEmDias;
     const dataDpp = addDays(dAnt, diasFaltantes);
     const dpp = dataDpp.toLocaleDateString('pt-BR');
@@ -86,24 +84,48 @@ export const calcularIGeDPP_Anterior = (dataExameAnt, semanasAnt, diasAnt) => {
     return { ig, dpp };
 };
 
-// --- BIOMETRIA E ÍNDICES ---
+// --- CÁLCULOS DE SACO GESTACIONAL (1º TRI) ---
 
-// Calcula IG estimada por uma medida única (Ex: Fêmur -> Semanas)
-// Substitua as fórmulas abaixo pelas tabelas de Hadlock reais quando tivermos os dados precisos
-export const calcularIGPorMedida = (tipo, valorMm) => {
-    const v = parseFloat(valorMm);
-    if (!v || isNaN(v)) return "...";
-
-    let weeks = 0;
-    // Fórmulas Aproximadas (PLACEHOLDERS do seu código anterior)
-    if (tipo === 'DBP') weeks = Math.sqrt(v) * 3.2; 
-    else if (tipo === 'CC') weeks = v / 10;
-    else if (tipo === 'CA') weeks = v / 9.5;
-    else if (tipo === 'Fêmur') weeks = v / 2.8 + 8;
-    else weeks = v / 3 + 5; // Genérico
-
-    return weeks.toFixed(1) + " sem";
+export const calcularDMSG = (sg1, sg2, sg3) => {
+    const v1 = parseFloat(sg1);
+    const v2 = parseFloat(sg2);
+    const v3 = parseFloat(sg3);
+    if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
+        return ((v1 + v2 + v3) / 3).toFixed(1).replace('.', ',');
+    }
+    return '';
 };
+
+// Regra de Hellman: Dias = DMSG(mm) + 30
+export const calcularIGDmsg = (dmsgValor) => {
+    if (!dmsgValor) return '';
+    // Converte string "4,3" para float 4.3
+    const dmsg = parseFloat(dmsgValor.toString().replace(',', '.'));
+    
+    if (isNaN(dmsg) || dmsg <= 0) return '';
+
+    const diasTotais = Math.round(dmsg + 30);
+    const semanas = Math.floor(diasTotais / 7);
+    const dias = diasTotais % 7;
+
+    return `${semanas} semanas e ${dias} dias`;
+};
+
+// --- NOVO: CÁLCULO DE CCN (EMBRIÃO) ---
+// Regra simplificada: Dias = CCN(mm) + 42
+export const calcularIG_CCN = (ccnMm) => {
+    if (!ccnMm) return '';
+    const ccn = parseFloat(ccnMm);
+    if (isNaN(ccn) || ccn <= 0) return '';
+
+    const diasTotais = Math.round(ccn + 42);
+    const semanas = Math.floor(diasTotais / 7);
+    const dias = diasTotais % 7;
+
+    return `${semanas} semanas e ${dias} dias`;
+};
+
+// --- BIOMETRIA E ÍNDICES ---
 
 export const calcularIndicesBiometricos = (dados) => {
     const dbp = parseFloat(dados.dbp);
@@ -112,7 +134,6 @@ export const calcularIndicesBiometricos = (dados) => {
     const ca = parseFloat(dados.ca);
     const femur = parseFloat(dados.femur);
 
-    // Helper para evitar divisão por zero ou NaN
     const safeDiv = (num, den, scale = 1) => {
         if (!num || !den || isNaN(num) || isNaN(den)) return '';
         return ((num / den) * scale).toFixed(scale === 100 ? 0 : 2).replace('.', ',');
@@ -127,26 +148,12 @@ export const calcularIndicesBiometricos = (dados) => {
     };
 };
 
-// --- VOLUMES E OUTROS CÁLCULOS ---
-
-export const calcularDMSG = (sg1, sg2, sg3) => {
-    const v1 = parseFloat(sg1);
-    const v2 = parseFloat(sg2);
-    const v3 = parseFloat(sg3);
-    if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
-        return ((v1 + v2 + v3) / 3).toFixed(1).replace('.', ',');
-    }
-    return '';
-};
-
 export const calcularVolumeElipsoide = (d1, d2, d3) => {
     const v1 = parseFloat(d1);
     const v2 = parseFloat(d2);
     const v3 = parseFloat(d3);
     if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
-        // Fórmula do elipsoide prolate: d1 * d2 * d3 * 0.523
-        // Resultado divide por 1000 se entrada for mm para sair em cm³, ou ajusta conforme necessidade.
-        // Assumindo entrada em mm e saida em cm³:
+        // Fórmula do elipsoide: v1 * v2 * v3 * 0.523 / 1000 (para cm³)
         return (v1 * v2 * v3 * 0.000523).toFixed(1).replace('.', ',');
     }
     return '';

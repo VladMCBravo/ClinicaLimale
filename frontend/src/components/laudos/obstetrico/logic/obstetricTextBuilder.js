@@ -69,40 +69,81 @@ export const gerarRelatorioFeto = (d) => {
         if (d.citarSg) {
             let sgTxt = `Saco gestacional tópico, ${d.sgLocalizacao}. `;
             if (d.sg1) sgTxt += `Medidas: ${d.sg1}x${d.sg2}x${d.sg3} mm (DMSG: ${d.resDmsg} mm). `;
+            if (d.resIgSg) sgTxt += `IG estimada pelo SG: ${d.resIgSg}. `; // Adiciona a IG no texto se quiser
+            
             if (d.trofoblasto !== 'não citar') sgTxt += `Trofoblasto ${d.trofoblasto}. `;
-            if (d.sgComDescolamento) sgTxt += `Descolamento de ${d.desc1}x${d.desc2} mm. `;
+            
+            // CORREÇÃO 1: Checkbox "Sem sinais de descolamento"
+            if (d.sgSemDescolamento) {
+                sgTxt += `Sem sinais de descolamento ovular. `;
+            }
+
+            // CORREÇÃO 2: Checkbox "Com descolamento" + 3 Medidas
+            if (d.sgComDescolamento) {
+                // Adicionada a terceira medida (desc3)
+                sgTxt += `Presença de área de descolamento medindo ${d.desc1} x ${d.desc2} x ${d.desc3} mm. `;
+            }
+
+            // CORREÇÃO 3: Abortamento Incompleto
+            if (d.sgAbortoIncompleto) {
+                sgTxt += `ABORTAMENTO INCOMPLETO: cavidade uterina preenchida por restos ovulares. `;
+            }
+
             comentarios.push(sgTxt);
         }
 
-        // Embrião e Vitalidade (1º Tri)
+        // EMBRIÃO E VITALIDADE
         let vitalidade = '';
         if (d.embriaoNaoVisualizado) {
             vitalidade = "Embrião não visualizado no presente exame.";
         } else {
+             // BCF
              if (d.bcfIndetectavel) vitalidade = "Batimentos cardiofetais indetectáveis.";
              else vitalidade = `Embrião vivo, BCF ${d.bcf} bpm.`;
              
+             // Movimentação (CORREÇÃO AQUI)
+             if (d.movFetal) vitalidade += " Movimentação fetal ativa.";
+
+             // CCN e VV
              if(d.ccn) vitalidade += ` CCN: ${d.ccn} mm.`;
              if(d.citarVv) vitalidade += ` Vesícula vitelina normal (${d.vvDiametro} mm).`;
         }
         comentarios.push(vitalidade);
 
-         // Morfologia (1º Tri)
+         // MORFOLOGIA PRECOCE
          const morf1 = [];
          if(d.morf1Cerebro) morf1.push("cérebro");
          if(d.morf1Estomago) morf1.push("estômago");
          if(d.morf1Membros) morf1.push("membros");
          if(d.morf1Globos) morf1.push("globos oculares");
+         
+         // Cordão (CORREÇÃO AQUI)
+         if(d.morf1Cordao) morf1.push("inserção do cordão umbilical");
+
          if(d.morf1OssoNasal === 'presente') morf1.push("osso nasal presente");
          else if (d.morf1OssoNasal === 'ausente') morf1.push("osso nasal AUSENTE");
+         else if (d.morf1OssoNasal === 'hipoplásico') morf1.push("osso nasal hipoplásico");
          
          if(morf1.length > 0) comentarios.push(`Morfologia precoce: Visualizados ${morf1.join(', ')}.`);
 
-         // TN
+         // TRANSLUCÊNCIA NUCAL (TN)
          if(d.citarTn) {
              let tnTxt = `Translucência Nucal: ${d.tnMedida} mm.`;
-             if(d.tnRisco) tnTxt += ` Risco corrigido (T21): 1/${d.riscoCorrigido}.`;
+             
+             // Riscos (CORREÇÃO AQUI)
+             if(d.tnRisco) {
+                 tnTxt += ` Risco basal (idade): 1/${d.riscoBasal}.`; // Adicionado basal
+                 tnTxt += ` Risco corrigido (T21): 1/${d.riscoCorrigido}.`;
+             }
              comentarios.push(tnTxt);
+
+             // Obs no Final (CORREÇÃO AQUI)
+             if (d.tnObs) {
+                 // Adiciona uma nota explicativa ou leva para conclusão
+                 comentarios.push(`Nota: O rastreamento de aneuploidias pela TN tem sensibilidade de cerca de 75-80% para T21.`); 
+                 // Se preferir que vá para a CONCLUSÃO, mude para:
+                 // conclusao.push(`Rastreamento de 1º trimestre: TN ${d.tnMedida} mm. Risco ajustado 1/${d.riscoCorrigido}.`);
+             }
          }
 
     } 
@@ -197,37 +238,90 @@ export const gerarRelatorioFeto = (d) => {
         }
     }
 
-    // --- 6. DOPPLER ---
+    // --- 6. DOPPLERFLUXOMETRIA ---
     if (d.usarDoppler) {
         const dopComments = [];
+        
+        // Helper para montar medidas (Ex: "IP: 0,5, IR: 0,6")
+        const mountMetrics = (items) => {
+            return items.filter(i => i.val).map(i => `${i.label} ${i.val}`).join(', ');
+        };
+
+        // 1. ARTÉRIAS UTERINAS
         if(d.checkUtDir) {
-            let txt = `Art. Uterina Dir: IP ${d.utDirIP || '--'}`;
-            if(d.utDirIncisura) txt += ' (com incisura)';
+            let measures = mountMetrics([
+                { label: 'IP', val: d.utDirIP }, { label: 'IR', val: d.utDirIR }, { label: 'S/D', val: d.utDirSD }
+            ]);
+            let txt = `Art. Uterina Dir: ${measures || 'fluxo presente'}`;
+            if(d.utDirIncisura) txt += ' (com incisura protodiastólica)';
             dopComments.push(txt);
         }
+
         if(d.checkUtEsq) {
-            let txt = `Art. Uterina Esq: IP ${d.utEsqIP || '--'}`;
-            if(d.utEsqIncisura) txt += ' (com incisura)';
+            let measures = mountMetrics([
+                { label: 'IP', val: d.utEsqIP }, { label: 'IR', val: d.utEsqIR }, { label: 'S/D', val: d.utEsqSD }
+            ]);
+            let txt = `Art. Uterina Esq: ${measures || 'fluxo presente'}`;
+            if(d.utEsqIncisura) txt += ' (com incisura protodiastólica)';
             dopComments.push(txt);
         }
+
+        // 2. ARTÉRIAS UMBILICAIS
         if(d.checkUmb) {
-            let txt = `Art. Umbilical: IP ${d.umbIP || '--'}`;
-            const alts = [];
-            if(d.umbDiastoleZero) alts.push("diástole zero");
-            if(d.umbDiastoleReversa) alts.push("diástole reversa");
-            if(alts.length > 0) txt += ` (${alts.join(', ')})`;
+            let measures = mountMetrics([
+                { label: 'IP', val: d.umbIP }, { label: 'IR', val: d.umbIR }, { label: 'S/D', val: d.umbSD }
+            ]);
+            let txt = `Artérias Umbilicais: ${measures}`;
+            
+            // Qualitativo
+            const qual = [];
+            if (d.umbTraçadoNormal) qual.push("traçado normal");
+            if (d.umbDiastoleBaixa) qual.push("diástole reduzida/baixa");
+            if (d.umbDiastoleZero) qual.push("diástole zero");
+            if (d.umbDiastoleReversa) qual.push("diástole reversa");
+            
+            if (qual.length > 0) {
+                txt += measures ? ` (${qual.join(', ')})` : qual.join(', ');
+            }
             dopComments.push(txt);
         }
+
+        // 3. ARTÉRIA CEREBRAL MÉDIA (ACM)
         if(d.checkAcm) {
-            let txt = `ACM: PVS ${d.acmPVS || '--'} cm/s`;
-            if(d.checkAcmIP) txt += `, IP ${d.acmIP}`;
+            let measures = mountMetrics([
+                { label: 'PVS', val: d.acmPVS ? d.acmPVS + ' cm/s' : '' },
+                { label: 'IP', val: d.acmIP }, { label: 'IR', val: d.acmIR }, { label: 'S/D', val: d.acmSD }
+            ]);
+            let txt = `Artéria Cerebral Média: ${measures}`;
+
+            // Qualitativo
+            const qual = [];
+            if (d.acmTraçadoNormal) qual.push("traçado normal");
+            if (d.acmDiastoleAlta) qual.push("diástole alta (efeito brain-sparing/vasodilatação)");
+            
+            if (qual.length > 0) {
+                txt += measures ? ` (${qual.join(', ')})` : qual.join(', ');
+            }
             dopComments.push(txt);
         }
+
+        // 4. DUCTO VENOSO
         if(d.checkDv) {
-            let txt = `Ducto Venoso: IP ${d.dvIP || '--'}`;
-            if(d.dvOndaAZero) txt += ` (Onda A zero)`;
+            let measures = mountMetrics([{ label: 'IP', val: d.dvIP }]);
+            let txt = `Ducto Venoso: ${measures}`;
+
+            // Qualitativo
+            const qual = [];
+            if (d.dvTraçadoNormal) qual.push("traçado normal");
+            if (d.dvOndaAZero) qual.push("onda A zero");
+            if (d.dvOndaAReversa) qual.push("onda A reversa");
+            
+            if (qual.length > 0) {
+                txt += measures ? ` (${qual.join(', ')})` : qual.join(', ');
+            }
             dopComments.push(txt);
         }
+
         if(dopComments.length > 0) {
             comentarios.push('Estudo Dopplerfluxométrico:');
             dopComments.forEach(c => comentarios.push(c));

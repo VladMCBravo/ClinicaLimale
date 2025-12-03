@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { initialState } from '../logic/obstetricInitialState';
-import { calcularIGeDPP_DUM, calcularIGeDPP_Anterior, calcularIndicesBiometricos, calcularDMSG } from '../logic/obstetricCalculations';
+import { 
+    calcularIGeDPP_DUM, 
+    calcularIGeDPP_Anterior, 
+    calcularIndicesBiometricos, 
+    calcularDMSG,
+    calcularIGDmsg, // Importação adicionada
+    calcularIG_CCN, // Importação adicionada
+} from '../logic/obstetricCalculations';
 import { gerarRelatorioFeto, montarTextoFinal } from '../logic/obstetricTextBuilder';
 
 export const useObstetricoForm = (onUpdate) => {
@@ -28,7 +35,7 @@ export const useObstetricoForm = (onUpdate) => {
                 if (prev.igDum !== ig) { newState.igDum = ig; mudou = true; }
                 if (prev.dppDum !== dpp) { newState.dppDum = dpp; mudou = true; }
                 
-                // Placeholder para DPP Biometria (se não tiver lógica complexa ainda)
+                // Placeholder para DPP Biometria
                 if (prev.citarDppBiometria && prev.dppBiometriaCalculada !== dpp) {
                      newState.dppBiometriaCalculada = dpp; 
                      mudou = true; 
@@ -49,18 +56,39 @@ export const useObstetricoForm = (onUpdate) => {
             if (prev.resCfDbp !== indices.cfDbp) { newState.resCfDbp = indices.cfDbp; mudou = true; }
             if (prev.resCfCc !== indices.cfCc) { newState.resCfCc = indices.cfCc; mudou = true; }
 
-            // D. Checkboxes Automáticos de Índices (Ativa se tiver valor)
+            // D. Checkboxes Automáticos de Índices
             if (indices.ic && !prev.checkIndiceCefalico) { newState.checkIndiceCefalico = true; mudou = true; }
-            // ... (pode adicionar lógica para os outros checkboxes se desejar automação total)
 
-            // E. DMSG (1º Trimestre)
+            // E. DMSG e IG do Saco (1º Trimestre)
             const novoDmsg = calcularDMSG(prev.sg1, prev.sg2, prev.sg3);
-            if (prev.resDmsg !== novoDmsg) { newState.resDmsg = novoDmsg; mudou = true; }
+            if (prev.resDmsg !== novoDmsg) { 
+                newState.resDmsg = novoDmsg; 
+                
+                // Calcula IG baseada no DMSG novo
+                const novaIgSg = calcularIGDmsg(novoDmsg); 
+                newState.resIgSg = novaIgSg;
+                
+                mudou = true; 
+            }
+
+            // F. CÁLCULO DE CCN (Embrião)
+        if (prev.ccn) {
+            const novaIgCcn = calcularIG_CCN(prev.ccn);
+            if (prev.resIgCcn !== novaIgCcn) {
+                newState.resIgCcn = novaIgCcn;
+                mudou = true;
+            }
+        } else if (prev.resIgCcn !== '') {
+            newState.resIgCcn = ''; // Limpa se apagar o número
+            mudou = true;
+        }
+
+        // Adicione 'data.ccn' no array de dependências do useEffect lá no final!
 
             return mudou ? newState : prev;
         });
     }, [
-        data.dum, data.usarDum, data.dataExameAnterior, data.igAnteriorSemanas, data.igAnteriorDias,
+        data.dum, data.usarDum, data.dataExameAnterior, data.igAnteriorSemanas, data.igAnteriorDias, data.ccn,
         data.dbp, data.dof, data.cc, data.ca, data.femur, 
         data.sg1, data.sg2, data.sg3, data.citarDppBiometria
     ]);
@@ -122,7 +150,6 @@ export const useObstetricoForm = (onUpdate) => {
             setFetoAtivo(1);
             if(dadosFeto1.current) setData({ ...dadosFeto1.current });
         } else {
-            // Ao ativar, garante que Feto 2 tenha DUM sincronizada inicialmente
             if (!dadosFeto2.current.dum) {
                 dadosFeto2.current = { ...initialState, dum: data.dum, usarDum: data.usarDum, subtipo: data.subtipo };
             }
@@ -131,12 +158,8 @@ export const useObstetricoForm = (onUpdate) => {
 
     const handleTabChange = (novoFeto) => {
         if (novoFeto === fetoAtivo) return;
-        
-        // Salva estado atual antes de trocar
         if (fetoAtivo === 1) dadosFeto1.current = { ...data };
         else dadosFeto2.current = { ...data };
-        
-        // Carrega novo estado
         const dadosNovo = novoFeto === 1 ? dadosFeto1.current : dadosFeto2.current;
         setData({ ...dadosNovo });
         setFetoAtivo(novoFeto);
