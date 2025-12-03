@@ -66,7 +66,6 @@ function App() {
                 <Route path="convenios" element={<ConveniosPage />} />
                 <Route path="categorias-despesa" element={<CategoriasDespesaPage />} />
                 <Route path="procedimentos" element={<ProcedimentosPage />} /> {/* <-- NOVO */}
-                <Route path="/recepcao/vincular" element={<VincularExames />} />
                 <Route path="salas" element={<SalasPage />} /> {/* <-- NOVO */}
                 </Route> {/* <-- Esta linha (60) fecha o </ProtectedRoute> */}
               </Route>
