@@ -1,10 +1,10 @@
 import React from 'react';
 
-// Novo Helper usando CSS GRID para alinhamento perfeito
+// Helper usando CSS GRID para alinhamento
 const MedidaGridRow = ({ label, name, value, onChange, unit='mm', refVal }) => (
     <div style={{
         display: 'grid', 
-        gridTemplateColumns: '1fr 60px 30px', // Label ocupa o resto, Input 60px, Unidade 30px
+        gridTemplateColumns: '1fr 60px 30px', 
         gap: '5px', 
         alignItems: 'center', 
         marginBottom: '4px',

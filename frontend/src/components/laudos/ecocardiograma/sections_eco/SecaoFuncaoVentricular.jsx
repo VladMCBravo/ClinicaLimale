@@ -53,7 +53,6 @@ const SecaoFuncaoVentricular = ({ data, handleChange }) => {
                         <input type="checkbox" name="contratilidadeAlterada" checked={data.contratilidadeAlterada} onChange={handleChange} />
                         alteração da contratilidade segmentar do ventrículo esquerdo:
                     </label>
-                    {/* Placeholder para a Grid de Segmentos (Acinesia/Hipocinesia) */}
                     <div style={{marginLeft:'20px', fontSize:'9px', color:'#999', fontStyle:'italic', display: data.contratilidadeAlterada ? 'block' : 'none'}}>
                         (Grid de 17 segmentos omitida para brevidade - funcionalidade ativa)
                     </div>

@@ -17,7 +17,7 @@ const RadioGroup = ({ title, name, options, currentValue, onChange }) => (
 const SecaoValvaPulmonar = ({ data, handleChange }) => {
   return (
     <>
-        {/* ARTÉRIA PULMONAR (Novo do Print) */}
+        {/* ARTÉRIA PULMONAR */}
         <div className="laudo-section">
             <div className="header-base header-blue">Artéria pulmonar</div>
             <div className="laudo-section-body">
@@ -60,7 +60,7 @@ const SecaoValvaPulmonar = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* VALVA PULMONAR (Correção do erro de sintaxe > e < ) */}
+        {/* VALVA PULMONAR */}
         <div className="laudo-section">
             <div className="header-base header-purple">VALVA PULMONAR</div>
             <div className="laudo-section-body">
@@ -69,7 +69,6 @@ const SecaoValvaPulmonar = ({ data, handleChange }) => {
                     
                     <div className="laudo-row">
                         <input type="radio" name="pulEstenose" value="discreta" checked={data.pulEstenose==='discreta'} onChange={handleChange}/> 
-                        {/* AQUI ESTAVA O ERRO: Substituído > por &gt; */}
                         <span style={{fontSize:'10px'}}>discreta (pico &gt;4 m/s e grad &gt;64)</span>
                     </div>
                      <div className="laudo-row">
@@ -78,7 +77,6 @@ const SecaoValvaPulmonar = ({ data, handleChange }) => {
                     </div>
                      <div className="laudo-row">
                         <input type="radio" name="pulEstenose" value="severa" checked={data.pulEstenose==='severa'} onChange={handleChange}/> 
-                        {/* AQUI ESTAVA O ERRO: Substituído < por &lt; */}
                         <span style={{fontSize:'10px'}}>severa (pico &lt;3 m/s e grad &lt;36)</span>
                     </div>
 

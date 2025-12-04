@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Reutilizamos o RadioGroup se ele estiver num arquivo utils, ou definimos aqui
+// Reutilizamos o RadioGroup
 const RadioGroup = ({ title, name, options, currentValue, onChange }) => (
     <div style={{marginBottom:'8px', border:'1px solid #eee', padding:'4px', borderRadius:'3px'}}>
         <div style={{fontSize:'10px', fontWeight:'bold', color:'#333', marginBottom:'3px', borderBottom:'1px solid #f0f0f0'}}>{title}</div>

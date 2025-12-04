@@ -10,29 +10,29 @@ const SecaoTecnicaEco = ({ data, handleChange }) => {
                 <div className="laudo-row" style={{gap:'15px', flexWrap:'wrap'}}>
                     <div className="laudo-row">
                         <input type="checkbox" checked={!!data.peso} readOnly />
-                        <span style={{marginLeft:'5px'}}>Peso</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>Peso</span>
                         <input name="peso" type="number" value={data.peso} onChange={handleChange} className="laudo-input" style={{width:'50px', marginLeft:'5px'}} />
-                        <span style={{marginLeft:'5px'}}>kg</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>kg</span>
                     </div>
                     <div className="laudo-row">
                         <input type="checkbox" checked={!!data.altura} readOnly />
-                        <span style={{marginLeft:'5px'}}>Altura</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>Altura</span>
                         <input name="altura" type="number" value={data.altura} onChange={handleChange} className="laudo-input" style={{width:'50px', marginLeft:'5px'}} />
-                        <span style={{marginLeft:'5px'}}>cm</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>cm</span>
                     </div>
                     {/* SC CALCULADA */}
                     <div className="laudo-row">
                         <input type="checkbox" checked={!!data.sc} readOnly />
-                        <span style={{marginLeft:'5px'}}>SC</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>SC</span>
                         <input value={data.sc} readOnly className="laudo-input" style={{width:'50px', marginLeft:'5px', background:'#f0f0f0', fontWeight:'bold', color:'#333'}} />
-                        <span style={{marginLeft:'5px'}}>m²</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>m²</span>
                     </div>
-                    {/* IMC CALCULADO (NOVO) */}
+                    {/* IMC CALCULADO */}
                     <div className="laudo-row">
                         <input type="checkbox" checked={!!data.imc} readOnly />
-                        <span style={{marginLeft:'5px'}}>IMC</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>IMC</span>
                         <input value={data.imc} readOnly className="laudo-input" style={{width:'50px', marginLeft:'5px', background:'#f0f0f0', fontWeight:'bold', color:'#333'}} />
-                        <span style={{marginLeft:'5px'}}>kg/m²</span>
+                        <span style={{marginLeft:'5px', fontSize:'11px'}}>kg/m²</span>
                     </div>
                 </div>
             </div>
