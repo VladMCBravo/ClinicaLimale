@@ -1,7 +1,7 @@
 // src/components/laudos/ecocardiograma/FormEcocardiograma.jsx
 import React from 'react';
 import { HeartPulse } from 'lucide-react'; // Trocado para Lucide para evitar erro
-import './Laudos.css'; 
+import '../Laudos.css';
 
 // Importação do Hook Customizado
 import useEcoForm from './hooks/useEcoForm';
