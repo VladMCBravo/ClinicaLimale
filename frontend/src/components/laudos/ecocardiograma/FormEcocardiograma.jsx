@@ -1,12 +1,14 @@
 // src/components/laudos/ecocardiograma/FormEcocardiograma.jsx
 import React from 'react';
-import { HeartPulse } from 'lucide-react'; // Trocado para Lucide para evitar erro
-import '../Laudos.css';
+// Ícones: Usando SVG nativo para evitar dependências externas (como lucide-react) que podem quebrar o build
+import '../Laudos.css'; 
 
 // Importação do Hook Customizado
+// ATENÇÃO: Certifique-se de que o arquivo 'useEcoForm.js' está na pasta '/hooks' dentro de 'ecocardiograma'
 import useEcoForm from './hooks/useEcoForm';
 
 // Importação das Seções
+// ATENÇÃO: Certifique-se de que todos estes arquivos estão na pasta '/sections_eco' dentro de 'ecocardiograma'
 import SecaoTecnicaEco from './sections_eco/SecaoTecnicaEco';
 import SecaoMedidasEco from './sections_eco/SecaoMedidasEco';
 import SecaoRitmoCamaras from './sections_eco/SecaoRitmoCamaras';
@@ -25,7 +27,14 @@ const FormEcocardiograma = ({ onUpdate }) => {
   return (
     <div className="laudo-container">
         <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px', paddingBottom:'10px', borderBottom:'1px solid #ccc' }}>
-             <HeartPulse size={20} color="#1565C0" />
+             {/* Ícone SVG Nativo */}
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565C0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 14c1.49-1.28 3.6-2.34 4.58-2.74a.92.92 0 0 0 .17-.06.92.92 0 0 0-.17-1.78c-2.4-.6-5.83-.24-8.58 2.06" />
+                <path d="M5 14c-1.49-1.28-3.6-2.34-4.58-2.74a.92.92 0 0 1-.17-.06.92.92 0 0 1 .17-1.78c2.4-.6 5.83-.24 8.58 2.06" />
+                <path d="M12 4.5v15" />
+                <path d="M9.5 7.5a2.5 2.5 0 0 1 5 0" />
+             </svg>
+             
              <span style={{fontWeight:'bold', color:'#333'}}>CONFIGURAÇÃO DO EXAME:</span>
              <select 
                 name="subtipo" 
@@ -63,4 +72,5 @@ const FormEcocardiograma = ({ onUpdate }) => {
     </div>
   );
 };
+
 export default FormEcocardiograma;
