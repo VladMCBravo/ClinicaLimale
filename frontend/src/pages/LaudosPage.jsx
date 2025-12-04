@@ -107,109 +107,162 @@ const LaudosPage = () => {
 
   // --- FUNÇÃO DE IMPRESSÃO CORRIGIDA (Respeita o Texto Editável) ---
   const handlePrint = () => {
-      const pageMargins = [60, 128, 60, 60]; 
-      let conteudoLaudo = [];
+      const pageMargins = [40, 128, 40, 60]; 
+      
+      const content = [];
 
-      // HELPER: Criar Tabela de Biometria (Apenas isso será estruturado)
-      const criarTabelaBiometria = (dadosTabela) => {
+      // 1. HELPER: Tabela de Biometria (Estilo Clean)
+      const criarTabelaBiometria = (dadosTabela, titulo) => {
           if (!dadosTabela || dadosTabela.length === 0) return null;
+          
           const bodyTable = [
               [
-                  { text: 'Estrutura', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }, 
-                  { text: 'Medida', bold: true, fillColor: '#f0f0f0', style: 'tableHeader' }
+                  { text: 'ESTRUTURA', style: 'tableHeader', fillColor: '#F5F5F5', border: [false, false, false, true] }, 
+                  { text: 'MEDIDA', style: 'tableHeader', fillColor: '#F5F5F5', border: [false, false, false, true] }
               ]
           ];
-          dadosTabela.forEach(item => {
+          
+          dadosTabela.forEach((item, index) => {
               bodyTable.push([
-                  { text: item.estrutura, fontSize: 10 },
-                  { text: item.medida, fontSize: 10 }
+                  { text: item.estrutura, fontSize: 9, color: '#333', border: [false, false, false, true], margin: [0, 2] },
+                  { text: item.medida, fontSize: 9, bold: true, alignment: 'right', border: [false, false, false, true], margin: [0, 2] }
               ]);
           });
+
           return {
-              table: { widths: ['*', 'auto'], body: bodyTable },
-              layout: 'lightHorizontalLines',
-              margin: [0, 5, 0, 15] // Margem abaixo da tabela
+              stack: [
+                  { text: titulo, style: 'sectionHeader', margin: [0, 10, 0, 5] },
+                  {
+                      table: {
+                          widths: ['*', 100], // Coluna de medida com largura fixa
+                          body: bodyTable
+                      },
+                      layout: {
+                          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0 : 0.5,
+                          vLineWidth: () => 0,
+                          hLineColor: () => '#E0E0E0'
+                      }
+                  }
+              ],
+              unbreakable: true // Tenta não quebrar a tabela no meio
           };
       };
 
-      // 1. INSERIR TABELAS DE BIOMETRIA (Se houver)
-      if (dadosEstruturados.feto1 && dadosEstruturados.feto1.tabelaBiometria.length > 0) {
-          if (dadosEstruturados.isGemelar) conteudoLaudo.push({ text: 'Biometria Feto 1:', bold: true, fontSize: 11 });
-          const tab1 = criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria);
-          if (tab1) conteudoLaudo.push(tab1);
-      }
-      
-      if (dadosEstruturados.isGemelar && dadosEstruturados.feto2 && dadosEstruturados.feto2.tabelaBiometria.length > 0) {
-          conteudoLaudo.push({ text: 'Biometria Feto 2:', bold: true, fontSize: 11, margin: [0, 10, 0, 0] });
-          const tab2 = criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria);
-          if (tab2) conteudoLaudo.push(tab2);
-      }
+      // 2. CORPO DO LAUDO (TEXTO DESCRIITIVO)
+      // Quebra o texto por linhas para criar parágrafos reais com espaçamento
+      const processarTexto = (textoRaw) => {
+          if (!textoRaw) return [];
+          // Remove a palavra "CONCLUSÃO:" se ela vier automática no texto para tratarmos separado, 
+          // ou mantém se você preferir que o médico controle tudo. 
+          // Vamos manter a estrutura mas dar espaçamento nos parágrafos.
+          return textoRaw.split('\n').map(line => {
+              if (line.trim() === '') return { text: '', margin: [0, 2] }; // Espaço pequeno entre linhas vazias
+              
+              // Se a linha for um Título de seção (ex: "--- FETO 1 ---" ou "CONCLUSÃO:")
+              if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO:')) {
+                  return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
+              }
+              
+              // Parágrafo normal
+              return { 
+                  text: line, 
+                  fontSize: 10, // Fonte padrão moderna
+                  alignment: 'justify', 
+                  lineHeight: 1.3,
+                  margin: [0, 0, 0, 6] // Espaço abaixo de cada parágrafo
+              };
+          });
+      };
 
-      // 2. INSERIR O TEXTO DO LAUDO (Exatamente como editado pelo usuário)
-      // Usamos white-space: pre-wrap behavior para manter parágrafos
-      conteudoLaudo.push({ 
-          text: textoFinal, 
-          fontSize: 12, 
-          lineHeight: 1.3, 
-          alignment: 'justify', 
+      // --- MONTAGEM DO PDF ---
+
+      // A. Título do Exame
+      content.push({ 
+          text: tituloExame || 'RELATÓRIO DE ULTRASSONOGRAFIA', 
+          style: 'mainHeader', 
+          alignment: 'center',
           margin: [0, 0, 0, 20] 
       });
 
-      // --- IMAGENS ---
-      const imagesContent = [];
+      // B. Texto do Laudo (Primeiro!)
+      content.push(...processarTexto(textoFinal));
+
+      // C. Tabelas de Biometria (Por último, como anexo técnico)
+      // Linha separadora elegante
+      content.push({ canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 10, 0, 10] });
+      
+      if (dadosEstruturados.feto1?.tabelaBiometria?.length > 0) {
+          const titulo = dadosEstruturados.isGemelar ? 'BIOMETRIA FETAL - FETO 1' : 'TABELA BIOMÉTRICA';
+          content.push(criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria, titulo));
+      }
+      
+      if (dadosEstruturados.isGemelar && dadosEstruturados.feto2?.tabelaBiometria?.length > 0) {
+          content.push(criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria, 'BIOMETRIA FETAL - FETO 2'));
+      }
+
+      // D. Imagens
       if (imagens.length > 0) {
-        imagesContent.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'subheader', margin: [0, 10, 0, 5], pageBreak: 'before' });
+        content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
         for (let i = 0; i < imagens.length; i += 2) {
             const row = {
                 columns: [
-                    { image: imagens[i], width: 225, margin: [0, 2, 0, 10] }, 
-                    imagens[i + 1] ? { image: imagens[i + 1], width: 225, margin: [0, 2, 0, 10] } : null 
+                    { image: imagens[i], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' }, 
+                    imagens[i + 1] ? { image: imagens[i + 1], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' } : null 
                 ],
-                columnGap: 10
+                columnGap: 10,
+                margin: [0, 5]
             };
-            imagesContent.push(row);
+            content.push(row);
         }
       }
 
-      // --- PDF DEFINITION ---
+      // --- DEFINIÇÃO DO DOCUMENTO ---
       const docDefinition = {
           pageSize: 'A4', 
           pageMargins: pageMargins,
           content: [
+              // Cabeçalho Simples (Paciente e Data)
               {
                 columns: [
-                    { width: 'auto', text: 'PACIENTE: ', bold: true, fontSize: 11 },
-                    { width: '*', text: paciente ? paciente.nome_completo.toUpperCase() : '___', bold: false, fontSize: 11 }
+                    { 
+                        stack: [
+                            { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
+                            { text: paciente ? paciente.nome_completo.toUpperCase() : '___', fontSize: 11, bold: true }
+                        ],
+                        width: '*' 
+                    },
+                    { 
+                        stack: [
+                            { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
+                            { text: new Date().toLocaleDateString('pt-BR'), fontSize: 11, alignment: 'right' }
+                        ],
+                        width: 100 
+                    }
                 ],
-                margin: [0, 0, 0, 3]
+                margin: [0, 0, 0, 25] // Espaço após cabeçalho
               },
-              {
-                columns: [
-                    { width: 'auto', text: 'DATA: ', bold: true, fontSize: 11 },
-                    { width: '*', text: new Date().toLocaleDateString('pt-BR'), bold: false, fontSize: 11 }
-                ],
-                margin: [0, 0, 0, 20]
-              },
-              { text: tituloExame || 'RELATÓRIO MÉDICO', style: 'header', alignment: 'center', margin: [0, 0, 0, 15] },
               
-              ...conteudoLaudo,
-              
+              ...content, // Conteúdo gerado acima
+
+              // Assinatura
               {
                 stack: [
-                    { text: '_______________________________', alignment: 'center', margin: [0, 0, 0, 2] },
-                    { text: medicoNome || 'Médico Responsável', alignment: 'center', bold: true, fontSize: 11 },
-                    { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 10 }
+                    { text: '_______________________________', alignment: 'center', color: '#999' },
+                    { text: medicoNome || 'Médico Examinador', alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
+                    { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 9, color: '#555' }
                 ],
                 unbreakable: true, 
-                margin: [0, 30, 0, 20], 
+                margin: [0, 40, 0, 10], 
                 alignment: 'center'
               },
-              ...imagesContent
           ],
           styles: {
-            header: { fontSize: 14, bold: true },
-            subheader: { fontSize: 12, bold: true, decoration: 'underline' },
-            tableHeader: { fontSize: 10, bold: true, color: 'black' }
+            mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },
+            sectionHeader: { fontSize: 11, bold: true, color: '#2E7D32', uppercase: true }, // Verde escuro elegante
+            tableHeader: { fontSize: 9, bold: true, color: '#555' }
+          },
+          defaultStyle: {
+              font: 'Roboto' // Fonte padrão do pdfMake, limpa e sem serifa
           }
       };
       

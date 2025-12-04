@@ -199,7 +199,10 @@ export const gerarRelatorioFeto = (d) => {
         if(d.checkRelacaoCcCa && d.resCcCa) indices.push(`CC/CA: ${d.resCcCa}${mostrarRef ? ' (VN: > 1.0)' : ''}`);
         if(d.checkRelacaoCfCa && d.resCfCa) indices.push(`Fêmur/CA: ${d.resCfCa}%${mostrarRef ? ' (VN: 20-24%)' : ''}`);
         if(d.checkRelacaoCfDbp && d.resCfDbp) indices.push(`Fêmur/DBP: ${d.resCfDbp}%${mostrarRef ? ' (VN: 70-86%)' : ''}`);
-
+        // --- ADICIONE ESTA LINHA ABAIXO ---
+        if(d.checkRelacaoCfCc && d.resCfCc) 
+            indices.push(`Fêmur/CC: ${d.resCfCc}%${mostrarRef ? ' (VN: 19-21%)' : ''}`);
+        // ----------------------------------
         if(indices.length > 0) comentarios.push(`Relações biométricas: ${indices.join(' | ')}.`);
     }
 
