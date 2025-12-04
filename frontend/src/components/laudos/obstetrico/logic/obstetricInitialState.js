@@ -224,6 +224,10 @@ export const initialState = {
     dvOndaAReversa: false,
 
     // --- CONCLUSÃO ---
-    conclusaoNormal: false,
+    conclusaoNormal: false,          // Desenvolvimento/Geral Normal
+    conclusaoMorfologiaNormal: false, // NOVO
+    conclusaoDopplerNormal: false,    // NOVO
+    conclusaoTnNormal: false,         // NOVO
+    
     obsAdicionais: ''
 };

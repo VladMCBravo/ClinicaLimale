@@ -1,6 +1,55 @@
 import { formatData } from './obstetricCalculations';
 
 /**
+ * Função Auxiliar: Gera Conclusão Inteligente se o médico não marcou os checkboxes manuais
+ */
+const gerarConclusaoAutomatica = (d) => {
+    const achados = [];
+
+    // 1. Vitalidade / Tipo de Gestação
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        if (d.embriaoNaoVisualizado) achados.push("Gestação incipiente / Embrião não visualizado.");
+        else if (d.bcfIndetectavel) achados.push("Gestação inviável (Aborto retido).");
+        else if (d.sgAbortoIncompleto) achados.push("Sinais de abortamento incompleto.");
+        else achados.push("Gestação tópica e evolutiva.");
+
+        // Descolamento
+        if (d.sgComDescolamento) achados.push(`Hematoma subcoriônico / Descolamento (${d.desc1}x${d.desc2} mm).`);
+        
+        // TN
+        if (d.citarTn && d.tnRisco) achados.push(`Rastreamento de 1º trimestre realizado.`);
+    } else {
+        // 2/3 Tri
+        achados.push("Gestação tópica, feto único, vivo.");
+    }
+
+    // 2. Líquido Amniótico (Se alterado)
+    if (d.liquidoVolume === 'Reduzido') achados.push("Oligodrâmnio.");
+    if (d.liquidoVolume === 'Aumentado') achados.push("Polidrâmnio.");
+
+    // 3. Placenta (Se alterada)
+    if (d.placentaInsercao === 'Prévia') achados.push("Placenta Prévia.");
+    if (d.placentaInsercao === 'Baixa') achados.push("Placenta de inserção baixa.");
+
+    // 4. Crescimento (Se tiver peso e percentil - Lógica futura, deixei placeholder)
+    // if (percentil < 10) achados.push("Restrição de crescimento fetal (P < 10).");
+
+    // 5. Doppler (Se alterado)
+    if (d.usarDoppler) {
+        if (d.utDirIncisura || d.utEsqIncisura) achados.push("Doppler das artérias uterinas com aumento da resistência (Incisura presente).");
+        if (d.umbDiastoleZero || d.umbDiastoleReversa) achados.push("Doppler umbilical alterado (Diástole Zero/Reversa).");
+        if (d.acmDiastoleAlta) achados.push("Centralização fetal (Vasodilatação da ACM).");
+    }
+
+    // Se não achou nada de errado, devolve a frase padrão
+    if (achados.length === 1 && achados[0].includes("Gestação")) {
+        return "Desenvolvimento fetal compatível com a idade gestacional.";
+    }
+
+    return achados.join(' ');
+};
+
+/**
  * Gera os blocos de texto e tabelas para UM feto específico.
  * @param {Object} d - Dados do feto (estado do formulário)
  */
@@ -328,43 +377,58 @@ export const gerarRelatorioFeto = (d) => {
         }
     }
 
-    // --- 7. CONCLUSÃO ---
-    if(d.conclusaoNormal) conclusao.push("Desenvolvimento fetal compatível com a idade gestacional.");
-    if(d.obsAdicionais) conclusao.push(d.obsAdicionais);
+    // --- 7. CONCLUSÃO (NOVA LÓGICA) ---
+    
+    // a. Checkboxes Manuais (Têm prioridade)
+    let conclusaoManualAdicionada = false;
+    
+    if(d.conclusaoNormal) {
+        conclusao.push("Desenvolvimento fetal compatível com a idade gestacional.");
+        conclusaoManualAdicionada = true;
+    }
+    
+    if(d.conclusaoMorfologiaNormal) {
+        conclusao.push("Estudo morfológico fetal dentro dos limites da normalidade para a idade gestacional.");
+        conclusaoManualAdicionada = true;
+    }
+
+    if(d.conclusaoDopplerNormal && d.usarDoppler) {
+        conclusao.push("Estudo dopplerfluxométrico materno-fetal dentro dos limites da normalidade.");
+        conclusaoManualAdicionada = true;
+    }
+
+    if(d.conclusaoTnNormal && d.citarTn) {
+        conclusao.push("Translucência nucal dentro dos limites da normalidade.");
+        conclusaoManualAdicionada = true;
+    }
+
+    // b. Conclusão Inteligente (Fallback) - Só roda se nenhum manual foi marcado
+    if (!conclusaoManualAdicionada) {
+        const autoConclusao = gerarConclusaoAutomatica(d);
+        if (autoConclusao) conclusao.push(autoConclusao);
+    }
+
+    // c. Observações Adicionais (Sempre aparece)
+    if(d.obsAdicionais) {
+        conclusao.push(d.obsAdicionais);
+    }
 
     return { tabelaBiometria, listaComentarios: comentarios, listaConclusao: conclusao };
 };
 
 /**
- * Monta a string final que aparecerá no textarea "LAUDO FINAL".
- * Concatena os comentários dos fetos e conclusões.
+ * Monta o texto final
  */
 export const montarTextoFinal = (dadosF1, dadosF2, isGemelar) => {
     let texto = "";
-    
-    // Header do Feto 1 (só se gemelar, ou se preferir sempre marcar)
     if(isGemelar) texto += "--- FETO 1 ---\n";
-    
-    // Relatório Feto 1
-    if(dadosF1.listaComentarios.length > 0) {
-        texto += dadosF1.listaComentarios.join('\n');
-    }
-    
-    // Conclusão Feto 1
-    if(dadosF1.listaConclusao.length > 0) {
-        texto += "\n\nCONCLUSÃO:\n" + dadosF1.listaConclusao.join('\n');
-    }
+    if(dadosF1.listaComentarios.length > 0) texto += dadosF1.listaComentarios.join('\n');
+    if(dadosF1.listaConclusao.length > 0) texto += "\n\nCONCLUSÃO:\n" + dadosF1.listaConclusao.join('\n');
 
-    // Feto 2 (Gemelar)
     if(isGemelar && dadosF2) {
         texto += `\n\n--- FETO 2 ---\n`;
-        if(dadosF2.listaComentarios.length > 0) {
-            texto += dadosF2.listaComentarios.join('\n');
-        }
-        if(dadosF2.listaConclusao.length > 0) {
-            texto += "\n\nCONCLUSÃO:\n" + dadosF2.listaConclusao.join('\n');
-        }
+        if(dadosF2.listaComentarios.length > 0) texto += dadosF2.listaComentarios.join('\n');
+        if(dadosF2.listaConclusao.length > 0) texto += "\n\nCONCLUSÃO:\n" + dadosF2.listaConclusao.join('\n');
     }
-
     return texto;
 };
