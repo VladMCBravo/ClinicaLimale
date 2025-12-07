@@ -54,8 +54,7 @@ class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos'))
     serializer_class = PacienteSerializer
     
-    # --- CORREÇÃO AQUI ---
-    # Antes estava: [IsMedicoResponsavelOrAdmin] (Isso bloqueava a recepção e outros médicos)
-    # Mudamos para: [IsAuthenticated]
-    # Isso permite que qualquer usuário logado (Recepção, Médicos, Admin) VEJA os dados.
+    # --- CORREÇÃO DO ERRO 403 ---
+    # Mudamos para IsAuthenticated. 
+    # Assim, a "Página Mestre" consegue ler os dados do paciente (nome, idade) para montar o laudo.
     permission_classes = [IsAuthenticated]

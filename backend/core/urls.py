@@ -34,25 +34,25 @@ urlpatterns = [
     
     # --- Rotas do Prontuário ---
     
-    # 1. Rota Específica (Legado/Outras abas): Exige ID na URL
-    # URL: /api/prontuario/pacientes/1/evolucoes/
+    # 1. Rota Específica (com ID): Usada pelas abas internas do prontuário
     path('api/prontuario/pacientes/<int:paciente_id>/', include('prontuario.urls')),
 
-    # 2. Rota Genérica (CORREÇÃO ESSENCIAL):
-    # Permite acessar /api/prontuario/laudos/ (definido em prontuario/urls.py)
-    # Sem isso, o frontend recebe 404 ao tentar salvar o laudo.
+    # 2. Rota Genérica (NOVA): Necessária para a Página Mestre salvar o laudo e para a Aba Histórico buscar
+    # Isso permite acessar /api/prontuario/laudos/
     path('api/prontuario/', include('prontuario.urls')),
 
-    # --- Rotas Auxiliares ---
+    # --- Rotas Auxiliares do Prontuário ---
     path('api/prontuario/opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'),
     path('api/prontuario/templates/', TemplateRelatorioListView.as_view(), name='template-relatorio-list'),
 
-    # --- Rotas de PDF ---
+    # --- ROTAS DE PDF ---
     path('api/pdf/evolucao/<int:evolucao_id>/', GerarEvolucaoPDFView.as_view(), name='gerar-evolucao-pdf'),
     path('api/pdf/prescricao/<int:prescricao_id>/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
     path('api/pdf/atestado/<int:atestado_id>/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
     path('api/pdf/relatorio/<int:relatorio_id>/', GerarRelatorioPDFView.as_view(), name='pdf_relatorio'),
-
-    # REMOVIDO: path('api/laudos/', include('laudos.urls')) -> Isso estava errado
-    # REMOVIDO: path('api/exames/', include('exames.urls')) -> Remova se não tiver criado o app 'exames'
+ 
+    # --- Rotas Legadas / Outros Apps ---
+    # MANTIDAS para garantir compatibilidade com o restante do sistema
+    path('api/laudos/', include('laudos.urls')), 
+    path('api/exames/', include('exames.urls')),
 ]

@@ -13,14 +13,13 @@ const LaudosTab = ({ pacienteId }) => {
     const [loading, setLoading] = useState(true);
     const [erro, setErro] = useState(null);
 
-    // Busca os laudos ao carregar a aba
     useEffect(() => {
         if (!pacienteId) return;
 
         const fetchLaudos = async () => {
             setLoading(true);
             try {
-                // Chama a rota que criamos no Django: /prontuario/laudos/?paciente=ID
+                // Endpoint alinhado com o que foi definido em core/urls.py
                 const response = await apiClient.get('/prontuario/laudos/', {
                     params: { paciente: pacienteId }
                 });
@@ -38,8 +37,6 @@ const LaudosTab = ({ pacienteId }) => {
     }, [pacienteId]);
 
     const handleImprimir = (laudoId) => {
-        // Aqui futuramente você pode chamar a rota de gerar PDF do backend
-        // ou abrir o modal de impressão do frontend
         console.log("Imprimir laudo", laudoId);
         alert("Funcionalidade de reimpressão em desenvolvimento.");
     };
@@ -54,23 +51,18 @@ const LaudosTab = ({ pacienteId }) => {
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            
-            {/* Cabeçalho da Aba */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" color="primary">
-                    Histórico de Laudos
-                </Typography>
+                <Typography variant="h6" color="primary">Histórico de Laudos</Typography>
                 <Button 
                     variant="contained" 
                     color="secondary" 
                     startIcon={<FaPlus />}
-                    onClick={() => alert("Para criar um novo, vá para a página principal de Laudos ou integre o formulário aqui.")}
+                    onClick={() => alert("Para criar um novo, vá para a página principal de Laudos.")}
                 >
                     Novo Laudo
                 </Button>
             </Box>
 
-            {/* Tabela de Laudos */}
             <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                     <TableHead sx={{ bgcolor: '#f5f5f5' }}>
@@ -87,9 +79,7 @@ const LaudosTab = ({ pacienteId }) => {
                         {laudos.length > 0 ? (
                             laudos.map((laudo) => (
                                 <TableRow key={laudo.id} hover>
-                                    <TableCell>
-                                        {new Date(laudo.data_criacao).toLocaleDateString('pt-BR')}
-                                    </TableCell>
+                                    <TableCell>{new Date(laudo.data_criacao).toLocaleDateString('pt-BR')}</TableCell>
                                     <TableCell>{laudo.tipo_exame}</TableCell>
                                     <TableCell>{laudo.titulo}</TableCell>
                                     <TableCell>{laudo.medico_nome}</TableCell>
@@ -101,21 +91,15 @@ const LaudosTab = ({ pacienteId }) => {
                                         />
                                     </TableCell>
                                     <TableCell align="center">
-                                        <IconButton size="small" color="primary" onClick={() => handleImprimir(laudo.id)}>
-                                            <FaPrint />
-                                        </IconButton>
-                                        <IconButton size="small" onClick={() => console.log('Ver detalhes', laudo)}>
-                                            <FaEye />
-                                        </IconButton>
+                                        <IconButton size="small" color="primary" onClick={() => handleImprimir(laudo.id)}><FaPrint /></IconButton>
+                                        <IconButton size="small" onClick={() => console.log('Ver', laudo)}><FaEye /></IconButton>
                                     </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                                    <Typography variant="body2" color="textSecondary">
-                                        Nenhum laudo encontrado para este paciente.
-                                    </Typography>
+                                    <Typography variant="body2" color="textSecondary">Nenhum laudo encontrado.</Typography>
                                 </TableCell>
                             </TableRow>
                         )}

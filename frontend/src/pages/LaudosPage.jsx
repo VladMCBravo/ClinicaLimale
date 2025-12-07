@@ -96,8 +96,11 @@ const LaudosPage = () => {
               crm_medico: medicoCrm, 
               status: "FINALIZADO"
           };
+          // --- MUDANÇA IMPORTANTE AQUI ---
+          // Antes estava '/laudos/', mudamos para '/prontuario/laudos/'
+          // para bater na View correta que aceita JSON e Imagens.
+          await apiClient.post('/prontuario/laudos/', payload);
           
-          await apiClient.post('/laudos/', payload);
           alert("Laudo salvo com sucesso!");
       } catch (e) { 
           console.error("Erro ao salvar laudo:", e);
