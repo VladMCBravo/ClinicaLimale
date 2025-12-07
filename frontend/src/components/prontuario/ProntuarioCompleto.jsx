@@ -18,7 +18,7 @@ const RelatoriosTab = lazy(() => import('./RelatoriosTab'));
 const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
-const LaudosTab = lazy(() => import('./LaudosTab'));
+const LaudosTab = lazy(() => import('../laudos/LaudosTab'));
 
 
 function TabPanel(props) {
