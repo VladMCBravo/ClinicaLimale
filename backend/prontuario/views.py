@@ -20,6 +20,10 @@ from django.template import Context, Template # Para renderizar o template
 from datetime import date # Para a data de hoje
 from django.db import transaction # Importar transaction
 from core.models import Clinica # Importa o modelo de configuração
+import base64
+from django.core.files.base import ContentFile
+from .models import Laudo, ImagemLaudo
+from .serializers import LaudoSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
@@ -705,4 +709,51 @@ class GerarRelatorioPDFView(APIView):
             context, 
             filename
         )
-# --- FIM DAS NOVAS VIEWS DE RELATÓRIOS ---
+
+class LaudoListCreateView(generics.ListCreateAPIView):
+    serializer_class = LaudoSerializer
+    permission_classes = [CanViewProntuario]
+
+    def get_queryset(self):
+        # Filtra laudos por paciente se passado na URL, ou retorna todos se for admin
+        paciente_id = self.request.query_params.get('paciente')
+        if paciente_id:
+            return Laudo.objects.filter(paciente__id=paciente_id).order_by('-data_criacao')
+        return Laudo.objects.all().order_by('-data_criacao')
+
+    def perform_create(self, serializer):
+        # 1. Salva o Laudo Básico
+        paciente_id = self.request.data.get('paciente')
+        paciente = get_object_or_404(Paciente, id=paciente_id)
+        
+        laudo = serializer.save(
+            medico=self.request.user, 
+            paciente=paciente,
+            tipo_exame=self.request.data.get('titulo_exame', 'EXAME') # Fallback
+        )
+
+        # 2. Processamento das Imagens Base64
+        # O frontend envia: "imagens_anexas": ["data:image/png;base64,.....", ...]
+        imagens_base64 = self.request.data.get('imagens_anexas', [])
+        
+        if imagens_base64 and isinstance(imagens_base64, list):
+            for index, img_str in enumerate(imagens_base64):
+                try:
+                    # Separar o header (data:image/png;base64,) do conteúdo
+                    if ";base64," in img_str:
+                        format, imgstr = img_str.split(';base64,') 
+                        ext = format.split('/')[-1] # png, jpg, etc
+                    else:
+                        imgstr = img_str
+                        ext = 'jpg' # default
+
+                    data = base64.b64decode(imgstr)
+                    file_name = f"laudo_{laudo.id}_img_{index}.{ext}"
+                    
+                    # Cria o objeto ImagemLaudo
+                    ImagemLaudo.objects.create(
+                        laudo=laudo,
+                        arquivo=ContentFile(data, name=file_name)
+                    )
+                except Exception as e:
+                    print(f"Erro ao salvar imagem {index}: {e}")

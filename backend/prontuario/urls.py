@@ -34,6 +34,7 @@ urlpatterns = [
     path('relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
     path('relatorios/criar/', views.RelatorioSalvoCreateView.as_view(), name='relatorio-salvo-create'),
     path('gerar-preview-relatorio/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
+    path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
 
     path('', include(router.urls)),
 ]

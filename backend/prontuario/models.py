@@ -504,4 +504,33 @@ class RelatorioSalvo(models.Model):
         verbose_name = "Relatório Salvo"
         verbose_name_plural = "Relatórios Salvos"
 
-# --- FIM DAS NOVAS ADIÇÕES
+class Laudo(models.Model):
+    STATUS_CHOICES = [
+        ('RASCUNHO', 'Rascunho'),
+        ('FINALIZADO', 'Finalizado'),
+    ]
+
+    # O 'related_name' corrigido para evitar o conflito anterior
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='laudos_prontuario')
+    medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    
+    tipo_exame = models.CharField(max_length=50)
+    titulo = models.CharField(max_length=255)
+    
+    texto_laudo = models.TextField()
+    dados_estruturados = models.JSONField(default=dict, blank=True, null=True) 
+    
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='FINALIZADO')
+
+    def __str__(self):
+        return f"Laudo {self.titulo} - {self.paciente.nome_completo}"
+
+# --- CERTIFIQUE-SE DE QUE ESTA CLASSE ESTÁ AQUI EMBAIXO ---
+class ImagemLaudo(models.Model):
+    laudo = models.ForeignKey(Laudo, on_delete=models.CASCADE, related_name='imagens')
+    arquivo = models.ImageField(upload_to='laudos_imagens/%Y/%m/')
+    data_upload = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Imagem do laudo {self.laudo.id}"

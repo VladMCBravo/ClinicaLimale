@@ -4,6 +4,7 @@ from rest_framework import serializers
 from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
+from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
@@ -266,3 +267,21 @@ class RelatorioSalvoCreateSerializer(serializers.ModelSerializer):
             'consulta': {'required': False, 'allow_null': True},
             'template_origem': {'required': False, 'allow_null': True},
         }
+
+class ImagemLaudoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImagemLaudo
+        fields = ['id', 'arquivo', 'data_upload']
+
+class LaudoSerializer(serializers.ModelSerializer):
+    medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
+    imagens = ImagemLaudoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Laudo
+        fields = [
+            'id', 'paciente', 'medico', 'medico_nome',
+            'tipo_exame', 'titulo', 'texto_laudo', 
+            'dados_estruturados', 'data_criacao', 'status', 'imagens'
+        ]
+        read_only_fields = ['medico', 'data_criacao', 'imagens']

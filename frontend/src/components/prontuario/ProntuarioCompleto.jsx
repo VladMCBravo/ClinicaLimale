@@ -18,7 +18,7 @@ const RelatoriosTab = lazy(() => import('./RelatoriosTab'));
 const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
-
+const LaudosTab = lazy(() => import('./LaudosTab'));
 
 
 function TabPanel(props) {
@@ -50,10 +50,12 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
 
   const pacienteId = agendamento?.paciente;
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
-
-  // Lógica para decidir se mostra a aba de Laudo (Opcional)
-  // Se o agendamento for do tipo "EXAME" ou a especialidade for "Radiologia", mostramos a aba 5 em destaque
+  // Lógica para decidir se mostra a aba de Laudo com destaque
   const isExame = agendamento?.tipo === 'EXAME' || ['Radiologia', 'Ultrassonografia'].includes(especialidade);
+
+  // Se for um exame de imagem, pode ser interessante já abrir na aba de Laudos (índice 5)
+  // Descomente abaixo se desejar esse comportamento:
+  // useEffect(() => { if (isExame) setTabIndex(5); }, [isExame]);
 
   useEffect(() => {
     setTelemedicinaVisivel(false);
@@ -111,36 +113,19 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   }
 
   return (
-    <Paper elevation={2} sx={{ 
-      width: '100%', 
-      height: '100%',
-      display: 'flex', 
-      flexDirection: 'column',
-      overflow: 'hidden'
-    }}>
+    <Paper elevation={2} sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      <Box sx={{ 
-          borderBottom: 1, 
-          borderColor: 'divider', 
-          flexShrink: 0,
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          pr: 1 
-      }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 1 }}>
         <Tabs value={tabIndex} onChange={handleChange} aria-label="Abas do Prontuário" variant="scrollable" scrollButtons="auto">
           <Tab label="Atendimento" id="prontuario-tab-0" /> 
           <Tab label="Prescrições" id="prontuario-tab-1" />
           <Tab label="Atestado/Relatório" id="prontuario-tab-2" />
           <Tab label="Documentos" id="prontuario-tab-3" />
-          
-          {/* RENOMEADO: Para deixar claro que é consulta de histórico */}
           <Tab label="Histórico de Imagens" id="prontuario-tab-4" /> 
           
-          {/* NOVA ABA: Focada na ação de laudar agora */}
-          {/* Destaque visual se for um exame */}
+          {/* 2. NOME ATUALIZADO */}
           <Tab 
-            label="Realizar Laudo" 
+            label="Laudos" 
             id="prontuario-tab-5" 
             style={{ color: isExame ? '#1976d2' : 'inherit', fontWeight: isExame ? 'bold' : 'normal' }}
           /> 
@@ -222,10 +207,13 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
             <TabPanel value={tabIndex} index={3}>
               <DocumentosTab pacienteId={pacienteId} />
             </TabPanel>
-            
             {/* ABA 4: Apenas Visualização (Lista de exames anteriores) */}
             <TabPanel value={tabIndex} index={4}>
               <ExamesDicomTab pacienteId={pacienteId} />
+            </TabPanel>
+            {/* 3. PAINEL DE LAUDOS ADICIONADO */}
+            <TabPanel value={tabIndex} index={5}>
+              <LaudosTab pacienteId={pacienteId} />
             </TabPanel>
                    
           </Suspense>
