@@ -1,56 +1,75 @@
-// Função auxiliar para formatar texto de um vaso específico
+// Arquivo: carotidas/logic/carotidasTextBuilder.js
+
+// 1. Função Genérica para: Comum, Bulbo, Interna e Externa
 const descreverVaso = (data, nomeVaso, lado, prefix) => {
   let texto = `${nomeVaso} ${lado}: `;
   
-  // Morfologia
+  // --- Morfologia (Placas) ---
   if (data[`${prefix}SemPlacas`]) {
-    texto += `Calibre e trajeto preservados. Ausência de placas de ateroma ou espessamento médio-intimal significativo. `;
+    texto += `Calibre e trajeto preservados. Ausência de placas de ateroma. `;
   } else {
     if (data[`${prefix}PlacasMinimas`]) {
       texto += `Espessamento médio-intimal difuso/placas mínimas sem repercussão hemodinâmica significativa. `;
     } else {
-      // Placa mais detalhada
       const tipo = data[`${prefix}PlacaTipo`] || 'calcificada';
       const local = (data[`${prefix}PlacaLocal`] || '').replace('_', ' ');
       texto += `Presença de placa ${tipo} na ${local}. `;
     }
   }
 
-  // Hemodinâmica (Vps/Vdf vão para tabela, mas mencionamos fluxo laminar)
+  // --- Hemodinâmica (AGORA IMPRIMINDO OS VALORES) ---
   const vps = data[`${prefix}Vps`];
+  const vdf = data[`${prefix}Vdf`];
+
+  // Só escreve se tiver VPS preenchido
   if (vps) {
-    texto += `Fluxo laminar e velocidades dentro dos limites da normalidade (ver tabela). `;
+    texto += `Fluxo laminar. VPS: ${vps} cm/s. `;
+    // VDF (Externa geralmente não mede VDF rotineiramente, mas se tiver, imprime)
+    if (vdf) texto += `VDF: ${vdf} cm/s. `;
+  } else {
+    // Fallback caso não tenha medida, mas tenha fluxo
+    texto += `Fluxo laminar. `;
   }
 
-  // Tortuosidade (ACI)
-  if (nomeVaso.includes('Interna') && data[`${prefix}Tortuosidade`]) {
-    texto += `Trajeto tortuoso. `;
-  }
-
-  // EIM (ACC)
+  // --- Espessura Médio-Intimal (Exclusivo ACC) ---
   if (nomeVaso.includes('Comum')) {
     const espessura = data[`${prefix}Espessura`];
     if (espessura) texto += `Espessura médio-intimal: ${espessura} mm. `;
   }
 
+  // --- Tortuosidade (Exclusivo ACI) ---
+  if (nomeVaso.includes('Interna') && data[`${prefix}Tortuosidade`]) {
+    texto += `Trajeto tortuoso. `;
+  }
+
   return texto.trim() + '\n';
 };
 
+// 2. Função Específica para Vertebrais
 const descreverVertebral = (data, lado, prefix) => {
   let txt = `Artéria Vertebral ${lado}: `;
+  
+  // Calibre e Sentido do Fluxo
   txt += `Calibre ${data[`${prefix}Calibre`]}. Fluxo ${data[`${prefix}Fluxo`]}. `;
+  
+  // --- Correção: Adicionando VPS aqui também ---
+  if (data[`${prefix}Vps`]) {
+      txt += `VPS: ${data[`${prefix}Vps`]} cm/s.`;
+  }
+
   return txt.trim() + '\n';
 };
 
+// 3. Montagem do Relatório Geral
 export const gerarRelatorio = (data) => {
   let t = `DOPPLER COLORIDO DE CARÓTIDAS E VERTEBRAIS\n\n`;
 
-  // 1. Carótidas Comuns
+  // Grupo 1: Carótidas Comuns
   t += descreverVaso(data, 'Carótida Comum', 'Direita', 'accDir');
   t += descreverVaso(data, 'Carótida Comum', 'Esquerda', 'accEsq');
   t += '\n';
 
-  // 2. Bulbo e Interna
+  // Grupo 2: Bulbos e Internas
   t += descreverVaso(data, 'Bulbo Carotídeo', 'Direito', 'bulbDir');
   t += descreverVaso(data, 'Carótida Interna', 'Direita', 'aciDir');
   t += '\n';
@@ -58,32 +77,30 @@ export const gerarRelatorio = (data) => {
   t += descreverVaso(data, 'Carótida Interna', 'Esquerda', 'aciEsq');
   t += '\n';
 
-  // 3. Externa
+  // Grupo 3: Externas
   t += descreverVaso(data, 'Carótida Externa', 'Direita', 'aceDir');
   t += descreverVaso(data, 'Carótida Externa', 'Esquerda', 'aceEsq');
   t += '\n';
 
-  // 4. Vertebrais
+  // Grupo 4: Vertebrais
   t += descreverVertebral(data, 'Direita', 'vertDir');
   t += descreverVertebral(data, 'Esquerda', 'vertEsq');
 
   return t;
 };
 
+// 4. Conclusão Automática
 export const gerarConclusaoAutomatica = (data, achados) => {
-  // Se o usuário forçou "Conclusão Normal"
   if (data.conclusaoNormal) {
     return `CONCLUSÃO:\nEstudo Dopplerfluxométrico das artérias carótidas e vertebrais sem evidência de estenoses hemodinamicamente significativas.\nFluxo anterógrado nas artérias vertebrais.`;
   }
 
-  // Lógica inteligente simples
   let conc = `CONCLUSÃO:\n`;
   if (achados && achados.length > 0) {
     conc += `Exame compatível com:\n`;
     achados.forEach(a => conc += `- ${a}\n`);
     conc += `- Sugere-se correlação clínica.`;
   } else {
-    // Fallback se não detectou nada grave mas o médico não marcou "Normal"
     conc += `Estudo dentro dos limites da normalidade para a faixa etária.`;
   }
   
@@ -94,7 +111,7 @@ export const gerarConclusaoAutomatica = (data, achados) => {
   return conc;
 };
 
-// Gera Array para tabela do PDF
+// 5. Tabela de Medidas (Para o Rodapé do PDF)
 export const gerarTabelaMedidas = (data) => {
   return [
     { vaso: 'ACC Dir', vps: data.accDirVps, vdf: data.accDirVdf },
@@ -105,5 +122,5 @@ export const gerarTabelaMedidas = (data) => {
     { vaso: 'ACE Esq', vps: data.aceEsqVps, vdf: data.aceEsqVdf },
     { vaso: 'Vert Dir', vps: data.vertDirVps, vdf: data.vertDirVdf },
     { vaso: 'Vert Esq', vps: data.vertEsqVps, vdf: data.vertEsqVdf },
-  ].filter(item => item.vps || item.vdf); // Só mostra se tiver valor
+  ].filter(item => item.vps || item.vdf);
 };
