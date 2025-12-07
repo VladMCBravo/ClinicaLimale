@@ -54,5 +54,8 @@ class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos'))
     serializer_class = PacienteSerializer
     
-    # A permissão aqui estava ERRADA. Devemos permitir que o médico responsável edite.
-    permission_classes = [IsMedicoResponsavelOrAdmin]
+    # --- CORREÇÃO AQUI ---
+    # Antes estava: [IsMedicoResponsavelOrAdmin] (Isso bloqueava a recepção e outros médicos)
+    # Mudamos para: [IsAuthenticated]
+    # Isso permite que qualquer usuário logado (Recepção, Médicos, Admin) VEJA os dados.
+    permission_classes = [IsAuthenticated]

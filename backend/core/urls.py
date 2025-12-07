@@ -32,36 +32,27 @@ urlpatterns = [
     path('api/chatbot/', include('chatbot.urls')),
     path('api/integracao/pacientes/<int:paciente_id>/', include('integracao_dicom.urls')),
     
-    # --- Rotas do Prontuário (prefixadas por paciente_id) ---
-    # Esta é a rota principal para acessar dados DENTRO de um prontuário
+    # --- Rotas do Prontuário ---
+    
+    # 1. Rota Específica (Legado/Outras abas): Exige ID na URL
+    # URL: /api/prontuario/pacientes/1/evolucoes/
     path('api/prontuario/pacientes/<int:paciente_id>/', include('prontuario.urls')),
 
-    # --- Rotas do Prontuário (Gerais, sem paciente_id) ---
-    # Usadas para buscar dados genéricos
+    # 2. Rota Genérica (CORREÇÃO ESSENCIAL):
+    # Permite acessar /api/prontuario/laudos/ (definido em prontuario/urls.py)
+    # Sem isso, o frontend recebe 404 ao tentar salvar o laudo.
+    path('api/prontuario/', include('prontuario.urls')),
+
+    # --- Rotas Auxiliares ---
     path('api/prontuario/opcoes-clinicas/', OpcaoClinicaListView.as_view(), name='lista-opcoes-clinicas'),
     path('api/prontuario/templates/', TemplateRelatorioListView.as_view(), name='template-relatorio-list'),
 
-    # --- ROTAS DE PDF (CORRIGIDAS E CENTRALIZADAS) ---
-    # Todas as rotas de PDF devem começar com /api/pdf/ para padronização.
-    # O frontend está chamando estas URLs.
-    
-    # URL: /api/pdf/evolucao/1/
-    path('api/pdf/evolucao/<int:evolucao_id>/', 
-         GerarEvolucaoPDFView.as_view(), 
-         name='gerar-evolucao-pdf'),
-         
-    # URL: /api/pdf/prescricao/3/
-    path('api/pdf/prescricao/<int:prescricao_id>/', 
-         GerarPrescricaoPDFView.as_view(), 
-         name='gerar-prescricao-pdf'),
-         
-    # URL: /api/pdf/atestado/2/
-    path('api/pdf/atestado/<int:atestado_id>/', 
-         GerarAtestadoPDFView.as_view(), 
-         name='gerar-atestado-pdf'),
- 
-    # --- 2. ADICIONE ESTA NOVA LINHA ---
+    # --- Rotas de PDF ---
+    path('api/pdf/evolucao/<int:evolucao_id>/', GerarEvolucaoPDFView.as_view(), name='gerar-evolucao-pdf'),
+    path('api/pdf/prescricao/<int:prescricao_id>/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
+    path('api/pdf/atestado/<int:atestado_id>/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
     path('api/pdf/relatorio/<int:relatorio_id>/', GerarRelatorioPDFView.as_view(), name='pdf_relatorio'),
-    path('api/laudos/', include('laudos.urls')), # <--- Adicione esta linha
-    path('api/exames/', include('exames.urls')),
+
+    # REMOVIDO: path('api/laudos/', include('laudos.urls')) -> Isso estava errado
+    # REMOVIDO: path('api/exames/', include('exames.urls')) -> Remova se não tiver criado o app 'exames'
 ]
