@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react'; // Removi useState pois o estado fica no Pai
+import React from 'react';
+// Importa o Hook que você já tem pronto (que usa o textBuilder internamente)
 import { useObstetricoForm } from './hooks/useObstetricoForm';
-import '../Laudos.css';
 
-// Seções (Inputs)
+// Seções (Visual)
 import SecaoSubtipo from './sections/SecaoSubtipo';
 import SecaoDadosGerais from './sections/SecaoDadosGerais';
 import SecaoDatacao from './sections/SecaoDatacao';
@@ -11,94 +11,66 @@ import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
 import SecaoMorfologia from './sections/SecaoMorfologia';
 import SecaoDoppler from './sections/SecaoDoppler';
 import SecaoConclusao from './sections/SecaoConclusao';
+import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
+import SecaoEmbriao from './sections/SecaoEmbriao';
 
-// Recebe 'onUpdate' (função do pai) e 'initialValues' (se tiver rascunho salvo)
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
-  // Função interna que o Hook chama quando algo muda
-  const handleInternalUpdate = (payload) => {
-    // AQUI ESTÁ A MÁGICA: Passamos o texto e os dados para o PAI (LaudosPage)
-    if (onUpdate) {
-      onUpdate({
-        texto: payload.texto,
-        dadosEstruturados: payload.dados, // ou formState
-        tituloExame: "USG OBSTÉTRICO" // Define o título para o pai saber
-      });
-    }
+  // O Hook 'useObstetricoForm' que você me mandou já faz tudo: 
+  // calcula, gera o texto com o Builder e chama o onUpdate.
+  // Só precisamos pegar o 'formState' (dados) e 'handleInputChange' (função de trocar).
+  const { formState, handleInputChange } = useObstetricoForm(onUpdate, initialValues);
+
+  if (!formState) return <div className="p-4">Carregando formulário...</div>;
+
+  // Objeto de propriedades padrão para passar para todas as seções
+  // Passamos tanto como 'handleChange' quanto 'onChange' para garantir compatibilidade
+  const commonProps = {
+      data: formState,
+      handleChange: handleInputChange,
+      onChange: handleInputChange 
   };
 
-  // Inicializa o Hook
-  const { formState, handleInputChange } = useObstetricoForm(handleInternalUpdate, initialValues);
-
-  if (!formState) return <div>Carregando formulário...</div>;
-
-  // --- RETORNO LIMPO: Apenas os inputs, sem colunas de layout ---
   return (
-    <div className="flex flex-col gap-2 pb-10"> {/* Removemos height fixa e overflow daqui, o pai controla */}
+    // REMOVI AS BORDAS DUPLAS: Aqui é um container limpo, sem headers extras
+    <div className="flex flex-col gap-3 pb-4">
       
-      {/* 1. Subtipo */}
-      <div className="laudo-section border-l-4 border-purple-600">
-        <div className="header-base header-purple">Subtipo do Exame</div>
-        <div className="laudo-section-body">
-          <SecaoSubtipo data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* 1. Subtipo (Define se é morfológico, 1º tri, etc) */}
+      <SecaoSubtipo {...commonProps} />
 
-      {/* 2. Dados Gerais */}
-      <div className="laudo-section">
-        <div className="header-base header-blue">Dados Gerais & Vitalidade</div>
-        <div className="laudo-section-body">
-          <SecaoDadosGerais data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* LÓGICA DE EXIBIÇÃO CONDICIONAL */}
+      
+      {/* Se for exame inicial (ex: "US Obstétrico Inicial") mostra Saco Gestacional */}
+      {formState.subtipo && formState.subtipo.includes("INICIAL") && (
+          <SecaoSacoGestacional {...commonProps} />
+      )}
 
-      {/* 3. Datação */}
-      <div className="laudo-section">
-        <div className="header-base header-purple">Datação (DUM / DPP)</div>
-        <div className="laudo-section-body">
-          <SecaoDatacao data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* Se for 1º Trimestre (TN), mostra Embrião */}
+      {formState.subtipo && formState.subtipo.includes("1_TRI") && (
+          <SecaoEmbriao {...commonProps} />
+      )}
+      
+      {/* 2. Dados Gerais (Situação, Posição, BCF) */}
+      {/* Essa seção é fundamental para o texto "Situação longitudinal..." */}
+      <SecaoDadosGerais {...commonProps} />
 
-      {/* 4. Biometria */}
-      <div className="laudo-section">
-        <div className="header-base header-green">Biometria Fetal</div>
-        <div className="laudo-section-body">
-          <SecaoBiometria data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* 3. Datação (DUM / DPP) */}
+      <SecaoDatacao {...commonProps} />
 
-      {/* 5. Placenta e Líquido */}
-      <div className="laudo-section">
-        <div className="header-base header-green">Placenta & Líquido</div>
-        <div className="laudo-section-body">
-          <SecaoPlacentaLiquido data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* 4. Biometria (DBP, Fêmur...) - Gera a tabela de pontinhos */}
+      <SecaoBiometria {...commonProps} />
 
-      {/* 6. Morfologia */}
-      <div className="laudo-section">
-        <div className="header-base header-green">Morfologia</div>
-        <div className="laudo-section-body">
-          <SecaoMorfologia data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* 5. Placenta e Líquido - Gera o texto de Grannum e ILA */}
+      <SecaoPlacentaLiquido {...commonProps} />
 
-      {/* 7. Doppler */}
-      <div className="laudo-section">
-        <div className="header-base header-blue">Doppler</div>
-        <div className="laudo-section-body">
-          <SecaoDoppler data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* 6. Morfologia (Checkboxes de anatomia) */}
+      <SecaoMorfologia {...commonProps} />
 
-      {/* 8. Conclusão */}
-      <div className="laudo-section bg-blue-50">
-        <div className="header-base header-purple">Conclusão</div>
-        <div className="laudo-section-body">
-          <SecaoConclusao data={formState} onChange={handleInputChange} />
-        </div>
-      </div>
+      {/* 7. Doppler (Só aparece se marcar checkbox dentro dele) */}
+      <SecaoDoppler {...commonProps} />
+
+      {/* 8. Conclusão (Peso e Sexo) */}
+      <SecaoConclusao {...commonProps} />
 
     </div>
   );
