@@ -3,8 +3,13 @@ import { ecoInitialState } from '../logic/ecoInitialState';
 import { runAllCalculations } from '../logic/ecoCalculations';
 import { montarTextoFinal } from '../logic/ecoTextBuilder';
 
-const useEcoForm = (onUpdate) => {
-    const [data, setData] = useState(ecoInitialState);
+const useEcoForm = (onUpdate, initialValues) => {
+    const [data, setData] = useState(() => {
+        if (initialValues && Object.keys(initialValues).length > 0) {
+            return { ...ecoInitialState, ...initialValues };
+        }
+        return ecoInitialState;
+    });
     const isFirstRender = useRef(true);
 
     // 1. Handlers de Mudança de Input

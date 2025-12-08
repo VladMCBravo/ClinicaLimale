@@ -21,7 +21,7 @@ import SecaoDadosMaternos1Tri from './sections/SecaoDadosMaternos1Tri';
 import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
 import SecaoEmbriao from './sections/SecaoEmbriao';
 
-const FormObstetrico = ({ onUpdate }) => {
+const FormObstetrico = ({ onUpdate, initialValues }) => {
   // Toda a lógica complexa está aqui dentro:
   const { 
       data, 
@@ -33,7 +33,7 @@ const FormObstetrico = ({ onUpdate }) => {
       handleTabChange,
       mostrarGraficos,
       setMostrarGraficos
-  } = useObstetricoForm(onUpdate);
+  } = useObstetricoForm(onUpdate, initialValues);
 
   const isPrimeiroTri = data.subtipo === 'OBSTETRICO_1_TRI';
 

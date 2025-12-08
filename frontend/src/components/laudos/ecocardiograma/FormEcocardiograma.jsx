@@ -21,8 +21,8 @@ import SecaoAortaVenaCava from './sections_eco/SecaoAortaVenaCava';
 import SecaoPericardio from './sections_eco/SecaoPericardio';
 import SecaoStrain from './sections_eco/SecaoStrain'; 
 
-const FormEcocardiograma = ({ onUpdate }) => {
-  const { data, handleChange } = useEcoForm(onUpdate);
+const FormEcocardiograma = ({ onUpdate, initialValues }) => {
+  const { data, handleChange } = useEcoForm(onUpdate, initialValues);
 
   return (
     <div className="laudo-container">

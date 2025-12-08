@@ -10,9 +10,9 @@ import SecaoCarotidaExterna from './sections/SecaoCarotidaExterna';
 import SecaoVertebral from './sections/SecaoVertebral';
 import SecaoConclusaoCarotidas from './sections/SecaoConclusaoCarotidas';
 
-const FormDopplerCarotidas = ({ onUpdate }) => {
+const FormDopplerCarotidas = ({ onUpdate, initialValues }) => {
   // Hook que gerencia toda a lógica e estado
-  const { data, handleChange } = useDopplerCarotidasForm(onUpdate);
+  const { data, handleChange } = useDopplerCarotidasForm(onUpdate, initialValues);
 
   return (
     <div className="laudo-container">

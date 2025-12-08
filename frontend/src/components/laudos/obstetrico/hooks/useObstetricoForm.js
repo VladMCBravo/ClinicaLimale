@@ -10,9 +10,14 @@ import {
 } from '../logic/obstetricCalculations';
 import { gerarRelatorioFeto, montarTextoFinal } from '../logic/obstetricTextBuilder';
 
-export const useObstetricoForm = (onUpdate) => {
+export const useObstetricoForm = (onUpdate, initialValues) => {
     // Estado principal (Feto Ativo)
-    const [data, setData] = useState(initialState);
+    const [data, setData] = useState(() => {
+        if (initialValues && Object.keys(initialValues).length > 0) {
+            return { ...initialState, ...initialValues };
+        }
+        return initialState;
+    });
     
     // Controles de Interface
     const [isGemelar, setIsGemelar] = useState(false);

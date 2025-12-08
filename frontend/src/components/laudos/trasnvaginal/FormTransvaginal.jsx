@@ -5,7 +5,7 @@ import '../Laudos.css'; // Importa o padrão global
 import SecaoUteroTuring from './sections/SecaoUteroTuring';
 import SecaoOvariosTuring from './sections/SecaoOvariosTuring';
 
-const FormTransvaginal = ({ onUpdate }) => {
+const FormTransvaginal = ({ onUpdate, initialValues }) => {
   
   const initialState = {
       subtipo: 'PELVE_TRANSVAGINAL',
@@ -97,7 +97,13 @@ const FormTransvaginal = ({ onUpdate }) => {
       endoNormais: false,
   };
 
-  const [data, setData] = useState(initialState);
+  // 2. Mude o useState para usar initialValues se ele existir e não estiver vazio
+  const [data, setData] = useState(() => {
+      if (initialValues && Object.keys(initialValues).length > 0) {
+          return { ...initialState, ...initialValues }; // Mescla para garantir que campos novos não quebrem
+      }
+      return initialState;
+  });
   const [showModalFigo, setShowModalFigo] = useState(false);
   const [showModalOrads, setShowModalOrads] = useState(false);
 

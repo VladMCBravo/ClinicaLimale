@@ -3,8 +3,16 @@ import { carotidasInitialState } from '../logic/carotidasInitialState';
 import { verificarAlteracoes } from '../logic/carotidasCalculations';
 import { gerarRelatorio, gerarConclusaoAutomatica, gerarTabelaMedidas } from '../logic/carotidasTextBuilder';
 
-const useDopplerCarotidasForm = (onUpdate) => {
-  const [data, setData] = useState(carotidasInitialState);
+// 1. Receba initialValues no argumento
+const useDopplerCarotidasForm = (onUpdate, initialValues) => {
+  
+  // 2. No useState, use a lógica de verificação
+  const [data, setData] = useState(() => {
+      if (initialValues && Object.keys(initialValues).length > 0) {
+          return { ...carotidasInitialState, ...initialValues };
+      }
+      return carotidasInitialState;
+  });
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
