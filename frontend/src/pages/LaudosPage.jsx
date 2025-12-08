@@ -1,6 +1,6 @@
 // src/pages/LaudosPage.jsx
-import React, { useState, useCallback } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash, FaUserMd } from 'react-icons/fa';
+import React, { useState, useCallback, useEffect } from 'react'; // 1. Adicionado useEffect
+import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash, FaUserMd, FaEraser } from 'react-icons/fa'; // 2. Adicionado FaEraser
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css'; 
@@ -27,6 +27,9 @@ const styles = {
   imagePreviewGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginTop: '10px', padding: '5px', background: '#eee', borderRadius: '4px' },
   thumbContainer: { position: 'relative', aspectRatio: '1', overflow: 'hidden', borderRadius: '3px', border: '1px solid #ccc' }
 };
+
+// 3. Declarando a constante STORAGE_KEY fora do componente
+const STORAGE_KEY = 'laudos_rascunho_auto_save';
 
 const LaudosPage = () => {
     // --- ESTADOS INICIAIS (Lazy Initialization) ---
