@@ -19,26 +19,35 @@ const listarNormais = (itens) => {
 
 export const gerarRelatorioFeto = (d) => {
     let texto = '';
+    
+    // --- MAPA DE TÍTULOS ---
+    const mapTitulos = {
+        'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL',
+        'OBSTETRICO_1_TRI': 'ULTRASSOM MORFOLÓGICO FETAL DE PRIMEIRO TRIMESTRE',
+        'OBSTETRICO_2_3_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA',
+        'OBSTETRICO_DOPPLER': 'ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER',
+        'OBSTETRICO_MORFOLOGICO': 'ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE',
+        'OBSTETRICO_3D': 'ULTRASSONOGRAFIA 3D'
+    };
+
+    // Pega o título correto baseada na seleção
+    const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
 
     // =========================================================================
-    // 1. DATAÇÃO (DUM, DPP, IG) - CORRIGIDO
+    // 1. DATAÇÃO (DUM, DPP, IG)
     // =========================================================================
     
     // --- Lógica DUM ---
     if (d.usarDum) {
-        // Exibir Data da DUM (Checkbox: exibirDataDum)
         if (d.exibirDataDum && d.dum) {
             texto += `DUM: ${formatData(d.dum)}.\n`;
         }
 
-        // Exibir DPP pela DUM (Checkbox: citarDppDum)
         if (d.citarDppDum && d.dppDum) {
             texto += `DPP: ${d.dppDum} (calculada pela DUM)`;
-            // Se tiver IG DUM, exibe junto
             if (d.igDum) texto += `, compatível com ${d.igDum}`;
             texto += `.\n`;
         } else if (d.igDum) {
-            // Caso queira mostrar só a IG sem a DPP
             texto += `IG (DUM): compatível com ${d.igDum}.\n`;
         }
     } 
@@ -46,21 +55,19 @@ export const gerarRelatorioFeto = (d) => {
         texto += `DUM: Desconhecida / Não referida.\n`;
     }
 
-    // --- Lógica DPP Biometria (Checkbox: citarDppBiometria) ---
+    // --- Lógica DPP Biometria ---
     if (d.citarDppBiometria && d.dppBiometriaCalculada) {
         texto += `DPP (Biometria Atual): ${d.dppBiometriaCalculada}`;
-        // Se não usou DUM, mostra a IG da biometria aqui para complementar
         if (!d.usarDum && d.igBiometria) {
             texto += `, compatível com ${d.igBiometria}`;
         }
         texto += `.\n`;
     }
 
-    // --- Lógica Exame Anterior (Checkbox: usarExameAnterior) ---
+    // --- Lógica Exame Anterior ---
     if (d.usarExameAnterior && d.dataExameAnterior) {
         const dataAnt = formatData(d.dataExameAnterior);
         texto += `IG baseada no USG de ${dataAnt}: ${d.igIgCorrigidaCalculada || '...'}.\n`;
-        // Se houver cálculo de DPP corrigida
         if (d.dppIgCorrigidaCalculada) {
             texto += `DPP (Corrigida): ${d.dppIgCorrigidaCalculada}.\n`;
         }
@@ -69,7 +76,7 @@ export const gerarRelatorioFeto = (d) => {
     texto += '\n';
 
     // =========================================================================
-    // 2. GESTAÇÃO INICIAL (Mantido igual, se aplicar)
+    // 2. GESTAÇÃO INICIAL
     // =========================================================================
     if (d.subtipo && d.subtipo.includes("INICIAL")) {
         texto += `Bexiga vazia.\n`;
@@ -80,15 +87,35 @@ export const gerarRelatorioFeto = (d) => {
             if (d.resDmsg) texto += `, medindo ${d.resDmsg} mm`;
             texto += `.\n`;
         }
-        // ... (restante da lógica inicial mantida) ...
-        return { texto }; // Retorno antecipado para inicial
+
+        if (d.embriaoNaoVisualizado) {
+             texto += `Sem embrião visualizado no momento.\n`;
+             if (d.citarVv) texto += `Vesícula vitelina visualizada.\n`;
+        } else {
+             texto += `Embrião visualizado`;
+             if (d.ccn) texto += `, medindo ${d.ccn} mm de CCN`;
+             if (d.bcf) texto += `, com BCF presentes (${d.bcf} bpm)`;
+             texto += `.\n`;
+        }
+
+        texto += `\nAs vilosidades placentárias tem inserção ${d.trofoblasto || 'normal'}.\n`;
+        
+        if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
+        
+        texto += `O orifício interno do colo permanece fechado`;
+        if (d.comprimentoColo) texto += `, medindo ${d.comprimentoColo} mm`;
+        texto += `.\n`;
+        
+        texto += `Anexos parauterinos normais.\n`;
+
+        // Retorna o objeto completo com título
+        return { texto, tituloExame }; 
     }
 
     // =========================================================================
     // 3. DADOS GERAIS (2º/3º TRI)
     // =========================================================================
     
-    // Se não for inicial, Dados Gerais:
     if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar' && d.bexigaMaterna !== 'não visualizada') {
         texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
     } else if (d.subtipo === 'OBSTETRICO_DOPPLER') {
@@ -102,8 +129,7 @@ export const gerarRelatorioFeto = (d) => {
     let vitalidade = [];
     if (d.bcf) vitalidade.push(`Batimentos cardíacos (${d.bcf} bpm)`);
     if (d.movFetal) vitalidade.push(`movimentos fetais`); 
-    // CORREÇÃO: Checkbox Deglutição
-    if (d.degluticao) vitalidade.push(`movimentos de deglutição`);
+    if (d.degluticao) vitalidade.push(`movimentos de deglutição`); // <--- Novo
 
     if (vitalidade.length > 0) {
         texto += `${vitalidade.join(' e ')} presentes.\n`;
@@ -134,7 +160,7 @@ export const gerarRelatorioFeto = (d) => {
     texto += `\n`;
 
     // =========================================================================
-    // 5. BIOMETRIA E ÍNDICES (CORRIGIDO)
+    // 5. BIOMETRIA E ÍNDICES
     // =========================================================================
     if (d.dbp || d.cc || d.femur || d.ccn) {
         texto += `Medidas:\n`;
@@ -159,7 +185,6 @@ export const gerarRelatorioFeto = (d) => {
         ].filter(Boolean);
         texto += bioLines.join('\n') + `\n`;
 
-        // CORREÇÃO: Exibir Índices Calculados logo abaixo da biometria
         const indices = [];
         if (d.resIc) indices.push(`I.Cefálico: ${d.resIc}`);
         if (d.resCcCa) indices.push(`CC/CA: ${d.resCcCa}`);
@@ -172,7 +197,7 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // =========================================================================
-    // 6. MORFOLOGIA (Mantido)
+    // 6. MORFOLOGIA
     // =========================================================================
     const morfList = [
         { label: 'coluna vertebral', checked: d.morfColuna },
@@ -194,39 +219,29 @@ export const gerarRelatorioFeto = (d) => {
     if (textoMorf) texto += `Análise Morfológica:\n${textoMorf}\n\n`;
 
     // =========================================================================
-    // 7. DOPPLER (CORRIGIDO - USA CHECKBOXES DO SecaoDoppler.jsx)
+    // 7. DOPPLER
     // =========================================================================
     if (d.usarDoppler) {
         texto += `ESTUDO DOPPLER\t\t\tÍNDICES DE PULSATILIDADE\n`;
         
-        // Artéria Cerebral (Checkbox: checkAcm)
         if (d.checkAcm && d.acmIP) {
             texto += `Artéria cerebral\t\t\t\t${d.acmIP}\n`;
         }
-        
-        // Artéria Umbilical (Checkbox: checkUmb)
         if (d.checkUmb && d.umbIP) {
             texto += `Artéria umbilical\t\t\t\t${d.umbIP}\n`;
         }
-        
-        // Relação C/U
         if ((d.checkAcm || d.checkUmb) && d.relacaoCerebroUmbilical) {
             texto += `Relação cerebro/umbilical\t\t${d.relacaoCerebroUmbilical} (n/l maior / igual à 1,0)\n`;
         }
         
         texto += `\nESTUDO DOPPLER\t\t\tÍNDICES DE PULSATILIDADE\n`;
         
-        // Uterina Direita (Checkbox: checkUtDir)
         if (d.checkUtDir && d.utDirIP) {
             texto += `Artéria uterina direita\t\t\t${d.utDirIP}\n`;
         }
-        
-        // Uterina Esquerda (Checkbox: checkUtEsq)
         if (d.checkUtEsq && d.utEsqIP) {
             texto += `Artéria uterina esquerda\t\t${d.utEsqIP}\n`;
         }
-        
-        // IP Médio (Se ambos estiverem marcados e presentes)
         if (d.checkUtDir && d.utDirIP && d.checkUtEsq && d.utEsqIP) {
             const v1 = parseFloat(d.utDirIP.replace(',','.'));
             const v2 = parseFloat(d.utEsqIP.replace(',','.'));
@@ -236,7 +251,6 @@ export const gerarRelatorioFeto = (d) => {
             }
         }
         
-        // Ducto Venoso (Checkbox: checkDv)
         if (d.checkDv && d.dvIP) {
              texto += `\nDucto Venoso (IP):\t\t\t\t${d.dvIP}`;
              if (d.dvOndaAZero) texto += ` (Onda A Zero)`;
@@ -248,11 +262,37 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // =========================================================================
-    // 8. CONCLUSÃO
+    // 8. ESTUDO 3D / 4D (NOVO)
+    // =========================================================================
+    if (d.usar3D) {
+        texto += `ESTUDO TRIDIMENSIONAL (3D/4D):\n`;
+        texto += `Realizada reconstrução de superfície com qualidade ${d.qualidade3D}.\n`;
+        
+        if (d.face3D === 'visualizada') {
+            texto += `Face fetal visualizada, evidenciando integridade do lábio superior e nariz.\n`;
+        } else if (d.face3D === 'encoberta') {
+            texto += `Visualização da face prejudicada por interposição de estruturas (placenta/membros).\n`;
+        }
+
+        const membros3D = [];
+        if (d.mao3D) membros3D.push('mãos');
+        if (d.pe3D) membros3D.push('pés');
+        
+        if (membros3D.length > 0) {
+            texto += `Identificados ${membros3D.join(' e ')} na renderização.\n`;
+        }
+
+        if (d.obs3D) {
+            texto += `${d.obs3D}\n`;
+        }
+        texto += `\n`;
+    }
+
+    // =========================================================================
+    // 9. CONCLUSÃO
     // =========================================================================
     texto += `Impressão diagnóstica:\n`;
     
-    // Define qual IG usar
     let igFinal = d.igBiometria || d.igDum || "---";
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) {
         igFinal = d.igIgCorrigidaCalculada;
@@ -287,7 +327,8 @@ export const gerarRelatorioFeto = (d) => {
     texto += `- Nem todas as alterações que um feto possa vir apresentar após o nascimento, podem ser identificadas pelo exame ultra-sonográfico.\n`;
     texto += `\nFavor trazer este exame quando vier realizar o próximo.\n`;
 
-    return { texto };
+    // RETORNA TEXTO E TÍTULO
+    return { texto, tituloExame };
 };
 
 export const montarTextoFinal = (res) => res.texto;

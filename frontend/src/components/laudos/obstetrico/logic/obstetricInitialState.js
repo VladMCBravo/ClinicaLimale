@@ -47,6 +47,14 @@ export const initialState = {
     // Ducto Venoso
     checkDv: false, dvIP: '', dvTraçadoNormal: true, dvOndaAZero: false, dvOndaAReversa: false,
 
+    // --- 3D / 4D ---
+    usar3D: false,
+    qualidade3D: 'boa', // boa, regular, prejudicada
+    face3D: 'visualizada', // visualizada, não visualizada, prejudicada
+    mao3D: false,
+    pe3D: false,
+    obs3D: '', // Para descrever "mímica facial", "bocejo", etc.
+
     // --- CONCLUSÃO ---
     pesoEstimado: '', pesoP10: '', pesoP90: '', percentil: '',
     sexoFetal: 'MASCULINO',

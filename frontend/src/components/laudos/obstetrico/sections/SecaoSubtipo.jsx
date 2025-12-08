@@ -15,9 +15,12 @@ const SecaoSubtipo = ({ data, handleChange }) => {
                 className="laudo-select"
                 style={{ width: '100%', fontSize: '12px', padding: '4px' }}
             >
-                <option value="OBSTETRICO_MORFOLOGICO">US Obstétrico Morfológico 2º e 3º trimestres</option>
-                <option value="OBSTETRICO_1_TRI">US Obstétrico 1º trimestre</option>
-                <option value="OBSTETRICO_2_3_TRI">US Obstétrico 2º e 3º trimestres</option>
+                <option value="OBSTETRICO_INICIAL">Obstétrico Inicial (Transvaginal)</option>
+    <option value="OBSTETRICO_1_TRI">Morfológico 1º Trimestre</option>
+    <option value="OBSTETRICO_2_3_TRI">Obstétrico (2º/3º Tri)</option>
+    <option value="OBSTETRICO_DOPPLER">Obstétrico com Doppler</option>
+    <option value="OBSTETRICO_MORFOLOGICO">Morfológico 2º Trimestre</option>
+    <option value="OBSTETRICO_3D">Obstétrico 3D / 4D</option> {/* <--- NOVO */}
             </select>
         </div>
     </div>

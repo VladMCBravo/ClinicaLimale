@@ -53,27 +53,21 @@ const SecaoDadosGerais = ({ data, handleChange }) => {
                 </div>
             </div>
 
-            {/* LINHA 3: Vitalidade (BCF) - Fundo cinza suave */}
+            {/* LINHA 3: Vitalidade (BCF) */}
             <div className="laudo-row" style={{background: '#f8f9fa', padding: '8px', borderRadius: '4px', marginBottom: '10px'}}>
                 <span style={{fontWeight: 'bold', marginRight: '5px'}}>BCF:</span>
-                <input 
-                    type="number" 
-                    name="bcf" 
-                    value={data.bcf} 
-                    onChange={handleChange} 
-                    className="laudo-input" 
-                    style={{width: '60px', fontWeight: 'bold'}} 
-                /> 
+                <input type="number" name="bcf" value={data.bcf} onChange={handleChange} className="laudo-input" style={{width: '60px', fontWeight: 'bold'}} /> 
                 <span style={{marginRight: '20px'}}>bpm</span>
 
+                <label className="laudo-checkbox-label" style={{fontWeight: 'bold', color: '#1565C0', marginRight: '15px'}}>
+                    <input type="checkbox" name="movFetal" checked={data.movFetal} onChange={handleChange} />
+                    Mov. Fetais
+                </label>
+
+                {/* NOVO CHECKBOX DEGLUTIÇÃO */}
                 <label className="laudo-checkbox-label" style={{fontWeight: 'bold', color: '#1565C0'}}>
-                    <input 
-                        type="checkbox" 
-                        name="movFetal" 
-                        checked={data.movFetal} 
-                        onChange={handleChange} 
-                    />
-                    Movimentos Fetais Presentes
+                    <input type="checkbox" name="degluticao" checked={data.degluticao} onChange={handleChange} />
+                    Deglutição
                 </label>
             </div>
 
