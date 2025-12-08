@@ -5,13 +5,15 @@ import {
     calcularIGeDPP_Anterior, 
     calcularIndicesBiometricos, 
     calcularDMSG,
-    calcularIGDmsg, // Importação adicionada
-    calcularIG_CCN, // Importação adicionada
+    calcularIGDmsg,
+    calcularIG_CCN,
 } from '../logic/obstetricCalculations';
 import { gerarRelatorioFeto, montarTextoFinal } from '../logic/obstetricTextBuilder';
 
-export const useObstetricoForm = (onUpdate, initialValues) => {
-    // Estado principal (Feto Ativo)
+// AJUSTE 1: Adicionei valor padrão para onUpdate e initialValues para evitar crash
+export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
+    
+    // Estado principal
     const [data, setData] = useState(() => {
         if (initialValues && Object.keys(initialValues).length > 0) {
             return { ...initialState, ...initialValues };
@@ -24,11 +26,10 @@ export const useObstetricoForm = (onUpdate, initialValues) => {
     const [fetoAtivo, setFetoAtivo] = useState(1);
     const [mostrarGraficos, setMostrarGraficos] = useState(false);
 
-    // Armazenamento dos dados dos fetos (para não perder ao trocar abas)
     const dadosFeto1 = useRef({ ...initialState });
     const dadosFeto2 = useRef({ ...initialState });
 
-    // --- 1. EFEITO DE CÁLCULOS AUTOMÁTICOS ---
+    // --- 1. CÁLCULOS AUTOMÁTICOS ---
     useEffect(() => {
         setData(prev => {
             const newState = { ...prev };
@@ -40,7 +41,6 @@ export const useObstetricoForm = (onUpdate, initialValues) => {
                 if (prev.igDum !== ig) { newState.igDum = ig; mudou = true; }
                 if (prev.dppDum !== dpp) { newState.dppDum = dpp; mudou = true; }
                 
-                // Placeholder para DPP Biometria
                 if (prev.citarDppBiometria && prev.dppBiometriaCalculada !== dpp) {
                      newState.dppBiometriaCalculada = dpp; 
                      mudou = true; 
@@ -53,7 +53,7 @@ export const useObstetricoForm = (onUpdate, initialValues) => {
                 if (prev.dppIgCorrigidaCalculada !== dppCorr) { newState.dppIgCorrigidaCalculada = dppCorr; mudou = true; }
             }
 
-            // C. Índices Biométricos (Calculados em tempo real)
+            // C. Índices Biométricos
             const indices = calcularIndicesBiometricos(prev);
             if (prev.resIc !== indices.ic) { newState.resIc = indices.ic; mudou = true; }
             if (prev.resCcCa !== indices.ccCa) { newState.resCcCa = indices.ccCa; mudou = true; }
@@ -61,34 +61,29 @@ export const useObstetricoForm = (onUpdate, initialValues) => {
             if (prev.resCfDbp !== indices.cfDbp) { newState.resCfDbp = indices.cfDbp; mudou = true; }
             if (prev.resCfCc !== indices.cfCc) { newState.resCfCc = indices.cfCc; mudou = true; }
 
-            // D. Checkboxes Automáticos de Índices
+            // D. Checkboxes Automáticos
             if (indices.ic && !prev.checkIndiceCefalico) { newState.checkIndiceCefalico = true; mudou = true; }
 
-            // E. DMSG e IG do Saco (1º Trimestre)
+            // E. DMSG
             const novoDmsg = calcularDMSG(prev.sg1, prev.sg2, prev.sg3);
             if (prev.resDmsg !== novoDmsg) { 
                 newState.resDmsg = novoDmsg; 
-                
-                // Calcula IG baseada no DMSG novo
                 const novaIgSg = calcularIGDmsg(novoDmsg); 
                 newState.resIgSg = novaIgSg;
-                
                 mudou = true; 
             }
 
-            // F. CÁLCULO DE CCN (Embrião)
-        if (prev.ccn) {
-            const novaIgCcn = calcularIG_CCN(prev.ccn);
-            if (prev.resIgCcn !== novaIgCcn) {
-                newState.resIgCcn = novaIgCcn;
+            // F. CCN
+            if (prev.ccn) {
+                const novaIgCcn = calcularIG_CCN(prev.ccn);
+                if (prev.resIgCcn !== novaIgCcn) {
+                    newState.resIgCcn = novaIgCcn;
+                    mudou = true;
+                }
+            } else if (prev.resIgCcn !== '') {
+                newState.resIgCcn = '';
                 mudou = true;
             }
-        } else if (prev.resIgCcn !== '') {
-            newState.resIgCcn = ''; // Limpa se apagar o número
-            mudou = true;
-        }
-
-        // Adicione 'data.ccn' no array de dependências do useEffect lá no final!
 
             return mudou ? newState : prev;
         });
@@ -98,45 +93,41 @@ export const useObstetricoForm = (onUpdate, initialValues) => {
         data.sg1, data.sg2, data.sg3, data.citarDppBiometria
     ]);
 
-    // --- 2. EFEITO DE GERAÇÃO DE TEXTO E SINCRONIA ---
+    // --- 2. GERAÇÃO DE TEXTO ---
     useEffect(() => {
-        // 1. Salva o estado atual no Ref do feto correspondente
         if (fetoAtivo === 1) dadosFeto1.current = data;
         else dadosFeto2.current = data;
 
-        // 2. Gera os relatórios usando o Builder
         const resultadoF1 = gerarRelatorioFeto(dadosFeto1.current);
         const resultadoF2 = isGemelar ? gerarRelatorioFeto(dadosFeto2.current) : null;
 
-        // 3. Monta o texto final
         const textoFinal = montarTextoFinal(
             { ...resultadoF1, listaComentarios: resultadoF1.listaComentarios, listaConclusao: resultadoF1.listaConclusao },
             isGemelar ? { ...resultadoF2, listaComentarios: resultadoF2.listaComentarios, listaConclusao: resultadoF2.listaConclusao } : null,
             isGemelar
         );
 
-        // 4. Define o Título do Exame
         const mapTitulo = {
             'OBSTETRICO_MORFOLOGICO': 'ULTRASSONOGRAFIA MORFOLÓGICA FETAL',
             'OBSTETRICO_1_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA DE 1º TRIMESTRE',
             'OBSTETRICO_2_3_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA'
         };
 
-        // 5. Envia para o Pai (LaudosPage)
-        onUpdate({ 
-            texto: textoFinal, 
-            dadosEstruturados: { 
-                feto1: { ...dadosFeto1.current, ...resultadoF1 }, 
-                feto2: isGemelar ? { ...dadosFeto2.current, ...resultadoF2 } : null,
-                isGemelar
-            }, 
-            tituloExame: mapTitulo[data.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA'
-        });
+        // Verifica se onUpdate é função antes de chamar
+        if (typeof onUpdate === 'function') {
+            onUpdate({ 
+                texto: textoFinal, 
+                dadosEstruturados: { 
+                    feto1: { ...dadosFeto1.current, ...resultadoF1 }, 
+                    feto2: isGemelar ? { ...dadosFeto2.current, ...resultadoF2 } : null,
+                    isGemelar
+                }, 
+                tituloExame: mapTitulo[data.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA'
+            });
+        }
 
     }, [data, isGemelar, fetoAtivo, onUpdate]);
 
-    // --- HANDLERS (Funções de interação) ---
-    
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
@@ -170,8 +161,14 @@ export const useObstetricoForm = (onUpdate, initialValues) => {
         setFetoAtivo(novoFeto);
     };
 
+    // AJUSTE 2: Mapeando os nomes para o que o FormObstetrico espera
     return {
-        data,
+        formState: data,           // O componente espera formState
+        handleInputChange: handleChange, // O componente espera handleInputChange
+        setFormState: setData,     // Útil se precisar
+        
+        // Outros exportados originais
+        data, 
         handleChange,
         handleDatacaoChange,
         isGemelar,
