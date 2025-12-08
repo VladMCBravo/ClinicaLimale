@@ -21,93 +21,36 @@ import SecaoDadosMaternos1Tri from './sections/SecaoDadosMaternos1Tri';
 import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
 import SecaoEmbriao from './sections/SecaoEmbriao';
 
-const FormObstetrico = ({ onUpdate, initialValues }) => {
-  // Toda a lógica complexa está aqui dentro:
-  const { 
-      data, 
-      handleChange, 
-      handleDatacaoChange,
-      isGemelar, 
-      toggleGemelar, 
-      fetoAtivo, 
-      handleTabChange,
-      mostrarGraficos,
-      setMostrarGraficos
-  } = useObstetricoForm(onUpdate, initialValues);
+import SecaoDadosGerais from './sections/SecaoDadosGerais'; // Novo: Situação, Apresentação, BCF
+import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido'; // Novo: Placenta e ILA
 
-  const isPrimeiroTri = data.subtipo === 'OBSTETRICO_1_TRI';
+const FormObstetrico = ({ onUpdate, initialValues }) => {
+  const { data, handleChange, ...rest } = useObstetricoForm(onUpdate, initialValues);
 
   return (
     <div className="laudo-container">
+      {/* 1. DATAÇÃO (Topo sempre) */}
+      <SecaoDatacao data={data} handleChange={handleChange} handleDatacaoChange={rest.handleDatacaoChange} />
       
-      {/* CHECKBOX GEMELAR */}
-      <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <label className="laudo-checkbox-label" style={{fontWeight: 'bold', color: '#4A3B80', fontSize: '13px'}}>
-              <input type="checkbox" checked={isGemelar} onChange={toggleGemelar} />
-              <FaUserFriends size={16} /> GESTAÇÃO GEMELAR
-          </label>
-      </div>
+      {/* 2. DADOS GERAIS E VITALIDADE (Logo abaixo da data) */}
+      {/* Aqui entram: Situação, Apresentação, Dorso, BCF, Movimentos, Estomago, Bexiga */}
+      <SecaoDadosGerais data={data} handleChange={handleChange} />
 
-      {/* ABAS GEMELAR */}
-      {isGemelar && (
-          <div className="gemelar-tabs">
-              <div className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`} onClick={() => handleTabChange(1)}>
-                  FETO 1
-              </div>
-              <div className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`} onClick={() => handleTabChange(2)}>
-                  FETO 2
-              </div>
-          </div>
-      )}
+      {/* 3. ANEXOS (Placenta e Líquido - antes da biometria no texto dela) */}
+      <SecaoPlacentaLiquido data={data} handleChange={handleChange} />
 
-      {/* CONTEÚDO DO FORMULÁRIO */}
-      <div style={{ opacity: isGemelar && fetoAtivo === 2 ? 0.95 : 1 }}>
-          
-          <SecaoSubtipo data={data} handleChange={handleChange} />
-          
-          <SecaoDatacao 
-            data={data} 
-            handleChange={handleChange} 
-            handleDatacaoChange={handleDatacaoChange} 
-          />
-          
-          {isPrimeiroTri ? (
-              // --- LAYOUT 1º TRIMESTRE ---
-              <>
-                <SecaoDadosMaternos1Tri data={data} handleChange={handleChange} />
-                <SecaoSacoGestacional data={data} handleChange={handleChange} />
-                <SecaoEmbriao data={data} handleChange={handleChange} />
-                <SecaoDoppler data={data} handleChange={handleChange} />
-                <SecaoConclusao data={data} handleChange={handleChange} />
-              </>
-          ) : (
-              // --- LAYOUT 2º/3º TRIMESTRE ---
-              <>
-                <SecaoColoDados data={data} handleChange={handleChange} />
-                <SecaoBiometria data={data} handleChange={handleChange} />
-                
-                <div style={{ margin: '5px 0' }}>
-                    <SecaoIndicesGraficos data={data} handleChange={handleChange} />
-                </div>
-                
-                {/* Botão de Gráficos */}
-                <div style={{ margin: '5px 0', border: '1px solid #ddd', padding: '5px', background: '#f9f9f9', borderRadius: '4px' }}>
-                    <button onClick={() => setMostrarGraficos(!mostrarGraficos)} style={{cursor: 'pointer', border: 'none', background: 'transparent', color: '#1565C0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                        <FaChartLine /> {mostrarGraficos ? 'Ocultar Curvas' : 'Visualizar Curvas de Crescimento'}
-                    </button>
-                    {mostrarGraficos && <GraficosObstetricos igSemanas={20} peso={data.pesoEstimado} femur={data.femur} />}
-                </div>
+      {/* 4. BIOMETRIA (O "miolo" do exame) */}
+      <SecaoBiometria data={data} handleChange={handleChange} />
+      
+      {/* 5. ÍNDICES E GRÁFICOS (Opcional visualização) */}
+      <SecaoIndicesGraficos data={data} handleChange={handleChange} />
 
-                <SecaoMorfologia data={data} handleChange={handleChange} />
-                <SecaoAnexos data={data} handleChange={handleChange} />
-                <SecaoDoppler data={data} handleChange={handleChange} />
-                <SecaoConclusao data={data} handleChange={handleChange} />
-              </>
-          )}
+      {/* 6. DOPPLER (Se ativado) */}
+      <SecaoDoppler data={data} handleChange={handleChange} />
 
-      </div>
+      {/* 7. CONCLUSÃO (Apenas campos extras como Peso, Sexo e Obs, pois o resto é automático) */}
+      <SecaoConclusao data={data} handleChange={handleChange} />
+      
     </div>
   );
 };
-
-export default FormObstetrico;
