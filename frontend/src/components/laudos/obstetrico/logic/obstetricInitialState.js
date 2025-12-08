@@ -10,6 +10,13 @@ export const initialState = {
     igBiometria: '', // Caso não use DUM
     dppBiometriaCalculada: '',
 
+    // --- DADOS DO ÚTERO / TRANSVAGINAL (NOVO) ---
+    utero: 'globoso, aumentado de volume', // Para texto inicial
+    miometrio: 'homogêneo',
+    coloUterino: 'fechado',
+    comprimentoColo: '', // em mm
+    anexos: 'normais', // "Anexos parauterinos normais"
+
     // --- DADOS GERAIS & VITALIDADE (Ajustado para o fluxo da médica) ---
     bexigaMaterna: 'não visualizada', // Opções: 'não visualizada', 'repleta', 'vazia'
     situacao: 'longitudinal',
@@ -59,6 +66,8 @@ export const initialState = {
 
     // --- CONCLUSÃO ---
     pesoEstimado: '',
+    pesoP10: '', // NOVO (Pede no laudo: P10= X)
+    pesoP90: '', // NOVO (Pede no laudo: P90= Y)
     percentil: '',
     sexoFetal: 'MASCULINO',
     obsAdicionais: '',

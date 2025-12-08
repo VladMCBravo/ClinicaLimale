@@ -3,73 +3,48 @@ import React from 'react';
 const SecaoConclusao = ({ data, handleChange }) => {
   return (
     <div className="laudo-section">
-        {/* TÍTULO VISUAL PARA APARECER NA TELA */}
-        <div className="header-base header-purple">Conclusão</div>
-        
+        <div className="header-base header-red">Conclusão e Diagnóstico</div>
         <div className="laudo-section-body">
-            <div className="laudo-grid-2" style={{gap: '15px'}}>
+            
+            {/* LINHA PESO */}
+            <div className="laudo-row" style={{marginBottom: '10px'}}>
+                <span style={{fontWeight:'bold'}}>Peso Estimado (g):</span>
+                <input type="number" name="pesoEstimado" value={data.pesoEstimado} onChange={handleChange} className="laudo-input" style={{width:'70px', marginRight:'15px'}} />
                 
-                {/* Peso */}
-                <div>
-                    <span className="label-pequeno">Peso Estimado (g)</span>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                        <input 
-                            type="number" 
-                            name="pesoEstimado" 
-                            value={data.pesoEstimado || ''} 
-                            onChange={handleChange}
-                            className="laudo-input" 
-                            style={{width: '100%', fontWeight: 'bold'}}
-                            placeholder="Ex: 1500"
-                        />
-                        <span style={{fontSize: '10px', color: '#666'}}>+/- 10%</span>
-                    </div>
-                </div>
+                {/* NOVOS CAMPOS P10 / P90 */}
+                <span className="label-pequeno">P10:</span>
+                <input type="number" name="pesoP10" value={data.pesoP10} onChange={handleChange} className="laudo-input-small" style={{width:'50px'}} />
+                
+                <span className="label-pequeno" style={{marginLeft:'5px'}}>P90:</span>
+                <input type="number" name="pesoP90" value={data.pesoP90} onChange={handleChange} className="laudo-input-small" style={{width:'50px'}} />
 
-                {/* Sexo */}
-                <div>
-                    <span className="label-pequeno">Sexo Fetal</span>
-                    <select 
-                        name="sexoFetal" 
-                        value={data.sexoFetal || 'MASCULINO'} 
-                        onChange={handleChange}
-                        className="laudo-select full-width"
-                        style={{fontWeight: 'bold'}}
-                    >
-                        <option value="MASCULINO">Masculino</option>
-                        <option value="FEMININO">Feminino</option>
-                        <option value="NAO_VISUALIZADO">Não Visualizado</option>
-                        <option value="NAO_CITAR">Não Citar</option>
-                    </select>
-                </div>
+                <span style={{marginLeft:'15px'}}>Percentil:</span>
+                <input type="text" name="percentil" value={data.percentil} onChange={handleChange} className="laudo-input" style={{width:'50px'}} />
             </div>
 
-            {/* Percentil */}
-            <div className="laudo-row" style={{marginTop: '10px'}}>
-                <span className="label-pequeno" style={{width: 'auto', marginRight: '10px'}}>Percentil (opcional):</span>
-                <input 
-                    type="text" 
-                    name="percentil" 
-                    value={data.percentil || ''} 
-                    onChange={handleChange}
-                    className="laudo-input" 
-                    style={{width: '80px'}}
-                    placeholder="Ex: 50"
-                />
+            {/* SEXO */}
+            <div className="laudo-row" style={{marginBottom: '10px'}}>
+                <span style={{fontWeight:'bold'}}>Sexo Fetal:</span>
+                <select name="sexoFetal" value={data.sexoFetal} onChange={handleChange} className="laudo-select">
+                    <option value="NAO_CITAR">Não citar</option>
+                    <option value="MASCULINO">Masculino</option>
+                    <option value="FEMININO">Feminino</option>
+                    <option value="NAO_VISUALIZADO">Não visualizado</option>
+                </select>
             </div>
 
-            {/* Obs Adicionais */}
-            <div style={{marginTop: '15px'}}>
-                <span className="label-pequeno">Observações Adicionais (sairão na conclusão):</span>
+            {/* TEXTAREA OBS EXTRAS */}
+            <div style={{marginTop: '10px'}}>
+                <span style={{fontWeight:'bold', fontSize:'12px'}}>Observações Adicionais:</span>
                 <textarea 
-                    name="obsAdicionais"
-                    value={data.obsAdicionais || ''}
-                    onChange={handleChange}
-                    className="laudo-input"
-                    style={{width: '100%', height: '60px', marginTop: '5px'}}
-                    placeholder="Digite aqui observações extras..."
+                    name="obsAdicionais" 
+                    value={data.obsAdicionais} 
+                    onChange={handleChange} 
+                    className="laudo-textarea"
+                    rows="3"
                 />
             </div>
+
         </div>
     </div>
   );
