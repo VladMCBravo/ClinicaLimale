@@ -1,77 +1,54 @@
-// obstetricInitialState.js
 export const initialState = {
     subtipo: 'OBSTETRICO_2_3_TRI', 
-
-    // --- DATAÇÃO (Mantido igual) ---
-    dum: '', 
-    usarDum: true,
+    
+    // --- DATAÇÃO ---
+    dum: '', usarDum: true, exibirDataDum: false, citarDppDum: false,
+    dumDesconhecida: false, naoUsarDum: false,
+    
     igDum: '', dppDum: '',
-    // Datação Manual / Biometria
-    igBiometria: '', // Caso não use DUM
-    dppBiometriaCalculada: '',
+    igBiometria: '', dppBiometriaCalculada: '', citarDppBiometria: false,
 
-    // --- DADOS DO ÚTERO / TRANSVAGINAL (NOVO) ---
-    utero: 'globoso, aumentado de volume', // Para texto inicial
-    miometrio: 'homogêneo',
-    coloUterino: 'fechado',
-    comprimentoColo: '', // em mm
-    anexos: 'normais', // "Anexos parauterinos normais"
+    // Exame Anterior
+    usarExameAnterior: false,
+    dataExameAnterior: '', igAnteriorSemanas: '', igAnteriorDias: '',
+    igIgCorrigidaCalculada: '', dppIgCorrigidaCalculada: '',
 
-    // --- DADOS GERAIS & VITALIDADE (Ajustado para o fluxo da médica) ---
-    bexigaMaterna: 'não visualizada', // Opções: 'não visualizada', 'repleta', 'vazia'
-    situacao: 'longitudinal',
-    apresentacao: 'cefálica',
-    dorso: 'à direita',
-    
-    bcf: '140',
-    movFetal: true, // "Movimentos fetais presentes"
-    
-    // Anatomia Visceral Básica
-    estomagoVisualizado: true, // "Repleto e de conteúdo anecóide"
-    bexigaVisualizada: true,   // "Repleta e de conteúdo anecóide"
+    // --- DADOS GERAIS ---
+    bexigaMaterna: 'não visualizada',
+    situacao: 'longitudinal', apresentacao: 'cefálica', dorso: 'à direita',
+    bcf: '140', movFetal: true, 
+    degluticao: false, // <--- ADICIONADO (Faltava este)
+    estomagoVisualizado: true, bexigaVisualizada: true,
 
-    // --- ANEXOS (Novos campos específicos) ---
-    placentaLocalizacao: 'corporal', // corporal, anterior, posterior, fúndica...
-    placentaGrau: '0', // 0, I, II, III (Grannum)
-    placentaEspessura: '', // em mm
-    
-    liquidoAmniotico: 'Normal', // Normal, Aumentado, Reduzido
-    ila: '', // Valor do ILA
-    ilaRefMin: '', // Para (Ref: X - Y)
-    ilaRefMax: '', 
-
-    // --- BIOMETRIA (Campos padrão mantidos) ---
+    // --- BIOMETRIA ---
     dbp: '', dof: '', cc: '', ca: '', femur: '', umero: '',
-    ulna: '', tibia: '', radio: '', fibula: '', pe: '',
-    cerebelo: '', cisternaMagna: '', ossoNasal: '', pregaNucal: '',
+    ulna: '', tibia: '', radio: '', fibula: '', 
+    cerebelo: '', cisternaMagna: '', pregaNucal: '', ossoNasal: '', tnMedida: '',
+    
+    // Indices
+    resIc: '', resCcCa: '', resCfCa: '',
 
-    // --- DOPPLER (Estrutura mantida) ---
+    // --- DOPPLER (Checkboxes que faltavam no inicial) ---
     usarDoppler: false,
     
-    // Artéria Uterina
-    artUterinaDirIP: '', artUterinaDirIR: '', incisuraDir: false,
-    artUterinaEsqIP: '', artUterinaEsqIR: '', incisuraEsq: false,
+    // Uterinas
+    checkUtDir: false, utDirIP: '', utDirIR: '', utDirSD: '', utDirIncisura: false,
+    checkUtEsq: false, utEsqIP: '', utEsqIR: '', utEsqSD: '', utEsqIncisura: false,
     
-    // Artéria Umbilical
-    artUmbilicalIP: '', artUmbilicalIR: '', artUmbilicalSD: '',
-    umbilicalDiastole: 'normal', // normal, zero, reversa
+    // Umbilical
+    checkUmb: false, umbIP: '', umbIR: '', umbSD: '', 
+    umbTraçadoNormal: true, umbDiastoleBaixa: false, umbDiastoleZero: false, umbDiastoleReversa: false,
     
-    // Cerebral Média
-    artCerebralIP: '', artCerebralIR: '', artCerebralSD: '',
-    relacaoCerebroUmbilical: '', // Calculado ou manual
+    // Cerebral
+    checkAcm: false, acmPVS: '', acmSD: '', acmIR: '', acmIP: '', 
+    acmTraçadoNormal: true, acmDiastoleAlta: false,
+    relacaoCerebroUmbilical: '',
 
     // Ducto Venoso
-    ductoVenosoIP: '', 
-    ductoVenosoOndaA: 'positiva',
+    checkDv: false, dvIP: '', dvTraçadoNormal: true, dvOndaAZero: false, dvOndaAReversa: false,
 
     // --- CONCLUSÃO ---
-    pesoEstimado: '',
-    pesoP10: '', // NOVO (Pede no laudo: P10= X)
-    pesoP90: '', // NOVO (Pede no laudo: P90= Y)
-    percentil: '',
+    pesoEstimado: '', pesoP10: '', pesoP90: '', percentil: '',
     sexoFetal: 'MASCULINO',
-    obsAdicionais: '',
-    
-    // Checkboxes de controle visual (opcionais, mas bons de manter)
-    checkPeso: true
+    obsAdicionais: ''
 };
