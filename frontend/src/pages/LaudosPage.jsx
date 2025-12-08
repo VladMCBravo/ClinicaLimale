@@ -1,6 +1,5 @@
-// src/pages/LaudosPage.jsx
 import React, { useState, useCallback, useEffect } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash, FaUserMd, FaEraser } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaEraser, FaUserMd } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css'; 
@@ -13,9 +12,9 @@ import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCaro
 
 import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 
+// --- CONFIGURAÇÕES VISUAIS (Fora do componente para não recriar a cada render) ---
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F4F6F8', surface: '#FFFFFF', border: '#E0E0E0' };
 
-// --- ESTILOS COMPACTOS ---
 const styles = {
   container: { 
       display: 'flex', 
@@ -23,26 +22,26 @@ const styles = {
       height: '100vh', 
       overflow: 'hidden', 
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
-      fontSize: '10px', // Reduzido geral
+      fontSize: '10px', 
       color: '#333' 
   },
   leftCol: { 
       flex: 2, 
-      minWidth: '680px', // Reduzido de 800px para caber melhor
+      minWidth: '680px', 
       height: '100%', 
       overflowY: 'auto', 
-      padding: '5px', // Reduzido de 10px
+      padding: '5px', 
       borderRight: `1px solid ${theme.border}`, 
       display: 'flex', 
       flexDirection: 'column', 
-      gap: '5px', // Reduzido gap entre cards
+      gap: '5px', 
       background: '#fff' 
   },
   rightCol: { 
       flex: 1, 
-      minWidth: '350px', // Reduzido de 400px
+      minWidth: '350px', 
       height: '100%', 
-      padding: '5px', // Reduzido
+      padding: '5px', 
       display: 'flex', 
       flexDirection: 'column', 
       overflowY: 'auto', 
@@ -52,14 +51,14 @@ const styles = {
       background: '#fff', 
       borderRadius: '4px', 
       border: `1px solid ${theme.border}`, 
-      padding: '6px', // Reduzido de 10px
+      padding: '6px', 
       boxShadow: '0 1px 2px rgba(0,0,0,0.05)' 
   },
   header: { 
       fontSize: '11px', 
       fontWeight: 'bold', 
       color: theme.primary, 
-      marginBottom: '4px', // Reduzido
+      marginBottom: '4px', 
       display: 'flex', 
       alignItems: 'center', 
       gap: '5px', 
@@ -72,7 +71,7 @@ const styles = {
       fontSize: '11px', 
       borderRadius: '2px', 
       border: '1px solid #aaa', 
-      height: '22px', // Altura reduzida
+      height: '22px', 
       fontWeight: 'bold', 
       color: theme.primary, 
       outline: 'none' 
@@ -81,7 +80,7 @@ const styles = {
       background: theme.accent, 
       color: 'white', 
       border: 'none', 
-      padding: '2px 8px', // Padding ultra compacto
+      padding: '2px 8px', 
       borderRadius: '3px', 
       cursor: 'pointer', 
       fontWeight: 'bold', 
@@ -89,11 +88,11 @@ const styles = {
       display: 'flex', 
       alignItems: 'center', 
       gap: '4px',
-      height: '22px' // Altura forçada para alinhar
+      height: '22px' 
   },
   imagePreviewGrid: { 
       display: 'grid', 
-      gridTemplateColumns: 'repeat(4, 1fr)', // Cabe mais imagens (4 colunas)
+      gridTemplateColumns: 'repeat(4, 1fr)', 
       gap: '4px', 
       marginTop: '5px', 
       padding: '5px', 
@@ -125,21 +124,27 @@ const LaudosPage = () => {
     return fallback;
   };
 
+  // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
+  
+  // Busca Paciente
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
   
+  // Médico
   const [medicoNome, setMedicoNome] = useState(() => getInitialState('medicoNome', ''));
   const [medicoCrm, setMedicoCrm] = useState(() => getInitialState('medicoCrm', ''));
 
+  // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
   const [tituloExame, setTituloExame] = useState(() => getInitialState('tituloExame', ''));
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   const [saving, setSaving] = useState(false);
 
+  // Auto-Save Effect
   useEffect(() => {
     const dadosParaSalvar = {
         tipoExame,
@@ -181,10 +186,11 @@ const LaudosPage = () => {
     }
   };
 
+  // Callback que recebe dados do filho (FormObstetrico) e atualiza o pai
   const handleFormUpdate = useCallback((dados) => {
-      setTextoFinal(dados.texto);
-      setDadosEstruturados(dados.dadosEstruturados || {});
-      setTituloExame(dados.tituloExame);
+      if (dados.texto) setTextoFinal(dados.texto);
+      if (dados.dadosEstruturados) setDadosEstruturados(dados.dadosEstruturados);
+      if (dados.tituloExame) setTituloExame(dados.tituloExame);
   }, []);
 
   const buscarPacientes = async (termo) => {
