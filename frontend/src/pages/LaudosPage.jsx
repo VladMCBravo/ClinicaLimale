@@ -1,8 +1,6 @@
 // src/pages/LaudosPage.jsx
 import React, { useState, useCallback } from 'react';
 import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaTrash, FaUserMd } from 'react-icons/fa';
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css'; 
@@ -13,7 +11,8 @@ import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 
-pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
+// Importação do Gerador de PDF Compartilhado
+import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F4F6F8', surface: '#FFFFFF', border: '#E0E0E0' };
 
@@ -89,14 +88,10 @@ const LaudosPage = () => {
           const payload = {
               paciente: paciente.id,
               
-              // --- CORREÇÃO AQUI ---
-              // O Django espera 'tipo_exame' e 'titulo' separadamente.
-              
-              // 1. Envia o tipo selecionado no dropdown (ex: 'DOPPLER_CAROTIDAS')
+              // 1. Envia o tipo selecionado no dropdown
               tipo_exame: tipoExame, 
               
-              // 2. Envia o título gerado pelo formulário (ex: 'DOPPLER DE CARÓTIDAS...')
-              // Adicionamos um fallback caso o título esteja vazio
+              // 2. Envia o título gerado pelo formulário (com fallback)
               titulo: tituloExame || `Laudo de ${tipoExame}`, 
               
               dados_estruturados: dadosEstruturados,
@@ -107,16 +102,12 @@ const LaudosPage = () => {
               status: "FINALIZADO"
           };
           
-          // Envia para a rota correta que criamos
           await apiClient.post('/prontuario/laudos/', payload);
           
           alert("Laudo salvo com sucesso!");
           
-          // Opcional: Limpar imagens ou redirecionar após salvar
-          // setImagens([]); 
       } catch (e) { 
           console.error("Erro ao salvar laudo:", e);
-          // Mostra o erro detalhado do backend se houver
           const msgErro = e.response?.data 
             ? JSON.stringify(e.response.data, null, 2) 
             : e.message;
@@ -126,168 +117,17 @@ const LaudosPage = () => {
       }
   };
 
-  // --- FUNÇÃO DE IMPRESSÃO CORRIGIDA (Respeita o Texto Editável) ---
+  // --- FUNÇÃO DE IMPRESSÃO ---
   const handlePrint = () => {
-      const pageMargins = [40, 128, 40, 60]; 
-      
-      const content = [];
-
-      // 1. HELPER: Tabela de Biometria (Estilo Clean)
-      const criarTabelaBiometria = (dadosTabela, titulo) => {
-          if (!dadosTabela || dadosTabela.length === 0) return null;
-          
-          const bodyTable = [
-              [
-                  { text: 'ESTRUTURA', style: 'tableHeader', fillColor: '#F5F5F5', border: [false, false, false, true] }, 
-                  { text: 'MEDIDA', style: 'tableHeader', fillColor: '#F5F5F5', border: [false, false, false, true] }
-              ]
-          ];
-          
-          dadosTabela.forEach((item, index) => {
-              bodyTable.push([
-                  { text: item.estrutura, fontSize: 9, color: '#333', border: [false, false, false, true], margin: [0, 2] },
-                  { text: item.medida, fontSize: 9, bold: true, alignment: 'right', border: [false, false, false, true], margin: [0, 2] }
-              ]);
-          });
-
-          return {
-              stack: [
-                  { text: titulo, style: 'sectionHeader', margin: [0, 10, 0, 5] },
-                  {
-                      table: {
-                          widths: ['*', 100], // Coluna de medida com largura fixa
-                          body: bodyTable
-                      },
-                      layout: {
-                          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0 : 0.5,
-                          vLineWidth: () => 0,
-                          hLineColor: () => '#E0E0E0'
-                      }
-                  }
-              ],
-              unbreakable: true // Tenta não quebrar a tabela no meio
-          };
-      };
-
-      // 2. CORPO DO LAUDO (TEXTO DESCRIITIVO)
-      // Quebra o texto por linhas para criar parágrafos reais com espaçamento
-      const processarTexto = (textoRaw) => {
-          if (!textoRaw) return [];
-          // Remove a palavra "CONCLUSÃO:" se ela vier automática no texto para tratarmos separado, 
-          // ou mantém se você preferir que o médico controle tudo. 
-          // Vamos manter a estrutura mas dar espaçamento nos parágrafos.
-          return textoRaw.split('\n').map(line => {
-              if (line.trim() === '') return { text: '', margin: [0, 2] }; // Espaço pequeno entre linhas vazias
-              
-              // Se a linha for um Título de seção (ex: "--- FETO 1 ---" ou "CONCLUSÃO:")
-              if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO:')) {
-                  return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
-              }
-              
-              // Parágrafo normal
-              return { 
-                  text: line, 
-                  fontSize: 10, // Fonte padrão moderna
-                  alignment: 'justify', 
-                  lineHeight: 1.3,
-                  margin: [0, 0, 0, 6] // Espaço abaixo de cada parágrafo
-              };
-          });
-      };
-
-      // --- MONTAGEM DO PDF ---
-
-      // A. Título do Exame
-      content.push({ 
-          text: tituloExame || 'RELATÓRIO DE ULTRASSONOGRAFIA', 
-          style: 'mainHeader', 
-          alignment: 'center',
-          margin: [0, 0, 0, 20] 
+      gerarPDFLaudo({
+          pacienteNome: paciente?.nome_completo,
+          medicoNome: medicoNome,
+          medicoCrm: medicoCrm,
+          tituloExame: tituloExame,
+          textoLaudo: textoFinal,
+          dadosEstruturados: dadosEstruturados,
+          imagensBase64: imagens 
       });
-
-      // B. Texto do Laudo (Primeiro!)
-      content.push(...processarTexto(textoFinal));
-
-      // C. Tabelas de Biometria (Por último, como anexo técnico)
-      // Linha separadora elegante
-      content.push({ canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 10, 0, 10] });
-      
-      if (dadosEstruturados.feto1?.tabelaBiometria?.length > 0) {
-          const titulo = dadosEstruturados.isGemelar ? 'BIOMETRIA FETAL - FETO 1' : 'TABELA BIOMÉTRICA';
-          content.push(criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria, titulo));
-      }
-      
-      if (dadosEstruturados.isGemelar && dadosEstruturados.feto2?.tabelaBiometria?.length > 0) {
-          content.push(criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria, 'BIOMETRIA FETAL - FETO 2'));
-      }
-
-      // D. Imagens
-      if (imagens.length > 0) {
-        content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
-        for (let i = 0; i < imagens.length; i += 2) {
-            const row = {
-                columns: [
-                    { image: imagens[i], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' }, 
-                    imagens[i + 1] ? { image: imagens[i + 1], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' } : null 
-                ],
-                columnGap: 10,
-                margin: [0, 5]
-            };
-            content.push(row);
-        }
-      }
-
-      // --- DEFINIÇÃO DO DOCUMENTO ---
-      const docDefinition = {
-          pageSize: 'A4', 
-          pageMargins: pageMargins,
-          content: [
-              // Cabeçalho Simples (Paciente e Data)
-              {
-                columns: [
-                    { 
-                        stack: [
-                            { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
-                            { text: paciente ? paciente.nome_completo.toUpperCase() : '___', fontSize: 11, bold: true }
-                        ],
-                        width: '*' 
-                    },
-                    { 
-                        stack: [
-                            { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
-                            { text: new Date().toLocaleDateString('pt-BR'), fontSize: 11, alignment: 'right' }
-                        ],
-                        width: 100 
-                    }
-                ],
-                margin: [0, 0, 0, 25] // Espaço após cabeçalho
-              },
-              
-              ...content, // Conteúdo gerado acima
-
-              // Assinatura
-              {
-                stack: [
-                    { text: '_______________________________', alignment: 'center', color: '#999' },
-                    { text: medicoNome || 'Médico Examinador', alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
-                    { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 9, color: '#555' }
-                ],
-                unbreakable: true, 
-                margin: [0, 40, 0, 10], 
-                alignment: 'center'
-              },
-          ],
-          styles: {
-            mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },
-            sectionHeader: { fontSize: 11, bold: true, color: '#2E7D32', uppercase: true }, // Verde escuro elegante
-            tableHeader: { fontSize: 9, bold: true, color: '#555' }
-          },
-          defaultStyle: {
-              font: 'Roboto' // Fonte padrão do pdfMake, limpa e sem serifa
-          }
-      };
-      
-      pdfMake.createPdf(docDefinition).open();
   };
 
   return (
