@@ -26,7 +26,7 @@ import ConveniosPage from './pages/ConveniosPage';
 import EspecialidadesPage from './pages/EspecialidadesPage';
 import TelemedicinaPage from './pages/TelemedicinaPage';
 import JornadaTrabalhoPage from './pages/JornadaTrabalhoPage';
-import ProcedimentosPage from './pages/ProcedimentosPage';
+import ProcedimentosView from './components/financeiro/ProcedimentosView';
 import SalasPage from './pages/SalasPage';
 import LaudosPage from './pages/LaudosPage'; // <-- Adicione isso lá em cima
 import PortalResultados from './pages/PortalResultados'; // <--- Adicione esta linha
@@ -65,7 +65,7 @@ function App() {
                 <Route path="jornadas" element={<JornadaTrabalhoPage />} /> {/* <-- NOVO */}
                 <Route path="convenios" element={<ConveniosPage />} />
                 <Route path="categorias-despesa" element={<CategoriasDespesaPage />} />
-                <Route path="procedimentos" element={<ProcedimentosPage />} /> {/* <-- NOVO */}
+                <Route path="procedimentos" element={<ProcedimentosView />} />
                 <Route path="salas" element={<SalasPage />} /> {/* <-- NOVO */}
                 </Route> {/* <-- Esta linha (60) fecha o </ProtectedRoute> */}
               </Route>

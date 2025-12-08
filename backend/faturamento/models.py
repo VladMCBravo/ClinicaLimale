@@ -148,14 +148,22 @@ class Procedimento(models.Model):
     Representa um procedimento médico com seu código TUSS e valor.
     Ex: Consulta em consultório, aplicação de medicação, etc.
     """
-    codigo_tuss = models.CharField(max_length=20, unique=True, help_text="Código do procedimento na tabela TUSS")
+    CATEGORIA_CHOICES = [
+        ('US_GERAL', 'Ultrassonografia Geral'),
+        ('MED_FETAL', 'Medicina Fetal'),
+        ('ECOCARDIOGRAMA', 'Ecocardiograma'),
+        ('MUSCULO', 'Musculoesquelético'),
+        ('DOPPLER', 'Doppler Vascular'),
+        ('OUTROS', 'Outros'),
+    ]
+
+    codigo_tuss = models.CharField(max_length=20, help_text="Código do procedimento na tabela TUSS") 
+    # Nota: Removi o unique=True do codigo_tuss, pois você pode ter o mesmo TUSS 
+    # para "Obstétrico Gemelar" e "Obstétrico Único" com preços diferentes.
+    
+    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default='OUTROS') # <--- NOVO CAMPO
     descricao = models.CharField(max_length=255)
-    descricao_detalhada = models.TextField(
-        blank=True, 
-        verbose_name="Descrição Detalhada para Chatbot",
-        help_text="Texto completo que o chatbot usará para descrever o exame."
-    )
-    # --- ALTERAÇÃO 1: Renomeamos 'valor' para ser mais específico ---
+    descricao_detalhada = models.TextField(blank=True)
     valor_particular = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Particular (R$)")
     ativo = models.BooleanField(default=True)
 
@@ -163,7 +171,7 @@ class Procedimento(models.Model):
         return f"{self.codigo_tuss} - {self.descricao}"
 
     class Meta:
-        ordering = ['descricao']
+        ordering = ['categoria', 'descricao']
     
     
 
