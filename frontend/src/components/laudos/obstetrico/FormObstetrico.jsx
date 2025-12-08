@@ -1,5 +1,4 @@
 import React from 'react';
-// Importa o Hook que você já tem pronto (que usa o textBuilder internamente)
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
 // Seções (Visual)
@@ -16,15 +15,10 @@ import SecaoEmbriao from './sections/SecaoEmbriao';
 
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
-  // O Hook 'useObstetricoForm' que você me mandou já faz tudo: 
-  // calcula, gera o texto com o Builder e chama o onUpdate.
-  // Só precisamos pegar o 'formState' (dados) e 'handleInputChange' (função de trocar).
   const { formState, handleInputChange } = useObstetricoForm(onUpdate, initialValues);
 
   if (!formState) return <div className="p-4">Carregando formulário...</div>;
 
-  // Objeto de propriedades padrão para passar para todas as seções
-  // Passamos tanto como 'handleChange' quanto 'onChange' para garantir compatibilidade
   const commonProps = {
       data: formState,
       handleChange: handleInputChange,
@@ -32,44 +26,47 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   };
 
   return (
-    // REMOVI AS BORDAS DUPLAS: Aqui é um container limpo, sem headers extras
     <div className="flex flex-col gap-3 pb-4">
       
-      {/* 1. Subtipo (Define se é morfológico, 1º tri, etc) */}
+      {/* 1. SUBTIPO (Sempre o primeiro para definir o layout) */}
       <SecaoSubtipo {...commonProps} />
 
-      {/* LÓGICA DE EXIBIÇÃO CONDICIONAL */}
+      {/* 2. DATAÇÃO (DUM, DPP, IG) */}
+      {/* "DPP: 17/06/2026..." - Primeira linha do texto */}
+      <SecaoDatacao {...commonProps} />
       
-      {/* Se for exame inicial (ex: "US Obstétrico Inicial") mostra Saco Gestacional */}
+      {/* 3. DADOS GERAIS (Bexiga, Situação, Apresentação) */}
+      {/* "Bexiga materna não visualizada..." - Segunda linha do texto */}
+      <SecaoDadosGerais {...commonProps} />
+
+      {/* --- SEÇÕES ESPECÍFICAS DE 1º TRIMESTRE --- */}
+      {/* Elas entram aqui pois geralmente descrevem o feto/embrião logo após os dados gerais */}
+      
+      {/* Se for exame inicial (Saco Gestacional) */}
       {formState.subtipo && formState.subtipo.includes("INICIAL") && (
           <SecaoSacoGestacional {...commonProps} />
       )}
 
-      {/* Se for 1º Trimestre (TN), mostra Embrião */}
+      {/* Se for 1º Trimestre (Embrião, CCN, TN) */}
       {formState.subtipo && formState.subtipo.includes("1_TRI") && (
           <SecaoEmbriao {...commonProps} />
       )}
       
-      {/* 2. Dados Gerais (Situação, Posição, BCF) */}
-      {/* Essa seção é fundamental para o texto "Situação longitudinal..." */}
-      <SecaoDadosGerais {...commonProps} />
-
-      {/* 3. Datação (DUM / DPP) */}
-      <SecaoDatacao {...commonProps} />
-
-      {/* 4. Biometria (DBP, Fêmur...) - Gera a tabela de pontinhos */}
-      <SecaoBiometria {...commonProps} />
-
-      {/* 5. Placenta e Líquido - Gera o texto de Grannum e ILA */}
+      {/* 4. PLACENTA E LÍQUIDO */}
+      {/* "Placenta de inserção..." - Próximo parágrafo do texto */}
       <SecaoPlacentaLiquido {...commonProps} />
 
-      {/* 6. Morfologia (Checkboxes de anatomia) */}
+      {/* 5. BIOMETRIA (Medidas) */}
+      {/* "Medidas: Diâmetro Biparietal..." */}
+      <SecaoBiometria {...commonProps} />
+
+      {/* 6. MORFOLOGIA (Checkboxes de anatomia) */}
       <SecaoMorfologia {...commonProps} />
 
-      {/* 7. Doppler (Só aparece se marcar checkbox dentro dele) */}
+      {/* 7. DOPPLER (Opcional) */}
       <SecaoDoppler {...commonProps} />
 
-      {/* 8. Conclusão (Peso e Sexo) */}
+      {/* 8. CONCLUSÃO (Peso, Sexo, Obs finais) */}
       <SecaoConclusao {...commonProps} />
 
     </div>
