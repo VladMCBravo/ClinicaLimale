@@ -1,62 +1,49 @@
-import React, { useState } from 'react';
-
-// Importação do Hook
+import React, { useState, useEffect } from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
+import '../Laudos.css'; // Seu CSS
 
-// Importação das Seções (Inputs)
+// Seções (Inputs)
 import SecaoSubtipo from './sections/SecaoSubtipo';
 import SecaoDadosGerais from './sections/SecaoDadosGerais';
 import SecaoDatacao from './sections/SecaoDatacao';
-import SecaoDadosMaternos1Tri from './sections/SecaoDadosMaternos1Tri';
-import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
-import SecaoEmbriao from './sections/SecaoEmbriao';
 import SecaoBiometria from './sections/SecaoBiometria';
 import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
 import SecaoMorfologia from './sections/SecaoMorfologia';
 import SecaoDoppler from './sections/SecaoDoppler';
-import SecaoColoDados from './sections/SecaoColoDados';
 import SecaoConclusao from './sections/SecaoConclusao';
-import SecaoAnexos from './sections/SecaoAnexos';
-
-// Importação do CSS (para garantir que suas classes funcionem)
-import '../Laudos.css'; 
+// import SecaoAnexos from './sections/SecaoAnexos'; // Comentei temporariamente para limpar
 
 const FormObstetrico = () => {
-  // 1. Estado para armazenar o Texto Gerado (Lado Direito)
+  // Estado local apenas para o preview do texto
   const [textoLaudo, setTextoLaudo] = useState('');
 
-  // 2. Função de Callback que o Hook vai chamar toda vez que algo mudar
+  // Callback que recebe os dados do Hook sempre que algo muda
   const handleFormUpdate = (payload) => {
-    // payload contém: { texto, dadosEstruturados, tituloExame }
     if (payload && payload.texto) {
       setTextoLaudo(payload.texto);
     }
   };
 
-  // 3. Inicializa o hook passando a função de callback
+  // Inicializa o Hook principal
   const { formState, handleInputChange } = useObstetricoForm(handleFormUpdate);
 
-  // Trava de segurança para não quebrar a tela
-  if (!formState) return <div className="text-xs p-4">Carregando...</div>;
+  if (!formState) return <div>Carregando...</div>;
 
   return (
-    <div className="laudo-container w-full max-w-[1800px] mx-auto p-2 bg-gray-50 min-h-screen flex gap-4 items-start">
+    <div className="laudo-container flex gap-4 h-[calc(100vh-20px)] overflow-hidden p-2">
       
-      {/* =======================================================
-          COLUNA DA ESQUERDA (INPUTS & CONTROLES)
-          Organizado: Subtipo -> Dados -> Datação -> Biometria -> Morfologia -> Conclusão
-         ======================================================= */}
-      <div className="w-1/2 flex flex-col gap-3 h-screen overflow-y-auto pb-20 scrollbar-thin">
+      {/* --- COLUNA ESQUERDA (Formulário / Inputs) --- */}
+      <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2 pb-20">
         
-        {/* Bloco 1: Definição do Exame (Obrigatório Primeiro) */}
-        <div className="laudo-section">
+        {/* 1. Subtipo (Primeira coisa a aparecer) */}
+        <div className="laudo-section border-l-4 border-purple-600">
           <div className="header-base header-purple">Subtipo do Exame</div>
           <div className="laudo-section-body">
             <SecaoSubtipo data={formState} onChange={handleInputChange} />
           </div>
         </div>
 
-        {/* Bloco 2: Dados Vitais e Gerais */}
+        {/* 2. Dados Gerais */}
         <div className="laudo-section">
           <div className="header-base header-blue">Dados Gerais & Vitalidade</div>
           <div className="laudo-section-body">
@@ -64,102 +51,73 @@ const FormObstetrico = () => {
           </div>
         </div>
 
-        {/* Bloco 3: Datação (DUM/DPP) */}
+        {/* 3. Datação */}
         <div className="laudo-section">
-          <div className="header-base header-purple">DUM / DPP / Idade Gestacional</div>
+          <div className="header-base header-purple">Datação (DUM / DPP)</div>
           <div className="laudo-section-body">
             <SecaoDatacao data={formState} onChange={handleInputChange} />
           </div>
         </div>
 
-        {/* Lógica Condicional: Se for 1º Trimestre (mostra embrião), senão (mostra Biometria) */}
-        {formState.subtipo === 'OBSTETRICO_1_TRI' ? (
-          <>
-            <div className="laudo-section">
-              <div className="header-base header-green">Saco Gestacional & Embrião</div>
-              <div className="laudo-section-body">
-                <SecaoSacoGestacional data={formState} onChange={handleInputChange} />
-                <SecaoEmbriao data={formState} onChange={handleInputChange} />
-              </div>
-            </div>
-            <div className="laudo-section">
-              <div className="header-base header-green">Dados Maternos (1º Tri)</div>
-              <div className="laudo-section-body">
-                <SecaoDadosMaternos1Tri data={formState} onChange={handleInputChange} />
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="laudo-section">
-            <div className="header-base header-green">Biometria Fetal</div>
-            <div className="laudo-section-body">
-              <SecaoBiometria data={formState} onChange={handleInputChange} />
-            </div>
-          </div>
-        )}
-
-        {/* Bloco 4: Placenta, Líquido e Anexos */}
+        {/* 4. Biometria (Lógica simples: Mostra se não for 1º Tri puro) */}
         <div className="laudo-section">
-          <div className="header-base header-green">Placenta, Líquido & Colo</div>
+          <div className="header-base header-green">Biometria Fetal</div>
+          <div className="laudo-section-body">
+            <SecaoBiometria data={formState} onChange={handleInputChange} />
+          </div>
+        </div>
+
+        {/* 5. Placenta e Líquido */}
+        <div className="laudo-section">
+          <div className="header-base header-green">Placenta & Líquido</div>
           <div className="laudo-section-body">
             <SecaoPlacentaLiquido data={formState} onChange={handleInputChange} />
-            <SecaoColoDados data={formState} onChange={handleInputChange} />
           </div>
         </div>
 
-        {/* Bloco 5: Doppler (Opcional visualmente, mas o controle está dentro) */}
+        {/* 6. Morfologia */}
         <div className="laudo-section">
-          <div className={`header-base ${formState.usarDoppler ? 'header-blue' : 'header-gray'}`}>
-            Estudo Dopplerfluxométrico
-          </div>
-          <div className="laudo-section-body">
-            <SecaoDoppler data={formState} onChange={handleInputChange} />
-          </div>
-        </div>
-
-        {/* Bloco 6: Morfologia */}
-        <div className="laudo-section">
-          <div className="header-base header-green">Anatomia Fetal</div>
+          <div className="header-base header-green">Morfologia</div>
           <div className="laudo-section-body">
             <SecaoMorfologia data={formState} onChange={handleInputChange} />
           </div>
         </div>
 
-        {/* Bloco 7: Conclusão */}
+        {/* 7. Doppler (Controle simples) */}
+        <div className="laudo-section">
+          <div className="header-base header-blue">Doppler</div>
+          <div className="laudo-section-body">
+            <SecaoDoppler data={formState} onChange={handleInputChange} />
+          </div>
+        </div>
+
+        {/* 8. Conclusão (Apenas Inputs: Peso, Sexo, Obs) */}
         <div className="laudo-section bg-blue-50">
-          <div className="header-base header-purple">Conclusão do Laudo</div>
+          <div className="header-base header-purple">Conclusão</div>
           <div className="laudo-section-body">
             <SecaoConclusao data={formState} onChange={handleInputChange} />
-            <SecaoAnexos data={formState} onChange={handleInputChange} />
           </div>
         </div>
 
       </div>
 
-      {/* =======================================================
-          COLUNA DA DIREITA (LIVE PREVIEW - O TEXTO FINAL)
-          Fica fixo enquanto você rola a esquerda
-         ======================================================= */}
-      <div className="w-1/2 h-screen sticky top-0 pt-0">
-        <div className="bg-white border border-gray-300 shadow-lg h-[95vh] flex flex-col rounded">
-          
-          {/* Cabeçalho da Preview */}
-          <div className="bg-gray-100 p-2 border-b border-gray-300 flex justify-between items-center">
-            <span className="font-bold text-gray-700 text-xs uppercase">Visualização do Laudo</span>
-            <div className="space-x-2">
-               <button className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">Copiar Texto</button>
-               <button className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">Gerar PDF</button>
-            </div>
+      {/* --- COLUNA DIREITA (Texto Vivo / Preview) --- */}
+      <div className="w-[45%] bg-white border border-gray-400 shadow-xl flex flex-col h-full rounded-md">
+        {/* Barra de Ferramentas do Laudo */}
+        <div className="bg-gray-100 p-2 border-b border-gray-300 flex justify-between items-center">
+          <span className="font-bold text-gray-700 text-sm">PRÉ-VISUALIZAÇÃO</span>
+          <div className="flex gap-2">
+            <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Copiar</button>
+            <button className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">Salvar</button>
           </div>
-
-          {/* Área do Texto - Simula uma folha A4 */}
-          <div className="flex-1 p-8 overflow-y-auto bg-gray-50">
-            <div className="bg-white shadow-sm min-h-full p-8 text-sm text-gray-900 font-serif leading-relaxed whitespace-pre-wrap border border-gray-200">
-              {textoLaudo || "Preencha os dados à esquerda para gerar o laudo..."}
-            </div>
-          </div>
-
         </div>
+
+        {/* Área do Texto (Editável) */}
+        <textarea 
+          className="flex-1 p-8 w-full resize-none outline-none font-serif text-gray-900 leading-relaxed text-sm"
+          value={textoLaudo}
+          readOnly // Se quiser permitir edição manual, tire o readOnly e crie um handler
+        />
       </div>
 
     </div>
