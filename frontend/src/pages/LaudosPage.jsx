@@ -29,6 +29,21 @@ const styles = {
 };
 
 const LaudosPage = () => {
+    // --- ESTADOS INICIAIS (Lazy Initialization) ---
+  // Tenta ler do LocalStorage ao iniciar, se não existir, usa o padrão.
+  
+  const getInitialState = (key, fallback) => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return parsed[key] !== undefined ? parsed[key] : fallback;
+        }
+    } catch (e) {
+        console.error("Erro ao ler rascunho", e);
+    }
+    return fallback;
+  };
   const [tipoExame, setTipoExame] = useState('OBSTETRICO'); 
   const [paciente, setPaciente] = useState(null);
   const [termoBusca, setTermoBusca] = useState('');
@@ -43,6 +58,49 @@ const LaudosPage = () => {
   const [tituloExame, setTituloExame] = useState('');
   const [saving, setSaving] = useState(false);
   const [imagens, setImagens] = useState([]);
+  // --- EFEITO: SALVAR AUTOMATICAMENTE NO LOCALSTORAGE ---
+  useEffect(() => {
+    const dadosParaSalvar = {
+        tipoExame,
+        paciente,
+        medicoNome,
+        medicoCrm,
+        textoFinal,
+        dadosEstruturados,
+        tituloExame,
+        imagens
+    };
+    
+    const timeoutId = setTimeout(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
+        } catch (e) {
+            console.error("Erro ao salvar rascunho (provavelmente limite de cota de imagens):", e);
+            // Fallback: Tenta salvar sem as imagens se falhar por tamanho
+            const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosSemImagens));
+        }
+    }, 1000); // Debounce de 1 segundo para não salvar a cada tecla digitada
+
+    return () => clearTimeout(timeoutId);
+  }, [tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
+
+  // --- FUNÇÃO LIMPAR TUDO ---
+  const handleLimpar = () => {
+    if (window.confirm("Tem certeza que deseja limpar todo o formulário? O rascunho será perdido.")) {
+        localStorage.removeItem(STORAGE_KEY);
+        setTipoExame('OBSTETRICO');
+        setPaciente(null);
+        setMedicoNome('');
+        setMedicoCrm('');
+        setTextoFinal('');
+        setDadosEstruturados({});
+        setTituloExame('');
+        setImagens([]);
+        setTermoBusca('');
+        setPacientesEncontrados([]);
+    }
+  };
 
   const handleFormUpdate = useCallback((dados) => {
       // Aqui garantimos que o texto editável seja a fonte da verdade para o estado
@@ -202,6 +260,10 @@ const LaudosPage = () => {
                  <div style={{display: 'flex', gap: '8px'}}>
                      <input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
                      <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}><FaCamera/> FOTOS</label>
+                     {/* BOTÃO LIMPAR ADICIONADO */}
+                     <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário e rascunho">
+                        <FaEraser/> LIMPAR
+                     </button>
                      <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>{saving ? <FaSpinner className="spin"/> : <FaSave/>} SALVAR</button>
                      <button onClick={handlePrint} style={{...styles.button, background: theme.primary}}><FaPrint/> IMPRIMIR</button>
                  </div>

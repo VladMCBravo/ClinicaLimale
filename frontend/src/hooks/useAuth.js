@@ -73,7 +73,13 @@ export const useAuth = () => {
         } catch (error) {
             console.error("Erro no logout da API:", error);
         } finally {
+            // 1. Limpa dados da sessão (Login)
             sessionStorage.clear();
+            
+            // 2. ADICIONADO: Limpa o rascunho do laudo do LocalStorage
+            // Isso garante que o próximo usuário comece com o formulário limpo
+            localStorage.removeItem('laudos_rascunho_auto_save');
+
             setUser(null);
             navigate('/login');
         }
