@@ -23,7 +23,20 @@ const styles = {
   card: { background: '#fff', borderRadius: '4px', border: `1px solid ${theme.border}`, padding: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   header: { fontSize: '12px', fontWeight: 'bold', color: theme.primary, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' },
   inputControl: { width: '100%', padding: '4px 8px', fontSize: '11px', borderRadius: '2px', border: '1px solid #aaa', height: '24px', fontWeight: 'bold', color: theme.primary, outline: 'none' },
-  button: { background: theme.accent, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px' },
+  // --- MUDANÇA AQUI: Botões menores ---
+  button: { 
+      background: theme.accent, 
+      color: 'white', 
+      border: 'none', 
+      padding: '4px 8px', // Padding reduzido
+      borderRadius: '3px', 
+      cursor: 'pointer', 
+      fontWeight: 'bold', 
+      fontSize: '9px', // Fonte reduzida
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '4px' // Espaço entre ícone e texto reduzido
+  },
   imagePreviewGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginTop: '10px', padding: '5px', background: '#eee', borderRadius: '4px' },
   thumbContainer: { position: 'relative', aspectRatio: '1', overflow: 'hidden', borderRadius: '3px', border: '1px solid #ccc' }
 };
@@ -258,14 +271,17 @@ const LaudosPage = () => {
       {/* Direita */}
       <div style={styles.rightCol}>
          <div style={{...styles.card, height: '100%', display: 'flex', flexDirection: 'column', padding: '0'}}> 
-             <div style={{display: 'flex', justifyContent: 'space-between', padding: '10px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
-                 <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '13px'}}>LAUDO FINAL</span>
-                 <div style={{display: 'flex', gap: '8px'}}>
+             {/* --- MUDANÇA AQUI: Header da direita com botões menores --- */}
+             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
+                 <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '13px', whiteSpace: 'nowrap'}}>LAUDO FINAL</span>
+                 
+                 {/* Container dos botões com flex-shrink para não esmagar o título */}
+                 <div style={{display: 'flex', gap: '6px', flexShrink: 0}}>
                      <input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
-                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}><FaCamera/> FOTOS</label>
-                     {/* BOTÃO LIMPAR ADICIONADO */}
-                     <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário e rascunho">
-                        <FaEraser/> LIMPAR
+                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}><FaCamera size={10}/> FOTOS</label>
+                     
+                     <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário">
+                        <FaEraser size={10}/> LIMPAR
                      </button>
                      <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>{saving ? <FaSpinner className="spin"/> : <FaSave/>} SALVAR</button>
                      <button onClick={handlePrint} style={{...styles.button, background: theme.primary}}><FaPrint/> IMPRIMIR</button>
