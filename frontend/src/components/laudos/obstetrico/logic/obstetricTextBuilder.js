@@ -237,28 +237,40 @@ export const gerarRelatorioFeto = (d) => {
     if (d.usarDoppler) {
         texto += `ESTUDO DOPPLERVELOCIMÉTRICO:\n`;
         
-        if (d.artUterinaDirIP || d.artUterinaEsqIP) {
-            texto += `- Artérias Uterinas: IP Dir: ${d.artUterinaDirIP || '--'} | IP Esq: ${d.artUterinaEsqIP || '--'}`;
-            if (d.incisuraDir || d.incisuraEsq) texto += ` (Com incisura protodiastólica)`;
+        // Uterinas (Nomes corrigidos: utDirIP, utEsqIP)
+        if (d.utDirIP || d.utEsqIP) {
+            texto += `- Aa. Uterinas: IP Dir: ${d.utDirIP || '-'} | IP Esq: ${d.utEsqIP || '-'}`;
+            if (d.utDirIncisura || d.utEsqIncisura) texto += ` (Incisura presente)`;
             texto += `\n`;
         }
 
-        if (d.artUmbilicalIP) {
-            texto += `- Artéria Umbilical: IP: ${d.artUmbilicalIP} | IR: ${d.artUmbilicalIR || '--'}`;
-            if (d.umbilicalDiastole && d.umbilicalDiastole !== 'normal') texto += ` (Diástole: ${d.umbilicalDiastole})`;
+        // Umbilical (Nomes corrigidos: umbIP, umbIR)
+        if (d.umbIP) {
+            texto += `- A. Umbilical: IP: ${d.umbIP} | IR: ${d.umbIR || '-'}`;
+            if (d.umbDiastoleBaixa) texto += ` (Diástole baixa)`;
+            else if (d.umbDiastoleZero) texto += ` (Diástole zero)`;
+            else if (d.umbDiastoleReversa) texto += ` (Diástole reversa)`;
             texto += `\n`;
         }
 
-        if (d.artCerebralIP) {
-            texto += `- Artéria Cerebral Média: IP: ${d.artCerebralIP} | V Máx: ${d.acmPVS || '--'} cm/s.\n`;
+        // Cerebral Média (Nomes corrigidos: acmIP, acmPVS)
+        if (d.acmIP) {
+            texto += `- A. Cerebral Média: IP: ${d.acmIP}`;
+            if (d.acmPVS) texto += ` | Vmáx: ${d.acmPVS} cm/s`;
+            if (d.acmDiastoleAlta) texto += ` (Vasodilatação)`;
+            texto += `.\n`;
         }
 
-        if (d.relacaoCerebroUmbilical) {
-            texto += `- Relação Cérebro/Umbilical: ${d.relacaoCerebroUmbilical}\n`;
-        }
+        // Relação C/U
+        if (d.relacaoCerebroUmbilical) texto += `- Relação C/U: ${d.relacaoCerebroUmbilical}\n`;
 
-        if (d.ductoVenosoIP) {
-            texto += `- Ducto Venoso: IP: ${d.ductoVenosoIP} (Onda A: ${d.ductoVenosoOndaA || 'positiva'}).\n`;
+        // Ducto Venoso (Nomes corrigidos: dvIP)
+        if (d.dvIP) {
+            texto += `- Ducto Venoso: IP: ${d.dvIP}`;
+            if (d.dvOndaAZero) texto += ` (Onda A zero)`;
+            else if (d.dvOndaAReversa) texto += ` (Onda A reversa)`;
+            else texto += ` (Onda A positiva)`;
+            texto += `.\n`;
         }
         texto += `Conclusão Doppler: Padrão hemodinâmico materno-fetal conservado.\n\n`;
     }
@@ -267,20 +279,14 @@ export const gerarRelatorioFeto = (d) => {
     // 8. CONCLUSÃO
     // =========================================================================
     texto += `CONCLUSÃO:\n`;
-
-    // A. Gestação / IG
-    // Prioridade da IG Final: Anterior > DUM > Biometria > CCN
+    
     let igFinal = d.usarDum ? d.igDum : (d.igBiometria || "---");
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
     if (d.subtipo?.includes("1_TRI") && d.resIgCcn) igFinal = d.resIgCcn;
 
-    if (d.embriaoNaoVisualizado) {
-        texto += `- Gestação inicial / Embrião não visualizado. Sugere-se controle evolutivo.\n`;
-    } else {
-        texto += `- Gestação tópica compatível com ${igFinal}.\n`;
-    }
+    if (d.embriaoNaoVisualizado) texto += `- Gestação inicial. Sugere-se controle.\n`;
+    else texto += `- Gestação tópica compatível com ${igFinal}.\n`;
 
-    // B. Peso e Sexo
     if (d.pesoEstimado) {
         texto += `- Peso Fetal Estimado: ${d.pesoEstimado} g (+/- 10%)`;
         if (d.percentil) texto += ` (Percentil: ${d.percentil})`;
@@ -291,21 +297,10 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Sexo Fetal: ${d.sexoFetal}.\n`;
     }
 
-    // C. Doppler (Resumo)
-    if (d.usarDoppler) {
-        texto += `- Dopplerfluxometria normal.\n`;
-    }
-
-    // D. Observações Extras (Digitadas manualmente no campo 'obsAdicionais' se houver)
-    if (d.obsAdicionais) {
-        texto += `- ${d.obsAdicionais}\n`;
-    }
-
-    texto += `\nObs: Exame realizado conforme solicitação médica.`;
+    if (d.usarDoppler) texto += `- Dopplerfluxometria normal.\n`;
+    if (d.obsAdicionais) texto += `- ${d.obsAdicionais}\n`;
 
     return { texto };
 };
 
-export const montarTextoFinal = (resultadoFeto1) => {
-    return resultadoFeto1.texto;
-};
+export const montarTextoFinal = (res) => res.texto;
