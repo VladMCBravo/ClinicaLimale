@@ -79,7 +79,7 @@ const LaudosPage = () => {
   };
 
   const handleSave = async () => {
-      // Validação mais robusta para evitar erro 500
+      // Validações básicas
       if (!paciente) return alert("Erro: Selecione um paciente antes de salvar.");
       if (!paciente.id) return alert("Erro: ID do paciente inválido.");
       if (!medicoNome) return alert("Erro: Preencha o nome do médico.");
@@ -88,24 +88,42 @@ const LaudosPage = () => {
       try {
           const payload = {
               paciente: paciente.id,
-              titulo_exame: tituloExame,
+              
+              // --- CORREÇÃO AQUI ---
+              // O Django espera 'tipo_exame' e 'titulo' separadamente.
+              
+              // 1. Envia o tipo selecionado no dropdown (ex: 'DOPPLER_CAROTIDAS')
+              tipo_exame: tipoExame, 
+              
+              // 2. Envia o título gerado pelo formulário (ex: 'DOPPLER DE CARÓTIDAS...')
+              // Adicionamos um fallback caso o título esteja vazio
+              titulo: tituloExame || `Laudo de ${tipoExame}`, 
+              
               dados_estruturados: dadosEstruturados,
-              texto_laudo: textoFinal, // Salva o texto exatamente como está no textarea
+              texto_laudo: textoFinal,
               imagens_anexas: imagens,
               medico_responsavel: medicoNome,
               crm_medico: medicoCrm, 
               status: "FINALIZADO"
           };
-          // --- MUDANÇA IMPORTANTE AQUI ---
-          // Antes estava '/laudos/', mudamos para '/prontuario/laudos/'
-          // para bater na View correta que aceita JSON e Imagens.
+          
+          // Envia para a rota correta que criamos
           await apiClient.post('/prontuario/laudos/', payload);
           
           alert("Laudo salvo com sucesso!");
+          
+          // Opcional: Limpar imagens ou redirecionar após salvar
+          // setImagens([]); 
       } catch (e) { 
           console.error("Erro ao salvar laudo:", e);
-          alert(`Erro ao salvar: ${e.response?.data?.detail || e.message}`);
-      } finally { setSaving(false); }
+          // Mostra o erro detalhado do backend se houver
+          const msgErro = e.response?.data 
+            ? JSON.stringify(e.response.data, null, 2) 
+            : e.message;
+          alert(`Erro ao salvar: ${msgErro}`);
+      } finally { 
+          setSaving(false); 
+      }
   };
 
   // --- FUNÇÃO DE IMPRESSÃO CORRIGIDA (Respeita o Texto Editável) ---
