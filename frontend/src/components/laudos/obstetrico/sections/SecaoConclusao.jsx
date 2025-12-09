@@ -1,6 +1,13 @@
 import React from 'react';
 
 const SecaoConclusao = ({ data, handleChange }) => {
+    // Lógica Visual: Percentil < 10 fica vermelho
+  const valorPercentil = parseInt(data.percentil);
+  const isRciu = !isNaN(valorPercentil) && valorPercentil < 10;
+  const estiloPercentil = isRciu 
+      ? { width:'120px', background: '#FFEBEE', color: '#D32F2F', borderColor: '#D32F2F', fontWeight: 'bold' }
+      : { width:'120px' };
+
   return (
     <div className="laudo-section" style={{marginBottom: '50px'}}> 
         <div className="header-base header-red">Conclusão e Diagnóstico</div>
@@ -14,16 +21,21 @@ const SecaoConclusao = ({ data, handleChange }) => {
                     <input type="number" name="pesoEstimado" value={data.pesoEstimado} onChange={handleChange} className="laudo-input" style={{width:'80px', marginLeft:'5px'}} disabled={data.semDadosPercentil} placeholder="g" />
                 </div>
                 
-                <div className="laudo-row" style={{background:'#FFF3E0', padding:'2px 8px', borderRadius:'4px', border:'1px solid #FFE0B2'}}>
-                    <span className="label-pequeno">P10:</span>
-                    <input type="number" name="pesoP10" value={data.pesoP10} onChange={handleChange} className="laudo-input-small" style={{width:'50px'}} disabled={data.semDadosPercentil} />
-                    <span className="label-pequeno" style={{marginLeft:'10px'}}>P90:</span>
-                    <input type="number" name="pesoP90" value={data.pesoP90} onChange={handleChange} className="laudo-input-small" style={{width:'50px'}} disabled={data.semDadosPercentil} />
-                </div>
-
+                {/* REMOVI O INPUT DUPLICADO QUE EXISTIA AQUI ANTES */}
+                
                 <div className="laudo-row">
                     <span style={{marginLeft:'5px'}}>Percentil:</span>
-                    <input type="text" name="percentil" value={data.percentil} onChange={handleChange} className="laudo-input" style={{width:'120px'}} placeholder={data.qtdFetos > 1 ? "Alexander" : "Hadlock"} disabled={data.semDadosPercentil} />
+                    <input 
+                        type="text" 
+                        name="percentil" 
+                        value={data.percentil} 
+                        onChange={handleChange} 
+                        className="laudo-input" 
+                        style={estiloPercentil} 
+                        placeholder={data.qtdFetos > 1 ? "Alexander" : "Hadlock"} 
+                        disabled={data.semDadosPercentil} 
+                    />
+                    {isRciu && <span style={{color: '#D32F2F', fontSize:'10px', fontWeight:'bold'}}>&lt; 10 (RCIU)</span>}
                 </div>
             </div>
 

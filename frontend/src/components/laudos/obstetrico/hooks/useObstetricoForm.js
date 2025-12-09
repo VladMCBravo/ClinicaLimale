@@ -55,27 +55,24 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 }
             }
 
-            // === CORREÇÃO AQUI: EXAME ANTERIOR ===
-            if (prev.usarExameAnterior && prev.dataExameAnterior) {
-                // Importante: Certifique-se que calcularIGeDPP_Anterior está importado corretamente
-                const { ig, dpp } = calcularIGeDPP_Anterior(
-                    prev.dataExameAnterior, 
-                    prev.igAnteriorSemanas, 
-                    prev.igAnteriorDias
-                );
-                
-                if (prev.igIgCorrigidaCalculada !== ig) { 
-                    newState.igIgCorrigidaCalculada = ig; 
-                    mudou = true; 
+            // === SINCRONIA DE GÊMEOS (Propaga DUM da Mãe/Feto1 para os outros) ===
+                if (fetoAtivo === 1) {
+                    if (dadosFeto2.current) {
+                        dadosFeto2.current.dum = prev.dum;
+                        dadosFeto2.current.igDum = ig;
+                        dadosFeto2.current.dppDum = dpp;
+                        dadosFeto2.current.usarDum = true; // Força usar DUM
+                    }
+                    if (dadosFeto3.current) {
+                        dadosFeto3.current.dum = prev.dum;
+                        dadosFeto3.current.igDum = ig;
+                        dadosFeto3.current.dppDum = dpp;
+                        dadosFeto3.current.usarDum = true;
+                    }
                 }
-                if (prev.dppIgCorrigidaCalculada !== dpp) { 
-                    newState.dppIgCorrigidaCalculada = dpp; 
-                    mudou = true; 
-                }
-            }
-            // ======================================
+            
 
-            // C. Índices Biométricos
+            // B. Índices Biométricos
             const indices = calcularIndicesBiometricos(prev);
             if (prev.resIc !== indices.ic) { newState.resIc = indices.ic; mudou = true; }
             if (prev.resCcCa !== indices.ccCa) { newState.resCcCa = indices.ccCa; mudou = true; }
@@ -86,7 +83,7 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             // D. Checkboxes Automáticos
             if (indices.ic && !prev.checkIndiceCefalico) { newState.checkIndiceCefalico = true; mudou = true; }
 
-            // E. DMSG
+            // C. DMSG
             const novoDmsg = calcularDMSG(prev.sg1, prev.sg2, prev.sg3);
             if (prev.resDmsg !== novoDmsg) { 
                 newState.resDmsg = novoDmsg; 
@@ -95,7 +92,7 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 mudou = true; 
             }
 
-            // F. CCN
+            // D. CCN
             if (prev.ccn) {
                 const novaIgCcn = calcularIG_CCN(prev.ccn);
                 if (prev.resIgCcn !== novaIgCcn) {
@@ -110,9 +107,9 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             return mudou ? newState : prev;
         });
     }, [
-        data.dum, data.usarDum, data.dataExameAnterior, data.igAnteriorSemanas, data.igAnteriorDias, data.ccn,
-        data.dbp, data.dof, data.cc, data.ca, data.femur, 
-        data.sg1, data.sg2, data.sg3, data.citarDppBiometria
+        data.dum, data.usarDum, data.dataExameAnterior, fetoAtivo, 
+        data.ccn, data.dbp, data.dof, data.cc, data.ca, data.femur, 
+        data.sg1, data.sg2, data.sg3
     ]);
 
     // --- 2. GERAÇÃO DE TEXTO E SINCRONIZAÇÃO ---
@@ -128,7 +125,8 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         const resF3 = qtdFetos >= 3 ? gerarRelatorioFeto(dadosFeto3.current) : null;
 
         // Monta texto final combinado
-        const textoFinal = montarTextoFinalMultiplo(resF1, resF2, resF3, qtdFetos);
+        // IMPORTANTE: Passamos 'data' como 5º argumento para passar os Dados Gerais (Corionicidade, etc)
+        const textoFinal = montarTextoFinalMultiplo(resF1, resF2, resF3, qtdFetos, data);
 
         const mapTitulo = {
             'OBSTETRICO_MORFOLOGICO': 'ULTRASSONOGRAFIA MORFOLÓGICA FETAL',

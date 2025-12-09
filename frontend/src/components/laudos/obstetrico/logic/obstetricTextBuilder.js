@@ -37,34 +37,22 @@ export const gerarRelatorioFeto = (d) => {
     // 1. DATAÇÃO (GLOBAL - Funciona para TODOS os tipos de exame)
     // =========================================================================
     
-    // --- Lógica DUM ---
     if (d.usarDum) {
-        if (d.exibirDataDum && d.dum) {
-            texto += `DUM: ${formatData(d.dum)}.\n`;
-        }
-
+        if (d.exibirDataDum && d.dum) texto += `DUM: ${formatData(d.dum)}.\n`;
         if (d.citarDppDum && d.dppDum) {
             texto += `DPP: ${d.dppDum} (calculada pela DUM)`;
             if (d.igDum) texto += `, compatível com ${d.igDum}`;
             texto += `.\n`;
-        } else if (d.igDum) {
-            texto += `IG (DUM): compatível com ${d.igDum}.\n`;
-        }
+        } else if (d.igDum) texto += `IG (DUM): compatível com ${d.igDum}.\n`;
     } 
-    else if (d.dumDesconhecida) {
-        texto += `DUM: Desconhecida / Não referida.\n`;
-    }
+    else if (d.dumDesconhecida) texto += `DUM: Desconhecida / Não referida.\n`;
 
-    // DPP Biometria / Ultrassom Anterior
-    // Ajustado para o padrão do cliente: "DPP: --- (calculada pelo primeiro ultrassom)..."
     if (d.usarExameAnterior && d.dataExameAnterior) {
         const dataAnt = formatData(d.dataExameAnterior);
         texto += `DPP: ${d.dppIgCorrigidaCalculada || '---'} (calculada pelo ultrassom de ${dataAnt}), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
     } else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
         texto += `DPP: ${d.dppBiometriaCalculada} (Biometria Atual)`;
-        if (!d.usarDum && d.igBiometria) {
-            texto += `, compatível com ${d.igBiometria}`;
-        }
+        if (!d.usarDum && d.igBiometria) texto += `, compatível com ${d.igBiometria}`;
         texto += `.\n`;
     }
 
@@ -202,8 +190,23 @@ export const gerarRelatorioFeto = (d) => {
         texto += `${vitalidade.join(' e ')} presentes.\n`;
     }
 
-    if (d.estomagoVisualizado) texto += `Estômago fetal repleto e de conteúdo anecóide.\n`;
-    if (d.bexigaVisualizada) texto += `Bexiga fetal repleta e de conteúdo anecóide.\n`;
+    // --- NOVA LÓGICA HUMANIZADA PARA VÍSCERAS ---
+    const estomagoOk = d.estomagoVisualizado;
+    const bexigaOk = d.bexigaVisualizada; // Assumindo que o checkbox agora significa "Visualizada/Normal"
+
+    // Caso 1: Ambos visualizados
+    if (estomagoOk && bexigaOk) {
+        texto += `Estômago e bexiga visualizados e de aspecto habitual.\n`;
+    } 
+    // Caso 2: Só Estômago
+    else if (estomagoOk) {
+        texto += `Estômago fetal visualizado.\n`;
+    }
+    // Caso 3: Só Bexiga
+    else if (bexigaOk) {
+        texto += `Bexiga fetal visualizada.\n`;
+    }
+    
     texto += `\n`;
     // =========================================================================
     // 4. PLACENTA E LÍQUIDO
