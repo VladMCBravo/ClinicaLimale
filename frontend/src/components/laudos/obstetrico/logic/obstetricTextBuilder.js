@@ -305,14 +305,24 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()} (ILA = ${d.ila || '-'} mm).\n`;
     }
 
-    if (d.pesoEstimado) {
-        texto += `- Peso Fetal ${d.pesoEstimado} g (+/- 10%)`;
-        if (d.pesoP10 || d.pesoP90) texto += ` (P10= ${d.pesoP10} | P90= ${d.pesoP90})`;
-        texto += `.\n`;
+    // === LÓGICA DO PESO E PERCENTIL (ALTERADA) ===
+    
+    // Se marcou "Sem dados", exibe a frase específica e IGNORA o resto do peso
+    if (d.semDadosPercentil) {
+        texto += `- Não foi possível informar o percentil de peso devido à falta de exame anterior e dum desconhecida.\n`;
+        // Ainda mostra o peso absoluto se tiver digitado? Geralmente sim.
+        if (d.pesoEstimado) texto += `- Peso Fetal Estimado: ${d.pesoEstimado} g.\n`;
+    } 
+    // Caso contrário, segue o padrão normal
+    else {
+        if (d.pesoEstimado) {
+            texto += `- Peso Fetal ${d.pesoEstimado} g (+/- 10%)`;
+            if (d.pesoP10 || d.pesoP90) texto += ` (P10= ${d.pesoP10} | P90= ${d.pesoP90})`;
+            texto += `.\n`;
+        }
+        if (d.percentil) texto += `- Percentil ${d.percentil}.\n`;
     }
 
-    if (d.percentil) texto += `- Percentil ${d.percentil}.\n`;
-    
     if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
         texto += `- Sexo: Genitália compatível com ${d.sexoFetal}.\n`;
     }
@@ -321,13 +331,32 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Dopplerfluxometria sem anormalidades no presente estudo.\n`;
     }
 
+    // === FRASES EXTRAS / SUGESTÕES ===
+
+    // Frase do Doppler/RCIU
+    if (d.sugereDopplerRciu) {
+        texto += `- Sob julgamento clínico seria conveniente o acompanhamento do crescimento e vitalidade fetal devido ao percentil menor que 10, com ultrassom obstétrico com Doppler.\n`;
+    }
+
+    // Obs Adicionais Digitadas
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
+    // --- BLOCO DE OBSERVAÇÕES FINAIS (Disclaimer) ---
     texto += `\nObs.:\n`;
+    
+    // Frase do Morfológico Prejudicado
+    if (d.morfoPrejudicado45mm) {
+        texto += `- Não foi possível realizar Morfológico de primeiro trimestre, devido ao CCN menor que 45 mm. Sob julgamento clínico seria conveniente realizar morfológico entre 11 e 14 semanas.\n`;
+    }
+
+    // Frase do NIPT
+    if (d.sugereNipt) {
+        texto += `- Sob julgamento clínico seria conveniente o estudo genético (NIPT), devido ao risco menor de 1 em 300.\n`;
+    }
+
     texto += `- Nem todas as alterações que um feto possa vir apresentar após o nascimento, podem ser identificadas pelo exame ultra-sonográfico.\n`;
     texto += `\nFavor trazer este exame quando vier realizar o próximo.\n`;
 
-    // RETORNA TEXTO E TÍTULO
     return { texto, tituloExame };
 };
 

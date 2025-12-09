@@ -58,5 +58,11 @@ export const initialState = {
     // --- CONCLUSÃO ---
     pesoEstimado: '', pesoP10: '', pesoP90: '', percentil: '',
     sexoFetal: 'MASCULINO',
-    obsAdicionais: ''
+    obsAdicionais: '',
+
+    // --- FRASES PRONTAS / SUGESTÕES (NOVOS CAMPOS) ---
+    sugereDopplerRciu: false,   // Frase do percentil < 10
+    semDadosPercentil: false,   // Frase da falta de DUM/Exame anterior
+    morfoPrejudicado45mm: false, // CCN < 45mm
+    sugereNipt: false,          // Estudo genético
 };
