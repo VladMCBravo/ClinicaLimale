@@ -45,7 +45,8 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
 
             // A. DUM e DPP
             if (prev.dum && prev.usarDum) {
-                const { ig, dpp } = calcularIGeDPP_DUM(prev.dum);
+                const { ig, dpp } = calcularIGeDPP_DUM(prev.dum); // Declarado aqui
+                
                 if (prev.igDum !== ig) { newState.igDum = ig; mudou = true; }
                 if (prev.dppDum !== dpp) { newState.dppDum = dpp; mudou = true; }
                 
@@ -53,15 +54,14 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                      newState.dppBiometriaCalculada = dpp; 
                      mudou = true; 
                 }
-            }
 
-            // === SINCRONIA DE GÊMEOS (Propaga DUM da Mãe/Feto1 para os outros) ===
+            // === SINCRONIA DE GÊMEOS (TEM QUE ESTAR DENTRO DESTE IF) ===
                 if (fetoAtivo === 1) {
                     if (dadosFeto2.current) {
                         dadosFeto2.current.dum = prev.dum;
-                        dadosFeto2.current.igDum = ig;
-                        dadosFeto2.current.dppDum = dpp;
-                        dadosFeto2.current.usarDum = true; // Força usar DUM
+                        dadosFeto2.current.igDum = ig; // Usa 'ig' daqui
+                        dadosFeto2.current.dppDum = dpp; // Usa 'dpp' daqui
+                        dadosFeto2.current.usarDum = true;
                     }
                     if (dadosFeto3.current) {
                         dadosFeto3.current.dum = prev.dum;
@@ -70,8 +70,8 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                         dadosFeto3.current.usarDum = true;
                     }
                 }
+            } // <--- O FECHAMENTO DO IF DEVE SER AQUI, APÓS O BLOCO DE SINCRONIA
             
-
             // B. Índices Biométricos
             const indices = calcularIndicesBiometricos(prev);
             if (prev.resIc !== indices.ic) { newState.resIc = indices.ic; mudou = true; }
