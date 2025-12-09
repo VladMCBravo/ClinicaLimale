@@ -109,6 +109,32 @@ const styles = {
       overflow: 'hidden', 
       borderRadius: '3px', 
       border: '1px solid #ccc' 
+  },
+  dropdownList: {
+      position: 'absolute',
+      top: '24px', 
+      left: 0,
+      right: 0,
+      background: 'white',
+      border: '1px solid #ccc',
+      zIndex: 9999, 
+      maxHeight: '150px',
+      overflowY: 'auto',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)', 
+      fontSize: '10px'
+  },
+  dropdownItem: {
+      padding: '6px 8px',
+      cursor: 'pointer',
+      borderBottom: '1px solid #eee',
+      color: '#333'
+  },
+  // CORREÇÃO VISUAL: Grid layout para a linha do médico
+  medicoRow: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 100px', // 1 fração para nome, 100px fixos para CRM
+      gap: '5px',
+      alignItems: 'center'
   }
 };
 
@@ -151,22 +177,43 @@ const LaudosPage = () => {
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   const [saving, setSaving] = useState(false);
 
-  // Carregar médicos ao iniciar
+  // CORREÇÃO DO ERRO DE CARREGAMENTO (A.sort is not a function)
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
             const res = await apiClient.get('/usuarios/?cargo=medico');
-            const lista = res.data.results || res.data;
-            lista.sort((a, b) => (a.first_name || a.username).localeCompare(b.first_name || b.username));
-            setTodosMedicos(lista);
+            console.log("Resposta API Médicos:", res.data); // Debug para você ver no console
+            
+            // Verifica se veio paginado (results) ou lista direta
+            let listaRaw = [];
+            if (Array.isArray(res.data)) {
+                listaRaw = res.data;
+            } else if (res.data && Array.isArray(res.data.results)) {
+                listaRaw = res.data.results;
+            } else {
+                console.warn("Formato inesperado na resposta de médicos:", res.data);
+                listaRaw = []; // Evita o crash do .sort
+            }
+
+            // Ordenação segura
+            const listaOrdenada = listaRaw.sort((a, b) => {
+                const nomeA = a.first_name || a.username || "";
+                const nomeB = b.first_name || b.username || "";
+                return nomeA.localeCompare(nomeB);
+            });
+
+            setTodosMedicos(listaOrdenada);
         } catch (e) {
-            console.error("Erro ao carregar lista de médicos", e);
+            console.error("Erro CRÍTICO ao carregar lista de médicos:", e);
+            // Se for erro de permissão (403), avisa no console
+            if (e.response && e.response.status === 403) {
+                console.error("ERRO 403: Usuário logado não tem permissão para listar médicos.");
+            }
         }
     };
     carregarMedicos();
   }, []);
 
-  // Lógica de filtro para o campo Médico (Exatamente igual a busca de Paciente)
   const handleInputMedicoChange = (texto) => {
       setMedicoNome(texto);
       if (texto.length > 0) {
