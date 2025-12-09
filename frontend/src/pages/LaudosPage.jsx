@@ -80,15 +80,19 @@ const styles = {
       background: theme.accent, 
       color: 'white', 
       border: 'none', 
-      padding: '2px 8px', 
+      padding: '0 8px', // Ajustado para centralizar verticalmente melhor com flex
       borderRadius: '3px', 
       cursor: 'pointer', 
       fontWeight: 'bold', 
       fontSize: '9px', 
-      display: 'flex', 
-      alignItems: 'center', 
+      display: 'inline-flex', // Garante comportamento flex inline
+      alignItems: 'center',   // Centraliza ícone e texto verticalmente
+      justifyContent: 'center',
       gap: '4px',
-      height: '22px' 
+      height: '22px',
+      boxSizing: 'border-box', // Importante para que padding não aumente o tamanho total
+      lineHeight: '1',         // Remove espaçamento extra de fonte
+      textTransform: 'uppercase'
   },
   imagePreviewGrid: { 
       display: 'grid', 
@@ -127,7 +131,8 @@ const LaudosPage = () => {
   // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
-  
+  const [listaMedicos, setListaMedicos] = useState([]);
+
   // Busca Paciente
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
@@ -186,6 +191,41 @@ const LaudosPage = () => {
     }
   };
 
+  // NOVO: Carregar médicos ao montar a tela
+  useEffect(() => {
+    const carregarMedicos = async () => {
+        try {
+            // Usa o filtro ?cargo=medico que configuramos na ViewSet
+            const res = await apiClient.get('/usuarios/?cargo=medico');
+            // Ordena médicos por nome para facilitar
+            const medicosOrdenados = (res.data.results || res.data).sort((a, b) => 
+                (a.first_name || '').localeCompare(b.first_name || '')
+            );
+            setListaMedicos(medicosOrdenados);
+        } catch (e) {
+            console.error("Erro ao carregar médicos:", e);
+        }
+    };
+    carregarMedicos();
+  }, []);
+
+  // NOVO: Função para quando selecionar no Dropdown
+  const handleSelecionarMedico = (e) => {
+      const idSelecionado = e.target.value;
+      if (!idSelecionado) return;
+
+      const medico = listaMedicos.find(m => m.id === parseInt(idSelecionado));
+      if (medico) {
+          // Concatena nome se houver first_name, senão usa username
+          const nomeCompleto = medico.first_name 
+            ? `${medico.first_name} ${medico.last_name || ''}`.trim() 
+            : medico.username;
+          
+          setMedicoNome(nomeCompleto);
+          setMedicoCrm(medico.crm || '');
+      }
+  };
+
   // Callback que recebe dados do filho (FormObstetrico) e atualiza o pai
   const handleFormUpdate = useCallback((dados) => {
       if (dados.texto) setTextoFinal(dados.texto);
@@ -198,7 +238,12 @@ const LaudosPage = () => {
       setLoadingBusca(true);
       try {
           const res = await apiClient.get('/pacientes/', { params: { search: termo } });
-          setPacientesEncontrados(Array.isArray(res.data) ? res.data : res.data.results || []);
+          const dados = Array.isArray(res.data) ? res.data : res.data.results || [];
+          
+          // CORREÇÃO: Ordenação Alfabética no Frontend
+          dados.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+          
+          setPacientesEncontrados(dados);
       } catch (e) { console.error(e); } finally { setLoadingBusca(false); }
   };
 
@@ -277,11 +322,27 @@ const LaudosPage = () => {
                 </select>
             </div>
 
+            {/* Bloco Médico Modificado */}
             <div style={{...styles.card, flex: 2}}>
-                <div style={styles.header}><FaUserMd /> Médico</div>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
+                    <div style={styles.header}><FaUserMd /> Médico</div>
+                    {/* Select Discreto para preenchimento rápido */}
+                    <select 
+                        onChange={handleSelecionarMedico} 
+                        style={{...styles.inputControl, width: 'auto', border: 'none', background: '#f0f0f0', fontSize: '10px', height: '18px'}}
+                        defaultValue=""
+                    >
+                        <option value="" disabled>Buscar na lista...</option>
+                        {listaMedicos.map(med => (
+                            <option key={med.id} value={med.id}>
+                                {med.first_name ? `${med.first_name} ${med.last_name}` : med.username}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <div style={{display:'flex', gap:'5px'}}>
                     <input 
-                        placeholder="Nome Médico"
+                        placeholder="Nome Médico (Editável)"
                         value={medicoNome}
                         onChange={(e) => setMedicoNome(e.target.value)}
                         style={{...styles.inputControl, flex: 2}}
@@ -295,6 +356,7 @@ const LaudosPage = () => {
                 </div>
             </div>
         </div>
+
 
         {/* Busca de Paciente */}
         <div style={styles.card}>
@@ -337,10 +399,14 @@ const LaudosPage = () => {
              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
                  <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '11px'}}>LAUDO FINAL</span>
                  
-                 {/* Container dos botões com flex-shrink para não esmagar o título */}
-                 <div style={{display: 'flex', gap: '6px', flexShrink: 0}}>
+                 {/* Container dos botões */}
+                 <div style={{display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center'}}>
                      <input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
-                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}><FaCamera size={10}/> FOTOS</label>
+                     
+                     {/* Botão FOTOS corrigido: usa o mesmo style.button sem overrides que quebrem o layout */}
+                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800'}}>
+                        <FaCamera size={10}/> FOTOS
+                     </label>
                      
                      <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário">
                         <FaEraser size={10}/> LIMPAR
