@@ -2,16 +2,16 @@ import React from 'react';
 
 const SecaoConclusao = ({ data, handleChange }) => {
   return (
-    <div className="laudo-section" style={{marginBottom: '50px'}}> {/* Margem extra p/ fim da página */}
+    <div className="laudo-section" style={{marginBottom: '50px'}}> 
         <div className="header-base header-red">Conclusão e Diagnóstico</div>
         
         <div className="laudo-section-body">
             
-            {/* LINHA PESO (Mantenha igual, mas vamos adicionar lógica visual) */}
+            {/* LINHA PESO E PERCENTIL */}
             <div className="laudo-row" style={{marginBottom: '15px', alignItems: 'center', flexWrap: 'wrap', gap: '10px', opacity: data.semDadosPercentil ? 0.5 : 1}}>
                 <div className="laudo-row">
                     <span style={{fontWeight:'bold'}}>Peso Estimado (g):</span>
-                    <input type="number" name="pesoEstimado" value={data.pesoEstimado} onChange={handleChange} className="laudo-input" style={{width:'80px', marginLeft:'5px'}} disabled={data.semDadosPercentil} />
+                    <input type="number" name="pesoEstimado" value={data.pesoEstimado} onChange={handleChange} className="laudo-input" style={{width:'80px', marginLeft:'5px'}} disabled={data.semDadosPercentil} placeholder="g" />
                 </div>
                 
                 <div className="laudo-row" style={{background:'#FFF3E0', padding:'2px 8px', borderRadius:'4px', border:'1px solid #FFE0B2'}}>
@@ -23,7 +23,7 @@ const SecaoConclusao = ({ data, handleChange }) => {
 
                 <div className="laudo-row">
                     <span style={{marginLeft:'5px'}}>Percentil:</span>
-                    <input type="text" name="percentil" value={data.percentil} onChange={handleChange} className="laudo-input" style={{width:'120px'}} placeholder="ex: 32% Hadlock" disabled={data.semDadosPercentil} />
+                    <input type="text" name="percentil" value={data.percentil} onChange={handleChange} className="laudo-input" style={{width:'120px'}} placeholder={data.qtdFetos > 1 ? "Alexander" : "Hadlock"} disabled={data.semDadosPercentil} />
                 </div>
             </div>
 
@@ -38,38 +38,53 @@ const SecaoConclusao = ({ data, handleChange }) => {
                 </select>
             </div>
 
-            {/* --- NOVAS FRASES PRONTAS (CHECKBOXES) --- */}
-            <div style={{background: '#f0f0f0', padding: '10px', borderRadius: '4px', marginBottom: '15px'}}>
-                <span style={{fontWeight:'bold', fontSize:'12px', color:'#D32F2F', display:'block', marginBottom:'5px'}}>Frases Automáticas / Sugestões:</span>
+            {/* --- BLOCO DE FRASES AUTOMÁTICAS --- */}
+            <div style={{background: '#f9f9f9', padding: '10px', borderRadius: '4px', marginBottom: '15px', border:'1px solid #eee'}}>
+                <span style={{fontWeight:'bold', fontSize:'12px', color:'#D32F2F', display:'block', marginBottom:'8px'}}>
+                    Frases Automáticas / Sugestões Clínicas:
+                </span>
                 
-                <div className="laudo-col" style={{gap: '8px'}}>
-                    {/* Frase 2: Sem Dados para Percentil */}
-                    <label className="laudo-checkbox-label">
-                        <input type="checkbox" name="semDadosPercentil" checked={data.semDadosPercentil} onChange={handleChange} />
-                        "Não foi possível informar o percentil (falta exame ant/DUM)"
-                    </label>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px'}}>
+                    
+                    {/* COLUNA 1: Limitações Técnicas */}
+                    <div className="laudo-col" style={{gap: '5px'}}>
+                        <label className="laudo-checkbox-label" title="Marca que não há dados para cálculo de percentil">
+                            <input type="checkbox" name="semDadosPercentil" checked={data.semDadosPercentil} onChange={handleChange} />
+                            Sem dados p/ Percentil (DUM/Ant desconhecidos)
+                        </label>
+                        
+                        <label className="laudo-checkbox-label" title="CCN < 45mm no Morfológico 1º Tri">
+                            <input type="checkbox" name="morfoPrejudicado45mm" checked={data.morfoPrejudicado45mm} onChange={handleChange} />
+                            Morfológico prejudicado (CCN &lt; 45mm)
+                        </label>
 
-                    {/* Frase 1: Sugerir Doppler (RCIU) */}
-                    <label className="laudo-checkbox-label">
-                        <input type="checkbox" name="sugereDopplerRciu" checked={data.sugereDopplerRciu} onChange={handleChange} />
-                        "Sugerir Doppler (Percentil &lt; 10 / RCIU)"
-                    </label>
+                        <label className="laudo-checkbox-label">
+                            <input type="checkbox" name="sugereNipt" checked={data.sugereNipt} onChange={handleChange} />
+                            Sugerir NIPT (Risco Alto)
+                        </label>
+                    </div>
 
-                    {/* Frase 3: Morfológico Prejudicado (CCN < 45) */}
-                    <label className="laudo-checkbox-label">
-                        <input type="checkbox" name="morfoPrejudicado45mm" checked={data.morfoPrejudicado45mm} onChange={handleChange} />
-                        "Morfológico prejudicado (CCN &lt; 45mm) - Refazer 11-14 sem"
-                    </label>
+                    {/* COLUNA 2: Achados Específicos (NOVOS) */}
+                    <div className="laudo-col" style={{gap: '5px'}}>
+                        <label className="laudo-checkbox-label" title="Insere frase sobre Golf Ball">
+                            <input type="checkbox" name="sugereGolfBall" checked={data.sugereGolfBall} onChange={handleChange} />
+                            Golf Ball / Foco Ecogênico
+                        </label>
 
-                    {/* Frase 4: Sugerir NIPT */}
-                    <label className="laudo-checkbox-label">
-                        <input type="checkbox" name="sugereNipt" checked={data.sugereNipt} onChange={handleChange} />
-                        "Sugerir Estudo Genético (NIPT) - Risco alto"
-                    </label>
+                        <label className="laudo-checkbox-label" title="Insere frase sobre Pieloectasia">
+                            <input type="checkbox" name="sugerePieloectasia" checked={data.sugerePieloectasia} onChange={handleChange} />
+                            Pieloectasia (Dilatação Pielo-calicial)
+                        </label>
+
+                        <label className="laudo-checkbox-label" title="Sugerir acompanhamento com Doppler para RCIU">
+                            <input type="checkbox" name="sugereRciu" checked={data.sugereRciu} onChange={handleChange} />
+                            Sugerir Doppler (RCIU / Oligoâmnio)
+                        </label>
+                    </div>
                 </div>
             </div>
 
-            {/* OBS ADICIONAIS (Texto Livre) */}
+            {/* OBS ADICIONAIS */}
             <div>
                 <span style={{fontWeight:'bold', fontSize:'12px'}}>Observações Adicionais:</span>
                 <textarea 
@@ -79,6 +94,7 @@ const SecaoConclusao = ({ data, handleChange }) => {
                     className="laudo-textarea"
                     rows="3"
                     style={{width:'100%', marginTop:'5px'}}
+                    placeholder="Digite aqui observações livres..."
                 />
             </div>
 

@@ -116,7 +116,8 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       
       {/* DADOS GERAIS (Bexiga, Situação, Apresentação) */}
       {/* "Bexiga materna não visualizada..." - Segunda linha do texto */}
-      <SecaoDadosGerais {...commonProps} />
+      <SecaoDadosGerais {...commonProps} qtdFetos={qtdFetos} // <--- ADICIONE ESTA LINHA
+/>
 
       {/* --- SEÇÕES EXCLUSIVAS DE INICIAL/1º TRI --- */}
       {formState.subtipo && formState.subtipo.includes("INICIAL") && (
@@ -131,7 +132,10 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       
       {/* Placenta e Líquido - Geralmente não se descreve ILA/Grannum em SG incipiente */}
       {!isInicial && (
-        <SecaoPlacentaLiquido {...commonProps} />
+        <SecaoPlacentaLiquido 
+    {...commonProps} 
+    qtdFetos={qtdFetos} // <--- NÃO ESQUEÇA DE ADICIONAR ISSO
+/>
       )}
 
       {/* Biometria - Não tem Fêmur/BPD em SG de 6 semanas */}
