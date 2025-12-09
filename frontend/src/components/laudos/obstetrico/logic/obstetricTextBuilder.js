@@ -76,7 +76,7 @@ export const gerarRelatorioFeto = (d) => {
     texto += '\n';
 
     // =========================================================================
-    // 2. GESTAÇÃO INICIAL
+    // 2. GESTAÇÃO INICIAL (CORRIGIDO: AGORA TEM CONCLUSÃO)
     // =========================================================================
     if (d.subtipo && d.subtipo.includes("INICIAL")) {
         texto += `Bexiga vazia.\n`;
@@ -101,6 +101,7 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\nAs vilosidades placentárias tem inserção ${d.trofoblasto || 'normal'}.\n`;
         
         if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
+        else if (d.sgComDescolamento) texto += `Obs: Área de descolamento descrita acima.\n`;
         
         texto += `O orifício interno do colo permanece fechado`;
         if (d.comprimentoColo) texto += `, medindo ${d.comprimentoColo} mm`;
@@ -108,10 +109,30 @@ export const gerarRelatorioFeto = (d) => {
         
         texto += `Anexos parauterinos normais.\n`;
 
-        // Retorna o objeto completo com título
+        // --- CONCLUSÃO ESPECÍFICA DO INICIAL (Faltava isso) ---
+        texto += `\nImpressão diagnóstica:\n`;
+        
+        // Define a IG Preferencial para a conclusão
+        let igConclusao = d.resIgCcn || d.resIgSg || d.igDum || "--";
+        // Se tiver exame anterior, usa ele
+        if(d.usarExameAnterior && d.igIgCorrigidaCalculada) igConclusao = d.igIgCorrigidaCalculada;
+
+        if (d.embriaoNaoVisualizado) {
+            texto += `- Gestação incipiente / Saco gestacional intra-uterino.\n`;
+        } else {
+            texto += `- Gestação tópica de aproximadamente ${igConclusao} (+/- 5 dias).\n`;
+            if (d.bcf) texto += `- Embrião vivo.\n`;
+        }
+
+        // Obs Finais
+        texto += `\nObs.:\n`;
+        if (d.embriaoNaoVisualizado) {
+             texto += `- Sugere-se repetir o exame em 7 a 14 dias para reavaliação evolutiva.\n`;
+        }
+        texto += `- A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente.\n`;
+
         return { texto, tituloExame }; 
     }
-
     // =========================================================================
     // 3. DADOS GERAIS (2º/3º TRI)
     // =========================================================================

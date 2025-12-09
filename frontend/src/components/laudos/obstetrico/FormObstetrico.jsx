@@ -26,6 +26,9 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       onChange: handleInputChange 
   };
 
+  // Lógica para esconder seções que não fazem sentido no Transvaginal Inicial
+  const isInicial = formState.subtipo === 'OBSTETRICO_INICIAL';
+
   return (
     <div className="flex flex-col gap-3 pb-4">
       
@@ -40,38 +43,41 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       {/* "Bexiga materna não visualizada..." - Segunda linha do texto */}
       <SecaoDadosGerais {...commonProps} />
 
-      {/* --- SEÇÕES ESPECÍFICAS DE 1º TRIMESTRE --- */}
-      {/* Elas entram aqui pois geralmente descrevem o feto/embrião logo após os dados gerais */}
-      
-      {/* Se for exame inicial (Saco Gestacional) */}
+      {/* --- SEÇÕES EXCLUSIVAS DE INICIAL/1º TRI --- */}
       {formState.subtipo && formState.subtipo.includes("INICIAL") && (
           <SecaoSacoGestacional {...commonProps} />
       )}
 
-      {/* Se for 1º Trimestre (Embrião, CCN, TN) */}
       {formState.subtipo && formState.subtipo.includes("1_TRI") && (
           <SecaoEmbriao {...commonProps} />
       )}
       
-      {/* 4. PLACENTA E LÍQUIDO */}
-      {/* "Placenta de inserção..." - Próximo parágrafo do texto */}
-      <SecaoPlacentaLiquido {...commonProps} />
+      {/* --- SEÇÕES EXCLUSIVAS DE 2º/3º TRI (Esconder se for inicial) --- */}
+      
+      {/* Placenta e Líquido - Geralmente não se descreve ILA/Grannum em SG incipiente */}
+      {!isInicial && (
+        <SecaoPlacentaLiquido {...commonProps} />
+      )}
 
-      {/* 5. BIOMETRIA (Medidas) */}
-      {/* "Medidas: Diâmetro Biparietal..." */}
-      <SecaoBiometria {...commonProps} />
+      {/* Biometria - Não tem Fêmur/BPD em SG de 6 semanas */}
+      {!isInicial && (
+        <SecaoBiometria {...commonProps} />
+      )}
 
-      {/* 6. MORFOLOGIA (Checkboxes de anatomia) */}
-      <SecaoMorfologia {...commonProps} />
+      {/* Morfologia - Não vê rins/estômago em SG incipiente */}
+      {!isInicial && (
+        <SecaoMorfologia {...commonProps} />
+      )}
 
-      {/* 7. DOPPLER (Opcional) */}
-      <SecaoDoppler {...commonProps} />
+      {/* Doppler - Não se faz uterina/umbilical em rotina inicial */}
+      {!isInicial && (
+        <SecaoDoppler {...commonProps} />
+      )}
 
-      {/* --- 2. INSERIR SEÇÃO 3D AQUI --- */}
-      {/* Ela aparecerá se o subtipo for 3D OU se o checkbox interno estiver marcado */}
+      {/* 3D sempre pode aparecer se quiser */}
       <Secao3D {...commonProps} />
 
-      {/* 8. CONCLUSÃO (Peso, Sexo, Obs finais) */}
+      {/* Conclusão adaptada */}
       <SecaoConclusao {...commonProps} />
 
     </div>
