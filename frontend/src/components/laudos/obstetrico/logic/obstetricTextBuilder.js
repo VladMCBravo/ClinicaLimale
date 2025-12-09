@@ -55,22 +55,17 @@ export const gerarRelatorioFeto = (d) => {
         texto += `DUM: Desconhecida / Não referida.\n`;
     }
 
-    // --- Lógica DPP Biometria ---
-    if (d.citarDppBiometria && d.dppBiometriaCalculada) {
-        texto += `DPP (Biometria Atual): ${d.dppBiometriaCalculada}`;
+    // DPP Biometria / Ultrassom Anterior
+    // Ajustado para o padrão do cliente: "DPP: --- (calculada pelo primeiro ultrassom)..."
+    if (d.usarExameAnterior && d.dataExameAnterior) {
+        const dataAnt = formatData(d.dataExameAnterior);
+        texto += `DPP: ${d.dppIgCorrigidaCalculada || '---'} (calculada pelo ultrassom de ${dataAnt}), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
+    } else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
+        texto += `DPP: ${d.dppBiometriaCalculada} (Biometria Atual)`;
         if (!d.usarDum && d.igBiometria) {
             texto += `, compatível com ${d.igBiometria}`;
         }
         texto += `.\n`;
-    }
-
-    // --- Lógica Exame Anterior ---
-    if (d.usarExameAnterior && d.dataExameAnterior) {
-        const dataAnt = formatData(d.dataExameAnterior);
-        texto += `IG baseada no USG de ${dataAnt}: ${d.igIgCorrigidaCalculada || '...'}.\n`;
-        if (d.dppIgCorrigidaCalculada) {
-            texto += `DPP (Corrigida): ${d.dppIgCorrigidaCalculada}.\n`;
-        }
     }
 
     texto += '\n';
@@ -182,7 +177,11 @@ export const gerarRelatorioFeto = (d) => {
     // =========================================================================
     // 3. CORPO DO LAUDO - GERAL (2º/3º TRI, DOPPLER, MORFO)
     // =========================================================================
-    
+    // --- LOCALIZAÇÃO (NOVO: Importante para Gêmeos) ---
+    if (d.localizacaoFeto) { // Ex: "à direita da mãe"
+        texto += `Localização: ${d.localizacaoFeto}.\n`;
+    }
+
     // CORREÇÃO: Bexiga materna agora aceita "não visualizada" se selecionada
     if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar') {
         texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
@@ -218,7 +217,11 @@ export const gerarRelatorioFeto = (d) => {
 
     if (d.liquidoAmniotico) {
         texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
-        if (d.ila) {
+        // Se for gemelar, o cliente usa MBV. Se for único, usa ILA.
+        // Vamos supor que se 'mbv' estiver preenchido, usa ele.
+        if (d.mbv) {
+             texto += ` (MBV= ${d.mbv} mm)`;
+        } else if (d.ila) {
             texto += ` (ILA= ${d.ila} mm)`;
             if (d.ilaRefMin || d.ilaRefMax) texto += ` (Ref: ${d.ilaRefMin || ''} - ${d.ilaRefMax || ''})`;
         }
@@ -244,11 +247,16 @@ export const gerarRelatorioFeto = (d) => {
             formatBioLine('Rádio', d.radio),
             formatBioLine('Tíbia', d.tibia),
             formatBioLine('Fíbula', d.fibula),
+            formatBioLine('Comprimento de Pé', d.peMedida), // Novo
             formatBioLine('Cerebelo', d.cerebelo),
             formatBioLine('Cisterna Magna', d.cisternaMagna),
+            formatBioLine('Ventrículo posterior', d.ventriculoPosterior), // Novo
             formatBioLine('Prega Nucal', d.pregaNucal),
             formatBioLine('Osso nasal', d.ossoNasal || d.morf1OssoNasal),
-            formatBioLine('Translucência Nucal', d.tnMedida)
+            formatBioLine('Órbita externa', d.orbitaExterna), // Novo
+            formatBioLine('Órbita interna', d.orbitaInterna), // Novo
+            formatBioLine('Translucência Nucal', d.tnMedida),
+            formatBioLine('Comprimento da Bexiga', d.compBexiga) // Novo Morfo 1
         ].filter(Boolean);
         texto += bioLines.join('\n') + `\n`;
 
@@ -266,6 +274,17 @@ export const gerarRelatorioFeto = (d) => {
     // =========================================================================
     // 6. MORFOLOGIA
     // =========================================================================
+    // Morfológico 1º Tri Específico
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `Análise Fetal (1º Trimestre):\n`;
+        texto += `- Crânio de contornos regulares. Estruturas da linha média presentes e plexo coróide visualizado.\n`;
+        if (d.ossoNasalPresente) texto += `- Osso nasal presente.\n`;
+        texto += `- Tórax e área cardíaca preservados. Ducto Venoso com Onda A positiva.\n`;
+        texto += `- Abdome com estômago e bexiga visualizados.\n`;
+        texto += `- Membros superiores e inferiores visibilizados.\n\n`;
+    }
+
+    // Morfológico 2º/3º Tri
     const morfList = [
         { label: 'coluna vertebral', checked: d.morfColuna },
         { label: 'crânio', checked: d.morfCranio },
@@ -365,11 +384,19 @@ export const gerarRelatorioFeto = (d) => {
         igFinal = d.igIgCorrigidaCalculada;
     }
 
-    if (d.usarDoppler) texto += `- Feto único vivo.\n`;
+    // Cabeçalho da Conclusão
+    if (d.subtipo.includes("GEMELAR") || d.subtipo.includes("TRIGEMELAR")) {
+        // Gemelares tem o tipo no header principal, aqui repete ou simplifica
+        texto += `- ${d.tipoGestacaoTexto || 'Gestação múltipla'}.\n`; 
+    } else {
+        texto += `- Feto único vivo.\n`;
+    }
+
     texto += `- Biometria fetal compatível com aproximadamente ${igFinal} +/- 14 dias.\n`;
     
     if (d.liquidoAmniotico) {
-        texto += `- Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()} (ILA = ${d.ila || '-'} mm).\n`;
+        const valLiq = d.mbv ? `(MBV = ${d.mbv} mm)` : (d.ila ? `(ILA = ${d.ila} mm)` : '');
+        texto += `- Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()} ${valLiq}.\n`;
     }
 
     // === LÓGICA DO PESO E PERCENTIL (ALTERADA) ===
@@ -398,67 +425,81 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Dopplerfluxometria sem anormalidades no presente estudo.\n`;
     }
 
-    // === FRASES EXTRAS / SUGESTÕES ===
-
-    // Frase do Doppler/RCIU
-    if (d.sugereDopplerRciu) {
-        texto += `- Sob julgamento clínico seria conveniente o acompanhamento do crescimento e vitalidade fetal devido ao percentil menor que 10, com ultrassom obstétrico com Doppler.\n`;
+    // --- CÁLCULO DE RISCO (MORFOLÓGICO 1º TRI) ---
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `- CÁLCULO DE RISCO PARA AS TRISSOMIAS:\n`;
+        texto += `  SEGUNDO A IDADE MATERNA: ${d.riscoIdade || '---'}\n`;
+        texto += `  SEGUNDO O EXAME: ${d.riscoExame || '---'}\n`;
     }
 
-    // Obs Adicionais Digitadas
+    // --- FRASES PRONTAS (SOLICITAÇÃO DO CLIENTE) ---
+    if (d.sugereGolfBall) texto += `- Sugere-se a critério clínico, ampliação da propedêudica com ecocardiograma, devido à presença de foco ecogênico (GOLF BALL).\n`;
+    if (d.sugerePieloectasia) texto += `- PIELOECTASIA: Dilatação pielo-calicial isolada. Geralmente de caráter benigno.\n`;
+    if (d.sugereRciu) texto += `- Sob julgamento clínico seria conveniente o acompanhamento com Doppler (RCIU/Oligoâmnio).\n`;
+    if (d.sugereNipt) texto += `- Sob julgamento clínico seria conveniente o estudo genético (NIPT).\n`;
+    
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
-    // --- BLOCO DE OBSERVAÇÕES FINAIS (Disclaimer) ---
+    // --- RODAPÉ OBRIGATÓRIO (CLIENTE) ---
     texto += `\nObs.:\n`;
+    texto += `- Nem todas as alterações que um feto possa vir apresentar após o nascimento, podem ser identificadas pelo exame ultra-sonográfico, devendo-se levar em consideração as limitações técnicas inerentes ao método e a idade gestacional.\n`;
+    if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') {
+        texto += `- Ressaltamos que a eficácia do exame morfológico quando realizado entre 20 e 24 semanas é de 83%.\n`;
+    }
     
-    // Frase do Morfológico Prejudicado
-    if (d.morfoPrejudicado45mm) {
-        texto += `- Não foi possível realizar Morfológico de primeiro trimestre, devido ao CCN menor que 45 mm. Sob julgamento clínico seria conveniente realizar morfológico entre 11 e 14 semanas.\n`;
-    }
-
-    // Frase do NIPT
-    if (d.sugereNipt) {
-        texto += `- Sob julgamento clínico seria conveniente o estudo genético (NIPT), devido ao risco menor de 1 em 300.\n`;
-    }
-
-    texto += `- Nem todas as alterações que um feto possa vir apresentar após o nascimento, podem ser identificadas pelo exame ultra-sonográfico.\n`;
+    texto += `A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente em conjunto com o exame físico e demais exames complementares.`;
 
     return { texto, tituloExame };
 };
 
-// NOVA FUNÇÃO para montar o texto final com abas
-export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos) => {
+// =========================================================================
+// MONTAGEM FINAL PARA MÚLTIPLOS (GEMELAR / TRIGEMELAR)
+// =========================================================================
+export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGerais = {}) => {
     let textoFinal = '';
     
-    // Título (Pega do feto 1)
+    // Título Geral
     if (resF1 && resF1.tituloExame) {
-        textoFinal += `${resF1.tituloExame}\n\n`;
+        if (qtdFetos > 1 && !resF1.tituloExame.includes("GEMELAR")) {
+             textoFinal += `${resF1.tituloExame} ${qtdFetos === 2 ? 'GEMELAR' : 'TRIGEMELAR'}\n\n`;
+        } else {
+             textoFinal += `${resF1.tituloExame}\n\n`;
+        }
     }
 
+    // CABEÇALHO COMUM (DUM e DPP) - Pega do Feto 1 (que guarda os dados da mãe)
+    // Precisamos extrair o início do texto do Feto 1 que fala de DUM/DPP para não repetir em todos
+    // Uma estratégia melhor: Os dados de DUM/DPP estão no objeto `dadosGerais` (ou resF1 se ele tiver tudo).
+    
+    // Header de Gemelaridade (Pedido do cliente)
     if (qtdFetos > 1) {
-        textoFinal += `GESTAÇÃO MÚLTIPLA (${qtdFetos === 2 ? 'GEMELAR' : 'TRIGEMELAR'})\n\n`;
+        // Ex: Gestação gemelar, dicoriônica e diamniótica.
+        textoFinal += `Gestação ${qtdFetos === 2 ? 'gemelar' : 'trigemelar'}, ${dadosGerais.corionicidade || 'dicoriônica'} e ${dadosGerais.amnionicidade || 'diamniótica'}.\n`;
+        
+        // Descrição das posições
+        if (resF1) textoFinal += `Feto I: ${dadosGerais.localizacaoFeto1 || 'Localização habitual'}.\n`;
+        if (resF2) textoFinal += `Feto II: ${dadosGerais.localizacaoFeto2 || 'Localização habitual'}.\n`;
+        if (resF3) textoFinal += `Feto III: ${dadosGerais.localizacaoFeto3 || 'Localização habitual'}.\n`;
+        textoFinal += `\n`;
     }
 
-    // --- FETO A ---
-    if (qtdFetos > 1) textoFinal += `--- FETO A ---\n`;
+    // --- FETO I ---
+    if (qtdFetos > 1) textoFinal += `--- FETO I ---\n`;
     textoFinal += resF1.texto;
 
-    // --- FETO B ---
+    // --- FETO II ---
     if (qtdFetos >= 2 && resF2) {
-        textoFinal += `\n\n--- FETO B ---\n`;
-        // Remove o título repetido se a função gerarRelatorioFeto o incluir
-        // Uma forma simples é garantir que gerarRelatorioFeto retorne apenas o corpo
-        // ou fazer um replace aqui se necessário, mas idealmente o corpo vem limpo.
+        textoFinal += `\n\n--- FETO II ---\n`;
         textoFinal += resF2.texto; 
     }
 
-    // --- FETO C ---
+    // --- FETO III ---
     if (qtdFetos >= 3 && resF3) {
-        textoFinal += `\n\n--- FETO C ---\n`;
+        textoFinal += `\n\n--- FETO III ---\n`;
         textoFinal += resF3.texto;
     }
 
     return textoFinal;
 };
-// Mantém compatibilidade com código antigo se necessário
+
 export const montarTextoFinal = (res) => res.texto;
