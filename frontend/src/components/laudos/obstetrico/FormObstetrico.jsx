@@ -1,8 +1,8 @@
 import React from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
-// Ícones Visuais
-import { FaBaby, FaRulerCombined, FaHeartbeat, FaWaveSquare, FaNotesMedical, FaFileMedicalAlt, FaLayerGroup } from 'react-icons/fa';
+// Ícones Visuais (LINHA CORRIGIDA ABAIXO)
+import { FaBaby, FaRulerCombined, FaHeartbeat, FaWaveSquare, FaNotesMedical, FaFileMedicalAlt, FaLayerGroup, FaCheckSquare } from 'react-icons/fa';
 import { GiFetus, GiWaterDrop } from 'react-icons/gi';
 import { MdChildCare, MdDateRange } from 'react-icons/md';
 
