@@ -59,29 +59,44 @@ export const calcularIGeDPP_DUM = (dumIso) => {
 export const calcularIGeDPP_Anterior = (dataExameAnt, semanasAnt, diasAnt) => {
     if (!dataExameAnt) return { ig: '', dpp: '' };
 
-    const dAnt = new Date(dataExameAnt + 'T12:00:00');
+    // Tenta criar a data de forma segura (lidando com timezone)
+    const partes = dataExameAnt.split('-'); // Espera YYYY-MM-DD
+    const ano = parseInt(partes[0]);
+    const mes = parseInt(partes[1]) - 1; // JS conta meses de 0 a 11
+    const dia = parseInt(partes[2]);
+    
+    const dAnt = new Date(ano, mes, dia, 12, 0, 0); // Meio-dia para evitar fuso
     const hoje = new Date();
+    hoje.setHours(12,0,0,0); // Normaliza hoje também
 
     if (isNaN(dAnt.getTime())) return { ig: '', dpp: '' };
 
     // Dias totais da gestação na data do exame anterior
-    const igAnteriorEmDias = (parseInt(semanasAnt || 0) * 7) + parseInt(diasAnt || 0);
+    const s = parseInt(semanasAnt) || 0;
+    const d = parseInt(diasAnt) || 0;
+    const igAnteriorEmDias = (s * 7) + d;
     
     // Dias passados desde o exame até hoje
-    const diasPassados = Math.floor((hoje - dAnt) / (1000 * 60 * 60 * 24));
+    // Diferença em milissegundos / ms por dia
+    const diffTime = hoje.getTime() - dAnt.getTime();
+    const diasPassados = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     if (diasPassados < 0) return { ig: 'Data futura?', dpp: '' };
 
     // IG Atual Corrigida
     const igAtualTotalDias = igAnteriorEmDias + diasPassados;
-    const ig = diasParaTextoIG(igAtualTotalDias);
+    const semanasAtual = Math.floor(igAtualTotalDias / 7);
+    const diasAtual = igAtualTotalDias % 7;
+    const igTexto = `${semanasAtual} semanas e ${diasAtual} dias`;
 
     // DPP Corrigida (Data Anterior + (280 - IG Anterior))
     const diasFaltantes = 280 - igAnteriorEmDias;
-    const dataDpp = addDays(dAnt, diasFaltantes);
-    const dpp = dataDpp.toLocaleDateString('pt-BR');
+    const dataDpp = new Date(dAnt);
+    dataDpp.setDate(dataDpp.getDate() + diasFaltantes);
+    
+    const dppTexto = dataDpp.toLocaleDateString('pt-BR');
 
-    return { ig, dpp };
+    return { ig: igTexto, dpp: dppTexto };
 };
 
 // --- NOVO: CÁLCULO DA MÉDIA BIOMÉTRICA (Hadlock) ---
