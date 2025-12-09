@@ -34,6 +34,89 @@ export const gerarRelatorioFeto = (d) => {
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
 
     // =========================================================================
+    // LÓGICA ESPECIAL PARA TRANSVAGINAL (Baseada no modelo "Texto Fluido")
+    // =========================================================================
+    if (d.subtipo && d.subtipo.includes("INICIAL")) {
+        
+        // 1. LINHA DE IG (No topo, conforme modelo)
+        // Prioridade: CCN > DMSG > DUM
+        let igTopo = d.resIgCcn || d.resIgSg || d.igDum || "--";
+        if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igTopo = d.igIgCorrigidaCalculada;
+        
+        texto += `IG: compatível com ${igTopo}.\n\n`;
+
+        // 2. BEXIGA
+        texto += `Bexiga vazia.\n\n`;
+
+        // 3. ÚTERO (Frase completa do modelo)
+        // Se o útero for "globoso", adicionamos o "aumentado de volume" automaticamente
+        const uteroTexto = d.utero === 'globoso' ? 'globoso, aumentado de volume' : (d.utero || 'globoso');
+        texto += `Útero ${uteroTexto}, de contornos regulares e miométrio ${d.miometrio || 'homogêneo'}.\n\n`;
+
+        // 4. SACO GESTACIONAL E EMBRIÃO (Parágrafo Único Fluido)
+        if (d.sgAbortoIncompleto) {
+            texto += `Observa-se na cavidade uterina conteúdo heterogêneo amorfo, compatível com restos ovulares (Abortamento Incompleto).\n`;
+        } 
+        else if (d.citarSg) {
+            texto += `Observa-se na cavidade uterina, saco gestacional de contornos regulares`;
+            
+            // Medida do SG
+            if (d.resDmsg) texto += ` medindo ${d.resDmsg} mm`;
+            else if (d.sg1) texto += ` medindo ${d.sg1} mm`; // Fallback se não tiver DMSG calculado
+
+            // Conteúdo (Embrião)
+            if (d.embriaoNaoVisualizado) {
+                texto += `, contendo no seu interior vesícula vitelina ${d.citarVv ? 'visualizada' : 'não visualizada'}, sem embrião caracterizado no momento.\n`;
+            } else {
+                texto += `, contendo no seu interior embrião`;
+                
+                // Vitalidade na mesma frase
+                if (d.bcf) texto += `, com batimentos cardíacos presentes (${d.bcf} BPM)`;
+                else texto += `, com batimentos cardíacos ausentes`;
+
+                // CCN na mesma frase
+                if (d.ccn) texto += `, medindo ${d.ccn} mm de CCN`;
+                
+                texto += `.\n`;
+            }
+        }
+
+        // 5. VILOSIDADES (Frase exata do modelo)
+        texto += `As vilosidades placentárias tem inserção ${d.trofoblasto || 'normal'}.\n`;
+
+        // 6. COÁGULO / DESCOLAMENTO (Frase exata do modelo)
+        if (d.sgSemDescolamento) {
+            texto += `Não se observa coágulo intra uterino.\n`;
+        } else if (d.sgComDescolamento) {
+            texto += `Observa-se imagem sugestiva de coágulo/descolamento medindo ${d.desc1 || '-'} x ${d.desc2 || '-'} mm.\n`;
+        }
+
+        // 7. COLO E ANEXOS (Frase exata do modelo)
+        texto += `O orifício interno do colo permanece fechado`;
+        if (d.comprimentoColo) texto += `, medindo ${d.comprimentoColo} mm`;
+        texto += `.\n`;
+
+        texto += `Anexos parauterinos normais.\n`;
+
+        // 8. CONCLUSÃO
+        texto += `\nImpressão diagnóstica:\n`;
+        if (d.sgAbortoIncompleto) {
+            texto += `- Quadro compatível com Abortamento Incompleto.\n`;
+        } else if (d.embriaoNaoVisualizado) {
+            texto += `- Gestação tópica incipiente de aproximadamente ${igTopo}.\n`;
+        } else {
+            texto += `- Gestação tópica de aproximadamente ${igTopo} (+/- 5 dias).\n`;
+        }
+
+        // Obs Finais
+        if (d.embriaoNaoVisualizado && !d.sgAbortoIncompleto) {
+             texto += `\nObs.: Sugere-se repetir o exame em 7 a 14 dias para reavaliação evolutiva.\n`;
+        }
+
+        return { texto, tituloExame };
+    }
+
+    // =========================================================================
     // 1. DATAÇÃO (DUM, DPP, IG)
     // =========================================================================
     
