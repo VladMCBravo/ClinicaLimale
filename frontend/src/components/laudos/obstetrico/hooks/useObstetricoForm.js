@@ -21,14 +21,16 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         return initialState;
     });
     
-    // Controles de Interface
-    const [isGemelar, setIsGemelar] = useState(false);
-    const [fetoAtivo, setFetoAtivo] = useState(1);
+    // Controles de Gestão Múltipla
+    const [qtdFetos, setQtdFetos] = useState(1); // 1, 2 ou 3
+    const [fetoAtivo, setFetoAtivo] = useState(1); // Qual aba está aberta
     const [mostrarGraficos, setMostrarGraficos] = useState(false);
 
+    // Armazém de dados dos fetos que não estão na tela
     const dadosFeto1 = useRef({ ...initialState });
     const dadosFeto2 = useRef({ ...initialState });
-
+    const dadosFeto3 = useRef({ ...initialState });
+ 
     // --- 1. CÁLCULOS AUTOMÁTICOS ---
     useEffect(() => {
         setData(prev => {
@@ -107,19 +109,20 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         data.sg1, data.sg2, data.sg3, data.citarDppBiometria
     ]);
 
-    // --- 2. GERAÇÃO DE TEXTO ---
+    // --- 2. GERAÇÃO DE TEXTO E SINCRONIZAÇÃO ---
     useEffect(() => {
+        // Salva o estado atual no Ref correto antes de gerar relatório
         if (fetoAtivo === 1) dadosFeto1.current = data;
-        else dadosFeto2.current = data;
+        if (fetoAtivo === 2) dadosFeto2.current = data;
+        if (fetoAtivo === 3) dadosFeto3.current = data;
 
-        const resultadoF1 = gerarRelatorioFeto(dadosFeto1.current);
-        const resultadoF2 = isGemelar ? gerarRelatorioFeto(dadosFeto2.current) : null;
+        // Gera relatórios individuais
+        const resF1 = gerarRelatorioFeto(dadosFeto1.current);
+        const resF2 = qtdFetos >= 2 ? gerarRelatorioFeto(dadosFeto2.current) : null;
+        const resF3 = qtdFetos >= 3 ? gerarRelatorioFeto(dadosFeto3.current) : null;
 
-        const textoFinal = montarTextoFinal(
-            { ...resultadoF1, listaComentarios: resultadoF1.listaComentarios, listaConclusao: resultadoF1.listaConclusao },
-            isGemelar ? { ...resultadoF2, listaComentarios: resultadoF2.listaComentarios, listaConclusao: resultadoF2.listaConclusao } : null,
-            isGemelar
-        );
+        // Monta texto final combinado
+        const textoFinal = montarTextoFinalMultiplo(resF1, resF2, resF3, qtdFetos);
 
         const mapTitulo = {
             'OBSTETRICO_MORFOLOGICO': 'ULTRASSONOGRAFIA MORFOLÓGICA FETAL',
@@ -127,20 +130,20 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             'OBSTETRICO_2_3_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA'
         };
 
-        // Verifica se onUpdate é função antes de chamar
         if (typeof onUpdate === 'function') {
             onUpdate({ 
                 texto: textoFinal, 
                 dadosEstruturados: { 
-                    feto1: { ...dadosFeto1.current, ...resultadoF1 }, 
-                    feto2: isGemelar ? { ...dadosFeto2.current, ...resultadoF2 } : null,
-                    isGemelar
+                    feto1: { ...dadosFeto1.current, ...resF1 }, 
+                    feto2: qtdFetos >= 2 ? { ...dadosFeto2.current, ...resF2 } : null,
+                    feto3: qtdFetos >= 3 ? { ...dadosFeto3.current, ...resF3 } : null,
+                    qtdFetos
                 }, 
                 tituloExame: mapTitulo[data.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA'
             });
         }
 
-    }, [data, isGemelar, fetoAtivo, onUpdate]);
+    }, [data, qtdFetos, fetoAtivo, onUpdate]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -153,40 +156,51 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         else if (tipo === 'NAO_USAR_DUM') setData(prev => ({ ...prev, usarDum: false, dumDesconhecida: false, naoUsarDum: true }));
     };
 
-    const toggleGemelar = (e) => {
-        const checked = e.target.checked;
-        setIsGemelar(checked);
-        if (!checked) {
+    // Nova função para alterar quantidade de fetos
+    const handleChangeQtdFetos = (novaQtd) => {
+        setQtdFetos(novaQtd);
+        
+        // Se reduzir (ex: 3 para 1), volta para a aba 1
+        if (novaQtd < fetoAtivo) {
             setFetoAtivo(1);
-            if(dadosFeto1.current) setData({ ...dadosFeto1.current });
-        } else {
-            if (!dadosFeto2.current.dum) {
-                dadosFeto2.current = { ...initialState, dum: data.dum, usarDum: data.usarDum, subtipo: data.subtipo };
-            }
+            setData({ ...dadosFeto1.current });
+        }
+
+        // Inicializa dados do feto novo se estiver vazio
+        if (novaQtd >= 2 && !dadosFeto2.current.subtipo) {
+            dadosFeto2.current = { ...initialState, dum: data.dum, usarDum: data.usarDum, subtipo: data.subtipo };
+        }
+        if (novaQtd >= 3 && !dadosFeto3.current.subtipo) {
+            dadosFeto3.current = { ...initialState, dum: data.dum, usarDum: data.usarDum, subtipo: data.subtipo };
         }
     };
 
     const handleTabChange = (novoFeto) => {
         if (novoFeto === fetoAtivo) return;
+        // 1. Salva o que está na tela no Ref atual
         if (fetoAtivo === 1) dadosFeto1.current = { ...data };
-        else dadosFeto2.current = { ...data };
-        const dadosNovo = novoFeto === 1 ? dadosFeto1.current : dadosFeto2.current;
+        else if (fetoAtivo === 2) dadosFeto2.current = { ...data };
+        else if (fetoAtivo === 3) dadosFeto3.current = { ...data };
+
+        // 2. Carrega o Ref do novo feto para a tela
+        let dadosNovo;
+        if (novoFeto === 1) dadosNovo = dadosFeto1.current;
+        else if (novoFeto === 2) dadosNovo = dadosFeto2.current;
+        else dadosNovo = dadosFeto3.current;
+
         setData({ ...dadosNovo });
         setFetoAtivo(novoFeto);
     };
 
-    // AJUSTE 2: Mapeando os nomes para o que o FormObstetrico espera
     return {
-        formState: data,           // O componente espera formState
-        handleInputChange: handleChange, // O componente espera handleInputChange
-        setFormState: setData,     // Útil se precisar
-        
-        // Outros exportados originais
+        formState: data,
+        handleInputChange: handleChange,
+        setFormState: setData,
         data, 
         handleChange,
         handleDatacaoChange,
-        isGemelar,
-        toggleGemelar,
+        qtdFetos,            // Novo
+        handleChangeQtdFetos, // Novo
         fetoAtivo,
         handleTabChange,
         mostrarGraficos,

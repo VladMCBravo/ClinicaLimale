@@ -32,7 +32,7 @@ export const gerarRelatorioFeto = (d) => {
 
     // Pega o título correto baseada na seleção
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
-   
+    
     // =========================================================================
     // 1. DATAÇÃO (GLOBAL - Funciona para TODOS os tipos de exame)
     // =========================================================================
@@ -426,4 +426,39 @@ export const gerarRelatorioFeto = (d) => {
     return { texto, tituloExame };
 };
 
+// NOVA FUNÇÃO para montar o texto final com abas
+export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos) => {
+    let textoFinal = '';
+    
+    // Título (Pega do feto 1)
+    if (resF1 && resF1.tituloExame) {
+        textoFinal += `${resF1.tituloExame}\n\n`;
+    }
+
+    if (qtdFetos > 1) {
+        textoFinal += `GESTAÇÃO MÚLTIPLA (${qtdFetos === 2 ? 'GEMELAR' : 'TRIGEMELAR'})\n\n`;
+    }
+
+    // --- FETO A ---
+    if (qtdFetos > 1) textoFinal += `--- FETO A ---\n`;
+    textoFinal += resF1.texto;
+
+    // --- FETO B ---
+    if (qtdFetos >= 2 && resF2) {
+        textoFinal += `\n\n--- FETO B ---\n`;
+        // Remove o título repetido se a função gerarRelatorioFeto o incluir
+        // Uma forma simples é garantir que gerarRelatorioFeto retorne apenas o corpo
+        // ou fazer um replace aqui se necessário, mas idealmente o corpo vem limpo.
+        textoFinal += resF2.texto; 
+    }
+
+    // --- FETO C ---
+    if (qtdFetos >= 3 && resF3) {
+        textoFinal += `\n\n--- FETO C ---\n`;
+        textoFinal += resF3.texto;
+    }
+
+    return textoFinal;
+};
+// Mantém compatibilidade com código antigo se necessário
 export const montarTextoFinal = (res) => res.texto;

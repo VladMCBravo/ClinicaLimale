@@ -16,7 +16,15 @@ import Secao3D from './sections/Secao3D'; // <--- 1. IMPORTAR AQUI
 
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
-  const { formState, handleInputChange } = useObstetricoForm(onUpdate, initialValues);
+  const { 
+      formState, 
+      handleInputChange, 
+      // Novos exports do hook:
+      qtdFetos, 
+      handleChangeQtdFetos,
+      fetoAtivo,
+      handleTabChange
+  } = useObstetricoForm(onUpdate, initialValues);
 
   if (!formState) return <div className="p-4">Carregando formulário...</div>;
 
@@ -28,18 +36,85 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
 
   // Lógica para esconder seções que não fazem sentido no Transvaginal Inicial
   const isInicial = formState.subtipo === 'OBSTETRICO_INICIAL';
+  // Estilos simples para as abas (Tailwind classes sugeridas)
+  const tabBaseClass = "px-4 py-2 text-sm font-medium rounded-t-lg cursor-pointer transition-colors border-b-2";
+  const tabActiveClass = "border-blue-600 text-blue-600 bg-blue-50";
+  const tabInactiveClass = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
 
   return (
     <div className="flex flex-col gap-3 pb-4">
       
-      {/* 1. SUBTIPO (Sempre o primeiro para definir o layout) */}
-      <SecaoSubtipo {...commonProps} />
+      {/* 1. SELEÇÃO DE TIPO DE GESTAÇÃO E SUBTIPO */}
+      <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
+          <SecaoSubtipo {...commonProps} />
+          
+          <div className="mt-4 flex items-center gap-4 border-t pt-3">
+              <span className="text-sm font-bold text-gray-700">Tipo de Gestação:</span>
+              <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleChangeQtdFetos(1)}
+                    className={`px-3 py-1 rounded border ${qtdFetos === 1 ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
+                  >
+                      Única
+                  </button>
+                  <button 
+                    onClick={() => handleChangeQtdFetos(2)}
+                    className={`px-3 py-1 rounded border ${qtdFetos === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
+                  >
+                      Gemelar
+                  </button>
+                  <button 
+                    onClick={() => handleChangeQtdFetos(3)}
+                    className={`px-3 py-1 rounded border ${qtdFetos === 3 ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
+                  >
+                      Trigemelar
+                  </button>
+              </div>
+          </div>
+      </div>
 
-      {/* 2. DATAÇÃO (DUM, DPP, IG) */}
+      {/* 2. BARRA DE ABAS (Só aparece se for múltipla) */}
+      {qtdFetos > 1 && (
+          <div className="flex border-b border-gray-200 mt-2 bg-white rounded-t">
+              <div 
+                  className={`${tabBaseClass} ${fetoAtivo === 1 ? tabActiveClass : tabInactiveClass}`}
+                  onClick={() => handleTabChange(1)}
+              >
+                  Feto A
+              </div>
+              <div 
+                  className={`${tabBaseClass} ${fetoAtivo === 2 ? tabActiveClass : tabInactiveClass}`}
+                  onClick={() => handleTabChange(2)}
+              >
+                  Feto B
+              </div>
+              {qtdFetos === 3 && (
+                  <div 
+                      className={`${tabBaseClass} ${fetoAtivo === 3 ? tabActiveClass : tabInactiveClass}`}
+                      onClick={() => handleTabChange(3)}
+                  >
+                      Feto C
+                  </div>
+              )}
+          </div>
+      )}
+
+      {/* 3. CONTEÚDO DO FORMULÁRIO (Renderiza o Feto Ativo) */}
+      {/* Container com cor diferente nas bordas para indicar que é uma aba */}
+      <div className={`flex flex-col gap-3 ${qtdFetos > 1 ? 'border-l-4 border-blue-500 pl-2' : ''}`}>
+        
+        {/* Aviso visual de qual feto está editando */}
+        {qtdFetos > 1 && (
+            <div className="bg-blue-50 p-2 text-xs text-blue-800 font-bold uppercase mb-[-8px]">
+                Editando dados do Feto {fetoAtivo === 1 ? 'A' : fetoAtivo === 2 ? 'B' : 'C'}
+            </div>
+        )}
+
+      {/* DATAÇÃO (DUM, DPP, IG) */}
       {/* "DPP: 17/06/2026..." - Primeira linha do texto */}
       <SecaoDatacao {...commonProps} />
       
-      {/* 3. DADOS GERAIS (Bexiga, Situação, Apresentação) */}
+      {/* DADOS GERAIS (Bexiga, Situação, Apresentação) */}
       {/* "Bexiga materna não visualizada..." - Segunda linha do texto */}
       <SecaoDadosGerais {...commonProps} />
 
@@ -81,6 +156,8 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       <SecaoConclusao {...commonProps} />
 
     </div>
+  </div>
+  
   );
 };
 
