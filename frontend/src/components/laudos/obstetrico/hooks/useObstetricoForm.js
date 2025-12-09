@@ -47,11 +47,25 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 }
             }
 
-            // B. Exame Anterior
-            if (prev.dataExameAnterior) {
-                const { dpp: dppCorr } = calcularIGeDPP_Anterior(prev.dataExameAnterior, prev.igAnteriorSemanas, prev.igAnteriorDias);
-                if (prev.dppIgCorrigidaCalculada !== dppCorr) { newState.dppIgCorrigidaCalculada = dppCorr; mudou = true; }
+            // === CORREÇÃO AQUI: EXAME ANTERIOR ===
+            if (prev.usarExameAnterior && prev.dataExameAnterior) {
+                // Importante: Certifique-se que calcularIGeDPP_Anterior está importado corretamente
+                const { ig, dpp } = calcularIGeDPP_Anterior(
+                    prev.dataExameAnterior, 
+                    prev.igAnteriorSemanas, 
+                    prev.igAnteriorDias
+                );
+                
+                if (prev.igIgCorrigidaCalculada !== ig) { 
+                    newState.igIgCorrigidaCalculada = ig; 
+                    mudou = true; 
+                }
+                if (prev.dppIgCorrigidaCalculada !== dpp) { 
+                    newState.dppIgCorrigidaCalculada = dpp; 
+                    mudou = true; 
+                }
             }
+            // ======================================
 
             // C. Índices Biométricos
             const indices = calcularIndicesBiometricos(prev);

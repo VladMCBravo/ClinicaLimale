@@ -2,8 +2,9 @@ import React from 'react';
 
 const SecaoConclusao = ({ data, handleChange }) => {
   return (
-    <div className="laudo-section">
+    <div className="laudo-section" style={{marginBottom: '50px'}}> {/* Margem extra p/ fim da página */}
         <div className="header-base header-red">Conclusão e Diagnóstico</div>
+        
         <div className="laudo-section-body">
             
             {/* LINHA PESO */}

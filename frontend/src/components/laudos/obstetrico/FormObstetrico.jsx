@@ -12,6 +12,7 @@ import SecaoDoppler from './sections/SecaoDoppler';
 import SecaoConclusao from './sections/SecaoConclusao';
 import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
 import SecaoEmbriao from './sections/SecaoEmbriao';
+import Secao3D from './sections/Secao3D'; // <--- 1. IMPORTAR AQUI
 
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
@@ -65,6 +66,10 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
 
       {/* 7. DOPPLER (Opcional) */}
       <SecaoDoppler {...commonProps} />
+
+      {/* --- 2. INSERIR SEÇÃO 3D AQUI --- */}
+      {/* Ela aparecerá se o subtipo for 3D OU se o checkbox interno estiver marcado */}
+      <Secao3D {...commonProps} />
 
       {/* 8. CONCLUSÃO (Peso, Sexo, Obs finais) */}
       <SecaoConclusao {...commonProps} />
