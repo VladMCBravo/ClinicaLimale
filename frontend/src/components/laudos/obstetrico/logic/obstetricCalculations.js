@@ -84,6 +84,64 @@ export const calcularIGeDPP_Anterior = (dataExameAnt, semanasAnt, diasAnt) => {
     return { ig, dpp };
 };
 
+// --- NOVO: CÁLCULO DA MÉDIA BIOMÉTRICA (Hadlock) ---
+export const calcularMediaBiometria = (dados) => {
+    let totalSemanas = 0;
+    let count = 0;
+
+    // Helper: Converte mm para semanas (Hadlock)
+    const calc = (val, type) => {
+        if (!val || isNaN(val)) return 0;
+        const v = parseFloat(val) / 10; // converte para cm
+        // Fórmulas simplificadas de regressão (Hadlock / Jeanty)
+        if (type === 'dbp') return 9.54 + (1.482 * v) + (0.1676 * v * v);
+        if (type === 'cc') return 8.96 + (0.540 * v) + (0.0003 * Math.pow(v, 3));
+        if (type === 'ca') return 8.14 + (0.753 * v) + (0.0036 * v * v);
+        if (type === 'femur') return 10.35 + (2.460 * v) + (0.170 * v * v);
+        return 0;
+    };
+
+    // Soma as idades calculadas das medidas principais
+    const igDbp = calc(dados.dbp, 'dbp');
+    if (igDbp > 0) { totalSemanas += igDbp; count++; }
+
+    const igCc = calc(dados.cc, 'cc');
+    if (igCc > 0) { totalSemanas += igCc; count++; }
+
+    const igCa = calc(dados.ca, 'ca');
+    if (igCa > 0) { totalSemanas += igCa; count++; }
+
+    const igFemur = calc(dados.femur, 'femur');
+    if (igFemur > 0) { totalSemanas += igFemur; count++; }
+
+    // Se não tiver medidas suficientes, retorna vazio
+    if (count === 0) return { ig: '', dpp: '' };
+
+    // Calcula média
+    const mediaSemanas = totalSemanas / count;
+    
+    // Converte para Texto "X semanas e Y dias"
+    const w = Math.floor(mediaSemanas);
+    const d = Math.round((mediaSemanas - w) * 7);
+    const diasFinais = d === 7 ? 0 : d;
+    const semanasFinais = d === 7 ? w + 1 : w;
+    
+    const igTexto = `${semanasFinais} semanas e ${diasFinais} dias`;
+
+    // Calcula DPP baseada nessa biometria (Data do Exame + Dias Restantes para 40sem)
+    // 40 semanas = 280 dias.
+    const diasTotaisGestacao = (semanasFinais * 7) + diasFinais;
+    const diasRestantes = 280 - diasTotaisGestacao;
+    
+    const hoje = new Date();
+    const dataDpp = new Date(hoje);
+    dataDpp.setDate(hoje.getDate() + diasRestantes);
+    
+    const dppTexto = dataDpp.toLocaleDateString('pt-BR');
+
+    return { ig: igTexto, dpp: dppTexto };
+};
+
 // --- CÁLCULOS DE SACO GESTACIONAL (1º TRI) ---
 
 export const calcularDMSG = (sg1, sg2, sg3) => {

@@ -7,6 +7,7 @@ import {
     calcularDMSG,
     calcularIGDmsg,
     calcularIG_CCN,
+    calcularMediaBiometria // <--- 1. IMPORTAR AQUI
 } from '../logic/obstetricCalculations';
 
 // --- CORREÇÃO AQUI ---
@@ -72,7 +73,30 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 }
             } // <--- O FECHAMENTO DO IF DEVE SER AQUI, APÓS O BLOCO DE SINCRONIA
             
-            // B. Índices Biométricos
+            // =========================================================
+            // B. NOVO: CÁLCULO DA BIOMETRIA MÉDIA (IG/DPP pelo USG)
+            // =========================================================
+            // Só calcula se tiver pelo menos um dado biométrico preenchido
+            if (prev.dbp || prev.cc || prev.femur || prev.ca) {
+                const bio = calcularMediaBiometria(prev);
+                
+                if (prev.igBiometria !== bio.ig) {
+                    newState.igBiometria = bio.ig;
+                    mudou = true;
+                }
+                if (prev.dppBiometriaCalculada !== bio.dpp) {
+                    newState.dppBiometriaCalculada = bio.dpp;
+                    mudou = true;
+                }
+            } else if (prev.igBiometria !== '') {
+                // Se o usuário apagou as medidas, limpa os campos calculados
+                newState.igBiometria = '';
+                newState.dppBiometriaCalculada = '';
+                mudou = true;
+            }
+            // =========================================================
+
+            // C. Índices Biométricos (Existente)
             const indices = calcularIndicesBiometricos(prev);
             if (prev.resIc !== indices.ic) { newState.resIc = indices.ic; mudou = true; }
             if (prev.resCcCa !== indices.ccCa) { newState.resCcCa = indices.ccCa; mudou = true; }
