@@ -157,7 +157,6 @@ const LaudosPage = () => {
         try {
             const res = await apiClient.get('/usuarios/?cargo=medico');
             const lista = res.data.results || res.data;
-            // Ordenar por nome
             lista.sort((a, b) => (a.first_name || a.username).localeCompare(b.first_name || b.username));
             setTodosMedicos(lista);
         } catch (e) {
@@ -167,7 +166,7 @@ const LaudosPage = () => {
     carregarMedicos();
   }, []);
 
-  // Lógica de filtro para o campo Médico
+  // Lógica de filtro para o campo Médico (Exatamente igual a busca de Paciente)
   const handleInputMedicoChange = (texto) => {
       setMedicoNome(texto);
       if (texto.length > 0) {
@@ -310,16 +309,13 @@ const LaudosPage = () => {
       });
   };
 
-  // --- NOVA FUNÇÃO: IMPRIMIR TERMO ---
+  // --- FUNÇÃO: IMPRIMIR TERMO (AJUSTADA PARA 1 PÁGINA) ---
   const handleImprimirTermo = () => {
-      if (!medicoNome) {
-          alert("Por favor, preencha o nome do Médico.");
-          return;
-      }
+      if (!medicoNome) return alert("Por favor, preencha o nome do Médico.");
 
       const nomePaciente = paciente?.nome_completo || "__________________________________________________________";
       const cpfPaciente = paciente?.cpf || "________________________";
-      const rgPaciente = paciente?.rg || "___________________________"; // Assumindo que o objeto paciente tenha RG
+      const rgPaciente = paciente?.rg || "___________________________";
       
       const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
       const hoje = new Date();
@@ -331,16 +327,17 @@ const LaudosPage = () => {
         <head>
             <title>Termo de Consentimento</title>
             <style>
-                body { font-family: 'Arial', sans-serif; font-size: 12pt; margin: 0; padding: 0; color: #000; }
-                @page { size: A4; margin: 2cm; }
-                .content { padding-top: 4.5cm; /* ESPAÇO DO CABEÇALHO SOLICITADO */ }
-                h2 { text-align: center; font-size: 14pt; margin-bottom: 30px; text-transform: uppercase; }
-                p, li { line-height: 1.5; text-align: justify; margin-bottom: 12px; }
-                ul { list-style-type: disc; margin-left: 20px; }
-                .check-group { margin: 15px 0; }
-                .assinaturas { margin-top: 50px; display: flex; flex-direction: column; gap: 40px; }
+                /* Fonte reduzida para 10pt e espaçamento ajustado para caber em 1 página */
+                body { font-family: 'Arial', sans-serif; font-size: 10pt; margin: 0; padding: 0; color: #000; }
+                @page { size: A4; margin: 1.5cm 2cm; }
+                .content { padding-top: 4.5cm; /* Mantendo o espaço do cabeçalho solicitado */ }
+                h2 { text-align: center; font-size: 12pt; margin-bottom: 20px; text-transform: uppercase; font-weight: bold; }
+                p, li { line-height: 1.3; text-align: justify; margin-bottom: 8px; }
+                ul { list-style-type: disc; margin-left: 20px; margin-bottom: 10px; }
+                .check-group { margin: 10px 0; line-height: 1.4; }
+                .assinaturas { margin-top: 30px; display: flex; flex-direction: column; gap: 30px; }
                 .assinatura-box { width: 100%; }
-                .linha { border-top: 1px solid #000; width: 60%; margin-bottom: 5px; }
+                .linha { border-top: 1px solid #000; width: 60%; margin-bottom: 4px; }
             </style>
         </head>
         <body>
@@ -372,7 +369,7 @@ const LaudosPage = () => {
 
                 <p>Declaro, por fim, que todas as minhas dúvidas foram esclarecidas e que firmo este termo por minha livre vontade.</p>
                 
-                <p style="text-align: right; margin-top: 40px;">
+                <p style="text-align: right; margin-top: 20px;">
                     Diadema, ${dataExtenso}.
                 </p>
 
@@ -443,16 +440,18 @@ const LaudosPage = () => {
                         )}
                     </div>
 
-                    <input 
-                        placeholder="CRM"
-                        value={medicoCrm}
-                        onChange={(e) => setMedicoCrm(e.target.value)}
-                        style={{...styles.inputControl, flex: 1}}
-                    />
+                    {/* Coluna do CRM (Flex fixo/menor) */}
+                    <div style={{flex: 1, minWidth: '80px'}}>
+                        <input 
+                            placeholder="CRM"
+                            value={medicoCrm}
+                            onChange={(e) => setMedicoCrm(e.target.value)}
+                            style={{...styles.inputControl, width: '100%'}}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
-
 
         {/* Busca de Paciente */}
         <div style={styles.card}>
