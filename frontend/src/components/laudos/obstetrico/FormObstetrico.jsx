@@ -42,91 +42,88 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   // Lógica para esconder seções que não fazem sentido no Transvaginal Inicial
   const isInicial = formState.subtipo && (formState.subtipo.includes("INICIAL") || formState.subtipo.includes("1_TRI"));
 
-  return (
-    <div className="flex flex-col gap-4 pb-8">
+ return (
+    <div className="flex flex-col gap-3 pb-8">
       
-      {/* 1. CABEÇALHO PRINCIPAL (Card Moderno) */}
-      <div className="laudo-section" style={{borderLeft: '4px solid #4A3B80'}}>
-          <div className="laudo-section-body">
-              <div className="flex justify-between items-center">
-                  <div className="flex flex-col gap-2 w-full">
-                      <div className="flex items-center gap-2 text-purple-800 font-bold uppercase text-xs mb-1">
-                          <FaFileMedicalAlt /> Configuração do Exame
-                      </div>
+      {/* 1. CABEÇALHO COMPACTO (LADO A LADO) */}
+      <div className="laudo-section" style={{borderLeft: '4px solid #4A3B80', overflow:'visible'}}>
+          <div className="laudo-section-body" style={{padding:'8px 12px'}}>
+              
+              {/* GRID DE 2 COLUNAS: SUBTIPO | BOTÕES GÊMEOS */}
+              <div style={{display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', gap: '20px'}}>
+                  
+                  {/* Coluna 1: Select de Subtipo (Ocupa o espaço que sobrar) */}
+                  <div>
                       <SecaoSubtipo {...commonProps} />
                   </div>
-              </div>
-              
-              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-4">
-                  <span className="text-xs font-bold text-gray-600 flex items-center gap-1">
-                      <FaLayerGroup /> Tipo de Gestação:
-                  </span>
-                  <div className="flex gap-2">
-                      {[1, 2, 3].map(qtd => (
-                          <button 
-                            key={qtd}
-                            onClick={() => handleChangeQtdFetos(qtd)}
-                            className={`px-3 py-1 rounded text-xs font-bold transition-all ${
-                                qtdFetos === qtd 
-                                ? 'bg-purple-600 text-white shadow-md' 
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                            }`}
-                          >
-                              {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Trigemelar'}
-                          </button>
-                      ))}
+
+                  {/* Coluna 2: Botões de Gêmeos (Fixo à direita) */}
+                  <div className="flex flex-col gap-1">
+                      <span className="text-xs font-bold text-gray-600 flex items-center gap-1">
+                          <FaLayerGroup /> TIPO DE GESTAÇÃO:
+                      </span>
+                      <div className="flex gap-1 bg-gray-100 p-1 rounded border border-gray-200">
+                          {[1, 2, 3].map(qtd => (
+                              <button 
+                                key={qtd}
+                                onClick={() => handleChangeQtdFetos(qtd)}
+                                className={`px-3 py-1 rounded text-xs font-bold transition-all border ${
+                                    qtdFetos === qtd 
+                                    ? 'bg-purple-600 text-white border-purple-800 shadow-sm' 
+                                    : 'bg-white text-gray-500 border-transparent hover:bg-gray-50'
+                                }`}
+                                style={{minWidth:'80px'}}
+                              >
+                                  {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Trigemelar'}
+                              </button>
+                          ))}
+                      </div>
                   </div>
+
               </div>
           </div>
       </div>
 
       {/* 2. ABAS DE NAVEGAÇÃO ENTRE FETOS (Visual Pasta Física) */}
       {qtdFetos > 1 && (
-          <div>
-              <div className="gemelar-tabs-container">
-                  <div 
-                      className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`}
-                      onClick={() => handleTabChange(1)}
-                  >
-                      <FaBaby style={{marginRight:4}}/> Feto I (A)
-                  </div>
-                  <div 
-                      className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`}
-                      onClick={() => handleTabChange(2)}
-                  >
-                      <FaBaby style={{marginRight:4}}/> Feto II (B)
-                  </div>
-                  {qtdFetos === 3 && (
-                      <div 
-                          className={`gemelar-tab ${fetoAtivo === 3 ? 'active' : ''}`}
-                          onClick={() => handleTabChange(3)}
-                      >
-                          <FaBaby style={{marginRight:4}}/> Feto III (C)
-                      </div>
-                  )}
+          <div className="gemelar-tabs-container">
+              <div 
+                  className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`}
+                  onClick={() => handleTabChange(1)}
+              >
+                  <FaBaby style={{marginRight:4}}/> Feto I (A)
               </div>
+              <div 
+                  className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`}
+                  onClick={() => handleTabChange(2)}
+              >
+                  <FaBaby style={{marginRight:4}}/> Feto II (B)
+              </div>
+              {qtdFetos === 3 && (
+                  <div 
+                      className={`gemelar-tab ${fetoAtivo === 3 ? 'active' : ''}`}
+                      onClick={() => handleTabChange(3)}
+                  >
+                      <FaBaby style={{marginRight:4}}/> Feto III (C)
+                  </div>
+              )}
           </div>
       )}
 
-      {/* 3. CONTEÚDO DO FORMULÁRIO (Wrapper da Aba) */}
-      {/* Se for gemelar, aplicamos a classe tab-content-wrapper para fechar a caixa da aba */}
+      {/* 3. CONTEÚDO DO FORMULÁRIO */}
       <div className={qtdFetos > 1 ? "tab-content-wrapper" : ""}>
         
         {/* Aviso visual discreto */}
         {qtdFetos > 1 && (
-            <div className="mb-4 p-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
+            <div className="mb-3 p-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
                 <MdChildCare size={14}/>
-                Editando dados do Feto {fetoAtivo === 1 ? 'I' : fetoAtivo === 2 ? 'II' : 'III'}
+                EDITANDO DADOS DO FETO {fetoAtivo === 1 ? 'I' : fetoAtivo === 2 ? 'II' : 'III'}
             </div>
         )}
 
         {/* --- SEÇÕES LÓGICAS --- */}
-        
-        {/* Datação (Ícone Calendário) */}
-        <SecaoDatacao {...commonProps} icon={<MdDateRange />} />
-        
-        {/* Dados Gerais (Ícone Feto) */}
-        <SecaoDadosGerais {...commonProps} icon={<GiFetus />} />
+        <SecaoDatacao {...commonProps} />
+        <SecaoDadosGerais {...commonProps} />
 
         {/* Condicionais de Inicial */}
         {formState.subtipo && formState.subtipo.includes("INICIAL") && (
@@ -139,16 +136,15 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
         
         {!isInicial && (
             <>
-                <SecaoPlacentaLiquido {...commonProps} icon={<GiWaterDrop />} />
-                <SecaoBiometria {...commonProps} icon={<FaRulerCombined />} />
-                <SecaoMorfologia {...commonProps} icon={<FaCheckSquare />} />
-                <SecaoDoppler {...commonProps} icon={<FaWaveSquare />} />
+                <SecaoPlacentaLiquido {...commonProps} />
+                <SecaoBiometria {...commonProps} />
+                <SecaoMorfologia {...commonProps} />
+                <SecaoDoppler {...commonProps} />
             </>
         )}
 
-        <Secao3D {...commonProps} icon={<FaBaby />} />
-        
-        <SecaoConclusao {...commonProps} icon={<FaNotesMedical />} />
+        <Secao3D {...commonProps} />
+        <SecaoConclusao {...commonProps} />
 
       </div>
     </div>
