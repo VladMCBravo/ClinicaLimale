@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaEraser, FaUserMd } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaCamera, FaEraser, FaUserMd, FaFileSignature } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css'; 
