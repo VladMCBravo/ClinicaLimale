@@ -8,13 +8,11 @@ import {
     calcularIGDmsg,
     calcularIG_CCN,
 } from '../logic/obstetricCalculations';
-import { gerarRelatorioFeto, montarTextoFinal } from '../logic/obstetricTextBuilder';
 
 // --- CORREÇÃO AQUI ---
 // Adicionei montarTextoFinalMultiplo na importação abaixo:
 import { 
-    gerarRelatorioFeto, 
-    montarTextoFinal, 
+    gerarRelatorioFeto,  
     montarTextoFinalMultiplo // <--- FALTAVA ISSO
 } from '../logic/obstetricTextBuilder';
 
