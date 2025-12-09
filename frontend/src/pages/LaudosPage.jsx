@@ -131,16 +131,18 @@ const LaudosPage = () => {
   // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
-  const [listaMedicos, setListaMedicos] = useState([]);
-
+  
   // Busca Paciente
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
   
-  // Médico
+  // Médico e Busca de Médico (NOVA LÓGICA)
   const [medicoNome, setMedicoNome] = useState(() => getInitialState('medicoNome', ''));
   const [medicoCrm, setMedicoCrm] = useState(() => getInitialState('medicoCrm', ''));
+  const [todosMedicos, setTodosMedicos] = useState([]); // Lista completa carregada da API
+  const [medicosFiltrados, setMedicosFiltrados] = useState([]); // Lista exibida no dropdown
+  const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
 
   // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
@@ -148,6 +150,45 @@ const LaudosPage = () => {
   const [tituloExame, setTituloExame] = useState(() => getInitialState('tituloExame', ''));
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   const [saving, setSaving] = useState(false);
+
+  // Carregar médicos ao iniciar
+  useEffect(() => {
+    const carregarMedicos = async () => {
+        try {
+            const res = await apiClient.get('/usuarios/?cargo=medico');
+            const lista = res.data.results || res.data;
+            // Ordenar por nome
+            lista.sort((a, b) => (a.first_name || a.username).localeCompare(b.first_name || b.username));
+            setTodosMedicos(lista);
+        } catch (e) {
+            console.error("Erro ao carregar lista de médicos", e);
+        }
+    };
+    carregarMedicos();
+  }, []);
+
+  // Lógica de filtro para o campo Médico
+  const handleInputMedicoChange = (texto) => {
+      setMedicoNome(texto);
+      if (texto.length > 0) {
+          const termo = texto.toLowerCase();
+          const filtrados = todosMedicos.filter(m => {
+              const nomeCompleto = m.first_name ? `${m.first_name} ${m.last_name}` : m.username;
+              return nomeCompleto.toLowerCase().includes(termo);
+          });
+          setMedicosFiltrados(filtrados);
+          setMostrarListaMedicos(true);
+      } else {
+          setMostrarListaMedicos(false);
+      }
+  };
+
+  const selecionarMedico = (medico) => {
+      const nomeCompleto = medico.first_name ? `${medico.first_name} ${medico.last_name}` : medico.username;
+      setMedicoNome(nomeCompleto);
+      setMedicoCrm(medico.crm || '');
+      setMostrarListaMedicos(false);
+  };
 
   // Auto-Save Effect
   useEffect(() => {
@@ -189,41 +230,6 @@ const LaudosPage = () => {
         setTermoBusca('');
         setPacientesEncontrados([]);
     }
-  };
-
-  // NOVO: Carregar médicos ao montar a tela
-  useEffect(() => {
-    const carregarMedicos = async () => {
-        try {
-            // Usa o filtro ?cargo=medico que configuramos na ViewSet
-            const res = await apiClient.get('/usuarios/?cargo=medico');
-            // Ordena médicos por nome para facilitar
-            const medicosOrdenados = (res.data.results || res.data).sort((a, b) => 
-                (a.first_name || '').localeCompare(b.first_name || '')
-            );
-            setListaMedicos(medicosOrdenados);
-        } catch (e) {
-            console.error("Erro ao carregar médicos:", e);
-        }
-    };
-    carregarMedicos();
-  }, []);
-
-  // NOVO: Função para quando selecionar no Dropdown
-  const handleSelecionarMedico = (e) => {
-      const idSelecionado = e.target.value;
-      if (!idSelecionado) return;
-
-      const medico = listaMedicos.find(m => m.id === parseInt(idSelecionado));
-      if (medico) {
-          // Concatena nome se houver first_name, senão usa username
-          const nomeCompleto = medico.first_name 
-            ? `${medico.first_name} ${medico.last_name || ''}`.trim() 
-            : medico.username;
-          
-          setMedicoNome(nomeCompleto);
-          setMedicoCrm(medico.crm || '');
-      }
   };
 
   // Callback que recebe dados do filho (FormObstetrico) e atualiza o pai
@@ -304,6 +310,93 @@ const LaudosPage = () => {
       });
   };
 
+  // --- NOVA FUNÇÃO: IMPRIMIR TERMO ---
+  const handleImprimirTermo = () => {
+      if (!medicoNome) {
+          alert("Por favor, preencha o nome do Médico.");
+          return;
+      }
+
+      const nomePaciente = paciente?.nome_completo || "__________________________________________________________";
+      const cpfPaciente = paciente?.cpf || "________________________";
+      const rgPaciente = paciente?.rg || "___________________________"; // Assumindo que o objeto paciente tenha RG
+      
+      const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+      const hoje = new Date();
+      const dataExtenso = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
+
+      const termoWindow = window.open('', '', 'width=800,height=600');
+      termoWindow.document.write(`
+        <html>
+        <head>
+            <title>Termo de Consentimento</title>
+            <style>
+                body { font-family: 'Arial', sans-serif; font-size: 12pt; margin: 0; padding: 0; color: #000; }
+                @page { size: A4; margin: 2cm; }
+                .content { padding-top: 4.5cm; /* ESPAÇO DO CABEÇALHO SOLICITADO */ }
+                h2 { text-align: center; font-size: 14pt; margin-bottom: 30px; text-transform: uppercase; }
+                p, li { line-height: 1.5; text-align: justify; margin-bottom: 12px; }
+                ul { list-style-type: disc; margin-left: 20px; }
+                .check-group { margin: 15px 0; }
+                .assinaturas { margin-top: 50px; display: flex; flex-direction: column; gap: 40px; }
+                .assinatura-box { width: 100%; }
+                .linha { border-top: 1px solid #000; width: 60%; margin-bottom: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="content">
+                <h2>TERMO DE CONSENTIMENTO PARA USO DE IMAGEM</h2>
+                
+                <p>
+                    Eu, <strong>${nomePaciente}</strong>, portador(a) do CPF nº <strong>${cpfPaciente}</strong>, 
+                    RG nº <strong>${rgPaciente}</strong>, autorizo de forma livre, informada e inequívoca o uso da minha imagem 
+                    (fotografias, vídeos ou registros audiovisuais), captada durante ou após meu atendimento/tratamento realizado 
+                    com o(a) Dr(a). <strong>${medicoNome}</strong> (CRM: ${medicoCrm}).
+                </p>
+
+                <p>Autorizo que minha imagem seja utilizada com a finalidade de:</p>
+                <div class="check-group">
+                    (x) Divulgação científica (congressos, artigos, aulas, etc.)<br/>
+                    (x) Divulgação institucional (site, redes sociais e materiais informativos da clínica)<br/>
+                    (x) Antes e depois para fins ilustrativos e educativos
+                </div>
+
+                <p>Declaro que:</p>
+                <ul>
+                    <li>A utilização da imagem se dará exclusivamente para os fins acima indicados, sem caráter pejorativo ou difamatório.</li>
+                    <li>Estou ciente de que minha imagem poderá ser visualizada por terceiros, inclusive em meios digitais e redes sociais, e compreendo que, uma vez publicada, a clínica não tem controle total sobre a circulação do conteúdo.</li>
+                    <li>Estou ciente de que posso, a qualquer momento, solicitar a revogação deste consentimento, por escrito, conforme previsto na Lei nº 13.709/2018 (LGPD).</li>
+                    <li>Não haverá qualquer tipo de compensação financeira pelo uso da imagem.</li>
+                    <li>Estou ciente de que a utilização de minha imagem em conteúdos ilustrativos e educativos não representa garantia de resultados semelhantes para outros pacientes, respeitando-se as individualidades de cada caso.</li>
+                </ul>
+
+                <p>Declaro, por fim, que todas as minhas dúvidas foram esclarecidas e que firmo este termo por minha livre vontade.</p>
+                
+                <p style="text-align: right; margin-top: 40px;">
+                    Diadema, ${dataExtenso}.
+                </p>
+
+                <div class="assinaturas">
+                    <div class="assinatura-box">
+                        <div class="linha"></div>
+                        Assinatura do(a) paciente
+                    </div>
+                    
+                    <div class="assinatura-box">
+                        <div class="linha"></div>
+                        Assinatura do profissional responsável: <strong>${medicoNome}</strong>
+                    </div>
+                </div>
+            </div>
+            <script>
+                window.onload = function() { window.print(); window.close(); }
+            </script>
+        </body>
+        </html>
+      `);
+      termoWindow.document.close();
+  };
+
   return (
     <div style={styles.container}>
       {/* Esquerda: Formulários e Controles */}
@@ -322,31 +415,34 @@ const LaudosPage = () => {
                 </select>
             </div>
 
-            {/* Bloco Médico Modificado */}
             <div style={{...styles.card, flex: 2}}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
-                    <div style={styles.header}><FaUserMd /> Médico</div>
-                    {/* Select Discreto para preenchimento rápido */}
-                    <select 
-                        onChange={handleSelecionarMedico} 
-                        style={{...styles.inputControl, width: 'auto', border: 'none', background: '#f0f0f0', fontSize: '10px', height: '18px'}}
-                        defaultValue=""
-                    >
-                        <option value="" disabled>Buscar na lista...</option>
-                        {listaMedicos.map(med => (
-                            <option key={med.id} value={med.id}>
-                                {med.first_name ? `${med.first_name} ${med.last_name}` : med.username}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div style={{display:'flex', gap:'5px'}}>
-                    <input 
-                        placeholder="Nome Médico (Editável)"
-                        value={medicoNome}
-                        onChange={(e) => setMedicoNome(e.target.value)}
-                        style={{...styles.inputControl, flex: 2}}
-                    />
+                <div style={styles.header}><FaUserMd /> Médico</div>
+                <div style={{display:'flex', gap:'5px', position: 'relative'}}>
+                    {/* Campo de Busca de Médico unificado (Estilo Paciente) */}
+                    <div style={{flex: 2, position: 'relative'}}>
+                        <input 
+                            placeholder="Digite o nome do médico..."
+                            value={medicoNome}
+                            onChange={(e) => handleInputMedicoChange(e.target.value)}
+                            onFocus={() => { if(medicoNome) setMostrarListaMedicos(true); }}
+                            onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)} // Delay para permitir o clique
+                            style={{...styles.inputControl}}
+                        />
+                        {mostrarListaMedicos && medicosFiltrados.length > 0 && (
+                            <div style={styles.dropdownList}>
+                                {medicosFiltrados.map(med => (
+                                    <div 
+                                        key={med.id} 
+                                        onClick={() => selecionarMedico(med)} 
+                                        style={styles.dropdownItem}
+                                    >
+                                        {med.first_name ? `${med.first_name} ${med.last_name}` : med.username}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     <input 
                         placeholder="CRM"
                         value={medicoCrm}
@@ -403,10 +499,15 @@ const LaudosPage = () => {
                  <div style={{display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center'}}>
                      <input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
                      
-                     {/* Botão FOTOS corrigido: usa o mesmo style.button sem overrides que quebrem o layout */}
+                     {/* Botão FOTOS corrigido */}
                      <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800'}}>
                         <FaCamera size={10}/> FOTOS
                      </label>
+
+                     {/* Botão TERMO (NOVO) */}
+                     <button onClick={handleImprimirTermo} style={{...styles.button, background: '#607D8B'}} title="Imprimir Termo de Consentimento">
+                        <FaFileSignature size={10}/> TERMO
+                     </button>
                      
                      <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário">
                         <FaEraser size={10}/> LIMPAR

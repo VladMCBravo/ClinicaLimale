@@ -355,7 +355,6 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     texto += `- Nem todas as alterações que um feto possa vir apresentar após o nascimento, podem ser identificadas pelo exame ultra-sonográfico.\n`;
-    texto += `\nFavor trazer este exame quando vier realizar o próximo.\n`;
 
     return { texto, tituloExame };
 };
