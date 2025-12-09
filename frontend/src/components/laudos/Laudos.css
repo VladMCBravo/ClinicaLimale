@@ -164,3 +164,9 @@
   width: 14px;
   height: 14px;
 }
+.label-pequeno {
+    font-size: 11px;
+    color: #555;
+    white-space: nowrap; /* Evita que labels quebrem linha */
+    min-width: 60px; /* Garante alinhamento vertical básico */
+}
