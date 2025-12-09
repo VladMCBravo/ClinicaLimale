@@ -79,29 +79,51 @@ export const gerarRelatorioFeto = (d) => {
     // 2. GESTAÇÃO INICIAL (CORRIGIDO: AGORA TEM CONCLUSÃO)
     // =========================================================================
     if (d.subtipo && d.subtipo.includes("INICIAL")) {
-        texto += `Bexiga vazia.\n`;
+        
+        // CORREÇÃO 1: BEXIGA MATERNA (Obedece o Select)
+        if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar') {
+            texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
+        } else {
+            // Fallback padrão se nada for selecionado
+            texto += `Bexiga vazia.\n`;
+        }
+        
         texto += `Útero ${d.utero || 'globoso'}, miométrio ${d.miometrio || 'homogêneo'}.\n`;
         
-        if (d.citarSg) {
-            texto += `Saco gestacional tópico, contornos regulares`;
-            if (d.resDmsg) texto += `, medindo ${d.resDmsg} mm`;
+        // CORREÇÃO 2: SACO GESTACIONAL
+        if (d.sgAbortoIncompleto) {
+            // Se for aborto incompleto, muda o texto drasticamente
+            texto += `Observa-se cavidade uterina preenchida por material heterogêneo amorfo, compatível com restos ovulares (Abortamento Incompleto).\n`;
+        } 
+        else if (d.citarSg) {
+            texto += `Saco gestacional tópico`;
+            
+            // Adiciona a Localização do SG
+            if (d.sgLocalizacao) texto += `, inserção ${d.sgLocalizacao}`;
+            
+            texto += `, de contornos regulares`;
+            if (d.resDmsg) texto += `, medindo ${d.resDmsg} mm (DMSG)`;
             texto += `.\n`;
-        }
 
-        if (d.embriaoNaoVisualizado) {
-             texto += `Sem embrião visualizado no momento.\n`;
-             if (d.citarVv) texto += `Vesícula vitelina visualizada.\n`;
-        } else {
-             texto += `Embrião visualizado`;
-             if (d.ccn) texto += `, medindo ${d.ccn} mm de CCN`;
-             if (d.bcf) texto += `, com BCF presentes (${d.bcf} bpm)`;
-             texto += `.\n`;
+            if (d.embriaoNaoVisualizado) {
+                 texto += `Sem embrião visualizado no momento.\n`;
+                 if (d.citarVv) texto += `Vesícula vitelina visualizada.\n`;
+            } else {
+                 texto += `Contendo em seu interior embrião visualizado`;
+                 if (d.ccn) texto += `, medindo ${d.ccn} mm de CCN`;
+                 if (d.bcf) texto += `, com BCF presentes (${d.bcf} bpm)`;
+                 texto += `.\n`;
+            }
         }
 
         texto += `\nAs vilosidades placentárias tem inserção ${d.trofoblasto || 'normal'}.\n`;
         
         if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
-        else if (d.sgComDescolamento) texto += `Obs: Área de descolamento descrita acima.\n`;
+        else if (d.sgComDescolamento) {
+            texto += `Observa-se área de descolamento`;
+            if (d.desc1) texto += ` medindo ${d.desc1} x ${d.desc2} mm`;
+            texto += `.\n`;
+        }
         
         texto += `O orifício interno do colo permanece fechado`;
         if (d.comprimentoColo) texto += `, medindo ${d.comprimentoColo} mm`;
@@ -109,24 +131,22 @@ export const gerarRelatorioFeto = (d) => {
         
         texto += `Anexos parauterinos normais.\n`;
 
-        // --- CONCLUSÃO ESPECÍFICA DO INICIAL (Faltava isso) ---
+        // --- CONCLUSÃO DO INICIAL ---
         texto += `\nImpressão diagnóstica:\n`;
-        
-        // Define a IG Preferencial para a conclusão
         let igConclusao = d.resIgCcn || d.resIgSg || d.igDum || "--";
-        // Se tiver exame anterior, usa ele
         if(d.usarExameAnterior && d.igIgCorrigidaCalculada) igConclusao = d.igIgCorrigidaCalculada;
 
-        if (d.embriaoNaoVisualizado) {
-            texto += `- Gestação incipiente / Saco gestacional intra-uterino.\n`;
+        if (d.sgAbortoIncompleto) {
+            texto += `- Quadro compatível com Abortamento Incompleto.\n`;
+        } else if (d.embriaoNaoVisualizado) {
+            texto += `- Gestação incipiente / Saco gestacional intra-uterino de aprox. ${igConclusao}.\n`;
         } else {
             texto += `- Gestação tópica de aproximadamente ${igConclusao} (+/- 5 dias).\n`;
             if (d.bcf) texto += `- Embrião vivo.\n`;
         }
 
-        // Obs Finais
         texto += `\nObs.:\n`;
-        if (d.embriaoNaoVisualizado) {
+        if (d.embriaoNaoVisualizado && !d.sgAbortoIncompleto) {
              texto += `- Sugere-se repetir o exame em 7 a 14 dias para reavaliação evolutiva.\n`;
         }
         texto += `- A imagem diagnóstica não é absoluta, devendo ser interpretada pelo médico assistente.\n`;
@@ -137,7 +157,8 @@ export const gerarRelatorioFeto = (d) => {
     // 3. DADOS GERAIS (2º/3º TRI)
     // =========================================================================
     
-    if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar' && d.bexigaMaterna !== 'não visualizada') {
+    // CORREÇÃO: Bexiga materna agora aceita "não visualizada" se selecionada
+    if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar') {
         texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
     } else if (d.subtipo === 'OBSTETRICO_DOPPLER') {
         texto += `Bexiga materna não visualizada.\n`;
@@ -150,7 +171,7 @@ export const gerarRelatorioFeto = (d) => {
     let vitalidade = [];
     if (d.bcf) vitalidade.push(`Batimentos cardíacos (${d.bcf} bpm)`);
     if (d.movFetal) vitalidade.push(`movimentos fetais`); 
-    if (d.degluticao) vitalidade.push(`movimentos de deglutição`); // <--- Novo
+    if (d.degluticao) vitalidade.push(`movimentos de deglutição`);
 
     if (vitalidade.length > 0) {
         texto += `${vitalidade.join(' e ')} presentes.\n`;
@@ -159,7 +180,6 @@ export const gerarRelatorioFeto = (d) => {
     if (d.estomagoVisualizado) texto += `Estômago fetal repleto e de conteúdo anecóide.\n`;
     if (d.bexigaVisualizada) texto += `Bexiga fetal repleta e de conteúdo anecóide.\n`;
     texto += `\n`;
-
     // =========================================================================
     // 4. PLACENTA E LÍQUIDO
     // =========================================================================
