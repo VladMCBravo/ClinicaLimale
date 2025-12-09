@@ -1,35 +1,30 @@
 import React, { useEffect, useState } from 'react';
+import { FaWaveSquare, FaVenus, FaBaby, FaCalculator, FaTable } from 'react-icons/fa';
 import ModalTabelaVPS from './ModalTabelaVPS';
 
-// Componente de Linha de Métrica (Reutilizável)
-const MetricLine = ({ label, checkName, checkValue, inputName, inputValue, onChange, unit }) => (
-    <div className="laudo-row" style={{marginBottom: '3px'}}>
-        <input 
-            type="checkbox" 
-            name={checkName} 
-            checked={!!checkValue} 
-            onChange={onChange} 
-            title="Incluir no laudo"
-        />
-        <span style={{width: '30px', display: 'inline-block', fontSize:'11px', fontWeight:'bold'}}>{label}</span>
-        <input 
-            type="number" step="0.01" 
-            name={inputName} 
-            value={inputValue} 
-            onChange={onChange} 
-            disabled={!checkValue} 
-            className="laudo-input" 
-            style={{width: '60px', textAlign: 'right'}} 
-            placeholder="0.00"
-        />
-        {unit && <span style={{fontSize:'10px', color:'#666', marginLeft:'2px'}}>{unit}</span>}
+// Componente de Input Compacto (Estilo Biometria)
+const DopplerInput = ({ label, name, value, onChange, unit = null, width="50px" }) => (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'4px'}}>
+        <span style={{fontSize:'11px', color:'#555', fontWeight:'bold'}}>{label}</span>
+        <div style={{position:'relative'}}>
+            <input 
+                type="number" step="0.01" 
+                name={name} 
+                value={value || ''} 
+                onChange={onChange} 
+                className="laudo-input" 
+                style={{width: width, textAlign:'center', fontWeight:'bold', color:'#2E7D32'}}
+                placeholder="-"
+            />
+            {unit && <span style={{position:'absolute', right:'-15px', top:'3px', fontSize:'9px', color:'#999'}}>{unit}</span>}
+        </div>
     </div>
 );
 
 const SecaoDoppler = ({ data, handleChange }) => {
   const [showModalVPS, setShowModalVPS] = useState(false);
 
-  // --- CÁLCULOS AUTOMÁTICOS ---
+  // --- CÁLCULOS AUTOMÁTICOS (IP MÉDIO E RELAÇÃO) ---
   useEffect(() => {
       let updates = {};
       let hasUpdates = false;
@@ -49,7 +44,6 @@ const SecaoDoppler = ({ data, handleChange }) => {
       }
 
       // 2. Relação Cérebro/Umbilical (CPR = ACM IP / Umb IP)
-      // O cliente pede: "n/l maior / igual à 1,0"
       const acm = parseFloat(data.acmIP);
       const umb = parseFloat(data.umbIP);
       let novaRelacao = '';
@@ -63,9 +57,8 @@ const SecaoDoppler = ({ data, handleChange }) => {
           hasUpdates = true;
       }
 
-      // Aplica atualizações se houver mudança
+      // Atualiza estado se necessário
       if (hasUpdates) {
-          // Precisamos iterar para simular eventos de change para cada campo calculado
           Object.keys(updates).forEach(key => {
               handleChange({ target: { name: key, value: updates[key] } });
           });
@@ -74,154 +67,137 @@ const SecaoDoppler = ({ data, handleChange }) => {
 
 
   return (
-    <div className="laudo-section" style={{background: '#F2F2F2', border:'1px solid #ddd'}}>
-        {/* Cabeçalho com Checkbox Principal */}
-        <div className={`header-base ${data.usarDoppler ? 'header-blue' : 'header-gray'}`} style={{transition: '0.3s'}}>
-            <label className="laudo-checkbox-label" style={{width:'100%', cursor:'pointer'}}>
+    <div className="laudo-section" style={{ borderLeft: data.usarDoppler ? '4px solid #1565C0' : '1px solid #ccc' }}>
+        {/* CABEÇALHO ATIVÁVEL */}
+        <div className={`header-base ${data.usarDoppler ? 'header-blue' : 'header-gray'}`} style={{ transition: '0.3s' }}>
+            <label className="laudo-checkbox-label" style={{ width: '100%', cursor: 'pointer', fontWeight:'bold' }}>
                 <input 
                     type="checkbox" 
                     checked={!!data.usarDoppler} 
                     onChange={(e) => handleChange({target: {name: 'usarDoppler', value: e.target.checked}})} 
                 />
-                <span style={{marginLeft:'5px'}}>Estudo Dopplerfluxométrico</span>
+                <FaWaveSquare style={{marginRight:'5px'}}/> Estudo Dopplerfluxométrico
             </label>
         </div>
 
         {data.usarDoppler && (
             <div className="laudo-section-body">
+                
                 <div className="laudo-grid-2" style={{alignItems:'start', gap:'20px'}}>
                     
-                    {/* COLUNA ESQUERDA: Uterinas e Umbilicais */}
-                    <div className="laudo-col" style={{gap: '15px'}}>
-                        
-                        {/* Uterina Direita */}
-                        <div className="doppler-group">
-                            <div className="doppler-title">
-                                <input type="checkbox" name="checkUtDir" checked={!!data.checkUtDir} onChange={handleChange} /> 
-                                Artéria Uterina Direita
+                    {/* COLUNA 1: COMPARTIMENTO MATERNO (UTERINAS) */}
+                    <div className="laudo-col">
+                        <div style={{background:'#E3F2FD', padding:'8px', borderRadius:'4px', border:'1px solid #90CAF9'}}>
+                            <div style={{fontSize:'11px', fontWeight:'bold', color:'#1565C0', marginBottom:'5px', display:'flex', alignItems:'center', gap:'5px'}}>
+                                <FaVenus /> ARTÉRIAS UTERINAS
                             </div>
-                            <div style={{paddingLeft: '10px'}}>
-                                <MetricLine label="IP" checkName="checkUtDirIP" checkValue={data.checkUtDirIP} inputName="utDirIP" inputValue={data.utDirIP} onChange={handleChange} />
-                                <MetricLine label="IR" checkName="checkUtDirIR" checkValue={data.checkUtDirIR} inputName="utDirIR" inputValue={data.utDirIR} onChange={handleChange} />
-                                <div style={{marginTop: '3px'}}>
-                                    <label className="laudo-checkbox-label" style={{fontSize:'10px'}}>
-                                        <input type="checkbox" name="utDirIncisura" checked={!!data.utDirIncisura} onChange={handleChange} /> 
-                                        Incisura protodiastólica
+                            
+                            <div className="laudo-grid-2" style={{gap:'10px'}}>
+                                {/* Uterina Direita */}
+                                <div style={{padding:'5px', background:'#fff', borderRadius:'3px'}}>
+                                    <div style={{fontSize:'10px', fontWeight:'bold', marginBottom:'3px', borderBottom:'1px solid #eee'}}>DIREITA</div>
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginBottom:'5px'}}>
+                                        <input type="checkbox" name="checkUtDir" checked={!!data.checkUtDir} onChange={handleChange} /> Incluir
+                                    </label>
+                                    <DopplerInput label="IP" name="utDirIP" value={data.utDirIP} onChange={handleChange} />
+                                    <DopplerInput label="IR" name="utDirIR" value={data.utDirIR} onChange={handleChange} />
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginTop:'2px', color:'#D32F2F'}}>
+                                        <input type="checkbox" name="utDirIncisura" checked={!!data.utDirIncisura} onChange={handleChange} /> Incisura P.
+                                    </label>
+                                </div>
+
+                                {/* Uterina Esquerda */}
+                                <div style={{padding:'5px', background:'#fff', borderRadius:'3px'}}>
+                                    <div style={{fontSize:'10px', fontWeight:'bold', marginBottom:'3px', borderBottom:'1px solid #eee'}}>ESQUERDA</div>
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginBottom:'5px'}}>
+                                        <input type="checkbox" name="checkUtEsq" checked={!!data.checkUtEsq} onChange={handleChange} /> Incluir
+                                    </label>
+                                    <DopplerInput label="IP" name="utEsqIP" value={data.utEsqIP} onChange={handleChange} />
+                                    <DopplerInput label="IR" name="utEsqIR" value={data.utEsqIR} onChange={handleChange} />
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginTop:'2px', color:'#D32F2F'}}>
+                                        <input type="checkbox" name="utEsqIncisura" checked={!!data.utEsqIncisura} onChange={handleChange} /> Incisura P.
                                     </label>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Umbilicais */}
-                        <div className="doppler-group">
-                            <div className="doppler-title">
-                                <input type="checkbox" name="checkUmb" checked={!!data.checkUmb} onChange={handleChange} /> 
-                                Artérias Umbilicais
-                            </div>
-                            <div style={{paddingLeft: '10px'}}>
-                                <MetricLine label="IP" checkName="checkUmbIP" checkValue={data.checkUmbIP} inputName="umbIP" inputValue={data.umbIP} onChange={handleChange} />
-                                <MetricLine label="IR" checkName="checkUmbIR" checkValue={data.checkUmbIR} inputName="umbIR" inputValue={data.umbIR} onChange={handleChange} />
-                                <MetricLine label="S/D" checkName="checkUmbSD" checkValue={data.checkUmbSD} inputName="umbSD" inputValue={data.umbSD} onChange={handleChange} />
-                                
-                                <div className="laudo-col" style={{marginTop: '5px', gap:'2px', fontSize:'11px'}}>
-                                    <label><input type="checkbox" name="umbTraçadoNormal" checked={!!data.umbTraçadoNormal} onChange={handleChange} /> Traçado normal</label>
-                                    <label style={{color:'#D32F2F'}}><input type="checkbox" name="umbDiastoleZero" checked={!!data.umbDiastoleZero} onChange={handleChange} /> Diástole Zero</label>
-                                    <label style={{color:'#D32F2F'}}><input type="checkbox" name="umbDiastoleReversa" checked={!!data.umbDiastoleReversa} onChange={handleChange} /> Diástole Reversa</label>
+                            {/* Resultado IP Médio */}
+                            {data.ipMedioUterinas && (
+                                <div style={{marginTop:'8px', textAlign:'center', background:'#FFF', padding:'4px', borderRadius:'3px', border:'1px solid #BBDEFB', color:'#1565C0', fontWeight:'bold', fontSize:'11px'}}>
+                                    IP Médio: {data.ipMedioUterinas}
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* COLUNA DIREITA: Uterina Esq e ACM */}
-                    <div className="laudo-col" style={{gap: '15px'}}>
-                         
-                         {/* Uterina Esquerda */}
-                         <div className="doppler-group">
-                            <div className="doppler-title">
-                                <input type="checkbox" name="checkUtEsq" checked={!!data.checkUtEsq} onChange={handleChange} /> 
-                                Artéria Uterina Esquerda
+                    {/* COLUNA 2: COMPARTIMENTO FETAL (UMBILICAL/CEREBRAL) */}
+                    <div className="laudo-col">
+                        <div style={{background:'#F1F8E9', padding:'8px', borderRadius:'4px', border:'1px solid #C5E1A5'}}>
+                            <div style={{fontSize:'11px', fontWeight:'bold', color:'#33691E', marginBottom:'5px', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                                <span style={{display:'flex', gap:'5px', alignItems:'center'}}><FaBaby /> VASOS FETAIS</span>
+                                <button onClick={() => setShowModalVPS(true)} style={{fontSize:'9px', background:'#fff', border:'1px solid #aaa', borderRadius:'3px', cursor:'pointer', display:'flex', alignItems:'center', gap:'3px'}}>
+                                    <FaTable /> Tabela
+                                </button>
                             </div>
-                            <div style={{paddingLeft: '10px'}}>
-                                <MetricLine label="IP" checkName="checkUtEsqIP" checkValue={data.checkUtEsqIP} inputName="utEsqIP" inputValue={data.utEsqIP} onChange={handleChange} />
-                                <MetricLine label="IR" checkName="checkUtEsqIR" checkValue={data.checkUtEsqIR} inputName="utEsqIR" inputValue={data.utEsqIR} onChange={handleChange} />
-                                <div style={{marginTop: '3px'}}>
-                                    <label className="laudo-checkbox-label" style={{fontSize:'10px'}}>
-                                        <input type="checkbox" name="utEsqIncisura" checked={!!data.utEsqIncisura} onChange={handleChange} /> 
-                                        Incisura protodiastólica
+
+                            <div className="laudo-grid-2" style={{gap:'10px'}}>
+                                {/* Umbilical */}
+                                <div style={{padding:'5px', background:'#fff', borderRadius:'3px'}}>
+                                    <div style={{fontSize:'10px', fontWeight:'bold', marginBottom:'3px', borderBottom:'1px solid #eee'}}>UMBILICAL</div>
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginBottom:'5px'}}>
+                                        <input type="checkbox" name="checkUmb" checked={!!data.checkUmb} onChange={handleChange} /> Incluir
+                                    </label>
+                                    <DopplerInput label="IP" name="umbIP" value={data.umbIP} onChange={handleChange} />
+                                    <DopplerInput label="IR" name="umbIR" value={data.umbIR} onChange={handleChange} />
+                                    <DopplerInput label="S/D" name="umbSD" value={data.umbSD} onChange={handleChange} />
+                                    
+                                    <div style={{fontSize:'9px', color:'#D32F2F', display:'flex', flexDirection:'column', marginTop:'2px'}}>
+                                        <label><input type="checkbox" name="umbDiastoleZero" checked={!!data.umbDiastoleZero} onChange={handleChange} /> Diástole 0</label>
+                                        <label><input type="checkbox" name="umbDiastoleReversa" checked={!!data.umbDiastoleReversa} onChange={handleChange} /> Reversa</label>
+                                    </div>
+                                </div>
+
+                                {/* Cerebral */}
+                                <div style={{padding:'5px', background:'#fff', borderRadius:'3px'}}>
+                                    <div style={{fontSize:'10px', fontWeight:'bold', marginBottom:'3px', borderBottom:'1px solid #eee'}}>CEREBRAL M.</div>
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginBottom:'5px'}}>
+                                        <input type="checkbox" name="checkAcm" checked={!!data.checkAcm} onChange={handleChange} /> Incluir
+                                    </label>
+                                    <DopplerInput label="IP" name="acmIP" value={data.acmIP} onChange={handleChange} />
+                                    <DopplerInput label="PVS" name="acmPVS" value={data.acmPVS} onChange={handleChange} unit="cm/s" width="40px" />
+                                    
+                                    <label className="laudo-checkbox-label" style={{fontSize:'9px', marginTop:'5px', color:'#D32F2F'}}>
+                                        <input type="checkbox" name="acmDiastoleAlta" checked={!!data.acmDiastoleAlta} onChange={handleChange} /> Centralização
                                     </label>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* RESULTADO IP MÉDIO (Display) */}
-                        {data.ipMedioUterinas && (
-                            <div style={{background:'#E3F2FD', padding:'5px', borderRadius:'4px', border:'1px solid #90CAF9', textAlign:'center', marginTop:'-10px', marginBottom:'10px'}}>
-                                <span style={{fontSize:'11px', color:'#1565C0', fontWeight:'bold'}}>
-                                    IP Médio Uterinas: {data.ipMedioUterinas}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* ACM */}
-                        <div className="doppler-group" style={{position: 'relative'}}>
-                            <button 
-                                onClick={() => setShowModalVPS(true)} 
-                                style={{position: 'absolute', top: 0, right: 0, background: '#3F51B5', color: 'white', border: 'none', borderRadius: '3px', padding: '2px 6px', fontSize: '9px', cursor: 'pointer'}}
-                                title="Abrir Tabela de Velocidade"
-                            >
-                                Tabela VPS
-                            </button>
-
-                            <div className="doppler-title">
-                                <input type="checkbox" name="checkAcm" checked={!!data.checkAcm} onChange={handleChange} /> 
-                                Artéria Cerebral Média
-                            </div>
-                            <div style={{paddingLeft: '10px'}}>
-                                <MetricLine label="PVS" checkName="checkAcmPVS" checkValue={data.checkAcmPVS} inputName="acmPVS" inputValue={data.acmPVS} onChange={handleChange} unit="cm/s" />
-                                <MetricLine label="IP" checkName="checkAcmIP" checkValue={data.checkAcmIP} inputName="acmIP" inputValue={data.acmIP} onChange={handleChange} />
-                                
-                                <div className="laudo-col" style={{marginTop: '5px', gap:'2px', fontSize:'11px'}}>
-                                    <label><input type="checkbox" name="acmTraçadoNormal" checked={!!data.acmTraçadoNormal} onChange={handleChange} /> Traçado normal</label>
-                                    <label style={{color:'#D32F2F'}}><input type="checkbox" name="acmDiastoleAlta" checked={!!data.acmDiastoleAlta} onChange={handleChange} /> Vasodilatação (Centralização)</label>
+                            {/* Resultado Relação C/U */}
+                            {data.relacaoCerebroUmbilical && (
+                                <div style={{marginTop:'8px', textAlign:'center', background: parseFloat(data.relacaoCerebroUmbilical.replace(',','.')) < 1 ? '#FFEBEE' : '#FFF', padding:'4px', borderRadius:'3px', border:'1px solid #C5E1A5', color:'#33691E', fontWeight:'bold', fontSize:'11px'}}>
+                                    Rel. Cérebro/Umbilical: {data.relacaoCerebroUmbilical}
                                 </div>
-                            </div>
+                            )}
                         </div>
-
-                        {/* RELAÇÃO CÉREBRO/UMBILICAL (Display) */}
-                        {data.relacaoCerebroUmbilical && (
-                            <div style={{background: parseFloat(data.relacaoCerebroUmbilical.replace(',','.')) < 1 ? '#FFEBEE' : '#E8F5E9', padding:'5px', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center'}}>
-                                <span style={{fontSize:'11px', fontWeight:'bold', color:'#333'}}>
-                                    Relação Cérebro/Umbilical: {data.relacaoCerebroUmbilical}
-                                </span>
-                                <div style={{fontSize:'9px', color:'#666'}}>Normal &ge; 1,0</div>
-                            </div>
-                        )}
-
                     </div>
                 </div>
 
-                {/* Ducto Venoso e Aviso */}
-                <div style={{marginTop: '15px', display: 'flex', gap: '20px', alignItems: 'flex-start', borderTop:'1px solid #ddd', paddingTop:'10px'}}>
-                     <div style={{flex: 1}}>
-                        <div className="doppler-title">
+                {/* DUCTO VENOSO (Barra Inferior) */}
+                <div style={{marginTop:'10px', background:'#FAFAFA', padding:'5px 10px', borderRadius:'4px', border:'1px solid #ddd', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                        <label className="laudo-checkbox-label" style={{fontWeight:'bold', color:'#555'}}>
                             <input type="checkbox" name="checkDv" checked={!!data.checkDv} onChange={handleChange} /> 
-                            Ducto Venoso
+                            DUCTO VENOSO
+                        </label>
+                        <div style={{width:'80px'}}>
+                            <DopplerInput label="IP:" name="dvIP" value={data.dvIP} onChange={handleChange} width="50px" />
                         </div>
-                        <div style={{paddingLeft: '10px'}}>
-                            <MetricLine label="IP" checkName="checkDvIP" checkValue={data.checkDvIP} inputName="dvIP" inputValue={data.dvIP} onChange={handleChange} />
-                            <div className="laudo-col" style={{marginTop: '5px', gap:'2px', fontSize:'11px'}}>
-                                <label><input type="checkbox" name="dvTraçadoNormal" checked={!!data.dvTraçadoNormal} onChange={handleChange} /> Traçado normal</label>
-                                <label style={{color:'#D32F2F'}}><input type="checkbox" name="dvOndaAZero" checked={!!data.dvOndaAZero} onChange={handleChange} /> Onda A Zero</label>
-                                <label style={{color:'#D32F2F'}}><input type="checkbox" name="dvOndaAReversa" checked={!!data.dvOndaAReversa} onChange={handleChange} /> Onda A Reversa</label>
-                            </div>
-                        </div>
-                     </div>
-                     <div style={{flex: 1}}>
-                        <div style={{background: '#ECEFF1', padding: '8px', fontSize: '10px', color: '#546E7A', borderRadius:'4px', fontStyle:'italic'}}>
-                            Nota: Os valores de referência e cálculos (IP Médio, Rel C/U) são auxiliares. A interpretação final cabe ao médico examinador.
-                        </div>
-                     </div>
+                    </div>
+                    <div style={{display:'flex', gap:'10px', fontSize:'10px', color:'#D32F2F'}}>
+                        <label><input type="checkbox" name="dvOndaAZero" checked={!!data.dvOndaAZero} onChange={handleChange} /> Onda A Zero</label>
+                        <label><input type="checkbox" name="dvOndaAReversa" checked={!!data.dvOndaAReversa} onChange={handleChange} /> Reversa</label>
+                    </div>
                 </div>
+
             </div>
         )}
         {showModalVPS && <ModalTabelaVPS onClose={() => setShowModalVPS(false)} />}
