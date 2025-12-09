@@ -10,6 +10,14 @@ import {
 } from '../logic/obstetricCalculations';
 import { gerarRelatorioFeto, montarTextoFinal } from '../logic/obstetricTextBuilder';
 
+// --- CORREÇÃO AQUI ---
+// Adicionei montarTextoFinalMultiplo na importação abaixo:
+import { 
+    gerarRelatorioFeto, 
+    montarTextoFinal, 
+    montarTextoFinalMultiplo // <--- FALTAVA ISSO
+} from '../logic/obstetricTextBuilder';
+
 // AJUSTE 1: Adicionei valor padrão para onUpdate e initialValues para evitar crash
 export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
     
