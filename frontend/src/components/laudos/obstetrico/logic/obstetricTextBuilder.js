@@ -34,7 +34,7 @@ export const gerarRelatorioFeto = (d) => {
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
    
     // =========================================================================
-    // 1. DATAÇÃO (DUM, DPP, IG)
+    // 1. DATAÇÃO (GLOBAL - Funciona para TODOS os tipos de exame)
     // =========================================================================
     
     // --- Lógica DUM ---
@@ -97,7 +97,10 @@ export const gerarRelatorioFeto = (d) => {
             texto += `Observa-se na cavidade uterina conteúdo heterogêneo amorfo, compatível com restos ovulares (Abortamento Incompleto).\n`;
         } 
         else if (d.citarSg) {
-            texto += `Observa-se na cavidade uterina, saco gestacional de contornos regulares`;
+            // CORREÇÃO: Incluindo Localização
+            texto += `Observa-se na cavidade uterina, saco gestacional`;
+            if (d.sgLocalizacao) texto += ` de inserção ${d.sgLocalizacao}`;
+            texto += `, de contornos regulares`;
             
             // Medida do SG
             if (d.resDmsg) texto += ` medindo ${d.resDmsg} mm (DMSG)`;
@@ -135,6 +138,13 @@ export const gerarRelatorioFeto = (d) => {
 
         texto += `Anexos parauterinos normais.\n`;
 
+        // CORREÇÃO: 3D/4D DENTRO DO INICIAL
+        if (d.usar3D) {
+            texto += `\nESTUDO TRIDIMENSIONAL (3D/4D):\n`;
+            texto += `Realizada reconstrução de superfície com qualidade ${d.qualidade3D}.\n`;
+            if (d.obs3D) texto += `${d.obs3D}\n`;
+        }
+
         // --- CONCLUSÃO (INICIAL) ---
         texto += `\nImpressão diagnóstica:\n`;
         
@@ -151,7 +161,16 @@ export const gerarRelatorioFeto = (d) => {
             if (d.bcf) texto += `- Embrião vivo.\n`;
         }
 
+        // CORREÇÃO: TODAS AS FUNÇÕES DE CONCLUSÃO AGORA AQUI TAMBÉM
+        if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
+
         texto += `\nObs.:\n`;
+        
+        // Frases automáticas
+        if (d.sugereDopplerRciu) texto += `- Sob julgamento clínico seria conveniente o acompanhamento com Doppler.\n`;
+        if (d.morfoPrejudicado45mm) texto += `- Não foi possível realizar Morfológico (CCN < 45 mm).\n`;
+        if (d.sugereNipt) texto += `- Sob julgamento clínico seria conveniente o estudo genético (NIPT).\n`;
+
         if (d.embriaoNaoVisualizado && !d.sgAbortoIncompleto) {
              texto += `- Sugere-se repetir o exame em 7 a 14 dias para reavaliação evolutiva.\n`;
         }
@@ -159,9 +178,9 @@ export const gerarRelatorioFeto = (d) => {
 
         return { texto, tituloExame }; 
     }
-    
+
     // =========================================================================
-    // 3. DADOS GERAIS (2º/3º TRI)
+    // 3. CORPO DO LAUDO - GERAL (2º/3º TRI, DOPPLER, MORFO)
     // =========================================================================
     
     // CORREÇÃO: Bexiga materna agora aceita "não visualizada" se selecionada
