@@ -220,8 +220,9 @@ const LaudosPage = () => {
   };
 
   const handleSave = async () => {
-      if (!paciente || !paciente.id) return alert("Selecione um paciente.");
-      if (!medicoNome) return alert("Preencha o médico.");
+      if (!paciente) return alert("Erro: Selecione um paciente antes de salvar.");
+      if (!paciente.id) return alert("Erro: ID do paciente inválido.");
+      if (!medicoNome) return alert("Erro: Preencha o nome do médico.");
 
       setSaving(true);
       try {
@@ -241,7 +242,11 @@ const LaudosPage = () => {
           alert("Laudo salvo!");
           
       } catch (e) { 
-          alert(`Erro: ${e.message}`);
+          console.error("Erro ao salvar laudo:", e);
+          const msgErro = e.response?.data 
+            ? JSON.stringify(e.response.data, null, 2) 
+            : e.message;
+          alert(`Erro ao salvar: ${msgErro}`);
       } finally { 
           setSaving(false); 
       }
@@ -332,15 +337,21 @@ const LaudosPage = () => {
              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
                  <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '11px'}}>LAUDO FINAL</span>
                  
-                 <div style={{display: 'flex', gap: '4px'}}>
+                 {/* Container dos botões com flex-shrink para não esmagar o título */}
+                 <div style={{display: 'flex', gap: '6px', flexShrink: 0}}>
                      <input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
-                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}><FaCamera size={9}/> FOTOS</label>
+                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800', margin: 0}}><FaCamera size={10}/> FOTOS</label>
                      
-                     <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar">
-                        <FaEraser size={9}/>
+                     <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário">
+                        <FaEraser size={10}/> LIMPAR
                      </button>
-                     <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>{saving ? <FaSpinner className="spin"/> : <FaSave/>} SALVAR</button>
-                     <button onClick={handlePrint} style={{...styles.button, background: theme.primary}}><FaPrint/> PDF</button>
+
+                     <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>
+                        {saving ? <FaSpinner className="spin" size={10}/> : <FaSave size={10}/>} SALVAR
+                     </button>
+                     <button onClick={handlePrint} style={{...styles.button, background: theme.primary}}>
+                        <FaPrint size={10}/> IMPRIMIR
+                     </button>
                  </div>
              </div>
              
