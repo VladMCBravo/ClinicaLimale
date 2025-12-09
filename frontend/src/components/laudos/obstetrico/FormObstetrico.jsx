@@ -1,6 +1,11 @@
 import React from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
+// Ícones Visuais
+import { FaBaby, FaRulerCombined, FaHeartbeat, FaWaveSquare, FaNotesMedical, FaFileMedicalAlt, FaLayerGroup } from 'react-icons/fa';
+import { GiFetus, GiWaterDrop } from 'react-icons/gi';
+import { MdChildCare, MdDateRange } from 'react-icons/md';
+
 // Seções (Visual)
 import SecaoSubtipo from './sections/SecaoSubtipo';
 import SecaoDadosGerais from './sections/SecaoDadosGerais';
@@ -35,133 +40,118 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   };
 
   // Lógica para esconder seções que não fazem sentido no Transvaginal Inicial
-  const isInicial = formState.subtipo === 'OBSTETRICO_INICIAL';
-  // Estilos simples para as abas (Tailwind classes sugeridas)
-  const tabBaseClass = "px-4 py-2 text-sm font-medium rounded-t-lg cursor-pointer transition-colors border-b-2";
-  const tabActiveClass = "border-blue-600 text-blue-600 bg-blue-50";
-  const tabInactiveClass = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+  const isInicial = formState.subtipo && (formState.subtipo.includes("INICIAL") || formState.subtipo.includes("1_TRI"));
 
   return (
-    <div className="flex flex-col gap-3 pb-4">
+    <div className="flex flex-col gap-4 pb-8">
       
-      {/* 1. SELEÇÃO DE TIPO DE GESTAÇÃO E SUBTIPO */}
-      <div className="bg-white p-3 rounded shadow-sm border border-gray-200">
-          <SecaoSubtipo {...commonProps} />
-          
-          <div className="mt-4 flex items-center gap-4 border-t pt-3">
-              <span className="text-sm font-bold text-gray-700">Tipo de Gestação:</span>
-              <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleChangeQtdFetos(1)}
-                    className={`px-3 py-1 rounded border ${qtdFetos === 1 ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
-                  >
-                      Única
-                  </button>
-                  <button 
-                    onClick={() => handleChangeQtdFetos(2)}
-                    className={`px-3 py-1 rounded border ${qtdFetos === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
-                  >
-                      Gemelar
-                  </button>
-                  <button 
-                    onClick={() => handleChangeQtdFetos(3)}
-                    className={`px-3 py-1 rounded border ${qtdFetos === 3 ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
-                  >
-                      Trigemelar
-                  </button>
+      {/* 1. CABEÇALHO PRINCIPAL (Card Moderno) */}
+      <div className="laudo-section" style={{borderLeft: '4px solid #4A3B80'}}>
+          <div className="laudo-section-body">
+              <div className="flex justify-between items-center">
+                  <div className="flex flex-col gap-2 w-full">
+                      <div className="flex items-center gap-2 text-purple-800 font-bold uppercase text-xs mb-1">
+                          <FaFileMedicalAlt /> Configuração do Exame
+                      </div>
+                      <SecaoSubtipo {...commonProps} />
+                  </div>
+              </div>
+              
+              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-4">
+                  <span className="text-xs font-bold text-gray-600 flex items-center gap-1">
+                      <FaLayerGroup /> Tipo de Gestação:
+                  </span>
+                  <div className="flex gap-2">
+                      {[1, 2, 3].map(qtd => (
+                          <button 
+                            key={qtd}
+                            onClick={() => handleChangeQtdFetos(qtd)}
+                            className={`px-3 py-1 rounded text-xs font-bold transition-all ${
+                                qtdFetos === qtd 
+                                ? 'bg-purple-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                          >
+                              {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Trigemelar'}
+                          </button>
+                      ))}
+                  </div>
               </div>
           </div>
       </div>
 
-      {/* 2. BARRA DE ABAS (Só aparece se for múltipla) */}
+      {/* 2. ABAS DE NAVEGAÇÃO ENTRE FETOS (Visual Pasta Física) */}
       {qtdFetos > 1 && (
-          <div className="flex border-b border-gray-200 mt-2 bg-white rounded-t">
-              <div 
-                  className={`${tabBaseClass} ${fetoAtivo === 1 ? tabActiveClass : tabInactiveClass}`}
-                  onClick={() => handleTabChange(1)}
-              >
-                  Feto A
-              </div>
-              <div 
-                  className={`${tabBaseClass} ${fetoAtivo === 2 ? tabActiveClass : tabInactiveClass}`}
-                  onClick={() => handleTabChange(2)}
-              >
-                  Feto B
-              </div>
-              {qtdFetos === 3 && (
+          <div>
+              <div className="gemelar-tabs-container">
                   <div 
-                      className={`${tabBaseClass} ${fetoAtivo === 3 ? tabActiveClass : tabInactiveClass}`}
-                      onClick={() => handleTabChange(3)}
+                      className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`}
+                      onClick={() => handleTabChange(1)}
                   >
-                      Feto C
+                      <FaBaby style={{marginRight:4}}/> Feto I (A)
                   </div>
-              )}
+                  <div 
+                      className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`}
+                      onClick={() => handleTabChange(2)}
+                  >
+                      <FaBaby style={{marginRight:4}}/> Feto II (B)
+                  </div>
+                  {qtdFetos === 3 && (
+                      <div 
+                          className={`gemelar-tab ${fetoAtivo === 3 ? 'active' : ''}`}
+                          onClick={() => handleTabChange(3)}
+                      >
+                          <FaBaby style={{marginRight:4}}/> Feto III (C)
+                      </div>
+                  )}
+              </div>
           </div>
       )}
 
-      {/* 3. CONTEÚDO DO FORMULÁRIO (Renderiza o Feto Ativo) */}
-      {/* Container com cor diferente nas bordas para indicar que é uma aba */}
-      <div className={`flex flex-col gap-3 ${qtdFetos > 1 ? 'border-l-4 border-blue-500 pl-2' : ''}`}>
+      {/* 3. CONTEÚDO DO FORMULÁRIO (Wrapper da Aba) */}
+      {/* Se for gemelar, aplicamos a classe tab-content-wrapper para fechar a caixa da aba */}
+      <div className={qtdFetos > 1 ? "tab-content-wrapper" : ""}>
         
-        {/* Aviso visual de qual feto está editando */}
+        {/* Aviso visual discreto */}
         {qtdFetos > 1 && (
-            <div className="bg-blue-50 p-2 text-xs text-blue-800 font-bold uppercase mb-[-8px]">
-                Editando dados do Feto {fetoAtivo === 1 ? 'A' : fetoAtivo === 2 ? 'B' : 'C'}
+            <div className="mb-4 p-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
+                <MdChildCare size={14}/>
+                Editando dados do Feto {fetoAtivo === 1 ? 'I' : fetoAtivo === 2 ? 'II' : 'III'}
             </div>
         )}
 
-      {/* DATAÇÃO (DUM, DPP, IG) */}
-      {/* "DPP: 17/06/2026..." - Primeira linha do texto */}
-      <SecaoDatacao {...commonProps} />
-      
-      {/* DADOS GERAIS (Bexiga, Situação, Apresentação) */}
-      {/* "Bexiga materna não visualizada..." - Segunda linha do texto */}
-      <SecaoDadosGerais {...commonProps} qtdFetos={qtdFetos} // <--- ADICIONE ESTA LINHA
-/>
+        {/* --- SEÇÕES LÓGICAS --- */}
+        
+        {/* Datação (Ícone Calendário) */}
+        <SecaoDatacao {...commonProps} icon={<MdDateRange />} />
+        
+        {/* Dados Gerais (Ícone Feto) */}
+        <SecaoDadosGerais {...commonProps} icon={<GiFetus />} />
 
-      {/* --- SEÇÕES EXCLUSIVAS DE INICIAL/1º TRI --- */}
-      {formState.subtipo && formState.subtipo.includes("INICIAL") && (
-          <SecaoSacoGestacional {...commonProps} />
-      )}
+        {/* Condicionais de Inicial */}
+        {formState.subtipo && formState.subtipo.includes("INICIAL") && (
+            <SecaoSacoGestacional {...commonProps} />
+        )}
 
-      {formState.subtipo && formState.subtipo.includes("1_TRI") && (
-          <SecaoEmbriao {...commonProps} />
-      )}
-      
-      {/* --- SEÇÕES EXCLUSIVAS DE 2º/3º TRI (Esconder se for inicial) --- */}
-      
-      {/* Placenta e Líquido - Geralmente não se descreve ILA/Grannum em SG incipiente */}
-      {!isInicial && (
-        <SecaoPlacentaLiquido 
-    {...commonProps} 
-    qtdFetos={qtdFetos} // <--- NÃO ESQUEÇA DE ADICIONAR ISSO
-/>
-      )}
+        {formState.subtipo && formState.subtipo.includes("1_TRI") && (
+            <SecaoEmbriao {...commonProps} />
+        )}
+        
+        {!isInicial && (
+            <>
+                <SecaoPlacentaLiquido {...commonProps} icon={<GiWaterDrop />} />
+                <SecaoBiometria {...commonProps} icon={<FaRulerCombined />} />
+                <SecaoMorfologia {...commonProps} icon={<FaCheckSquare />} />
+                <SecaoDoppler {...commonProps} icon={<FaWaveSquare />} />
+            </>
+        )}
 
-      {/* Biometria - Não tem Fêmur/BPD em SG de 6 semanas */}
-      {!isInicial && (
-        <SecaoBiometria {...commonProps} />
-      )}
+        <Secao3D {...commonProps} icon={<FaBaby />} />
+        
+        <SecaoConclusao {...commonProps} icon={<FaNotesMedical />} />
 
-      {/* Morfologia - Não vê rins/estômago em SG incipiente */}
-      {!isInicial && (
-        <SecaoMorfologia {...commonProps} />
-      )}
-
-      {/* Doppler - Não se faz uterina/umbilical em rotina inicial */}
-      {!isInicial && (
-        <SecaoDoppler {...commonProps} />
-      )}
-
-      {/* 3D sempre pode aparecer se quiser */}
-      <Secao3D {...commonProps} />
-
-      {/* Conclusão adaptada */}
-      <SecaoConclusao {...commonProps} />
-
+      </div>
     </div>
-  </div>
-  
   );
 };
 

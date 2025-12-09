@@ -535,44 +535,61 @@ const LaudosPage = () => {
 
       {/* Direita: Resultado e Ações */}
       <div style={styles.rightCol}>
-         <div style={{...styles.card, height: '100%', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden'}}> 
+         <div style={{...styles.card, height: '100%', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden', border: 'none', boxShadow: 'none'}}> 
              
-             {/* Header Super Compacto */}
-             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', borderBottom: `1px solid ${theme.border}`, background: '#f8f9fa'}}>
-                 <span style={{fontWeight: 'bold', color: theme.primary, fontSize: '11px'}}>LAUDO FINAL</span>
+             {/* BARRA DE AÇÕES (TOPO FIXO) */}
+             <div style={{
+                 padding: '8px 10px', 
+                 background: '#fff', 
+                 borderBottom: '1px solid #ddd',
+                 display: 'flex', 
+                 justifyContent: 'space-between',
+                 alignItems: 'center',
+                 boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                 zIndex: 10
+             }}>
+                 <div style={{fontWeight: 'bold', color: '#1C2E4A', fontSize: '13px', display:'flex', alignItems:'center', gap:'5px'}}>
+                     <FaFileAlt /> PRÉVIA DO LAUDO
+                 </div>
                  
-                 {/* Container dos botões */}
-                 <div style={{display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center'}}>
-                     <input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
-                     
-                     {/* Botão FOTOS corrigido */}
-                     <label htmlFor="img-upload" style={{...styles.button, background: '#FF9800'}}>
-                        <FaCamera size={10}/> FOTOS
-                     </label>
-
-                     {/* Botão TERMO (NOVO) */}
-                     <button onClick={handleImprimirTermo} style={{...styles.button, background: '#607D8B'}} title="Imprimir Termo de Consentimento">
-                        <FaFileSignature size={10}/> TERMO
+                 <div style={{display: 'flex', gap: '8px'}}>
+                     {/* Botões com ícones e cores semânticas */}
+                     <button onClick={handleLimpar} className="btn-action btn-danger" title="Limpar tudo">
+                        <FaEraser />
                      </button>
-                     
-                     <button onClick={handleLimpar} style={{...styles.button, background: '#D32F2F'}} title="Limpar formulário">
-                        <FaEraser size={10}/> LIMPAR
+                     <button onClick={handleImprimirTermo} className="btn-action btn-secondary" title="Termo">
+                        <FaFileSignature /> Termo
                      </button>
-
-                     <button onClick={handleSave} disabled={saving} style={{...styles.button, background: saving ? '#ccc' : theme.accent}}>
-                        {saving ? <FaSpinner className="spin" size={10}/> : <FaSave size={10}/>} SALVAR
+                     <button onClick={handleSave} className="btn-action btn-success" title="Salvar no Sistema">
+                        {saving ? <FaSpinner className="spin"/> : <FaSave />} Salvar
                      </button>
-                     <button onClick={handlePrint} style={{...styles.button, background: theme.primary}}>
-                        <FaPrint size={10}/> IMPRIMIR
+                     <button onClick={handlePrint} className="btn-action btn-primary" title="Gerar PDF">
+                        <FaPrint /> Imprimir
                      </button>
                  </div>
              </div>
              
-             <textarea 
-                 value={textoFinal} 
-                 onChange={(e) => setTextoFinal(e.target.value)}
-                 style={{ flex: 1, border: 'none', padding: '8px', resize: 'none', outline: 'none', fontFamily: 'Times New Roman, serif', fontSize: '12px', lineHeight: '1.3', color: '#000', background: '#fff' }}
-             />
+             {/* ÁREA DE TEXTO (SCROLLÁVEL) */}
+             <div style={{flex: 1, padding: '15px', overflowY: 'auto', background: '#F5F5F5'}}>
+                 <textarea 
+                     value={textoFinal} 
+                     onChange={(e) => setTextoFinal(e.target.value)}
+                     style={{ 
+                         width: '100%', 
+                         height: '100%', 
+                         border: '1px solid #ccc', 
+                         padding: '20px', // Mais respiro (padding de papel)
+                         resize: 'none', 
+                         outline: 'none', 
+                         fontFamily: '"Times New Roman", Times, serif', // Fonte de laudo impresso
+                         fontSize: '14px', // Leitura melhor
+                         lineHeight: '1.5', 
+                         color: '#000', 
+                         background: '#fff',
+                         boxShadow: '0 2px 5px rgba(0,0,0,0.1)' // Efeito de folha de papel
+                     }}
+                 />
+             </div>
 
              {imagens.length > 0 && (
                  <div style={{padding: '5px', borderTop: `1px solid ${theme.border}`, background: '#f1f1f1', maxHeight: '120px', overflowY: 'auto'}}>

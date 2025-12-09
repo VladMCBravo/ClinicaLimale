@@ -1,199 +1,166 @@
 /* src/components/laudos/Laudos.css */
 
-/* --- CONTAINER GERAL --- */
-.laudo-container {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 11px;
-  color: #333;
-  width: 100%;
-  box-sizing: border-box;
+/* --- VARIÁVEIS DE TEMA --- */
+:root {
+  --cor-primary: #2C3E50;
+  --cor-accent: #27AE60; /* Verde médico */
+  --cor-blue: #2980B9;
+  --cor-red: #C0392B;
+  --bg-input: #FDFDFD;
+  --border-radius: 6px;
+  --shadow-card: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-/* --- SEÇÕES (CAIXAS) --- */
+.laudo-container {
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  font-size: 11px;
+  color: #444;
+  padding: 5px;
+}
+
+/* --- ESTILO DE "CARD" MODERNO (Substitui o bloco sólido) --- */
 .laudo-section {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background-color: #fff;
-  margin-bottom: 5px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 12px;
   overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.laudo-section:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
 }
 
 .laudo-section-body {
-  padding: 8px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* --- CABEÇALHOS --- */
+/* --- CABEÇALHOS COM ÍCONES --- */
 .header-base {
-  padding: 3px 8px;
-  font-weight: bold;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: white;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 
-.header-purple { background-color: #4A3B80; } /* Subtipo */
-.header-green { background-color: #2E7D32; }  /* Padrão (Biometria, etc) */
-.header-blue { background-color: #1565C0; }   /* Doppler Ativo */
-.header-gray { background-color: #757575; }   /* Doppler Inativo */
+/* Cores Gradientes para modernizar */
+.header-green { background: linear-gradient(135deg, #2E7D32, #43A047); }
+.header-blue { background: linear-gradient(135deg, #1565C0, #1E88E5); }
+.header-purple { background: linear-gradient(135deg, #4A3B80, #673AB7); }
+.header-red { background: linear-gradient(135deg, #C62828, #E53935); }
+.header-gray { background: #9E9E9E; }
 
-/* --- INPUTS E CONTROLES --- */
-.laudo-input {
-  border: 1px solid #aaa;
-  border-radius: 2px;
-  padding: 2px 4px;
+/* --- INPUTS MAIS BONITOS --- */
+.laudo-input, .laudo-select {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0 8px;
+  height: 26px; /* Um pouco mais alto para clique fácil */
   font-size: 11px;
-  height: 22px; /* Altura fixa para alinhar */
+  background-color: var(--bg-input);
+  transition: border 0.2s;
+  color: #333;
 }
 
-.laudo-select {
-  border: 1px solid #aaa;
-  border-radius: 2px;
-  padding: 1px;
-  font-size: 11px;
-  height: 22px;
+.laudo-input:focus, .laudo-select:focus {
+  border-color: var(--cor-blue);
   background-color: #fff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(41, 128, 185, 0.1);
 }
 
-.laudo-input-small { width: 40px; text-align: center; }
-.laudo-input-date { width: 110px; }
+.laudo-input-small { width: 50px; text-align: center; }
+.full-width { width: 100%; }
 
-/* --- GRIDS E LAYOUTS --- */
-.laudo-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.laudo-col { display: flex; flex-direction: column; gap: 4px; }
-.laudo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.laudo-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-
-/* --- ELEMENTOS ESPECÍFICOS --- */
-.laudo-checkbox-label {
+/* --- ABAS DE PASTA (ESTILO HTML CLÁSSICO / FÍSICO) --- */
+.gemelar-tabs-container {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.laudo-info-box {
-  background-color: #F5F5F5;
-  border: 1px solid #ddd;
-  padding: 8px;
-  border-radius: 3px;
-}
-
-/* --- ABAS GEMELAR --- */
-.gemelar-tabs {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 5px;
-  padding: 0 2px;
+  align-items: flex-end;
+  padding-left: 10px;
+  border-bottom: 2px solid #ccc; /* Linha base da pasta */
+  margin-bottom: 0; /* Cola no conteúdo */
 }
 
 .gemelar-tab {
-  flex: 1;
-  padding: 6px;
-  text-align: center;
-  background: #e0e0e0;
+  padding: 6px 20px;
+  margin-right: 2px;
+  background: #f1f1f1;
   border: 1px solid #ccc;
   border-bottom: none;
-  border-radius: 4px 4px 0 0;
+  border-radius: 8px 8px 0 0; /* Arredondado só em cima */
   cursor: pointer;
   font-weight: bold;
-  color: #666;
+  color: #777;
+  font-size: 12px;
+  position: relative;
+  top: 2px; /* Empurra para baixo para a linha cobrir */
+  transition: all 0.2s;
+}
+
+.gemelar-tab:hover {
+  background: #e9e9e9;
+  color: #333;
 }
 
 .gemelar-tab.active {
   background: #fff;
-  border-top: 3px solid #2E7D32; /* Verde destaque */
-  color: #2E7D32;
-  border-bottom: 1px solid #fff; /* Conecta com o conteúdo */
-  margin-bottom: -1px;
-  z-index: 1;
+  color: var(--cor-blue);
+  border-top: 3px solid var(--cor-blue); /* Destaque no topo */
+  border-bottom: 2px solid #fff; /* "Apaga" a linha de baixo para conectar */
+  z-index: 2;
+  top: 2px;
+  padding-bottom: 8px; /* Compensa o empurrão */
 }
 
-/* --- BIOMETRIA ESPECÍFICO --- */
-.bio-row {
+/* Container do conteúdo da aba ativa */
+.tab-content-wrapper {
+  background: #fff;
+  border: 1px solid #ccc; /* Fecha a caixa da pasta */
+  border-top: none; /* Já tem a linha das abas */
+  padding: 15px;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+/* --- ÍCONES E DETALHES VISUAIS --- */
+.input-icon-group {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 5px;
+}
+.input-unit {
+  position: absolute;
+  right: 5px;
+  color: #888;
+  font-size: 9px;
+  pointer-events: none;
+}
+
+/* --- RESPONSIVIDADE DE GRID --- */
+.laudo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.laudo-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+/* CHECKBOXES ESTILIZADOS */
+.laudo-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
   padding: 2px 0;
-  border-bottom: 1px dotted #eee;
 }
 
-/* O Checkbox da Esquerda (Estilo Botão) */
-.bio-check-left {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 1px solid #aaa;
-  border-radius: 2px;
-  cursor: pointer;
-  display: grid;
-  place-content: center;
-  background-color: #fff;
-}
-
-.bio-check-left::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  transform: scale(0);
-  background-color: white;
-  transform-origin: center;
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-}
-
-.bio-check-left:checked {
-  background-color: #1565C0; /* Azul forte */
-  border-color: #1565C0;
-}
-
-.bio-check-left:checked::before {
-  transform: scale(1);
-}
-
-/* Label do Campo (DBP, CC...) */
-.bio-label {
-  font-weight: bold;
-  font-size: 11px;
-  width: 40px; /* Largura fixa para alinhar */
-  color: #333;
-}
-
-/* Input de mm */
-.bio-input {
-  width: 45px;
-  text-align: center;
-  font-weight: bold;
-  color: #C62828; /* Vermelho igual ao vídeo */
-  border: 1px solid #ccc;
-  height: 20px;
-}
-
-.bio-input:disabled {
-  background-color: #f0f0f0;
-  color: #999;
-}
-
-/* Texto da IG Calculada */
-.bio-ig-display {
-  font-size: 10px;
-  font-weight: bold;
-  color: #333;
-  margin-left: 5px;
-  width: 60px;
-}
-
-/* Checkbox da Direita (Incluir) */
-.bio-check-include-label {
-  font-size: 10px;
-  color: #555;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: auto; /* Empurra para a direita */
-  cursor: pointer;
+.laudo-checkbox-label input[type="checkbox"] {
+  accent-color: var(--cor-accent);
+  width: 14px;
+  height: 14px;
 }
