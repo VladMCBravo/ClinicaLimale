@@ -12,8 +12,8 @@ import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCaro
 
 import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 
-// --- CONFIGURAÇÕES VISUAIS (Fora do componente para não recriar a cada render) ---
-const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F4F6F8', surface: '#FFFFFF', border: '#E0E0E0' };
+// --- TEMA E ESTILOS ---
+const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F0F2F5', border: '#D1D5DB' };
 
 const styles = {
   container: { 
@@ -21,120 +21,84 @@ const styles = {
       background: theme.bg, 
       height: '100vh', 
       overflow: 'hidden', 
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
-      fontSize: '10px', 
+      fontFamily: "'Segoe UI', Roboto, sans-serif", 
+      fontSize: '11px', 
       color: '#333' 
   },
   leftCol: { 
       flex: 2, 
-      minWidth: '680px', 
+      minWidth: '700px', 
       height: '100%', 
       overflowY: 'auto', 
-      padding: '5px', 
-      borderRight: `1px solid ${theme.border}`, 
+      padding: '10px', 
       display: 'flex', 
       flexDirection: 'column', 
-      gap: '5px', 
-      background: '#fff' 
+      gap: '10px',
+      background: '#fff',
+      borderRight: '1px solid #ddd'
   },
   rightCol: { 
       flex: 1, 
-      minWidth: '350px', 
+      minWidth: '400px', 
       height: '100%', 
-      padding: '5px', 
+      padding: '10px', 
       display: 'flex', 
       flexDirection: 'column', 
-      overflowY: 'auto', 
       background: theme.bg 
   },
+  // Card Genérico mais limpo
   card: { 
       background: '#fff', 
-      borderRadius: '4px', 
+      borderRadius: '6px', 
       border: `1px solid ${theme.border}`, 
-      padding: '6px', 
-      boxShadow: '0 1px 2px rgba(0,0,0,0.05)' 
+      padding: '10px', 
+      boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+      marginBottom: '5px'
   },
-  header: { 
-      fontSize: '11px', 
-      fontWeight: 'bold', 
-      color: theme.primary, 
-      marginBottom: '4px', 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '5px', 
-      textTransform: 'uppercase', 
-      letterSpacing: '0.5px' 
-  },
-  inputControl: { 
-      width: '100%', 
-      padding: '2px 6px', 
-      fontSize: '11px', 
-      borderRadius: '2px', 
-      border: '1px solid #aaa', 
-      height: '22px', 
-      fontWeight: 'bold', 
-      color: theme.primary, 
-      outline: 'none' 
-  },
-  button: { 
-      background: theme.accent, 
-      color: 'white', 
-      border: 'none', 
-      padding: '0 8px', // Ajustado para centralizar verticalmente melhor com flex
-      borderRadius: '3px', 
-      cursor: 'pointer', 
-      fontWeight: 'bold', 
-      fontSize: '9px', 
-      display: 'inline-flex', // Garante comportamento flex inline
-      alignItems: 'center',   // Centraliza ícone e texto verticalmente
-      justifyContent: 'center',
-      gap: '4px',
-      height: '22px',
-      boxSizing: 'border-box', // Importante para que padding não aumente o tamanho total
-      lineHeight: '1',         // Remove espaçamento extra de fonte
+  // Labels modernos
+  label: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '5px',
+      fontSize: '10px',
+      fontWeight: 'bold',
+      color: '#555',
+      marginBottom: '4px',
       textTransform: 'uppercase'
   },
-  imagePreviewGrid: { 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(4, 1fr)', 
-      gap: '4px', 
-      marginTop: '5px', 
-      padding: '5px', 
-      background: '#eee', 
-      borderRadius: '4px' 
+  // Inputs Padronizados para não vazarem
+  input: { 
+      width: '100%', 
+      padding: '6px 8px', 
+      fontSize: '12px', 
+      borderRadius: '4px', 
+      border: '1px solid #ccc', 
+      height: '30px', 
+      color: '#333', 
+      outline: 'none',
+      boxSizing: 'border-box', // O Segredo para não vazar
+      transition: 'border 0.2s'
   },
-  thumbContainer: { 
-      position: 'relative', 
-      aspectRatio: '1', 
-      overflow: 'hidden', 
-      borderRadius: '3px', 
-      border: '1px solid #ccc' 
-  },
+  // Dropdown de sugestões
   dropdownList: {
       position: 'absolute',
-      top: '24px', 
+      top: '32px', 
       left: 0,
       right: 0,
       background: 'white',
       border: '1px solid #ccc',
-      zIndex: 9999, 
-      maxHeight: '150px',
+      borderRadius: '0 0 4px 4px',
+      zIndex: 100, 
+      maxHeight: '180px',
       overflowY: 'auto',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)', 
-      fontSize: '10px'
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
   },
   dropdownItem: {
-      padding: '6px 8px',
+      padding: '8px 10px',
       cursor: 'pointer',
       borderBottom: '1px solid #eee',
+      fontSize: '11px',
       color: '#333'
-  },
-  // CORREÇÃO VISUAL: Grid layout para a linha do médico
-  medicoRow: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 100px', // 1 fração para nome, 100px fixos para CRM
-      gap: '5px',
-      alignItems: 'center'
   }
 };
 
@@ -177,39 +141,22 @@ const LaudosPage = () => {
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   const [saving, setSaving] = useState(false);
 
-  // CORREÇÃO DO ERRO DE CARREGAMENTO (A.sort is not a function)
+  // Carrega Médicos
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
             const res = await apiClient.get('/usuarios/?cargo=medico');
-            console.log("Resposta API Médicos:", res.data); // Debug para você ver no console
-            
-            // Verifica se veio paginado (results) ou lista direta
             let listaRaw = [];
-            if (Array.isArray(res.data)) {
-                listaRaw = res.data;
-            } else if (res.data && Array.isArray(res.data.results)) {
-                listaRaw = res.data.results;
-            } else {
-                console.warn("Formato inesperado na resposta de médicos:", res.data);
-                listaRaw = []; // Evita o crash do .sort
-            }
-
-            // Ordenação segura
+            if (Array.isArray(res.data)) listaRaw = res.data;
+            else if (res.data && Array.isArray(res.data.results)) listaRaw = res.data.results;
+            
             const listaOrdenada = listaRaw.sort((a, b) => {
                 const nomeA = a.first_name || a.username || "";
                 const nomeB = b.first_name || b.username || "";
                 return nomeA.localeCompare(nomeB);
             });
-
             setTodosMedicos(listaOrdenada);
-        } catch (e) {
-            console.error("Erro CRÍTICO ao carregar lista de médicos:", e);
-            // Se for erro de permissão (403), avisa no console
-            if (e.response && e.response.status === 403) {
-                console.error("ERRO 403: Usuário logado não tem permissão para listar médicos.");
-            }
-        }
+        } catch (e) { console.error("Erro lista médicos:", e); }
     };
     carregarMedicos();
   }, []);
@@ -443,89 +390,109 @@ const LaudosPage = () => {
 
   return (
     <div style={styles.container}>
-      {/* Esquerda: Formulários e Controles */}
+      
+      {/* ================= COLUNA ESQUERDA (INPUTS) ================= */}
       <div style={styles.leftCol}>
         
-        {/* Linha Superior Compacta: Tipo + Médico */}
-        <div style={{display: 'flex', gap: '5px'}}>
-            <div style={{...styles.card, flex: 1}}>
-                <div style={styles.header}><FaFileAlt /> Tipo</div>
-                <select value={tipoExame} onChange={(e) => setTipoExame(e.target.value)} style={styles.inputControl}>
-                    <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
-                    <option value="OBSTETRICO">Obstétrico</option>
-                    <option value="TRANSVAGINAL">Transvaginal</option>
-                    <option value="ABDOME">Abdome Total</option>
-                    <option value="DOPPLER_CAROTIDAS">Doppler Carótidas</option> 
-                </select>
-            </div>
-
-            <div style={{...styles.card, flex: 2}}>
-                <div style={styles.header}><FaUserMd /> Médico</div>
-                <div style={{display:'flex', gap:'5px', position: 'relative'}}>
-                    {/* Campo de Busca de Médico unificado (Estilo Paciente) */}
-                    <div style={{flex: 2, position: 'relative'}}>
+        {/* CARD DE IDENTIFICAÇÃO (PACIENTE + EXAME + MÉDICO) */}
+        <div style={styles.card}>
+            
+            {/* LINHA 1: PACIENTE (FULL WIDTH) */}
+            <div style={{marginBottom: '10px'}}>
+                <div style={styles.label}><FaUserInjured color="#1C2E4A"/> PACIENTE</div>
+                {paciente ? (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: '#E8F5E9', border: '1px solid #2E7D32', borderRadius: '4px',
+                        padding: '0 10px', height: '30px'
+                    }}>
+                        <span style={{fontWeight: 'bold', color: '#1B5E20', fontSize: '13px'}}>
+                            {paciente.nome_completo}
+                        </span>
+                        <button 
+                            onClick={() => { setPaciente(null); setTermoBusca(''); }}
+                            style={{background:'none', border:'none', color:'#C62828', cursor:'pointer', fontWeight:'bold'}}
+                        >
+                            X
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{position: 'relative'}}>
                         <input 
-                            placeholder="Digite o nome do médico..."
-                            value={medicoNome}
-                            onChange={(e) => handleInputMedicoChange(e.target.value)}
-                            onFocus={() => { if(medicoNome) setMostrarListaMedicos(true); }}
-                            onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)} // Delay para permitir o clique
-                            style={{...styles.inputControl}}
+                            placeholder="Busque o paciente (mínimo 3 letras)..." 
+                            value={termoBusca} 
+                            onChange={(e) => { setTermoBusca(e.target.value); buscarPacientes(e.target.value); }} 
+                            style={styles.input} 
                         />
-                        {mostrarListaMedicos && medicosFiltrados.length > 0 && (
+                        {pacientesEncontrados.length > 0 && (
                             <div style={styles.dropdownList}>
-                                {medicosFiltrados.map(med => (
-                                    <div 
-                                        key={med.id} 
-                                        onClick={() => selecionarMedico(med)} 
-                                        style={styles.dropdownItem}
-                                    >
-                                        {med.first_name ? `${med.first_name} ${med.last_name}` : med.username}
+                                {pacientesEncontrados.map(p => (
+                                    <div key={p.id} onClick={() => { setPaciente(p); setPacientesEncontrados([]); }} style={styles.dropdownItem}>
+                                        {p.nome_completo}
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
-
-                    {/* Coluna do CRM (Flex fixo/menor) */}
-                    <div style={{flex: 1, minWidth: '80px'}}>
-                        <input 
-                            placeholder="CRM"
-                            value={medicoCrm}
-                            onChange={(e) => setMedicoCrm(e.target.value)}
-                            style={{...styles.inputControl, width: '100%'}}
-                        />
-                    </div>
-                </div>
+                )}
             </div>
-        </div>
 
-        {/* Busca de Paciente */}
-        <div style={styles.card}>
-            <div style={styles.header}><FaSearch /> Paciente</div>
-            {paciente ? (
-                <div style={{background: '#e8f5e9', padding: '0 6px', borderRadius: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6c9', height: '22px'}}>
-                    <span style={{fontWeight: 'bold', color: '#2e7d32', fontSize: '11px'}}>{paciente.nome_completo}</span>
-                    <button onClick={() => setPaciente(null)} style={{border: 'none', background: 'transparent', color: '#d32f2f', fontWeight: 'bold', cursor: 'pointer', fontSize:'10px'}}>X</button>
+            {/* LINHA 2: GRID (TIPO | MÉDICO | CRM) */}
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '10px'}}>
+                
+                {/* TIPO */}
+                <div>
+                    <div style={styles.label}><FaNotesMedical color="#1C2E4A"/> TIPO DE EXAME</div>
+                    <select 
+                        value={tipoExame} 
+                        onChange={(e) => setTipoExame(e.target.value)} 
+                        style={{...styles.input, fontWeight:'bold', color:'#1C2E4A'}}
+                    >
+                        <option value="OBSTETRICO">Obstétrico</option>
+                        <option value="TRANSVAGINAL">Transvaginal</option>
+                        <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
+                        <option value="ABDOME">Abdome Total</option>
+                        <option value="DOPPLER_CAROTIDAS">Doppler Carótidas</option> 
+                    </select>
                 </div>
-            ) : (
+
+                {/* MÉDICO */}
                 <div style={{position: 'relative'}}>
-                    <input placeholder="Digite 3 letras..." value={termoBusca} onChange={(e) => { setTermoBusca(e.target.value); buscarPacientes(e.target.value); }} style={styles.inputControl} />
-                    {pacientesEncontrados.length > 0 && (
-                        <div style={{position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 10px rgba(0,0,0,0.1)'}}>
-                            {pacientesEncontrados.map(p => (
-                                <div key={p.id} onClick={() => { setPaciente(p); setTermoBusca(''); setPacientesEncontrados([]); }} style={{padding: '4px 8px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: '10px'}}>
-                                    {p.nome_completo}
+                    <div style={styles.label}><FaUserMd color="#1C2E4A"/> MÉDICO RESPONSÁVEL</div>
+                    <input 
+                        placeholder="Busque o médico..."
+                        value={medicoNome}
+                        onChange={(e) => handleInputMedicoChange(e.target.value)}
+                        onFocus={() => { if(medicoNome) setMostrarListaMedicos(true); }}
+                        onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
+                        style={styles.input}
+                    />
+                    {mostrarListaMedicos && medicosFiltrados.length > 0 && (
+                        <div style={styles.dropdownList}>
+                            {medicosFiltrados.map(med => (
+                                <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}>
+                                    {med.first_name ? `${med.first_name} ${med.last_name}` : med.username}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
-            )}
+
+                {/* CRM */}
+                <div>
+                    <div style={styles.label}><FaIdCard color="#1C2E4A"/> CRM</div>
+                    <input 
+                        placeholder="00000"
+                        value={medicoCrm}
+                        onChange={(e) => setMedicoCrm(e.target.value)}
+                        style={{...styles.input, textAlign:'center'}}
+                    />
+                </div>
+            </div>
         </div>
 
-        {/* Área do Formulário Dinâmico */}
-        <div className="laudo-container" style={{flex: 1, overflowY: 'auto'}}> 
+        {/* ÁREA DO FORMULÁRIO DINÂMICO */}
+        <div style={{flex: 1, overflowY: 'auto', paddingRight: '5px'}}> 
             {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
@@ -533,72 +500,40 @@ const LaudosPage = () => {
         </div>
       </div>
 
-      {/* Direita: Resultado e Ações */}
+      {/* ================= COLUNA DIREITA (PREVIEW) ================= */}
       <div style={styles.rightCol}>
-         <div style={{...styles.card, height: '100%', display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden', border: 'none', boxShadow: 'none'}}> 
+         <div style={{ background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
-             {/* BARRA DE AÇÕES (TOPO FIXO) */}
-             <div style={{
-                 padding: '8px 10px', 
-                 background: '#fff', 
-                 borderBottom: '1px solid #ddd',
-                 display: 'flex', 
-                 justifyContent: 'space-between',
-                 alignItems: 'center',
-                 boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                 zIndex: 10
-             }}>
-                 <div style={{fontWeight: 'bold', color: '#1C2E4A', fontSize: '13px', display:'flex', alignItems:'center', gap:'5px'}}>
-                     <FaFileAlt /> PRÉVIA DO LAUDO
+             {/* BARRA DE AÇÕES */}
+             <div style={{ padding: '8px 12px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', zIndex: 10 }}>
+                 <div style={{fontWeight: 'bold', color: '#1C2E4A', fontSize: '12px', display:'flex', alignItems:'center', gap:'6px'}}>
+                     <FaFileAlt /> PRÉVIA
                  </div>
-                 
-                 <div style={{display: 'flex', gap: '8px'}}>
-                     {/* Botões com ícones e cores semânticas */}
-                     <button onClick={handleLimpar} className="btn-action btn-danger" title="Limpar tudo">
-                        <FaEraser />
-                     </button>
-                     <button onClick={handleImprimirTermo} className="btn-action btn-secondary" title="Termo">
-                        <FaFileSignature /> Termo
-                     </button>
-                     <button onClick={handleSave} className="btn-action btn-success" title="Salvar no Sistema">
-                        {saving ? <FaSpinner className="spin"/> : <FaSave />} Salvar
-                     </button>
-                     <button onClick={handlePrint} className="btn-action btn-primary" title="Gerar PDF">
-                        <FaPrint /> Imprimir
-                     </button>
+                 <div style={{display: 'flex', gap: '6px'}}>
+                     <button onClick={handleLimpar} title="Limpar" style={{background: '#EF5350', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaEraser /></button>
+                     <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
+                     <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
+                     <button onClick={handlePrint} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
                  </div>
              </div>
              
-             {/* ÁREA DE TEXTO (SCROLLÁVEL) */}
-             <div style={{flex: 1, padding: '15px', overflowY: 'auto', background: '#F5F5F5'}}>
+             {/* TEXTAREA (FOLHA DE PAPEL) */}
+             <div style={{flex: 1, padding: '15px', overflowY: 'auto', background: '#EEEEEE'}}>
                  <textarea 
                      value={textoFinal} 
                      onChange={(e) => setTextoFinal(e.target.value)}
-                     style={{ 
-                         width: '100%', 
-                         height: '100%', 
-                         border: '1px solid #ccc', 
-                         padding: '20px', // Mais respiro (padding de papel)
-                         resize: 'none', 
-                         outline: 'none', 
-                         fontFamily: '"Times New Roman", Times, serif', // Fonte de laudo impresso
-                         fontSize: '14px', // Leitura melhor
-                         lineHeight: '1.5', 
-                         color: '#000', 
-                         background: '#fff',
-                         boxShadow: '0 2px 5px rgba(0,0,0,0.1)' // Efeito de folha de papel
-                     }}
+                     style={{ width: '100%', height: '100%', border: 'none', padding: '25px', resize: 'none', outline: 'none', fontFamily: '"Times New Roman", serif', fontSize: '14px', lineHeight: '1.5', color: '#000', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
                  />
              </div>
 
+             {/* IMAGENS */}
              {imagens.length > 0 && (
-                 <div style={{padding: '5px', borderTop: `1px solid ${theme.border}`, background: '#f1f1f1', maxHeight: '120px', overflowY: 'auto'}}>
-                     <span style={{fontSize: '9px', fontWeight: 'bold', color: '#666'}}>IMAGENS ({imagens.length})</span>
-                     <div style={styles.imagePreviewGrid}>
+                 <div style={{padding: '8px', borderTop: `1px solid ${theme.border}`, background: '#f9f9f9', maxHeight: '120px', overflowY: 'auto'}}>
+                     <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px'}}>
                         {imagens.map((img, idx) => (
-                            <div key={idx} style={styles.thumbContainer}>
+                            <div key={idx} style={{position: 'relative', aspectRatio: '1', overflow: 'hidden', borderRadius: '4px', border: '1px solid #ddd'}}>
                                 <img src={img} alt="thumb" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-                                <button onClick={() => removeImage(idx)} style={{position: 'absolute', top: 0, right: 0, background: 'rgba(200,0,0,0.8)', color: 'white', border: 'none', cursor: 'pointer', padding: '0px 3px', fontSize: '8px'}}>X</button>
+                                <button onClick={() => removeImage(idx)} style={{position: 'absolute', top: 0, right: 0, background: 'rgba(200,0,0,0.8)', color: 'white', border: 'none', cursor: 'pointer', padding: '2px 5px', fontSize: '10px'}}>X</button>
                             </div>
                         ))}
                      </div>
