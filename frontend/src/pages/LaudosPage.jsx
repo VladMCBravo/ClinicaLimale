@@ -144,34 +144,45 @@ const LaudosPage = () => {
   // Ref para debounce da busca de paciente
   const searchTimeoutRef = useRef(null);
 
-  // 1. CARREGA LISTA DE MÉDICOS AO INICIAR (Para filtro local rápido)
+  // --- 1. CARREGA LISTA DE MÉDICOS (COM LOGS) ---
   useEffect(() => {
     const carregarMedicos = async () => {
+        console.log(">>> [DEBUG] Iniciando busca de médicos na API...");
         try {
-            // Ajuste a rota conforme seu backend. Geralmente /usuarios/?cargo=medico
             const res = await apiClient.get('/usuarios/?cargo=medico');
+            console.log(">>> [DEBUG] Resposta API Médicos:", res); // Mostra status e headers
+            console.log(">>> [DEBUG] Dados brutos (res.data):", res.data); // Mostra o array de médicos
+
             let listaRaw = [];
             if (Array.isArray(res.data)) listaRaw = res.data;
             else if (res.data && Array.isArray(res.data.results)) listaRaw = res.data.results;
             
+            console.log(">>> [DEBUG] Lista processada (Array):", listaRaw);
+
             const listaOrdenada = listaRaw.sort((a, b) => {
                 const nomeA = a.first_name || a.username || "";
                 const nomeB = b.first_name || b.username || "";
                 return nomeA.localeCompare(nomeB);
             });
+            
+            console.log(">>> [DEBUG] Lista final ordenada (Estado):", listaOrdenada);
             setTodosMedicos(listaOrdenada);
-            setMedicosFiltrados(listaOrdenada); // Inicializa filtrados com todos
-        } catch (e) { console.error("Erro lista médicos:", e); }
+            setMedicosFiltrados(listaOrdenada); 
+        } catch (e) { 
+            console.error(">>> [DEBUG] ERRO CRÍTICO AO BUSCAR MÉDICOS:", e); 
+        }
     };
     carregarMedicos();
   }, []);
 
-  // --- LÓGICA DE FILTRO DE MÉDICO (LOCAL) ---
+  // --- LÓGICA DE FILTRO DE MÉDICO (COM LOGS) ---
   const handleInputMedicoChange = (texto) => {
+      console.log(">>> [DEBUG] Digitando médico:", texto);
       setMedicoNome(texto);
       setMostrarListaMedicos(true);
       
       if (!texto) {
+          console.log(">>> [DEBUG] Texto vazio, mostrando todos:", todosMedicos);
           setMedicosFiltrados(todosMedicos);
           return;
       }
@@ -182,13 +193,16 @@ const LaudosPage = () => {
           const crm = m.crm || '';
           return nomeCompleto.toLowerCase().includes(termo) || crm.includes(termo);
       });
+      
+      console.log(">>> [DEBUG] Médicos filtrados:", filtrados);
       setMedicosFiltrados(filtrados);
   };
 
   const selecionarMedico = (medico) => {
+      console.log(">>> [DEBUG] Médico selecionado:", medico);
       const nomeCompleto = medico.first_name ? `${medico.first_name} ${medico.last_name}` : medico.username;
       setMedicoNome(nomeCompleto);
-      setMedicoCrm(medico.crm || ''); // <--- PREENCHE CRM AUTOMATICAMENTE
+      setMedicoCrm(medico.crm || ''); 
       setMostrarListaMedicos(false);
   };
 
@@ -511,7 +525,7 @@ const LaudosPage = () => {
                     </select>
                 </div>
 
-                {/* MÉDICO RESPONSÁVEL (AUTOCOMPLETE) */}
+                {/* MÉDICO COM DEBUG */}
                 <div style={{position: 'relative'}}>
                     <div style={styles.label}><FaUserMd color="#1C2E4A"/> MÉDICO RESPONSÁVEL</div>
                     <input 
@@ -519,13 +533,14 @@ const LaudosPage = () => {
                         value={medicoNome}
                         onChange={(e) => handleInputMedicoChange(e.target.value)}
                         onFocus={() => { 
-                            // Ao clicar, mostra lista (vazia ou filtrada)
                             setMostrarListaMedicos(true); 
                             if(!medicoNome) setMedicosFiltrados(todosMedicos);
+                            console.log(">>> [DEBUG] Input Focado. Total médicos:", todosMedicos.length);
                         }}
                         onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
                         style={styles.input}
                     />
+                    
                     {mostrarListaMedicos && medicosFiltrados.length > 0 && (
                         <div style={styles.dropdownList}>
                             {medicosFiltrados.map(med => (
@@ -539,6 +554,12 @@ const LaudosPage = () => {
                                     <span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span>
                                 </div>
                             ))}
+                        </div>
+                    )}
+                    {/* Mensagem de Debug se lista vazia */}
+                    {mostrarListaMedicos && medicosFiltrados.length === 0 && (
+                        <div style={{...styles.dropdownList, padding:'10px', color:'#999', fontStyle:'italic'}}>
+                            Nenhum médico encontrado. (Total: {todosMedicos.length})
                         </div>
                     )}
                 </div>
