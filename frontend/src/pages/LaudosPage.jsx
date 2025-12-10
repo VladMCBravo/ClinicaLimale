@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSearch, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard } from 'react-icons/fa';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 
-import '../components/laudos/Laudos.css'; 
+import '../components/laudos/Laudos.css';
 
 // Importação dos Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -141,10 +141,14 @@ const LaudosPage = () => {
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   const [saving, setSaving] = useState(false);
 
-  // Carrega Médicos
+  // Ref para debounce da busca de paciente
+  const searchTimeoutRef = useRef(null);
+
+  // 1. CARREGA LISTA DE MÉDICOS AO INICIAR (Para filtro local rápido)
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
+            // Ajuste a rota conforme seu backend. Geralmente /usuarios/?cargo=medico
             const res = await apiClient.get('/usuarios/?cargo=medico');
             let listaRaw = [];
             if (Array.isArray(res.data)) listaRaw = res.data;
@@ -156,31 +160,64 @@ const LaudosPage = () => {
                 return nomeA.localeCompare(nomeB);
             });
             setTodosMedicos(listaOrdenada);
+            setMedicosFiltrados(listaOrdenada); // Inicializa filtrados com todos
         } catch (e) { console.error("Erro lista médicos:", e); }
     };
     carregarMedicos();
   }, []);
 
+  // --- LÓGICA DE FILTRO DE MÉDICO (LOCAL) ---
   const handleInputMedicoChange = (texto) => {
       setMedicoNome(texto);
-      if (texto.length > 0) {
-          const termo = texto.toLowerCase();
-          const filtrados = todosMedicos.filter(m => {
-              const nomeCompleto = m.first_name ? `${m.first_name} ${m.last_name}` : m.username;
-              return nomeCompleto.toLowerCase().includes(termo);
-          });
-          setMedicosFiltrados(filtrados);
-          setMostrarListaMedicos(true);
-      } else {
-          setMostrarListaMedicos(false);
+      setMostrarListaMedicos(true);
+      
+      if (!texto) {
+          setMedicosFiltrados(todosMedicos);
+          return;
       }
+
+      const termo = texto.toLowerCase();
+      const filtrados = todosMedicos.filter(m => {
+          const nomeCompleto = m.first_name ? `${m.first_name} ${m.last_name}` : m.username;
+          const crm = m.crm || '';
+          return nomeCompleto.toLowerCase().includes(termo) || crm.includes(termo);
+      });
+      setMedicosFiltrados(filtrados);
   };
 
   const selecionarMedico = (medico) => {
       const nomeCompleto = medico.first_name ? `${medico.first_name} ${medico.last_name}` : medico.username;
       setMedicoNome(nomeCompleto);
-      setMedicoCrm(medico.crm || '');
+      setMedicoCrm(medico.crm || ''); // <--- PREENCHE CRM AUTOMATICAMENTE
       setMostrarListaMedicos(false);
+  };
+
+  // --- LÓGICA DE BUSCA DE PACIENTE (API COM DEBOUNCE) ---
+  const handleBuscaPacienteChange = (e) => {
+      const termo = e.target.value;
+      setTermoBusca(termo);
+
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+      if (termo.length < 3) {
+          setPacientesEncontrados([]);
+          return;
+      }
+
+      setLoadingBusca(true);
+      // Aguarda 500ms antes de chamar a API para não sobrecarregar e dar tempo de digitar
+      searchTimeoutRef.current = setTimeout(async () => {
+          try {
+              const res = await apiClient.get('/pacientes/', { params: { search: termo } });
+              const dados = Array.isArray(res.data) ? res.data : res.data.results || [];
+              
+              // Ordena alfabeticamente para facilitar a busca visual
+              dados.sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+              
+              setPacientesEncontrados(dados);
+          } catch (e) { console.error(e); } 
+          finally { setLoadingBusca(false); }
+      }, 500);
   };
 
   // Auto-Save Effect
@@ -397,7 +434,7 @@ const LaudosPage = () => {
         {/* CARD DE IDENTIFICAÇÃO (PACIENTE + EXAME + MÉDICO) */}
         <div style={styles.card}>
             
-            {/* LINHA 1: PACIENTE (FULL WIDTH) */}
+            {/* LINHA 1: PACIENTE (BUSCA INTELIGENTE) */}
             <div style={{marginBottom: '10px'}}>
                 <div style={styles.label}><FaUserInjured color="#1C2E4A"/> PACIENTE</div>
                 {paciente ? (
@@ -410,25 +447,43 @@ const LaudosPage = () => {
                             {paciente.nome_completo}
                         </span>
                         <button 
-                            onClick={() => { setPaciente(null); setTermoBusca(''); }}
-                            style={{background:'none', border:'none', color:'#C62828', cursor:'pointer', fontWeight:'bold'}}
+                            onClick={() => { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); }}
+                            style={{background:'none', border:'none', color:'#C62828', cursor:'pointer', display:'flex', alignItems:'center'}}
+                            title="Remover paciente"
                         >
-                            X
+                            <FaTimes />
                         </button>
                     </div>
                 ) : (
                     <div style={{position: 'relative'}}>
-                        <input 
-                            placeholder="Busque o paciente (mínimo 3 letras)..." 
-                            value={termoBusca} 
-                            onChange={(e) => { setTermoBusca(e.target.value); buscarPacientes(e.target.value); }} 
-                            style={styles.input} 
-                        />
+                        <div style={{position:'relative'}}>
+                            <input 
+                                placeholder="Digite 3 letras para buscar..." 
+                                value={termoBusca} 
+                                onChange={handleBuscaPacienteChange} 
+                                style={styles.input} 
+                            />
+                            {loadingBusca && (
+                                <span style={{position:'absolute', right:'10px', top:'7px', color:'#999'}}>
+                                    <FaSpinner className="spin"/>
+                                </span>
+                            )}
+                        </div>
+                        
+                        {/* LISTA DE SUGESTÕES DE PACIENTES */}
                         {pacientesEncontrados.length > 0 && (
                             <div style={styles.dropdownList}>
                                 {pacientesEncontrados.map(p => (
-                                    <div key={p.id} onClick={() => { setPaciente(p); setPacientesEncontrados([]); }} style={styles.dropdownItem}>
-                                        {p.nome_completo}
+                                    <div 
+                                        key={p.id} 
+                                        onClick={() => { setPaciente(p); setPacientesEncontrados([]); }} 
+                                        style={styles.dropdownItem}
+                                        className="hover:bg-gray-100" // Se usar Tailwind, ou adicione no CSS
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                    >
+                                        <span style={{fontWeight:'bold'}}>{p.nome_completo}</span>
+                                        <span style={{color:'#777', fontSize:'10px'}}>CPF: {p.cpf || '---'}</span>
                                     </div>
                                 ))}
                             </div>
@@ -437,10 +492,10 @@ const LaudosPage = () => {
                 )}
             </div>
 
-            {/* LINHA 2: GRID (TIPO | MÉDICO | CRM) */}
+            {/* LINHA 2: TIPO, MÉDICO E CRM */}
             <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '10px'}}>
                 
-                {/* TIPO */}
+                {/* TIPO DE EXAME */}
                 <div>
                     <div style={styles.label}><FaNotesMedical color="#1C2E4A"/> TIPO DE EXAME</div>
                     <select 
@@ -456,36 +511,46 @@ const LaudosPage = () => {
                     </select>
                 </div>
 
-                {/* MÉDICO */}
+                {/* MÉDICO RESPONSÁVEL (AUTOCOMPLETE) */}
                 <div style={{position: 'relative'}}>
                     <div style={styles.label}><FaUserMd color="#1C2E4A"/> MÉDICO RESPONSÁVEL</div>
                     <input 
                         placeholder="Busque o médico..."
                         value={medicoNome}
                         onChange={(e) => handleInputMedicoChange(e.target.value)}
-                        onFocus={() => { if(medicoNome) setMostrarListaMedicos(true); }}
+                        onFocus={() => { 
+                            // Ao clicar, mostra lista (vazia ou filtrada)
+                            setMostrarListaMedicos(true); 
+                            if(!medicoNome) setMedicosFiltrados(todosMedicos);
+                        }}
                         onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
                         style={styles.input}
                     />
                     {mostrarListaMedicos && medicosFiltrados.length > 0 && (
                         <div style={styles.dropdownList}>
                             {medicosFiltrados.map(med => (
-                                <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}>
-                                    {med.first_name ? `${med.first_name} ${med.last_name}` : med.username}
+                                <div 
+                                    key={med.id} 
+                                    onClick={() => selecionarMedico(med)} 
+                                    style={styles.dropdownItem}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                >
+                                    <span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* CRM */}
+                {/* CRM (AUTO-PREENCHIDO) */}
                 <div>
                     <div style={styles.label}><FaIdCard color="#1C2E4A"/> CRM</div>
                     <input 
                         placeholder="00000"
                         value={medicoCrm}
                         onChange={(e) => setMedicoCrm(e.target.value)}
-                        style={{...styles.input, textAlign:'center'}}
+                        style={{...styles.input, textAlign:'center', background: '#f9f9f9'}}
                     />
                 </div>
             </div>
