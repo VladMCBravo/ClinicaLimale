@@ -20,16 +20,17 @@ const listarNormais = (itens) => {
 export const gerarRelatorioFeto = (d) => {
     let texto = '';
     
-    // --- MAPA DE TÍTULOS ---
+    // --- MAPA DE TÍTULOS (Mais Específicos) ---
     const mapTitulos = {
-        'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL',
-        'OBSTETRICO_1_TRI': 'ULTRASSOM MORFOLÓGICO FETAL DE PRIMEIRO TRIMESTRE',
+        'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL (INICIAL)',
+        'OBSTETRICO_1_TRI': 'ULTRASSOM MORFOLÓGICO DE 1º TRIMESTRE',
         'OBSTETRICO_2_3_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA',
-        'OBSTETRICO_DOPPLER': 'ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER',
-        'OBSTETRICO_MORFOLOGICO': 'ULTRASSOM MORFOLÓGICO FETAL SEGUNDO TRIMESTRE',
-        'OBSTETRICO_3D': 'ULTRASSONOGRAFIA 3D'
+        'OBSTETRICO_DOPPLER': 'ULTRASSONOGRAFIA OBSTÉTRICA COM DOPPLERFLUXOMETRIA',
+        'OBSTETRICO_MORFOLOGICO': 'ULTRASSOM MORFOLÓGICO DE 2º TRIMESTRE',
+        'OBSTETRICO_3D': 'ULTRASSONOGRAFIA OBSTÉTRICA 3D/4D'
     };
 
+    // Define o título correto
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
     
     // =========================================================================
@@ -100,7 +101,7 @@ export const gerarRelatorioFeto = (d) => {
         texto += `Anexos parauterinos normais.\n`;
 
         // CONCLUSÃO INICIAL
-        texto += `\nImpressão diagnóstica:\n`;
+        texto += `\nIMPRESSÃO DIAGNÓSTICA:\n`;
         let igConclusao = d.resIgCcn || d.resIgSg || d.igDum || "--";
         if(d.usarExameAnterior && d.igIgCorrigidaCalculada) igConclusao = d.igIgCorrigidaCalculada;
 
@@ -375,20 +376,20 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\n`;
 
         // ANÁLISE MORFOLÓGICA (3D)
+        // LÓGICA CORRIGIDA: Itens aparecem independente da face estar 'visualizada'
+        const faceItens = [];
+        if (d.labios3D) faceItens.push("os lábios");
+        if (d.nariz3D) faceItens.push("o nariz");
+        if (d.olhos3D) faceItens.push("as órbitas");
+        if (d.orelhas3D) faceItens.push("as orelhas");
+
         if (d.face3D === 'visualizada') {
-            texto += `Face fetal visualizada, evidenciando integridade e aspecto habitual d`;
-            const faceItens = [];
-            if (d.labios3D) faceItens.push("os lábios (região nasolabial)");
-            if (d.nariz3D) faceItens.push("o nariz");
-            if (d.olhos3D) faceItens.push("as órbitas");
-            if (d.orelhas3D) faceItens.push("as orelhas");
-            
-            if (faceItens.length > 0) texto += `${faceItens.join(', ')}. `;
-            else texto += `as estruturas faciais. `;
+            texto += `Face fetal visualizada, evidenciando integridade e aspecto habitual d${faceItens.length > 0 ? faceItens.join(', ') : 'as estruturas faciais'}.\n`;
         } else if (d.face3D === 'parcial') {
-            texto += `Face fetal parcialmente visualizada. `;
-        } else if (d.face3D === 'encoberta') {
-            texto += `Visualização da face prejudicada por interposição de estruturas. `;
+            texto += `Face fetal parcialmente visualizada. ${faceItens.length > 0 ? 'Identificados: ' + faceItens.join(', ') + '.' : ''}\n`;
+        } else {
+            // Se encoberta, mas marcou algum item, mostra
+            if (faceItens.length > 0) texto += `Identificados: ${faceItens.join(', ')}.\n`;
         }
 
         // Extremidades
@@ -506,12 +507,13 @@ export const gerarRelatorioFeto = (d) => {
 export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGerais = {}) => {
     let textoFinal = '';
     
+    // Título Geral - CORRIGIDO: Só aparece uma vez, o específico
     if (resF1 && resF1.tituloExame) {
-        if (qtdFetos > 1 && !resF1.tituloExame.includes("GEMELAR")) {
-             textoFinal += `${resF1.tituloExame} ${qtdFetos === 2 ? 'GEMELAR' : 'TRIGEMELAR'}\n\n`;
-        } else {
-             textoFinal += `${resF1.tituloExame}\n\n`;
-        }
+        // Se for gemelar, adiciona "GEMELAR" ao título se já não tiver
+        const sufixo = (qtdFetos > 1 && !resF1.tituloExame.includes("GEMELAR")) 
+            ? (qtdFetos === 2 ? ' GEMELAR' : ' TRIGEMELAR') 
+            : '';
+        textoFinal += `${resF1.tituloExame}${sufixo}\n\n`;
     }
 
     if (qtdFetos > 1) {
