@@ -94,11 +94,37 @@ export const initialState = {
 
     // --- 3D / 4D ---
     usar3D: false,
-    qualidade3D: 'boa', 
+    
+    // Técnica e Qualidade
+    modoSurface: true,
+    modoMultiplanar: true,
+    qualidade3D: 'boa', // otima, boa, regular, ruim
+    fatorLimitante: '', // 'posicao', 'liquido', 'biotipo', 'placenta'
+
+    // Morfologia 3D (Estática)
     face3D: 'visualizada', 
-    mao3D: false,
-    pe3D: false,
-    obs3D: '', 
+    labios3D: true,
+    nariz3D: true,
+    olhos3D: true,
+    orelhas3D: false,
+    
+    maoDir3D: false, maoEsq3D: false,
+    peDir3D: false, peEsq3D: false,
+    coluna3D: false, // Avaliação de superfície da coluna
+
+    // Comportamento 4D (Dinâmica)
+    movBocejo: false,
+    movSorriso: false,
+    movLingua: false, // Extrusão da língua
+    movPiscar: false,
+    movBoca: false, // Abertura de boca
+    
+    movMaoFace: false,
+    movMaoBoca: false,
+    movSuccao: false,
+    movDegluticao3D: false, // Diferente da 2D
+
+    obs3D: '',
 
     // --- CONCLUSÃO ---
     pesoEstimado: '', pesoP10: '', pesoP90: '', percentil: '',

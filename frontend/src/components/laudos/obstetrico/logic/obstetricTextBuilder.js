@@ -281,52 +281,148 @@ export const gerarRelatorioFeto = (d) => {
     // 7. DOPPLER (CORRIGIDO: AGORA INCLUI PATOLOGIAS)
     // =========================================================================
     if (d.usarDoppler) {
-        texto += `ESTUDO DOPPLER\t\t\tÍNDICES DE PULSATILIDADE\n`;
+        texto += `ESTUDO DOPPLER\t\t\tÍNDICES\n`;
         
-        if (d.checkAcm && d.acmIP) {
-            texto += `Artéria cerebral\t\t\t\t${d.acmIP}`;
+        // VASOS FETAIS
+        if (d.checkAcm) {
+            let partes = [`IP: ${d.acmIP || '--'}`];
+            if(d.acmIR) partes.push(`IR: ${d.acmIR}`); // NOVO
+            if(d.acmPVS) partes.push(`PVS: ${d.acmPVS} cm/s`); // NOVO
+            
+            texto += `Artéria Cerebral Média:\t\t${partes.join('  |  ')}`;
             if (d.acmDiastoleAlta) texto += ` (Centralização / Vasodilatação)`;
             texto += `\n`;
         }
-        if (d.checkUmb && d.umbIP) {
-            texto += `Artéria umbilical\t\t\t\t${d.umbIP}`;
+
+        if (d.checkUmb) {
+            let partes = [`IP: ${d.umbIP || '--'}`];
+            if(d.umbIR) partes.push(`IR: ${d.umbIR}`); // NOVO
+            if(d.umbSD) partes.push(`S/D: ${d.umbSD}`); // NOVO
+
+            texto += `Artéria Umbilical:\t\t\t${partes.join('  |  ')}`;
             if (d.umbDiastoleZero) texto += ` (Diástole Zero)`;
             if (d.umbDiastoleReversa) texto += ` (Diástole Reversa)`;
             texto += `\n`;
         }
+
         if ((d.checkAcm || d.checkUmb) && d.relacaoCerebroUmbilical) {
-            texto += `Relação cerebro/umbilical\t\t${d.relacaoCerebroUmbilical} (n/l maior / igual à 1,0)\n`;
+            texto += `Relação cerebro/umbilical:\t\t${d.relacaoCerebroUmbilical} (n/l maior / igual à 1,0)\n`;
         }
         
-        texto += `\nESTUDO DOPPLER\t\t\tÍNDICES DE PULSATILIDADE\n`;
+        texto += `\nESTUDO DOPPLER\t\t\tÍNDICES\n`;
         
-        if (d.checkUtDir && d.utDirIP) {
-            texto += `Artéria uterina direita\t\t\t${d.utDirIP}\n`;
-        }
-        if (d.checkUtEsq && d.utEsqIP) {
-            texto += `Artéria uterina esquerda\t\t${d.utEsqIP}\n`;
-        }
-        if (d.checkUtDir && d.utDirIP && d.checkUtEsq && d.utEsqIP) {
-            const v1 = parseFloat(d.utDirIP.replace(',','.'));
-            const v2 = parseFloat(d.utEsqIP.replace(',','.'));
-            if (!isNaN(v1) && !isNaN(v2)) {
-                const media = ((v1 + v2) / 2).toFixed(2).replace('.',',');
-                texto += `IP médio:\t\t\t\t\t${media}\n`;
-            }
-        }
-        
-        if (d.checkDv && d.dvIP) {
-             texto += `\nDucto Venoso (IP):\t\t\t\t${d.dvIP}`;
-             if (d.dvOndaAZero) texto += ` (Onda A Zero)`;
-             else if (d.dvOndaAReversa) texto += ` (Onda A Reversa)`;
-             texto += `\n`;
+        // UTERINAS
+        if (d.checkUtDir) {
+            let partes = [`IP: ${d.utDirIP || '--'}`];
+            if(d.utDirIR) partes.push(`IR: ${d.utDirIR}`); // NOVO
+            
+            texto += `Artéria uterina direita:\t\t${partes.join('  |  ')}`;
+            if (d.utDirIncisura) texto += ` (Com Incisura Protodiastólica)`; // NOVO
+            texto += `\n`;
         }
 
+        if (d.checkUtEsq) {
+            let partes = [`IP: ${d.utEsqIP || '--'}`];
+            if(d.utEsqIR) partes.push(`IR: ${d.utEsqIR}`); // NOVO
+            
+            texto += `Artéria uterina esquerda:\t\t${partes.join('  |  ')}`;
+            if (d.utEsqIncisura) texto += ` (Com Incisura Protodiastólica)`; // NOVO
+            texto += `\n`;
+        }
+
+        if (d.ipMedioUterinas) {
+            texto += `IP Médio Uterinas:\t\t\t\t${d.ipMedioUterinas}\n`;
+        }
+        
+        // DUCTO VENOSO
+        if (d.checkDv) {
+             texto += `\nDucto Venoso:`;
+             if (d.dvIP) texto += ` IP: ${d.dvIP}`;
+             
+             if (d.dvOndaAZero) texto += ` (Onda A Zero)`;
+             else if (d.dvOndaAReversa) texto += ` (Onda A Reversa)`; // CORRIGIDO LOGICA
+             else if (d.dvTraçadoNormal) texto += ` (Traçado Normal)`;
+             texto += `\n`;
+        }
         texto += `\n`;
     }
 
-    // 3D
-    if (d.usar3D && d.obs3D) texto += `3D/4D: ${d.obs3D}\n\n`;
+    // =========================================================================
+    // 8. ESTUDO 3D / 4D (ATUALIZADO E COMPLETO)
+    // =========================================================================
+    if (d.usar3D) {
+        texto += `ESTUDO TRIDIMENSIONAL (3D) E DINÂMICO (4D):\n`;
+        
+        // TÉCNICA E QUALIDADE
+        let tecnica = [];
+        if (d.modoSurface) tecnica.push("reconstrução de superfície (Surface rendering)");
+        if (d.modoMultiplanar) tecnica.push("análise multiplanar");
+        
+        texto += `Exame realizado com ${tecnica.join(" e ")}. `;
+        texto += `Obteve-se qualidade de imagem ${d.qualidade3D || 'satisfatória'}.`;
+        
+        // Justificativa se ruim
+        if ((d.qualidade3D === 'regular' || d.qualidade3D === 'ruim') && d.fatorLimitante) {
+            const mapFatores = {
+                'posicao': 'devido à posição fetal desfavorável',
+                'liquido': 'devido à redução do volume de líquido amniótico',
+                'biotipo': 'limitada pelo biotipo materno (atenuação acústica)',
+                'placenta': 'devido à interposição placentária',
+                'membros': 'devido à interposição de membros fetais'
+            };
+            texto += ` (${mapFatores[d.fatorLimitante] || ''})`;
+        }
+        texto += `\n`;
+
+        // ANÁLISE MORFOLÓGICA (3D)
+        if (d.face3D === 'visualizada') {
+            texto += `Face fetal visualizada, evidenciando integridade e aspecto habitual d`;
+            const faceItens = [];
+            if (d.labios3D) faceItens.push("os lábios (região nasolabial)");
+            if (d.nariz3D) faceItens.push("o nariz");
+            if (d.olhos3D) faceItens.push("as órbitas");
+            if (d.orelhas3D) faceItens.push("as orelhas");
+            
+            if (faceItens.length > 0) texto += `${faceItens.join(', ')}. `;
+            else texto += `as estruturas faciais. `;
+        } else if (d.face3D === 'parcial') {
+            texto += `Face fetal parcialmente visualizada. `;
+        } else if (d.face3D === 'encoberta') {
+            texto += `Visualização da face prejudicada por interposição de estruturas. `;
+        }
+
+        // Extremidades
+        const membros3D = [];
+        if (d.maoDir3D) membros3D.push('mão direita');
+        if (d.maoEsq3D) membros3D.push('mão esquerda');
+        if (d.peDir3D) membros3D.push('pé direito');
+        if (d.peEsq3D) membros3D.push('pé esquerdo');
+        
+        if (membros3D.length > 0) {
+            texto += `Identificação d${membros3D.length > 1 ? 'as' : 'a'} extremidades: ${membros3D.join(', ')}.\n`;
+        } else {
+            texto += `\n`;
+        }
+
+        // COMPORTAMENTO (4D)
+        const comportamentos = [];
+        if (d.movBocejo) comportamentos.push('bocejo');
+        if (d.movSorriso) comportamentos.push('mímica de sorriso');
+        if (d.movPiscar) comportamentos.push('movimento de piscar (blinking)');
+        if (d.movLingua) comportamentos.push('extrusão da língua');
+        if (d.movMaoFace) comportamentos.push('mão na face');
+        if (d.movSuccao) comportamentos.push('sucção (dedo/mão)');
+        if (d.movDegluticao3D) comportamentos.push('deglutição');
+
+        if (comportamentos.length > 0) {
+            texto += `No estudo dinâmico (4D), observou-se atividade fetal caracterizada por: ${comportamentos.join(', ')}.\n`;
+        }
+
+        if (d.obs3D) {
+            texto += `${d.obs3D}\n`;
+        }
+        texto += `\n`;
+    }
 
     // =========================================================================
     // 9. CONCLUSÃO
