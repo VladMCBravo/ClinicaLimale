@@ -149,7 +149,8 @@ const LaudosPage = () => {
     const carregarMedicos = async () => {
         console.log(">>> [DEBUG] Iniciando busca de médicos na API...");
         try {
-            const res = await apiClient.get('/usuarios/?cargo=medico');
+            // Note a duplicação proposital: /usuarios/usuarios/
+            const res = await apiClient.get('/usuarios/usuarios/?cargo=medico');
             console.log(">>> [DEBUG] Resposta API Médicos:", res); // Mostra status e headers
             console.log(">>> [DEBUG] Dados brutos (res.data):", res.data); // Mostra o array de médicos
 
