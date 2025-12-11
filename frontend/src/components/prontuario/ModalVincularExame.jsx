@@ -4,7 +4,7 @@ import {
   List, ListItem, ListItemText, ListItemSecondaryAction, IconButton, Typography, CircularProgress 
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
-import apiClient from '../api/axiosConfig';
+import apiClient from '../../api/axiosConfig';
 
 export default function ModalVincularExame({ open, onClose, paciente, onSuccess }) {
   const [examesPendentes, setExamesPendentes] = useState([]);
