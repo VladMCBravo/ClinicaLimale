@@ -341,7 +341,7 @@ const handleOpcaoNuvem = async () => {
     setLoadingNuvem(true);
     try {
         // Busca exames vinculados ao paciente atual
-        const res = await apiClient.get(`/exames-paciente/?paciente_id=${paciente.id}`);
+        const res = await apiClient.get(`/exames/exames-paciente/?paciente_id=${paciente.id}`);
         setExamesNuvem(res.data);
     } catch (e) {
         console.error("Erro ao buscar exames", e);
