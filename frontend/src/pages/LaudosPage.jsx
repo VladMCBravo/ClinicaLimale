@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaImages } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaImages, FaCamera } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css';
@@ -604,12 +604,46 @@ const LaudosPage = () => {
                  <div style={{fontWeight: 'bold', color: '#1C2E4A', fontSize: '12px', display:'flex', alignItems:'center', gap:'6px'}}>
                      <FaFileAlt /> PRÉVIA
                  </div>
-                 <div style={{display: 'flex', gap: '6px'}}>
+                 
+                 {/* CONTAINER DOS BOTÕES */}
+                 <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
+                     
+                     {/* 1. INPUT INVISÍVEL (Necessário para abrir a pasta) */}
+                     <input 
+                        type="file" 
+                        id="img-upload" 
+                        multiple 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        style={{display: 'none'}} 
+                     />
+                     
+                     {/* 2. BOTÃO CÂMERA (Laranja) - Funciona como gatilho do input */}
+                     <label 
+                        htmlFor="img-upload" 
+                        title="Anexar Fotos" 
+                        style={{
+                            background: '#FF9800', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 10px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            alignItems: 'center'
+                        }}
+                     >
+                        <FaCamera />
+                     </label>
+
                      <button onClick={handleLimpar} title="Limpar" style={{background: '#EF5350', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaEraser /></button>
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
+                     
+                     {/* Botão de Imprimir só as fotos (Roxo) */}
                      <button onClick={handlePrintImages} title="Imprimir Fotos" style={{background: '#9C27B0', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>
-                    <FaImages />
-                    </button>
+                        <FaImages />
+                     </button>
+                     
                      <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
                      <button onClick={handlePrint} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
                  </div>
