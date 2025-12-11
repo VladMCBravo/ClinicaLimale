@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaImages } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css';
@@ -355,6 +355,14 @@ const LaudosPage = () => {
       });
   };
 
+  // --- NOVA FUNÇÃO: Botão para imprimir fotos ---
+  const handlePrintImages = () => {
+      gerarPDFLaudo({
+          pacienteNome: paciente?.nome_completo,
+          medicoNome, medicoCrm, tituloExame, textoLaudo: textoFinal, dadosEstruturados, imagensBase64: imagens 
+      });
+  };
+
   // --- FUNÇÃO: IMPRIMIR TERMO (AJUSTADA PARA 1 PÁGINA) ---
   const handleImprimirTermo = () => {
       if (!medicoNome) return alert("Por favor, preencha o nome do Médico.");
@@ -599,6 +607,9 @@ const LaudosPage = () => {
                  <div style={{display: 'flex', gap: '6px'}}>
                      <button onClick={handleLimpar} title="Limpar" style={{background: '#EF5350', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaEraser /></button>
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
+                     <button onClick={handlePrintImages} title="Imprimir Fotos" style={{background: '#9C27B0', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>
+                    <FaImages />
+                    </button>
                      <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
                      <button onClick={handlePrint} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
                  </div>
