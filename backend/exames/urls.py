@@ -3,6 +3,7 @@ from .views import (
     UploadExameView, 
     AcessarResultadosView, 
     ListarExamesPendentesView, # <--- Novo
+    ListarExamesDoPacienteView, # <--- VERIFIQUE SE ESTÁ IMPORTADO
     VincularPacienteView       # <--- Novo
 )
 
@@ -13,4 +14,7 @@ urlpatterns = [
     # Novas rotas para a recepção
     path('pendentes/', ListarExamesPendentesView.as_view(), name='exames_pendentes'),
     path('<int:pk>/vincular/', VincularPacienteView.as_view(), name='vincular_exame'),
+    # --- A ROTA QUE ESTÁ DANDO 404 ---
+    # Verifique se esta linha existe:
+    path('exames-paciente/', ListarExamesDoPacienteView.as_view(), name='exames_paciente'), 
 ]
