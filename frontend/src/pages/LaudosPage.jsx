@@ -2,7 +2,19 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCamera } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 // 1. Adicione imports novos
-import { Menu, MenuItem, Modal, Box, Typography, Grid, Button as MuiButton } from '@mui/material'; // Usando MUI que você já tem no projeto
+import { 
+  Menu, 
+  MenuItem, 
+  Modal, 
+  Box, 
+  Typography, 
+  Grid, 
+  Button, // Importando Button diretamente (sem alias MuiButton)
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions 
+} from '@mui/material';
 import { FaCloudDownloadAlt } from 'react-icons/fa';
 import '../components/laudos/Laudos.css';
 
@@ -719,16 +731,16 @@ const adicionarImagemDaNuvem = async (url) => {
                                         ) : (
                                             <img src={arq.arquivo} alt="Exame" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px'}} />
                                         )}
-                                        <MuiButton 
-                                            size="small" 
-                                            onClick={() => {
-                                                adicionarImagemDaNuvem(arq.arquivo); // arq.arquivo é a URL do Supabase
-                                                alert("Imagem adicionada ao laudo!");
-                                            }}
-                                        >
-                                            Inserir
-                                        </MuiButton>
-                                    </div>
+                                        <Button 
+        size="small" 
+        onClick={() => {
+            adicionarImagemDaNuvem(arq.arquivo);
+            // alert("Imagem adicionada ao laudo!"); // Opcional
+        }}
+    >
+        Inserir
+    </Button>
+</div>
                                 ))}
                             </div>
                         </div>
