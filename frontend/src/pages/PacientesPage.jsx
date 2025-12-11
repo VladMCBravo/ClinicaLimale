@@ -14,7 +14,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from '../contexts/SnackbarContext';
 // Adicione nos imports
 import LinkIcon from '@mui/icons-material/Link';
-import ModalVincularExame from '../components/ModalVincularExame'; // Ajuste o caminho
+import ModalVincularExame from '../components/prontuario/ModalVincularExame';
 
 export default function PacientesPage() {
   const navigate = useNavigate();
