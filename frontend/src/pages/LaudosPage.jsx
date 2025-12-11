@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaImages, FaCamera } from 'react-icons/fa';
+import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCamera } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 
 import '../components/laudos/Laudos.css';
@@ -638,12 +638,7 @@ const LaudosPage = () => {
 
                      <button onClick={handleLimpar} title="Limpar" style={{background: '#EF5350', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaEraser /></button>
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
-                     
-                     {/* Botão de Imprimir só as fotos (Roxo) */}
-                     <button onClick={handlePrintImages} title="Imprimir Fotos" style={{background: '#9C27B0', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>
-                        <FaImages />
-                     </button>
-                     
+                                                                                   
                      <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
                      <button onClick={handlePrint} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
                  </div>
