@@ -5,12 +5,10 @@ from rest_framework import status
 from .models import Exame, ArquivoExame
 from pacientes.models import Paciente
 from datetime import datetime
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView, UpdateAPIView
 from .serializers import ExameSerializer
-from django_filters.rest_framework import DjangoFilterBackend
 
 class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -94,6 +92,20 @@ class AcessarResultadosView(APIView):
 class ListarExamesPendentesView(ListAPIView):
     """ Lista apenas exames que ainda não têm paciente vinculado """
     permission_classes = [IsAuthenticated] # Apenas staff logado
+    serializer_class = ExameSerializer
+
+    def get_queryset(self):
+        paciente_id = self.request.query_params.get('paciente_id')
+        if paciente_id:
+            return Exame.objects.filter(paciente_id=paciente_id).order_by('-data_exame')
+        return Exame.objects.none()
+
+# --- AQUI ESTAVA FALTANDO ESSA CLASSE ---
+class ListarExamesDoPacienteView(ListAPIView):
+    """ 
+    Para o MÉDICO (Laudos): Lista exames de um paciente específico.
+    """
+    permission_classes = [IsAuthenticated]
     serializer_class = ExameSerializer
 
     def get_queryset(self):
