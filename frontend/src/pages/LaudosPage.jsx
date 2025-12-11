@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCamera } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
-
+// 1. Adicione imports novos
+import { Menu, MenuItem, Modal, Box, Typography, Grid, Button as MuiButton } from '@mui/material'; // Usando MUI que você já tem no projeto
+import { FaCloudDownloadAlt } from 'react-icons/fa';
 import '../components/laudos/Laudos.css';
 
 // Importação dos Formulários
@@ -121,6 +123,10 @@ const LaudosPage = () => {
   // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
+  const [anchorElCamera, setAnchorElCamera] = useState(null); // Para o menu popup
+  const [modalNuvemOpen, setModalNuvemOpen] = useState(false);
+  const [examesNuvem, setExamesNuvem] = useState([]); // Lista de exames do paciente
+  const [loadingNuvem, setLoadingNuvem] = useState(false);
   
   // Busca Paciente
   const [termoBusca, setTermoBusca] = useState('');
@@ -297,6 +303,56 @@ const LaudosPage = () => {
           setPacientesEncontrados(dados);
       } catch (e) { console.error(e); } finally { setLoadingBusca(false); }
   };
+
+  // 3. Funções de Manipulação
+
+const handleCameraClick = (event) => {
+    setAnchorElCamera(event.currentTarget); // Abre o menu
+};
+
+const handleMenuClose = () => {
+    setAnchorElCamera(null);
+};
+
+const handleOpcaoComputador = () => {
+    handleMenuClose();
+    document.getElementById('img-upload').click(); // Dispara o input file original
+};
+
+const handleOpcaoNuvem = async () => {
+    handleMenuClose();
+    if (!paciente || !paciente.id) {
+        alert("Selecione um paciente primeiro.");
+        return;
+    }
+    setModalNuvemOpen(true);
+    setLoadingNuvem(true);
+    try {
+        // Busca exames vinculados ao paciente atual
+        const res = await apiClient.get(`/exames-paciente/?paciente_id=${paciente.id}`);
+        setExamesNuvem(res.data);
+    } catch (e) {
+        console.error("Erro ao buscar exames", e);
+    } finally {
+        setLoadingNuvem(false);
+    }
+};
+
+// Função para converter URL do Supabase em Base64 para o seu PDF funcionar
+const adicionarImagemDaNuvem = async (url) => {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImagens(prev => [...prev, reader.result]); // Adiciona ao estado existente
+        };
+        reader.readAsDataURL(blob);
+    } catch (e) {
+        console.error("Erro ao converter imagem", e);
+        alert("Erro ao baixar imagem da nuvem (CORS ou permissão).");
+    }
+};
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -619,22 +675,72 @@ const LaudosPage = () => {
                      />
                      
                      {/* 2. BOTÃO CÂMERA (Laranja) - Funciona como gatilho do input */}
-                     <label 
-                        htmlFor="img-upload" 
-                        title="Anexar Fotos" 
-                        style={{
-                            background: '#FF9800', 
-                            color: 'white', 
-                            border: 'none', 
-                            padding: '6px 10px', 
-                            borderRadius: '4px', 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            alignItems: 'center'
-                        }}
-                     >
-                        <FaCamera />
-                     </label>
+                     <button 
+   onClick={handleCameraClick}
+   title="Anexar Fotos" 
+   style={{
+       background: '#FF9800', color: 'white', border: 'none', 
+       padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center'
+   }}
+>
+   <FaCamera />
+</button>
+{/* Menu de Escolha */}
+<Menu
+  anchorEl={anchorElCamera}
+  open={Boolean(anchorElCamera)}
+  onClose={handleMenuClose}
+>
+  <MenuItem onClick={handleOpcaoComputador}>Do Computador</MenuItem>
+  <MenuItem onClick={handleOpcaoNuvem}> <FaCloudDownloadAlt style={{marginRight: 5}}/> Exames Salvos (Nuvem)</MenuItem>
+</Menu>
+
+{/* ... Mantenha o input file invisível em algum lugar ... */}
+<input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
+
+
+{/* 5. Modal de Galeria da Nuvem (Coloque antes de fechar a div container principal) */}
+<Dialog open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} maxWidth="md" fullWidth>
+    <DialogTitle>Exames Anteriores de {paciente?.nome_completo}</DialogTitle>
+    <DialogContent>
+        {loadingNuvem ? <p>Carregando...</p> : (
+            examesNuvem.length === 0 ? <p>Nenhum exame encontrado para este paciente.</p> : (
+                <div>
+                    {examesNuvem.map(exame => (
+                        <div key={exame.id} style={{marginBottom: '20px', border: '1px solid #eee', padding: '10px'}}>
+                            <Typography variant="subtitle2" style={{background: '#f5f5f5', padding: '5px'}}>
+                                Data: {exame.data_exame} (Importado em: {new Date(exame.criado_em).toLocaleDateString()})
+                            </Typography>
+                            <div style={{display: 'flex', gap: '10px', overflowX: 'auto', padding: '10px 0'}}>
+                                {exame.arquivos.map(arq => (
+                                    <div key={arq.id} style={{minWidth: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                                        {arq.tipo === 'VIDEO' ? (
+                                            <div style={{width: 100, height: 100, background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>VIDEO</div>
+                                        ) : (
+                                            <img src={arq.arquivo} alt="Exame" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px'}} />
+                                        )}
+                                        <MuiButton 
+                                            size="small" 
+                                            onClick={() => {
+                                                adicionarImagemDaNuvem(arq.arquivo); // arq.arquivo é a URL do Supabase
+                                                alert("Imagem adicionada ao laudo!");
+                                            }}
+                                        >
+                                            Inserir
+                                        </MuiButton>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )
+        )}
+    </DialogContent>
+    <DialogActions>
+        <Button onClick={() => setModalNuvemOpen(false)}>Fechar</Button>
+    </DialogActions>
+</Dialog>
 
                      <button onClick={handleLimpar} title="Limpar" style={{background: '#EF5350', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaEraser /></button>
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>

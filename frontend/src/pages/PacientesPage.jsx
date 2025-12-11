@@ -12,6 +12,9 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from '../contexts/SnackbarContext';
+// Adicione nos imports
+import LinkIcon from '@mui/icons-material/Link';
+import ModalVincularExame from '../components/ModalVincularExame'; // Ajuste o caminho
 
 export default function PacientesPage() {
   const navigate = useNavigate();
@@ -25,6 +28,13 @@ export default function PacientesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pacienteParaEditar, setPacienteParaEditar] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [modalVincularOpen, setModalVincularOpen] = useState(false);
+  const [pacienteParaVincular, setPacienteParaVincular] = useState(null);
+
+  const handleOpenVincular = (paciente) => {
+      setPacienteParaVincular(paciente);
+      setModalVincularOpen(true);
+  };
 
   // UseCallback estabilizado: removemos showSnackbar da dependência para evitar loops
   const fetchPacientes = useCallback(async () => {
@@ -136,6 +146,7 @@ export default function PacientesPage() {
                   <TableCell>{paciente.nome_completo}</TableCell>
                   <TableCell>{paciente.email}</TableCell>
                   <TableCell align="right">
+                    <IconButton onClick={() => handleOpenVincular(paciente)} title="Vincular Exame Solto"><LinkIcon color="primary" /></IconButton>
                     <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
                     <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
                     {user && user.isAdmin && (
@@ -163,6 +174,12 @@ export default function PacientesPage() {
         onSave={fetchPacientes}
         pacienteParaEditar={pacienteParaEditar}
       />
+      <ModalVincularExame 
+    open={modalVincularOpen}
+    onClose={() => setModalVincularOpen(false)}
+    paciente={pacienteParaVincular}
+    onSuccess={() => showSnackbar('Exame vinculado com sucesso!', 'success')}
+/>
     </Paper>
   );
 }

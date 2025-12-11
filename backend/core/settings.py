@@ -57,6 +57,7 @@ INSTALLED_APPS = [
       
     # Apps de Terceiros
     'rest_framework',
+    'django_filters',  # <--- ADICIONE ESTA LINHA AQUI
     'storages', # <-- ADICIONADO: Necessário para o Supabase/S3 funcionar
     'rest_framework.authtoken',
     'rest_framework_api_key',

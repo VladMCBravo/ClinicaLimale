@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView, UpdateAPIView
 from .serializers import ExameSerializer
+from django_filters.rest_framework import DjangoFilterBackend
 
 class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -96,8 +97,10 @@ class ListarExamesPendentesView(ListAPIView):
     serializer_class = ExameSerializer
 
     def get_queryset(self):
-        # Traz exames sem paciente e ordena pelos mais recentes
-        return Exame.objects.filter(paciente__isnull=True).order_by('-criado_em')
+        paciente_id = self.request.query_params.get('paciente_id')
+        if paciente_id:
+            return Exame.objects.filter(paciente_id=paciente_id).order_by('-data_exame')
+        return Exame.objects.none()
 
 class VincularPacienteView(APIView):
     """ Recebe o ID do exame e o ID do paciente para fazer o casamento """
