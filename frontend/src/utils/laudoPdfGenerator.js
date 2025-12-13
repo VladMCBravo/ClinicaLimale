@@ -2,14 +2,16 @@
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+// 1. Importe o arquivo de imagem diretamente (O Vite vai lidar com o caminho)
+import logoImagemPath from '../assets/Logo-pdf.png';
 
-// Importe a constante do outro arquivo
-import { LOGO_CLINICA_BASE64 } from "./assets"; 
+// 2. Importe o helper que criamos no Passo 2
+import { getBase64FromUrl } from "./imageHelper";
 
-// O resto do seu código continua igual...
+//
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
-export const gerarPDFLaudo = ({ 
+export const gerarPDFLaudo = async ({
     pacienteNome, 
     medicoNome, 
     medicoCrm, 
@@ -19,7 +21,18 @@ export const gerarPDFLaudo = ({
     imagensBase64,
     comTimbre = true 
 }) => {
-    
+
+    // --- CONVERSÃO AUTOMÁTICA DO LOGO ---
+    let logoBase64 = null;
+    if (comTimbre) {
+        try {
+            // Converte o arquivo .png para Base64 na hora
+            logoBase64 = await getBase64FromUrl(logoImagemPath);
+        } catch (error) {
+            console.error("Erro ao carregar o logo:", error);
+            // Se der erro, o PDF gera sem logo para não travar
+        }
+    }
     // Margens: [Esq, Top, Dir, Inf]
     const pageMargins = [40, 130, 40, 80]; 
 
@@ -28,14 +41,15 @@ export const gerarPDFLaudo = ({
         margin: [40, 20, 40, 0], 
         stack: [
             { 
-                // Enquanto não temos o Base64 válido, usamos texto para não travar:
-                text: 'AQUI VIRIA O LOGO', 
-                image: LOGO_CLINICA_BASE64, // <-- Descomente aqui quando corrigir o Base64
+                // Se logoBase64 existir, usa ele. Se não, não exibe nada.
+                image: logoBase64 ? logoBase64 : null, 
                 width: 140, 
                 alignment: 'center',
                 margin: [0, 0, 0, 10] 
             },
-            // Linha Dourada
+            // Se o logo falhar, você pode descomentar a linha abaixo para debug:
+            // { text: logoBase64 ? '' : 'FALHA NO LOGO', alignment: 'center' },
+
             { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 1.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
         ]
     } : null;
