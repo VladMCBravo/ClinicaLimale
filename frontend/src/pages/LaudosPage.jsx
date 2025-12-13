@@ -935,3 +935,5 @@ const handleEnviarEmail = () => {
     </div>
   );
 };
+
+export default LaudosPage;

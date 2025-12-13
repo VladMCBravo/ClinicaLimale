@@ -22,7 +22,8 @@ from django.db import transaction # Importar transaction
 from core.models import Clinica # Importa o modelo de configuração
 import base64
 from django.core.files.base import ContentFile
-from .models import Laudo, ImagemLaudo, Exame
+from .models import Laudo, ImagemLaudo
+from exames.models import Exame
 from .serializers import LaudoSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
