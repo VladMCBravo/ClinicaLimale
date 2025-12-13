@@ -485,38 +485,39 @@ const handleShareEmail = () => {
   };
 
   // --- FUNÇÕES DE COMPARTILHAMENTO ---
+// --- CORREÇÃO ORTOGRÁFICA E ACENTUAÇÃO ---
 const getMensagemCompartilhamento = (canal) => {
     const cod = credenciais?.codigo || "---";
     const pass = credenciais?.senha || "---";
     const link = credenciais?.link || "https://clinica-limale.vercel.app/resultados";
     const nomePct = paciente?.nome_completo?.split(' ')[0] || "Paciente";
     
-    // Título do exame simplificado para evitar caracteres especiais
+    // Título do exame simplificado
     const exameTitulo = tituloExame || tipoExame || "Exame";
 
     if (canal === 'whatsapp') {
-        // Use crase (`) para template string
-        return `Ola, *${nomePct}*! \n\n` +
-               `Seu laudo de *${exameTitulo}* esta pronto.\n\n` +
+        return `Olá, *${nomePct}*! \n\n` +
+               `Seu laudo de *${exameTitulo}* está pronto.\n\n` +
                `Acesse o resultado e imagens no link:\n` +
                `${link}\n\n` +
                `*DADOS DE ACESSO:*\n` +
-               `Usuario: *${cod}*\n` +
+               `Usuário: *${cod}*\n` +
                `Senha: *${pass}*\n\n` +
                `Baixe o PDF em anexo.\n` +
-               `Att, Clinica Limale`;
+               `Att, Clínica Limalé`;
     }
 
     if (canal === 'email') {
-        return `Ola, ${nomePct}!\n\n` +
-               `Seu laudo de ${exameTitulo} esta pronto.\n\n` +
-               `Acesse o resultado e imagens no link:\n` +
+        // No e-mail, não usamos asteriscos (*), pois é texto puro
+        return `Olá, ${nomePct}!\n\n` +
+               `Seu laudo de ${exameTitulo} está pronto.\n\n` +
+               `Acesse o resultado e imagens clicando no link abaixo:\n` +
                `${link}\n\n` +
                `DADOS DE ACESSO:\n` +
-               `Usuario: ${cod}\n` +
+               `Usuário: ${cod}\n` +
                `Senha: ${pass}\n\n` +
                `Baixe o PDF em anexo.\n` +
-               `Att, Clinica Limale`;
+               `Att, Clínica Limalé`;
     }
 };
 
@@ -553,18 +554,17 @@ const handleEnviarWhatsApp = () => {
 };
 
 const handleEnviarEmail = () => {
-    // 1. Prepara o texto (usando a versão 'email' para evitar caracteres estranhos)
     const texto = getMensagemCompartilhamento('email'); 
     const email = paciente?.email || "";
-    const assunto = `Resultado de Exame - Clínica Limale`;
+    // Assunto com acento
+    const assunto = `Resultado de Exame - Clínica Limalé`;
 
-    // 2. Abre o cliente de e-mail PRIMEIRO
-    // (Isso evita que o navegador bloqueie o popup se o download começar antes)
+    // Abre o cliente de e-mail
     window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, '_blank');
 
-    // 3. Baixa o PDF COM TIMBRE (Digital) após 1.5 segundos
+    // Baixa o PDF após 1.5 segundos
     setTimeout(() => {
-        handlePrint(true); // <--- TRUE para gerar com logo/rodapé
+        handlePrint(true); 
     }, 1500);
 };
 

@@ -1,12 +1,12 @@
-// src/utils/laudoPdfGenerator.js
+// ARQUIVO COMPLETO: src/utils/laudoPdfGenerator.js
+
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 
 // --- BASE64 DO LOGO ---
-// (Mantenha o seu base64 gigante aqui, vou usar uma string curta de exemplo para não poluir, 
-// mas você deve manter o que já tem no seu arquivo)
-// Substitua a linha 7 inteira por isso:
-const LOGO_CLINICA_BASE64 = "";
+// Temporariamente vazio/texto para evitar o erro de "Corrupt PNG"
+// Quando tiver o base64 correto, substitua o texto 'AQUI VIRIA O LOGO' lá embaixo na headerDefinition
+const LOGO_CLINICA_BASE64 = ""; 
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
@@ -18,33 +18,30 @@ export const gerarPDFLaudo = ({
     textoLaudo, 
     dadosEstruturados, 
     imagensBase64,
-    comTimbre = true // <--- NOVO PARÂMETRO (Padrão é true para WhatsApp/Email)
+    comTimbre = true 
 }) => {
     
     // Margens: [Esq, Top, Dir, Inf]
-    // A margem superior de 130 garante que o texto comece abaixo do logo (seja impresso ou digital)
     const pageMargins = [40, 130, 40, 80]; 
 
-    // --- ELEMENTOS DO TIMBRE (CABEÇALHO E RODAPÉ) ---
-    
-    // Define o Cabeçalho (Só aparece se comTimbre for true)
+    // --- 1. CABEÇALHO (HEADER) ---
     const headerDefinition = comTimbre ? {
         margin: [40, 20, 40, 0], 
         stack: [
-    { 
-        // image: LOGO_CLINICA_BASE64,  <-- COMENTE ESTA LINHA ASSIM
-        text: 'AQUI VIRIA O LOGO',    // <-- Adicione este texto para testar
-        width: 140, 
-        alignment: 'center',
-        margin: [0, 0, 0, 10] 
-    },
+            { 
+                // Enquanto não temos o Base64 válido, usamos texto para não travar:
+                text: 'AQUI VIRIA O LOGO', 
+                // image: LOGO_CLINICA_BASE64, // <-- Descomente aqui quando corrigir o Base64
+                width: 140, 
+                alignment: 'center',
+                margin: [0, 0, 0, 10] 
+            },
             // Linha Dourada
             { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 1.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
         ]
     } : null;
 
-    // Define o Rodapé (Só aparece se comTimbre for true)
-    // O rodapé fixo do PDF imita o final da folha timbrada
+    // --- 2. RODAPÉ (FOOTER) ---
     const footerDefinition = comTimbre ? (currentPage, pageCount) => {
         return {
             margin: [40, 10, 40, 0],
@@ -52,35 +49,33 @@ export const gerarPDFLaudo = ({
                 { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
                 { 
                     text: [
-                        { text: 'Clínica Limalé', bold: true },
-                        '  |  ',
-                        'www.limale.com.br',
-                        '  |  ',
-                        '(11) 91951-1842'
+                        { text: 'Clínica Limalé', bold: true }, '  |  ', 'www.limale.com.br', '  |  ', '(11) 91951-1842'
                     ], 
-                    style: 'footerText', 
-                    alignment: 'center'
+                    style: 'footerText', alignment: 'center'
                 },
                 { 
                     text: [
-                        'contato@limale.com.br',
-                        '  |  ',
-                        { text: '@clinicalimale', bold: true }
+                        'contato@limale.com.br', '  |  ', { text: '@clinicalimale', bold: true }
                     ], 
-                    style: 'footerText', 
-                    alignment: 'center',
-                    margin: [0, 2]
+                    style: 'footerText', alignment: 'center', margin: [0, 2]
                 },
                 { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 7, color: '#999', margin: [0, 5, 0, 0] }
             ]
         };
     } : null;
 
+    // --- FUNÇÕES AUXILIARES ---
+    const processarTexto = (textoRaw) => {
+        if (!textoRaw) return [];
+        return textoRaw.split('\n').map(line => {
+            if (line.trim() === '') return { text: '', margin: [0, 2] };
+            if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO:')) {
+                return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
+            }
+            return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
+        });
+    };
 
-    // --- CONTEÚDO DO LAUDO (Igual para ambos) ---
-    const content = [];
-
-    // Funções auxiliares (Tabelas e Texto) - Mantidas iguais
     const criarTabelaBiometria = (dadosTabela, titulo) => {
         if (!dadosTabela || dadosTabela.length === 0) return null;
         const bodyTable = [[
@@ -102,51 +97,49 @@ export const gerarPDFLaudo = ({
         };
     };
 
-    const processarTexto = (textoRaw) => {
-        if (!textoRaw) return [];
-        return textoRaw.split('\n').map(line => {
-            if (line.trim() === '') return { text: '', margin: [0, 2] };
-            if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO:')) {
-                return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
-            }
-            return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
-        });
-    };
+    // --- MONTAGEM DO CONTEÚDO ---
+    const content = [];
 
-    // Montagem do Corpo
-    // 1. Dados do Paciente (Cabeçalho do Laudo)
+    // A. Dados do Paciente
     content.push({
         columns: [
             { 
                 stack: [
                     { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
                     { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
-                ],
-                width: '*' 
+                ], width: '*' 
             },
             { 
                 stack: [
                     { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
                     { text: new Date().toLocaleDateString('pt-BR'), fontSize: 11, alignment: 'right' }
-                ],
-                width: 100 
+                ], width: 100 
             }
         ],
         margin: [0, 0, 0, 20]
     });
 
-    // 2. Título do Exame
+    // B. Título
     content.push({ 
-        text: tituloExame || 'RELATÓRIO MÉDICO', 
-        style: 'mainHeader', 
-        alignment: 'center',
-        margin: [0, 0, 0, 20] 
+        text: tituloExame || 'RELATÓRIO MÉDICO', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 20] 
     });
 
-    // 3. Texto e Tabelas
-    content.push(...processarTexto(textoLaudo));
+    // C. Processamento Inteligente do Texto (Para a Assinatura)
+    const paragrafosTexto = processarTexto(textoLaudo);
+    let ultimoParagrafo = null;
+    
+    // Remove o último parágrafo da lista principal para colar ele na assinatura depois
+    if (paragrafosTexto.length > 0) {
+        ultimoParagrafo = paragrafosTexto.pop(); 
+    }
+
+    // Adiciona todo o texto (exceto o último parágrafo)
+    content.push(...paragrafosTexto);
+
+    // Linha divisória fina após texto
     content.push({ canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 10, 0, 10] });
     
+    // D. Tabelas (se houver)
     if (dadosEstruturados?.feto1?.tabelaBiometria?.length > 0) {
         const titulo = dadosEstruturados.isGemelar ? 'BIOMETRIA FETAL - FETO 1' : 'TABELA BIOMÉTRICA';
         content.push(criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria, titulo));
@@ -155,7 +148,7 @@ export const gerarPDFLaudo = ({
         content.push(criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria, 'BIOMETRIA FETAL - FETO 2'));
     }
 
-    // 4. Imagens
+    // E. Imagens
     if (imagensBase64 && imagensBase64.length > 0) {
         content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
         for (let i = 0; i < imagensBase64.length; i += 2) {
@@ -164,24 +157,43 @@ export const gerarPDFLaudo = ({
                     { image: imagensBase64[i], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' }, 
                     imagensBase64[i + 1] ? { image: imagensBase64[i + 1], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' } : null 
                 ],
-                columnGap: 10,
-                margin: [0, 5]
+                columnGap: 10, margin: [0, 5]
             };
             content.push(row);
         }
     }
 
-    // 5. Assinatura Médica (Sempre presente)
+    // --- LÓGICA DO PREFIXO MÉDICO (Dr. ou Dra.) ---
+    const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
+    // Se terminar em 'a' (ex: Camila, Ana) usa Dra., senão Dr.
+    const isDra = primeiroNome.endsWith('a'); 
+    const prefixoMedico = isDra ? 'Dra.' : 'Dr.';
+    const nomeFormatado = medicoNome ? `${prefixoMedico} ${medicoNome}` : 'Médico Examinador';
+
+    // --- BLOCO FINAL INQUEBRÁVEL (Último Texto + Assinatura) ---
     content.push({
         stack: [
-            { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 30, 0, 5] },
-            { text: medicoNome || 'Médico Examinador', alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
+            // Aqui entra o último parágrafo que salvamos antes
+            ultimoParagrafo ? ultimoParagrafo : {},
+            
+            // Espaço maior para assinatura
+            { text: '', margin: [0, 35] }, 
+
+            // Linha da Assinatura
+            { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
+            
+            // Nome com Dr./Dra.
+            { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
+            
+            // CRM
             { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 9, color: '#555' }
         ],
-        unbreakable: true
+        // O SEGREDO: 'unbreakable: true' impede que esse bloco seja cortado no meio.
+        // Se não couber na página, ele leva o último parágrafo E a assinatura para a próxima.
+        unbreakable: true 
     });
 
-    // --- DEFINIÇÃO FINAL ---
+    // --- GERAÇÃO DO PDF ---
     const docDefinition = {
         pageSize: 'A4', 
         pageMargins: pageMargins,
