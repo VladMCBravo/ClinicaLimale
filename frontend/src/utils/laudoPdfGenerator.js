@@ -3,11 +3,10 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 
-// --- BASE64 DO LOGO ---
-// Temporariamente vazio/texto para evitar o erro de "Corrupt PNG"
-// Quando tiver o base64 correto, substitua o texto 'AQUI VIRIA O LOGO' lá embaixo na headerDefinition
-const LOGO_CLINICA_BASE64 = ""; 
+// Importe a constante do outro arquivo
+import { LOGO_CLINICA_BASE64 } from "./assets"; 
 
+// O resto do seu código continua igual...
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 export const gerarPDFLaudo = ({ 
@@ -31,7 +30,7 @@ export const gerarPDFLaudo = ({
             { 
                 // Enquanto não temos o Base64 válido, usamos texto para não travar:
                 text: 'AQUI VIRIA O LOGO', 
-                // image: LOGO_CLINICA_BASE64, // <-- Descomente aqui quando corrigir o Base64
+                image: LOGO_CLINICA_BASE64, // <-- Descomente aqui quando corrigir o Base64
                 width: 140, 
                 alignment: 'center',
                 margin: [0, 0, 0, 10] 
