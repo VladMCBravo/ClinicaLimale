@@ -6,7 +6,7 @@ import pdfFonts from "pdfmake/build/vfs_fonts";
 // (Mantenha o seu base64 gigante aqui, vou usar uma string curta de exemplo para não poluir, 
 // mas você deve manter o que já tem no seu arquivo)
 // Substitua a linha 7 inteira por isso:
-const LOGO_CLINICA_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAMAAACahl6sAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAADUExURXPMzPf399GPx1cAAAACdFJOU/8A5bcwSgAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAFZJREFUeF7t0EERAAAIhECxf2ZzsIMJ9CAMZQAA4M9+MwAAAAAAAJq8JgAAAAAAAJq8JgAAAAAAAJq8JgAAAAAAAJq8JgAAAAAAAJq8JgAAAAAAAJq8JgAA8G0BwsAAwWjA3rAAAAAASUVORK5CYII=";
+const LOGO_CLINICA_BASE64 = "";
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
@@ -31,12 +31,13 @@ export const gerarPDFLaudo = ({
     const headerDefinition = comTimbre ? {
         margin: [40, 20, 40, 0], 
         stack: [
-            { 
-                image: LOGO_CLINICA_BASE64, 
-                width: 140, 
-                alignment: 'center',
-                margin: [0, 0, 0, 10] 
-            },
+    { 
+        // image: LOGO_CLINICA_BASE64,  <-- COMENTE ESTA LINHA ASSIM
+        text: 'AQUI VIRIA O LOGO',    // <-- Adicione este texto para testar
+        width: 140, 
+        alignment: 'center',
+        margin: [0, 0, 0, 10] 
+    },
             // Linha Dourada
             { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 1.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
         ]
