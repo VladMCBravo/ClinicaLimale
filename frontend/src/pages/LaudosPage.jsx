@@ -479,32 +479,69 @@ const handleShareEmail = () => {
   };
 
   // --- FUNÇÕES DE COMPARTILHAMENTO ---
-const getMensagemCompartilhamento = () => {
-    if (!credenciais) return "";
+const getMensagemCompartilhamento = (canal) => {
+    const cod = credenciais?.codigo || "---";
+    const pass = credenciais?.senha || "---";
+    const link = credenciais?.link || "https://clinica-limale.vercel.app/resultados";
     const nomePct = paciente?.nome_completo?.split(' ')[0] || "Paciente";
+    
+    // Título do exame simplificado para evitar caracteres especiais
+    const exameTitulo = tituloExame || tipoExame || "Exame";
 
-    return `Olá, *${nomePct}*! 🌟\n\n` +
-           `Seu laudo de *${tituloExame || tipoExame}* está pronto.\n\n` +
-           `Para visualizar as imagens completas e o laudo digital, acesse nosso portal:\n` +
-           `🔗 ${credenciais.link}\n\n` +
-           `*Seus dados de acesso:*\n` +
-           `🆔 Usuário: *${credenciais.codigo}*\n` +
-           `🔒 Senha: *${credenciais.senha}*\n\n` +
-           `Segue também em anexo o arquivo PDF.\n` +
-           `Atenciosamente,\n*Clínica Limale*`;
+    if (canal === 'whatsapp') {
+        // Use crase (`) para template string
+        return `Ola, *${nomePct}*! \n\n` +
+               `Seu laudo de *${exameTitulo}* esta pronto.\n\n` +
+               `Acesse o resultado e imagens no link:\n` +
+               `${link}\n\n` +
+               `*DADOS DE ACESSO:*\n` +
+               `Usuario: *${cod}*\n` +
+               `Senha: *${pass}*\n\n` +
+               `Baixe o PDF em anexo.\n` +
+               `Att, Clinica Limale`;
+    }
+
+    if (canal === 'email') {
+        return `Ola, ${nomePct}!\n\n` +
+               `Seu laudo de ${exameTitulo} esta pronto.\n\n` +
+               `Acesse o resultado e imagens no link:\n` +
+               `${link}\n\n` +
+               `DADOS DE ACESSO:\n` +
+               `Usuario: ${cod}\n` +
+               `Senha: ${pass}\n\n` +
+               `Baixe o PDF em anexo.\n` +
+               `Att, Clinica Limale`;
+    }
 };
 
 const handleEnviarWhatsApp = () => {
-    const texto = getMensagemCompartilhamento();
-    const telefone = paciente?.telefone || ""; 
-    // Remove caracteres não numéricos
-    const numbers = telefone.replace(/\D/g, "");
+    const texto = getMensagemCompartilhamento('whatsapp');
+    
+    // CORREÇÃO AQUI:
+    // O seu backend (models.py) chama o campo de 'telefone_celular'.
+    // Adicionei uma verificação de segurança para tentar os dois nomes.
+    const telefoneRaw = paciente?.telefone_celular || paciente?.telefone || ""; 
+    
+    // Remove tudo que não for número
+    const apenasNumeros = telefoneRaw.replace(/\D/g, "");
+    
+    let urlWhats = "";
 
-    // Gera o PDF para o médico ter o arquivo para arrastar
-    handlePrint(); 
+    if (apenasNumeros.length >= 10) {
+        // Se tem número válido, monta o link direto com 55 + DDD + Numero
+        const numeroFinal = `55${apenasNumeros}`;
+        urlWhats = `https://wa.me/${numeroFinal}?text=${encodeURIComponent(texto)}`;
+    } else {
+        // Se NÃO tem número, avisa e abre apenas para escolher o contato
+        alert("Atenção: Este paciente não possui celular cadastrado. Você terá que escolher o contato.");
+        urlWhats = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    }
 
-    // Abre o WhatsApp Web
-    window.open(`https://wa.me/55${numbers}?text=${encodeURIComponent(texto)}`, '_blank');
+    // Abre o WhatsApp
+    window.open(urlWhats, '_blank');
+
+    // Baixa o PDF após 1.5s
+    setTimeout(() => handlePrint(), 1500);
 };
 
 const handleEnviarEmail = () => {
