@@ -22,7 +22,7 @@ from django.db import transaction # Importar transaction
 from core.models import Clinica # Importa o modelo de configuração
 import base64
 from django.core.files.base import ContentFile
-from .models import Laudo, ImagemLaudo
+from .models import Laudo, ImagemLaudo, Exame
 from .serializers import LaudoSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
@@ -757,3 +757,37 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     )
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
+    
+    # 3. SOBRESCREVER O CREATE PARA RETORNAR AS CREDENCIAIS
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        
+        # O laudo já foi salvo pelo perform_create acima. 
+        # Agora vamos buscar as credenciais do exame correspondente.
+        try:
+            paciente_id = request.data.get('paciente')
+            # Tenta achar um exame deste paciente criado HOJE
+            # Ou use a lógica que preferir para vincular Laudo <-> Exame
+            hoje = date.today()
+            
+            # Pega o exame mais recente deste paciente
+            exame = Exame.objects.filter(
+                paciente_id=paciente_id
+            ).order_by('-criado_em').first()
+
+            if exame:
+                # Injeta as credenciais na resposta para o Frontend
+                response.data['credenciais'] = {
+                    'codigo': exame.codigo_acesso,
+                    'senha': exame.senha_acesso,
+                    'link': 'https://clinica-limale.vercel.app/resultados' # Configure isso no settings depois
+                }
+            else:
+                # Se não achar exame (caso raro se o fluxo estiver certo), manda vazio
+                response.data['credenciais'] = None
+                
+        except Exception as e:
+            print(f"Erro ao buscar credenciais: {e}")
+            response.data['credenciais'] = None
+
+        return response

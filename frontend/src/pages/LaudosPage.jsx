@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FaPrint, FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCamera } from 'react-icons/fa';
+import { FaWhatsapp, FaEnvelope, FaCheckCircle, FaCopy, FaExternalLinkAlt } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 // 1. Adicione imports novos
 import { 
@@ -158,6 +159,10 @@ const LaudosPage = () => {
   const [tituloExame, setTituloExame] = useState(() => getInitialState('tituloExame', ''));
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   const [saving, setSaving] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [dadosAcesso, setDadosAcesso] = useState(null); // Armazena login/senha retornados
+  const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
+  const [credenciais, setCredenciais] = useState(null);
 
   // Ref para debounce da busca de paciente
   const searchTimeoutRef = useRef(null);
@@ -402,19 +407,69 @@ const adicionarImagemDaNuvem = async (url) => {
               status: "FINALIZADO"
           };
           
-          await apiClient.post('/prontuario/laudos/', payload);
-          alert("Laudo salvo!");
-          
-      } catch (e) { 
-          console.error("Erro ao salvar laudo:", e);
-          const msgErro = e.response?.data 
-            ? JSON.stringify(e.response.data, null, 2) 
-            : e.message;
-          alert(`Erro ao salvar: ${msgErro}`);
-      } finally { 
-          setSaving(false); 
-      }
-  };
+          const response = await apiClient.post('/prontuario/laudos/', payload);
+
+        // Verifica se o backend retornou as credenciais (que fizemos no Passo 1)
+        if (response.data && response.data.credenciais) {
+            setCredenciais(response.data.credenciais);
+        } else {
+            // Fallback caso não tenha encontrado exame vinculado
+            setCredenciais({ codigo: 'Consulte a recepção', senha: '---', link: 'limale.com.br' });
+        }
+
+        // Abre o modal de sucesso/envio
+        setModalSucessoOpen(true);
+
+    } catch (e) { 
+        console.error("Erro ao salvar laudo:", e);
+        alert("Erro ao salvar o laudo. Verifique os dados.");
+    } finally { 
+        setSaving(false); 
+    }
+};
+
+  // --- TEXTO CRIATIVO ---
+const gerarTextoMensagem = (tipo) => {
+    if (!dadosAcesso) return '';
+    
+    // Ajuste este link para o endereço real do seu portal de pacientes
+    const linkPortal = "https://clinica-limale.vercel.app/resultados"; 
+    const nomePct = paciente?.nome_completo?.split(' ')[0] || 'Paciente'; // Primeiro nome
+    
+    const textoBase = `Olá, *${nomePct}*! 🌟\n\n` +
+        `Seu exame de *${tipoExame}* já está pronto e liberado.\n\n` +
+        `Para acessar as imagens e o laudo completo com segurança, clique no link abaixo:\n` +
+        `🔗 ${linkPortal}\n\n` +
+        `🔑 *Código:* ${dadosAcesso.codigo}\n` +
+        `🔒 *Senha:* ${dadosAcesso.senha}\n\n` +
+        `Em anexo, enviamos também uma cópia em PDF para sua conveniência.\n` +
+        `Atenciosamente,\n*Clínica Limale*`;
+
+    return tipo === 'url' ? encodeURIComponent(textoBase) : textoBase;
+};
+
+// --- FUNÇÕES DE ENVIO ---
+const handleShareWhatsApp = () => {
+    const texto = gerarTextoMensagem('url');
+    // Se tiver telefone no cadastro do paciente, usa ele. Senão, abre em branco para escolher.
+    const telefone = paciente?.telefone ? `55${paciente.telefone.replace(/\D/g, '')}` : ''; 
+    
+    // Primeiro gera o PDF para o usuário ter o arquivo em mãos (download)
+    handlePrint(); 
+    
+    // Abre o WhatsApp
+    window.open(`https://wa.me/${telefone}?text=${texto}`, '_blank');
+};
+
+const handleShareEmail = () => {
+    const texto = gerarTextoMensagem('text'); // Sem encode para email body
+    const email = paciente?.email || '';
+    const assunto = `Seu exame de ${tipoExame} está pronto - Clínica Limale`;
+    
+    handlePrint(); // Baixa o PDF
+    
+    window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`);
+};
 
   const handlePrint = () => {
       gerarPDFLaudo({
@@ -422,6 +477,45 @@ const adicionarImagemDaNuvem = async (url) => {
           medicoNome, medicoCrm, tituloExame, textoLaudo: textoFinal, dadosEstruturados, imagensBase64: imagens 
       });
   };
+
+  // --- FUNÇÕES DE COMPARTILHAMENTO ---
+const getMensagemCompartilhamento = () => {
+    if (!credenciais) return "";
+    const nomePct = paciente?.nome_completo?.split(' ')[0] || "Paciente";
+
+    return `Olá, *${nomePct}*! 🌟\n\n` +
+           `Seu laudo de *${tituloExame || tipoExame}* está pronto.\n\n` +
+           `Para visualizar as imagens completas e o laudo digital, acesse nosso portal:\n` +
+           `🔗 ${credenciais.link}\n\n` +
+           `*Seus dados de acesso:*\n` +
+           `🆔 Usuário: *${credenciais.codigo}*\n` +
+           `🔒 Senha: *${credenciais.senha}*\n\n` +
+           `Segue também em anexo o arquivo PDF.\n` +
+           `Atenciosamente,\n*Clínica Limale*`;
+};
+
+const handleEnviarWhatsApp = () => {
+    const texto = getMensagemCompartilhamento();
+    const telefone = paciente?.telefone || ""; 
+    // Remove caracteres não numéricos
+    const numbers = telefone.replace(/\D/g, "");
+
+    // Gera o PDF para o médico ter o arquivo para arrastar
+    handlePrint(); 
+
+    // Abre o WhatsApp Web
+    window.open(`https://wa.me/55${numbers}?text=${encodeURIComponent(texto)}`, '_blank');
+};
+
+const handleEnviarEmail = () => {
+    const texto = getMensagemCompartilhamento();
+    const email = paciente?.email || "";
+    const assunto = `Resultado de Exame - Clínica Limale`;
+
+    handlePrint(); // Gera PDF
+
+    window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`);
+};
 
   // --- NOVA FUNÇÃO: Botão para imprimir fotos ---
   const handlePrintImages = () => {
@@ -522,10 +616,10 @@ const adicionarImagemDaNuvem = async (url) => {
       {/* ================= COLUNA ESQUERDA (INPUTS) ================= */}
       <div style={styles.leftCol}>
         
-        {/* CARD DE IDENTIFICAÇÃO (PACIENTE + EXAME + MÉDICO) */}
+        {/* CARD DE IDENTIFICAÇÃO */}
         <div style={styles.card}>
             
-            {/* LINHA 1: PACIENTE (BUSCA INTELIGENTE) */}
+            {/* LINHA 1: PACIENTE */}
             <div style={{marginBottom: '10px'}}>
                 <div style={styles.label}><FaUserInjured color="#1C2E4A"/> PACIENTE</div>
                 {paciente ? (
@@ -561,7 +655,7 @@ const adicionarImagemDaNuvem = async (url) => {
                             )}
                         </div>
                         
-                        {/* LISTA DE SUGESTÕES DE PACIENTES */}
+                        {/* LISTA DE SUGESTÕES */}
                         {pacientesEncontrados.length > 0 && (
                             <div style={styles.dropdownList}>
                                 {pacientesEncontrados.map(p => (
@@ -569,7 +663,7 @@ const adicionarImagemDaNuvem = async (url) => {
                                         key={p.id} 
                                         onClick={() => { setPaciente(p); setPacientesEncontrados([]); }} 
                                         style={styles.dropdownItem}
-                                        className="hover:bg-gray-100" // Se usar Tailwind, ou adicione no CSS
+                                        className="hover:bg-gray-100" 
                                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
                                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                                     >
@@ -602,7 +696,7 @@ const adicionarImagemDaNuvem = async (url) => {
                     </select>
                 </div>
 
-                {/* MÉDICO COM DEBUG */}
+                {/* MÉDICO */}
                 <div style={{position: 'relative'}}>
                     <div style={styles.label}><FaUserMd color="#1C2E4A"/> MÉDICO RESPONSÁVEL</div>
                     <input 
@@ -612,7 +706,6 @@ const adicionarImagemDaNuvem = async (url) => {
                         onFocus={() => { 
                             setMostrarListaMedicos(true); 
                             if(!medicoNome) setMedicosFiltrados(todosMedicos);
-                            console.log(">>> [DEBUG] Input Focado. Total médicos:", todosMedicos.length);
                         }}
                         onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
                         style={styles.input}
@@ -633,15 +726,9 @@ const adicionarImagemDaNuvem = async (url) => {
                             ))}
                         </div>
                     )}
-                    {/* Mensagem de Debug se lista vazia */}
-                    {mostrarListaMedicos && medicosFiltrados.length === 0 && (
-                        <div style={{...styles.dropdownList, padding:'10px', color:'#999', fontStyle:'italic'}}>
-                            Nenhum médico encontrado. (Total: {todosMedicos.length})
-                        </div>
-                    )}
                 </div>
 
-                {/* CRM (AUTO-PREENCHIDO) */}
+                {/* CRM */}
                 <div>
                     <div style={styles.label}><FaIdCard color="#1C2E4A"/> CRM</div>
                     <input 
@@ -676,7 +763,7 @@ const adicionarImagemDaNuvem = async (url) => {
                  {/* CONTAINER DOS BOTÕES */}
                  <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
                      
-                     {/* 1. INPUT INVISÍVEL (Necessário para abrir a pasta) */}
+                     {/* INPUT INVISÍVEL */}
                      <input 
                         type="file" 
                         id="img-upload" 
@@ -686,73 +773,27 @@ const adicionarImagemDaNuvem = async (url) => {
                         style={{display: 'none'}} 
                      />
                      
-                     {/* 2. BOTÃO CÂMERA (Laranja) - Funciona como gatilho do input */}
+                     {/* BOTÃO CÂMERA */}
                      <button 
-   onClick={handleCameraClick}
-   title="Anexar Fotos" 
-   style={{
-       background: '#FF9800', color: 'white', border: 'none', 
-       padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center'
-   }}
->
-   <FaCamera />
-</button>
-{/* Menu de Escolha */}
-<Menu
-  anchorEl={anchorElCamera}
-  open={Boolean(anchorElCamera)}
-  onClose={handleMenuClose}
->
-  <MenuItem onClick={handleOpcaoComputador}>Do Computador</MenuItem>
-  <MenuItem onClick={handleOpcaoNuvem}> <FaCloudDownloadAlt style={{marginRight: 5}}/> Exames Salvos (Nuvem)</MenuItem>
-</Menu>
-
-{/* ... Mantenha o input file invisível em algum lugar ... */}
-<input type="file" id="img-upload" multiple accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
-
-
-{/* 5. Modal de Galeria da Nuvem (Coloque antes de fechar a div container principal) */}
-<Dialog open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} maxWidth="md" fullWidth>
-    <DialogTitle>Exames Anteriores de {paciente?.nome_completo}</DialogTitle>
-    <DialogContent>
-        {loadingNuvem ? <p>Carregando...</p> : (
-            examesNuvem.length === 0 ? <p>Nenhum exame encontrado para este paciente.</p> : (
-                <div>
-                    {examesNuvem.map(exame => (
-                        <div key={exame.id} style={{marginBottom: '20px', border: '1px solid #eee', padding: '10px'}}>
-                            <Typography variant="subtitle2" style={{background: '#f5f5f5', padding: '5px'}}>
-                                Data: {exame.data_exame} (Importado em: {new Date(exame.criado_em).toLocaleDateString()})
-                            </Typography>
-                            <div style={{display: 'flex', gap: '10px', overflowX: 'auto', padding: '10px 0'}}>
-                                {exame.arquivos.map(arq => (
-                                    <div key={arq.id} style={{minWidth: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                                        {arq.tipo === 'VIDEO' ? (
-                                            <div style={{width: 100, height: 100, background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>VIDEO</div>
-                                        ) : (
-                                            <img src={arq.arquivo} alt="Exame" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px'}} />
-                                        )}
-                                        <Button 
-        size="small" 
-        onClick={() => {
-            adicionarImagemDaNuvem(arq.arquivo);
-            // alert("Imagem adicionada ao laudo!"); // Opcional
-        }}
-    >
-        Inserir
-    </Button>
-</div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )
-        )}
-    </DialogContent>
-    <DialogActions>
-        <Button onClick={() => setModalNuvemOpen(false)}>Fechar</Button>
-    </DialogActions>
-</Dialog>
+                       onClick={handleCameraClick}
+                       title="Anexar Fotos" 
+                       style={{
+                           background: '#FF9800', color: 'white', border: 'none', 
+                           padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center'
+                       }}
+                    >
+                       <FaCamera />
+                    </button>
+                    
+                    {/* Menu de Escolha Câmera */}
+                    <Menu
+                      anchorEl={anchorElCamera}
+                      open={Boolean(anchorElCamera)}
+                      onClose={handleMenuClose}
+                    >
+                      <MenuItem onClick={handleOpcaoComputador}>Do Computador</MenuItem>
+                      <MenuItem onClick={handleOpcaoNuvem}> <FaCloudDownloadAlt style={{marginRight: 5}}/> Exames Salvos (Nuvem)</MenuItem>
+                    </Menu>
 
                      <button onClick={handleLimpar} title="Limpar" style={{background: '#EF5350', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaEraser /></button>
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
@@ -771,7 +812,7 @@ const adicionarImagemDaNuvem = async (url) => {
                  />
              </div>
 
-             {/* IMAGENS */}
+             {/* IMAGENS (PREVIEW NO RODAPÉ) */}
              {imagens.length > 0 && (
                  <div style={{padding: '8px', borderTop: `1px solid ${theme.border}`, background: '#f9f9f9', maxHeight: '120px', overflowY: 'auto'}}>
                      <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px'}}>
@@ -786,8 +827,111 @@ const adicionarImagemDaNuvem = async (url) => {
              )}
          </div>
       </div>
+
+      {/* --- MODAIS DE SISTEMA --- */}
+
+      {/* 1. Modal de Galeria da Nuvem */}
+      <Dialog open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} maxWidth="md" fullWidth>
+            <DialogTitle>Exames Anteriores de {paciente?.nome_completo}</DialogTitle>
+            <DialogContent>
+                {loadingNuvem ? <p>Carregando...</p> : (
+                    examesNuvem.length === 0 ? <p>Nenhum exame encontrado para este paciente.</p> : (
+                        <div>
+                            {examesNuvem.map(exame => (
+                                <div key={exame.id} style={{marginBottom: '20px', border: '1px solid #eee', padding: '10px'}}>
+                                    <Typography variant="subtitle2" style={{background: '#f5f5f5', padding: '5px'}}>
+                                        Data: {exame.data_exame}
+                                    </Typography>
+                                    <div style={{display: 'flex', gap: '10px', overflowX: 'auto', padding: '10px 0'}}>
+                                        {exame.arquivos.map(arq => (
+                                            <div key={arq.id} style={{minWidth: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                                                {arq.tipo === 'VIDEO' ? (
+                                                    <div style={{width: 100, height: 100, background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>VIDEO</div>
+                                                ) : (
+                                                    <img src={arq.arquivo} alt="Exame" style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px'}} />
+                                                )}
+                                                <Button size="small" onClick={() => adicionarImagemDaNuvem(arq.arquivo)}>
+                                                    Inserir
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                )}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setModalNuvemOpen(false)}>Fechar</Button>
+            </DialogActions>
+      </Dialog>
+
+      {/* 2. Modal de Sucesso e Envio (CORRIGIDO E UNIFICADO) */}
+      <Dialog 
+        open={modalSucessoOpen} 
+        onClose={() => setModalSucessoOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <div style={{padding: '30px', textAlign: 'center'}}>
+            <FaCheckCircle size={60} color="#4CAF50" style={{marginBottom: 15}} />
+
+            <Typography variant="h5" style={{fontWeight: 'bold', color: '#2C3E50', marginBottom: 10}}>
+                Laudo Salvo com Sucesso!
+            </Typography>
+
+            <Typography variant="body1" style={{color: '#555', marginBottom: 30}}>
+                O exame foi registrado no prontuário. Como deseja notificar o paciente?
+            </Typography>
+
+            {/* CARD DE CREDENCIAIS */}
+            <div style={{
+                background: '#F0F4F8', border: '1px dashed #B0BEC5', borderRadius: 8,
+                padding: '15px', marginBottom: 30, textAlign: 'left'
+            }}>
+                <Typography variant="subtitle2" style={{color: '#1C2E4A', fontWeight: 'bold', marginBottom: 5}}>
+                    DADOS DE ACESSO GERADOS:
+                </Typography>
+                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
+                    <span>Usuário: <strong>{credenciais?.codigo || '---'}</strong></span>
+                    <span>Senha: <strong>{credenciais?.senha || '---'}</strong></span>
+                </div>
+            </div>
+
+            <Grid container spacing={2}>
+                <Grid item xs={6}>
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        onClick={handleEnviarWhatsApp}
+                        style={{background: '#25D366', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}
+                    >
+                        <FaWhatsapp size={20} /> Enviar WhatsApp
+                    </Button>
+                    <Typography variant="caption" style={{display:'block', marginTop:5, color: '#999'}}>
+                        * O PDF será baixado para você arrastar
+                    </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        onClick={handleEnviarEmail}
+                        style={{background: '#1C2E4A', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}
+                    >
+                        <FaEnvelope size={20} /> Enviar E-mail
+                    </Button>
+                </Grid>
+            </Grid>
+        </div>
+        <DialogActions>
+            <Button onClick={() => setModalSucessoOpen(false)} style={{color: '#888'}}>
+                Fechar Janela
+            </Button>
+        </DialogActions>
+      </Dialog>
+
     </div>
   );
 };
-
-export default LaudosPage;
