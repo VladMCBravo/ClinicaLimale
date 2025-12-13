@@ -759,36 +759,41 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
     
-    # 3. SOBRESCREVER O CREATE PARA RETORNAR AS CREDENCIAIS
+    # SOBRESCREVER O CREATE (ATUALIZADO)
     def create(self, request, *args, **kwargs):
+        # 1. Salva o Laudo primeiro (lógica padrão)
         response = super().create(request, *args, **kwargs)
         
-        # O laudo já foi salvo pelo perform_create acima. 
-        # Agora vamos buscar as credenciais do exame correspondente.
         try:
             paciente_id = request.data.get('paciente')
-            # Tenta achar um exame deste paciente criado HOJE
-            # Ou use a lógica que preferir para vincular Laudo <-> Exame
+            paciente = Paciente.objects.get(id=paciente_id)
             hoje = date.today()
             
-            # Pega o exame mais recente deste paciente
-            exame = Exame.objects.filter(
-                paciente_id=paciente_id
-            ).order_by('-criado_em').first()
-
-            if exame:
-                # Injeta as credenciais na resposta para o Frontend
-                response.data['credenciais'] = {
-                    'codigo': exame.codigo_acesso,
-                    'senha': exame.senha_acesso,
-                    'link': 'https://clinica-limale.vercel.app/resultados' # Configure isso no settings depois
+            # 2. LÓGICA DE OURO: Get or Create
+            # Procura um exame deste paciente HOJE. 
+            # Se não existir (o script não rodou ainda), CRIA um agora.
+            exame, created = Exame.objects.get_or_create(
+                paciente=paciente,
+                data_exame=hoje,
+                defaults={
+                    'nome_paciente_pasta': paciente.nome_completo, # Nome provisório p/ identificar
+                    'status': 'PENDENTE' 
                 }
-            else:
-                # Se não achar exame (caso raro se o fluxo estiver certo), manda vazio
-                response.data['credenciais'] = None
+            )
+            
+            # Nota: O seu models.py (Exame.save) já gera codigo e senha automaticamente
+            # quando um novo exame é criado.
+
+            # 3. Retorna as credenciais garantidas
+            response.data['credenciais'] = {
+                'codigo': exame.codigo_acesso,
+                'senha': exame.senha_acesso,
+                'link': 'https://clinica-limale.vercel.app/resultados' # Seu link
+            }
                 
         except Exception as e:
-            print(f"Erro ao buscar credenciais: {e}")
+            print(f"Erro ao gerar credenciais: {e}")
+            # Só cai aqui se der um erro muito grave no banco
             response.data['credenciais'] = None
 
         return response
