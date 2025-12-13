@@ -471,10 +471,16 @@ const handleShareEmail = () => {
     window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`);
 };
 
-  const handlePrint = () => {
+  const handlePrint = (usarTimbre = true) => {
       gerarPDFLaudo({
           pacienteNome: paciente?.nome_completo,
-          medicoNome, medicoCrm, tituloExame, textoLaudo: textoFinal, dadosEstruturados, imagensBase64: imagens 
+          medicoNome, 
+          medicoCrm, 
+          tituloExame, 
+          textoLaudo: textoFinal, 
+          dadosEstruturados, 
+          imagensBase64: imagens,
+          comTimbre: usarTimbre // <--- Passa o parâmetro para o gerador
       });
   };
 
@@ -844,7 +850,13 @@ const handleEnviarEmail = () => {
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
                                                                                    
                      <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
-                     <button onClick={handlePrint(false)} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
+                     <button 
+    onClick={() => handlePrint(false)} 
+    title="Imprimir (Sem Timbre/Logo)" 
+    style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}
+>
+    <FaPrint />
+</button>
                  </div>
              </div>
              
