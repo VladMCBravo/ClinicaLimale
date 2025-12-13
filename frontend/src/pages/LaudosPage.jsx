@@ -540,18 +540,26 @@ const handleEnviarWhatsApp = () => {
     // Abre o WhatsApp
     window.open(urlWhats, '_blank');
 
-    // Baixa o PDF após 1.5s
-    setTimeout(() => handlePrint(), 1500);
+    // Baixa o PDF APÓS abrir o whats, COM TIMBRE (DIGITAL)
+    setTimeout(() => {
+        handlePrint(true); // <--- AQUI: Passamos TRUE para sair com logo
+    }, 2000);
 };
 
 const handleEnviarEmail = () => {
-    const texto = getMensagemCompartilhamento();
+    // 1. Prepara o texto (usando a versão 'email' para evitar caracteres estranhos)
+    const texto = getMensagemCompartilhamento('email'); 
     const email = paciente?.email || "";
     const assunto = `Resultado de Exame - Clínica Limale`;
 
-    handlePrint(); // Gera PDF
+    // 2. Abre o cliente de e-mail PRIMEIRO
+    // (Isso evita que o navegador bloqueie o popup se o download começar antes)
+    window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, '_blank');
 
-    window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`);
+    // 3. Baixa o PDF COM TIMBRE (Digital) após 1.5 segundos
+    setTimeout(() => {
+        handlePrint(true); // <--- TRUE para gerar com logo/rodapé
+    }, 1500);
 };
 
   // --- NOVA FUNÇÃO: Botão para imprimir fotos ---
@@ -836,7 +844,7 @@ const handleEnviarEmail = () => {
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
                                                                                    
                      <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
-                     <button onClick={handlePrint} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
+                     <button onClick={handlePrint(false)} title="Imprimir" style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaPrint /></button>
                  </div>
              </div>
              
