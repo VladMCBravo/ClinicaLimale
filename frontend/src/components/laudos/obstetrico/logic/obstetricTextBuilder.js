@@ -139,6 +139,44 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\n`; 
     }
 
+    // =========================================================================
+    // BLOCO DE COLO UTERINO (NOVO - INSERIR ANTES DE 'VITALIDADE' OU APÓS 'ESTATICA')
+    // =========================================================================
+    
+    // Verifica se há dados de colo preenchidos (Medida ou Checkbox de Afunilamento)
+    if (d.comprimentoColo || d.coloAfunilamento) {
+        texto += `AVALIAÇÃO DO COLO UTERINO (Via Transvaginal):\n`;
+        
+        if (d.comprimentoColo) {
+            texto += `- Comprimento do colo: ${d.comprimentoColo} mm.\n`;
+        }
+        
+        // EGE
+        if (d.coloEge && d.coloEge !== 'nao_visualizado') {
+            texto += `- Eco glandular endocervical (EGE): ${d.coloEge}.\n`;
+        }
+
+        // Sludge
+        if (d.coloSludge === 'presente') {
+            texto += `- Sinal do Sludge: PRESENTE (material ecogênico particulado próximo ao orifício interno).\n`;
+        } else {
+            texto += `- Sinal do Sludge: ausente.\n`;
+        }
+
+        // Afunilamento (Checkbox da frase longa)
+        if (d.coloAfunilamento) {
+            texto += `- Sem sinais de afunilamento, mesmo após manobra de compressão fúndica.\n`;
+        } else {
+            // Se o médico desmarcou, talvez queira dizer que tem afunilamento, 
+            // mas por segurança não escrevemos nada ou deixamos para obs.
+        }
+
+        // Orifício interno (já tinha no código antigo, mantemos a lógica)
+        texto += `- Orifício interno do colo fechado.\n`;
+        
+        texto += `\n`; // Quebra de linha para separar do resto
+    }
+
     // --- VITALIDADE (CORRIGIDO: PRIORIDADE PARA INDETECTÁVEL) ---
     let vitalidade = [];
     
@@ -429,6 +467,10 @@ export const gerarRelatorioFeto = (d) => {
     // 9. CONCLUSÃO
     // =========================================================================
     texto += `Impressão diagnóstica:\n`;
+    
+    if (d.coloConclusao) {
+        texto += `- ${d.coloConclusao}.\n`;
+    }
     
     let igFinal = d.igBiometria || d.igDum || "---";
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) {

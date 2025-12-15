@@ -78,7 +78,13 @@ export const initialState = {
     trofoblasto: 'normal',
     sgComDescolamento: false, sgSemDescolamento: true, desc1: '', desc2: '',
     sgAbortoIncompleto: false,
-    comprimentoColo: '', // Usado no Transvaginal
+    comprimentoColo: '', // Medida em mm
+    
+    // Novos campos baseados nas imagens:
+    coloEge: 'presente', // Eco Glandular Endocervical: presente, ausente
+    coloSludge: 'ausente', // Sinal do Sludge: ausente, presente
+    coloAfunilamento: true, // "Sem sinais de afunilamento..." (Checkbox padrão marcado)
+    coloConclusao: 'Colo uterino ecograficamente preservado', // Dropdown final
 
     // --- MORFOLÓGICO 1º TRI (RISCOS) ---
     // NOVOS CAMPOS PEDIDOS PELO CLIENTE

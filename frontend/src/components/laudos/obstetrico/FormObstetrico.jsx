@@ -18,6 +18,7 @@ import SecaoConclusao from './sections/SecaoConclusao';
 import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
 import SecaoEmbriao from './sections/SecaoEmbriao';
 import Secao3D from './sections/Secao3D'; // <--- 1. IMPORTAR AQUI
+import SecaoColoDados from './sections/SecaoColoDados'; // <--- 1. IMPORTAR AQUI
 
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
@@ -124,6 +125,9 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
         {/* --- SEÇÕES LÓGICAS --- */}
         <SecaoDatacao {...commonProps} />
         <SecaoDadosGerais {...commonProps} />
+        {/* <--- 2. INSERIR AQUI: AVALIAÇÃO DO COLO */}
+        {/* É útil em todas as fases, mas principalmente Inicial/1Tri/Morfológico */}
+        <SecaoColoDados {...commonProps} />
 
         {/* Condicionais de Inicial */}
         {formState.subtipo && formState.subtipo.includes("INICIAL") && (
