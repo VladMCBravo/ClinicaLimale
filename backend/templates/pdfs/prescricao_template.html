@@ -29,9 +29,24 @@
     </div>
 
     <div style="text-align: center; margin-top: 50px;">
+    {% if tem_assinatura_digital %}
+        <div style="border: 1px solid #ccc; background-color: #f8f9fa; padding: 10px; display: inline-block; width: 60%;">
+            <p style="font-size: 10px; color: #555; margin-bottom: 2px;">DOCUMENTO ASSINADO DIGITALMENTE</p>
+            <p style="font-weight: bold; font-size: 12px; margin: 0; color: #000;">
+                Dr(a). {{ medico.get_full_name }}
+            </p>
+            <p style="font-size: 10px; margin: 0;">CRM: {{ medico.crm|default:'N/A' }}</p>
+            <br/>
+            <p style="font-size: 8px; color: #777; margin-top: 5px;">
+                Assinado eletronicamente conforme MP 2.200-2/2001 (ICP-Brasil).<br>
+                Valide este documento em: verificador.iti.gov.br
+            </p>
+        </div>
+    {% else %}
         <p>___________________________________</p>
-        <p>Dr(a). {{ prescricao.medico.get_full_name }}</p>
-        <p>CRM: {{ prescricao.medico.crm|default:'N/A' }}</p>
-    </div>
+        <p>Dr(a). {{ medico.get_full_name }}</p>
+        <p>CRM: {{ medico.crm|default:'N/A' }}</p>
+    {% endif %}
+</div>
 
 {% endblock %}

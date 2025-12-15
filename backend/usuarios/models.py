@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from cryptography.fernet import Fernet
+import base64
 
 # Este é o seu modelo de Especialidade. Ele está correto e é o que vamos usar.
 class Especialidade(models.Model):
@@ -23,6 +25,34 @@ class Especialidade(models.Model):
         verbose_name = "Especialidade"
         verbose_name_plural = "Especialidades"
         ordering = ['nome']
+
+# Adicione esta classe para criptografar a senha do certificado
+class CertificadoMedico(models.Model):
+    medico = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE,
+        related_name='certificado'
+    )
+    arquivo_p12 = models.FileField(upload_to='certificados_digitais/')
+    senha_criptografada = models.CharField(max_length=255)
+    
+    # Campo para checar se está válido
+    data_upload = models.DateTimeField(auto_now_add=True)
+
+    def set_password(self, senha_raw):
+        # Gera uma chave baseada no SECRET_KEY do Django (para simplicidade)
+        # Em produção ideal, use uma variável de ambiente específica
+        key = base64.urlsafe_b64encode(settings.SECRET_KEY[:32].encode().ljust(32, b'='))
+        f = Fernet(key)
+        self.senha_criptografada = f.encrypt(senha_raw.encode()).decode()
+
+    def get_password(self):
+        key = base64.urlsafe_b64encode(settings.SECRET_KEY[:32].encode().ljust(32, b'='))
+        f = Fernet(key)
+        return f.decrypt(self.senha_criptografada.encode()).decode()
+
+    def __str__(self):
+        return f"Certificado de {self.medico.username}"
 
 
 class CustomUser(AbstractUser):

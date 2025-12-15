@@ -20,6 +20,7 @@ from django.template import Context, Template # Para renderizar o template
 from datetime import date # Para a data de hoje
 from django.db import transaction # Importar transaction
 from core.models import Clinica # Importa o modelo de configuração
+from core.services_assinatura import assinar_pdf_digitalmente
 import base64
 from django.core.files.base import ContentFile
 from .models import Laudo, ImagemLaudo
@@ -216,40 +217,53 @@ class DocumentoPacienteViewSet(viewsets.ModelViewSet):
 
 def generate_pdf_response(template_path, context, filename_prefix='documento'):
     """
-    Função helper centralizada para renderizar qualquer template HTML para PDF.
-    VERSÃO ATUALIZADA: Agora também busca a Anamnese (Prontuário Mestre).
+    Função helper centralizada para renderizar HTML para PDF com suporte a assinatura Híbrida.
     """
     clinica_info = Clinica.get_instance()
     logo_path = finders.find(clinica_info.logo) if clinica_info else None
     
-    # --- NOVA LÓGICA ---
+    # --- 1. Busca Anamnese (Lógica existente) ---
     anamnese_obj = None
-    # Tentamos extrair o paciente do contexto (que pode vir da Evolução, Prescrição, etc.)
     paciente = None
-    if 'evolucao' in context:
-        paciente = context['evolucao'].paciente
-    elif 'atestado' in context:
-        paciente = context['atestado'].paciente
-    elif 'prescricao' in context:
-        paciente = context['prescricao'].paciente
-    elif 'relatorio' in context:
-        paciente = context['relatorio'].paciente
+    if 'evolucao' in context: paciente = context['evolucao'].paciente
+    elif 'atestado' in context: paciente = context['atestado'].paciente
+    elif 'prescricao' in context: paciente = context['prescricao'].paciente
+    elif 'relatorio' in context: paciente = context['relatorio'].paciente
 
-    # Se encontramos um paciente, buscamos sua anamnese (Prontuário Mestre)
     if paciente:
         try:
             anamnese_obj = Anamnese.objects.get(paciente=paciente)
         except Anamnese.DoesNotExist:
-            anamnese_obj = None # Não falha se não existir
-    # --- FIM DA NOVA LÓGICA ---
-            
+            anamnese_obj = None
+
+    # --- 2. IDENTIFICAÇÃO DO MÉDICO ---
+    medico_assinante = None
+    if 'medico' in context:
+        medico_assinante = context['medico']
+    elif 'prescricao' in context:
+        medico_assinante = context['prescricao'].medico
+    elif 'atestado' in context:
+        medico_assinante = context['atestado'].medico
+    elif 'relatorio' in context: # Adicionei suporte a relatório
+        medico_assinante = context['relatorio'].medico
+
+    # --- 3. VERIFICAÇÃO PRÉVIA DO CERTIFICADO (Para o visual do HTML) ---
+    tem_certificado_valido = False
+    if medico_assinante and hasattr(medico_assinante, 'certificado'):
+        # Verifica se o arquivo existe fisicamente
+        if medico_assinante.certificado.arquivo_p12:
+            tem_certificado_valido = True
+
+    # --- 4. PREPARA O CONTEXTO VISUAL ---
     full_context = {
         'clinica': clinica_info,
         'logo_path': logo_path,
-        'anamnese': anamnese_obj, # <-- ADICIONA A ANAMNESE AO CONTEXTO
+        'anamnese': anamnese_obj,
+        'tem_assinatura_digital': tem_certificado_valido, # <--- A CHAVE DO SUCESSO
         **context
     }
     
+    # --- 5. GERA O PDF ---
     template = get_template(template_path)
     html = template.render(full_context)
     
@@ -261,7 +275,14 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     )
     
     if not pdf.err:
-        response = HttpResponse(result.getvalue(), content_type='application/pdf')
+        pdf_bytes = result.getvalue()
+
+        # --- 6. APLICA A ASSINATURA CRIPTOGRÁFICA ---
+        if tem_certificado_valido:
+            # Assina de verdade (camada invisível)
+            pdf_bytes = assinar_pdf_digitalmente(pdf_bytes, medico_assinante)
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'filename="{filename_prefix}.pdf"'
         return response
         
