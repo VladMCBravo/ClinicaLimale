@@ -217,12 +217,14 @@ class DocumentoPacienteViewSet(viewsets.ModelViewSet):
 
 def generate_pdf_response(template_path, context, filename_prefix='documento'):
     """
-    Função helper centralizada para renderizar HTML para PDF com suporte a assinatura Híbrida.
+    Função helper com DEBUG LOGS para rastrear a assinatura digital.
     """
+    print(f"\n--- INICIANDO GERAÇÃO DE PDF: {filename_prefix} ---")
+    
     clinica_info = Clinica.get_instance()
     logo_path = finders.find(clinica_info.logo) if clinica_info else None
     
-    # --- 1. Busca Anamnese (Lógica existente) ---
+    # 1. Busca Anamnese
     anamnese_obj = None
     paciente = None
     if 'evolucao' in context: paciente = context['evolucao'].paciente
@@ -236,7 +238,7 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
         except Anamnese.DoesNotExist:
             anamnese_obj = None
 
-    # --- 2. IDENTIFICAÇÃO DO MÉDICO ---
+    # 2. IDENTIFICAÇÃO DO MÉDICO (DEBUG)
     medico_assinante = None
     if 'medico' in context:
         medico_assinante = context['medico']
@@ -244,26 +246,50 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
         medico_assinante = context['prescricao'].medico
     elif 'atestado' in context:
         medico_assinante = context['atestado'].medico
-    elif 'relatorio' in context: # Adicionei suporte a relatório
+    elif 'relatorio' in context:
         medico_assinante = context['relatorio'].medico
+    elif 'evolucao' in context:
+        medico_assinante = context['evolucao'].medico
 
-    # --- 3. VERIFICAÇÃO PRÉVIA DO CERTIFICADO (Para o visual do HTML) ---
+    if medico_assinante:
+        print(f"DEBUG: Médico identificado no contexto: {medico_assinante.get_full_name()} (ID: {medico_assinante.id})")
+    else:
+        print("DEBUG: ERRO - Nenhum médico foi identificado no contexto do PDF.")
+
+    # 3. VERIFICAÇÃO DO CERTIFICADO
     tem_certificado_valido = False
     if medico_assinante and hasattr(medico_assinante, 'certificado'):
-        # Verifica se o arquivo existe fisicamente
+        print("DEBUG: O médico possui objeto 'CertificadoMedico' vinculado.")
         if medico_assinante.certificado.arquivo_p12:
-            tem_certificado_valido = True
+            try:
+                # Tenta verificar se o arquivo existe fisicamente
+                caminho = medico_assinante.certificado.arquivo_p12.path
+                print(f"DEBUG: Arquivo .p12 encontrado em: {caminho}")
+                tem_certificado_valido = True
+            except Exception as e:
+                print(f"DEBUG: Erro ao acessar arquivo do certificado: {e}")
+        else:
+            print("DEBUG: O objeto CertificadoMedico existe, mas o campo arquivo_p12 está vazio.")
+    else:
+        print("DEBUG: O médico NÃO possui certificado configurado no banco de dados.")
 
-    # --- 4. PREPARA O CONTEXTO VISUAL ---
+    # 4. PREPARA O CONTEXTO VISUAL (CORREÇÃO DO NOME SUMIDO)
+    # Se o 'medico' não estava no contexto original, vamos forçar ele aqui
+    # para que o HTML consiga renderizar {{ medico.nome }} e {{ medico.crm }}
+    if 'medico' not in context and medico_assinante:
+        context['medico'] = medico_assinante
+
     full_context = {
         'clinica': clinica_info,
         'logo_path': logo_path,
         'anamnese': anamnese_obj,
-        'tem_assinatura_digital': tem_certificado_valido, # <--- A CHAVE DO SUCESSO
+        'tem_assinatura_digital': tem_certificado_valido, # Flag visual
         **context
     }
     
-    # --- 5. GERA O PDF ---
+    print(f"DEBUG: Flag 'tem_assinatura_digital' enviada ao HTML: {tem_certificado_valido}")
+
+    # 5. GERA O PDF
     template = get_template(template_path)
     html = template.render(full_context)
     
@@ -277,17 +303,27 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     if not pdf.err:
         pdf_bytes = result.getvalue()
 
-        # --- 6. APLICA A ASSINATURA CRIPTOGRÁFICA ---
+        # 6. APLICA A ASSINATURA CRIPTOGRÁFICA
         if tem_certificado_valido:
-            # Assina de verdade (camada invisível)
-            pdf_bytes = assinar_pdf_digitalmente(pdf_bytes, medico_assinante)
+            print("DEBUG: Iniciando processo de assinatura criptográfica (PyHanko)...")
+            pdf_bytes_assinado = assinar_pdf_digitalmente(pdf_bytes, medico_assinante)
+            
+            # Verificação simples se o tamanho mudou (assinatura adiciona bytes)
+            if len(pdf_bytes_assinado) > len(pdf_bytes):
+                print("DEBUG: PDF assinado com sucesso (tamanho do arquivo aumentou).")
+                pdf_bytes = pdf_bytes_assinado
+            else:
+                print("DEBUG: ERRO - O assinador retornou o PDF original (provável erro de senha ou arquivo).")
+        else:
+            print("DEBUG: Gerando PDF normal (sem assinatura digital) - Modo Manual.")
 
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'filename="{filename_prefix}.pdf"'
+        print("--- FIM DA GERAÇÃO ---\n")
         return response
         
+    print("DEBUG: Erro Crítico ao gerar PDF com PISA (xhtml2pdf).")
     return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
-
 
 # --- Views de Geração de PDF (AGORA REATORADAS) ---
 
