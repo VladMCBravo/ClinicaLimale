@@ -4,9 +4,10 @@ import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 // 1. Importe o arquivo de imagem diretamente (O Vite vai lidar com o caminho)
 import logoImagemPath from '../assets/Logo-pdf.png';
-
 // 2. Importe o helper que criamos no Passo 2
 import { getBase64FromUrl } from "./imageHelper";
+
+import { assinarPdfRemotamente } from "../api/pdfService"; // <--- Importe o serviço
 
 //
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
@@ -19,7 +20,8 @@ export const gerarPDFLaudo = async ({
     textoLaudo, 
     dadosEstruturados, 
     imagensBase64,
-    comTimbre = true 
+    comTimbre = true,
+    usaAssinaturaDigital = false // <--- NOVO PARÂMETRO 
 }) => {
 
     // --- CONVERSÃO AUTOMÁTICA DO LOGO ---
@@ -183,26 +185,57 @@ export const gerarPDFLaudo = async ({
     const prefixoMedico = isDra ? 'Dra.' : 'Dr.';
     const nomeFormatado = medicoNome ? `${prefixoMedico} ${medicoNome}` : 'Médico Examinador';
 
-    // --- BLOCO FINAL INQUEBRÁVEL (Último Texto + Assinatura) ---
+    // --- BLOCO DA ASSINATURA (HÍBRIDO) ---
+    // Aqui decidimos se desenhamos a LINHA (Manual) ou o BOX (Digital)
+    
+    let elementoAssinatura = null;
+
+    if (usaAssinaturaDigital) {
+        // OPÇÃO A: VISUAL DIGITAL (BOX CINZA)
+        elementoAssinatura = {
+            stack: [
+                { text: '', margin: [0, 20] }, // Espaço
+                {
+                    table: {
+                        widths: ['*'],
+                        body: [[
+                            {
+                                stack: [
+                                    { text: 'DOCUMENTO ASSINADO DIGITALMENTE', fontSize: 8, color: '#555', margin: [0, 0, 0, 2] },
+                                    { text: nomeFormatado, bold: true, fontSize: 10, color: '#000' },
+                                    { text: `CRM: ${medicoCrm || 'N/A'}`, fontSize: 9 },
+                                    { text: 'Assinado eletronicamente conforme MP 2.200-2/2001 (ICP-Brasil).', fontSize: 7, color: '#777', margin: [0, 5, 0, 0] },
+                                    { text: 'Valide em: verificador.iti.gov.br', fontSize: 7, color: '#777' }
+                                ],
+                                alignment: 'center',
+                                fillColor: '#f8f9fa',
+                                borderColor: ['#ccc', '#ccc', '#ccc', '#ccc']
+                            }
+                        ]]
+                    },
+                    layout: { defaultBorder: true },
+                    margin: [120, 0, 120, 0] // Margens laterais para centralizar e reduzir largura
+                }
+            ]
+        };
+    } else {
+        // OPÇÃO B: VISUAL MANUAL (LINHA DE CANETA)
+        elementoAssinatura = {
+            stack: [
+                { text: '', margin: [0, 35] }, 
+                { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
+                { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
+                { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 9, color: '#555' }
+            ]
+        };
+    }
+
+    // Adiciona o bloco final (Texto restante + Assinatura escolhida)
     content.push({
         stack: [
-            // Aqui entra o último parágrafo que salvamos antes
             ultimoParagrafo ? ultimoParagrafo : {},
-            
-            // Espaço maior para assinatura
-            { text: '', margin: [0, 35] }, 
-
-            // Linha da Assinatura
-            { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
-            
-            // Nome com Dr./Dra.
-            { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
-            
-            // CRM
-            { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 9, color: '#555' }
+            elementoAssinatura
         ],
-        // O SEGREDO: 'unbreakable: true' impede que esse bloco seja cortado no meio.
-        // Se não couber na página, ele leva o último parágrafo E a assinatura para a próxima.
         unbreakable: true 
     });
 
@@ -222,5 +255,31 @@ export const gerarPDFLaudo = async ({
         defaultStyle: { font: 'Roboto' }
     };
     
-    pdfMake.createPdf(docDefinition).open();
+    // --- DECISÃO FINAL: ABRIR OU ASSINAR? ---
+    const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+
+    if (usaAssinaturaDigital) {
+        // 1. Gera o arquivo (Blob)
+        pdfDocGenerator.getBlob(async (blob) => {
+            try {
+                // Abre aba de "Aguarde" para não ser bloqueado pelo navegador
+                const newWindow = window.open('', '_blank');
+                if(newWindow) newWindow.document.write('<h2>Aguarde, aplicando assinatura digital...</h2>');
+
+                // 2. Envia para o Backend Django assinar
+                const pdfAssinadoBlob = await assinarPdfRemotamente(blob);
+                
+                // 3. Abre o PDF que voltou assinado
+                const fileURL = URL.createObjectURL(pdfAssinadoBlob);
+                if(newWindow) newWindow.location.href = fileURL;
+                
+            } catch (error) {
+                console.error("Erro na assinatura:", error);
+                alert("Não foi possível assinar digitalmente. Verifique se seu certificado está válido no sistema.");
+            }
+        });
+    } else {
+        // Modo Clássico: Abre direto
+        pdfDocGenerator.open();
+    }
 };

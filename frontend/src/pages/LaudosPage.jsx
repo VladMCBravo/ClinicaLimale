@@ -152,7 +152,8 @@ const LaudosPage = () => {
   const [todosMedicos, setTodosMedicos] = useState([]); // Lista completa carregada da API
   const [medicosFiltrados, setMedicosFiltrados] = useState([]); // Lista exibida no dropdown
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
-
+  const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false); // <--- NOVO
+  
   // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
@@ -198,6 +199,28 @@ const LaudosPage = () => {
     };
     carregarMedicos();
   }, []);
+
+  // Adicione este useEffect (ou junte com o existente)
+  useEffect(() => {
+    const checarUsuario = async () => {
+        try {
+            // Endpoint padrão para pegar dados do usuário logado
+            // Certifique-se que seu serializer de User retorna o campo 'tem_certificado' 
+            // ou verifique se existe o objeto aninhado certificado.
+            const res = await apiClient.get('/usuarios/me/'); 
+            
+            // Exemplo: se o backend retornar { id: 1, certificado_configurado: true }
+            if (res.data.tem_certificado_valido) { 
+                setUsuarioTemCertificado(true);
+            }
+        } catch (e) {
+            console.error("Erro ao verificar certificado do usuário", e);
+        }
+    };
+    checarUsuario();
+}, []);
+
+
 
   // --- LÓGICA DE FILTRO DE MÉDICO (COM LOGS) ---
   const handleInputMedicoChange = (texto) => {
@@ -480,7 +503,8 @@ const handleShareEmail = () => {
           textoLaudo: textoFinal, 
           dadosEstruturados, 
           imagensBase64: imagens,
-          comTimbre: usarTimbre // <--- Passa o parâmetro para o gerador
+          comTimbre: usarTimbre, // <--- Passa o parâmetro para o gerador
+          usaAssinaturaDigital: usuarioTemCertificado // <--- A MÁGICA ACONTECE AQUI
       });
   };
 

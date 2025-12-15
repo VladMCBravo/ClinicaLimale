@@ -8,7 +8,8 @@ from prontuario.views import (
     GerarEvolucaoPDFView,
     OpcaoClinicaListView, 
     TemplateRelatorioListView,
-    GerarRelatorioPDFView  # <-- 1. IMPORTE A NOVA VIEW
+    GerarRelatorioPDFView,  # <-- 1. IMPORTE A NOVA VIEW
+    AssinarArquivoPDFView
 )
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
 from .views import debug_env_view, list_urls_view
@@ -50,6 +51,7 @@ urlpatterns = [
     path('api/pdf/prescricao/<int:prescricao_id>/', GerarPrescricaoPDFView.as_view(), name='gerar-prescricao-pdf'),
     path('api/pdf/atestado/<int:atestado_id>/', GerarAtestadoPDFView.as_view(), name='gerar-atestado-pdf'),
     path('api/pdf/relatorio/<int:relatorio_id>/', GerarRelatorioPDFView.as_view(), name='pdf_relatorio'),
+    path('api/pdf/assinar-upload/', AssinarArquivoPDFView.as_view(), name='assinar-pdf-upload'),
  
     # --- Rotas Legadas / Outros Apps ---
     # MANTIDAS para garantir compatibilidade com o restante do sistema

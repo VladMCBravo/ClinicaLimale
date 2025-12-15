@@ -854,3 +854,43 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             response.data['credenciais'] = None
 
         return response
+
+class AssinarArquivoPDFView(APIView):
+    """
+    Recebe um arquivo PDF via upload (multipart/form-data),
+    assina com o certificado do usuário logado e retorna o PDF assinado.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        # 1. Verifica se veio arquivo
+        if 'file' not in request.FILES:
+            return Response({"error": "Nenhum arquivo enviado."}, status=400)
+        
+        arquivo = request.FILES['file']
+        pdf_bytes = arquivo.read()
+        
+        # 2. Verifica se o médico tem certificado
+        if not hasattr(request.user, 'certificado') or not request.user.certificado.arquivo_p12:
+            return Response(
+                {"error": "Médico não possui certificado digital configurado."}, 
+                status=400
+            )
+
+        try:
+            # 3. Chama nosso serviço de assinatura (que já criamos)
+            # Como é um upload, o pdf_bytes está na memória
+            pdf_assinado_bytes = assinar_pdf_digitalmente(pdf_bytes, request.user)
+            
+            # 4. Retorna o PDF binary direto para o navegador baixar/abrir
+            response = HttpResponse(pdf_assinado_bytes, content_type='application/pdf')
+            # Se quiser forçar download: response['Content-Disposition'] = 'attachment; filename="laudo_assinado.pdf"'
+            # Se quiser abrir no navegador (inline):
+            response['Content-Disposition'] = 'inline; filename="laudo_assinado.pdf"'
+            
+            return response
+
+        except Exception as e:
+            print(f"Erro ao assinar upload: {e}")
+            return Response({"error": "Falha técnica ao assinar o PDF."}, status=500)
