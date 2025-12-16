@@ -5,13 +5,15 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CustomUserViewSet,
     EspecialidadeViewSet,
-    JornadaTrabalhoViewSet
+    JornadaTrabalhoViewSet,
+    UserMeView
 )
 
 # O Router é a forma padrão do Django Rest Framework de criar
 # todas as rotas para um ViewSet (listar, criar, detalhar, editar, deletar).
 router = DefaultRouter()
-router.register(r'usuarios', CustomUserViewSet, basename='usuario')
+router.register(r'usuarios', CustomUserViewSet, basename='usuario', )
+path('me/', UserMeView.as_view(), name='user-me'), # <--- ADICIONE ESTA LINHA
 router.register(r'especialidades', EspecialidadeViewSet, basename='especialidade')
 router.register(r'jornadas', JornadaTrabalhoViewSet, basename='jornada')
 # As urlpatterns agora incluem as rotas de autenticação

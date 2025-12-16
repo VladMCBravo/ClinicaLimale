@@ -79,3 +79,26 @@ class JornadaTrabalhoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(medico_id=medico_id)
             
         return queryset.order_by('medico__first_name', 'dia_da_semana', 'hora_inicio')
+
+class UserMeView(APIView):
+    """
+    Retorna os dados do usuário logado e se ele possui certificado digital válido.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        # Verifica se existe certificado vinculado e se tem arquivo
+        tem_certificado = False
+        if hasattr(user, 'certificado') and user.certificado.arquivo_p12:
+            tem_certificado = True
+            
+        data = {
+            'id': user.id,
+            'username': user.username,
+            'nome_completo': user.get_full_name(),
+            'crm': user.crm,
+            'tem_certificado_valido': tem_certificado # <--- O FRONTEND ESPERA ISSO
+        }
+        return Response(data)

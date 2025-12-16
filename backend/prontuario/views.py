@@ -770,7 +770,7 @@ class GerarRelatorioPDFView(APIView):
 
 class LaudoListCreateView(generics.ListCreateAPIView):
     serializer_class = LaudoSerializer
-    permission_classes = [CanViewProntuario]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         # Filtra laudos por paciente se passado na URL, ou retorna todos se for admin
