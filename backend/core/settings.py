@@ -89,7 +89,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'core.middleware_auditor.SecurityAuditMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -209,36 +208,3 @@ else:
         },
     }
     
-# --- Configuração de Logs para Auditoria IA ---
-    LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'json': {
-            'format': '%(message)s',
-        },
-    },
-    'handlers': {
-        'audit_file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': 'auditoria.log', # Arquivo que a IA vai ler
-            'formatter': 'json',
-            'encoding': 'utf-8',
-        },
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        'auditor_ia': { # Nome usado no middleware_auditor.py
-            'handlers': ['audit_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-    },
-}
