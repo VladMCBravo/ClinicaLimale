@@ -1,13 +1,12 @@
 // src/components/financeiro/DashboardFinanceiro.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Grid, Paper, Typography, Box, CircularProgress, Alert, 
-    LinearProgress, Divider, Tooltip, IconButton
+    Grid, Paper, Typography, Box, CircularProgress 
 } from '@mui/material';
 import { 
     TrendingUp, TrendingDown, AccountBalanceWallet, 
     AttachMoney, MoneyOff, HealthAndSafety 
-} from '@mui/icons-material'; // Ícones mais modernos
+} from '@mui/icons-material';
 
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -31,7 +30,7 @@ const MiniKPI = ({ title, value, icon, color, subtext }) => (
             {subtext && <Typography variant="caption" color="text.secondary">{subtext}</Typography>}
         </Box>
         <Box sx={{ 
-            bgcolor: `${color}15`, // Cor com transparência
+            bgcolor: `${color}15`, 
             color: color, 
             p: 1, 
             borderRadius: '50%',
@@ -42,12 +41,14 @@ const MiniKPI = ({ title, value, icon, color, subtext }) => (
     </Paper>
 );
 
-const ChartCard = ({ title, children }) => (
+// CORREÇÃO AQUI: height prop para travar o tamanho
+const ChartCard = ({ title, children, height = 300 }) => (
     <Paper elevation={1} sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Typography variant="subtitle2" fontWeight="bold" color="text.secondary" gutterBottom>
             {title}
         </Typography>
-        <Box sx={{ flexGrow: 1, position: 'relative', minHeight: '180px' }}>
+        {/* O Box agora tem altura fixa definida pela prop, impedindo o gráfico de crescer infinitamente */}
+        <Box sx={{ position: 'relative', height: `${height}px`, width: '100%' }}>
             {children}
         </Box>
     </Paper>
@@ -64,17 +65,14 @@ export default function DashboardFinanceiro() {
     useEffect(() => {
         const loadAllData = async () => {
             try {
-                // Chama as duas rotas ao mesmo tempo
                 const [dashRes, relRes] = await Promise.all([
                     faturamentoService.getDashboardFinanceiro(),
                     faturamentoService.getRelatorioFinanceiro()
                 ]);
 
-                // Processamento de Inteligência (Frontend)
                 const dashData = dashRes.data;
                 const faturamento = parseFloat(dashData.faturamento_do_dia || 0);
                 const despesas = parseFloat(dashData.despesas_do_dia || 0);
-                const lucro = dashData.lucro_do_dia || 0;
                 
                 const insights = [];
                 if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas superam faturamento hoje.' });
@@ -87,7 +85,7 @@ export default function DashboardFinanceiro() {
                 });
 
             } catch (error) {
-                console.error("Erro ao carregar dashboard unificado", error);
+                console.error("Erro ao carregar dashboard", error);
             } finally {
                 setIsLoading(false);
             }
@@ -96,7 +94,6 @@ export default function DashboardFinanceiro() {
         loadAllData();
     }, []);
 
-    // Preparação dos Gráficos (Memoizado para performance)
     const chartsData = useMemo(() => {
         if (!data.relatorios) return null;
 
@@ -129,10 +126,10 @@ export default function DashboardFinanceiro() {
         };
     }, [data.relatorios]);
 
-    // Opções comuns para gráficos ficarem compactos
+    // Opções: maintainAspectRatio false é CRUCIAL, mas só funciona se o pai tiver altura fixa (que agora tem)
     const commonOptions = {
         responsive: true,
-        maintainAspectRatio: false, // IMPORTANTE: Deixa o gráfico esticar para caber no container
+        maintainAspectRatio: false, 
         plugins: {
             legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
         }
@@ -143,7 +140,7 @@ export default function DashboardFinanceiro() {
 
     return (
         <Box sx={{ pb: 2 }}>
-            {/* LINHA 1: KPIS PRINCIPAIS (Compactos) */}
+            {/* LINHA 1: KPIS PRINCIPAIS */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <MiniKPI 
@@ -180,51 +177,44 @@ export default function DashboardFinanceiro() {
                 </Grid>
             </Grid>
 
-            {/* LINHA 2: GRÁFICOS E INSIGHTS */}
+            {/* LINHA 2: GRÁFICOS */}
             <Grid container spacing={2}>
                 
-                {/* Coluna Esquerda: Fluxo de Caixa (Ocupa mais espaço) */}
-                <Grid item xs={12} md={6}>
-                    <ChartCard title="Fluxo de Caixa (6 Meses)">
+                {/* Coluna Esquerda: Fluxo de Caixa */}
+                <Grid item xs={12} md={8}> {/* Aumentei para 8 para dar destaque ao fluxo */}
+                    <ChartCard title="Fluxo de Caixa (6 Meses)" height={300}>
                         {chartsData && <Bar data={chartsData.fluxo} options={commonOptions} />}
                     </ChartCard>
                 </Grid>
 
-                {/* Coluna Direita: Pizzas e Saúde */}
-                <Grid item xs={12} md={6}>
-                    <Grid container spacing={2} sx={{ height: '100%' }}>
+                {/* Coluna Direita: Pizzas e Insights */}
+                <Grid item xs={12} md={4}>
+                    <Grid container spacing={2}>
                         
-                        {/* Pizza 1 */}
-                        <Grid item xs={12} sm={6} sx={{ height: '240px' }}>
-                            <ChartCard title="Despesas por Categoria">
-                                {chartsData && <Pie data={chartsData.categorias} options={commonOptions} />}
-                            </ChartCard>
-                        </Grid>
-                        
-                        {/* Pizza 2 */}
-                        <Grid item xs={12} sm={6} sx={{ height: '240px' }}>
-                            <ChartCard title="Receitas por Forma">
-                                {chartsData && <Pie data={chartsData.formas} options={commonOptions} />}
+                        {/* Pizza 1: Menor (height 180) */}
+                        <Grid item xs={12}>
+                            <ChartCard title="Despesas por Categoria" height={180}>
+                                {chartsData && <Pie data={chartsData.categorias} options={{...commonOptions, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } }}} />}
                             </ChartCard>
                         </Grid>
 
-                        {/* Bloco de Insights / Saúde (Estilo Footer da dashboard) */}
+                        {/* Bloco de Insights */}
                         <Grid item xs={12}>
-                            <Paper elevation={1} sx={{ p: 1.5, bgcolor: '#fff3e0', borderLeft: '4px solid #ff9800' }}>
+                            <Paper elevation={1} sx={{ p: 1.5, bgcolor: '#fff3e0', borderLeft: '4px solid #ff9800', minHeight: '100px' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                    <HealthAndSafety sx={{ mr: 1, color: '#f57c00' }} />
+                                    <HealthAndSafety sx={{ mr: 1, color: '#f57c00' }} fontSize="small" />
                                     <Typography variant="subtitle2" fontWeight="bold" color="#e65100">
                                         Monitoramento Inteligente
                                     </Typography>
                                 </Box>
                                 {data.insights.length > 0 ? (
                                     data.insights.map((ins, i) => (
-                                        <Typography key={i} variant="body2" sx={{ display: 'block', mb: 0.5, fontSize: '0.8rem' }}>
+                                        <Typography key={i} variant="caption" sx={{ display: 'block', mb: 0.5 }}>
                                             • {ins.text}
                                         </Typography>
                                     ))
                                 ) : (
-                                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                    <Typography variant="caption" color="text.secondary">
                                         Nenhum alerta crítico. Sua operação está saudável hoje.
                                     </Typography>
                                 )}
