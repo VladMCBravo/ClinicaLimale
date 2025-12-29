@@ -1,100 +1,24 @@
-// src/components/financeiro/DashboardFinanceiro.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-    Grid, Paper, Typography, Box, CircularProgress, 
-    LinearProgress, Avatar, Divider, Chip
-} from '@mui/material';
+// Mantemos os ícones pois são bonitos e úteis, mas vamos estilizá-los com o CSS
 import { 
     TrendingUp, TrendingDown, AccountBalanceWallet, 
-    AttachMoney, MoneyOff, VerifiedUser, MoreVert
+    AttachMoney, MoneyOff, VerifiedUser 
 } from '@mui/icons-material';
 
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 
 import { faturamentoService } from '../../services/faturamentoService';
+import './FinancialDashboard.css'; // Importando o CSS que criamos
 
 // Registra ChartJS
 ChartJS.register(ArcElement, ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
-
-// --- ESTILOS VISUAIS (DESIGN SYSTEM) ---
-const cardStyle = {
-    borderRadius: '16px', // Bordas bem arredondadas (estilo iOS/Moderno)
-    boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.05)', // Sombra super suave
-    p: 2.5,
-    height: '100%',
-    backgroundColor: '#fff',
-    border: '1px solid rgba(0,0,0,0.02)'
-};
-
-const kpiIconBoxStyle = (color) => ({
-    bgcolor: `${color}15`, // 15% de opacidade
-    color: color,
-    width: 48,
-    height: 48,
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    mb: 2
-});
-
-// --- COMPONENTES VISUAIS ---
-
-// Card de KPI Moderno
-const KpiCardModern = ({ title, value, icon, color, trendValue, trendLabel }) => (
-    <Paper sx={cardStyle} elevation={0}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Box sx={kpiIconBoxStyle(color)}>
-                {icon}
-            </Box>
-            {/* Chip de Tendência (Ex: +12% vs mês anterior) - Simulado visualmente */}
-            <Chip 
-                label={trendLabel || "+2.5%"} 
-                size="small" 
-                icon={trendValue === 'down' ? <TrendingDown fontSize="small"/> : <TrendingUp fontSize="small"/>}
-                sx={{ 
-                    bgcolor: trendValue === 'down' ? '#ffebee' : '#e8f5e9', 
-                    color: trendValue === 'down' ? '#c62828' : '#2e7d32',
-                    fontWeight: 'bold',
-                    borderRadius: '8px'
-                }} 
-            />
-        </Box>
-        
-        <Box>
-            <Typography variant="body2" color="text.secondary" fontWeight="500" sx={{ mb: 0.5 }}>
-                {title}
-            </Typography>
-            <Typography variant="h5" fontWeight="800" sx={{ color: '#1a1a1a', letterSpacing: '-0.5px' }}>
-                {value}
-            </Typography>
-        </Box>
-    </Paper>
-);
-
-// Card Genérico para Gráficos
-const ChartCardModern = ({ title, subtitle, children, height = 300 }) => (
-    <Paper sx={cardStyle} elevation={0}>
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-                <Typography variant="h6" fontWeight="700" sx={{ fontSize: '1rem', color: '#1a1a1a' }}>
-                    {title}
-                </Typography>
-                {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
-            </Box>
-            <MoreVert sx={{ color: '#bdbdbd', cursor: 'pointer' }} fontSize="small" />
-        </Box>
-        <Box sx={{ position: 'relative', height: `${height}px`, width: '100%' }}>
-            {children}
-        </Box>
-    </Paper>
-);
 
 export default function DashboardFinanceiro() {
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState({ dashboard: null, relatorios: null, insights: [] });
 
+    // Formatador de Moeda
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
     useEffect(() => {
@@ -109,7 +33,7 @@ export default function DashboardFinanceiro() {
                 const faturamento = parseFloat(dashData.faturamento_do_dia || 0);
                 const despesas = parseFloat(dashData.despesas_do_dia || 0);
                 
-                // Insights Simulados para visual
+                // Insights Simulados
                 const insights = [];
                 if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas do dia excedem as entradas.' });
                 if (dashData.saldo_em_conta < 0) insights.push({ type: 'error', text: 'Saldo negativo: Risco de juros.' });
@@ -140,14 +64,14 @@ export default function DashboardFinanceiro() {
                     { 
                         label: 'Entradas', 
                         data: data.relatorios.fluxo_caixa_mensal.map(i => i.receitas), 
-                        backgroundColor: '#3b82f6', // Azul moderno
+                        backgroundColor: '#28a745', // Verde do seu CSS
                         borderRadius: 4, 
                         barPercentage: 0.6 
                     },
                     { 
                         label: 'Saídas', 
                         data: data.relatorios.fluxo_caixa_mensal.map(i => i.despesas), 
-                        backgroundColor: '#ef4444', // Vermelho moderno
+                        backgroundColor: '#dc3545', // Vermelho do seu CSS
                         borderRadius: 4, 
                         barPercentage: 0.6 
                     }
@@ -157,7 +81,7 @@ export default function DashboardFinanceiro() {
                 labels: data.relatorios.despesas_por_categoria.map(i => i.categoria__nome),
                 datasets: [{ 
                     data: data.relatorios.despesas_por_categoria.map(i => i.total),
-                    backgroundColor: ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6'],
+                    backgroundColor: ['#1a233b', '#c0a46f', '#28a745', '#dc3545', '#7f8c8d'], // Cores do tema
                     borderWidth: 0,
                     hoverOffset: 10
                 }]
@@ -165,145 +89,144 @@ export default function DashboardFinanceiro() {
         };
     }, [data.relatorios]);
 
-    // Configurações "Clean" para os gráficos
-    const barOptions = {
+    // Configurações dos Gráficos
+    const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-            y: { 
-                beginAtZero: true, 
-                grid: { borderDash: [5, 5], drawBorder: false, color: '#f0f0f0' }, // Linhas pontilhadas leves
-                ticks: { font: { size: 11 }, color: '#9ca3af' }
-            },
-            x: { 
-                grid: { display: false }, // Remove grade vertical
-                ticks: { font: { size: 11 }, color: '#9ca3af' }
+        plugins: {
+            legend: { 
+                position: 'bottom', 
+                labels: { usePointStyle: true, font: { family: "'Segoe UI', sans-serif" } } 
             }
-        },
-        plugins: {
-            legend: { align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } }
         }
     };
 
-    const doughnutOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '75%', // Deixa a rosca mais fina (elegante)
-        plugins: {
-            legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 }, color: '#6b7280' } }
-        }
-    };
-
-    if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
-    if (!data.dashboard) return <Typography>Sem dados.</Typography>;
+    if (isLoading) return <div className="financial-container"><p>Carregando dados financeiros...</p></div>;
+    if (!data.dashboard) return <div className="financial-container"><p>Sem dados disponíveis.</p></div>;
 
     return (
-        // Fundo cinza claro para destacar os cards brancos
-        <Box sx={{ bgcolor: '#f8f9fa', p: 2, borderRadius: 2, minHeight: '80vh' }}>
+        <div className="financial-container">
             
-            {/* Título da Seção (Opcional, se quiser dar um nome pro Dashboard) */}
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h5" fontWeight="800" sx={{ color: '#111827' }}>
-                    Visão Geral
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Última atualização: Hoje
-                </Typography>
-            </Box>
+            {/* 1. CABEÇALHO */}
+            <header className="dashboard-header">
+                <div>
+                    <h1 className="dashboard-title">Visão Geral</h1>
+                    <span style={{color: '#999', fontSize: '0.9rem'}}>Atualizado em tempo real</span>
+                </div>
+                <div className="dashboard-controls">
+                    <button className="filter-btn active">Hoje</button>
+                    <button className="filter-btn">Mês</button>
+                </div>
+            </header>
 
-            {/* LINHA 1: KPIs */}
-            <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={6} md={3}>
-                    <KpiCardModern 
-                        title="Faturamento Hoje" 
-                        value={formatMoney(data.dashboard.faturamento_do_dia)} 
-                        icon={<AttachMoney />} 
-                        color="#3b82f6" // Blue
-                        trendLabel="+ Bom"
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <KpiCardModern 
-                        title="Despesas Hoje" 
-                        value={formatMoney(data.dashboard.despesas_do_dia)} 
-                        icon={<MoneyOff />} 
-                        color="#ef4444" // Red
-                        trendValue="down"
-                        trendLabel="Alerta"
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <KpiCardModern 
-                        title="Lucro Líquido" 
-                        value={formatMoney(data.dashboard.lucro_do_dia)} 
-                        icon={data.dashboard.lucro_do_dia >= 0 ? <TrendingUp /> : <TrendingDown />} 
-                        color={data.dashboard.lucro_do_dia >= 0 ? "#10b981" : "#ef4444"} 
-                        trendLabel={data.dashboard.lucro_do_dia >= 0 ? "Positivo" : "Negativo"}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <KpiCardModern 
-                        title="Saldo Atual" 
-                        value={formatMoney(data.dashboard.saldo_em_conta)} 
-                        icon={<AccountBalanceWallet />} 
-                        color="#8b5cf6" // Purple
-                        trendLabel="Banco Inter"
-                    />
-                </Grid>
-            </Grid>
-
-            {/* LINHA 2: GRÁFICOS E INSIGHTS */}
-            <Grid container spacing={3}>
+            {/* 2. KPIS (Cards Superiores) */}
+            <section className="kpi-grid">
                 
-                {/* Coluna Esquerda: Fluxo de Caixa (Maior) */}
-                <Grid item xs={12} md={8}>
-                    <ChartCardModern 
-                        title="Fluxo de Caixa" 
-                        subtitle="Comparativo de entradas e saídas (semestral)"
-                        height={320}
-                    >
-                        {chartsData && <Bar data={chartsData.fluxo} options={barOptions} />}
-                    </ChartCardModern>
-                </Grid>
+                {/* Faturamento */}
+                <div className="kpi-card revenue">
+                    <div className="kpi-info">
+                        <h3>Faturamento Hoje</h3>
+                        <p className="kpi-value" style={{color: '#28a745'}}>
+                            {formatMoney(data.dashboard.faturamento_do_dia)}
+                        </p>
+                    </div>
+                    <div className="kpi-icon">
+                        <AttachMoney fontSize="inherit" />
+                    </div>
+                </div>
 
-                {/* Coluna Direita: Categorias e Insights */}
-                <Grid item xs={12} md={4}>
-                    <Grid container spacing={3}>
-                        
-                        {/* Gráfico de Rosca (Doughnut) */}
-                        <Grid item xs={12}>
-                            <ChartCardModern title="Despesas por Categoria" height={200}>
-                                {chartsData && <Doughnut data={chartsData.categorias} options={doughnutOptions} />}
-                            </ChartCardModern>
-                        </Grid>
+                {/* Despesas */}
+                <div className="kpi-card expense">
+                    <div className="kpi-info">
+                        <h3>Despesas Hoje</h3>
+                        <p className="kpi-value" style={{color: '#dc3545'}}>
+                            {formatMoney(data.dashboard.despesas_do_dia)}
+                        </p>
+                    </div>
+                    <div className="kpi-icon">
+                        <MoneyOff fontSize="inherit" />
+                    </div>
+                </div>
 
-                        {/* Card de Inteligência / Insights */}
-                        <Grid item xs={12}>
-                            <Paper sx={{ ...cardStyle, bgcolor: '#fff', borderLeft: '4px solid #f59e0b', p: 2 }} elevation={0}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                                    <VerifiedUser sx={{ color: '#f59e0b', mr: 1 }} fontSize="small"/>
-                                    <Typography variant="subtitle2" fontWeight="bold" color="#111827">
-                                        Monitoramento Inteligente
-                                    </Typography>
-                                </Box>
-                                
-                                {data.insights.map((ins, i) => (
-                                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: ins.type === 'error' ? 'red' : ins.type === 'success' ? 'green' : 'orange', mr: 1.5 }} />
-                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
-                                            {ins.text}
-                                        </Typography>
-                                    </Box>
-                                ))}
-                                {data.insights.length === 0 && (
-                                    <Typography variant="caption" color="text.secondary">Tudo certo por aqui.</Typography>
-                                )}
-                            </Paper>
-                        </Grid>
+                {/* Lucro */}
+                <div className={`kpi-card ${data.dashboard.lucro_do_dia >= 0 ? 'revenue' : 'expense'}`}>
+                    <div className="kpi-info">
+                        <h3>Lucro Líquido</h3>
+                        <p className="kpi-value" style={{color: data.dashboard.lucro_do_dia >= 0 ? '#28a745' : '#dc3545'}}>
+                            {formatMoney(data.dashboard.lucro_do_dia)}
+                        </p>
+                    </div>
+                    <div className="kpi-icon">
+                        {data.dashboard.lucro_do_dia >= 0 ? <TrendingUp fontSize="inherit"/> : <TrendingDown fontSize="inherit"/>}
+                    </div>
+                </div>
 
-                    </Grid>
-                </Grid>
-            </Grid>
-        </Box>
+                {/* Saldo (Destaque Azul/Dourado) */}
+                <div className="kpi-card balance">
+                    <div className="kpi-info">
+                        <h3>Saldo em Conta</h3>
+                        <p className="kpi-value">
+                            {formatMoney(data.dashboard.saldo_em_conta)}
+                        </p>
+                    </div>
+                    <div className="kpi-icon">
+                        <AccountBalanceWallet fontSize="inherit" />
+                    </div>
+                </div>
+            </section>
+
+            {/* 3. ÁREA PRINCIPAL */}
+            <section className="dashboard-main">
+                
+                {/* Gráfico de Barras (Fluxo) */}
+                <div className="white-box">
+                    <div className="box-header">
+                        <h3 className="box-title">Fluxo de Caixa Semestral</h3>
+                    </div>
+                    <div style={{ height: '300px', width: '100%' }}>
+                        {chartsData && <Bar data={chartsData.fluxo} options={commonOptions} />}
+                    </div>
+                </div>
+
+                {/* Coluna Direita: Categorias + Insights */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    {/* Gráfico de Rosca */}
+                    <div className="white-box">
+                        <div className="box-header">
+                            <h3 className="box-title">Por Categoria</h3>
+                        </div>
+                        <div style={{ height: '200px', width: '100%' }}>
+                            {chartsData && <Doughnut data={chartsData.categorias} options={commonOptions} />}
+                        </div>
+                    </div>
+
+                    {/* Insights (Lista customizada reutilizando estilos) */}
+                    <div className="white-box">
+                        <div className="box-header">
+                            <h3 className="box-title">
+                                <VerifiedUser sx={{ fontSize: 18, marginRight: 1, color: '#c0a46f' }} />
+                                Insights
+                            </h3>
+                        </div>
+                        <div className="transaction-list">
+                            {data.insights.map((ins, i) => (
+                                <div key={i} className="transaction-item">
+                                    <div className="t-info">
+                                        <span className="t-desc" style={{ fontSize: '0.9rem' }}>{ins.text}</span>
+                                    </div>
+                                    <div className={`t-amount ${ins.type === 'error' ? 'amount-neg' : 'amount-pos'}`}>
+                                        •
+                                    </div>
+                                </div>
+                            ))}
+                            {data.insights.length === 0 && <p style={{color: '#999', padding: '10px'}}>Nenhum alerta.</p>}
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+        </div>
     );
 }
