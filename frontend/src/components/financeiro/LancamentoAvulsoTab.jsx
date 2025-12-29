@@ -1,8 +1,7 @@
-// src/components/financeiro/LancamentoAvulsoTab.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Box, Grid, TextField, Button, CircularProgress, Autocomplete, 
-    ToggleButton, ToggleButtonGroup, Typography, Paper, Slider, InputAdornment
+    ToggleButton, ToggleButtonGroup, Typography, Paper, Slider, InputAdornment, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
@@ -19,11 +18,7 @@ export default function LancamentoAvulsoTab({ onClose }) {
     const [tipo, setTipo] = useState('receita');
     const [origemReceita, setOrigemReceita] = useState('paciente');
     
-    // Estado do Formulário
-    const [formData, setFormData] = useState({
-        qtd_parcelas: 1,
-        status: 'Pago' // Padrão
-    });
+    const [formData, setFormData] = useState({ qtd_parcelas: 1, status: 'Pago' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [pacientes, setPacientes] = useState([]);
@@ -46,9 +41,7 @@ export default function LancamentoAvulsoTab({ onClose }) {
     const handleOrigemChange = (event, newOrigem) => {
         if (newOrigem !== null) {
             setOrigemReceita(newOrigem);
-            if (newOrigem === 'outros') {
-                setFormData(prev => ({ ...prev, paciente: null }));
-            }
+            if (newOrigem === 'outros') setFormData(prev => ({ ...prev, paciente: null }));
         }
     };
 
@@ -57,24 +50,20 @@ export default function LancamentoAvulsoTab({ onClose }) {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Handler exclusivo para os cards de pagamento
     const handlePaymentMethod = (method) => {
         setFormData(prev => ({ 
             ...prev, 
             forma_pagamento: method,
-            // Se for Crédito, status padrão vira Pendente (receber no futuro), senão Pago
             status: method === 'CartaoCredito' ? 'Pendente' : 'Pago'
         }));
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        
         if (!formData.descricao || !formData.valor) {
             showSnackbar('Preencha descrição e valor.', 'warning');
             return;
         }
-
         setIsSubmitting(true);
         
         const payload = {
@@ -85,17 +74,16 @@ export default function LancamentoAvulsoTab({ onClose }) {
 
         try {
             await faturamentoService.createLancamentoAvulso(payload);
-            showSnackbar(`Lançamento salvo com sucesso!`, 'success');
+            showSnackbar(`Lançamento salvo!`, 'success');
             onClose(); 
         } catch (error) {
-            showSnackbar(`Erro ao salvar lançamento.`, 'error');
-            console.error(error);
+            showSnackbar(`Erro ao salvar.`, 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Componente auxiliar para Card de Pagamento
+    // Card de Pagamento (Versão Mini)
     const PaymentCard = ({ value, label, icon: Icon }) => {
         const selected = formData.forma_pagamento === value;
         return (
@@ -103,7 +91,7 @@ export default function LancamentoAvulsoTab({ onClose }) {
                 elevation={0}
                 onClick={() => handlePaymentMethod(value)}
                 sx={{
-                    p: 2,
+                    p: 1, // Padding mínimo
                     cursor: 'pointer',
                     border: selected ? '2px solid #1a233b' : '1px solid #e0e0e0',
                     bgcolor: selected ? '#f0f4fa' : '#fff',
@@ -111,12 +99,13 @@ export default function LancamentoAvulsoTab({ onClose }) {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    transition: 'all 0.2s',
-                    '&:hover': { borderColor: '#1a233b', transform: 'translateY(-2px)' }
+                    transition: 'all 0.1s',
+                    minHeight: '60px', // Altura fixa pequena
+                    '&:hover': { borderColor: '#1a233b' }
                 }}
             >
-                <Icon sx={{ fontSize: 28, color: selected ? '#1a233b' : '#757575', mb: 1 }} />
-                <Typography variant="caption" fontWeight={selected ? 'bold' : 'normal'} color={selected ? '#1a233b' : 'text.secondary'}>
+                <Icon sx={{ fontSize: 20, color: selected ? '#1a233b' : '#757575', mb: 0.5 }} />
+                <Typography variant="caption" sx={{ fontSize: '0.65rem', lineHeight: 1.1 }} align="center" fontWeight={selected ? 'bold' : 'normal'} color={selected ? '#1a233b' : 'text.secondary'}>
                     {label}
                 </Typography>
             </Paper>
@@ -124,122 +113,94 @@ export default function LancamentoAvulsoTab({ onClose }) {
     };
 
     return (
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 0 }}>
+        <Box component="form" onSubmit={handleSubmit}>
             
-            {/* 1. SELEÇÃO DO TIPO (RECEITA / DESPESA) */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-                <ToggleButtonGroup
-                    value={tipo}
-                    exclusive
-                    onChange={handleTipoChange}
-                    size="large"
-                >
-                    <ToggleButton value="receita" color="success" sx={{ px: 5, py: 1.5 }}>
-                        <AttachMoney sx={{ mr: 1 }} /> RECEITA
+            {/* SELEÇÃO DO TIPO (Botões menores) */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                <ToggleButtonGroup value={tipo} exclusive onChange={handleTipoChange} size="small">
+                    <ToggleButton value="receita" color="success" sx={{ px: 3, py: 0.5, fontSize: '0.8rem' }}>
+                        <AttachMoney fontSize="small" sx={{ mr: 0.5 }} /> RECEITA
                     </ToggleButton>
-                    <ToggleButton value="despesa" color="error" sx={{ px: 5, py: 1.5 }}>
-                        <MoneyOff sx={{ mr: 1 }} /> DESPESA
+                    <ToggleButton value="despesa" color="error" sx={{ px: 3, py: 0.5, fontSize: '0.8rem' }}>
+                        <MoneyOff fontSize="small" sx={{ mr: 0.5 }} /> DESPESA
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>
 
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
                 
-                {/* --- COLUNA DA ESQUERDA: DADOS GERAIS --- */}
+                {/* --- COLUNA ESQUERDA --- */}
                 <Grid item xs={12} md={7}>
-                    <Paper sx={{ p: 3 }} elevation={1}>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{color: '#1a233b'}}>
-                            Detalhes do Lançamento
+                    <Paper sx={{ p: 2 }} elevation={1}>
+                        <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{color: '#1a233b', fontSize: '0.9rem'}}>
+                            Detalhes
                         </Typography>
                         
                         {tipo === 'receita' && (
-                            <Box sx={{ mb: 2 }}>
-                                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-                                    Origem:
-                                </Typography>
+                            <Box sx={{ mb: 1.5 }}>
                                 <ToggleButtonGroup
                                     value={origemReceita}
                                     exclusive
                                     onChange={handleOrigemChange}
                                     size="small"
                                     fullWidth
-                                    sx={{ mb: 2 }}
+                                    sx={{ mb: 1, height: '32px' }}
                                 >
-                                    <ToggleButton value="paciente"><Person sx={{mr:1}}/> Paciente</ToggleButton>
-                                    <ToggleButton value="outros"><AccountBalance sx={{mr:1}}/> Outros (Sócio/Invest)</ToggleButton>
+                                    <ToggleButton value="paciente" sx={{fontSize: '0.75rem'}}><Person fontSize="small" sx={{mr:1}}/> Paciente</ToggleButton>
+                                    <ToggleButton value="outros" sx={{fontSize: '0.75rem'}}><AccountBalance fontSize="small" sx={{mr:1}}/> Outros</ToggleButton>
                                 </ToggleButtonGroup>
 
                                 {origemReceita === 'paciente' ? (
                                     <Autocomplete
+                                        size="small"
                                         options={pacientes}
                                         getOptionLabel={(p) => p.nome_completo}
                                         value={formData.paciente || null}
                                         onChange={(e, value) => setFormData(prev => ({ ...prev, paciente: value }))}
-                                        renderInput={(params) => <TextField {...params} label="Selecione o Paciente" fullWidth />}
+                                        renderInput={(params) => <TextField {...params} label="Paciente" placeholder="Nome..." variant="outlined" margin="dense" />}
                                     />
                                 ) : (
-                                    <TextField 
-                                        disabled 
-                                        fullWidth 
-                                        value="Entrada sem vínculo (Caixa Geral)" 
-                                        size="small"
-                                        sx={{ bgcolor: '#f5f5f5' }}
-                                    />
+                                    <TextField disabled fullWidth value="Caixa Geral (Sem vínculo)" size="small" margin="dense" sx={{ bgcolor: '#f5f5f5' }} />
                                 )}
                             </Box>
                         )}
 
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                                <TextField 
-                                    name="descricao" 
-                                    label="Descrição" 
-                                    placeholder={tipo==='receita' ? "Ex: Consulta Particular" : "Ex: Compra de Material"}
-                                    required 
-                                    fullWidth 
-                                    value={formData.descricao || ''} 
-                                    onChange={handleChange} 
-                                />
+                        <TextField 
+                            name="descricao" 
+                            label="Descrição" 
+                            size="small"
+                            margin="dense"
+                            required 
+                            fullWidth 
+                            value={formData.descricao || ''} 
+                            onChange={handleChange} 
+                        />
+                        
+                        {tipo === 'despesa' && (
+                            <Grid container spacing={1}>
+                                <Grid item xs={6}>
+                                    <TextField select name="categoria" label="Categoria" size="small" margin="dense" required fullWidth value={formData.categoria || ''} onChange={handleChange} SelectProps={{ native: true }}>
+                                        <option value="">Selecione...</option>
+                                        {categorias.map(cat => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <DatePicker
+                                        label="Data"
+                                        value={formData.data_despesa ? dayjs(formData.data_despesa) : null}
+                                        onChange={(newValue) => setFormData(prev => ({ ...prev, data_despesa: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
+                                        slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true } }}
+                                    />
+                                </Grid>
                             </Grid>
-                            
-                            {/* Se for Despesa, mostra Categoria e Data */}
-                            {tipo === 'despesa' && (
-                                <>
-                                    <Grid item xs={6}>
-                                        <TextField
-                                            select
-                                            name="categoria"
-                                            label="Categoria"
-                                            required
-                                            fullWidth
-                                            value={formData.categoria || ''}
-                                            onChange={handleChange}
-                                            SelectProps={{ native: true }}
-                                        >
-                                            <option value="">Selecione...</option>
-                                            {categorias.map(cat => (
-                                                <option key={cat.id} value={cat.id}>{cat.nome}</option>
-                                            ))}
-                                        </TextField>
-                                    </Grid>
-                                    <Grid item xs={6}>
-                                        <DatePicker
-                                            label="Data"
-                                            value={formData.data_despesa ? dayjs(formData.data_despesa) : null}
-                                            onChange={(newValue) => setFormData(prev => ({ ...prev, data_despesa: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-                                            sx={{ width: '100%' }}
-                                        />
-                                    </Grid>
-                                </>
-                            )}
-                        </Grid>
+                        )}
                     </Paper>
                 </Grid>
 
-                {/* --- COLUNA DA DIREITA: VALORES E PAGAMENTO --- */}
+                {/* --- COLUNA DIREITA --- */}
                 <Grid item xs={12} md={5}>
-                    <Paper sx={{ p: 3, height: '100%', bgcolor: '#fafafa' }} elevation={0} variant="outlined">
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{color: '#1a233b'}}>
+                    <Paper sx={{ p: 2, height: '100%', bgcolor: '#fafafa', display: 'flex', flexDirection: 'column' }} elevation={0} variant="outlined">
+                        <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{color: '#1a233b', fontSize: '0.9rem'}}>
                             Financeiro
                         </Typography>
 
@@ -247,81 +208,67 @@ export default function LancamentoAvulsoTab({ onClose }) {
                             name="valor" 
                             label="Valor Total" 
                             type="number" 
+                            size="small"
+                            margin="dense"
                             required 
                             fullWidth 
                             value={formData.valor || ''} 
                             onChange={handleChange} 
                             InputProps={{
-                                startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                                style: { fontSize: '1.2rem', fontWeight: 'bold', color: tipo === 'receita' ? '#2e7d32' : '#c62828' }
+                                startAdornment: <InputAdornment position="start"><Typography fontSize="0.9rem">R$</Typography></InputAdornment>,
+                                style: { fontWeight: 'bold', color: tipo === 'receita' ? '#2e7d32' : '#c62828' }
                             }}
-                            sx={{ mb: 3, bgcolor: '#fff' }}
+                            sx={{ mb: 2, bgcolor: '#fff' }}
                         />
 
                         {tipo === 'receita' && (
                             <>
-                                <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={1} display="block">
+                                <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={0.5} display="block">
                                     FORMA DE PAGAMENTO
                                 </Typography>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 3 }}>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, mb: 2 }}>
                                     <PaymentCard value="Dinheiro" label="Dinheiro" icon={LocalAtm} />
                                     <PaymentCard value="PIX" label="PIX" icon={QrCode} />
                                     <PaymentCard value="CartaoDebito" label="Débito" icon={CreditCard} />
                                     <PaymentCard value="CartaoCredito" label="Crédito" icon={CreditCard} />
-                                    <PaymentCard value="MaquinaCartao" label="Maquininha" icon={PointOfSale} />
+                                    <PaymentCard value="MaquinaCartao" label="Maq." icon={PointOfSale} />
                                 </Box>
 
-                                {/* PARCELAMENTO - SÓ APARECE SE FOR CRÉDITO */}
                                 {formData.forma_pagamento === 'CartaoCredito' && (
-                                    <Box sx={{ p: 2, bgcolor: '#e3f2fd', borderRadius: 2, border: '1px solid #90caf9' }}>
-                                        <Typography variant="body2" fontWeight="bold" color="primary" gutterBottom>
-                                            Parcelamento no Cartão
-                                        </Typography>
-                                        <Grid container spacing={2} alignItems="center">
+                                    <Box sx={{ p: 1, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #90caf9' }}>
+                                        <Grid container spacing={1} alignItems="center">
                                             <Grid item xs={8}>
                                                 <Slider
+                                                    size="small"
                                                     value={formData.qtd_parcelas || 1}
                                                     onChange={(e, val) => setFormData(prev => ({ ...prev, qtd_parcelas: val }))}
-                                                    step={1}
-                                                    marks
-                                                    min={1}
-                                                    max={12}
-                                                    valueLabelDisplay="auto"
+                                                    step={1} min={1} max={12}
                                                 />
                                             </Grid>
                                             <Grid item xs={4}>
-                                                <TextField
-                                                    label="Vezes"
-                                                    type="number"
-                                                    size="small"
-                                                    value={formData.qtd_parcelas || 1}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, qtd_parcelas: e.target.value }))}
-                                                />
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    {formData.qtd_parcelas}x {(formData.valor && formData.qtd_parcelas > 1) ? `R$ ${(formData.valor / formData.qtd_parcelas).toFixed(0)}` : ''}
+                                                </Typography>
                                             </Grid>
                                         </Grid>
-                                        <Typography variant="caption" display="block" sx={{ mt: 1, textAlign: 'center' }}>
-                                            {(formData.valor && formData.qtd_parcelas > 1) 
-                                                ? `${formData.qtd_parcelas}x de R$ ${(formData.valor / formData.qtd_parcelas).toFixed(2)}`
-                                                : 'À vista'
-                                            }
-                                        </Typography>
                                     </Box>
                                 )}
                             </>
                         )}
+                        
+                        {/* BOTÃO EMPURRADO PARA O FUNDO MAS DENTRO DO CARD */}
+                        <Box sx={{ mt: 'auto', pt: 1 }}>
+                            <Button 
+                                type="submit" 
+                                variant="contained" 
+                                fullWidth
+                                disabled={isSubmitting}
+                                sx={{ py: 1, fontSize: '0.85rem', fontWeight: 'bold', bgcolor: '#1a233b' }}
+                            >
+                                {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'CONFIRMAR'}
+                            </Button>
+                        </Box>
                     </Paper>
-                </Grid>
-
-                <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                     <Button 
-                        type="submit" 
-                        variant="contained" 
-                        size="large"
-                        disabled={isSubmitting}
-                        sx={{ px: 5, py: 1.5, fontSize: '1rem', fontWeight: 'bold', bgcolor: '#1a233b' }}
-                     >
-                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'CONFIRMAR LANÇAMENTO'}
-                    </Button>
                 </Grid>
             </Grid>
         </Box>

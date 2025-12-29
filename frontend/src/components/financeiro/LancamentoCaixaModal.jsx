@@ -1,4 +1,3 @@
-// src/components/financeiro/LancamentoCaixaModal.jsx
 import React, { useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, IconButton
@@ -16,22 +15,22 @@ export default function LancamentoCaixaModal({ open, onClose }) {
     };
 
     return (
-        // MUDANÇA: maxWidth="md" garante mais espaço horizontal
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-                Novo Lançamento no Caixa
-                <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, px: 2, fontSize: '1rem' }}>
+                Novo Lançamento
+                <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
             </DialogTitle>
             
             <DialogContent sx={{ p: 0, bgcolor: '#f8f9fa' }}>
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}>
-                    <Tabs value={activeTab} onChange={handleChangeTab} variant="fullWidth" indicatorColor="primary">
-                        <Tab label="Buscar Pendência de Paciente" />
-                        <Tab label="Receita/Despesa Avulsa" />
+                    <Tabs value={activeTab} onChange={handleChangeTab} variant="fullWidth" indicatorColor="primary" sx={{ minHeight: '40px' }}>
+                        <Tab label="Pendência Paciente" sx={{ minHeight: '40px', py: 0 }} />
+                        <Tab label="Receita/Despesa Avulsa" sx={{ minHeight: '40px', py: 0 }} />
                     </Tabs>
                 </Box>
                 
-                <Box sx={{ p: 3 }}>
+                {/* Reduzi o padding aqui para ganhar espaço vertical */}
+                <Box sx={{ p: 2 }}> 
                     {activeTab === 0 && <PagarAgendamentoTab onClose={onClose} />}
                     {activeTab === 1 && <LancamentoAvulsoTab onClose={onClose} />}
                 </Box>
