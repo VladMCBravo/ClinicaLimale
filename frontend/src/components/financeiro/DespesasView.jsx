@@ -1,9 +1,11 @@
+// src/components/financeiro/DespesasView.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Box, Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Select, MenuItem, InputLabel, FormControl, IconButton, Checkbox,
-    FormControlLabel, Dialog, DialogTitle, DialogContent, DialogActions, Grid, Typography
+    FormControlLabel, Dialog, DialogTitle, DialogContent, DialogActions,
+    Typography, Grid
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -55,21 +57,20 @@ export default function DespesasView() {
         fetchData();
     }, []);
 
-    // --- LÓGICA DE CRIAÇÃO (COM PARCELAMENTO) ---
+    // --- LÓGICA DE CRIAÇÃO ---
     const handleCreate = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
             if (formData.parcelado && formData.qtd_parcelas > 1) {
-                // Lógica de Parcelamento: Cria N despesas
                 const promises = [];
                 const valorParcela = parseFloat(formData.valor) / formData.qtd_parcelas;
                 let dataBase = new Date(formData.data_despesa);
 
                 for (let i = 0; i < formData.qtd_parcelas; i++) {
                     const novaData = new Date(dataBase);
-                    novaData.setMonth(novaData.getMonth() + i); // Adiciona meses
+                    novaData.setMonth(novaData.getMonth() + i);
 
                     const payload = {
                         ...formData,
@@ -83,7 +84,6 @@ export default function DespesasView() {
                 showSnackbar(`${formData.qtd_parcelas} parcelas geradas com sucesso!`, 'success');
 
             } else {
-                // Despesa Simples
                 await faturamentoService.createDespesa(formData);
                 showSnackbar('Despesa salva com sucesso!', 'success');
             }
@@ -100,16 +100,17 @@ export default function DespesasView() {
 
     // --- LÓGICA DE EDIÇÃO ---
     const handleOpenEdit = (despesa) => {
+        // Clona o objeto para edição
         setEditingDespesa({
             ...despesa,
-            categoria: despesa.categoria // Assume que o backend retorna o ID ou objeto correto
+            // Garante que categoria seja o ID para o Select funcionar
+            categoria: despesa.categoria 
         });
         setEditModalOpen(true);
     };
 
     const handleUpdate = async () => {
         try {
-            // Nota: Precisamos adicionar updateDespesa no service se não existir
             await faturamentoService.updateDespesa(editingDespesa.id, editingDespesa);
             showSnackbar('Despesa atualizada!', 'success');
             setEditModalOpen(false);
@@ -123,7 +124,6 @@ export default function DespesasView() {
     const handleDelete = async (id) => {
         if(!window.confirm("Tem certeza que deseja excluir esta despesa?")) return;
         try {
-             // Nota: Precisamos adicionar deleteDespesa no service se não existir
             await faturamentoService.deleteDespesa(id);
             showSnackbar('Despesa removida.', 'success');
             fetchData();
@@ -134,21 +134,18 @@ export default function DespesasView() {
 
     return (
         <Box>
-            {/* FORMULÁRIO COM LAYOUT FLEX (BOX) EM VEZ DE GRID */}
+            {/* FORMULÁRIO DE ADIÇÃO (Flex Box) */}
             <Paper component="form" onSubmit={handleCreate} elevation={2} sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>Nova Despesa</Typography>
                 
-                {/* Aqui está a correção do Layout */}
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-start' }}>
                     <TextField 
                         label="Descrição" 
                         value={formData.descricao} 
                         onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} 
                         required 
-                        sx={{ flexGrow: 1, minWidth: '250px' }} // Cresce para ocupar espaço
+                        sx={{ flexGrow: 1, minWidth: '250px' }} 
                     />
-
                     <TextField
                         label="Data"
                         type="date"
@@ -156,18 +153,16 @@ export default function DespesasView() {
                         onChange={(e) => setFormData({ ...formData, data_despesa: e.target.value })}
                         InputLabelProps={{ shrink: true }}
                         required 
-                        sx={{ width: '180px' }}
+                        sx={{ width: '160px' }}
                     />
-
                     <TextField 
                         label="Valor (R$)" 
                         type="number" 
                         value={formData.valor} 
                         onChange={(e) => setFormData({ ...formData, valor: e.target.value })} 
                         required 
-                        sx={{ width: '150px' }}
+                        sx={{ width: '140px' }} 
                     />
-
                     <FormControl required sx={{ minWidth: '200px', flexGrow: 1 }}>
                         <InputLabel>Categoria</InputLabel>
                         <Select
@@ -181,27 +176,26 @@ export default function DespesasView() {
                         </Select>
                     </FormControl>
                 </Box>
-
-                {/* Linha de Parcelamento e Botão separada para não espremer */}
+                    
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
                     <FormControlLabel
                         control={<Checkbox checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />}
-                        label="Parcelar?"
+                        label="Parcelar despesa?"
                     />
                     {formData.parcelado && (
                         <TextField 
-                            label="Qtd." 
+                            label="Qtd. Parcelas" 
                             type="number" 
                             size="small"
-                            sx={{ width: 80 }}
+                            sx={{ width: 120 }}
                             value={formData.qtd_parcelas}
                             onChange={(e) => setFormData({...formData, qtd_parcelas: parseInt(e.target.value)})}
-                            InputProps={{ inputProps: { min: 2, max: 24 } }}
+                            InputProps={{ inputProps: { min: 2, max: 60 } }} 
                         />
                     )}
                     <Box sx={{ flexGrow: 1 }} />
                     <Button type="submit" variant="contained" disabled={isSubmitting || isLoading} size="large">
-                        {isSubmitting ? <CircularProgress size={24} /> : 'Lançar'}
+                        {isSubmitting ? <CircularProgress size={24} /> : 'Lançar Despesa'}
                     </Button>
                 </Box>
             </Paper>
@@ -236,7 +230,7 @@ export default function DespesasView() {
             </TableContainer>
 
             {/* MODAL DE EDIÇÃO */}
-            <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)}>
+            <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Editar Despesa</DialogTitle>
                 <DialogContent sx={{ pt: 2 }}>
                     {editingDespesa && (
@@ -249,6 +243,24 @@ export default function DespesasView() {
                                     onChange={(e) => setEditingDespesa({...editingDespesa, descricao: e.target.value})} 
                                 />
                             </Grid>
+                            
+                            {/* --- NOVO CAMPO: CATEGORIA --- */}
+                            <Grid item xs={12}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Categoria</InputLabel>
+                                    <Select
+                                        value={editingDespesa.categoria || ''}
+                                        label="Categoria"
+                                        onChange={(e) => setEditingDespesa({...editingDespesa, categoria: e.target.value})}
+                                    >
+                                        {categorias.map((cat) => (
+                                            <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            {/* ----------------------------- */}
+
                             <Grid item xs={6}>
                                 <TextField 
                                     label="Valor" 
