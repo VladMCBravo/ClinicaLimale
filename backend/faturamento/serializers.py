@@ -72,9 +72,15 @@ class CategoriaDespesaSerializer(serializers.ModelSerializer):
 class DespesaSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
     registrado_por_nome = serializers.CharField(source='registrado_por.get_full_name', read_only=True, allow_null=True)
+    
     class Meta:
         model = Despesa
-        fields = ['id', 'categoria', 'categoria_nome', 'descricao', 'valor', 'data_despesa', 'registrado_por', 'registrado_por_nome', 'data_registro']
+        # Adicione 'data_vencimento' e 'pago' na lista abaixo
+        fields = [
+            'id', 'categoria', 'categoria_nome', 'descricao', 
+            'valor', 'data_despesa', 'data_vencimento', 'pago', # <--- AQUI
+            'registrado_por', 'registrado_por_nome', 'data_registro'
+        ]
         read_only_fields = ['registrado_por']
 
 # --- Serializers de Convênios e Planos (Mantidos) ---
