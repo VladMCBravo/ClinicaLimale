@@ -1,5 +1,5 @@
 // src/components/financeiro/DespesasView.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box, Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -132,7 +132,79 @@ export default function DespesasView() {
         }
     }
 
+    // --- CÁLCULO DOS TOTAIS (Compacto) ---
+    const financialSummary = useMemo(() => {
+        return despesas.reduce((acc, item) => {
+            const valor = parseFloat(item.valor) || 0;
+            
+            // Soma ao Total Geral
+            acc.total += valor;
+
+            // Lógica de Status
+            // ATENÇÃO: Verifique se sua API retorna 'pago' ou 'status'. 
+            // Se não tiver esse campo, tudo cairá em "A Pagar".
+            if (item.pago === true || item.status === 'pago') { 
+                acc.pagas += valor;
+            } else {
+                acc.aPagar += valor;
+            }
+
+            return acc;
+        }, { pagas: 0, aPagar: 0, total: 0 });
+    }, [despesas]);
+
+    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
     return (
+        <Box>
+            {/* --- DASHBOARD DE TOTAIS COMPACTO --- */}
+            <Grid container spacing={1} sx={{ mb: 2 }}>
+                {/* Card: Já Pagas */}
+                <Grid item xs={12} md={4}>
+                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '4px solid #2e7d32', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                Já Pagas
+                            </Typography>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#1b5e20', lineHeight: 1 }}>
+                                {formatMoney(financialSummary.pagas)}
+                            </Typography>
+                        </Box>
+                        {/* Indicador visual simples (opcional) */}
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2e7d32' }} />
+                    </Paper>
+                </Grid>
+
+                {/* Card: A Pagar */}
+                <Grid item xs={12} md={4}>
+                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '4px solid #ed6c02', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                A Pagar
+                            </Typography>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#c62828', lineHeight: 1 }}>
+                                {formatMoney(financialSummary.aPagar)}
+                            </Typography>
+                        </Box>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#ed6c02' }} />
+                    </Paper>
+                </Grid>
+
+                {/* Card: Total Geral */}
+                <Grid item xs={12} md={4}>
+                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '4px solid #1976d2', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                Total Despesas
+                            </Typography>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#0d47a1', lineHeight: 1 }}>
+                                {formatMoney(financialSummary.total)}
+                            </Typography>
+                        </Box>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#1976d2' }} />
+                    </Paper>
+                </Grid>
+            </Grid>
         <Box>
             {/* FORMULÁRIO DE ADIÇÃO (Flex Box) */}
             <Paper component="form" onSubmit={handleCreate} elevation={2} sx={{ p: 3, mb: 3 }}>
@@ -289,5 +361,6 @@ export default function DespesasView() {
                 </DialogActions>
             </Dialog>
         </Box>
+    </Box>
     );
 }
