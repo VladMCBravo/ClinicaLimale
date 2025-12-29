@@ -141,16 +141,43 @@ export default function DespesasView() {
         }
     }
 
+    // --- ALTERAR STATUS (CORRIGIDO) ---
     const handleToggleStatus = async (despesa) => {
         const novoStatus = !despesa.pago;
-        setDespesas(prev => prev.map(item => item.id === despesa.id ? { ...item, pago: novoStatus } : item));
+        
+        // 1. Atualização Otimista (Muda na tela na hora)
+        setDespesas(prev => prev.map(item => 
+            item.id === despesa.id ? { ...item, pago: novoStatus } : item
+        ));
 
         try {
-            await faturamentoService.updateDespesa(despesa.id, { ...despesa, pago: novoStatus });
+            // 2. PREPARAÇÃO DO PAYLOAD (A CORREÇÃO ESTÁ AQUI)
+            // Criamos um objeto limpo apenas com os dados que o banco aceita editar.
+            // Isso remove campos como 'categoria_nome' que causam erro no backend.
+            const payload = {
+                id: despesa.id,
+                descricao: despesa.descricao,
+                valor: despesa.valor,
+                categoria: despesa.categoria, // Garante que vai o ID
+                data_despesa: despesa.data_despesa,
+                data_vencimento: despesa.data_vencimento,
+                parcelado: despesa.parcelado,
+                qtd_parcelas: despesa.qtd_parcelas,
+                pago: novoStatus
+            };
+
+            // Envia apenas o payload limpo
+            await faturamentoService.updateDespesa(despesa.id, payload);
+            
             showSnackbar(novoStatus ? 'Conta marcada como PAGA' : 'Conta marcada como PENDENTE', 'success');
         } catch (error) {
-            setDespesas(prev => prev.map(item => item.id === despesa.id ? { ...item, pago: !novoStatus } : item));
-            showSnackbar('Erro ao atualizar status.', 'error');
+            console.error("Erro ao atualizar status:", error);
+            
+            // 3. Reversão em caso de erro (Volta o botão se o servidor recusar)
+            setDespesas(prev => prev.map(item => 
+                item.id === despesa.id ? { ...item, pago: !novoStatus } : item
+            ));
+            showSnackbar('Erro ao atualizar status. Tente novamente.', 'error');
         }
     };
 
