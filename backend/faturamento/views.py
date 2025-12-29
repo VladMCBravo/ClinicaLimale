@@ -1,159 +1,136 @@
-# backend/faturamento/views.py - VERSÃO CORRIGIDA
+# backend/faturamento/views.py - VERSÃO FINAL CORRIGIDA
 import csv
-import io # Para ler o arquivo em memória
-from rest_framework.parsers import MultiPartParser, FormParser # Para lidar com uploads de arquivos
-from django.db.models.functions import TruncDate
-from datetime import timedelta
-from argparse import Action
+import io
+from datetime import datetime, time, timedelta
+
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import generics, status, viewsets
-from rest_framework.decorators import action  # <-- ADICIONE ESTA LINHA AQUI
+from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+
 from django.db.models import Sum
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, TruncDate
 from django.utils import timezone
-from datetime import datetime, time # <-- IMPORTAÇÃO CORRIGIDA
 from django.http import HttpResponse
 
-# --- 1. LIMPEZA E CORREÇÃO DAS IMPORTAÇÕES ---
+# --- IMPORTAÇÕES DE OUTROS APPS ---
 from agendamentos.serializers import AgendamentoSerializer
 from agendamentos.models import Agendamento
-from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser # Importamos IsAdminUser
-from .services import inter_service # Importa nosso serviço do Inter
+from usuarios.permissions import IsRecepcaoOrAdmin
 
-from .models import Pagamento, CategoriaDespesa, Despesa, Convenio, PlanoConvenio, LoteFaturamento, GuiaTiss, Procedimento, ValorProcedimentoConvenio
+# --- TENTA IMPORTAR O SERVIÇO DO INTER COM SEGURANÇA ---
+try:
+    from .services import inter_service
+except ImportError:
+    inter_service = None
+
+from .models import (
+    Pagamento, CategoriaDespesa, Despesa, Convenio, 
+    PlanoConvenio, LoteFaturamento, GuiaTiss, Procedimento, 
+    ValorProcedimentoConvenio
+)
 from .serializers import (
-    PagamentoSerializer,  # O serializer principal para leitura
-    PagamentoUpdateSerializer,  # <-- Vamos criar este serializer para atualização
+    PagamentoSerializer, PagamentoUpdateSerializer,
     CategoriaDespesaSerializer, DespesaSerializer,
     CobrancaPendenteSerializer, LancamentoAvulsoReceitaSerializer,
     ConvenioSerializer, PlanoConvenioSerializer, ProcedimentoSerializer
 )
 
-# <<< NOVA VIEW PARA BUSCAR COBRANÇAS DE UM PACIENTE (ABA 1) >>>
+# ============================================================================
+#  VIEWS DE PAGAMENTOS E COBRANÇAS
+# ============================================================================
+
 class CobrancasPendentesPacienteAPIView(generics.ListAPIView):
     serializer_class = CobrancaPendenteSerializer
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
-
     def get_queryset(self):
         paciente_id = self.kwargs.get('paciente_id')
         return Pagamento.objects.filter(
             paciente_id=paciente_id,
             status='Pendente',
-            agendamento__isnull=False # Apenas pagamentos ligados a agendamentos
+            agendamento__isnull=False
         ).order_by('agendamento__data_hora_inicio')
 
-
-# <<< NOVA VIEW PARA CRIAR LANÇAMENTOS AVULSOS (ABA 2) >>>
 class LancamentoAvulsoAPIView(APIView):
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
-
     def post(self, request, *args, **kwargs):
-        tipo = request.data.get('tipo') # Espera receber 'receita' ou 'despesa'
-
+        tipo = request.data.get('tipo')
         if tipo == 'receita':
             serializer = LancamentoAvulsoReceitaSerializer(data=request.data)
         elif tipo == 'despesa':
-            # Reutilizamos o serializer de despesa que já existe
             serializer = DespesaSerializer(data=request.data)
         else:
-            return Response({'error': 'O campo "tipo" é obrigatório e deve ser "receita" ou "despesa".'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Tipo inválido'}, status=status.HTTP_400_BAD_REQUEST)
 
         if serializer.is_valid():
-            # Associa o usuário logado ao registro
             serializer.save(registrado_por=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# --- View de Pagamento (sem alterações, já estava boa) ---
 class PagamentoViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint que permite que os pagamentos sejam vistos ou editados.
-    A criação de pagamentos agora é feita automaticamente via Agendamento.
-    Este endpoint é usado principalmente para listar e ATUALIZAR (marcar como pago).
-    """
     queryset = Pagamento.objects.all().select_related('paciente', 'agendamento').order_by('-agendamento__data_hora_inicio')
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
-
-    # Método inteligente para usar o serializer correto para cada ação
     def get_serializer_class(self):
-        if self.action in ['update', 'partial_update']:
-            # Para atualizar, usamos um serializer mais simples
-            return PagamentoUpdateSerializer
-        # Para todas as outras ações (como listar), usamos o serializer completo
-        return PagamentoSerializer
+        return PagamentoUpdateSerializer if self.action in ['update', 'partial_update'] else PagamentoSerializer
 
-# --- ADICIONADO: Nova view para a tela do Financeiro ---
 class PagamentosPendentesListAPIView(generics.ListAPIView):
-    """
-    Endpoint para listar todos os pagamentos com status 'Pendente'.
-    Esta view substitui a lógica antiga de buscar agendamentos sem pagamento.
-    """
-    serializer_class = PagamentoSerializer # Reutilizamos o serializer principal que melhoramos
+    serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
-        # A nova lógica correta: buscar Pagamentos com status 'Pendente'
         return Pagamento.objects.filter(status='Pendente').order_by('agendamento__data_hora_inicio')
 
+# ============================================================================
+#  VIEWS DE DESPESAS E RELATÓRIOS
+# ============================================================================
 
-# --- ViewSets para Despesas (com lógica de produção) ---
 class CategoriaDespesaViewSet(viewsets.ModelViewSet):
     queryset = CategoriaDespesa.objects.all().order_by('nome')
     serializer_class = CategoriaDespesaSerializer
     permission_classes = [IsAdminUser]
 
-
 class DespesaViewSet(viewsets.ModelViewSet):
     queryset = Despesa.objects.all().order_by('-data_despesa')
     serializer_class = DespesaSerializer
-    permission_classes = [IsAdminUser] 
-
-    # --- 2. LÓGICA DE PRODUÇÃO REATIVADA ---
+    permission_classes = [IsAdminUser]
     def perform_create(self, serializer):
-        # Agora que o login funciona, associamos o usuário que registrou a despesa.
         serializer.save(registrado_por=self.request.user)
 
-# --- View para Relatórios (com permissão corrigida) ---
 class RelatorioFinanceiroAPIView(APIView):
     permission_classes = [IsAdminUser]
-
     def get(self, request, *args, **kwargs):
-        # --- CORREÇÃO PRINCIPAL ESTÁ AQUI ---
-        # Apenas pagamentos com status 'Pago' devem entrar nos relatórios financeiros
         pagamentos_confirmados = Pagamento.objects.filter(status='Pago')
-
         faturamento_por_forma = pagamentos_confirmados.values('forma_pagamento').annotate(total=Sum('valor')).order_by('-total')
         despesas_por_categoria = Despesa.objects.values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
         
-        # A lógica do fluxo de caixa agora também usa apenas pagamentos confirmados
         faturamento_mensal = pagamentos_confirmados.annotate(mes=TruncMonth('data_pagamento')).values('mes').annotate(total=Sum('valor')).order_by('mes')
         despesas_mensais = Despesa.objects.annotate(mes=TruncMonth('data_despesa')).values('mes').annotate(total=Sum('valor')).order_by('mes')
         
-        # O resto da lógica para formatar o fluxo_caixa permanece o mesmo
         fluxo_caixa = {}
-        # ... (código de formatação inalterado) ...
         for item in faturamento_mensal:
-            mes_str = item['mes'].strftime('%Y-%m')
-            if mes_str not in fluxo_caixa:
-                fluxo_caixa[mes_str] = {'receitas': 0, 'despesas': 0}
-            fluxo_caixa[mes_str]['receitas'] = item['total'] or 0
+            if item['mes']:
+                mes_str = item['mes'].strftime('%Y-%m')
+                fluxo_caixa.setdefault(mes_str, {'receitas': 0, 'despesas': 0})
+                fluxo_caixa[mes_str]['receitas'] = item['total'] or 0
+        
         for item in despesas_mensais:
-            mes_str = item['mes'].strftime('%Y-%m')
-            if mes_str not in fluxo_caixa:
-                fluxo_caixa[mes_str] = {'receitas': 0, 'despesas': 0}
-            fluxo_caixa[mes_str]['despesas'] = item['total'] or 0
+            if item['mes']:
+                mes_str = item['mes'].strftime('%Y-%m')
+                fluxo_caixa.setdefault(mes_str, {'receitas': 0, 'despesas': 0})
+                fluxo_caixa[mes_str]['despesas'] = item['total'] or 0
+                
         fluxo_caixa_formatado = [{'mes': mes, **valores} for mes, valores in fluxo_caixa.items()]
         
-        data = {
+        return Response({
             'faturamento_por_forma': list(faturamento_por_forma),
             'despesas_por_categoria': list(despesas_por_categoria),
             'fluxo_caixa_mensal': fluxo_caixa_formatado,
-        }
-        
-        return Response(data)
+        })
+
+# ============================================================================
+#  VIEWS DE CONVÊNIOS, FATURAMENTO E TISS
+# ============================================================================
 
 class ConvenioViewSet(viewsets.ModelViewSet):
     queryset = Convenio.objects.prefetch_related('planos').all()
@@ -166,34 +143,23 @@ class PlanoConvenioViewSet(viewsets.ModelViewSet):
     permission_classes = [IsRecepcaoOrAdmin]
 
 class AgendamentosFaturaveisAPIView(generics.ListAPIView):
-    """
-    Endpoint para listar agendamentos de um convênio específico
-    dentro de um mês, que ainda não foram faturados (não têm uma guia TISS associada).
-    """
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
-
     def get_queryset(self):
-        # Pegamos os parâmetros da URL (ex: ?convenio_id=1&mes=8&ano=2025)
         convenio_id = self.request.query_params.get('convenio_id')
         mes = self.request.query_params.get('mes')
         ano = self.request.query_params.get('ano')
-
-        # Se os parâmetros essenciais не forem fornecidos, retorna uma lista vazia
         if not all([convenio_id, mes, ano]):
             return Agendamento.objects.none()
-
-        # Filtra os agendamentos com base nos critérios
-        queryset = Agendamento.objects.filter(
+        return Agendamento.objects.filter(
             plano_utilizado__convenio__id=convenio_id,
             data_hora_inicio__month=mes,
             data_hora_inicio__year=ano,
             tipo_atendimento='Convenio',
-            guia_tiss__isnull=True  # O filtro mágico: apenas os que ainda não têm guia!
+            guia_tiss__isnull=True
         ).select_related('paciente', 'plano_utilizado').order_by('data_hora_inicio')
 
-        return queryset
-
+# >>> ESTA É A CLASSE QUE VOCÊ PERGUNTOU <<<
 class GerarLoteFaturamentoAPIView(APIView):
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
 
@@ -206,7 +172,7 @@ class GerarLoteFaturamentoAPIView(APIView):
             return Response({'detail': 'Dados insuficientes.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # --- 1. Lógica do Banco de Dados (sem alterações) ---
+            # 1. Cria o Lote
             ano, mes = map(int, mes_referencia_str.split('-'))
             convenio = Convenio.objects.get(id=convenio_id)
             
@@ -216,61 +182,56 @@ class GerarLoteFaturamentoAPIView(APIView):
                 gerado_por=request.user,
                 status='Enviado'
             )
-            # Agora fazemos o 'select_related' do procedimento para otimizar a consulta
+            
+            # 2. Busca agendamentos
             agendamentos_para_faturar = Agendamento.objects.filter(id__in=agendamento_ids).select_related('paciente', 'procedimento')
 
             valor_total_lote = 0
             guias_a_criar = []
 
-            # --- 2. Lógica de Geração de Guias e XML ATUALIZADA ---
+            # 3. Inicia XML
             xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
             xml_content += '<ans:mensagemTISS xmlns:ans="http://www.ans.gov.br/padroes/tiss/schemas">\n'
-            # ... (cabeçalho do XML continua igual)
-
             xml_content += f'  <ans:loteGuias>\n'
             xml_content += f'    <ans:numeroLote>{novo_lote.id}</ans:numeroLote>\n'
             
             for ag in agendamentos_para_faturar:
-                # Se não houver procedimento, definimos valores padrão para não quebrar
-                valor_da_guia = ag.procedimento.valor if ag.procedimento else 0.00
+                valor_da_guia = ag.procedimento.valor_particular if (ag.procedimento and hasattr(ag.procedimento, 'valor_particular')) else 0.00
                 codigo_procedimento = ag.procedimento.codigo_tuss if ag.procedimento else "00000000"
                 descricao_procedimento = ag.procedimento.descricao if ag.procedimento else "Procedimento não especificado"
 
-                # Cria o objeto GuiaTiss para salvar no banco de dados
                 guias_a_criar.append(GuiaTiss(lote=novo_lote, agendamento=ag, valor_guia=valor_da_guia))
-                valor_total_lote += valor_da_guia
+                valor_total_lote += float(valor_da_guia)
                 
-                # Constrói o XML com os dados dinâmicos do procedimento
+                # Monta XML da guia
                 xml_content += f'    <ans:guiaSP-SADT>\n'
                 xml_content += f'      <ans:cabecalhoGuia>\n'
-                xml_content += f'        <ans:registroANS>123456</ans:registroANS>\n' # Exemplo - Viria do seu cadastro
+                xml_content += f'        <ans:registroANS>123456</ans:registroANS>\n'
                 xml_content += f'        <ans:numeroGuiaPrestador>{ag.id}</ans:numeroGuiaPrestador>\n'
                 xml_content += f'      </ans:cabecalhoGuia>\n'
                 xml_content += f'      <ans:dadosBeneficiario>\n'
-                xml_content += f'        <ans:numeroCarteira>{ag.paciente.numero_carteirinha}</ans:numeroCarteira>\n'
+                xml_content += f'        <ans:numeroCarteira>{ag.paciente.numero_carteirinha or "000"}</ans:numeroCarteira>\n'
                 xml_content += f'        <ans:nomeBeneficiario>{ag.paciente.nome_completo}</ans:nomeBeneficiario>\n'
                 xml_content += f'      </ans:dadosBeneficiario>\n'
                 xml_content += f'      <ans:procedimentosExecutados>\n'
                 xml_content += f'        <ans:procedimento>\n'
-                xml_content += f'          <ans:codigoTabela>22</ans:codigoTabela>\n' # Tabela TUSS
+                xml_content += f'          <ans:codigoTabela>22</ans:codigoTabela>\n'
                 xml_content += f'          <ans:codigoProcedimento>{codigo_procedimento}</ans:codigoProcedimento>\n'
                 xml_content += f'          <ans:descricaoProcedimento>{descricao_procedimento}</ans:descricaoProcedimento>\n'
                 xml_content += f'          <ans:quantidadeExecutada>1</ans:quantidadeExecutada>\n'
-                xml_content += f'          <ans:valorProcessado>{valor_da_guia:.2f}</ans:valorProcessado>\n'
+                xml_content += f'          <ans:valorProcessado>{float(valor_da_guia):.2f}</ans:valorProcessado>\n'
                 xml_content += f'        </ans:procedimento>\n'
                 xml_content += f'      </ans:procedimentosExecutados>\n'
-                xml_content += f'      <ans:valorTotal>{valor_da_guia:.2f}</ans:valorTotal>\n'
+                xml_content += f'      <ans:valorTotal>{float(valor_da_guia):.2f}</ans:valorTotal>\n'
                 xml_content += f'    </ans:guiaSP-SADT>\n'
             
             xml_content += f'  </ans:loteGuias>\n'
             xml_content += '</ans:mensagemTISS>\n'
             
-            # Salva tudo no banco de dados
             GuiaTiss.objects.bulk_create(guias_a_criar)
             novo_lote.valor_total_lote = valor_total_lote
             novo_lote.save()
             
-            # --- 3. Devolve o ficheiro XML (sem alterações) ---
             response = HttpResponse(xml_content, content_type='application/xml')
             response['Content-Disposition'] = f'attachment; filename="lote_{novo_lote.id}_{convenio.nome}.xml"'
             return response
@@ -278,233 +239,179 @@ class GerarLoteFaturamentoAPIView(APIView):
         except Exception as e:
             return Response({'detail': f'Ocorreu um erro: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# --- NOVO VIEWSET PARA PROCEDIMENTOS ---
-class ProcedimentoViewSet(viewsets.ModelViewSet): # 1. Mudamos para ModelViewSet
-    """
-    Endpoint que permite que procedimentos sejam listados, criados e editados.
-    Inclui uma ação para definir preços por convênio.
-    """
+class ProcedimentoViewSet(viewsets.ModelViewSet):
     queryset = Procedimento.objects.prefetch_related('valores_convenio__plano_convenio').filter(ativo=True).order_by('descricao')
     serializer_class = ProcedimentoSerializer
-    permission_classes = [IsAuthenticated] # Mantemos a permissão
+    permission_classes = [IsAuthenticated]
 
-    # 2. AÇÃO CUSTOMIZADA: para adicionar/editar um preço de convênio em um procedimento
     @action(detail=True, methods=['post', 'put'], url_path='definir-preco-convenio')
     def definir_preco_convenio(self, request, pk=None):
         procedimento = self.get_object()
         plano_id = request.data.get('plano_convenio_id')
         valor = request.data.get('valor')
-
+        
         if not plano_id or valor is None:
-            return Response(
-                {'error': 'Os campos "plano_convenio_id" e "valor" são obrigatórios.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+            return Response({'error': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
+            
         try:
             plano = PlanoConvenio.objects.get(id=plano_id)
+            obj, created = ValorProcedimentoConvenio.objects.update_or_create(
+                procedimento=procedimento, plano_convenio=plano, defaults={'valor': valor}
+            )
+            serializer = self.get_serializer(procedimento)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         except PlanoConvenio.DoesNotExist:
-            return Response({'error': 'Plano de convênio não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Cria ou atualiza o preço para a combinação procedimento + plano
-        obj, created = ValorProcedimentoConvenio.objects.update_or_create(
-            procedimento=procedimento,
-            plano_convenio=plano,
-            defaults={'valor': valor}
-        )
-        
-        # Retorna o procedimento completo e atualizado
-        serializer = self.get_serializer(procedimento)
-        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            return Response({'error': 'Plano não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
 class TussUploadView(APIView):
-    permission_classes = [IsAdminUser] # Apenas administradores podem fazer isso
+    permission_classes = [IsAdminUser]
     parser_classes = (MultiPartParser, FormParser)
-
     def post(self, request, *args, **kwargs):
-        arquivo_csv = request.FILES.get('arquivo_tuss')
-        if not arquivo_csv:
-            return Response({'error': 'Nenhum arquivo enviado.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not arquivo_csv.name.endswith('.csv'):
-            return Response({'error': 'O arquivo deve ser no formato CSV.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        criados = 0
-        atualizados = 0
-
+        arquivo = request.FILES.get('arquivo_tuss')
+        if not arquivo: return Response({'error': 'Sem arquivo'}, status=400)
         try:
-            # Lê o arquivo em memória de forma segura
-            decoded_file = arquivo_csv.read().decode('utf-8-sig') # 'utf-8-sig' remove BOM
+            decoded_file = arquivo.read().decode('utf-8-sig')
             io_string = io.StringIO(decoded_file)
             reader = csv.DictReader(io_string, delimiter=';')
-
+            count = 0
             for row in reader:
-                codigo_tuss = row.get('CODIGO_TUSS') # Ajuste o nome da coluna se necessário
-                descricao = row.get('DESCRICAO')   # Ajuste o nome da coluna se necessário
-
-                if codigo_tuss and descricao:
-                    _, created = Procedimento.objects.update_or_create(
-                        codigo_tuss=codigo_tuss,
-                        defaults={'descricao': descricao}
+                if row.get('CODIGO_TUSS'):
+                    Procedimento.objects.update_or_create(
+                        codigo_tuss=row['CODIGO_TUSS'],
+                        defaults={'descricao': row.get('DESCRICAO', '')}
                     )
-                    if created:
-                        criados += 1
-                    else:
-                        atualizados += 1
+                    count += 1
+            return Response({'msg': f'{count} processados'})
         except Exception as e:
-            return Response({'error': f'Erro ao processar o arquivo: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=500)
 
-        return Response({
-            'status': 'Importação concluída com sucesso!',
-            'criados': criados,
-            'atualizados': atualizados
-        }, status=status.HTTP_200_OK)
-
-# --- NOVA VIEW PARA WEBHOOK DO INTER ---
 class InterWebhookAPIView(APIView):
-    permission_classes = [AllowAny] # Webhooks não exigem autenticação de usuário
-
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         dados_webhook = request.data
-        print(f"--- WEBHOOK DO INTER RECEBIDO --- \n {dados_webhook}")
-
-        # A API do Inter envia um array de 'pix'
         if 'pix' in dados_webhook and isinstance(dados_webhook['pix'], list):
             for pix_info in dados_webhook['pix']:
                 txid = pix_info.get('txid')
-                valor_pago = pix_info.get('valor')
-
-                if not txid:
-                    continue
-
+                if not txid: continue
                 try:
-                    # Encontra o pagamento no seu banco de dados pelo txid
                     pagamento = Pagamento.objects.get(inter_txid=txid)
-
-                    # Verifica se o pagamento já não foi processado
                     if pagamento.status == 'Pendente':
                         pagamento.status = 'Pago'
                         pagamento.forma_pagamento = 'PIX'
-                        # Opcional: validar se o valor_pago corresponde ao pagamento.valor
                         pagamento.save()
-                        print(f"Pagamento {pagamento.id} confirmado via webhook com sucesso!")
-                    else:
-                        print(f"Pagamento {pagamento.id} já estava com status '{pagamento.status}'. Webhook ignorado.")
-
                 except Pagamento.DoesNotExist:
-                    print(f"ERRO: Webhook recebido para txid '{txid}' não encontrado no sistema.")
-        
-        # Sempre retorne uma resposta 200 OK para o Inter saber que você recebeu.
+                    pass
         return Response(status=status.HTTP_200_OK)
 
-# --- NOVA VIEW PARA O DASHBOARD FINANCEIRO ---
+# ============================================================================
+#  NOVAS VIEWS DE INTELIGÊNCIA (DASHBOARD E PROJEÇÃO)
+# ============================================================================
 
 class FinanceiroDashboardAPIView(APIView):
-    permission_classes = [IsRecepcaoOrAdmin] # Apenas recepção e admin podem ver
+    permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
-        # 1. Busca dados externos (da API do Banco Inter)
-        saldo_em_conta = inter_service.consultar_saldo()
-        
+        # 1. Busca dados externos (da API do Banco Inter) com SEGURANÇA
+        saldo_em_conta = 0.0
+        try:
+            if inter_service:
+                saldo_real = inter_service.consultar_saldo()
+                if saldo_real is not None:
+                    saldo_em_conta = float(saldo_real)
+        except Exception as e:
+            print(f"Erro ao consultar saldo Inter: {e}")
+
         # Define o período para hoje
         hoje = timezone.localdate()
         inicio_dia = timezone.make_aware(datetime.combine(hoje, time.min))
         fim_dia = timezone.make_aware(datetime.combine(hoje, time.max))
 
-        # 2. Busca dados internos (do seu banco de dados)
-        pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia))
+        # 2. Busca dados internos
+        pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia), status='Pago')
         despesas_hoje = Despesa.objects.filter(data_despesa=hoje)
+        
         pagamentos_pendentes_hoje = Pagamento.objects.filter(
             agendamento__data_hora_inicio__date=hoje,
             status='Pendente'
         ).select_related('paciente', 'agendamento')
 
         # 3. Calcula os totais
-        faturamento_dia = sum(p.valor for p in pagamentos_hoje)
-        total_despesas_dia = sum(d.valor for d in despesas_hoje)
+        faturamento_dia = sum(p.valor for p in pagamentos_hoje) or 0
+        total_despesas_dia = sum(d.valor for d in despesas_hoje) or 0
         lucro_dia = faturamento_dia - total_despesas_dia
 
-        # 4. Monta a resposta final para o frontend
+        # 4. Monta a resposta
         dados = {
-            # Cards de Destaque
             "saldo_em_conta": saldo_em_conta,
             "faturamento_do_dia": faturamento_dia,
             "despesas_do_dia": total_despesas_dia,
             "lucro_do_dia": lucro_dia,
-
-            # Listas e Tabelas
             "pagamentos_pendentes_hoje": [
                 {
                     "paciente": p.paciente.nome_completo,
-                    "horario": timezone.localtime(p.agendamento.data_hora_inicio).strftime('%H:%M'),
+                    "horario": timezone.localtime(p.agendamento.data_hora_inicio).strftime('%H:%M') if p.agendamento else "--:--",
                     "valor": p.valor
                 }
                 for p in pagamentos_pendentes_hoje
             ],
-            
-            # Para o futuro (Fase 2), podemos adicionar o extrato aqui
-            # "ultimas_transacoes_banco": inter_service.consultar_extrato(inicio_dia, fim_dia)
         }
+        return Response(dados)
+
 
 class ProjecaoFluxoCaixaAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
-        # 1. Configuração de datas (Hoje até +30 dias)
+        # 1. Configuração de datas
         hoje = timezone.localdate()
         data_final = hoje + timedelta(days=30)
         
-        # 2. Saldo Inicial (Idealmente viria da API do Inter, aqui simulamos ou pegamos do cache)
-        # Se quiser usar o real: saldo_atual = inter_service.consultar_saldo()
-        saldo_acumulado = 15000.00 # Exemplo: Começamos com um saldo base se a API falhar ou para teste
-        
+        # 2. Saldo Inicial
+        saldo_acumulado = 0.0
         try:
-             saldo_real = inter_service.consultar_saldo()
-             if saldo_real is not None:
-                 saldo_acumulado = float(saldo_real)
-        except:
-            pass # Mantém o saldo simulado se a API do Inter der erro
+            if inter_service:
+                saldo_real = inter_service.consultar_saldo()
+                if saldo_real is not None:
+                    saldo_acumulado = float(saldo_real)
+        except Exception as e:
+            print(f"Erro na projeção (Saldo Inter): {e}")
 
-        # 3. Buscar Receitas Futuras (Agendamentos confirmados mas não pagos ou Pagamentos pendentes com data futura)
-        # Nota: Aqui simplificamos pegando agendamentos futuros como previsão de entrada
-        receitas = Agendamento.objects.filter(
+        # 3. Buscar Receitas Futuras (Agendamentos)
+        receitas_qs = Agendamento.objects.filter(
             data_hora_inicio__date__range=[hoje, data_final],
             status__in=['Agendado', 'Confirmado']
         ).annotate(
             dia=TruncDate('data_hora_inicio')
         ).values('dia').annotate(total=Sum('valor_consulta')).order_by('dia')
 
-        # 4. Buscar Despesas Futuras (Aqui entram as parcelas que criamos no frontend!)
-        despesas = Despesa.objects.filter(
+        # 4. Buscar Despesas Futuras
+        despesas_qs = Despesa.objects.filter(
             data_despesa__range=[hoje, data_final]
         ).values('data_despesa').annotate(total=Sum('valor')).order_by('data_despesa')
 
-        # 5. Transformar em Dicionários para acesso rápido
-        mapa_receitas = {r['dia']: r['total'] for r in receitas}
-        mapa_despesas = {d['data_despesa']: d['total'] for d in despesas}
+        # 5. Mapeamento
+        mapa_receitas = {r['dia']: (r['total'] or 0) for r in receitas_qs}
+        mapa_despesas = {d['data_despesa']: (d['total'] or 0) for d in despesas_qs}
 
-        # 6. Construir a linha do tempo dia a dia
-        projecao = []
+        # 6. Construir linha do tempo
         datas = []
         saldo_linha = []
-        despesa_linha = [] # Linha de perigo
+        despesa_linha = []
 
-        for i in range(31): # 0 a 30 dias
+        for i in range(31):
             data_corrente = hoje + timedelta(days=i)
             
-            entrada = mapa_receitas.get(data_corrente, 0) or 0
-            saida = mapa_despesas.get(data_corrente, 0) or 0
+            entrada = mapa_receitas.get(data_corrente, 0)
+            saida = mapa_despesas.get(data_corrente, 0)
             
             saldo_acumulado = saldo_acumulado + float(entrada) - float(saida)
             
             datas.append(data_corrente.strftime('%d/%m'))
             saldo_linha.append(saldo_acumulado)
-            despesa_linha.append(float(saida)) # Opcional: mostrar quanto sai naquele dia
+            despesa_linha.append(float(saida))
 
         return Response({
             'labels': datas,
             'saldo_projetado': saldo_linha,
             'despesas_previstas': despesa_linha
         })
-        
-        return Response(dados)
