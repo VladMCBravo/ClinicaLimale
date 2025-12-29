@@ -15,16 +15,20 @@ ChartJS.register(ArcElement, ChartTooltip, Legend, CategoryScale, LinearScale, B
 
 export default function DashboardFinanceiro() {
     const [isLoading, setIsLoading] = useState(true);
-    // Inicializa com estrutura zerada para não quebrar antes da API
-    const [data, setData] = useState({ 
-        dashboard: { 
-            faturamento_do_dia: 0, 
-            despesas_do_dia: 0, 
-            lucro_do_dia: 0, 
-            saldo_em_conta: 0 
-        }, 
-        relatorios: null, 
-        insights: [] 
+    const [viewMode, setViewMode] = useState('hoje'); // 'hoje' ou 'mes'
+    
+    // Estado para guardar os dados brutos da API
+    const [rawData, setRawData] = useState({ 
+        dashboard: null, 
+        relatorios: null 
+    });
+
+    // Estado para os valores exibidos nos Cards (calculados)
+    const [displayValues, setDisplayValues] = useState({
+        faturamento: 0,
+        despesas: 0,
+        lucro: 0,
+        saldo: 0
     });
 
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
@@ -32,29 +36,17 @@ export default function DashboardFinanceiro() {
     useEffect(() => {
         const loadAllData = async () => {
             try {
-                // Chamada real à API
                 const [dashRes, relRes] = await Promise.all([
                     faturamentoService.getDashboardFinanceiro(),
                     faturamentoService.getRelatorioFinanceiro()
                 ]);
 
-                const dashData = dashRes.data;
-                const faturamento = parseFloat(dashData.faturamento_do_dia || 0);
-                const despesas = parseFloat(dashData.despesas_do_dia || 0);
-                
-                // Gera insights baseados nos dados REAIS
-                const insights = [];
-                if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas excedem entradas hoje.' });
-                if (dashData.saldo_em_conta < 0) insights.push({ type: 'error', text: 'Atenção: Saldo negativo.' });
-                if (faturamento > 0 && despesas === 0) insights.push({ type: 'success', text: 'Receita sem despesas lançadas.' });
-                
-                setData({
-                    dashboard: dashData,
-                    relatorios: relRes.data,
-                    insights: insights
+                setRawData({
+                    dashboard: dashRes.data,
+                    relatorios: relRes.data
                 });
             } catch (error) {
-                console.error("Erro ao buscar dados reais", error);
+                console.error("Erro ao buscar dados", error);
             } finally {
                 setIsLoading(false);
             }
@@ -62,76 +54,138 @@ export default function DashboardFinanceiro() {
         loadAllData();
     }, []);
 
+    // Recalcula os valores quando muda o viewMode ou os dados chegam
+    useEffect(() => {
+        if (!rawData.dashboard) return;
+
+        let fat = 0, desp = 0, luc = 0;
+
+        if (viewMode === 'hoje') {
+            // Usa dados diretos do endpoint de dashboard (Snapshot do dia)
+            fat = parseFloat(rawData.dashboard.faturamento_do_dia || 0);
+            desp = parseFloat(rawData.dashboard.despesas_do_dia || 0);
+            luc = parseFloat(rawData.dashboard.lucro_do_dia || 0);
+        } else {
+            // MODO MÊS: Calcula baseado no relatório mensal do mês atual
+            const hoje = new Date();
+            const mesAtualStr = hoje.toISOString().slice(0, 7); // "2025-12"
+
+            // Procura no array de fluxo mensal o item do mês atual
+            const dadosMes = rawData.relatorios?.fluxo_caixa_mensal?.find(item => item.mes.startsWith(mesAtualStr));
+
+            if (dadosMes) {
+                fat = parseFloat(dadosMes.receitas || 0);
+                desp = parseFloat(dadosMes.despesas || 0);
+                luc = fat - desp;
+            } else {
+                // Fallback se não achar o mês (ex: dia 1 do mês e ainda não tem registro)
+                fat = 0; desp = 0; luc = 0;
+            }
+        }
+
+        setDisplayValues({
+            faturamento: fat,
+            despesas: desp,
+            lucro: luc,
+            saldo: parseFloat(rawData.dashboard.saldo_em_conta || 0) // Saldo é sempre o atual do banco
+        });
+
+    }, [viewMode, rawData]);
+
     const chartsData = useMemo(() => {
-        if (!data.relatorios) return null;
+        if (!rawData.relatorios) return null;
         
-        // Processamento de dados REAIS para o gráfico
+        // FILTRO: Pega apenas os últimos 6 meses para o gráfico
+        const fluxoRecente = rawData.relatorios.fluxo_caixa_mensal.slice(-6);
+
         return {
             fluxo: {
-                labels: data.relatorios.fluxo_caixa_mensal.map(item => 
+                labels: fluxoRecente.map(item => 
                     new Date(item.mes).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()
                 ),
                 datasets: [
                     { 
                         label: 'Entradas', 
-                        data: data.relatorios.fluxo_caixa_mensal.map(i => i.receitas), 
+                        data: fluxoRecente.map(i => i.receitas), 
                         backgroundColor: '#28a745', 
                         borderRadius: 3,
-                        barThickness: 20, // Barras mais finas
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
                     },
                     { 
                         label: 'Saídas', 
-                        data: data.relatorios.fluxo_caixa_mensal.map(i => i.despesas), 
+                        data: fluxoRecente.map(i => i.despesas), 
                         backgroundColor: '#dc3545', 
                         borderRadius: 3,
-                        barThickness: 20,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
                     }
                 ]
             },
             categorias: {
-                labels: data.relatorios.despesas_por_categoria.map(i => i.categoria__nome),
+                labels: rawData.relatorios.despesas_por_categoria.map(i => i.categoria__nome),
                 datasets: [{ 
-                    data: data.relatorios.despesas_por_categoria.map(i => i.total),
-                    backgroundColor: ['#1a233b', '#c0a46f', '#28a745', '#dc3545', '#95a5a6'],
+                    data: rawData.relatorios.despesas_por_categoria.map(i => i.total),
+                    backgroundColor: ['#1a233b', '#c0a46f', '#28a745', '#dc3545', '#95a5a6', '#6c5ce7'],
                     borderWidth: 0,
                 }]
             }
         };
-    }, [data.relatorios]);
+    }, [rawData.relatorios]);
 
-    const commonOptions = {
+    // Opções de Gráfico minimalistas
+    const barOptions = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { 
-                position: 'bottom', 
-                labels: { usePointStyle: true, boxWidth: 6, font: { size: 10 } } // Legenda menor
-            }
+            legend: { display: false } // Remove legenda para economizar espaço vertical
         },
         scales: {
-            x: { ticks: { font: { size: 10 } } },
-            y: { ticks: { font: { size: 10 } } }
+            x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+            y: { grid: { borderDash: [4, 4] }, ticks: { font: { size: 9 }, callback: (v) => v >= 1000 ? `${v/1000}k` : v } }
         }
     };
 
-    if (isLoading) return <div className="financial-container" style={{padding: '20px'}}><p>Carregando finanças...</p></div>;
+    const doughnutOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+            legend: { 
+                position: 'right', 
+                labels: { boxWidth: 8, font: { size: 9 }, padding: 10 } 
+            }
+        }
+    };
+
+    if (isLoading) return <div className="financial-container" style={{justifyContent:'center'}}><p>Carregando...</p></div>;
 
     return (
         <div className="financial-container">
             
-            {/* Controles discretos no topo direito (Sem Título "Visão Geral") */}
+            {/* Controles: Funcionando agora */}
             <div className="dashboard-controls">
-                <button className="filter-btn active">Hoje</button>
-                <button className="filter-btn">Mês</button>
+                <button 
+                    className={`filter-btn ${viewMode === 'hoje' ? 'active' : ''}`}
+                    onClick={() => setViewMode('hoje')}
+                >
+                    Hoje
+                </button>
+                <button 
+                    className={`filter-btn ${viewMode === 'mes' ? 'active' : ''}`}
+                    onClick={() => setViewMode('mes')}
+                >
+                    Este Mês
+                </button>
             </div>
 
-            {/* KPIS SLIM */}
+            {/* KPIS */}
             <section className="kpi-grid">
                 <div className="kpi-card revenue">
                     <div className="kpi-info">
-                        <h3>Faturamento</h3>
+                        <h3>{viewMode === 'hoje' ? 'Faturamento Hoje' : 'Faturamento Mês'}</h3>
                         <p className="kpi-value" style={{color: '#28a745'}}>
-                            {formatMoney(data.dashboard.faturamento_do_dia)}
+                            {formatMoney(displayValues.faturamento)}
                         </p>
                     </div>
                     <div className="kpi-icon"><AttachMoney fontSize="inherit" /></div>
@@ -139,9 +193,9 @@ export default function DashboardFinanceiro() {
 
                 <div className="kpi-card expense">
                     <div className="kpi-info">
-                        <h3>Despesas</h3>
+                        <h3>{viewMode === 'hoje' ? 'Despesas Hoje' : 'Despesas Mês'}</h3>
                         <p className="kpi-value" style={{color: '#dc3545'}}>
-                            {formatMoney(data.dashboard.despesas_do_dia)}
+                            {formatMoney(displayValues.despesas)}
                         </p>
                     </div>
                     <div className="kpi-icon"><MoneyOff fontSize="inherit" /></div>
@@ -149,9 +203,9 @@ export default function DashboardFinanceiro() {
 
                 <div className="kpi-card neutral">
                     <div className="kpi-info">
-                        <h3>Lucro</h3>
-                        <p className="kpi-value" style={{color: data.dashboard.lucro_do_dia >= 0 ? '#1a233b' : '#dc3545'}}>
-                            {formatMoney(data.dashboard.lucro_do_dia)}
+                        <h3>Lucro Líquido</h3>
+                        <p className="kpi-value" style={{color: displayValues.lucro >= 0 ? '#1a233b' : '#dc3545'}}>
+                            {formatMoney(displayValues.lucro)}
                         </p>
                     </div>
                     <div className="kpi-icon"><TrendingUp fontSize="inherit" /></div>
@@ -159,61 +213,67 @@ export default function DashboardFinanceiro() {
 
                 <div className="kpi-card balance">
                     <div className="kpi-info">
-                        <h3>Saldo</h3>
+                        <h3>Saldo Conta</h3>
                         <p className="kpi-value">
-                            {formatMoney(data.dashboard.saldo_em_conta)}
+                            {formatMoney(displayValues.saldo)}
                         </p>
                     </div>
                     <div className="kpi-icon"><AccountBalanceWallet fontSize="inherit" /></div>
                 </div>
             </section>
 
-            {/* GRÁFICOS (Layout fixo para não rolar) */}
+            {/* GRÁFICOS */}
             <section className="dashboard-main">
                 
                 {/* Gráfico de Barras */}
-                <div className="white-box">
+                <div className="white-box" style={{ overflow: 'hidden' }}>
                     <div className="box-header">
-                        <h3 className="box-title">Fluxo Semestral</h3>
+                        <h3 className="box-title">Fluxo Semestral (Últimos 6 meses)</h3>
                     </div>
-                    {/* Altura forçada reduzida para 220px */}
-                    <div style={{ height: '220px', width: '100%' }}>
-                        {chartsData && <Bar data={chartsData.fluxo} options={commonOptions} />}
+                    <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                        {chartsData && <Bar data={chartsData.fluxo} options={barOptions} />}
                     </div>
                 </div>
 
-                {/* Coluna Direita */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Coluna Direita (Vertical Flex) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     
                     {/* Rosca */}
-                    <div className="white-box" style={{ flex: 1 }}>
+                    <div className="white-box" style={{ flex: 1, minHeight: 0 }}>
                         <div className="box-header">
                             <h3 className="box-title">Categorias</h3>
                         </div>
-                        {/* Altura forçada reduzida para 140px */}
-                        <div style={{ height: '140px', width: '100%' }}>
-                            {chartsData && <Doughnut data={chartsData.categorias} options={{...commonOptions, plugins: { legend: { display: false }}}} />}
+                        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                            {chartsData && <Doughnut data={chartsData.categorias} options={doughnutOptions} />}
                         </div>
                     </div>
 
-                    {/* Insights Compactos */}
-                    <div className="white-box" style={{ flex: 1 }}>
+                    {/* Resumo/Insights */}
+                    <div className="white-box" style={{ height: 'auto', maxHeight: '120px' }}>
                         <div className="box-header">
                             <h3 className="box-title">
-                                <VerifiedUser sx={{ fontSize: 16, marginRight: 1, color: '#c0a46f', verticalAlign: 'middle' }} />
-                                Resumo
+                                <VerifiedUser sx={{ fontSize: 14, marginRight: 1, color: '#c0a46f' }} />
+                                Resumo Rápido
                             </h3>
                         </div>
                         <div className="transaction-list">
-                            {data.insights.length > 0 ? (
-                                data.insights.map((ins, i) => (
-                                    <div key={i} className="transaction-item">
-                                        <span className="t-desc">{ins.text}</span>
-                                        <span className={`t-amount ${ins.type === 'error' ? 'amount-neg' : 'amount-pos'}`}>●</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <span style={{fontSize: '0.8rem', color: '#999'}}>Sem alertas.</span>
+                            {displayValues.despesas > displayValues.faturamento && (
+                                <div className="transaction-item">
+                                    <span className="t-desc">Despesas excedem entradas.</span>
+                                    <span className="t-amount amount-neg"> Atenção</span>
+                                </div>
+                            )}
+                            {displayValues.saldo < 0 && (
+                                <div className="transaction-item">
+                                    <span className="t-desc">Saldo bancário negativo.</span>
+                                    <span className="t-amount amount-neg">Crítico</span>
+                                </div>
+                            )}
+                            {displayValues.faturamento > displayValues.despesas && (
+                                <div className="transaction-item">
+                                    <span className="t-desc">Fluxo positivo no período.</span>
+                                    <span className="t-amount amount-pos">Ótimo</span>
+                                </div>
                             )}
                         </div>
                     </div>

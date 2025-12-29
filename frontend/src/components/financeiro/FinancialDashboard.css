@@ -1,59 +1,61 @@
 /* src/pages/FinancialDashboard.css */
 
 .financial-container {
-    /* Removemos padding vertical excessivo */
-    padding: 5px 0; 
+    padding: 10px 20px; /* Padding lateral para não colar na borda */
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Gap reduzido de 25px para 10px */
-    height: 100%; /* Tenta ocupar apenas a altura disponível */
+    gap: 12px; /* Espaço entre linhas reduzido */
+    height: calc(100vh - 80px); /* Tenta forçar a altura da tela menos o navbar */
+    overflow-y: hidden; /* Tenta esconder a rolagem se passar pouco */
+    box-sizing: border-box;
 }
 
-/* --- CABEÇALHO (Botões de filtro flutuando à direita, sem título) --- */
+/* Ajuste dos botões para não criar rolagem lateral */
 .dashboard-controls {
     display: flex;
-    justify-content: flex-end; /* Joga para a direita */
-    gap: 10px;
-    margin-bottom: 5px;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 0;
 }
 
 .filter-btn {
     background-color: #ffffff;
     border: 1px solid #c0a46f;
     color: #1a233b;
-    padding: 4px 12px; /* Botão mais fino */
-    border-radius: 4px;
+    padding: 4px 16px;
+    border-radius: 20px; /* Mais arredondado */
     cursor: pointer;
-    font-size: 0.8rem; /* Fonte menor */
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     transition: all 0.2s;
+    outline: none;
 }
 
 .filter-btn:hover, .filter-btn.active {
     background-color: #c0a46f;
     color: #ffffff;
+    border-color: #c0a46f;
 }
 
-/* --- CARDS DE RESUMO (KPIs) - Versão Slim --- */
+/* --- CARDS DE RESUMO (KPIs) --- */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* Força 4 colunas */
-    gap: 12px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    min-height: 80px; /* Altura fixa pequena */
 }
 
 .kpi-card {
     background-color: #ffffff;
-    padding: 12px 15px; /* Padding reduzido drasticamente */
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-left: 4px solid transparent;
-    min-height: 70px; /* Altura mínima controlada */
 }
 
-/* Cores dos KPIs */
 .kpi-card.balance { border-left-color: #1a233b; }
 .kpi-card.revenue { border-left-color: #28a745; }
 .kpi-card.expense { border-left-color: #dc3545; }
@@ -61,83 +63,87 @@
 
 .kpi-info h3 {
     margin: 0;
-    font-size: 0.75rem; /* Título menor */
+    font-size: 0.7rem;
     color: #7f8c8d;
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
 .kpi-value {
-    margin: 2px 0 0 0;
-    font-size: 1.3rem; /* Valor menor (era 1.6rem) */
+    margin: 4px 0 0 0;
+    font-size: 1.2rem;
     font-weight: 700;
     color: #1a233b;
-    line-height: 1.2;
+    white-space: nowrap; /* Não quebra linha */
 }
 
 .kpi-icon {
-    font-size: 1.5rem; /* Ícone menor */
-    opacity: 0.2;
+    font-size: 1.4rem;
+    opacity: 0.15;
     color: #1a233b;
+    display: flex; /* Centraliza ícone */
 }
 
 /* --- ÁREA PRINCIPAL --- */
 .dashboard-main {
     display: grid;
-    grid-template-columns: 70% 30%; /* Proporção ajustada */
-    gap: 12px;
-    flex-grow: 1; /* Ocupa o resto do espaço */
+    grid-template-columns: 2fr 1fr; /* 2 partes gráfico, 1 parte lateral */
+    gap: 15px;
+    flex: 1; /* Ocupa o restante da altura disponível */
+    min-height: 0; /* Importante para o Grid não estourar */
 }
 
 .white-box {
     background-color: #ffffff;
-    border-radius: 6px;
-    padding: 10px 15px; /* Box mais compacto */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-radius: 8px;
+    padding: 10px 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
     display: flex;
     flex-direction: column;
+    height: 100%; /* Ocupa a altura da célula do grid */
 }
 
 .box-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px; /* Menos espaço abaixo do título */
-    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #f8f9fa;
     padding-bottom: 5px;
-    min-height: 25px;
+    flex-shrink: 0; /* Header não encolhe */
 }
 
 .box-title {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: #1a233b;
-    font-weight: 600;
+    font-weight: 700;
     margin: 0;
 }
 
-/* Lista de Insights Compacta */
+/* Lista de Insights */
 .transaction-list {
     display: flex;
     flex-direction: column;
-    overflow-y: auto; /* Permite rolar só a lista se precisar */
-    max-height: 150px;
+    overflow-y: auto;
+    flex: 1; /* Ocupa espaço restante */
 }
 
 .transaction-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
+    padding: 8px 0;
     border-bottom: 1px solid #f4f7fa;
 }
+.transaction-item:last-child { border-bottom: none; }
 
-.t-desc { font-size: 0.8rem; font-weight: 500; color: #333; }
-.t-amount { font-size: 0.8rem; font-weight: 600; }
-.amount-pos { color: #28a745; }
-.amount-neg { color: #dc3545; }
+.t-desc { font-size: 0.75rem; font-weight: 500; color: #444; }
+.t-amount { font-size: 0.75rem; font-weight: 600; }
 
-/* Responsividade: Em telas muito pequenas, empilha */
-@media (max-width: 1000px) {
-    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+/* Responsividade */
+@media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: 1fr 1fr; } /* 2 colunas em telas médias */
     .dashboard-main { grid-template-columns: 1fr; }
+    .financial-container { height: auto; overflow-y: auto; } /* Libera rolagem em telas pequenas */
 }
