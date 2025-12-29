@@ -235,17 +235,21 @@ export default function DespesasView() {
                 </Grid>
             </Grid>
         <Box>
-            {/* FORMULÁRIO DE ADIÇÃO (Flex Box) */}
-            <Paper component="form" onSubmit={handleCreate} elevation={2} sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Nova Despesa</Typography>
+            {/* FORMULÁRIO DE ADIÇÃO (Compacto) */}
+            <Paper component="form" onSubmit={handleCreate} elevation={1} sx={{ p: 2, mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ fontSize: '0.95rem' }}>
+                    Nova Despesa
+                </Typography>
                 
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-start' }}>
+                {/* Linha 1: Campos de Entrada */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
                     <TextField 
                         label="Descrição" 
                         value={formData.descricao} 
                         onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} 
                         required 
-                        sx={{ flexGrow: 1, minWidth: '250px' }} 
+                        size="small" // REDUZ A ALTURA
+                        sx={{ flexGrow: 2, minWidth: '200px' }} 
                     />
                     <TextField
                         label="Data"
@@ -254,7 +258,8 @@ export default function DespesasView() {
                         onChange={(e) => setFormData({ ...formData, data_despesa: e.target.value })}
                         InputLabelProps={{ shrink: true }}
                         required 
-                        sx={{ width: '160px' }}
+                        size="small" // REDUZ A ALTURA
+                        sx={{ width: '140px' }}
                     />
                     <TextField 
                         label="Valor (R$)" 
@@ -262,9 +267,10 @@ export default function DespesasView() {
                         value={formData.valor} 
                         onChange={(e) => setFormData({ ...formData, valor: e.target.value })} 
                         required 
-                        sx={{ width: '140px' }} 
+                        size="small" // REDUZ A ALTURA
+                        sx={{ width: '130px' }} 
                     />
-                    <FormControl required sx={{ minWidth: '200px', flexGrow: 1 }}>
+                    <FormControl required size="small" sx={{ minWidth: '180px', flexGrow: 1 }}>
                         <InputLabel>Categoria</InputLabel>
                         <Select
                             value={formData.categoria}
@@ -278,25 +284,56 @@ export default function DespesasView() {
                     </FormControl>
                 </Box>
                     
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                {/* Linha 2: Opções e Botão */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
                     <FormControlLabel
-                        control={<Checkbox checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />}
-                        label="Parcelar despesa?"
+                        sx={{ '& .MuiTypography-root': { fontSize: '0.875rem' } }} // Texto menor
+                        control={
+                            <Checkbox 
+                                size="small" 
+                                checked={formData.parcelado} 
+                                onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} 
+                            />
+                        }
+                        label="Parcelar?"
                     />
+                    
+                    {/* Checkbox de PAGO (que adicionamos antes) */}
+                    <FormControlLabel
+                        sx={{ '& .MuiTypography-root': { fontSize: '0.875rem' } }}
+                        control={
+                            <Checkbox 
+                                size="small"
+                                checked={formData.pago} 
+                                onChange={(e) => setFormData({...formData, pago: e.target.checked})} 
+                                color="success"
+                            />
+                        }
+                        label="Já pago?"
+                    />
+
                     {formData.parcelado && (
                         <TextField 
-                            label="Qtd. Parcelas" 
+                            label="Parcelas" 
                             type="number" 
                             size="small"
-                            sx={{ width: 120 }}
+                            sx={{ width: 100 }}
                             value={formData.qtd_parcelas}
                             onChange={(e) => setFormData({...formData, qtd_parcelas: parseInt(e.target.value)})}
                             InputProps={{ inputProps: { min: 2, max: 60 } }} 
                         />
                     )}
+                    
                     <Box sx={{ flexGrow: 1 }} />
-                    <Button type="submit" variant="contained" disabled={isSubmitting || isLoading} size="large">
-                        {isSubmitting ? <CircularProgress size={24} /> : 'Lançar Despesa'}
+                    
+                    <Button 
+                        type="submit" 
+                        variant="contained" 
+                        disabled={isSubmitting || isLoading} 
+                        size="medium" // Botão menos agressivo que o "large"
+                        sx={{ px: 4, textTransform: 'none', fontWeight: 'bold' }} // Estilo mais limpo
+                    >
+                        {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Lançar'}
                     </Button>
                 </Box>
             </Paper>
