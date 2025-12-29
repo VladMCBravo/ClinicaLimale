@@ -1,10 +1,11 @@
-// src/components/financeiro/LancamentoCaixaModal.jsx
 import React, { useState } from 'react';
 import {
-    Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, Button, Typography
+    Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, Button, IconButton
 } from '@mui/material';
-import PagarAgendamentoTab from './PagarAgendamentoTab'; // <-- IMPORTE O NOVO COMPONENTE
-import LancamentoAvulsoTab from './LancamentoAvulsoTab'; // <-- IMPORTE O NOVO COMPONENTE
+import CloseIcon from '@mui/icons-material/Close';
+
+import PagarAgendamentoTab from './PagarAgendamentoTab';
+import LancamentoAvulsoTab from './LancamentoAvulsoTab';
 
 export default function LancamentoCaixaModal({ open, onClose }) {
     const [activeTab, setActiveTab] = useState(0);
@@ -15,31 +16,29 @@ export default function LancamentoCaixaModal({ open, onClose }) {
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>Lançamento no Caixa</DialogTitle>
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', p: 0 }}>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Tabs value={activeTab} onChange={handleChangeTab} variant="fullWidth">
-                        <Tab label="Pagar Agendamento" />
-                        <Tab label="Lançamento Avulso" />
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                Novo Lançamento no Caixa
+                <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
+            </DialogTitle>
+            
+            <DialogContent sx={{ p: 0 }}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#f5f5f5' }}>
+                    <Tabs value={activeTab} onChange={handleChangeTab} variant="fullWidth" indicatorColor="primary">
+                        <Tab label="Buscar Pendência de Paciente" />
+                        <Tab label="Receita/Despesa Avulsa" />
                     </Tabs>
                 </Box>
                 
-                {activeTab === 0 && (
-                    <Box sx={{ p: 3, minHeight: '400px' }}>
+                <Box sx={{ p: 3 }}>
+                    {activeTab === 0 && (
                         <PagarAgendamentoTab onClose={onClose} />
-                    </Box>
-                )}
+                    )}
 
-                {activeTab === 1 && (
-                    <Box sx={{ p: 3, minHeight: '400px' }}>
-                        {/* SUBSTITUÍMOS O PLACEHOLDER PELO COMPONENTE REAL */}
+                    {activeTab === 1 && (
                         <LancamentoAvulsoTab onClose={onClose} />
-                    </Box>
-                )}
+                    )}
+                </Box>
             </DialogContent>
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', borderTop: 1, borderColor: 'divider' }}>
-                <Button onClick={onClose}>Fechar</Button>
-            </Box>
         </Dialog>
     );
 }

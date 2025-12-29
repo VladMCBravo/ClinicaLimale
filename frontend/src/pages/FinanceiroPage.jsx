@@ -6,7 +6,7 @@ import { Paper, Box, Tabs, Tab } from '@mui/material';
 // O novo Dashboard Unificado substitui o antigo Inteligente e a aba de Relatórios
 import DashboardFinanceiro from '../components/financeiro/DashboardFinanceiro'; 
 import ProjecaoCaixaView from '../components/financeiro/ProjecaoCaixaView';
-import PagamentosPendentesView from '../components/financeiro/PagamentosPendentesView';
+import ContasReceberView from '../components/financeiro/ContasReceberView';
 import DespesasView from '../components/financeiro/DespesasView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
 import ProcedimentosView from '../components/financeiro/ProcedimentosView';
@@ -53,10 +53,9 @@ export default function FinanceiroPage() {
             <Box>
                 {/* Carrega o novo Dashboard Unificado */}
                 {activeTab === 0 && <DashboardFinanceiro />}
-                
                 {activeTab === 1 && <ProjecaoCaixaView />}
                 {activeTab === 2 && <DespesasView />}
-                {activeTab === 3 && <PagamentosPendentesView />}
+                {activeTab === 3 && <ContasReceberView />}
                 {activeTab === 4 && <FaturamentoConveniosView />}
                 {activeTab === 5 && <ProcedimentosView />}
             </Box>
