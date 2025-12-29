@@ -1,17 +1,15 @@
-// src/pages/FinanceiroPage.jsx - VERSÃO HÍBRIDA COMPLETA (DASHBOARD + ABAS)
-
 import React, { useState } from 'react';
 import { Paper, Typography, Box, Tabs, Tab } from '@mui/material';
 
-// Importe todos os componentes que serão usados nas abas
-import DashboardResumo from '../components/financeiro/DashboardResumo';
+// Imports atualizados
+import DashboardInteligente from '../components/financeiro/DashboardInteligente'; // <-- NOVO
+import ProjecaoCaixaView from '../components/financeiro/ProjecaoCaixaView'; // <-- NOVO
 import PagamentosPendentesView from '../components/financeiro/PagamentosPendentesView';
 import DespesasView from '../components/financeiro/DespesasView';
 import RelatoriosView from '../components/financeiro/RelatoriosView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
 import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 
-// Função auxiliar de acessibilidade (importante para abas)
 function a11yProps(index) {
     return {
         id: `financeiro-tab-${index}`,
@@ -20,7 +18,6 @@ function a11yProps(index) {
 }
 
 export default function FinanceiroPage() {
-    // Corrigido: `useState` em vez de `a useState`
     const [activeTab, setActiveTab] = useState(0);
 
     const handleChange = (event, newValue) => {
@@ -28,37 +25,36 @@ export default function FinanceiroPage() {
     };
 
     return (
-        <Paper sx={{ p: 2, margin: 'auto', width: '100%' }}>
-            <Typography variant="h5" gutterBottom>
+        <Paper sx={{ p: 2, margin: 'auto', width: '100%', minHeight: '80vh' }}>
+            <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                 Gestão Financeira
             </Typography>
             
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs 
                     value={activeTab} 
                     onChange={handleChange} 
-                    aria-label="abas de gestão financeira"
                     variant="scrollable"
                     scrollButtons="auto"
                 >
-                    {/* --- LISTA DE ABAS COMPLETA --- */}
-                    <Tab label="Visão Geral" {...a11yProps(0)} />
-                    <Tab label="Pagamentos Pendentes" {...a11yProps(1)} />
-                    <Tab label="Despesas" {...a11yProps(2)} />
-                    <Tab label="Procedimentos e Preços" {...a11yProps(3)} />
-                    <Tab label="Faturamento de Convênios" {...a11yProps(4)} />
-                    <Tab label="Relatórios Gráficos" {...a11yProps(5)} />
+                    <Tab label="Painel Inteligente" {...a11yProps(0)} />
+                    <Tab label="Fluxo Futuro" {...a11yProps(1)} /> {/* Nova Aba */}
+                    <Tab label="Contas a Pagar (Despesas)" {...a11yProps(2)} />
+                    <Tab label="Contas a Receber" {...a11yProps(3)} />
+                    <Tab label="Faturamento Convênios" {...a11yProps(4)} />
+                    <Tab label="Tabela de Preços" {...a11yProps(5)} />
+                    <Tab label="Relatórios" {...a11yProps(6)} />
                 </Tabs>
             </Box>
 
-            {/* --- CONTEÚDO CORRESPONDENTE A CADA ABA --- */}
-            <Box sx={{ mt: 3, p: 1 }}>
-                {activeTab === 0 && <DashboardResumo />}
-                {activeTab === 1 && <PagamentosPendentesView />}
+            <Box>
+                {activeTab === 0 && <DashboardInteligente />}
+                {activeTab === 1 && <ProjecaoCaixaView />}
                 {activeTab === 2 && <DespesasView />}
-                {activeTab === 3 && <ProcedimentosView />}
+                {activeTab === 3 && <PagamentosPendentesView />}
                 {activeTab === 4 && <FaturamentoConveniosView />}
-                {activeTab === 5 && <RelatoriosView />}
+                {activeTab === 5 && <ProcedimentosView />}
+                {activeTab === 6 && <RelatoriosView />}
             </Box>
         </Paper>
     );

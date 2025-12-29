@@ -2,7 +2,8 @@
 import csv
 import io # Para ler o arquivo em memória
 from rest_framework.parsers import MultiPartParser, FormParser # Para lidar com uploads de arquivos
-
+from django.db.models.functions import TruncDate
+from datetime import timedelta
 from argparse import Action
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action  # <-- ADICIONE ESTA LINHA AQUI
@@ -444,5 +445,66 @@ class FinanceiroDashboardAPIView(APIView):
             # Para o futuro (Fase 2), podemos adicionar o extrato aqui
             # "ultimas_transacoes_banco": inter_service.consultar_extrato(inicio_dia, fim_dia)
         }
+
+class ProjecaoFluxoCaixaAPIView(APIView):
+    permission_classes = [IsRecepcaoOrAdmin]
+
+    def get(self, request):
+        # 1. Configuração de datas (Hoje até +30 dias)
+        hoje = timezone.localdate()
+        data_final = hoje + timedelta(days=30)
+        
+        # 2. Saldo Inicial (Idealmente viria da API do Inter, aqui simulamos ou pegamos do cache)
+        # Se quiser usar o real: saldo_atual = inter_service.consultar_saldo()
+        saldo_acumulado = 15000.00 # Exemplo: Começamos com um saldo base se a API falhar ou para teste
+        
+        try:
+             saldo_real = inter_service.consultar_saldo()
+             if saldo_real is not None:
+                 saldo_acumulado = float(saldo_real)
+        except:
+            pass # Mantém o saldo simulado se a API do Inter der erro
+
+        # 3. Buscar Receitas Futuras (Agendamentos confirmados mas não pagos ou Pagamentos pendentes com data futura)
+        # Nota: Aqui simplificamos pegando agendamentos futuros como previsão de entrada
+        receitas = Agendamento.objects.filter(
+            data_hora_inicio__date__range=[hoje, data_final],
+            status__in=['Agendado', 'Confirmado']
+        ).annotate(
+            dia=TruncDate('data_hora_inicio')
+        ).values('dia').annotate(total=Sum('valor_consulta')).order_by('dia')
+
+        # 4. Buscar Despesas Futuras (Aqui entram as parcelas que criamos no frontend!)
+        despesas = Despesa.objects.filter(
+            data_despesa__range=[hoje, data_final]
+        ).values('data_despesa').annotate(total=Sum('valor')).order_by('data_despesa')
+
+        # 5. Transformar em Dicionários para acesso rápido
+        mapa_receitas = {r['dia']: r['total'] for r in receitas}
+        mapa_despesas = {d['data_despesa']: d['total'] for d in despesas}
+
+        # 6. Construir a linha do tempo dia a dia
+        projecao = []
+        datas = []
+        saldo_linha = []
+        despesa_linha = [] # Linha de perigo
+
+        for i in range(31): # 0 a 30 dias
+            data_corrente = hoje + timedelta(days=i)
+            
+            entrada = mapa_receitas.get(data_corrente, 0) or 0
+            saida = mapa_despesas.get(data_corrente, 0) or 0
+            
+            saldo_acumulado = saldo_acumulado + float(entrada) - float(saida)
+            
+            datas.append(data_corrente.strftime('%d/%m'))
+            saldo_linha.append(saldo_acumulado)
+            despesa_linha.append(float(saida)) # Opcional: mostrar quanto sai naquele dia
+
+        return Response({
+            'labels': datas,
+            'saldo_projetado': saldo_linha,
+            'despesas_previstas': despesa_linha
+        })
         
         return Response(dados)

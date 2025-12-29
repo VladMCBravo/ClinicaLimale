@@ -1,37 +1,40 @@
-// src/services/faturamentoService.js - VERSÃO COMPLETA E ATUALIZADA
+// src/services/faturamentoService.js - VERSÃO CORRIGIDA (COM UPDATE E DELETE DE DESPESAS)
 import apiClient from '../api/axiosConfig';
 
-
-// --- ADICIONE ESTAS DUAS FUNÇÕES ABAIXO ---
+// --- Funções para Procedimentos ---
 const createProcedimento = (data) => apiClient.post('/faturamento/procedimentos/', data);
 const deleteProcedimento = (id) => apiClient.delete(`/faturamento/procedimentos/${id}/`);
-// --- FIM DA ADIÇÃO ---
-
-// --- Funções para Procedimentos e Preços (já existentes) ---
 const getProcedimentos = () => apiClient.get('/faturamento/procedimentos/');
 const updateProcedimento = (id, data) => apiClient.put(`/faturamento/procedimentos/${id}/`, data);
 const definirPrecoConvenio = (procedimentoId, data) => apiClient.post(`/faturamento/procedimentos/${procedimentoId}/definir-preco-convenio/`, data);
 const getPlanosConvenio = () => apiClient.get('/faturamento/planos/');
+
 const uploadTuss = (formData) => {
-    // O segundo argumento é o 'data', que é o nosso FormData com o arquivo.
-    // O terceiro argumento são as 'options', onde definimos o cabeçalho correto para upload de arquivos.
     return apiClient.post('/faturamento/procedimentos/upload-tuss/', formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },
     });
 };
-// --- Funções para Pagamentos Pendentes ---
-const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pendentes/');
 
-// --- Funções para Despesas ---
+// --- Funções para Pagamentos ---
+const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pendentes/');
+const getCobrancasPendentes = (pacienteId) => apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`);
+const updatePagamento = (pagamentoId, data) => apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data);
+
+
+// --- Funções para Despesas (ATUALIZADO AQUI) ---
 const getDespesas = () => apiClient.get('/faturamento/despesas/');
 const getCategoriasDespesa = () => apiClient.get('/faturamento/categorias-despesa/');
 const createDespesa = (data) => apiClient.post('/faturamento/despesas/', data);
+
+// >>> ESTAS SÃO AS FUNÇÕES QUE FALTAVAM <<<
+const updateDespesa = (id, data) => apiClient.put(`/faturamento/despesas/${id}/`, data);
+const deleteDespesa = (id) => apiClient.delete(`/faturamento/despesas/${id}/`);
+
 // Para o formulário de Lançamento Avulso
-const createLancamentoAvulso = (data) => {
-    return apiClient.post('/faturamento/lancamento-avulso/', data);
-};
+const createLancamentoAvulso = (data) => apiClient.post('/faturamento/lancamento-avulso/', data);
+
 
 // --- Funções para Relatórios ---
 const getRelatorioFinanceiro = () => apiClient.get('/faturamento/relatorios/financeiro/');
@@ -40,43 +43,43 @@ const getRelatorioFinanceiro = () => apiClient.get('/faturamento/relatorios/fina
 const getConvenios = () => apiClient.get('/faturamento/convenios/');
 const getAgendamentosFaturaveis = (params) => apiClient.get('/faturamento/agendamentos-faturaveis/', { params });
 const gerarLoteFaturamento = (data) => apiClient.post('/faturamento/gerar-lote/', data, { responseType: 'blob' });
-// --- NOVA FUNÇÃO PARA O DASHBOARD ---
+
+// --- Funções para o Dashboard ---
 const getDashboardFinanceiro = () => apiClient.get('/faturamento/dashboard-financeiro/');
-// Busca as cobranças pendentes para um paciente específico
-const getCobrancasPendentes = (pacienteId) => {
-    return apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`);
-};
-
-// Atualiza um pagamento (ex: para marcar como 'Pago')
-const updatePagamento = (pagamentoId, data) => {
-    // Usamos PATCH para uma atualização parcial (apenas o status e forma de pagamento)
-    return apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data);
-};
-
+const getProjecaoFinanceira = () => apiClient.get('/faturamento/projecao-caixa/');
 
 export const faturamentoService = {
     // Procedimentos
     getProcedimentos,
-    createProcedimento,    // <-- Adicione esta linha
+    createProcedimento,
     deleteProcedimento,
     updateProcedimento,
     definirPrecoConvenio,
     getPlanosConvenio,
     uploadTuss,
+    
     // Pagamentos
     getPagamentosPendentes,
     getCobrancasPendentes,
     updatePagamento,
+    
     // Despesas
     getDespesas,
     getCategoriasDespesa,
     createDespesa,
+    updateDespesa, // <-- Adicionado ao export
+    deleteDespesa, // <-- Adicionado ao export
     createLancamentoAvulso,
+    
     // Relatórios
     getRelatorioFinanceiro,
+    
     // Faturamento
     getConvenios,
     getAgendamentosFaturaveis,
     gerarLoteFaturamento,
-    getDashboardFinanceiro, // <-- ADICIONE AQUI
+    
+    // Dashboard
+    getDashboardFinanceiro,
+    getProjecaoFinanceira, // <--- Não esqueça de exportar
 };

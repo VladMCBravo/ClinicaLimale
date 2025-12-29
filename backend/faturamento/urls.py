@@ -17,7 +17,8 @@ from .views import (
     FinanceiroDashboardAPIView,
     InterWebhookAPIView,
     CobrancasPendentesPacienteAPIView, # <-- Importe a nova view
-    LancamentoAvulsoAPIView # <-- Importe a nova view
+    LancamentoAvulsoAPIView,
+    ProjecaoFluxoCaixaAPIView # <-- Importe a nova view
 )
 
 # O router regista os ViewSets (que criam múltiplas URLs)
@@ -56,5 +57,5 @@ urlpatterns = [
     
     # <<< NOVA ROTA PARA LANÇAMENTOS AVULSOS (ABA 2) >>>
     path('lancamento-avulso/', LancamentoAvulsoAPIView.as_view(), name='lancamento-avulso'),
-
+    path('projecao-caixa/', ProjecaoFluxoCaixaAPIView.as_view(), name='projecao-caixa'), # <--- Nova rota
 ]
