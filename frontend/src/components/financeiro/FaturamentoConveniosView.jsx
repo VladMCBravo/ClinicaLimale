@@ -143,33 +143,33 @@ export default function FaturamentoConveniosView() {
         <Box>
             <Typography variant="h6" gutterBottom>Faturamento de Convênios</Typography>
             <Paper sx={{ p: 2, mb: 2 }}>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={4}>
-                        <FormControl fullWidth>
-                            <InputLabel>Convênio</InputLabel>
-                            <Select value={selectedConvenio} label="Convênio" onChange={(e) => setSelectedConvenio(e.target.value)}>
-                                {convenios.map((conv) => (
-                                    <MenuItem key={conv.id} value={conv.id}>{conv.nome}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            label="Mês/Ano de Referência"
-                            type="month"
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            fullWidth
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <Button variant="contained" onClick={handleBuscar} disabled={isLoading}>
-                            {isLoading ? <CircularProgress size={24} /> : 'Buscar Agendamentos'}
-                        </Button>
-                    </Grid>
-                </Grid>
+                
+                {/* Correção: Usando Box Flex em vez de Grid para evitar esmagamento */}
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    
+                    <FormControl sx={{ minWidth: '250px', flexGrow: 1 }}>
+                        <InputLabel>Convênio</InputLabel>
+                        <Select value={selectedConvenio} label="Convênio" onChange={(e) => setSelectedConvenio(e.target.value)}>
+                            {convenios.map((conv) => (
+                                <MenuItem key={conv.id} value={conv.id}>{conv.nome}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <TextField
+                        label="Mês/Ano de Referência"
+                        type="month"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ width: '200px' }}
+                    />
+
+                    <Button variant="contained" onClick={handleBuscar} disabled={isLoading} sx={{ height: '56px' }}>
+                        {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
+                    </Button>
+
+                </Box>
             </Paper>
 
             <TableContainer component={Paper}>

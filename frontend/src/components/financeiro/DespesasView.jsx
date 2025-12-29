@@ -134,75 +134,76 @@ export default function DespesasView() {
 
     return (
         <Box>
-            {/* FORMULÁRIO DE ADIÇÃO */}
+            {/* FORMULÁRIO COM LAYOUT FLEX (BOX) EM VEZ DE GRID */}
             <Paper component="form" onSubmit={handleCreate} elevation={2} sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>Nova Despesa</Typography>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={4}>
-                        <TextField 
-                            label="Descrição" 
-                            value={formData.descricao} 
-                            onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} 
-                            required fullWidth 
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={2}>
-                        <TextField
-                            label="Data"
-                            type="date"
-                            value={formData.data_despesa}
-                            onChange={(e) => setFormData({ ...formData, data_despesa: e.target.value })}
-                            InputLabelProps={{ shrink: true }}
-                            required fullWidth
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={2}>
-                        <TextField 
-                            label="Valor Total (R$)" 
-                            type="number" 
-                            value={formData.valor} 
-                            onChange={(e) => setFormData({ ...formData, valor: e.target.value })} 
-                            required fullWidth 
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <FormControl required fullWidth>
-                            <InputLabel>Categoria</InputLabel>
-                            <Select
-                                value={formData.categoria}
-                                label="Categoria"
-                                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                            >
-                                {categorias.map((cat) => (
-                                    <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
+                
+                {/* Aqui está a correção do Layout */}
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     
-                    {/* Linha de Parcelamento */}
-                    <Grid item xs={12} md={12} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <FormControlLabel
-                            control={<Checkbox checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />}
-                            label="Parcelar despesa?"
+                    <TextField 
+                        label="Descrição" 
+                        value={formData.descricao} 
+                        onChange={(e) => setFormData({ ...formData, descricao: e.target.value })} 
+                        required 
+                        sx={{ flexGrow: 1, minWidth: '250px' }} // Cresce para ocupar espaço
+                    />
+
+                    <TextField
+                        label="Data"
+                        type="date"
+                        value={formData.data_despesa}
+                        onChange={(e) => setFormData({ ...formData, data_despesa: e.target.value })}
+                        InputLabelProps={{ shrink: true }}
+                        required 
+                        sx={{ width: '180px' }}
+                    />
+
+                    <TextField 
+                        label="Valor (R$)" 
+                        type="number" 
+                        value={formData.valor} 
+                        onChange={(e) => setFormData({ ...formData, valor: e.target.value })} 
+                        required 
+                        sx={{ width: '150px' }}
+                    />
+
+                    <FormControl required sx={{ minWidth: '200px', flexGrow: 1 }}>
+                        <InputLabel>Categoria</InputLabel>
+                        <Select
+                            value={formData.categoria}
+                            label="Categoria"
+                            onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                        >
+                            {categorias.map((cat) => (
+                                <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+
+                {/* Linha de Parcelamento e Botão separada para não espremer */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                    <FormControlLabel
+                        control={<Checkbox checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />}
+                        label="Parcelar?"
+                    />
+                    {formData.parcelado && (
+                        <TextField 
+                            label="Qtd." 
+                            type="number" 
+                            size="small"
+                            sx={{ width: 80 }}
+                            value={formData.qtd_parcelas}
+                            onChange={(e) => setFormData({...formData, qtd_parcelas: parseInt(e.target.value)})}
+                            InputProps={{ inputProps: { min: 2, max: 24 } }}
                         />
-                        {formData.parcelado && (
-                            <TextField 
-                                label="Qtd. Parcelas" 
-                                type="number" 
-                                size="small"
-                                sx={{ width: 120 }}
-                                value={formData.qtd_parcelas}
-                                onChange={(e) => setFormData({...formData, qtd_parcelas: parseInt(e.target.value)})}
-                                InputProps={{ inputProps: { min: 2, max: 24 } }}
-                            />
-                        )}
-                        <Box sx={{ flexGrow: 1 }} />
-                        <Button type="submit" variant="contained" disabled={isSubmitting || isLoading} size="large">
-                            {isSubmitting ? <CircularProgress size={24} /> : 'Lançar Despesa'}
-                        </Button>
-                    </Grid>
-                </Grid>
+                    )}
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Button type="submit" variant="contained" disabled={isSubmitting || isLoading} size="large">
+                        {isSubmitting ? <CircularProgress size={24} /> : 'Lançar'}
+                    </Button>
+                </Box>
             </Paper>
 
             {/* TABELA DE DESPESAS */}

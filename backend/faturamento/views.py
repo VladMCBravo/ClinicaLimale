@@ -14,6 +14,8 @@ from django.db.models import Sum
 from django.db.models.functions import TruncMonth, TruncDate
 from django.utils import timezone
 from django.http import HttpResponse
+from django.db.models.functions import Coalesce 
+from django.db.models import Value, DecimalField
 
 # --- IMPORTAÇÕES DE OUTROS APPS ---
 from agendamentos.serializers import AgendamentoSerializer
@@ -311,7 +313,7 @@ class FinanceiroDashboardAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
-        # 1. Busca dados externos (da API do Banco Inter) com SEGURANÇA
+        # 1. Busca Saldo REAL (Se falhar, é 0.00, nada de simulado)
         saldo_em_conta = 0.0
         try:
             if inter_service:
@@ -319,14 +321,15 @@ class FinanceiroDashboardAPIView(APIView):
                 if saldo_real is not None:
                     saldo_em_conta = float(saldo_real)
         except Exception as e:
-            print(f"Erro ao consultar saldo Inter: {e}")
+            print(f"Erro silencioso ao consultar saldo Inter: {e}")
+            # Mantém 0.0 se der erro
 
-        # Define o período para hoje
+        # Datas
         hoje = timezone.localdate()
         inicio_dia = timezone.make_aware(datetime.combine(hoje, time.min))
         fim_dia = timezone.make_aware(datetime.combine(hoje, time.max))
 
-        # 2. Busca dados internos
+        # 2. Busca dados internos (apenas o que está no banco)
         pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia), status='Pago')
         despesas_hoje = Despesa.objects.filter(data_despesa=hoje)
         
@@ -335,12 +338,11 @@ class FinanceiroDashboardAPIView(APIView):
             status='Pendente'
         ).select_related('paciente', 'agendamento')
 
-        # 3. Calcula os totais
-        faturamento_dia = sum(p.valor for p in pagamentos_hoje) or 0
-        total_despesas_dia = sum(d.valor for d in despesas_hoje) or 0
+        # 3. Calcula totais (Usando Python sum para garantir segurança se lista vazia)
+        faturamento_dia = sum(p.valor for p in pagamentos_hoje) or 0.0
+        total_despesas_dia = sum(d.valor for d in despesas_hoje) or 0.0
         lucro_dia = faturamento_dia - total_despesas_dia
 
-        # 4. Monta a resposta
         dados = {
             "saldo_em_conta": saldo_em_conta,
             "faturamento_do_dia": faturamento_dia,
@@ -362,53 +364,58 @@ class ProjecaoFluxoCaixaAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
-        # 1. Configuração de datas
         hoje = timezone.localdate()
         data_final = hoje + timedelta(days=30)
         
-        # 2. Saldo Inicial
+        # Saldo Inicial Real
         saldo_acumulado = 0.0
         try:
             if inter_service:
                 saldo_real = inter_service.consultar_saldo()
                 if saldo_real is not None:
                     saldo_acumulado = float(saldo_real)
-        except Exception as e:
-            print(f"Erro na projeção (Saldo Inter): {e}")
+        except Exception:
+            pass # Começa com 0 se a API falhar
 
-        # 3. Buscar Receitas Futuras (Agendamentos)
+        # Receitas Futuras (Agendamentos)
+        # IMPORTANTE: Verifique se o campo no modelo Agendamento é 'valor_consulta' ou apenas 'valor'
+        # Estou assumindo 'valor_consulta' baseado no seu histórico.
         receitas_qs = Agendamento.objects.filter(
             data_hora_inicio__date__range=[hoje, data_final],
             status__in=['Agendado', 'Confirmado']
         ).annotate(
             dia=TruncDate('data_hora_inicio')
-        ).values('dia').annotate(total=Sum('valor_consulta')).order_by('dia')
+        ).values('dia').annotate(
+            total=Sum('valor_consulta') 
+        ).order_by('dia')
 
-        # 4. Buscar Despesas Futuras
+        # Despesas Futuras
         despesas_qs = Despesa.objects.filter(
             data_despesa__range=[hoje, data_final]
-        ).values('data_despesa').annotate(total=Sum('valor')).order_by('data_despesa')
+        ).values('data_despesa').annotate(
+            total=Sum('valor')
+        ).order_by('data_despesa')
 
-        # 5. Mapeamento
+        # Mapeamento seguro
         mapa_receitas = {r['dia']: (r['total'] or 0) for r in receitas_qs}
         mapa_despesas = {d['data_despesa']: (d['total'] or 0) for d in despesas_qs}
 
-        # 6. Construir linha do tempo
         datas = []
         saldo_linha = []
         despesa_linha = []
 
+        # Loop de 30 dias
         for i in range(31):
             data_corrente = hoje + timedelta(days=i)
             
-            entrada = mapa_receitas.get(data_corrente, 0)
-            saida = mapa_despesas.get(data_corrente, 0)
+            entrada = float(mapa_receitas.get(data_corrente, 0))
+            saida = float(mapa_despesas.get(data_corrente, 0))
             
-            saldo_acumulado = saldo_acumulado + float(entrada) - float(saida)
+            saldo_acumulado = saldo_acumulado + entrada - saida
             
             datas.append(data_corrente.strftime('%d/%m'))
             saldo_linha.append(saldo_acumulado)
-            despesa_linha.append(float(saida))
+            despesa_linha.append(saida)
 
         return Response({
             'labels': datas,

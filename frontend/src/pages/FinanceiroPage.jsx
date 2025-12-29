@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Paper, Typography, Box, Tabs, Tab } from '@mui/material';
+import { Paper, Box, Tabs, Tab } from '@mui/material'; // Removido Typography
 
-// Imports atualizados
-import DashboardInteligente from '../components/financeiro/DashboardInteligente'; // <-- NOVO
-import ProjecaoCaixaView from '../components/financeiro/ProjecaoCaixaView'; // <-- NOVO
+// Imports dos componentes...
+import DashboardInteligente from '../components/financeiro/DashboardInteligente';
+import ProjecaoCaixaView from '../components/financeiro/ProjecaoCaixaView';
 import PagamentosPendentesView from '../components/financeiro/PagamentosPendentesView';
 import DespesasView from '../components/financeiro/DespesasView';
 import RelatoriosView from '../components/financeiro/RelatoriosView';
@@ -26,9 +26,7 @@ export default function FinanceiroPage() {
 
     return (
         <Paper sx={{ p: 2, margin: 'auto', width: '100%', minHeight: '80vh' }}>
-            <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                Gestão Financeira
-            </Typography>
+            {/* REMOVIDO O TYPOGRAPHY "GESTÃO FINANCEIRA" AQUI */}
             
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs 
@@ -38,7 +36,7 @@ export default function FinanceiroPage() {
                     scrollButtons="auto"
                 >
                     <Tab label="Painel Inteligente" {...a11yProps(0)} />
-                    <Tab label="Fluxo Futuro" {...a11yProps(1)} /> {/* Nova Aba */}
+                    <Tab label="Fluxo Futuro" {...a11yProps(1)} />
                     <Tab label="Contas a Pagar (Despesas)" {...a11yProps(2)} />
                     <Tab label="Contas a Receber" {...a11yProps(3)} />
                     <Tab label="Faturamento Convênios" {...a11yProps(4)} />
