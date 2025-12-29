@@ -1,60 +1,95 @@
 // src/components/financeiro/DashboardFinanceiro.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Grid, Paper, Typography, Box, CircularProgress 
+    Grid, Paper, Typography, Box, CircularProgress, 
+    LinearProgress, Avatar, Divider, Chip
 } from '@mui/material';
 import { 
     TrendingUp, TrendingDown, AccountBalanceWallet, 
-    AttachMoney, MoneyOff, HealthAndSafety 
+    AttachMoney, MoneyOff, VerifiedUser, MoreVert
 } from '@mui/icons-material';
 
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
-import { Pie, Bar } from 'react-chartjs-2';
+import { Doughnut, Bar } from 'react-chartjs-2';
 
 import { faturamentoService } from '../../services/faturamentoService';
 
-// Registra componentes do ChartJS
+// Registra ChartJS
 ChartJS.register(ArcElement, ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
-// --- Componentes Visuais Pequenos ---
+// --- ESTILOS VISUAIS (DESIGN SYSTEM) ---
+const cardStyle = {
+    borderRadius: '16px', // Bordas bem arredondadas (estilo iOS/Moderno)
+    boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.05)', // Sombra super suave
+    p: 2.5,
+    height: '100%',
+    backgroundColor: '#fff',
+    border: '1px solid rgba(0,0,0,0.02)'
+};
 
-const MiniKPI = ({ title, value, icon, color, subtext }) => (
-    <Paper elevation={1} sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
+const kpiIconBoxStyle = (color) => ({
+    bgcolor: `${color}15`, // 15% de opacidade
+    color: color,
+    width: 48,
+    height: 48,
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    mb: 2
+});
+
+// --- COMPONENTES VISUAIS ---
+
+// Card de KPI Moderno
+const KpiCardModern = ({ title, value, icon, color, trendValue, trendLabel }) => (
+    <Paper sx={cardStyle} elevation={0}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box sx={kpiIconBoxStyle(color)}>
+                {icon}
+            </Box>
+            {/* Chip de Tendência (Ex: +12% vs mês anterior) - Simulado visualmente */}
+            <Chip 
+                label={trendLabel || "+2.5%"} 
+                size="small" 
+                icon={trendValue === 'down' ? <TrendingDown fontSize="small"/> : <TrendingUp fontSize="small"/>}
+                sx={{ 
+                    bgcolor: trendValue === 'down' ? '#ffebee' : '#e8f5e9', 
+                    color: trendValue === 'down' ? '#c62828' : '#2e7d32',
+                    fontWeight: 'bold',
+                    borderRadius: '8px'
+                }} 
+            />
+        </Box>
+        
         <Box>
-            <Typography variant="caption" color="text.secondary" fontWeight="bold" textTransform="uppercase">
+            <Typography variant="body2" color="text.secondary" fontWeight="500" sx={{ mb: 0.5 }}>
                 {title}
             </Typography>
-            <Typography variant="h6" fontWeight="bold" color={color} sx={{ lineHeight: 1.2, my: 0.5 }}>
+            <Typography variant="h5" fontWeight="800" sx={{ color: '#1a1a1a', letterSpacing: '-0.5px' }}>
                 {value}
             </Typography>
-            {subtext && <Typography variant="caption" color="text.secondary">{subtext}</Typography>}
-        </Box>
-        <Box sx={{ 
-            bgcolor: `${color}15`, 
-            color: color, 
-            p: 1, 
-            borderRadius: '50%',
-            display: 'flex'
-        }}>
-            {icon}
         </Box>
     </Paper>
 );
 
-// CORREÇÃO AQUI: height prop para travar o tamanho
-const ChartCard = ({ title, children, height = 300 }) => (
-    <Paper elevation={1} sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="subtitle2" fontWeight="bold" color="text.secondary" gutterBottom>
-            {title}
-        </Typography>
-        {/* O Box agora tem altura fixa definida pela prop, impedindo o gráfico de crescer infinitamente */}
+// Card Genérico para Gráficos
+const ChartCardModern = ({ title, subtitle, children, height = 300 }) => (
+    <Paper sx={cardStyle} elevation={0}>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+                <Typography variant="h6" fontWeight="700" sx={{ fontSize: '1rem', color: '#1a1a1a' }}>
+                    {title}
+                </Typography>
+                {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
+            </Box>
+            <MoreVert sx={{ color: '#bdbdbd', cursor: 'pointer' }} fontSize="small" />
+        </Box>
         <Box sx={{ position: 'relative', height: `${height}px`, width: '100%' }}>
             {children}
         </Box>
     </Paper>
 );
-
-// ------------------------------------
 
 export default function DashboardFinanceiro() {
     const [isLoading, setIsLoading] = useState(true);
@@ -74,152 +109,198 @@ export default function DashboardFinanceiro() {
                 const faturamento = parseFloat(dashData.faturamento_do_dia || 0);
                 const despesas = parseFloat(dashData.despesas_do_dia || 0);
                 
+                // Insights Simulados para visual
                 const insights = [];
-                if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas superam faturamento hoje.' });
-                if (dashData.saldo_em_conta < 0) insights.push({ type: 'error', text: 'Conta no negativo!' });
+                if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas do dia excedem as entradas.' });
+                if (dashData.saldo_em_conta < 0) insights.push({ type: 'error', text: 'Saldo negativo: Risco de juros.' });
+                else insights.push({ type: 'success', text: 'Fluxo saudável: Saldo positivo mantido.' });
                 
                 setData({
                     dashboard: dashData,
                     relatorios: relRes.data,
                     insights: insights
                 });
-
             } catch (error) {
-                console.error("Erro ao carregar dashboard", error);
+                console.error("Erro dashboard", error);
             } finally {
                 setIsLoading(false);
             }
         };
-
         loadAllData();
     }, []);
 
     const chartsData = useMemo(() => {
         if (!data.relatorios) return null;
-
         return {
             fluxo: {
                 labels: data.relatorios.fluxo_caixa_mensal.map(item => 
                     new Date(item.mes).toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase()
                 ),
                 datasets: [
-                    { label: 'Entradas', data: data.relatorios.fluxo_caixa_mensal.map(i => i.receitas), backgroundColor: '#2e7d32', borderRadius: 2 },
-                    { label: 'Saídas', data: data.relatorios.fluxo_caixa_mensal.map(i => i.despesas), backgroundColor: '#d32f2f', borderRadius: 2 }
+                    { 
+                        label: 'Entradas', 
+                        data: data.relatorios.fluxo_caixa_mensal.map(i => i.receitas), 
+                        backgroundColor: '#3b82f6', // Azul moderno
+                        borderRadius: 4, 
+                        barPercentage: 0.6 
+                    },
+                    { 
+                        label: 'Saídas', 
+                        data: data.relatorios.fluxo_caixa_mensal.map(i => i.despesas), 
+                        backgroundColor: '#ef4444', // Vermelho moderno
+                        borderRadius: 4, 
+                        barPercentage: 0.6 
+                    }
                 ]
             },
             categorias: {
                 labels: data.relatorios.despesas_por_categoria.map(i => i.categoria__nome),
                 datasets: [{ 
                     data: data.relatorios.despesas_por_categoria.map(i => i.total),
-                    backgroundColor: ['#ef5350', '#ab47bc', '#42a5f5', '#26a69a', '#ffa726'],
-                    borderWidth: 0
-                }]
-            },
-            formas: {
-                labels: data.relatorios.faturamento_por_forma.map(i => i.forma_pagamento),
-                datasets: [{ 
-                    data: data.relatorios.faturamento_por_forma.map(i => i.total),
-                    backgroundColor: ['#66bb6a', '#29b6f6', '#ffca28', '#8d6e63'],
-                    borderWidth: 0
+                    backgroundColor: ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6'],
+                    borderWidth: 0,
+                    hoverOffset: 10
                 }]
             }
         };
     }, [data.relatorios]);
 
-    // Opções: maintainAspectRatio false é CRUCIAL, mas só funciona se o pai tiver altura fixa (que agora tem)
-    const commonOptions = {
+    // Configurações "Clean" para os gráficos
+    const barOptions = {
         responsive: true,
-        maintainAspectRatio: false, 
+        maintainAspectRatio: false,
+        scales: {
+            y: { 
+                beginAtZero: true, 
+                grid: { borderDash: [5, 5], drawBorder: false, color: '#f0f0f0' }, // Linhas pontilhadas leves
+                ticks: { font: { size: 11 }, color: '#9ca3af' }
+            },
+            x: { 
+                grid: { display: false }, // Remove grade vertical
+                ticks: { font: { size: 11 }, color: '#9ca3af' }
+            }
+        },
         plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+            legend: { align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } }
         }
     };
 
-    if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
-    if (!data.dashboard) return <Typography>Sem dados disponíveis.</Typography>;
+    const doughnutOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%', // Deixa a rosca mais fina (elegante)
+        plugins: {
+            legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { size: 10 }, color: '#6b7280' } }
+        }
+    };
+
+    if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress /></Box>;
+    if (!data.dashboard) return <Typography>Sem dados.</Typography>;
 
     return (
-        <Box sx={{ pb: 2 }}>
-            {/* LINHA 1: KPIS PRINCIPAIS */}
-            <Grid container spacing={2} sx={{ mb: 2 }}>
+        // Fundo cinza claro para destacar os cards brancos
+        <Box sx={{ bgcolor: '#f8f9fa', p: 2, borderRadius: 2, minHeight: '80vh' }}>
+            
+            {/* Título da Seção (Opcional, se quiser dar um nome pro Dashboard) */}
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h5" fontWeight="800" sx={{ color: '#111827' }}>
+                    Visão Geral
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Última atualização: Hoje
+                </Typography>
+            </Box>
+
+            {/* LINHA 1: KPIs */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MiniKPI 
-                        title="Faturamento (Dia)" 
+                    <KpiCardModern 
+                        title="Faturamento Hoje" 
                         value={formatMoney(data.dashboard.faturamento_do_dia)} 
                         icon={<AttachMoney />} 
-                        color="#2e7d32" 
+                        color="#3b82f6" // Blue
+                        trendLabel="+ Bom"
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MiniKPI 
-                        title="Despesas (Dia)" 
+                    <KpiCardModern 
+                        title="Despesas Hoje" 
                         value={formatMoney(data.dashboard.despesas_do_dia)} 
                         icon={<MoneyOff />} 
-                        color="#c62828" 
+                        color="#ef4444" // Red
+                        trendValue="down"
+                        trendLabel="Alerta"
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MiniKPI 
-                        title="Lucro Líquido (Dia)" 
+                    <KpiCardModern 
+                        title="Lucro Líquido" 
                         value={formatMoney(data.dashboard.lucro_do_dia)} 
                         icon={data.dashboard.lucro_do_dia >= 0 ? <TrendingUp /> : <TrendingDown />} 
-                        color={data.dashboard.lucro_do_dia >= 0 ? "#1565c0" : "#d32f2f"} 
+                        color={data.dashboard.lucro_do_dia >= 0 ? "#10b981" : "#ef4444"} 
+                        trendLabel={data.dashboard.lucro_do_dia >= 0 ? "Positivo" : "Negativo"}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <MiniKPI 
-                        title="Saldo em Conta" 
+                    <KpiCardModern 
+                        title="Saldo Atual" 
                         value={formatMoney(data.dashboard.saldo_em_conta)} 
                         icon={<AccountBalanceWallet />} 
-                        color="#6a1b9a" 
-                        subtext="Integração Bancária"
+                        color="#8b5cf6" // Purple
+                        trendLabel="Banco Inter"
                     />
                 </Grid>
             </Grid>
 
-            {/* LINHA 2: GRÁFICOS */}
-            <Grid container spacing={2}>
+            {/* LINHA 2: GRÁFICOS E INSIGHTS */}
+            <Grid container spacing={3}>
                 
-                {/* Coluna Esquerda: Fluxo de Caixa */}
-                <Grid item xs={12} md={8}> {/* Aumentei para 8 para dar destaque ao fluxo */}
-                    <ChartCard title="Fluxo de Caixa (6 Meses)" height={300}>
-                        {chartsData && <Bar data={chartsData.fluxo} options={commonOptions} />}
-                    </ChartCard>
+                {/* Coluna Esquerda: Fluxo de Caixa (Maior) */}
+                <Grid item xs={12} md={8}>
+                    <ChartCardModern 
+                        title="Fluxo de Caixa" 
+                        subtitle="Comparativo de entradas e saídas (semestral)"
+                        height={320}
+                    >
+                        {chartsData && <Bar data={chartsData.fluxo} options={barOptions} />}
+                    </ChartCardModern>
                 </Grid>
 
-                {/* Coluna Direita: Pizzas e Insights */}
+                {/* Coluna Direita: Categorias e Insights */}
                 <Grid item xs={12} md={4}>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={3}>
                         
-                        {/* Pizza 1: Menor (height 180) */}
+                        {/* Gráfico de Rosca (Doughnut) */}
                         <Grid item xs={12}>
-                            <ChartCard title="Despesas por Categoria" height={180}>
-                                {chartsData && <Pie data={chartsData.categorias} options={{...commonOptions, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } }}} />}
-                            </ChartCard>
+                            <ChartCardModern title="Despesas por Categoria" height={200}>
+                                {chartsData && <Doughnut data={chartsData.categorias} options={doughnutOptions} />}
+                            </ChartCardModern>
                         </Grid>
 
-                        {/* Bloco de Insights */}
+                        {/* Card de Inteligência / Insights */}
                         <Grid item xs={12}>
-                            <Paper elevation={1} sx={{ p: 1.5, bgcolor: '#fff3e0', borderLeft: '4px solid #ff9800', minHeight: '100px' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                    <HealthAndSafety sx={{ mr: 1, color: '#f57c00' }} fontSize="small" />
-                                    <Typography variant="subtitle2" fontWeight="bold" color="#e65100">
+                            <Paper sx={{ ...cardStyle, bgcolor: '#fff', borderLeft: '4px solid #f59e0b', p: 2 }} elevation={0}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                                    <VerifiedUser sx={{ color: '#f59e0b', mr: 1 }} fontSize="small"/>
+                                    <Typography variant="subtitle2" fontWeight="bold" color="#111827">
                                         Monitoramento Inteligente
                                     </Typography>
                                 </Box>
-                                {data.insights.length > 0 ? (
-                                    data.insights.map((ins, i) => (
-                                        <Typography key={i} variant="caption" sx={{ display: 'block', mb: 0.5 }}>
-                                            • {ins.text}
+                                
+                                {data.insights.map((ins, i) => (
+                                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: ins.type === 'error' ? 'red' : ins.type === 'success' ? 'green' : 'orange', mr: 1.5 }} />
+                                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                                            {ins.text}
                                         </Typography>
-                                    ))
-                                ) : (
-                                    <Typography variant="caption" color="text.secondary">
-                                        Nenhum alerta crítico. Sua operação está saudável hoje.
-                                    </Typography>
+                                    </Box>
+                                ))}
+                                {data.insights.length === 0 && (
+                                    <Typography variant="caption" color="text.secondary">Tudo certo por aqui.</Typography>
                                 )}
                             </Paper>
                         </Grid>
+
                     </Grid>
                 </Grid>
             </Grid>
