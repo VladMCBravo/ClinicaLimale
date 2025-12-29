@@ -191,19 +191,69 @@ class CobrancasPendentesPacienteAPIView(generics.ListAPIView):
 
 class LancamentoAvulsoAPIView(APIView):
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
+    
     def post(self, request, *args, **kwargs):
         tipo = request.data.get('tipo')
+        
+        # Lógica para RECEITA (Pagamento)
         if tipo == 'receita':
-            serializer = LancamentoAvulsoReceitaSerializer(data=request.data)
+            dados = request.data.copy()
+            qtd_parcelas = int(dados.get('qtd_parcelas', 1))
+            forma_pagamento = dados.get('forma_pagamento')
+            valor_total = float(dados.get('valor', 0))
+            descricao_original = dados.get('descricao', '')
+            
+            # Se for Crédito e tiver parcelas > 1, cria múltiplos registros
+            if forma_pagamento == 'CartaoCredito' and qtd_parcelas > 1:
+                valor_parcela = valor_total / qtd_parcelas
+                data_base = timezone.localdate() # Começa hoje (ou use data do payload se houver)
+                
+                pagamentos_criados = []
+                
+                for i in range(qtd_parcelas):
+                    # Calcula data futura (30 dias por parcela)
+                    data_vencimento = data_base + timedelta(days=30 * (i + 1))
+                    
+                    novo_pagamento = Pagamento.objects.create(
+                        paciente_id=dados.get('paciente'), # Pode ser None
+                        descricao=f"{descricao_original} ({i+1}/{qtd_parcelas})",
+                        valor=valor_parcela,
+                        forma_pagamento=forma_pagamento,
+                        status='Pendente', # Parcelas futuras nascem como Pendente (A Receber)
+                        data_pagamento=None, # Ainda não caiu na conta
+                        registrado_por=request.user
+                    )
+                    # Opcional: Se a 1ª parcela já foi paga na hora, você pode marcar a primeira como paga aqui
+                    pagamentos_criados.append(novo_pagamento)
+                
+                return Response({'msg': f'{qtd_parcelas} parcelas geradas.'}, status=status.HTTP_201_CREATED)
+
+            # Lançamento normal (1x ou à vista)
+            else:
+                serializer = LancamentoAvulsoReceitaSerializer(data=request.data)
+                if serializer.is_valid():
+                    # Se for dinheiro ou débito, geralmente já nasce pago. 
+                    # Se quiser confirmar, pode passar status='Pago' no front ou forçar aqui.
+                    obj = serializer.save(registrado_por=request.user)
+                    
+                    # Força data de hoje se já veio como Pago
+                    if obj.status == 'Pago' and not obj.data_pagamento:
+                        obj.data_pagamento = timezone.now()
+                        obj.save()
+                        
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Lógica para DESPESA (mantida)
         elif tipo == 'despesa':
             serializer = DespesaSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(registrado_por=request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
         else:
             return Response({'error': 'Tipo inválido'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if serializer.is_valid():
-            serializer.save(registrado_por=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PagamentoViewSet(viewsets.ModelViewSet):
     queryset = Pagamento.objects.all().select_related('paciente', 'agendamento').order_by('-agendamento__data_hora_inicio')
