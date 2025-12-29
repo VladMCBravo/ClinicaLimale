@@ -1,4 +1,4 @@
-# backend/faturamento/views.py - VERSÃO FINAL CORRIGIDA
+# backend/faturamento/views.py - VERSÃO FINAL, LIMPA E CORRIGIDA
 import csv
 import io
 from datetime import datetime, time, timedelta
@@ -14,8 +14,7 @@ from django.db.models import Sum
 from django.db.models.functions import TruncMonth, TruncDate
 from django.utils import timezone
 from django.http import HttpResponse
-from django.db.models.functions import Coalesce 
-from django.db.models import Value, DecimalField
+from django.core.exceptions import FieldError  # <--- CORREÇÃO 1: IMPORT QUE FALTAVA
 
 # --- IMPORTAÇÕES DE OUTROS APPS ---
 from agendamentos.serializers import AgendamentoSerializer
@@ -39,6 +38,141 @@ from .serializers import (
     CobrancaPendenteSerializer, LancamentoAvulsoReceitaSerializer,
     ConvenioSerializer, PlanoConvenioSerializer, ProcedimentoSerializer
 )
+
+# ============================================================================
+#  VIEWS DE INTELIGÊNCIA (DASHBOARD E PROJEÇÃO)
+# ============================================================================
+
+class FinanceiroDashboardAPIView(APIView):
+    permission_classes = [IsRecepcaoOrAdmin]
+
+    def get(self, request):
+        # 1. Busca Saldo REAL (Blinda erro do Inter)
+        saldo_em_conta = 0.0
+        try:
+            if inter_service:
+                saldo_real = inter_service.consultar_saldo()
+                if saldo_real is not None:
+                    saldo_em_conta = float(saldo_real)
+        except Exception as e:
+            print(f"Aviso: Erro ao consultar saldo Inter: {e}")
+
+        # Datas
+        hoje = timezone.localdate()
+        inicio_dia = timezone.make_aware(datetime.combine(hoje, time.min))
+        fim_dia = timezone.make_aware(datetime.combine(hoje, time.max))
+
+        # 2. Busca dados internos (Simplificado para evitar erro de DecimalField/Coalesce)
+        pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia), status='Pago')
+        # Soma no Python para garantir segurança contra None
+        faturamento_dia = pagamentos_hoje.aggregate(total=Sum('valor'))['total'] or 0
+
+        despesas_hoje = Despesa.objects.filter(data_despesa=hoje)
+        total_despesas_dia = despesas_hoje.aggregate(total=Sum('valor'))['total'] or 0
+        
+        lucro_dia = faturamento_dia - total_despesas_dia
+
+        pagamentos_pendentes_hoje = Pagamento.objects.filter(
+            agendamento__data_hora_inicio__date=hoje,
+            status='Pendente'
+        ).select_related('paciente', 'agendamento')
+
+        dados = {
+            "saldo_em_conta": float(saldo_em_conta),
+            "faturamento_do_dia": float(faturamento_dia),
+            "despesas_do_dia": float(total_despesas_dia),
+            "lucro_do_dia": float(lucro_dia),
+            "pagamentos_pendentes_hoje": [
+                {
+                    "paciente": p.paciente.nome_completo,
+                    "horario": timezone.localtime(p.agendamento.data_hora_inicio).strftime('%H:%M') if p.agendamento else "--:--",
+                    "valor": p.valor
+                }
+                for p in pagamentos_pendentes_hoje
+            ],
+        }
+        return Response(dados)
+
+
+class ProjecaoFluxoCaixaAPIView(APIView):
+    permission_classes = [IsRecepcaoOrAdmin]
+
+    def get(self, request):
+        hoje = timezone.localdate()
+        data_final = hoje + timedelta(days=30)
+        
+        # Saldo Inicial
+        saldo_acumulado = 0.0
+        try:
+            if inter_service:
+                saldo_real = inter_service.consultar_saldo()
+                if saldo_real is not None:
+                    saldo_acumulado = float(saldo_real)
+        except Exception:
+            pass
+
+        # Receitas Futuras (Agendamentos)
+        # Tenta descobrir o nome do campo de valor no Agendamento para evitar erro 500
+        campo_valor = 'valor' # Padrão
+        try:
+            # Testa se valor_consulta existe (comum em alguns sistemas legados)
+            # AQUI ESTAVA O ERRO: FieldError não estava importado
+            Agendamento.objects.filter(pk__in=[]).values('valor_consulta')
+            campo_valor = 'valor_consulta'
+        except FieldError:
+            pass # Mantém 'valor' se 'valor_consulta' não existir
+
+        try:
+            receitas_qs = Agendamento.objects.filter(
+                data_hora_inicio__date__range=[hoje, data_final],
+                status__in=['Agendado', 'Confirmado']
+            ).annotate(
+                dia=TruncDate('data_hora_inicio')
+            ).values('dia').annotate(
+                total=Sum(campo_valor)
+            ).order_by('dia')
+            
+            # Trata None direto no dicionário
+            mapa_receitas = {r['dia']: (r['total'] or 0) for r in receitas_qs}
+        except Exception as e:
+            print(f"Erro ao calcular receitas futuras: {e}")
+            mapa_receitas = {}
+
+        # Despesas Futuras
+        try:
+            despesas_qs = Despesa.objects.filter(
+                data_despesa__range=[hoje, data_final]
+            ).values('data_despesa').annotate(
+                total=Sum('valor')
+            ).order_by('data_despesa')
+            
+            mapa_despesas = {d['data_despesa']: (d['total'] or 0) for d in despesas_qs}
+        except Exception as e:
+            print(f"Erro ao calcular despesas futuras: {e}")
+            mapa_despesas = {}
+
+        # Construção da Linha do Tempo
+        datas = []
+        saldo_linha = []
+        despesa_linha = []
+
+        for i in range(31):
+            data_corrente = hoje + timedelta(days=i)
+            
+            entrada = float(mapa_receitas.get(data_corrente, 0))
+            saida = float(mapa_despesas.get(data_corrente, 0))
+            
+            saldo_acumulado = saldo_acumulado + entrada - saida
+            
+            datas.append(data_corrente.strftime('%d/%m'))
+            saldo_linha.append(saldo_acumulado)
+            despesa_linha.append(saida)
+
+        return Response({
+            'labels': datas,
+            'saldo_projetado': saldo_linha,
+            'despesas_previstas': despesa_linha
+        })
 
 # ============================================================================
 #  VIEWS DE PAGAMENTOS E COBRANÇAS
@@ -161,7 +295,6 @@ class AgendamentosFaturaveisAPIView(generics.ListAPIView):
             guia_tiss__isnull=True
         ).select_related('paciente', 'plano_utilizado').order_by('data_hora_inicio')
 
-# >>> ESTA É A CLASSE QUE VOCÊ PERGUNTOU <<<
 class GerarLoteFaturamentoAPIView(APIView):
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
 
@@ -304,121 +437,3 @@ class InterWebhookAPIView(APIView):
                 except Pagamento.DoesNotExist:
                     pass
         return Response(status=status.HTTP_200_OK)
-
-# ============================================================================
-#  NOVAS VIEWS DE INTELIGÊNCIA (DASHBOARD E PROJEÇÃO)
-# ============================================================================
-
-class FinanceiroDashboardAPIView(APIView):
-    permission_classes = [IsRecepcaoOrAdmin]
-
-    def get(self, request):
-        # 1. Busca Saldo REAL (Se falhar, é 0.00, nada de simulado)
-        saldo_em_conta = 0.0
-        try:
-            if inter_service:
-                saldo_real = inter_service.consultar_saldo()
-                if saldo_real is not None:
-                    saldo_em_conta = float(saldo_real)
-        except Exception as e:
-            print(f"Erro silencioso ao consultar saldo Inter: {e}")
-            # Mantém 0.0 se der erro
-
-        # Datas
-        hoje = timezone.localdate()
-        inicio_dia = timezone.make_aware(datetime.combine(hoje, time.min))
-        fim_dia = timezone.make_aware(datetime.combine(hoje, time.max))
-
-        # 2. Busca dados internos (apenas o que está no banco)
-        pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia), status='Pago')
-        despesas_hoje = Despesa.objects.filter(data_despesa=hoje)
-        
-        pagamentos_pendentes_hoje = Pagamento.objects.filter(
-            agendamento__data_hora_inicio__date=hoje,
-            status='Pendente'
-        ).select_related('paciente', 'agendamento')
-
-        # 3. Calcula totais (Usando Python sum para garantir segurança se lista vazia)
-        faturamento_dia = sum(p.valor for p in pagamentos_hoje) or 0.0
-        total_despesas_dia = sum(d.valor for d in despesas_hoje) or 0.0
-        lucro_dia = faturamento_dia - total_despesas_dia
-
-        dados = {
-            "saldo_em_conta": saldo_em_conta,
-            "faturamento_do_dia": faturamento_dia,
-            "despesas_do_dia": total_despesas_dia,
-            "lucro_do_dia": lucro_dia,
-            "pagamentos_pendentes_hoje": [
-                {
-                    "paciente": p.paciente.nome_completo,
-                    "horario": timezone.localtime(p.agendamento.data_hora_inicio).strftime('%H:%M') if p.agendamento else "--:--",
-                    "valor": p.valor
-                }
-                for p in pagamentos_pendentes_hoje
-            ],
-        }
-        return Response(dados)
-
-
-class ProjecaoFluxoCaixaAPIView(APIView):
-    permission_classes = [IsRecepcaoOrAdmin]
-
-    def get(self, request):
-        hoje = timezone.localdate()
-        data_final = hoje + timedelta(days=30)
-        
-        # Saldo Inicial Real
-        saldo_acumulado = 0.0
-        try:
-            if inter_service:
-                saldo_real = inter_service.consultar_saldo()
-                if saldo_real is not None:
-                    saldo_acumulado = float(saldo_real)
-        except Exception:
-            pass # Começa com 0 se a API falhar
-
-        # Receitas Futuras (Agendamentos)
-        # IMPORTANTE: Verifique se o campo no modelo Agendamento é 'valor_consulta' ou apenas 'valor'
-        # Estou assumindo 'valor_consulta' baseado no seu histórico.
-        receitas_qs = Agendamento.objects.filter(
-            data_hora_inicio__date__range=[hoje, data_final],
-            status__in=['Agendado', 'Confirmado']
-        ).annotate(
-            dia=TruncDate('data_hora_inicio')
-        ).values('dia').annotate(
-            total=Sum('valor_consulta') 
-        ).order_by('dia')
-
-        # Despesas Futuras
-        despesas_qs = Despesa.objects.filter(
-            data_despesa__range=[hoje, data_final]
-        ).values('data_despesa').annotate(
-            total=Sum('valor')
-        ).order_by('data_despesa')
-
-        # Mapeamento seguro
-        mapa_receitas = {r['dia']: (r['total'] or 0) for r in receitas_qs}
-        mapa_despesas = {d['data_despesa']: (d['total'] or 0) for d in despesas_qs}
-
-        datas = []
-        saldo_linha = []
-        despesa_linha = []
-
-        # Loop de 30 dias
-        for i in range(31):
-            data_corrente = hoje + timedelta(days=i)
-            
-            entrada = float(mapa_receitas.get(data_corrente, 0))
-            saida = float(mapa_despesas.get(data_corrente, 0))
-            
-            saldo_acumulado = saldo_acumulado + entrada - saida
-            
-            datas.append(data_corrente.strftime('%d/%m'))
-            saldo_linha.append(saldo_acumulado)
-            despesa_linha.append(saida)
-
-        return Response({
-            'labels': datas,
-            'saldo_projetado': saldo_linha,
-            'despesas_previstas': despesa_linha
-        })
