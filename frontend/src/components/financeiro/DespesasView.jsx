@@ -5,7 +5,7 @@ import {
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Select, MenuItem, InputLabel, FormControl, IconButton, Checkbox,
     FormControlLabel, Dialog, DialogTitle, DialogContent, DialogActions,
-    Typography, Grid
+    Typography, Grid, Switch, Tooltip
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -19,7 +19,8 @@ const initialFormState = {
     categoria: '', 
     data_despesa: new Date().toISOString().split('T')[0],
     parcelado: false,
-    qtd_parcelas: 1
+    qtd_parcelas: 1,
+    pago: false // Campo padrão para status pago
 };
 
 export default function DespesasView() {
@@ -131,6 +132,34 @@ export default function DespesasView() {
             showSnackbar('Erro ao excluir.', 'error');
         }
     }
+
+    // --- ALTERAR STATUS (PAGO/PENDENTE) ---
+    const handleToggleStatus = async (despesa) => {
+        const novoStatus = !despesa.pago; // Inverte o valor atual
+        
+        // Otimização visual: atualiza a interface IMEDIATAMENTE antes do banco responder
+        // Isso faz o app parecer muito mais rápido
+        setDespesas(prev => prev.map(item => 
+            item.id === despesa.id ? { ...item, pago: novoStatus } : item
+        ));
+
+        try {
+            // Envia para o servidor
+            // Certifique-se que o updateDespesa suporta enviar apenas o campo alterado ou o objeto todo
+            await faturamentoService.updateDespesa(despesa.id, { 
+                ...despesa, 
+                pago: novoStatus 
+            });
+            
+            showSnackbar(novoStatus ? 'Conta marcada como PAGA' : 'Conta marcada como PENDENTE', 'success');
+        } catch (error) {
+            // Se der erro, reverte a alteração visual
+            setDespesas(prev => prev.map(item => 
+                item.id === despesa.id ? { ...item, pago: !novoStatus } : item
+            ));
+            showSnackbar('Erro ao atualizar status. Tente novamente.', 'error');
+        }
+    };
 
     // --- CÁLCULO DOS TOTAIS (Compacto) ---
     const financialSummary = useMemo(() => {
@@ -276,28 +305,56 @@ export default function DespesasView() {
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
-                        <TableRow>
-                            <TableCell>Data</TableCell>
-                            <TableCell>Descrição</TableCell>
-                            <TableCell>Categoria</TableCell>
-                            <TableCell align="right">Valor</TableCell>
-                            <TableCell align="center">Ações</TableCell>
-                        </TableRow>
-                    </TableHead>
+    <TableRow>
+        <TableCell>Data</TableCell>
+        <TableCell>Descrição</TableCell>
+        <TableCell>Categoria</TableCell>
+        <TableCell align="right">Valor</TableCell>
+        {/* NOVA COLUNA */}
+        <TableCell align="center">Pago?</TableCell> 
+        <TableCell align="center">Ações</TableCell>
+    </TableRow>
+</TableHead>
                     <TableBody>
-                        {despesas.map((despesa) => (
-                            <TableRow key={despesa.id} hover>
-                                <TableCell>{new Date(despesa.data_despesa).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</TableCell>
-                                <TableCell>{despesa.descricao}</TableCell>
-                                <TableCell>{despesa.categoria_nome}</TableCell>
-                                <TableCell align="right">R$ {parseFloat(despesa.valor).toFixed(2)}</TableCell>
-                                <TableCell align="center">
-                                    <IconButton size="small" onClick={() => handleOpenEdit(despesa)} color="primary"><EditIcon /></IconButton>
-                                    <IconButton size="small" onClick={() => handleDelete(despesa.id)} color="error"><DeleteIcon /></IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
+    {despesas.map((despesa) => (
+        <TableRow key={despesa.id} hover>
+            <TableCell>{new Date(despesa.data_despesa).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</TableCell>
+            
+            <TableCell>
+                {/* Dica visual: Se pago, risca o texto levemente */}
+                <Typography variant="body2" sx={{ textDecoration: despesa.pago ? 'line-through' : 'none', color: despesa.pago ? 'text.secondary' : 'text.primary' }}>
+                    {despesa.descricao}
+                </Typography>
+            </TableCell>
+            
+            <TableCell>{despesa.categoria_nome}</TableCell>
+            
+            <TableCell align="right">
+                <Typography variant="body2" fontWeight="bold" color={despesa.pago ? 'success.main' : 'error.main'}>
+                    R$ {parseFloat(despesa.valor).toFixed(2)}
+                </Typography>
+            </TableCell>
+
+            {/* --- COLUNA DO SWITCH --- */}
+            <TableCell align="center">
+                <Tooltip title={despesa.pago ? "Marcar como pendente" : "Marcar como pago"}>
+                    <Switch
+                        checked={!!despesa.pago} // !! garante que seja booleano
+                        onChange={() => handleToggleStatus(despesa)}
+                        color="success"
+                        size="small" // Mantém compacto como você pediu
+                    />
+                </Tooltip>
+            </TableCell>
+            {/* ------------------------ */}
+
+            <TableCell align="center">
+                <IconButton size="small" onClick={() => handleOpenEdit(despesa)} color="primary"><EditIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={() => handleDelete(despesa.id)} color="error"><DeleteIcon fontSize="small" /></IconButton>
+            </TableCell>
+        </TableRow>
+    ))}
+</TableBody>
                 </Table>
             </TableContainer>
 
