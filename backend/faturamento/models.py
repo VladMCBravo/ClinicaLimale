@@ -29,7 +29,12 @@ class Pagamento(models.Model):
         null=True,
         blank=True
     )
-    paciente = models.ForeignKey('pacientes.Paciente', on_delete=models.PROTECT)
+    paciente = models.ForeignKey(
+        'pacientes.Paciente', 
+        on_delete=models.PROTECT,
+        null=True,     # Permite valor nulo no banco
+        blank=True     # Permite formulário vazio
+    )
     descricao = models.CharField(
         max_length=255, 
         blank=True, 
@@ -52,6 +57,8 @@ class Pagamento(models.Model):
 
 
     def __str__(self):
+        # --- ALTERAÇÃO NO STR PARA EVITAR ERRO ---
+        nome_paciente = self.paciente.nome_completo if self.paciente else "Sem Paciente"
         if self.agendamento:
             return f"Pagamento de R$ {self.valor} para {self.paciente.nome_completo} ({self.status})"
         return f"Lançamento Avulso: {self.descricao} - R$ {self.valor} ({self.status})"
