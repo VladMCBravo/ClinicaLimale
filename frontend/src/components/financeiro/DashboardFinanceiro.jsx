@@ -1,5 +1,5 @@
+// src/components/financeiro/DashboardFinanceiro.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-// Mantemos os ícones pois são bonitos e úteis, mas vamos estilizá-los com o CSS
 import { 
     TrendingUp, TrendingDown, AccountBalanceWallet, 
     AttachMoney, MoneyOff, VerifiedUser 
@@ -9,21 +9,30 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend, Category
 import { Doughnut, Bar } from 'react-chartjs-2';
 
 import { faturamentoService } from '../../services/faturamentoService';
-import './FinancialDashboard.css'; // Importando o CSS que criamos
+import './FinancialDashboard.css';
 
-// Registra ChartJS
 ChartJS.register(ArcElement, ChartTooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 export default function DashboardFinanceiro() {
     const [isLoading, setIsLoading] = useState(true);
-    const [data, setData] = useState({ dashboard: null, relatorios: null, insights: [] });
+    // Inicializa com estrutura zerada para não quebrar antes da API
+    const [data, setData] = useState({ 
+        dashboard: { 
+            faturamento_do_dia: 0, 
+            despesas_do_dia: 0, 
+            lucro_do_dia: 0, 
+            saldo_em_conta: 0 
+        }, 
+        relatorios: null, 
+        insights: [] 
+    });
 
-    // Formatador de Moeda
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
     useEffect(() => {
         const loadAllData = async () => {
             try {
+                // Chamada real à API
                 const [dashRes, relRes] = await Promise.all([
                     faturamentoService.getDashboardFinanceiro(),
                     faturamentoService.getRelatorioFinanceiro()
@@ -33,11 +42,11 @@ export default function DashboardFinanceiro() {
                 const faturamento = parseFloat(dashData.faturamento_do_dia || 0);
                 const despesas = parseFloat(dashData.despesas_do_dia || 0);
                 
-                // Insights Simulados
+                // Gera insights baseados nos dados REAIS
                 const insights = [];
-                if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas do dia excedem as entradas.' });
-                if (dashData.saldo_em_conta < 0) insights.push({ type: 'error', text: 'Saldo negativo: Risco de juros.' });
-                else insights.push({ type: 'success', text: 'Fluxo saudável: Saldo positivo mantido.' });
+                if (despesas > faturamento) insights.push({ type: 'warning', text: 'Despesas excedem entradas hoje.' });
+                if (dashData.saldo_em_conta < 0) insights.push({ type: 'error', text: 'Atenção: Saldo negativo.' });
+                if (faturamento > 0 && despesas === 0) insights.push({ type: 'success', text: 'Receita sem despesas lançadas.' });
                 
                 setData({
                     dashboard: dashData,
@@ -45,7 +54,7 @@ export default function DashboardFinanceiro() {
                     insights: insights
                 });
             } catch (error) {
-                console.error("Erro dashboard", error);
+                console.error("Erro ao buscar dados reais", error);
             } finally {
                 setIsLoading(false);
             }
@@ -55,6 +64,8 @@ export default function DashboardFinanceiro() {
 
     const chartsData = useMemo(() => {
         if (!data.relatorios) return null;
+        
+        // Processamento de dados REAIS para o gráfico
         return {
             fluxo: {
                 labels: data.relatorios.fluxo_caixa_mensal.map(item => 
@@ -64,16 +75,16 @@ export default function DashboardFinanceiro() {
                     { 
                         label: 'Entradas', 
                         data: data.relatorios.fluxo_caixa_mensal.map(i => i.receitas), 
-                        backgroundColor: '#28a745', // Verde do seu CSS
-                        borderRadius: 4, 
-                        barPercentage: 0.6 
+                        backgroundColor: '#28a745', 
+                        borderRadius: 3,
+                        barThickness: 20, // Barras mais finas
                     },
                     { 
                         label: 'Saídas', 
                         data: data.relatorios.fluxo_caixa_mensal.map(i => i.despesas), 
-                        backgroundColor: '#dc3545', // Vermelho do seu CSS
-                        borderRadius: 4, 
-                        barPercentage: 0.6 
+                        backgroundColor: '#dc3545', 
+                        borderRadius: 3,
+                        barThickness: 20,
                     }
                 ]
             },
@@ -81,151 +92,133 @@ export default function DashboardFinanceiro() {
                 labels: data.relatorios.despesas_por_categoria.map(i => i.categoria__nome),
                 datasets: [{ 
                     data: data.relatorios.despesas_por_categoria.map(i => i.total),
-                    backgroundColor: ['#1a233b', '#c0a46f', '#28a745', '#dc3545', '#7f8c8d'], // Cores do tema
+                    backgroundColor: ['#1a233b', '#c0a46f', '#28a745', '#dc3545', '#95a5a6'],
                     borderWidth: 0,
-                    hoverOffset: 10
                 }]
             }
         };
     }, [data.relatorios]);
 
-    // Configurações dos Gráficos
     const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
             legend: { 
                 position: 'bottom', 
-                labels: { usePointStyle: true, font: { family: "'Segoe UI', sans-serif" } } 
+                labels: { usePointStyle: true, boxWidth: 6, font: { size: 10 } } // Legenda menor
             }
+        },
+        scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
         }
     };
 
-    if (isLoading) return <div className="financial-container"><p>Carregando dados financeiros...</p></div>;
-    if (!data.dashboard) return <div className="financial-container"><p>Sem dados disponíveis.</p></div>;
+    if (isLoading) return <div className="financial-container" style={{padding: '20px'}}><p>Carregando finanças...</p></div>;
 
     return (
         <div className="financial-container">
             
-            {/* 1. CABEÇALHO */}
-            <header className="dashboard-header">
-                <div>
-                    <h1 className="dashboard-title">Visão Geral</h1>
-                    <span style={{color: '#999', fontSize: '0.9rem'}}>Atualizado em tempo real</span>
-                </div>
-                <div className="dashboard-controls">
-                    <button className="filter-btn active">Hoje</button>
-                    <button className="filter-btn">Mês</button>
-                </div>
-            </header>
+            {/* Controles discretos no topo direito (Sem Título "Visão Geral") */}
+            <div className="dashboard-controls">
+                <button className="filter-btn active">Hoje</button>
+                <button className="filter-btn">Mês</button>
+            </div>
 
-            {/* 2. KPIS (Cards Superiores) */}
+            {/* KPIS SLIM */}
             <section className="kpi-grid">
-                
-                {/* Faturamento */}
                 <div className="kpi-card revenue">
                     <div className="kpi-info">
-                        <h3>Faturamento Hoje</h3>
+                        <h3>Faturamento</h3>
                         <p className="kpi-value" style={{color: '#28a745'}}>
                             {formatMoney(data.dashboard.faturamento_do_dia)}
                         </p>
                     </div>
-                    <div className="kpi-icon">
-                        <AttachMoney fontSize="inherit" />
-                    </div>
+                    <div className="kpi-icon"><AttachMoney fontSize="inherit" /></div>
                 </div>
 
-                {/* Despesas */}
                 <div className="kpi-card expense">
                     <div className="kpi-info">
-                        <h3>Despesas Hoje</h3>
+                        <h3>Despesas</h3>
                         <p className="kpi-value" style={{color: '#dc3545'}}>
                             {formatMoney(data.dashboard.despesas_do_dia)}
                         </p>
                     </div>
-                    <div className="kpi-icon">
-                        <MoneyOff fontSize="inherit" />
-                    </div>
+                    <div className="kpi-icon"><MoneyOff fontSize="inherit" /></div>
                 </div>
 
-                {/* Lucro */}
-                <div className={`kpi-card ${data.dashboard.lucro_do_dia >= 0 ? 'revenue' : 'expense'}`}>
+                <div className="kpi-card neutral">
                     <div className="kpi-info">
-                        <h3>Lucro Líquido</h3>
-                        <p className="kpi-value" style={{color: data.dashboard.lucro_do_dia >= 0 ? '#28a745' : '#dc3545'}}>
+                        <h3>Lucro</h3>
+                        <p className="kpi-value" style={{color: data.dashboard.lucro_do_dia >= 0 ? '#1a233b' : '#dc3545'}}>
                             {formatMoney(data.dashboard.lucro_do_dia)}
                         </p>
                     </div>
-                    <div className="kpi-icon">
-                        {data.dashboard.lucro_do_dia >= 0 ? <TrendingUp fontSize="inherit"/> : <TrendingDown fontSize="inherit"/>}
-                    </div>
+                    <div className="kpi-icon"><TrendingUp fontSize="inherit" /></div>
                 </div>
 
-                {/* Saldo (Destaque Azul/Dourado) */}
                 <div className="kpi-card balance">
                     <div className="kpi-info">
-                        <h3>Saldo em Conta</h3>
+                        <h3>Saldo</h3>
                         <p className="kpi-value">
                             {formatMoney(data.dashboard.saldo_em_conta)}
                         </p>
                     </div>
-                    <div className="kpi-icon">
-                        <AccountBalanceWallet fontSize="inherit" />
-                    </div>
+                    <div className="kpi-icon"><AccountBalanceWallet fontSize="inherit" /></div>
                 </div>
             </section>
 
-            {/* 3. ÁREA PRINCIPAL */}
+            {/* GRÁFICOS (Layout fixo para não rolar) */}
             <section className="dashboard-main">
                 
-                {/* Gráfico de Barras (Fluxo) */}
+                {/* Gráfico de Barras */}
                 <div className="white-box">
                     <div className="box-header">
-                        <h3 className="box-title">Fluxo de Caixa Semestral</h3>
+                        <h3 className="box-title">Fluxo Semestral</h3>
                     </div>
-                    <div style={{ height: '300px', width: '100%' }}>
+                    {/* Altura forçada reduzida para 220px */}
+                    <div style={{ height: '220px', width: '100%' }}>
                         {chartsData && <Bar data={chartsData.fluxo} options={commonOptions} />}
                     </div>
                 </div>
 
-                {/* Coluna Direita: Categorias + Insights */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Coluna Direita */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     
-                    {/* Gráfico de Rosca */}
-                    <div className="white-box">
+                    {/* Rosca */}
+                    <div className="white-box" style={{ flex: 1 }}>
                         <div className="box-header">
-                            <h3 className="box-title">Por Categoria</h3>
+                            <h3 className="box-title">Categorias</h3>
                         </div>
-                        <div style={{ height: '200px', width: '100%' }}>
-                            {chartsData && <Doughnut data={chartsData.categorias} options={commonOptions} />}
+                        {/* Altura forçada reduzida para 140px */}
+                        <div style={{ height: '140px', width: '100%' }}>
+                            {chartsData && <Doughnut data={chartsData.categorias} options={{...commonOptions, plugins: { legend: { display: false }}}} />}
                         </div>
                     </div>
 
-                    {/* Insights (Lista customizada reutilizando estilos) */}
-                    <div className="white-box">
+                    {/* Insights Compactos */}
+                    <div className="white-box" style={{ flex: 1 }}>
                         <div className="box-header">
                             <h3 className="box-title">
-                                <VerifiedUser sx={{ fontSize: 18, marginRight: 1, color: '#c0a46f' }} />
-                                Insights
+                                <VerifiedUser sx={{ fontSize: 16, marginRight: 1, color: '#c0a46f', verticalAlign: 'middle' }} />
+                                Resumo
                             </h3>
                         </div>
                         <div className="transaction-list">
-                            {data.insights.map((ins, i) => (
-                                <div key={i} className="transaction-item">
-                                    <div className="t-info">
-                                        <span className="t-desc" style={{ fontSize: '0.9rem' }}>{ins.text}</span>
+                            {data.insights.length > 0 ? (
+                                data.insights.map((ins, i) => (
+                                    <div key={i} className="transaction-item">
+                                        <span className="t-desc">{ins.text}</span>
+                                        <span className={`t-amount ${ins.type === 'error' ? 'amount-neg' : 'amount-pos'}`}>●</span>
                                     </div>
-                                    <div className={`t-amount ${ins.type === 'error' ? 'amount-neg' : 'amount-pos'}`}>
-                                        •
-                                    </div>
-                                </div>
-                            ))}
-                            {data.insights.length === 0 && <p style={{color: '#999', padding: '10px'}}>Nenhum alerta.</p>}
+                                ))
+                            ) : (
+                                <span style={{fontSize: '0.8rem', color: '#999'}}>Sem alertas.</span>
+                            )}
                         </div>
                     </div>
 
                 </div>
-
             </section>
         </div>
     );
