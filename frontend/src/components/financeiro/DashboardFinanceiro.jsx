@@ -1,7 +1,7 @@
 // src/components/financeiro/DashboardFinanceiro.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    TrendingUp, TrendingDown, AccountBalanceWallet, 
+    TrendingUp, AccountBalanceWallet, 
     AttachMoney, MoneyOff 
 } from '@mui/icons-material';
 
@@ -66,7 +66,6 @@ export default function DashboardFinanceiro() {
     const chartsData = useMemo(() => {
         if (!rawData.relatorios) return null;
         
-        // Pega ultimos 6 meses
         const fluxoRecente = rawData.relatorios.fluxo_caixa_mensal.slice(-6);
 
         return {
@@ -79,15 +78,15 @@ export default function DashboardFinanceiro() {
                         label: 'Entradas', 
                         data: fluxoRecente.map(i => i.receitas), 
                         backgroundColor: '#28a745', 
-                        borderRadius: 4,
-                        maxBarThickness: 30, // TRAVA A LARGURA DA BARRA
+                        borderRadius: 3,
+                        maxBarThickness: 25, // Barras mais finas
                     },
                     { 
                         label: 'Saídas', 
                         data: fluxoRecente.map(i => i.despesas), 
                         backgroundColor: '#dc3545', 
-                        borderRadius: 4,
-                        maxBarThickness: 30, // TRAVA A LARGURA DA BARRA
+                        borderRadius: 3,
+                        maxBarThickness: 25, // Barras mais finas
                     }
                 ]
             },
@@ -102,43 +101,50 @@ export default function DashboardFinanceiro() {
         };
     }, [rawData.relatorios]);
 
-    // Opções Gráfico Barras (Corrigindo eixo Y e Legenda)
+    // Opções ULTRA compactas para o Gráfico de Barras
     const barOptions = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
             legend: { 
-                display: true, // Mostra legenda pequena
+                display: true, 
                 position: 'top',
                 align: 'end',
-                labels: { boxWidth: 10, usePointStyle: true, font: { size: 10 } }
+                labels: { boxWidth: 8, usePointStyle: true, font: { size: 9 }, padding: 10 } // Fonte 9px
             } 
         },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            x: { 
+                grid: { display: false }, 
+                ticks: { font: { size: 9 } } // Fonte 9px
+            },
             y: { 
-                beginAtZero: true, // FORÇA O ZERO NO EIXO Y
-                grid: { borderDash: [4, 4] }, 
-                ticks: { font: { size: 10 }, callback: (v) => v >= 1000 ? `${v/1000}k` : v } 
+                beginAtZero: true, 
+                grid: { borderDash: [2, 2] }, 
+                ticks: { 
+                    font: { size: 9 }, 
+                    maxTicksLimit: 5, // Limita linhas horizontais
+                    callback: (v) => v >= 1000 ? `${v/1000}k` : v 
+                } 
             }
         }
     };
 
-    // Opções Rosca (Legenda compacta na direita)
+    // Opções ULTRA compactas para o Gráfico de Rosca
     const doughnutOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '65%',
+        cutout: '60%',
         layout: { padding: 0 },
         plugins: {
             legend: { 
                 position: 'right', 
-                labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } 
+                labels: { boxWidth: 8, font: { size: 9 }, padding: 6 } // Fonte 9px e menos padding
             }
         }
     };
 
-    if (isLoading) return <div className="financial-container"><p>Carregando...</p></div>;
+    if (isLoading) return <div className="financial-container"><p style={{fontSize: '0.8rem'}}>Carregando...</p></div>;
 
     return (
         <div className="financial-container">
@@ -146,10 +152,11 @@ export default function DashboardFinanceiro() {
             {/* Controles */}
             <div className="dashboard-controls">
                 <button className={`filter-btn ${viewMode === 'hoje' ? 'active' : ''}`} onClick={() => setViewMode('hoje')}>Hoje</button>
+                <div style={{width: '5px'}}></div>
                 <button className={`filter-btn ${viewMode === 'mes' ? 'active' : ''}`} onClick={() => setViewMode('mes')}>Mês</button>
             </div>
 
-            {/* KPIS (Compactos) */}
+            {/* KPIS - Altura travada em 65px no CSS */}
             <section className="kpi-grid">
                 <div className="kpi-card revenue">
                     <div className="kpi-info">
@@ -181,25 +188,25 @@ export default function DashboardFinanceiro() {
                 </div>
             </section>
 
-            {/* GRÁFICOS (50% cada lado) */}
+            {/* GRÁFICOS - Ocupam o espaço restante (flex: 1) */}
             <section className="dashboard-main">
                 
                 {/* Esquerda: Fluxo */}
                 <div className="white-box">
                     <div className="box-header">
-                        <h3 className="box-title">Fluxo de Caixa (6 Meses)</h3>
+                        <h3 className="box-title">Fluxo de Caixa</h3>
                     </div>
-                    <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                    <div style={{ flex: 1, minHeight: 0, position: 'relative', width: '100%' }}>
                         {chartsData && <Bar data={chartsData.fluxo} options={barOptions} />}
                     </div>
                 </div>
 
-                {/* Direita: Categorias (Rosca ocupa tudo) */}
+                {/* Direita: Categorias */}
                 <div className="white-box">
                     <div className="box-header">
-                        <h3 className="box-title">Por Categoria</h3>
+                        <h3 className="box-title">Categorias</h3>
                     </div>
-                    <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+                    <div style={{ flex: 1, minHeight: 0, position: 'relative', width: '100%' }}>
                         {chartsData && <Doughnut data={chartsData.categorias} options={doughnutOptions} />}
                     </div>
                 </div>

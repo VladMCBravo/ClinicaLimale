@@ -1,13 +1,16 @@
 /* src/pages/FinancialDashboard.css */
 
 .financial-container {
-    padding: 10px 20px;
+    width: 100%;
+    /* Subtrai a altura aproximada da sua Navbar + margem de segurança */
+    height: calc(100vh - 65px); 
+    padding: 8px 12px; /* Padding reduzido para ganhar espaço */
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Gap pequeno */
-    height: calc(100vh - 70px); /* Ocupa altura da tela menos o menu */
+    gap: 8px; /* Gap mínimo entre as seções */
     box-sizing: border-box;
-    overflow: hidden; /* Remove barra de rolagem externa */
+    overflow: hidden; /* O SEGREDO: Corta qualquer excesso brutalmente */
+    background-color: #f4f7fa;
 }
 
 /* --- CONTROLES (Topo Direito) --- */
@@ -15,19 +18,22 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    height: 25px; /* Altura fixa para não empurrar o resto */
+    height: 24px; /* Altura fixa minúscula */
+    margin-bottom: 2px;
 }
 
 .filter-btn {
     background-color: #ffffff;
     border: 1px solid #c0a46f;
     color: #1a233b;
-    padding: 2px 12px; /* Padding mínimo */
-    border-radius: 12px;
+    padding: 0px 10px; /* Botão bem fino */
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
 }
 
 .filter-btn:hover, .filter-btn.active {
@@ -35,23 +41,26 @@
     color: #ffffff;
 }
 
-/* --- CARDS DE RESUMO (KPIs) - Versão Ultra Compacta --- */
+/* --- CARDS DE RESUMO (KPIs) --- */
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    min-height: 70px; /* Reduzi altura mínima */
+    gap: 10px;
+    /* Altura fixa para garantir que não cresçam */
+    height: 65px; 
+    flex-shrink: 0; /* Impede que encolham demais e quebrem o layout */
 }
 
 .kpi-card {
     background-color: #ffffff;
-    padding: 8px 12px; /* Padding interno menor */
-    border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-left: 4px solid transparent;
+    border-left: 3px solid transparent; /* Borda mais fina */
+    overflow: hidden;
 }
 
 .kpi-card.balance { border-left-color: #1a233b; }
@@ -59,92 +68,81 @@
 .kpi-card.expense { border-left-color: #dc3545; }
 .kpi-card.neutral { border-left-color: #c0a46f; }
 
+.kpi-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
 .kpi-info h3 {
     margin: 0;
-    font-size: 0.7rem;
+    font-size: 0.65rem; /* Fonte minúscula para título */
     color: #7f8c8d;
     text-transform: uppercase;
     font-weight: 700;
+    line-height: 1.2;
 }
 
 .kpi-value {
-    margin: 2px 0 0 0;
-    font-size: 1.1rem; /* Fonte um pouco menor */
+    margin: 0;
+    font-size: 1rem; /* Valor mais contido */
     font-weight: 700;
     color: #1a233b;
     white-space: nowrap;
 }
 
 .kpi-icon {
-    font-size: 1.5rem;
+    font-size: 1.2rem; /* Ícone menor */
     opacity: 0.15;
     color: #1a233b;
+    display: flex;
+    align-items: center;
 }
 
-/* --- ÁREA PRINCIPAL --- */
+/* --- ÁREA PRINCIPAL (GRÁFICOS) --- */
 .dashboard-main {
     display: grid;
-    /* MUDANÇA CRÍTICA: 1fr 1fr dá 50% pra cada lado, salvando a Pizza */
-    grid-template-columns: 1fr 1fr; 
-    gap: 12px;
-    flex: 1; /* Ocupa o resto da altura */
-    min-height: 0;
-    padding-bottom: 5px;
+    grid-template-columns: 1fr 1fr; /* 50% / 50% */
+    gap: 10px;
+    /* Ocupa EXATAMENTE o que sobra, sem forçar scroll */
+    flex: 1; 
+    min-height: 0; /* Crucial para o grid respeitar o flex container */
+    padding-bottom: 2px;
 }
 
 .white-box {
     background-color: #ffffff;
-    border-radius: 8px;
-    padding: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Garante que nada vaze */
-    height: 100%;
+    height: 100%; /* Preenche a célula do grid */
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .box-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
     border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 5px;
-    height: 20px; /* Altura fixa do título */
+    padding-bottom: 4px;
+    height: 20px;
     flex-shrink: 0;
 }
 
 .box-title {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: #1a233b;
     font-weight: 700;
     margin: 0;
 }
 
-/* Lista de Insights */
-.transaction-list {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding-right: 5px;
-}
-
-.transaction-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    border-bottom: 1px solid #f4f7fa;
-}
-
-.t-desc { font-size: 0.75rem; color: #444; }
-.t-amount { font-size: 0.75rem; font-weight: 600; }
-.amount-pos { color: #28a745; }
-.amount-neg { color: #dc3545; }
-
-/* Responsividade */
-@media (max-width: 900px) {
-    .kpi-grid { grid-template-columns: 1fr 1fr; }
-    .dashboard-main { grid-template-columns: 1fr; }
+/* Responsividade para telas muito pequenas */
+@media (max-width: 800px) {
     .financial-container { height: auto; overflow-y: auto; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; height: auto; }
+    .dashboard-main { grid-template-columns: 1fr; height: 400px; }
 }
