@@ -15,8 +15,9 @@ import { faturamentoService } from '../../services/faturamentoService';
 import { pacienteService } from '../../services/pacienteService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export default function LancamentoAvulsoTab({ onClose }) {
-    const [tipo, setTipo] = useState('receita');
+export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }) {
+    // Usa a prop para definir o estado inicial
+    const [tipo, setTipo] = useState(initialType);
     const [origemReceita, setOrigemReceita] = useState('paciente');
     const [jaRecebido, setJaRecebido] = useState(true); 
 

@@ -1,4 +1,3 @@
-// src/components/financeiro/DashboardFinanceiro.jsx
 import React, { useState, useEffect } from 'react';
 import { 
     Visibility, VisibilityOff, 
@@ -10,9 +9,10 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Bar } from 'react-chartjs-2';
 
 import { faturamentoService } from '../../services/faturamentoService';
+import LancamentoCaixaModal from './LancamentoCaixaModal'; // Importar Modal
+import { useSnackbar } from '../../contexts/SnackbarContext'; // Importar Snackbar
 import './FinancialDashboard.css';
 
-// Registra componentes do ChartJS
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 const TransactionIcon = ({ type }) => (
@@ -24,80 +24,95 @@ const TransactionIcon = ({ type }) => (
 export default function DashboardFinanceiro() {
     const [isLoading, setIsLoading] = useState(true);
     const [showBalance, setShowBalance] = useState(true);
+    const { showSnackbar } = useSnackbar();
     
     // Dados
     const [dashboardData, setDashboardData] = useState(null);
     const [extrato, setExtrato] = useState([]);
     const [alertas, setAlertas] = useState([]);
 
+    // Estados para o Modal de Ação Rápida
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalConfig, setModalConfig] = useState({ tab: 1, type: 'receita' });
+
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [dashRes, relRes] = await Promise.all([
-    faturamentoService.getDashboardFinanceiro(),
-    faturamentoService.getRelatorioFinanceiro()
-]);
+    // Função para recarregar dados (passada para o modal atualizar ao salvar)
+    const loadData = async () => {
+        try {
+            const [dashRes, relRes] = await Promise.all([
+                faturamentoService.getDashboardFinanceiro(),
+                faturamentoService.getRelatorioFinanceiro()
+            ]);
 
-setDashboardData({
-    ...dashRes.data,
-    grafico: relRes.data.fluxo_caixa_mensal.slice(-6)
-});
+            setDashboardData({
+                ...dashRes.data,
+                grafico: relRes.data.fluxo_caixa_mensal.slice(-6)
+            });
 
-// AQUI É A MUDANÇA: Usamos os dados reais do backend
-if (dashRes.data.extrato_real) {
-    // Formata datas para exibição amigável
-    const extratoFormatado = dashRes.data.extrato_real.map(item => ({
-        ...item,
-        date: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-    }));
-    setExtrato(extratoFormatado);
-}
-
-if (dashRes.data.alertas_vencimento) {
-    setAlertas(dashRes.data.alertas_vencimento);
-}
-
-            } catch (error) {
-                console.error("Erro dashboard", error);
-            } finally {
-                setIsLoading(false);
+            if (dashRes.data.extrato_real) {
+                const extratoFormatado = dashRes.data.extrato_real.map(item => ({
+                    ...item,
+                    date: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                }));
+                setExtrato(extratoFormatado);
             }
-        };
+
+            if (dashRes.data.alertas_vencimento) {
+                setAlertas(dashRes.data.alertas_vencimento);
+            }
+
+        } catch (error) {
+            console.error("Erro dashboard", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
         loadData();
     }, []);
 
-    // Configuração do Gráfico SUPER Minimalista (Sparkline style)
+    // --- AÇÕES DOS BOTÕES ---
+    const handlePagar = () => {
+        setModalConfig({ tab: 1, type: 'despesa' }); // Aba 1 (Avulso), Tipo Despesa
+        setModalOpen(true);
+    };
+
+    const handleReceber = () => {
+        setModalConfig({ tab: 1, type: 'receita' }); // Aba 1 (Avulso), Tipo Receita
+        setModalOpen(true);
+    };
+
+    const handleExtrato = () => {
+        // Rola suavemente até a lista de extrato
+        const element = document.getElementById('extrato-section');
+        if (element) element.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const handleBoletos = () => {
+        showSnackbar('Módulo de Boletos em desenvolvimento.', 'info');
+    };
+
+    const handleCloseModal = () => {
+        setModalOpen(false);
+        loadData(); // Atualiza o saldo e extrato ao fechar o modal
+    };
+
+    // Configuração do Gráfico
     const miniChartOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { 
-            legend: { display: false },
-            tooltip: { enabled: true } 
-        },
-        scales: {
-            x: { display: false }, // Remove eixo X
-            y: { display: false, beginAtZero: true }  // Remove eixo Y
-        },
-        elements: {
-            bar: { borderRadius: 3 }
-        }
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
+        elements: { bar: { borderRadius: 3 } }
     };
     
     const miniChartData = {
         labels: dashboardData?.grafico?.map(i => i.mes) || [],
         datasets: [
-            {
-                data: dashboardData?.grafico?.map(i => i.receitas) || [],
-                backgroundColor: '#c0a46f',
-                barThickness: 8 // Barras bem fininhas
-            },
-            {
-                data: dashboardData?.grafico?.map(i => i.despesas) || [],
-                backgroundColor: '#1a233b',
-                barThickness: 8
-            }
+            { data: dashboardData?.grafico?.map(i => i.receitas) || [], backgroundColor: '#c0a46f', barThickness: 8 },
+            { data: dashboardData?.grafico?.map(i => i.despesas) || [], backgroundColor: '#1a233b', barThickness: 8 }
         ]
     };
 
@@ -106,7 +121,7 @@ if (dashRes.data.alertas_vencimento) {
     return (
         <div className="financial-container">
             
-            {/* HEADER COMPACTO */}
+            {/* HEADER */}
             <header className="bank-header">
                 <div className="bank-greeting">
                     <h1>Olá, Doutor(a)</h1>
@@ -117,18 +132,14 @@ if (dashRes.data.alertas_vencimento) {
                 </div>
             </header>
 
-            {/* CARD MASTER & RESUMO (Alinhados) */}
+            {/* CARD MASTER & RESUMO */}
             <section className="bank-card-section">
-                
-                {/* Cartão Saldo */}
                 <div className="master-card">
                     <div className="card-top">
                         <div>
                             <div className="balance-label">Saldo Disponível</div>
                             {showBalance ? (
-                                <div className="balance-amount">
-                                    {formatMoney(dashboardData?.saldo_em_conta)}
-                                </div>
+                                <div className="balance-amount">{formatMoney(dashboardData?.saldo_em_conta)}</div>
                             ) : (
                                 <div className="balance-hidden">•••••••</div>
                             )}
@@ -137,62 +148,54 @@ if (dashRes.data.alertas_vencimento) {
                             {showBalance ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                         </div>
                     </div>
-                    <div className="card-actions">
-                        <div className="card-chip"></div>
-                    </div>
+                    <div className="card-actions"><div className="card-chip"></div></div>
                 </div>
 
-                {/* Resumo Mês (Compacto) */}
                 <div className="month-summary">
                     <div className="summary-item income">
                         <div>
                             <span className="s-label">Entradas (Hoje)</span>
-                            <div className="s-value" style={{color: '#28a745'}}>
-                                + {formatMoney(dashboardData?.faturamento_do_dia)}
-                            </div>
+                            <div className="s-value" style={{color: '#28a745'}}>+ {formatMoney(dashboardData?.faturamento_do_dia)}</div>
                         </div>
                         <ArrowUpward className="s-icon" style={{color: '#28a745'}} />
                     </div>
                     <div className="summary-item expense">
                         <div>
                             <span className="s-label">Saídas (Hoje)</span>
-                            <div className="s-value" style={{color: '#dc3545'}}>
-                                - {formatMoney(dashboardData?.despesas_do_dia)}
-                            </div>
+                            <div className="s-value" style={{color: '#dc3545'}}>- {formatMoney(dashboardData?.despesas_do_dia)}</div>
                         </div>
                         <ArrowDownward className="s-icon" style={{color: '#dc3545'}} />
                     </div>
                 </div>
             </section>
 
-            {/* AÇÕES RÁPIDAS */}
+            {/* AÇÕES RÁPIDAS (COM FUNÇÕES AGORA) */}
             <section className="quick-actions">
-                <button className="action-btn">
+                <button className="action-btn" onClick={handlePagar}>
                     <div className="icon-circle"><AddCard fontSize="small"/></div>
                     <span className="action-label">Pagar</span>
                 </button>
-                <button className="action-btn">
+                <button className="action-btn" onClick={handleReceber}>
                     <div className="icon-circle"><Pix fontSize="small"/></div>
                     <span className="action-label">Receber</span>
                 </button>
-                <button className="action-btn">
+                <button className="action-btn" onClick={handleExtrato}>
                     <div className="icon-circle"><ReceiptLong fontSize="small"/></div>
                     <span className="action-label">Extrato</span>
                 </button>
-                <button className="action-btn">
+                <button className="action-btn" onClick={handleBoletos}>
                     <div className="icon-circle"><Payment fontSize="small"/></div>
                     <span className="action-label">Boletos</span>
                 </button>
             </section>
 
-            {/* CORPO (Extrato + Lateral) */}
+            {/* CORPO */}
             <div className="bank-body">
                 
-                {/* Extrato */}
-                <div>
+                {/* Extrato com ID para scroll */}
+                <div id="extrato-section">
                     <div className="section-title">
                         <span>Últimas Movimentações</span>
-                        <a href="#" style={{fontSize:'0.75rem', color:'#c0a46f', textDecoration:'none'}}>Ver tudo</a>
                     </div>
                     <div className="statement-list">
                         {extrato.map((item, index) => (
@@ -209,22 +212,22 @@ if (dashRes.data.alertas_vencimento) {
                                 </div>
                             </div>
                         ))}
+                        {extrato.length === 0 && <p style={{padding: '20px', color:'#999', fontSize:'0.8rem'}}>Sem movimentações.</p>}
                     </div>
                 </div>
 
-                {/* Lateral: Avisos + Gráfico */}
                 <div className="alerts-section">
                     <div className="alert-box">
                         <div className="section-title" style={{marginBottom: 8}}>
                             <span><NotificationsActive sx={{fontSize: 16, mr: 0.5, color:'#f39c12', verticalAlign:'text-bottom'}}/>Avisos</span>
                         </div>
-                        {alertas.map(alert => (
+                        {alertas.length > 0 ? alerts.map(alert => (
                             <div key={alert.id} className="bill-item">
                                 <span className="bill-date">{alert.date}</span>
                                 <span className="bill-info">{alert.desc}</span>
                                 <span className="bill-value">{formatMoney(alert.valor)}</span>
                             </div>
-                        ))}
+                        )) : <span style={{fontSize:'0.75rem', color:'#999'}}>Nenhum aviso.</span>}
                     </div>
 
                     <div className="alert-box">
@@ -236,8 +239,15 @@ if (dashRes.data.alertas_vencimento) {
                         </div>
                     </div>
                 </div>
-
             </div>
+
+            {/* MODAL DE LANÇAMENTO (Reutilizado) */}
+            <LancamentoCaixaModal 
+                open={modalOpen} 
+                onClose={handleCloseModal}
+                initialTab={modalConfig.tab}
+                initialType={modalConfig.type}
+            />
         </div>
     );
 }

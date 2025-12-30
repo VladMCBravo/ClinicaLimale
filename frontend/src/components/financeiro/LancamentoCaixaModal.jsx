@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, IconButton
 } from '@mui/material';
@@ -7,8 +7,16 @@ import CloseIcon from '@mui/icons-material/Close';
 import PagarAgendamentoTab from './PagarAgendamentoTab';
 import LancamentoAvulsoTab from './LancamentoAvulsoTab';
 
-export default function LancamentoCaixaModal({ open, onClose }) {
-    const [activeTab, setActiveTab] = useState(0);
+// Adicione as props initialTab e initialType
+export default function LancamentoCaixaModal({ open, onClose, initialTab = 0, initialType = 'receita' }) {
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Atualiza a aba quando o modal abre com uma prop diferente
+    useEffect(() => {
+        if (open) {
+            setActiveTab(initialTab);
+        }
+    }, [open, initialTab]);
 
     const handleChangeTab = (event, newValue) => {
         setActiveTab(newValue);
@@ -29,10 +37,16 @@ export default function LancamentoCaixaModal({ open, onClose }) {
                     </Tabs>
                 </Box>
                 
-                {/* Reduzi o padding aqui para ganhar espaço vertical */}
                 <Box sx={{ p: 2 }}> 
                     {activeTab === 0 && <PagarAgendamentoTab onClose={onClose} />}
-                    {activeTab === 1 && <LancamentoAvulsoTab onClose={onClose} />}
+                    {/* ADICIONE key={initialType} AQUI ABAIXO */}
+                    {activeTab === 1 && (
+                        <LancamentoAvulsoTab 
+                            onClose={onClose} 
+                            initialType={initialType} 
+                            key={initialType} // <--- O SEGREDO: Força o componente a resetar quando o tipo muda
+                        />
+                    )}
                 </Box>
             </DialogContent>
         </Dialog>

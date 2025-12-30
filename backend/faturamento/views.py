@@ -49,32 +49,20 @@ class FinanceiroDashboardAPIView(APIView):
     def get(self, request):
         hoje = timezone.localdate()
         
-        # 1. TOTAIS DO DIA (Real)
-        # Receitas (Status Pago e data_pagamento hoje)
+        # 1. TOTAIS DO DIA
         receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        # Despesas (Flag Pago=True e data_pagamento hoje)
         despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
         
-        # Saldo Geral (Soma de tudo que já entrou - tudo que já saiu na história)
+        # 2. SALDO GERAL (CÁLCULO PURO DO BANCO DE DADOS)
         total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
-        saldo_sistema = total_entradas - total_saidas
+        
+        # --- ALTERAÇÃO AQUI: Removemos a consulta ao Banco Inter para garantir fidelidade aos dados locais ---
+        saldo_final = total_entradas - total_saidas
+        # ----------------------------------------------------------------------------------------------------
 
-        # Tenta pegar saldo do Banco Inter se disponível, senão usa o calculado do sistema
-        saldo_final = saldo_sistema
-        if inter_service:
-            try:
-                saldo_banco = inter_service.consultar_saldo()
-                if saldo_banco is not None:
-                    saldo_final = float(saldo_banco)
-            except:
-                pass
-
-        # 2. EXTRATO UNIFICADO (Últimos 20 lançamentos)
-        # Pega últimas receitas
+        # 3. EXTRATO UNIFICADO (Últimos 30 lançamentos)
         ultimas_receitas = Pagamento.objects.filter(status='Pago').order_by('-data_pagamento')[:20]
-        # Pega últimas despesas
         ultimas_despesas = Despesa.objects.filter(pago=True).order_by('-data_pagamento')[:20]
 
         extrato = []
@@ -92,18 +80,16 @@ class FinanceiroDashboardAPIView(APIView):
             extrato.append({
                 'id': f'desp-{d.id}',
                 'desc': d.descricao,
-                'date': d.data_pagamento or d.data_despesa, # Fallback se data_pagamento for nulo
+                'date': d.data_pagamento or d.data_despesa,
                 'amount': float(d.valor),
                 'type': 'expense',
                 'status': 'Pago'
             })
 
-        # Ordena tudo por data (do mais recente para o mais antigo)
         extrato.sort(key=lambda x: x['date'] if x['date'] else datetime.min, reverse=True)
-        extrato = extrato[:30] # Corta nos últimos 30 itens
+        extrato = extrato[:30]
 
-        # 3. CONTAS A VENCER (Avisos)
-        # Contas a Pagar pendentes vencendo nos próximos 7 dias
+        # 4. AVISOS DE VENCIMENTO
         proximas_contas = Despesa.objects.filter(
             pago=False, 
             data_vencimento__gte=hoje,
@@ -115,7 +101,7 @@ class FinanceiroDashboardAPIView(APIView):
             alertas.append({
                 'id': c.id,
                 'desc': c.descricao,
-                'date': c.data_vencimento.strftime('%d/%m'),
+                'date': c.data_vencimento.strftime('%d/%m') if c.data_vencimento else 'S/D',
                 'valor': float(c.valor)
             })
 
@@ -123,7 +109,7 @@ class FinanceiroDashboardAPIView(APIView):
             "saldo_em_conta": float(saldo_final),
             "faturamento_do_dia": float(receitas_hoje),
             "despesas_do_dia": float(despesas_hoje),
-            "extrato_real": extrato, # <--- Enviamos a lista pronta
+            "extrato_real": extrato,
             "alertas_vencimento": alertas
         }
         return Response(dados)
