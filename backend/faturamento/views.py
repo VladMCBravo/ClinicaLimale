@@ -1,9 +1,7 @@
 # backend/faturamento/views.py - VERSÃO FINAL, LIMPA E CORRIGIDA
 import csv
 import io
-from datetime import datetime, time, timedelta
-from itertools import chain
-from operator import attrgetter
+from datetime import datetime, timedelta
 
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import generics, status, viewsets

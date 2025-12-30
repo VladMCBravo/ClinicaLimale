@@ -21,7 +21,7 @@ const uploadTuss = (formData) => {
 const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pendentes/');
 const getCobrancasPendentes = (pacienteId) => apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`);
 const updatePagamento = (pagamentoId, data) => apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data);
-
+const deletePagamento = (id) => apiClient.delete(`/faturamento/pagamentos/${id}/`);
 
 // --- Funções para Despesas (ATUALIZADO AQUI) ---
 const getDespesas = () => apiClient.get('/faturamento/despesas/');
@@ -62,6 +62,7 @@ export const faturamentoService = {
     getPagamentosPendentes,
     getCobrancasPendentes,
     updatePagamento,
+    deletePagamento,
     
     // Despesas
     getDespesas,

@@ -3,11 +3,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Button, CircularProgress, Typography, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Grid, IconButton, Tooltip, TextField, InputAdornment, Chip
+    Grid, IconButton, TextField, InputAdornment, Chip
 } from '@mui/material';
 import { 
-    AttachMoney, CheckCircle, Search, AddCircleOutline, DateRange 
+    AttachMoney, CheckCircle, Search, AddCircleOutline 
 } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete'; 
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -69,18 +70,30 @@ export default function ContasReceberView() {
         fetchPendentes();
     };
 
+    // --- FUNÇÃO DE DELETE CORRIGIDA ---
+    const handleDelete = async (id) => {
+        if (window.confirm("Tem certeza que deseja excluir este lançamento avulso permanentemente?")) {
+            try {
+                // Correção: Usa o faturamentoService em vez de 'api'
+                await faturamentoService.deletePagamento(id); 
+                showSnackbar('Lançamento excluído com sucesso', 'success');
+                fetchPendentes(); // Recarrega a lista após deletar
+            } catch (error) {
+                const msgErro = error.response?.data?.error || 'Erro desconhecido ao excluir.';
+                showSnackbar(`Erro: ${msgErro}`, 'error');
+            }
+        }
+    };
+
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
-    // Formatação de data robusta para lidar com avulsos
     const formatDate = (pagamento) => {
         if (pagamento.agendamento) {
             return new Date(pagamento.agendamento.data_hora_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         }
-        // Se for avulso, não tem data de agendamento. Podemos mostrar "Avulso" ou "-"
         return <Chip label="Avulso" size="small" variant="outlined" sx={{fontSize: '0.7rem'}} />;
     };
 
-    // Filtro corrigido para não quebrar com Avulsos
     const filteredList = pagamentosPendentes.filter(p => {
         const termo = searchTerm.toLowerCase();
         const nome = p.paciente_nome ? p.paciente_nome.toLowerCase() : '';
@@ -152,7 +165,7 @@ export default function ContasReceberView() {
                             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Paciente / Origem</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Descrição</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Valor</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Ação</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.8rem', width: '140px' }}>Ação</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -173,16 +186,35 @@ export default function ContasReceberView() {
                                     <TableCell align="right" sx={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1a233b' }}>
                                         {formatMoney(pag.valor)}
                                     </TableCell>
+                                    
+                                    {/* --- COLUNA DE AÇÃO CORRIGIDA --- */}
                                     <TableCell align="center">
-                                        <Button 
-                                            variant="outlined" 
-                                            size="small"
-                                            color="success"
-                                            onClick={() => handleOpenPagar(pag)}
-                                            sx={{ fontSize: '0.7rem', py: 0.5 }}
-                                        >
-                                            Receber
-                                        </Button>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                                            <Button 
+                                                variant="outlined" 
+                                                size="small"
+                                                color="success"
+                                                onClick={() => handleOpenPagar(pag)}
+                                                sx={{ fontSize: '0.7rem', py: 0.5, minWidth: '70px' }}
+                                            >
+                                                Receber
+                                            </Button>
+                                            
+                                            {/* Renderização Condicional: Só aparece se NÃO for agendamento */}
+                                            {!pag.agendamento && (
+                                                <IconButton 
+                                                    onClick={() => handleDelete(pag.id)}
+                                                    sx={{ 
+                                                        color: '#bdbdbd', 
+                                                        '&:hover': { color: '#d32f2f', bgcolor: 'rgba(211, 47, 47, 0.08)' } 
+                                                    }}
+                                                    title="Excluir Lançamento Avulso"
+                                                    size="small"
+                                                >
+                                                    <DeleteIcon fontSize="small" /> 
+                                                </IconButton>
+                                            )}
+                                        </Box>
                                     </TableCell>
                                 </TableRow>
                             ))
