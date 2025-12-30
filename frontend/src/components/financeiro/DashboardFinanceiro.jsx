@@ -4,7 +4,7 @@ import {
     Visibility, VisibilityOff, 
     ArrowUpward, ArrowDownward, 
     AddCard, Pix, ReceiptLong, Payment,
-    NotificationsActive
+    NotificationsActive, BarChart
 } from '@mui/icons-material';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
@@ -15,7 +15,6 @@ import './FinancialDashboard.css';
 // Registra componentes do ChartJS
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-// Componente para o ícone do Extrato
 const TransactionIcon = ({ type }) => (
     <div className={`st-icon ${type === 'income' ? 'in' : 'out'}`}>
         {type === 'income' ? <ArrowUpward fontSize="inherit"/> : <ArrowDownward fontSize="inherit"/>}
@@ -36,7 +35,6 @@ export default function DashboardFinanceiro() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // 1. Busca Dashboard (Saldos) e Relatórios (Gráficos)
                 const [dashRes, relRes] = await Promise.all([
                     faturamentoService.getDashboardFinanceiro(),
                     faturamentoService.getRelatorioFinanceiro()
@@ -44,17 +42,11 @@ export default function DashboardFinanceiro() {
 
                 setDashboardData({
                     ...dashRes.data,
-                    // Dados para gráfico mini
-                    grafico: relRes.data.fluxo_caixa_mensal.slice(-4) // Últimos 4 meses
+                    grafico: relRes.data.fluxo_caixa_mensal.slice(-6) // Últimos 6 meses
                 });
 
-                // 2. SIMULAÇÃO DO EXTRATO (Já que não temos endpoint de extrato unificado ainda)
-                // Na prática, você criaria um endpoint /extrato/ no backend que retorna tudo misturado ordenado por data.
-                // Aqui vou pegar os "pendentes de hoje" e simular alguns históricos para visual
+                // Simulação do Extrato (Mantendo lógica anterior)
                 const pendentes = dashRes.data.pagamentos_pendentes_hoje || [];
-                
-                // Mock de dados para preencher o visual de "banco"
-                // Substitua isso por chamadas reais de faturamentoService.getDespesas() e getPagamentos()
                 const mockExtrato = [
                     ...pendentes.map(p => ({
                         id: `p-${Math.random()}`,
@@ -62,17 +54,15 @@ export default function DashboardFinanceiro() {
                         date: 'Hoje',
                         amount: parseFloat(p.valor),
                         type: 'income',
-                        status: 'Pendente' // Mostraremos na lista
+                        status: 'Pendente'
                     })),
-                    // Exemplos fixos para dar a cara de "Extrato" (remover quando tiver endpoint real)
                     { id: 1, desc: 'Pagamento Aluguel', date: 'Ontem', amount: 2500.00, type: 'expense' },
                     { id: 2, desc: 'Consulta Particular', date: 'Ontem', amount: 350.00, type: 'income' },
-                    { id: 3, desc: 'Compra Material Escritório', date: '28/12', amount: 120.50, type: 'expense' },
+                    { id: 3, desc: 'Material Escritório', date: '28/12', amount: 120.50, type: 'expense' },
+                    { id: 4, desc: 'Manutenção Rede', date: '27/12', amount: 450.00, type: 'expense' },
                 ];
                 setExtrato(mockExtrato);
 
-                // 3. Alertas (Contas a vencer)
-                // Se o backend retornar despesas próximas do vencimento, use aqui.
                 setAlertas([
                     { id: 1, desc: 'Internet Vivo', date: 'Amanhã', valor: 149.90 },
                     { id: 2, desc: 'Manutenção AC', date: '02/01', valor: 300.00 }
@@ -87,54 +77,59 @@ export default function DashboardFinanceiro() {
         loadData();
     }, []);
 
-    // Configuração Mini Gráfico (Barras Limpas)
+    // Configuração do Gráfico SUPER Minimalista (Sparkline style)
     const miniChartOptions = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: { 
+            legend: { display: false },
+            tooltip: { enabled: true } 
+        },
         scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-            y: { display: false } // Esconde eixo Y para ficar clean
+            x: { display: false }, // Remove eixo X
+            y: { display: false, beginAtZero: true }  // Remove eixo Y
+        },
+        elements: {
+            bar: { borderRadius: 3 }
         }
     };
     
     const miniChartData = {
-        labels: dashboardData?.grafico?.map(i => {
-            // Formata '2025-01' para 'JAN'
-            const [ano, mes] = i.mes.split('-');
-            const date = new Date(ano, mes - 1);
-            return date.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase();
-        }) || [],
+        labels: dashboardData?.grafico?.map(i => i.mes) || [],
         datasets: [
             {
                 data: dashboardData?.grafico?.map(i => i.receitas) || [],
-                backgroundColor: '#c0a46f', // Dourado nas barras
-                borderRadius: 4,
-                barThickness: 15
+                backgroundColor: '#c0a46f',
+                barThickness: 8 // Barras bem fininhas
+            },
+            {
+                data: dashboardData?.grafico?.map(i => i.despesas) || [],
+                backgroundColor: '#1a233b',
+                barThickness: 8
             }
         ]
     };
 
-    if (isLoading) return <div className="financial-container">Carregando Banco...</div>;
+    if (isLoading) return <div className="financial-container" style={{fontSize:'0.8rem'}}>Carregando...</div>;
 
     return (
         <div className="financial-container">
             
-            {/* 1. HEADER */}
+            {/* HEADER COMPACTO */}
             <header className="bank-header">
                 <div className="bank-greeting">
                     <h1>Olá, Doutor(a)</h1>
-                    <span>Seu resumo financeiro está atualizado.</span>
+                    <span>Resumo financeiro em tempo real.</span>
                 </div>
-                <div style={{ color: '#1a233b', fontWeight: 'bold' }}>
-                    {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                <div className="header-date">
+                    {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </div>
             </header>
 
-            {/* 2. CARTÃO MESTRE + RESUMO */}
+            {/* CARD MASTER & RESUMO (Alinhados) */}
             <section className="bank-card-section">
                 
-                {/* O Cartão Azul */}
+                {/* Cartão Saldo */}
                 <div className="master-card">
                     <div className="card-top">
                         <div>
@@ -148,17 +143,15 @@ export default function DashboardFinanceiro() {
                             )}
                         </div>
                         <div onClick={() => setShowBalance(!showBalance)} style={{ cursor: 'pointer', opacity: 0.7 }}>
-                            {showBalance ? <VisibilityOff /> : <Visibility />}
+                            {showBalance ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                         </div>
                     </div>
-                    
                     <div className="card-actions">
                         <div className="card-chip"></div>
-                        {/* Outros detalhes visuais do cartão se quiser */}
                     </div>
                 </div>
 
-                {/* Resumo Mês (Entradas/Saídas) */}
+                {/* Resumo Mês (Compacto) */}
                 <div className="month-summary">
                     <div className="summary-item income">
                         <div>
@@ -167,7 +160,7 @@ export default function DashboardFinanceiro() {
                                 + {formatMoney(dashboardData?.faturamento_do_dia)}
                             </div>
                         </div>
-                        <ArrowUpward sx={{ color: '#28a745', opacity: 0.2, fontSize: 30 }} />
+                        <ArrowUpward className="s-icon" style={{color: '#28a745'}} />
                     </div>
                     <div className="summary-item expense">
                         <div>
@@ -176,39 +169,39 @@ export default function DashboardFinanceiro() {
                                 - {formatMoney(dashboardData?.despesas_do_dia)}
                             </div>
                         </div>
-                        <ArrowDownward sx={{ color: '#dc3545', opacity: 0.2, fontSize: 30 }} />
+                        <ArrowDownward className="s-icon" style={{color: '#dc3545'}} />
                     </div>
                 </div>
             </section>
 
-            {/* 3. AÇÕES RÁPIDAS */}
+            {/* AÇÕES RÁPIDAS */}
             <section className="quick-actions">
                 <button className="action-btn">
-                    <div className="icon-circle"><AddCard /></div>
+                    <div className="icon-circle"><AddCard fontSize="small"/></div>
                     <span className="action-label">Pagar</span>
                 </button>
                 <button className="action-btn">
-                    <div className="icon-circle"><Pix /></div>
+                    <div className="icon-circle"><Pix fontSize="small"/></div>
                     <span className="action-label">Receber</span>
                 </button>
                 <button className="action-btn">
-                    <div className="icon-circle"><ReceiptLong /></div>
+                    <div className="icon-circle"><ReceiptLong fontSize="small"/></div>
                     <span className="action-label">Extrato</span>
                 </button>
                 <button className="action-btn">
-                    <div className="icon-circle"><Payment /></div>
+                    <div className="icon-circle"><Payment fontSize="small"/></div>
                     <span className="action-label">Boletos</span>
                 </button>
             </section>
 
-            {/* 4. CORPO (EXTRATO E AVISOS) */}
+            {/* CORPO (Extrato + Lateral) */}
             <div className="bank-body">
                 
-                {/* Esquerda: Extrato Recente */}
+                {/* Extrato */}
                 <div>
                     <div className="section-title">
                         <span>Últimas Movimentações</span>
-                        <a href="#" style={{fontSize:'0.85rem', color:'#c0a46f', textDecoration:'none'}}>Ver completo</a>
+                        <a href="#" style={{fontSize:'0.75rem', color:'#c0a46f', textDecoration:'none'}}>Ver tudo</a>
                     </div>
                     <div className="statement-list">
                         {extrato.map((item, index) => (
@@ -217,7 +210,7 @@ export default function DashboardFinanceiro() {
                                     <TransactionIcon type={item.type} />
                                     <div className="st-info">
                                         <span className="st-desc">{item.desc}</span>
-                                        <span className="st-date">{item.date} • {item.type === 'income' ? 'Receita' : 'Despesa'}</span>
+                                        <span className="st-date">{item.date}</span>
                                     </div>
                                 </div>
                                 <div className={`st-value ${item.type === 'income' ? 'val-in' : 'val-out'}`}>
@@ -225,17 +218,14 @@ export default function DashboardFinanceiro() {
                                 </div>
                             </div>
                         ))}
-                        {extrato.length === 0 && <p style={{padding:20, color:'#999'}}>Nenhuma movimentação recente.</p>}
                     </div>
                 </div>
 
-                {/* Direita: Avisos e Plus */}
+                {/* Lateral: Avisos + Gráfico */}
                 <div className="alerts-section">
-                    
-                    {/* Alertas */}
                     <div className="alert-box">
-                        <div className="section-title" style={{marginBottom: 10}}>
-                            <span><NotificationsActive sx={{fontSize: 18, mr: 1, color:'#f39c12'}}/>Avisos</span>
+                        <div className="section-title" style={{marginBottom: 8}}>
+                            <span><NotificationsActive sx={{fontSize: 16, mr: 0.5, color:'#f39c12', verticalAlign:'text-bottom'}}/>Avisos</span>
                         </div>
                         {alertas.map(alert => (
                             <div key={alert.id} className="bill-item">
@@ -246,20 +236,17 @@ export default function DashboardFinanceiro() {
                         ))}
                     </div>
 
-                    {/* Gráfico "Plus" no rodapé lateral */}
                     <div className="alert-box">
-                        <div className="section-title" style={{marginBottom: 5}}>
-                            <span>Fluxo (4 meses)</span>
+                        <div className="section-title" style={{marginBottom: 0}}>
+                            <span><BarChart sx={{fontSize: 16, mr: 0.5, color:'#1a233b', verticalAlign:'text-bottom'}}/>Fluxo</span>
                         </div>
                         <div className="mini-chart-container">
                             <Bar data={miniChartData} options={miniChartOptions} />
                         </div>
                     </div>
-
                 </div>
 
             </div>
-
         </div>
     );
 }
