@@ -12,8 +12,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 
-from django.db.models import Sum
-from django.db.models.functions import TruncMonth, TruncDate
+from django.db.models import Sum, Value, F
+from django.db.models.functions import TruncMonth, TruncDate, Coalesce
 from django.utils import timezone
 from django.http import HttpResponse
 from django.core.exceptions import FieldError  # <--- CORREÇÃO 1: IMPORT QUE FALTAVA
@@ -62,16 +62,28 @@ class FinanceiroDashboardAPIView(APIView):
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
         saldo_final = total_entradas - total_saidas
 
-        # 3. EXTRATO UNIFICADO (Últimos 30 lançamentos realizados)
-        ultimas_receitas = Pagamento.objects.filter(status='Pago').order_by('-data_pagamento')[:20]
-        ultimas_despesas = Despesa.objects.filter(pago=True).order_by('-data_pagamento')[:20]
+        # =========================================================================
+        # 3. EXTRATO UNIFICADO INTELIGENTE (A CORREÇÃO ESTÁ AQUI)
+        # =========================================================================
+        
+        # Receitas: Prioriza Data Pagamento -> Se nula, usa Vencimento -> Se nula, usa Hoje
+        ultimas_receitas = Pagamento.objects.filter(status='Pago').annotate(
+            data_efetiva=Coalesce('data_pagamento', 'data_vencimento', Value(hoje))
+        ).order_by('-data_efetiva')[:30]
+
+        # Despesas: Prioriza Data Pagamento -> Se nula, usa Vencimento -> Se nula, usa Emissão
+        ultimas_despesas = Despesa.objects.filter(pago=True).annotate(
+            data_efetiva=Coalesce('data_pagamento', 'data_vencimento', 'data_despesa')
+        ).order_by('-data_efetiva')[:30]
 
         extrato = []
+        
         for p in ultimas_receitas:
             extrato.append({
                 'id': f'rec-{p.id}',
                 'desc': p.paciente.nome_completo if p.paciente else (p.descricao or "Receita Avulsa"),
-                'date': p.data_pagamento,
+                # Usa a data efetiva calculada pelo banco para ordenação correta
+                'date': p.data_efetiva, 
                 'amount': float(p.valor),
                 'type': 'income',
                 'status': 'Pago'
@@ -81,14 +93,17 @@ class FinanceiroDashboardAPIView(APIView):
             extrato.append({
                 'id': f'desp-{d.id}',
                 'desc': d.descricao,
-                'date': d.data_pagamento or d.data_despesa, # Prioriza data de pagamento real
+                # Usa a data efetiva calculada pelo banco para ordenação correta
+                'date': d.data_efetiva,
                 'amount': float(d.valor),
                 'type': 'expense',
                 'status': 'Pago'
             })
 
-        # Ordena por data decrescente (mais recente primeiro)
+        # Ordena a lista combinada pela data efetiva (Do mais recente para o mais antigo)
         extrato.sort(key=lambda x: x['date'] if x['date'] else datetime.min, reverse=True)
+        
+        # Pega apenas os 30 últimos movimentos globais
         extrato = extrato[:30]
 
         # 4. AVISOS INTELIGENTES (Contas a Pagar E a Receber Próximas)
