@@ -36,37 +36,28 @@ export default function DashboardFinanceiro() {
         const loadData = async () => {
             try {
                 const [dashRes, relRes] = await Promise.all([
-                    faturamentoService.getDashboardFinanceiro(),
-                    faturamentoService.getRelatorioFinanceiro()
-                ]);
+    faturamentoService.getDashboardFinanceiro(),
+    faturamentoService.getRelatorioFinanceiro()
+]);
 
-                setDashboardData({
-                    ...dashRes.data,
-                    grafico: relRes.data.fluxo_caixa_mensal.slice(-6) // Últimos 6 meses
-                });
+setDashboardData({
+    ...dashRes.data,
+    grafico: relRes.data.fluxo_caixa_mensal.slice(-6)
+});
 
-                // Simulação do Extrato (Mantendo lógica anterior)
-                const pendentes = dashRes.data.pagamentos_pendentes_hoje || [];
-                const mockExtrato = [
-                    ...pendentes.map(p => ({
-                        id: `p-${Math.random()}`,
-                        desc: `Recebimento - ${p.paciente}`,
-                        date: 'Hoje',
-                        amount: parseFloat(p.valor),
-                        type: 'income',
-                        status: 'Pendente'
-                    })),
-                    { id: 1, desc: 'Pagamento Aluguel', date: 'Ontem', amount: 2500.00, type: 'expense' },
-                    { id: 2, desc: 'Consulta Particular', date: 'Ontem', amount: 350.00, type: 'income' },
-                    { id: 3, desc: 'Material Escritório', date: '28/12', amount: 120.50, type: 'expense' },
-                    { id: 4, desc: 'Manutenção Rede', date: '27/12', amount: 450.00, type: 'expense' },
-                ];
-                setExtrato(mockExtrato);
+// AQUI É A MUDANÇA: Usamos os dados reais do backend
+if (dashRes.data.extrato_real) {
+    // Formata datas para exibição amigável
+    const extratoFormatado = dashRes.data.extrato_real.map(item => ({
+        ...item,
+        date: new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    }));
+    setExtrato(extratoFormatado);
+}
 
-                setAlertas([
-                    { id: 1, desc: 'Internet Vivo', date: 'Amanhã', valor: 149.90 },
-                    { id: 2, desc: 'Manutenção AC', date: '02/01', valor: 300.00 }
-                ]);
+if (dashRes.data.alertas_vencimento) {
+    setAlertas(dashRes.data.alertas_vencimento);
+}
 
             } catch (error) {
                 console.error("Erro dashboard", error);

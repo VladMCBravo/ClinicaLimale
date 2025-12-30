@@ -34,7 +34,8 @@ class LancamentoAvulsoReceitaSerializer(serializers.ModelSerializer):
     """Serializer para criar um pagamento avulso (receita)."""
     class Meta:
         model = Pagamento
-        fields = ['paciente', 'descricao', 'valor', 'forma_pagamento']
+        # ADICIONE 'data_vencimento' e 'status' NA LISTA ABAIXO
+        fields = ['paciente', 'descricao', 'valor', 'forma_pagamento', 'data_vencimento', 'status']
 
 class PagamentoSerializer(serializers.ModelSerializer):
     # ALTERAÇÃO: Usamos SerializerMethodField para tratar casos de paciente null
@@ -50,8 +51,8 @@ class PagamentoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'agendamento', 'paciente', 'paciente_nome', 'descricao',
             'valor', 'status', 'status_display', 'forma_pagamento', 
-            'forma_pagamento_display', 'data_pagamento', 'registrado_por',
-            'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em','link_pagamento'
+            'forma_pagamento_display', 'data_pagamento', 'data_vencimento', # <--- AQUI
+            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em','link_pagamento'
         ]
         read_only_fields = ['registrado_por']
 
@@ -82,13 +83,11 @@ class DespesaSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Despesa
-        # Adicione 'data_vencimento' e 'pago' na lista abaixo
         fields = [
             'id', 'categoria', 'categoria_nome', 'descricao', 
-            'valor', 'data_despesa', 'data_vencimento', 'pago', # <--- AQUI
+            'valor', 'data_despesa', 'data_vencimento', 'pago', 'data_pagamento', # <--- NOVOS
             'registrado_por', 'registrado_por_nome', 'data_registro'
         ]
-        read_only_fields = ['registrado_por']
 
 # --- Serializers de Convênios e Planos (Mantidos) ---
 class PlanoConvenioSerializer(serializers.ModelSerializer):

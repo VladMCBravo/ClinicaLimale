@@ -44,6 +44,7 @@ class Pagamento(models.Model):
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     forma_pagamento = models.CharField(max_length=20, choices=FORMA_PAGAMENTO_CHOICES, blank=True, null=True)
     data_pagamento = models.DateTimeField(blank=True, null=True)
+    data_vencimento = models.DateField(null=True, blank=True, help_text="Data de vencimento para contas a receber")
     status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='Pendente')
     registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
 
@@ -65,8 +66,15 @@ class Pagamento(models.Model):
 
 
     def save(self, *args, **kwargs):
-        if self.status == 'Pago' and self.data_pagamento is None:
+        # Automção: Se marcar como Pago e não tiver data, preenche hoje
+        if self.status == 'Pago' and not self.data_pagamento:
             self.data_pagamento = timezone.now()
+        # Se não tiver vencimento, assume a data do agendamento ou hoje
+        if not self.data_vencimento:
+            if self.agendamento:
+                self.data_vencimento = self.agendamento.data_hora_inicio.date()
+            else:
+                self.data_vencimento = timezone.now().date()
         super().save(*args, **kwargs)
 
 
@@ -83,13 +91,13 @@ class CategoriaDespesa(models.Model):
         ordering = ['nome']
 
 class Despesa(models.Model):
-    # ... (sem alterações) ...
     categoria = models.ForeignKey(CategoriaDespesa, on_delete=models.PROTECT, related_name='despesas')
     descricao = models.CharField(max_length=255)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     data_despesa = models.DateField()
     data_vencimento = models.DateField(null=True, blank=True) # Novo
     pago = models.BooleanField(default=False)                 # Novo
+    data_pagamento = models.DateField(null=True, blank=True) # Data real da saída do dinheiro
     registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     data_registro = models.DateTimeField(auto_now_add=True)
     def __str__(self): return f"{self.descricao} - R$ {self.valor}"

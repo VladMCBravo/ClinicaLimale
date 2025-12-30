@@ -47,49 +47,84 @@ class FinanceiroDashboardAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
-        # 1. Busca Saldo REAL (Blinda erro do Inter)
-        saldo_em_conta = 0.0
-        try:
-            if inter_service:
-                saldo_real = inter_service.consultar_saldo()
-                if saldo_real is not None:
-                    saldo_em_conta = float(saldo_real)
-        except Exception as e:
-            print(f"Aviso: Erro ao consultar saldo Inter: {e}")
-
-        # Datas
         hoje = timezone.localdate()
-        inicio_dia = timezone.make_aware(datetime.combine(hoje, time.min))
-        fim_dia = timezone.make_aware(datetime.combine(hoje, time.max))
-
-        # 2. Busca dados internos (Simplificado para evitar erro de DecimalField/Coalesce)
-        pagamentos_hoje = Pagamento.objects.filter(data_pagamento__range=(inicio_dia, fim_dia), status='Pago')
-        # Soma no Python para garantir segurança contra None
-        faturamento_dia = pagamentos_hoje.aggregate(total=Sum('valor'))['total'] or 0
-
-        despesas_hoje = Despesa.objects.filter(data_despesa=hoje)
-        total_despesas_dia = despesas_hoje.aggregate(total=Sum('valor'))['total'] or 0
         
-        lucro_dia = faturamento_dia - total_despesas_dia
+        # 1. TOTAIS DO DIA (Real)
+        # Receitas (Status Pago e data_pagamento hoje)
+        receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        # Despesas (Flag Pago=True e data_pagamento hoje)
+        despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        # Saldo Geral (Soma de tudo que já entrou - tudo que já saiu na história)
+        total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
+        total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
+        saldo_sistema = total_entradas - total_saidas
 
-        pagamentos_pendentes_hoje = Pagamento.objects.filter(
-            agendamento__data_hora_inicio__date=hoje,
-            status='Pendente'
-        ).select_related('paciente', 'agendamento')
+        # Tenta pegar saldo do Banco Inter se disponível, senão usa o calculado do sistema
+        saldo_final = saldo_sistema
+        if inter_service:
+            try:
+                saldo_banco = inter_service.consultar_saldo()
+                if saldo_banco is not None:
+                    saldo_final = float(saldo_banco)
+            except:
+                pass
+
+        # 2. EXTRATO UNIFICADO (Últimos 20 lançamentos)
+        # Pega últimas receitas
+        ultimas_receitas = Pagamento.objects.filter(status='Pago').order_by('-data_pagamento')[:20]
+        # Pega últimas despesas
+        ultimas_despesas = Despesa.objects.filter(pago=True).order_by('-data_pagamento')[:20]
+
+        extrato = []
+        for p in ultimas_receitas:
+            extrato.append({
+                'id': f'rec-{p.id}',
+                'desc': p.paciente.nome_completo if p.paciente else (p.descricao or "Receita Avulsa"),
+                'date': p.data_pagamento,
+                'amount': float(p.valor),
+                'type': 'income',
+                'status': 'Pago'
+            })
+        
+        for d in ultimas_despesas:
+            extrato.append({
+                'id': f'desp-{d.id}',
+                'desc': d.descricao,
+                'date': d.data_pagamento or d.data_despesa, # Fallback se data_pagamento for nulo
+                'amount': float(d.valor),
+                'type': 'expense',
+                'status': 'Pago'
+            })
+
+        # Ordena tudo por data (do mais recente para o mais antigo)
+        extrato.sort(key=lambda x: x['date'] if x['date'] else datetime.min, reverse=True)
+        extrato = extrato[:30] # Corta nos últimos 30 itens
+
+        # 3. CONTAS A VENCER (Avisos)
+        # Contas a Pagar pendentes vencendo nos próximos 7 dias
+        proximas_contas = Despesa.objects.filter(
+            pago=False, 
+            data_vencimento__gte=hoje,
+            data_vencimento__lte=hoje + timedelta(days=7)
+        ).order_by('data_vencimento')[:5]
+
+        alertas = []
+        for c in proximas_contas:
+            alertas.append({
+                'id': c.id,
+                'desc': c.descricao,
+                'date': c.data_vencimento.strftime('%d/%m'),
+                'valor': float(c.valor)
+            })
 
         dados = {
-            "saldo_em_conta": float(saldo_em_conta),
-            "faturamento_do_dia": float(faturamento_dia),
-            "despesas_do_dia": float(total_despesas_dia),
-            "lucro_do_dia": float(lucro_dia),
-            "pagamentos_pendentes_hoje": [
-                {
-                    "paciente": p.paciente.nome_completo,
-                    "horario": timezone.localtime(p.agendamento.data_hora_inicio).strftime('%H:%M') if p.agendamento else "--:--",
-                    "valor": p.valor
-                }
-                for p in pagamentos_pendentes_hoje
-            ],
+            "saldo_em_conta": float(saldo_final),
+            "faturamento_do_dia": float(receitas_hoje),
+            "despesas_do_dia": float(despesas_hoje),
+            "extrato_real": extrato, # <--- Enviamos a lista pronta
+            "alertas_vencimento": alertas
         }
         return Response(dados)
 

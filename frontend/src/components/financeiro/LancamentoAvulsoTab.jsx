@@ -217,7 +217,23 @@ export default function LancamentoAvulsoTab({ onClose }) {
                             InputLabelProps={{style: {fontSize: '0.85rem'}}}
                             InputProps={{style: {fontSize: '0.9rem'}}}
                         />
+                        <Grid item xs={12} sm={6}>
+    <DatePicker
+        label="Data de Vencimento"
+        value={formData.data_vencimento ? dayjs(formData.data_vencimento) : dayjs()} // Padrão hoje
+        onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
+        slotProps={{ 
+            textField: { 
+                size: 'small', 
+                margin: 'dense', 
+                fullWidth: true,
+                helperText: "Para controle de fluxo futuro"
+            } 
+        }}
+    />
+</Grid>
                         
+                    
                         {tipo === 'despesa' && (
                             <Grid container spacing={1}>
                                 <Grid item xs={6}>
