@@ -1,12 +1,14 @@
+// src/components/financeiro/LancamentoAvulsoTab.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Box, Grid, TextField, Button, CircularProgress, Autocomplete, 
-    ToggleButton, ToggleButtonGroup, Typography, Paper, InputAdornment, MenuItem
+    ToggleButton, ToggleButtonGroup, Typography, Paper, InputAdornment, MenuItem,
+    FormControlLabel, Switch
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
     Person, AccountBalance, AttachMoney, MoneyOff, 
-    CreditCard, LocalAtm, QrCode, PointOfSale 
+    CreditCard, LocalAtm, QrCode, PointOfSale, Event
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 
@@ -18,8 +20,10 @@ export default function LancamentoAvulsoTab({ onClose }) {
     const [tipo, setTipo] = useState('receita');
     const [origemReceita, setOrigemReceita] = useState('paciente');
     
-    // Inicia parcelas com 1
-    const [formData, setFormData] = useState({ qtd_parcelas: 1, status: 'Pago' });
+    // NOVO ESTADO: Controle explícito de "Já Recebido"
+    const [jaRecebido, setJaRecebido] = useState(true); 
+
+    const [formData, setFormData] = useState({ qtd_parcelas: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [pacientes, setPacientes] = useState([]);
@@ -35,7 +39,10 @@ export default function LancamentoAvulsoTab({ onClose }) {
     const handleTipoChange = (event, newTipo) => {
         if (newTipo !== null) {
             setTipo(newTipo);
-            setFormData({ qtd_parcelas: 1, status: 'Pago' }); 
+            setFormData({ qtd_parcelas: 1 }); 
+            // Se for despesa, assumimos 'Paga' por padrão? Ou mantemos a lógica do usuário
+            // Aqui mantemos jaRecebido como true por padrão para facilitar
+            setJaRecebido(true);
         }
     };
 
@@ -55,9 +62,7 @@ export default function LancamentoAvulsoTab({ onClose }) {
         setFormData(prev => ({ 
             ...prev, 
             forma_pagamento: method,
-            // Crédito geralmente é "A Receber" (Pendente), os outros entram na hora (Pago)
-            status: method === 'CartaoCredito' ? 'Pendente' : 'Pago',
-            // Reseta parcelas se mudar de método
+            // Se escolheu método, logicamente está sendo pago, mas respeitamos o Switch
             qtd_parcelas: method === 'CartaoCredito' ? prev.qtd_parcelas : 1
         }));
     };
@@ -68,12 +73,21 @@ export default function LancamentoAvulsoTab({ onClose }) {
             showSnackbar('Preencha descrição e valor.', 'warning');
             return;
         }
+        
+        // Validação extra: Se marcou "Já Recebido", precisa informar COMO
+        if (tipo === 'receita' && jaRecebido && !formData.forma_pagamento) {
+            showSnackbar('Selecione a forma de pagamento.', 'warning');
+            return;
+        }
+
         setIsSubmitting(true);
         
         const payload = {
             ...formData,
             tipo: tipo,
             paciente: (tipo === 'receita' && origemReceita === 'paciente') ? formData.paciente?.id : null,
+            // AQUI ESTÁ A LÓGICA DO STATUS
+            status: jaRecebido ? 'Pago' : 'Pendente' 
         };
 
         try {
@@ -103,12 +117,12 @@ export default function LancamentoAvulsoTab({ onClose }) {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    minHeight: '55px',
+                    minHeight: '50px',
                     transition: 'all 0.1s',
                     '&:hover': { borderColor: '#1a233b' }
                 }}
             >
-                <Icon sx={{ fontSize: 20, color: selected ? '#1a233b' : '#757575' }} />
+                <Icon sx={{ fontSize: 18, color: selected ? '#1a233b' : '#757575' }} />
                 <Typography variant="caption" sx={{ fontSize: '0.65rem', lineHeight: 1.1, mt: 0.5 }} align="center" fontWeight={selected ? 'bold' : 'normal'} color={selected ? '#1a233b' : 'text.secondary'}>
                     {label}
                 </Typography>
@@ -136,9 +150,24 @@ export default function LancamentoAvulsoTab({ onClose }) {
                 {/* --- COLUNA ESQUERDA (Dados) --- */}
                 <Grid item xs={12} md={7}>
                     <Paper sx={{ p: 2 }} elevation={1}>
-                        <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{color: '#1a233b', fontSize: '0.85rem'}}>
-                            Dados Gerais
-                        </Typography>
+                        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1}}>
+                            <Typography variant="subtitle2" fontWeight="bold" sx={{color: '#1a233b', fontSize: '0.85rem'}}>
+                                Dados Gerais
+                            </Typography>
+                            
+                            {/* SWITCH DE STATUS */}
+                            <FormControlLabel
+                                control={
+                                    <Switch 
+                                        size="small"
+                                        checked={jaRecebido}
+                                        onChange={(e) => setJaRecebido(e.target.checked)}
+                                        color={tipo === 'receita' ? "success" : "error"}
+                                    />
+                                }
+                                label={<Typography fontSize="0.75rem" fontWeight="bold">{jaRecebido ? (tipo === 'receita' ? "RECEBIDO" : "PAGO") : "PENDENTE"}</Typography>}
+                            />
+                        </Box>
                         
                         {tipo === 'receita' && (
                             <Box sx={{ mb: 1.5 }}>
@@ -229,7 +258,7 @@ export default function LancamentoAvulsoTab({ onClose }) {
                             sx={{ mb: 1.5, bgcolor: '#fff' }}
                         />
 
-                        {tipo === 'receita' && (
+                        {tipo === 'receita' && jaRecebido && (
                             <>
                                 <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={0.5} display="block" sx={{fontSize: '0.7rem'}}>
                                     FORMA DE PAGAMENTO
@@ -242,7 +271,6 @@ export default function LancamentoAvulsoTab({ onClose }) {
                                     <PaymentCard value="MaquinaCartao" label="Maq." icon={PointOfSale} />
                                 </Box>
 
-                                {/* PARCELAMENTO - SUBSTITUÍDO POR SELECT SIMPLES */}
                                 {formData.forma_pagamento === 'CartaoCredito' && (
                                     <Box sx={{ p: 1, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #90caf9', mb: 1 }}>
                                         <TextField
@@ -265,6 +293,16 @@ export default function LancamentoAvulsoTab({ onClose }) {
                                     </Box>
                                 )}
                             </>
+                        )}
+
+                        {/* MENSAGEM SE FOR PENDENTE */}
+                        {tipo === 'receita' && !jaRecebido && (
+                            <Box sx={{ p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px dashed #ffb74d', mb: 'auto' }}>
+                                <Typography variant="caption" color="warning.main" display="flex" alignItems="center">
+                                    <Event fontSize="small" sx={{mr: 0.5}} />
+                                    Ficará como "A Receber" no painel.
+                                </Typography>
+                            </Box>
                         )}
                         
                         {/* Botão no rodapé do card */}

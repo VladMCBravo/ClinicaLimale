@@ -37,7 +37,9 @@ class LancamentoAvulsoReceitaSerializer(serializers.ModelSerializer):
         fields = ['paciente', 'descricao', 'valor', 'forma_pagamento']
 
 class PagamentoSerializer(serializers.ModelSerializer):
-    paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
+    # ALTERAÇÃO: Usamos SerializerMethodField para tratar casos de paciente null
+    paciente_nome = serializers.SerializerMethodField()
+    
     registrado_por = serializers.StringRelatedField(read_only=True)
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -45,14 +47,19 @@ class PagamentoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Pagamento
-        # --- CAMPOS ADICIONADOS AQUI ---
         fields = [
-            'id', 'agendamento', 'paciente', 'paciente_nome', 'descricao', # <-- Adicionado 'descricao'
+            'id', 'agendamento', 'paciente', 'paciente_nome', 'descricao',
             'valor', 'status', 'status_display', 'forma_pagamento', 
             'forma_pagamento_display', 'data_pagamento', 'registrado_por',
             'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em','link_pagamento'
         ]
         read_only_fields = ['registrado_por']
+
+    # LÓGICA PARA NOME DO PACIENTE
+    def get_paciente_nome(self, obj):
+        if obj.paciente:
+            return obj.paciente.nome_completo
+        return "Outros / Avulso"
 
 class PagamentoCreateSerializer(serializers.ModelSerializer):
     class Meta:

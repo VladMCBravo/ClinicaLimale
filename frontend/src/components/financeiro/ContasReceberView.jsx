@@ -1,11 +1,12 @@
+// src/components/financeiro/ContasReceberView.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Button, CircularProgress, Typography, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Grid, IconButton, Tooltip, TextField, InputAdornment
+    Grid, IconButton, Tooltip, TextField, InputAdornment, Chip
 } from '@mui/material';
 import { 
-    AttachMoney, CheckCircle, Search, AddCircleOutline 
+    AttachMoney, CheckCircle, Search, AddCircleOutline, DateRange 
 } from '@mui/icons-material';
 
 import { faturamentoService } from '../../services/faturamentoService';
@@ -18,17 +19,14 @@ import LancamentoCaixaModal from './LancamentoCaixaModal';
 export default function ContasReceberView() {
     const { showSnackbar } = useSnackbar();
     
-    // Estados de Dados
     const [pagamentosPendentes, setPagamentosPendentes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Estados dos Modais
     const [openPagarModal, setOpenPagarModal] = useState(false);
     const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
     const [selectedPagamento, setSelectedPagamento] = useState(null);
 
-    // --- BUSCA DE DADOS ---
     const fetchPendentes = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -46,7 +44,6 @@ export default function ContasReceberView() {
         fetchPendentes();
     }, [fetchPendentes]);
 
-    // --- CÁLCULO DE TOTAIS (KPIs) ---
     const financialSummary = useMemo(() => {
         return pagamentosPendentes.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
@@ -56,7 +53,6 @@ export default function ContasReceberView() {
         }, { total: 0, qtd: 0 });
     }, [pagamentosPendentes]);
 
-    // --- HANDLERS ---
     const handleOpenPagar = (pagamento) => {
         setSelectedPagamento(pagamento);
         setOpenPagarModal(true);
@@ -65,29 +61,37 @@ export default function ContasReceberView() {
     const handleSuccessPagamento = () => {
         setOpenPagarModal(false);
         setSelectedPagamento(null);
-        fetchPendentes(); // Recarrega a lista para remover o item pago
+        fetchPendentes();
     };
 
     const handleCloseNovoLancamento = () => {
         setOpenNovoLancamentoModal(false);
-        fetchPendentes(); // Recarrega caso tenha criado algo novo
+        fetchPendentes();
     };
 
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+    // Formatação de data robusta para lidar com avulsos
+    const formatDate = (pagamento) => {
+        if (pagamento.agendamento) {
+            return new Date(pagamento.agendamento.data_hora_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+        // Se for avulso, não tem data de agendamento. Podemos mostrar "Avulso" ou "-"
+        return <Chip label="Avulso" size="small" variant="outlined" sx={{fontSize: '0.7rem'}} />;
     };
 
-    // Filtragem local
-    const filteredList = pagamentosPendentes.filter(p => 
-        p.paciente_nome?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filtro corrigido para não quebrar com Avulsos
+    const filteredList = pagamentosPendentes.filter(p => {
+        const termo = searchTerm.toLowerCase();
+        const nome = p.paciente_nome ? p.paciente_nome.toLowerCase() : '';
+        const desc = p.descricao ? p.descricao.toLowerCase() : '';
+        return nome.includes(termo) || desc.includes(termo);
+    });
 
     return (
         <Box>
             {/* --- 1. CARDS DE RESUMO (KPIs) --- */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={6}>
                     <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fff' }}>
                         <Box>
@@ -117,10 +121,10 @@ export default function ContasReceberView() {
             </Grid>
 
             {/* --- 2. BARRA DE AÇÕES --- */}
-            <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid #e0e0e0', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+            <Paper elevation={0} sx={{ p: 1.5, mb: 2, border: '1px solid #e0e0e0', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
                 <TextField 
                     size="small"
-                    placeholder="Buscar paciente..."
+                    placeholder="Buscar paciente ou descrição..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     InputProps={{
@@ -135,7 +139,7 @@ export default function ContasReceberView() {
                     onClick={() => setOpenNovoLancamentoModal(true)}
                     sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' } }}
                 >
-                    Novo Lançamento / Recebimento
+                    Novo Lançamento
                 </Button>
             </Paper>
 
@@ -144,9 +148,9 @@ export default function ContasReceberView() {
                 <Table size="small">
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#f9fafb' }}>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Data</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Paciente</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Descrição/Tipo</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Data / Ref</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Paciente / Origem</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Descrição</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Valor</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>Ação</TableCell>
                         </TableRow>
@@ -158,13 +162,13 @@ export default function ContasReceberView() {
                             filteredList.map((pag) => (
                                 <TableRow key={pag.id} hover>
                                     <TableCell sx={{ fontSize: '0.8rem' }}>
-                                        {pag.agendamento ? formatDate(pag.agendamento.data_hora_inicio) : '-'}
+                                        {formatDate(pag)}
                                     </TableCell>
                                     <TableCell sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                                        {pag.paciente_nome || 'Paciente não identificado'}
+                                        {pag.paciente_nome}
                                     </TableCell>
                                     <TableCell sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
-                                        {pag.descricao || (pag.agendamento ? pag.agendamento.tipo_consulta : 'Receita Avulsa')}
+                                        {pag.descricao || (pag.agendamento ? pag.agendamento.tipo_consulta : 'Sem descrição')}
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1a233b' }}>
                                         {formatMoney(pag.valor)}
@@ -185,7 +189,7 @@ export default function ContasReceberView() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                    Nenhuma conta a receber encontrada.
+                                    Nenhuma conta pendente encontrada.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -194,8 +198,6 @@ export default function ContasReceberView() {
             </TableContainer>
 
             {/* --- MODAIS --- */}
-            
-            {/* Modal de confirmação de recebimento (item da lista) */}
             {selectedPagamento && (
                 <PagamentoModal 
                     open={openPagarModal}
@@ -205,7 +207,6 @@ export default function ContasReceberView() {
                 />
             )}
 
-            {/* Modal de Novo Lançamento (Abas: Pagar Agendamento / Avulso) */}
             <LancamentoCaixaModal 
                 open={openNovoLancamentoModal}
                 onClose={handleCloseNovoLancamento}
