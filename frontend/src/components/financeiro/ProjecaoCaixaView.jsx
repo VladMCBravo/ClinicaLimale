@@ -32,7 +32,7 @@ export default function ProjecaoCaixaView() {
                     labels: apiData.labels,
                     datasets: [
                         {
-                            label: 'Saldo Projetado (Caixa)',
+                            label: 'Saldo',
                             data: apiData.saldo_projetado,
                             borderColor: 'rgb(53, 162, 235)',
                             backgroundColor: 'rgba(53, 162, 235, 0.1)',
@@ -40,11 +40,11 @@ export default function ProjecaoCaixaView() {
                             fill: true,
                             yAxisID: 'y',
                             order: 1,
-                            pointRadius: 0, // Remove bolinhas para limpar o gráfico
+                            pointRadius: 0, 
                             pointHoverRadius: 6
                         },
                         {
-                            label: 'Contas a Pagar (Dia)',
+                            label: 'Despesa (Dia)',
                             data: apiData.despesas_previstas,
                             backgroundColor: 'rgba(255, 99, 132, 0.5)',
                             hoverBackgroundColor: 'rgba(255, 99, 132, 0.8)',
@@ -52,7 +52,7 @@ export default function ProjecaoCaixaView() {
                             yAxisID: 'y1',
                             order: 2,
                             barThickness: 'flex',
-                            maxBarThickness: 20
+                            maxBarThickness: 15
                         }
                     ]
                 });
@@ -81,20 +81,20 @@ export default function ProjecaoCaixaView() {
             mensagens.push({
                 tipo: 'erro',
                 titulo: 'Risco de Quebra',
-                texto: `Saldo negativo previsto (R$ ${menorSaldo.toFixed(2)}) no dia ${dataMenorSaldo}. Ação necessária.`
+                texto: `Saldo negativo (R$ ${menorSaldo.toFixed(2)}) previsto p/ dia ${dataMenorSaldo}.`
             });
         } else if (saldoFinal < saldoInicial) {
             status = status === 'critico' ? 'critico' : 'alerta';
             mensagens.push({
                 tipo: 'aviso',
                 titulo: 'Queima de Caixa',
-                texto: `Projeção de terminar o período com menos dinheiro do que hoje (R$ ${(saldoInicial - saldoFinal).toFixed(2)} a menos).`
+                texto: `Previsão de terminar o mês com R$ ${(saldoInicial - saldoFinal).toFixed(2)} a menos.`
             });
         } else {
             mensagens.push({
                 tipo: 'sucesso',
                 titulo: 'Caixa Saudável',
-                texto: `Projeção de crescimento de R$ ${(saldoFinal - saldoInicial).toFixed(2)} no período.`
+                texto: `Previsão de crescimento de R$ ${(saldoFinal - saldoInicial).toFixed(2)}.`
             });
         }
 
@@ -102,7 +102,7 @@ export default function ProjecaoCaixaView() {
              mensagens.push({
                 tipo: 'dica',
                 titulo: 'Picos de Saída',
-                texto: `Atenção aos dias com barras vermelhas altas. Tente negociar esses pagamentos.`
+                texto: `Atenção aos dias com barras vermelhas altas.`
              });
         }
 
@@ -113,10 +113,10 @@ export default function ProjecaoCaixaView() {
 
     const options = {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: false, // CRUCIAL para não esmagar
         interaction: { mode: 'index', intersect: false },
         plugins: {
-            legend: { position: 'top', labels: { boxWidth: 15, padding: 15 } },
+            legend: { position: 'top', align: 'end', labels: { boxWidth: 10, padding: 10, font: { size: 11 } } },
             tooltip: {
                 callbacks: {
                     label: (context) => {
@@ -132,17 +132,17 @@ export default function ProjecaoCaixaView() {
             y: {
                 type: 'linear', display: true, position: 'left',
                 grid: { color: '#f0f0f0' },
-                ticks: { callback: (value) => formatMoney(value), maxTicksLimit: 6 }
+                ticks: { callback: (value) => formatMoney(value), maxTicksLimit: 5, font: { size: 10 } }
             },
             y1: {
                 type: 'linear', display: true, position: 'right',
                 grid: { drawOnChartArea: false },
                 min: 0,
-                ticks: { maxTicksLimit: 4, color: 'rgba(255, 99, 132, 0.8)' }
+                ticks: { maxTicksLimit: 3, color: 'rgba(255, 99, 132, 0.8)', font: { size: 10 } }
             },
             x: { 
                 grid: { display: false },
-                ticks: { maxTicksLimit: isSmallScreen ? 5 : 10 } 
+                ticks: { maxTicksLimit: isSmallScreen ? 4 : 8, font: { size: 10 } } 
             }
         }
     };
@@ -152,31 +152,31 @@ export default function ProjecaoCaixaView() {
     if (!chartData || !analysis) return null;
 
     return (
-        <Box sx={{ mt: 2 }}>
-            {/* 1. KPIs RÁPIDOS */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Box sx={{ mt: 1 }}>
+            {/* 1. KPIs RÁPIDOS (Cards menores) */}
+            <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} sm={4}>
-                    <Card elevation={0} sx={{ border: '1px solid #e0e0e0', bgcolor: '#fff' }}>
-                        <CardContent sx={{ pb: '16px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{ p: 1, borderRadius: '8px', bgcolor: '#e3f2fd', display: 'flex' }}>
+                    <Card elevation={0} sx={{ border: '1px solid #e0e0e0', bgcolor: '#fff', height: '100%' }}>
+                        <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ p: 0.8, borderRadius: '6px', bgcolor: '#e3f2fd', display: 'flex' }}>
                                 <AccountBalanceWallet color="primary" fontSize="small" />
                             </Box>
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight="600">SALDO ATUAL</Typography>
-                                <Typography variant="h6" fontWeight="700">{formatMoney(analysis.saldoInicial)}</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight="600" fontSize="0.7rem">SALDO ATUAL</Typography>
+                                <Typography variant="subtitle1" fontWeight="700" lineHeight={1.1}>{formatMoney(analysis.saldoInicial)}</Typography>
                             </Box>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                    <Card elevation={0} sx={{ border: '1px solid #e0e0e0', bgcolor: '#fff' }}>
-                        <CardContent sx={{ pb: '16px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{ p: 1, borderRadius: '8px', bgcolor: analysis.saldoFinal >= analysis.saldoInicial ? '#e8f5e9' : '#ffebee', display: 'flex' }}>
+                    <Card elevation={0} sx={{ border: '1px solid #e0e0e0', bgcolor: '#fff', height: '100%' }}>
+                        <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ p: 0.8, borderRadius: '6px', bgcolor: analysis.saldoFinal >= analysis.saldoInicial ? '#e8f5e9' : '#ffebee', display: 'flex' }}>
                                 {analysis.saldoFinal >= analysis.saldoInicial ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
                             </Box>
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight="600">SALDO FINAL (30D)</Typography>
-                                <Typography variant="h6" fontWeight="700" color={analysis.saldoFinal >= analysis.saldoInicial ? 'success.main' : 'error.main'}>
+                                <Typography variant="caption" color="text.secondary" fontWeight="600" fontSize="0.7rem">SALDO FINAL (30D)</Typography>
+                                <Typography variant="subtitle1" fontWeight="700" lineHeight={1.1} color={analysis.saldoFinal >= analysis.saldoInicial ? 'success.main' : 'error.main'}>
                                     {formatMoney(analysis.saldoFinal)}
                                 </Typography>
                             </Box>
@@ -184,14 +184,14 @@ export default function ProjecaoCaixaView() {
                     </Card>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                    <Card elevation={0} sx={{ border: '1px solid #e0e0e0', bgcolor: '#fff' }}>
-                        <CardContent sx={{ pb: '16px !important', display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{ p: 1, borderRadius: '8px', bgcolor: analysis.menorSaldo < 0 ? '#ffebee' : '#fff3e0', display: 'flex' }}>
+                    <Card elevation={0} sx={{ border: '1px solid #e0e0e0', bgcolor: '#fff', height: '100%' }}>
+                        <CardContent sx={{ p: '12px !important', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ p: 0.8, borderRadius: '6px', bgcolor: analysis.menorSaldo < 0 ? '#ffebee' : '#fff3e0', display: 'flex' }}>
                                 <Warning color={analysis.menorSaldo < 0 ? 'error' : 'warning'} fontSize="small" />
                             </Box>
                             <Box>
-                                <Typography variant="caption" color="text.secondary" fontWeight="600">PONTO CRÍTICO</Typography>
-                                <Typography variant="h6" fontWeight="700" color={analysis.menorSaldo < 0 ? 'error.main' : 'text.primary'}>
+                                <Typography variant="caption" color="text.secondary" fontWeight="600" fontSize="0.7rem">PONTO CRÍTICO</Typography>
+                                <Typography variant="subtitle1" fontWeight="700" lineHeight={1.1} color={analysis.menorSaldo < 0 ? 'error.main' : 'text.primary'}>
                                     {formatMoney(analysis.menorSaldo)}
                                 </Typography>
                             </Box>
@@ -200,66 +200,62 @@ export default function ProjecaoCaixaView() {
                 </Grid>
             </Grid>
 
-            {/* AJUSTE DE LAYOUT: md={9} para gráfico e md={3} para sidebar */}
-            <Grid container spacing={2} alignItems="stretch">
-                {/* 2. GRÁFICO PRINCIPAL (Mais largo e mais alto) */}
-                <Grid item xs={12} md={9}>
-                    <Paper sx={{ p: 3, height: '100%' }} elevation={1}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
-                            <Typography variant="h6" fontWeight="bold" color="#1a233b">Fluxo de Caixa Previsto</Typography>
-                            <Chip icon={<DateRange fontSize="small" />} label="30 Dias" size="small" variant="outlined" />
+            {/* 2. ÁREA PRINCIPAL BALANCEADA (8 vs 4) */}
+            <Grid container spacing={2} sx={{ alignItems: 'stretch' }}> {/* alignItems stretch força altura igual */}
+                
+                {/* GRÁFICO (66% da tela) */}
+                <Grid item xs={12} md={8}>
+                    <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }} elevation={1}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
+                            <Typography variant="subtitle1" fontWeight="bold" color="#1a233b">Fluxo Previsto</Typography>
+                            <Chip icon={<DateRange fontSize="small" />} label="30 Dias" size="small" variant="outlined" sx={{height: '24px', fontSize: '0.7rem'}} />
                         </Box>
-                        {/* Altura aumentada para 500px */}
-                        <Box sx={{ height: '500px' }}>
+                        
+                        {/* ALTURA FIXA CONTROLADA: 350px é suficiente para laptops */}
+                        <Box sx={{ flexGrow: 1, minHeight: '350px', maxHeight: '350px', width: '100%' }}>
                             <Line data={chartData} options={options} />
                         </Box>
                     </Paper>
                 </Grid>
 
-                {/* 3. CONSELHEIRO FINANCEIRO (Mais estreito e compacto) */}
-                <Grid item xs={12} md={3}>
+                {/* SIDEBAR (33% da tela) */}
+                <Grid item xs={12} md={4}>
                     <Paper sx={{ p: 2, height: '100%', bgcolor: '#fafafa', display: 'flex', flexDirection: 'column' }} elevation={0} variant="outlined">
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                             <Lightbulb sx={{ color: '#fbc02d' }} fontSize="small" />
                             <Typography variant="subtitle1" fontWeight="bold" color="#1a233b">
-                                Análise Rápida
+                                Análise
                             </Typography>
                         </Box>
                         <Divider sx={{ mb: 2 }} />
 
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flexGrow: 1 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                             {analysis.mensagens.map((msg, index) => (
                                 <Alert 
                                     key={index} 
                                     severity={msg.tipo === 'erro' ? 'error' : msg.tipo === 'aviso' ? 'warning' : msg.tipo === 'sucesso' ? 'success' : 'info'}
-                                    variant="standard"
+                                    variant="outlined"
                                     sx={{ 
                                         bgcolor: '#fff', 
-                                        border: '1px solid',
-                                        borderColor: msg.tipo === 'erro' ? '#ef5350' : msg.tipo === 'aviso' ? '#ff9800' : msg.tipo === 'sucesso' ? '#4caf50' : '#03a9f4',
-                                        '& .MuiAlert-icon': { fontSize: '1.2rem' },
-                                        py: 0.5, px: 1.5
+                                        py: 0, px: 1.5,
+                                        '& .MuiAlert-message': { py: 1 },
+                                        '& .MuiAlert-icon': { py: 1 }
                                     }}
-                                    icon={msg.tipo === 'sucesso' ? <CheckCircle fontSize="inherit" /> : msg.tipo === 'erro' ? <Warning fontSize="inherit" /> : msg.tipo === 'dica' ? <InfoOutlined fontSize="inherit" /> : undefined}
                                 >
-                                    <Typography variant="subtitle2" fontWeight="700" sx={{ fontSize: '0.85rem' }}>
+                                    <Typography variant="subtitle2" fontWeight="700" sx={{ fontSize: '0.8rem' }}>
                                         {msg.titulo}
                                     </Typography>
-                                    <Typography variant="caption" display="block" sx={{ lineHeight: 1.2, fontSize: '0.75rem', mt: 0.5 }}>
+                                    <Typography variant="caption" display="block" sx={{ lineHeight: 1.2, fontSize: '0.75rem', mt: 0.2 }}>
                                         {msg.texto}
                                     </Typography>
                                 </Alert>
                             ))}
 
-                            {/* Espaço flexível para empurrar a dica final para baixo se necessário */}
-                            <Box sx={{ flexGrow: 1 }} />
-
-                            {analysis.status === 'bom' && analysis.mensagens.length < 2 && (
-                                <Alert severity="info" variant="outlined" sx={{ bgcolor: '#fff', mt: 'auto' }} icon={<Lightbulb fontSize="inherit" />}>
-                                    <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                                        <b>Dica:</b> Seu caixa está saudável. Tente manter uma reserva técnica para imprevistos.
-                                    </Typography>
-                                </Alert>
+                            {/* Dica de preenchimento caso tenha pouca msg */}
+                            {analysis.mensagens.length === 0 && (
+                                <Typography variant="body2" color="text.secondary" align="center" sx={{mt: 4}}>
+                                    Nenhuma inconsistência encontrada no fluxo.
+                                </Typography>
                             )}
                         </Box>
                     </Paper>
