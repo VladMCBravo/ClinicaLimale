@@ -2,51 +2,61 @@
 
 .dashboard-container {
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
-    /* Remove margens externas desnecessárias */
-    margin-top: 8px; 
+    margin-top: 8px;
+    /* Garante que nada estoure a largura da tela */
+    overflow-x: hidden; 
 }
 
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* Força 3 colunas */
-    gap: 12px; /* Gap menor */
-    margin-bottom: 12px; /* Menos espaço entre KPI e Gráfico */
+    /* minmax(0, 1fr) impede que o conteúdo force a coluna a crescer demais */
+    grid-template-columns: repeat(3, minmax(0, 1fr)); 
+    gap: 10px; /* Gap reduzido para economizar espaço horizontal */
+    margin-bottom: 10px;
+    width: 100%;
 }
 
 .kpi-card-content {
-    padding: 12px !important; /* Força padding pequeno no Material UI */
+    padding: 10px 12px !important;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    /* Evita que textos longos estourem o card */
+    overflow: hidden; 
 }
 
 .main-chart-grid {
     display: grid;
-    grid-template-columns: 2.5fr 1fr; /* Gráfico levemente maior proporcionalmente */
-    gap: 12px;
+    /* O SEGREDO: minmax(0, ...) permite que o gráfico encolha se a tela for pequena */
+    grid-template-columns: minmax(0, 7.5fr) minmax(0, 2.5fr); 
+    gap: 10px;
     align-items: stretch;
     width: 100%;
 }
 
+/* Responsividade: Vira coluna única em tablets verticais */
 @media (max-width: 900px) {
     .kpi-grid { grid-template-columns: 1fr; }
     .main-chart-grid { grid-template-columns: 1fr; }
 }
 
 .chart-paper {
-    padding: 16px; /* Padding reduzido */
+    padding: 12px 16px; /* Padding lateral reduzido */
     height: 100%;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    min-width: 0;
+    /* Vital para Chart.js funcionar dentro de Flex/Grid sem estourar */
+    min-width: 0; 
+    overflow: hidden; 
 }
 
 .chart-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 8px; /* Menos espaço pro título */
+    margin-bottom: 4px;
     align-items: center;
 }
 
@@ -54,20 +64,21 @@
     flex-grow: 1;
     position: relative;
     width: 100%;
-    /* AQUI ESTÁ O SEGREDO DO TAMANHO: */
-    height: 280px; 
-    min-height: 280px; 
-    max-height: 280px;
+    /* Altura levemente reduzida para garantir que caiba verticalmente também */
+    height: 250px; 
+    min-height: 250px; 
+    max-height: 250px;
 }
 
 .sidebar-paper {
-    padding: 12px; /* Sidebar mais compacta */
+    padding: 12px;
     height: 100%;
     background-color: #fafafa;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     border: 1px solid #e0e0e0;
+    min-width: 0; /* Impede overflow */
 }
 
 .sidebar-header {
@@ -80,7 +91,16 @@
 .sidebar-content {
     display: flex;
     flex-direction: column;
-    gap: 8px; /* Itens mais colados */
+    gap: 8px;
     overflow-y: auto;
-    max-height: 280px; /* Alinha com a altura do gráfico */
+    max-height: 250px; /* Sincronizado com o gráfico */
+    padding-right: 4px; /* Espaço para scrollbar interna se necessário */
+}
+
+/* Ajuste fino na tipografia para telas menores */
+.kpi-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap; /* Evita quebra de linha do valor */
 }

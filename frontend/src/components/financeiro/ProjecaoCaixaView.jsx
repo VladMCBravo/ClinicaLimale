@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Paper, Typography, Box, CircularProgress, Alert, Card, CardContent, Divider, Chip 
+    Paper, Typography, Box, CircularProgress, Alert, Card, Divider, Chip 
 } from '@mui/material';
 import { 
     TrendingUp, TrendingDown, Warning, AccountBalanceWallet, DateRange, Lightbulb, CheckCircle
@@ -11,7 +11,6 @@ import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, BarElement 
 } from 'chart.js';
 
-// Importa o CSS compacto
 import './ProjecaoCaixa.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, BarElement);
@@ -32,25 +31,25 @@ export default function ProjecaoCaixaView() {
                     labels: apiData.labels,
                     datasets: [
                         {
-                            label: 'Saldo', // Label mais curto
+                            label: 'Saldo',
                             data: apiData.saldo_projetado,
                             borderColor: '#0288d1',
-                            backgroundColor: 'rgba(2, 136, 209, 0.1)',
+                            backgroundColor: 'rgba(2, 136, 209, 0.05)', // Mais transparente
                             tension: 0.3,
                             fill: true,
                             yAxisID: 'y',
-                            pointRadius: 0, // Sem bolinhas para limpar visual
+                            pointRadius: 0,
                             pointHoverRadius: 4,
                             order: 1
                         },
                         {
-                            label: 'Pagar', // Label mais curto
+                            label: 'Pagar',
                             data: apiData.despesas_previstas,
                             backgroundColor: 'rgba(211, 47, 47, 0.6)',
                             type: 'bar',
                             yAxisID: 'y1',
                             order: 2,
-                            barPercentage: 0.6,
+                            barPercentage: 0.5,
                         }
                     ]
                 });
@@ -76,9 +75,9 @@ export default function ProjecaoCaixaView() {
             mensagens.push({ tipo: 'erro', titulo: 'Risco de Caixa', texto: `Saldo negativo (R$ ${menorSaldo.toFixed(0)}) previsto.` });
         }
         if (saldoFinal < saldoInicial) {
-            mensagens.push({ tipo: 'aviso', titulo: 'Consumo de Reservas', texto: `Queda de R$ ${(saldoInicial - saldoFinal).toFixed(0)} no período.` });
+            mensagens.push({ tipo: 'aviso', titulo: 'Consumo', texto: `Queda de R$ ${(saldoInicial - saldoFinal).toFixed(0)}.` });
         } else {
-            mensagens.push({ tipo: 'sucesso', titulo: 'Crescimento', texto: `Lucro de R$ ${(saldoFinal - saldoInicial).toFixed(0)} no período.` });
+            mensagens.push({ tipo: 'sucesso', titulo: 'Crescimento', texto: `Lucro de R$ ${(saldoFinal - saldoInicial).toFixed(0)}.` });
         }
 
         return { saldoInicial, saldoFinal, menorSaldo, mensagens };
@@ -94,10 +93,12 @@ export default function ProjecaoCaixaView() {
             legend: { 
                 position: 'top', 
                 align: 'end',
-                labels: { boxWidth: 8, padding: 6, font: { size: 10 } } // Legenda menor
+                labels: { boxWidth: 6, padding: 6, font: { size: 9 } } 
             },
             tooltip: {
-                callbacks: { label: (c) => ` ${c.dataset.label}: ${formatMoney(c.raw)}` }
+                callbacks: { label: (c) => ` ${c.dataset.label}: ${formatMoney(c.raw)}` },
+                titleFont: { size: 11 },
+                bodyFont: { size: 11 }
             }
         },
         scales: {
@@ -105,9 +106,9 @@ export default function ProjecaoCaixaView() {
                 position: 'left', 
                 grid: { color: '#f5f5f5' },
                 ticks: { 
-                    callback: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: "compact" }).format(v), // Notação compacta (1k, 1M)
+                    callback: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: "compact" }).format(v),
                     maxTicksLimit: 5,
-                    font: { size: 10 }
+                    font: { size: 9 }
                 }
             },
             y1: { 
@@ -115,11 +116,11 @@ export default function ProjecaoCaixaView() {
                 display: true,
                 grid: { drawOnChartArea: false },
                 min: 0,
-                ticks: { display: false } // Esconde números da barra vermelha pra limpar
+                ticks: { display: false } 
             },
             x: { 
                 grid: { display: false }, 
-                ticks: { maxTicksLimit: 6, font: { size: 10 } } 
+                ticks: { maxTicksLimit: 6, font: { size: 9 } } 
             }
         }
     };
@@ -129,16 +130,16 @@ export default function ProjecaoCaixaView() {
 
     return (
         <div className="dashboard-container">
-            {/* 1. KPIs Compactos */}
+            {/* 1. KPIs */}
             <div className="kpi-grid">
                 <Card variant="outlined">
                     <div className="kpi-card-content">
                         <Box sx={{ p: 0.5, bgcolor: '#e3f2fd', borderRadius: 1, display: 'flex' }}>
                             <AccountBalanceWallet color="primary" fontSize="small" />
                         </Box>
-                        <div>
-                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem">SALDO HOJE</Typography>
-                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.1}>{formatMoney(analysis.saldoInicial)}</Typography>
+                        <div style={{minWidth: 0}}>
+                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem" noWrap>SALDO HOJE</Typography>
+                            <Typography className="kpi-value" color="textPrimary">{formatMoney(analysis.saldoInicial)}</Typography>
                         </div>
                     </div>
                 </Card>
@@ -147,9 +148,9 @@ export default function ProjecaoCaixaView() {
                         <Box sx={{ p: 0.5, bgcolor: analysis.saldoFinal >= analysis.saldoInicial ? '#e8f5e9' : '#ffebee', borderRadius: 1, display: 'flex' }}>
                             {analysis.saldoFinal >= analysis.saldoInicial ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
                         </Box>
-                        <div>
-                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem">EM 30 DIAS</Typography>
-                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.1} color={analysis.saldoFinal >= analysis.saldoInicial ? 'success.main' : 'error.main'}>
+                        <div style={{minWidth: 0}}>
+                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem" noWrap>EM 30 DIAS</Typography>
+                            <Typography className="kpi-value" color={analysis.saldoFinal >= analysis.saldoInicial ? 'success.main' : 'error.main'}>
                                 {formatMoney(analysis.saldoFinal)}
                             </Typography>
                         </div>
@@ -160,9 +161,9 @@ export default function ProjecaoCaixaView() {
                         <Box sx={{ p: 0.5, bgcolor: analysis.menorSaldo < 0 ? '#ffebee' : '#fff3e0', borderRadius: 1, display: 'flex' }}>
                             <Warning color={analysis.menorSaldo < 0 ? 'error' : 'warning'} fontSize="small" />
                         </Box>
-                        <div>
-                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem">PONTO CRÍTICO</Typography>
-                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.1} color={analysis.menorSaldo < 0 ? 'error.main' : 'text.primary'}>
+                        <div style={{minWidth: 0}}>
+                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem" noWrap>PONTO CRÍTICO</Typography>
+                            <Typography className="kpi-value" color={analysis.menorSaldo < 0 ? 'error.main' : 'text.primary'}>
                                 {formatMoney(analysis.menorSaldo)}
                             </Typography>
                         </div>
@@ -176,8 +177,8 @@ export default function ProjecaoCaixaView() {
                 {/* Gráfico */}
                 <Paper className="chart-paper" elevation={1}>
                     <div className="chart-header">
-                        <Typography variant="subtitle2" fontWeight="bold" color="#1a233b">Fluxo de Caixa</Typography>
-                        <Chip icon={<DateRange style={{fontSize: 14}} />} label="30 Dias" size="small" variant="outlined" style={{height: 20, fontSize: '0.7rem'}} />
+                        <Typography variant="subtitle2" fontWeight="bold" color="#1a233b" style={{fontSize: '0.9rem'}}>Fluxo de Caixa</Typography>
+                        <Chip icon={<DateRange style={{fontSize: 12}} />} label="30 Dias" size="small" variant="outlined" style={{height: 18, fontSize: '0.65rem'}} />
                     </div>
                     <div className="chart-wrapper">
                         <Line data={chartData} options={options} />
@@ -187,8 +188,8 @@ export default function ProjecaoCaixaView() {
                 {/* Sidebar */}
                 <Paper className="sidebar-paper" elevation={0}>
                     <div className="sidebar-header">
-                        <Lightbulb sx={{ color: '#fbc02d', fontSize: 18 }} />
-                        <Typography variant="subtitle2" fontWeight="bold" color="#1a233b">Análise</Typography>
+                        <Lightbulb sx={{ color: '#fbc02d', fontSize: 16 }} />
+                        <Typography variant="subtitle2" fontWeight="bold" color="#1a233b" style={{fontSize: '0.85rem'}}>Análise</Typography>
                     </div>
                     <Divider sx={{ mb: 1 }} />
                     
@@ -198,16 +199,17 @@ export default function ProjecaoCaixaView() {
                                 key={i} 
                                 severity={msg.tipo === 'erro' ? 'error' : msg.tipo === 'aviso' ? 'warning' : 'success'}
                                 variant="outlined"
-                                icon={msg.tipo === 'sucesso' ? <CheckCircle style={{fontSize: 16}}/> : undefined}
+                                icon={msg.tipo === 'sucesso' ? <CheckCircle style={{fontSize: 14}}/> : undefined}
                                 sx={{ 
                                     bgcolor: '#fff', 
                                     py: 0, px: 1, 
-                                    '& .MuiAlert-message': { py: 0.5 },
-                                    '& .MuiAlert-icon': { py: 0.5, mr: 1 } 
+                                    minHeight: '40px',
+                                    '& .MuiAlert-message': { py: 0.5, display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+                                    '& .MuiAlert-icon': { py: 0.5, mr: 0.5, alignItems: 'center' } 
                                 }}
                             >
-                                <Typography variant="caption" fontWeight="bold" display="block">{msg.titulo}</Typography>
-                                <Typography variant="caption" style={{fontSize: '0.7rem'}}>{msg.texto}</Typography>
+                                <span style={{fontWeight: 'bold', fontSize: '0.7rem', lineHeight: 1.1}}>{msg.titulo}</span>
+                                <span style={{fontSize: '0.65rem', lineHeight: 1.1}}>{msg.texto}</span>
                             </Alert>
                         ))}
                         {analysis.mensagens.length === 0 && (
