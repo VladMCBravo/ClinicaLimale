@@ -1,4 +1,3 @@
-// src/components/financeiro/LancamentoAvulsoTab.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Box, Grid, TextField, Button, CircularProgress, Autocomplete, 
@@ -19,8 +18,6 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 export default function LancamentoAvulsoTab({ onClose }) {
     const [tipo, setTipo] = useState('receita');
     const [origemReceita, setOrigemReceita] = useState('paciente');
-    
-    // NOVO ESTADO: Controle explícito de "Já Recebido"
     const [jaRecebido, setJaRecebido] = useState(true); 
 
     const [formData, setFormData] = useState({ qtd_parcelas: 1 });
@@ -40,8 +37,6 @@ export default function LancamentoAvulsoTab({ onClose }) {
         if (newTipo !== null) {
             setTipo(newTipo);
             setFormData({ qtd_parcelas: 1 }); 
-            // Se for despesa, assumimos 'Paga' por padrão? Ou mantemos a lógica do usuário
-            // Aqui mantemos jaRecebido como true por padrão para facilitar
             setJaRecebido(true);
         }
     };
@@ -62,7 +57,6 @@ export default function LancamentoAvulsoTab({ onClose }) {
         setFormData(prev => ({ 
             ...prev, 
             forma_pagamento: method,
-            // Se escolheu método, logicamente está sendo pago, mas respeitamos o Switch
             qtd_parcelas: method === 'CartaoCredito' ? prev.qtd_parcelas : 1
         }));
     };
@@ -74,7 +68,6 @@ export default function LancamentoAvulsoTab({ onClose }) {
             return;
         }
         
-        // Validação extra: Se marcou "Já Recebido", precisa informar COMO
         if (tipo === 'receita' && jaRecebido && !formData.forma_pagamento) {
             showSnackbar('Selecione a forma de pagamento.', 'warning');
             return;
@@ -86,7 +79,6 @@ export default function LancamentoAvulsoTab({ onClose }) {
             ...formData,
             tipo: tipo,
             paciente: (tipo === 'receita' && origemReceita === 'paciente') ? formData.paciente?.id : null,
-            // AQUI ESTÁ A LÓGICA DO STATUS
             status: jaRecebido ? 'Pago' : 'Pendente' 
         };
 
@@ -150,13 +142,15 @@ export default function LancamentoAvulsoTab({ onClose }) {
                 {/* --- COLUNA ESQUERDA (Dados) --- */}
                 <Grid item xs={12} md={7}>
                     <Paper sx={{ p: 2 }} elevation={1}>
-                        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1}}>
+                        
+                        {/* --- CORREÇÃO 1: HEADER ALINHADO COM SPACE-BETWEEN E GAP --- */}
+                        <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1}}>
                             <Typography variant="subtitle2" fontWeight="bold" sx={{color: '#1a233b', fontSize: '0.85rem'}}>
                                 Dados Gerais
                             </Typography>
                             
-                            {/* SWITCH DE STATUS */}
                             <FormControlLabel
+                                sx={{ margin: 0 }} // Remove margem negativa padrão
                                 control={
                                     <Switch 
                                         size="small"
@@ -165,22 +159,31 @@ export default function LancamentoAvulsoTab({ onClose }) {
                                         color={tipo === 'receita' ? "success" : "error"}
                                     />
                                 }
-                                label={<Typography fontSize="0.75rem" fontWeight="bold">{jaRecebido ? (tipo === 'receita' ? "RECEBIDO" : "PAGO") : "PENDENTE"}</Typography>}
+                                label={
+                                    <Typography fontSize="0.7rem" fontWeight="bold" sx={{minWidth: '60px', textAlign: 'right'}}>
+                                        {jaRecebido ? (tipo === 'receita' ? "RECEBIDO" : "PAGO") : "PENDENTE"}
+                                    </Typography>
+                                }
                             />
                         </Box>
                         
                         {tipo === 'receita' && (
                             <Box sx={{ mb: 1.5 }}>
+                                {/* --- CORREÇÃO 2: TEXTO MENOR NO BOTÃO PARA NÃO QUEBRAR --- */}
                                 <ToggleButtonGroup
                                     value={origemReceita}
                                     exclusive
                                     onChange={handleOrigemChange}
                                     size="small"
                                     fullWidth
-                                    sx={{ mb: 1, height: '28px' }}
+                                    sx={{ mb: 1, height: '32px' }}
                                 >
-                                    <ToggleButton value="paciente" sx={{fontSize: '0.7rem'}}>Paciente</ToggleButton>
-                                    <ToggleButton value="outros" sx={{fontSize: '0.7rem'}}>Outros (Sócio)</ToggleButton>
+                                    <ToggleButton value="paciente" sx={{fontSize: '0.7rem', px: 1}}>
+                                        <Person fontSize="small" sx={{mr:0.5}}/> Paciente
+                                    </ToggleButton>
+                                    <ToggleButton value="outros" sx={{fontSize: '0.7rem', px: 1, whiteSpace: 'nowrap'}}>
+                                        <AccountBalance fontSize="small" sx={{mr:0.5}}/> Outros / Sócios
+                                    </ToggleButton>
                                 </ToggleButtonGroup>
 
                                 {origemReceita === 'paciente' ? (
@@ -295,17 +298,15 @@ export default function LancamentoAvulsoTab({ onClose }) {
                             </>
                         )}
 
-                        {/* MENSAGEM SE FOR PENDENTE */}
                         {tipo === 'receita' && !jaRecebido && (
                             <Box sx={{ p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px dashed #ffb74d', mb: 'auto' }}>
                                 <Typography variant="caption" color="warning.main" display="flex" alignItems="center">
                                     <Event fontSize="small" sx={{mr: 0.5}} />
-                                    Ficará como "A Receber" no painel.
+                                    Ficará como "A Receber".
                                 </Typography>
                             </Box>
                         )}
                         
-                        {/* Botão no rodapé do card */}
                         <Box sx={{ mt: 'auto' }}>
                             <Button 
                                 type="submit" 
