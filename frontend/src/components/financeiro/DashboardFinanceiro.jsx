@@ -3,7 +3,7 @@ import {
     Visibility, VisibilityOff, 
     ArrowUpward, ArrowDownward, 
     AddCard, Pix, ReceiptLong, Payment,
-    NotificationsActive, BarChart
+    NotificationsActive, BarChart, CheckCircle
 } from '@mui/icons-material';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
