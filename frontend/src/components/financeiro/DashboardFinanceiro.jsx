@@ -20,6 +20,11 @@ const TransactionIcon = ({ type }) => (
         {type === 'income' ? <ArrowUpward fontSize="inherit"/> : <ArrowDownward fontSize="inherit"/>}
     </div>
 );
+// Função auxiliar para ícone nos alertas
+const AlertIcon = ({ tipo }) => {
+    if (tipo === 'entrada') return <ArrowUpward sx={{ fontSize: 14, color: '#2ecc71', mr: 1 }} />;
+    return <ArrowDownward sx={{ fontSize: 14, color: '#e74c3c', mr: 1 }} />;
+};
 
 export default function DashboardFinanceiro() {
     const [isLoading, setIsLoading] = useState(true);
@@ -218,17 +223,45 @@ export default function DashboardFinanceiro() {
 
                 <div className="alerts-section">
                     <div className="alert-box">
-                        <div className="section-title" style={{marginBottom: 8}}>
-                            <span><NotificationsActive sx={{fontSize: 16, mr: 0.5, color:'#f39c12', verticalAlign:'text-bottom'}}/>Avisos</span>
+                        <div className="section-title" style={{marginBottom: 12, display: 'flex', justifyContent: 'space-between'}}>
+                            <span>
+                                <NotificationsActive sx={{fontSize: 16, mr: 0.5, color:'#f39c12', verticalAlign:'text-bottom'}}/>
+                                Próximos 7 Dias
+                            </span>
                         </div>
-                        {/* AQUI ESTAVA O ERRO: Mudamos de 'alerts' para 'alertas' */}
-                        {alertas.length > 0 ? alertas.map(alert => (
-                            <div key={alert.id} className="bill-item">
-                                <span className="bill-date">{alert.date}</span>
-                                <span className="bill-info">{alert.desc}</span>
-                                <span className="bill-value">{formatMoney(alert.valor)}</span>
+
+                        {alertas.length > 0 ? (
+                            <div className="alerts-list-scroll" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                                {alertas.map(alert => (
+                                    <div key={alert.id} className="bill-item" style={{ 
+                                        borderLeft: alert.tipo === 'entrada' ? '3px solid #2ecc71' : '3px solid #e74c3c',
+                                        paddingLeft: '8px' 
+                                    }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span className="bill-date" style={{ fontSize: '0.7rem', color: '#999' }}>
+                                                {alert.date}
+                                            </span>
+                                            <span className="bill-info" style={{ fontWeight: 500 }}>
+                                                {alert.desc}
+                                            </span>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <span className="bill-value" style={{ 
+                                                color: alert.tipo === 'entrada' ? '#27ae60' : '#c0392b',
+                                                fontWeight: 'bold' 
+                                            }}>
+                                                {alert.tipo === 'entrada' ? '+' : '-'} {formatMoney(alert.valor)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        )) : <span style={{fontSize:'0.75rem', color:'#999'}}>Nenhum aviso.</span>}
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                                <CheckCircle sx={{ fontSize: 40, color: '#eee', mb: 1 }} />
+                                <span style={{ display: 'block', fontSize: '0.8rem' }}>Tudo em dia!</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="alert-box">

@@ -2,6 +2,8 @@
 import csv
 import io
 from datetime import datetime, time, timedelta
+from itertools import chain
+from operator import attrgetter
 
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import generics, status, viewsets
@@ -48,20 +50,19 @@ class FinanceiroDashboardAPIView(APIView):
 
     def get(self, request):
         hoje = timezone.localdate()
+        # Define um horizonte de 7 dias para alertas
+        data_limite_alertas = hoje + timedelta(days=7)
         
-        # 1. TOTAIS DO DIA
+        # 1. TOTAIS DO DIA (Regime de Caixa - O que entrou/saiu HOJE)
         receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
         despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
         
-        # 2. SALDO GERAL (CÁLCULO PURO DO BANCO DE DADOS)
+        # 2. SALDO GERAL ACUMULADO
         total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        # --- ALTERAÇÃO AQUI: Removemos a consulta ao Banco Inter para garantir fidelidade aos dados locais ---
         saldo_final = total_entradas - total_saidas
-        # ----------------------------------------------------------------------------------------------------
 
-        # 3. EXTRATO UNIFICADO (Últimos 30 lançamentos)
+        # 3. EXTRATO UNIFICADO (Últimos 30 lançamentos realizados)
         ultimas_receitas = Pagamento.objects.filter(status='Pago').order_by('-data_pagamento')[:20]
         ultimas_despesas = Despesa.objects.filter(pago=True).order_by('-data_pagamento')[:20]
 
@@ -80,37 +81,66 @@ class FinanceiroDashboardAPIView(APIView):
             extrato.append({
                 'id': f'desp-{d.id}',
                 'desc': d.descricao,
-                'date': d.data_pagamento or d.data_despesa,
+                'date': d.data_pagamento or d.data_despesa, # Prioriza data de pagamento real
                 'amount': float(d.valor),
                 'type': 'expense',
                 'status': 'Pago'
             })
 
+        # Ordena por data decrescente (mais recente primeiro)
         extrato.sort(key=lambda x: x['date'] if x['date'] else datetime.min, reverse=True)
         extrato = extrato[:30]
 
-        # 4. AVISOS DE VENCIMENTO
-        proximas_contas = Despesa.objects.filter(
+        # 4. AVISOS INTELIGENTES (Contas a Pagar E a Receber Próximas)
+        # Contas a Pagar vencendo (exclui pagas)
+        contas_a_pagar = Despesa.objects.filter(
             pago=False, 
             data_vencimento__gte=hoje,
-            data_vencimento__lte=hoje + timedelta(days=7)
-        ).order_by('data_vencimento')[:5]
+            data_vencimento__lte=data_limite_alertas
+        ).only('id', 'descricao', 'data_vencimento', 'valor')
 
-        alertas = []
-        for c in proximas_contas:
-            alertas.append({
-                'id': c.id,
+        # Contas a Receber (Pendente) vencendo (exclui pagas)
+        contas_a_receber = Pagamento.objects.filter(
+            status='Pendente',
+            data_vencimento__gte=hoje,
+            data_vencimento__lte=data_limite_alertas
+        ).select_related('paciente').only('id', 'descricao', 'data_vencimento', 'valor', 'paciente__nome_completo')
+
+        alertas_list = []
+        
+        for c in contas_a_pagar:
+            alertas_list.append({
+                'id': f'pagar-{c.id}',
                 'desc': c.descricao,
-                'date': c.data_vencimento.strftime('%d/%m') if c.data_vencimento else 'S/D',
-                'valor': float(c.valor)
+                'date': c.data_vencimento,
+                'valor': float(c.valor),
+                'tipo': 'saida' # Identificador para cor vermelha
             })
+            
+        for r in contas_a_receber:
+            # Tenta pegar nome do paciente ou descrição
+            desc_text = r.paciente.nome_completo if r.paciente else (r.descricao or "A Receber")
+            alertas_list.append({
+                'id': f'receber-{r.id}',
+                'desc': desc_text,
+                'date': r.data_vencimento,
+                'valor': float(r.valor),
+                'tipo': 'entrada' # Identificador para cor verde
+            })
+
+        # Ordena alertas por vencimento (mais urgente primeiro)
+        alertas_list.sort(key=lambda x: x['date'])
+
+        # Formata a data para string BR apenas no final para não quebrar ordenação
+        for item in alertas_list:
+            item['date'] = item['date'].strftime('%d/%m') if item['date'] else 'S/D'
 
         dados = {
             "saldo_em_conta": float(saldo_final),
             "faturamento_do_dia": float(receitas_hoje),
             "despesas_do_dia": float(despesas_hoje),
             "extrato_real": extrato,
-            "alertas_vencimento": alertas
+            "alertas_vencimento": alertas_list # Agora contém entradas e saídas
         }
         return Response(dados)
 
@@ -122,7 +152,7 @@ class ProjecaoFluxoCaixaAPIView(APIView):
         hoje = timezone.localdate()
         data_final = hoje + timedelta(days=30)
         
-        # Saldo Inicial
+        # 1. SALDO INICIAL (Ponto de Partida)
         saldo_acumulado = 0.0
         try:
             if inter_service:
@@ -132,50 +162,82 @@ class ProjecaoFluxoCaixaAPIView(APIView):
         except Exception:
             pass
 
-        # Receitas Futuras (Agendamentos)
-        # Tenta descobrir o nome do campo de valor no Agendamento para evitar erro 500
-        campo_valor = 'valor' # Padrão
+        # 2. RECEITAS FUTURAS (Unificação: Agendamentos + Financeiro Pendente)
+        mapa_receitas = {}
+
+        # A) Receita prevista via Agendamentos (que AINDA NÃO geraram pagamento financeiro)
+        #    Isso evita duplicidade: se já gerou pagamento, conta no bloco B.
+        
+        # Lógica para descobrir nome do campo (valor ou valor_consulta)
+        campo_valor = 'valor' 
         try:
-            # Testa se valor_consulta existe (comum em alguns sistemas legados)
-            # AQUI ESTAVA O ERRO: FieldError não estava importado
             Agendamento.objects.filter(pk__in=[]).values('valor_consulta')
             campo_valor = 'valor_consulta'
         except FieldError:
-            pass # Mantém 'valor' se 'valor_consulta' não existir
+            pass 
 
         try:
-            receitas_qs = Agendamento.objects.filter(
+            receitas_agend = Agendamento.objects.filter(
                 data_hora_inicio__date__range=[hoje, data_final],
-                status__in=['Agendado', 'Confirmado']
+                status__in=['Agendado', 'Confirmado'],
+                pagamento__isnull=True # <--- IMPORTANTE: Só pega o que não está no financeiro ainda
             ).annotate(
                 dia=TruncDate('data_hora_inicio')
             ).values('dia').annotate(
                 total=Sum(campo_valor)
             ).order_by('dia')
             
-            # Trata None direto no dicionário
-            mapa_receitas = {r['dia']: (r['total'] or 0) for r in receitas_qs}
-        except Exception as e:
-            print(f"Erro ao calcular receitas futuras: {e}")
-            mapa_receitas = {}
+            for r in receitas_agend:
+                d = r['dia']
+                mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(r['total'] or 0))
 
-        # Despesas Futuras
+        except Exception as e:
+            print(f"Erro ao calcular receitas de agendamentos: {e}")
+
+        # B) Receita confirmada no Financeiro (Lançamentos Avulsos, Parcelas, Boletos)
         try:
-            despesas_qs = Despesa.objects.filter(
-                data_despesa__range=[hoje, data_final]
-            ).values('data_despesa').annotate(
+            receitas_fin = Pagamento.objects.filter(
+                status='Pendente',
+                data_vencimento__range=[hoje, data_final]
+            ).annotate(
+                dia=TruncDate('data_vencimento')
+            ).values('dia').annotate(
                 total=Sum('valor')
-            ).order_by('data_despesa')
+            ).order_by('dia')
+
+            for r in receitas_fin:
+                d = r['dia']
+                # Soma ao que já existia (dos agendamentos)
+                mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(r['total'] or 0))
+
+        except Exception as e:
+            print(f"Erro ao calcular receitas do financeiro: {e}")
+
+
+        # 3. DESPESAS FUTURAS (Pelo Vencimento)
+        mapa_despesas = {}
+        try:
+            # Usamos data_vencimento para fluxo de caixa real. Se não tiver vencimento, usa data_despesa.
+            # O coalesce garante que não quebre se data_vencimento for null, mas idealmente deve ser preenchido.
+            despesas_qs = Despesa.objects.filter(
+                pago=False,
+                data_vencimento__range=[hoje, data_final]
+            ).annotate(
+                dia=TruncDate('data_vencimento')
+            ).values('dia').annotate(
+                total=Sum('valor')
+            ).order_by('dia')
             
-            mapa_despesas = {d['data_despesa']: (d['total'] or 0) for d in despesas_qs}
+            mapa_despesas = {d['dia']: (float(d['total'] or 0)) for d in despesas_qs}
         except Exception as e:
             print(f"Erro ao calcular despesas futuras: {e}")
-            mapa_despesas = {}
 
-        # Construção da Linha do Tempo
+        # 4. CONSTRUÇÃO DA LINHA DO TEMPO (Loop de 30 dias)
         datas = []
         saldo_linha = []
         despesa_linha = []
+
+        saldo_atual_loop = saldo_acumulado
 
         for i in range(31):
             data_corrente = hoje + timedelta(days=i)
@@ -183,10 +245,11 @@ class ProjecaoFluxoCaixaAPIView(APIView):
             entrada = float(mapa_receitas.get(data_corrente, 0))
             saida = float(mapa_despesas.get(data_corrente, 0))
             
-            saldo_acumulado = saldo_acumulado + entrada - saida
+            # Cálculo do saldo acumulado dia a dia
+            saldo_atual_loop = saldo_atual_loop + entrada - saida
             
             datas.append(data_corrente.strftime('%d/%m'))
-            saldo_linha.append(saldo_acumulado)
+            saldo_linha.append(saldo_atual_loop)
             despesa_linha.append(saida)
 
         return Response({
