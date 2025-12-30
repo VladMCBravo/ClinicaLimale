@@ -1,0 +1,66 @@
+/* src/components/financeiro/ProjecaoCaixa.css */
+
+.dashboard-container {
+    margin-top: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+/* O Grid Principal que segura Gráfico e Sidebar */
+.main-chart-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* 2 partes gráfico, 1 parte sidebar */
+    gap: 16px;
+    align-items: stretch; /* Força ambos a terem a mesma altura */
+    width: 100%;
+}
+
+/* Ajuste para telas menores (Mobile/Tablet vertical) */
+@media (max-width: 900px) {
+    .main-chart-grid {
+        grid-template-columns: 1fr; /* Um em cima do outro */
+    }
+}
+
+.chart-paper {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    /* Garante que não ultrapasse a largura pai */
+    min-width: 0; 
+}
+
+.chart-wrapper {
+    flex-grow: 1;
+    position: relative;
+    width: 100%;
+    min-height: 350px; /* Altura mínima confortável */
+    max-height: 400px; /* Trava a altura máxima para não esticar demais */
+}
+
+.sidebar-paper {
+    padding: 16px;
+    height: 100%;
+    background-color: #fafafa;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    border: 1px solid #e0e0e0;
+}
+
+.sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto; /* Permite rolar se tiver muitas dicas */
+    max-height: 400px;
+}

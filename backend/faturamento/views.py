@@ -165,87 +165,62 @@ class ProjecaoFluxoCaixaAPIView(APIView):
         hoje = timezone.localdate()
         data_final = hoje + timedelta(days=30)
         
-        # 1. SALDO INICIAL (Ponto de Partida)
-        saldo_acumulado = 0.0
-        try:
-            if inter_service:
-                saldo_real = inter_service.consultar_saldo()
-                if saldo_real is not None:
-                    saldo_acumulado = float(saldo_real)
-        except Exception:
-            pass
+        # 1. CÁLCULO DO SALDO INICIAL REAL (Baseado no histórico do sistema)
+        # Se não usar API do banco Inter, calculamos: Tudo que entrou - Tudo que saiu (status Pago)
+        total_entradas_historico = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
+        total_saidas_historico = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        # Saldo de partida para o gráfico de hoje
+        saldo_acumulado = float(total_entradas_historico) - float(total_saidas_historico)
+        
+        # (Opcional) Se tiver integração Inter ativa e quiser usar o saldo real do banco:
+        # try:
+        #     if inter_service:
+        #         saldo_banco = inter_service.consultar_saldo()
+        #         if saldo_banco is not None:
+        #             saldo_acumulado = float(saldo_banco)
+        # except: pass
 
-        # 2. RECEITAS FUTURAS (Unificação: Agendamentos + Financeiro Pendente)
+        # 2. MAPEAR RECEITAS FUTURAS (Agendamentos + Financeiro Pendente)
         mapa_receitas = {}
 
-        # A) Receita prevista via Agendamentos (que AINDA NÃO geraram pagamento financeiro)
-        #    Isso evita duplicidade: se já gerou pagamento, conta no bloco B.
-        
-        # Lógica para descobrir nome do campo (valor ou valor_consulta)
-        campo_valor = 'valor' 
-        try:
-            Agendamento.objects.filter(pk__in=[]).values('valor_consulta')
-            campo_valor = 'valor_consulta'
-        except FieldError:
-            pass 
+        # A) Financeiro já lançado (Boletos gerados, Parcelas de cartão a cair)
+        receitas_fin = Pagamento.objects.filter(
+            status='Pendente',
+            data_vencimento__range=[hoje, data_final]
+        ).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
 
-        try:
-            receitas_agend = Agendamento.objects.filter(
-                data_hora_inicio__date__range=[hoje, data_final],
-                status__in=['Agendado', 'Confirmado'],
-                pagamento__isnull=True # <--- IMPORTANTE: Só pega o que não está no financeiro ainda
-            ).annotate(
-                dia=TruncDate('data_hora_inicio')
-            ).values('dia').annotate(
-                total=Sum(campo_valor)
-            ).order_by('dia')
-            
-            for r in receitas_agend:
-                d = r['dia']
-                mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(r['total'] or 0))
+        for r in receitas_fin:
+            d = r['dia']
+            mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(r['total'] or 0))
 
-        except Exception as e:
-            print(f"Erro ao calcular receitas de agendamentos: {e}")
+        # B) Agendamentos Confirmados (Que AINDA NÃO têm financeiro lançado)
+        # Isso é crucial: Pega consultas futuras que vão virar dinheiro.
+        agendamentos_futuros = Agendamento.objects.filter(
+            data_hora_inicio__date__range=[hoje, data_final],
+            status__in=['Agendado', 'Confirmado'],
+            pagamento__isnull=True  # Só os que não geraram cobrança ainda
+        ).annotate(dia=TruncDate('data_hora_inicio')).values('dia').annotate(
+            # Tenta pegar valor do procedimento ou valor fixo da consulta
+            total=Sum('procedimento__valor_particular') 
+        ).order_by('dia')
 
-        # B) Receita confirmada no Financeiro (Lançamentos Avulsos, Parcelas, Boletos)
-        try:
-            receitas_fin = Pagamento.objects.filter(
-                status='Pendente',
-                data_vencimento__range=[hoje, data_final]
-            ).annotate(
-                dia=TruncDate('data_vencimento')
-            ).values('dia').annotate(
-                total=Sum('valor')
-            ).order_by('dia')
+        for ag in agendamentos_futuros:
+            d = ag['dia']
+            # Se o valor for null (ex: retorno), soma 0
+            mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(ag['total'] or 0))
 
-            for r in receitas_fin:
-                d = r['dia']
-                # Soma ao que já existia (dos agendamentos)
-                mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(r['total'] or 0))
-
-        except Exception as e:
-            print(f"Erro ao calcular receitas do financeiro: {e}")
-
-
-        # 3. DESPESAS FUTURAS (Pelo Vencimento)
+        # 3. MAPEAR DESPESAS FUTURAS (Contas a Pagar)
         mapa_despesas = {}
-        try:
-            # Usamos data_vencimento para fluxo de caixa real. Se não tiver vencimento, usa data_despesa.
-            # O coalesce garante que não quebre se data_vencimento for null, mas idealmente deve ser preenchido.
-            despesas_qs = Despesa.objects.filter(
-                pago=False,
-                data_vencimento__range=[hoje, data_final]
-            ).annotate(
-                dia=TruncDate('data_vencimento')
-            ).values('dia').annotate(
-                total=Sum('valor')
-            ).order_by('dia')
-            
-            mapa_despesas = {d['dia']: (float(d['total'] or 0)) for d in despesas_qs}
-        except Exception as e:
-            print(f"Erro ao calcular despesas futuras: {e}")
+        despesas_futuras = Despesa.objects.filter(
+            pago=False,
+            data_vencimento__range=[hoje, data_final]
+        ).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+        
+        for d in despesas_futuras:
+            mapa_despesas[d['dia']] = float(d['total'] or 0)
 
-        # 4. CONSTRUÇÃO DA LINHA DO TEMPO (Loop de 30 dias)
+        # 4. CONSTRUÇÃO DA LINHA DO TEMPO
         datas = []
         saldo_linha = []
         despesa_linha = []
@@ -258,7 +233,6 @@ class ProjecaoFluxoCaixaAPIView(APIView):
             entrada = float(mapa_receitas.get(data_corrente, 0))
             saida = float(mapa_despesas.get(data_corrente, 0))
             
-            # Cálculo do saldo acumulado dia a dia
             saldo_atual_loop = saldo_atual_loop + entrada - saida
             
             datas.append(data_corrente.strftime('%d/%m'))
