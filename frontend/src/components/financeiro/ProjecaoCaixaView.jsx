@@ -3,7 +3,7 @@ import {
     Paper, Typography, Box, CircularProgress, Alert, Card, CardContent, Divider, Chip 
 } from '@mui/material';
 import { 
-    TrendingUp, TrendingDown, Warning, AccountBalanceWallet, DateRange, Lightbulb, InfoOutlined, CheckCircle
+    TrendingUp, TrendingDown, Warning, AccountBalanceWallet, DateRange, Lightbulb, CheckCircle
 } from '@mui/icons-material';
 import { Line } from 'react-chartjs-2';
 import { faturamentoService } from '../../services/faturamentoService';
@@ -11,7 +11,7 @@ import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, BarElement 
 } from 'chart.js';
 
-// Importa o CSS criado
+// Importa o CSS compacto
 import './ProjecaoCaixa.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, BarElement);
@@ -32,24 +32,25 @@ export default function ProjecaoCaixaView() {
                     labels: apiData.labels,
                     datasets: [
                         {
-                            label: 'Saldo Acumulado',
+                            label: 'Saldo', // Label mais curto
                             data: apiData.saldo_projetado,
-                            borderColor: '#0288d1', // Azul profissional
+                            borderColor: '#0288d1',
                             backgroundColor: 'rgba(2, 136, 209, 0.1)',
                             tension: 0.3,
                             fill: true,
                             yAxisID: 'y',
-                            pointRadius: 2,
+                            pointRadius: 0, // Sem bolinhas para limpar visual
+                            pointHoverRadius: 4,
                             order: 1
                         },
                         {
-                            label: 'Contas a Pagar',
+                            label: 'Pagar', // Label mais curto
                             data: apiData.despesas_previstas,
-                            backgroundColor: 'rgba(211, 47, 47, 0.6)', // Vermelho despesa
+                            backgroundColor: 'rgba(211, 47, 47, 0.6)',
                             type: 'bar',
                             yAxisID: 'y1',
                             order: 2,
-                            barPercentage: 0.5,
+                            barPercentage: 0.6,
                         }
                     ]
                 });
@@ -72,12 +73,12 @@ export default function ProjecaoCaixaView() {
 
         if (menorSaldo < 0) {
             status = 'critico';
-            mensagens.push({ tipo: 'erro', titulo: 'Risco de Caixa Negativo', texto: `Previsão de saldo negativo (R$ ${menorSaldo.toFixed(2)}) durante o mês.` });
+            mensagens.push({ tipo: 'erro', titulo: 'Risco de Caixa', texto: `Saldo negativo (R$ ${menorSaldo.toFixed(0)}) previsto.` });
         }
         if (saldoFinal < saldoInicial) {
-            mensagens.push({ tipo: 'aviso', titulo: 'Consumo de Reservas', texto: `Você terminará o período com R$ ${(saldoInicial - saldoFinal).toFixed(2)} a menos.` });
+            mensagens.push({ tipo: 'aviso', titulo: 'Consumo de Reservas', texto: `Queda de R$ ${(saldoInicial - saldoFinal).toFixed(0)} no período.` });
         } else {
-            mensagens.push({ tipo: 'sucesso', titulo: 'Crescimento de Caixa', texto: `Projeção de lucro de R$ ${(saldoFinal - saldoInicial).toFixed(2)} no período.` });
+            mensagens.push({ tipo: 'sucesso', titulo: 'Crescimento', texto: `Lucro de R$ ${(saldoFinal - saldoInicial).toFixed(0)} no período.` });
         }
 
         return { saldoInicial, saldoFinal, menorSaldo, mensagens };
@@ -87,82 +88,97 @@ export default function ProjecaoCaixaView() {
 
     const options = {
         responsive: true,
-        maintainAspectRatio: false, // Importante para o CSS controlar a altura
+        maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-            legend: { position: 'top', align: 'end' },
+            legend: { 
+                position: 'top', 
+                align: 'end',
+                labels: { boxWidth: 8, padding: 6, font: { size: 10 } } // Legenda menor
+            },
             tooltip: {
-                callbacks: {
-                    label: (c) => ` ${c.dataset.label}: ${formatMoney(c.raw)}`
-                }
+                callbacks: { label: (c) => ` ${c.dataset.label}: ${formatMoney(c.raw)}` }
             }
         },
         scales: {
             y: { 
                 position: 'left', 
                 grid: { color: '#f5f5f5' },
-                ticks: { callback: (v) => formatMoney(v), maxTicksLimit: 6 }
+                ticks: { 
+                    callback: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: "compact" }).format(v), // Notação compacta (1k, 1M)
+                    maxTicksLimit: 5,
+                    font: { size: 10 }
+                }
             },
             y1: { 
                 position: 'right', 
                 display: true,
                 grid: { drawOnChartArea: false },
                 min: 0,
-                ticks: { callback: (v) => formatMoney(v), maxTicksLimit: 4, color: '#d32f2f' }
+                ticks: { display: false } // Esconde números da barra vermelha pra limpar
             },
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }
+            x: { 
+                grid: { display: false }, 
+                ticks: { maxTicksLimit: 6, font: { size: 10 } } 
+            }
         }
     };
 
-    if (isLoading) return <Box sx={{ p: 5, textAlign: 'center' }}><CircularProgress /></Box>;
+    if (isLoading) return <Box sx={{ p: 5, textAlign: 'center' }}><CircularProgress size={30} /></Box>;
     if (error) return <Alert severity="error">Erro ao carregar dados.</Alert>;
 
     return (
         <div className="dashboard-container">
-            {/* 1. KPIs */}
+            {/* 1. KPIs Compactos */}
             <div className="kpi-grid">
                 <Card variant="outlined">
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <AccountBalanceWallet color="primary" />
+                    <div className="kpi-card-content">
+                        <Box sx={{ p: 0.5, bgcolor: '#e3f2fd', borderRadius: 1, display: 'flex' }}>
+                            <AccountBalanceWallet color="primary" fontSize="small" />
+                        </Box>
                         <div>
-                            <Typography variant="caption" color="textSecondary" fontWeight="bold">SALDO HOJE</Typography>
-                            <Typography variant="h6" fontWeight="bold">{formatMoney(analysis.saldoInicial)}</Typography>
+                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem">SALDO HOJE</Typography>
+                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.1}>{formatMoney(analysis.saldoInicial)}</Typography>
                         </div>
-                    </CardContent>
+                    </div>
                 </Card>
                 <Card variant="outlined">
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        {analysis.saldoFinal >= analysis.saldoInicial ? <TrendingUp color="success" /> : <TrendingDown color="error" />}
+                    <div className="kpi-card-content">
+                        <Box sx={{ p: 0.5, bgcolor: analysis.saldoFinal >= analysis.saldoInicial ? '#e8f5e9' : '#ffebee', borderRadius: 1, display: 'flex' }}>
+                            {analysis.saldoFinal >= analysis.saldoInicial ? <TrendingUp color="success" fontSize="small" /> : <TrendingDown color="error" fontSize="small" />}
+                        </Box>
                         <div>
-                            <Typography variant="caption" color="textSecondary" fontWeight="bold">SALDO EM 30 DIAS</Typography>
-                            <Typography variant="h6" fontWeight="bold" color={analysis.saldoFinal >= analysis.saldoInicial ? 'success.main' : 'error.main'}>
+                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem">EM 30 DIAS</Typography>
+                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.1} color={analysis.saldoFinal >= analysis.saldoInicial ? 'success.main' : 'error.main'}>
                                 {formatMoney(analysis.saldoFinal)}
                             </Typography>
                         </div>
-                    </CardContent>
+                    </div>
                 </Card>
                 <Card variant="outlined">
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Warning color={analysis.menorSaldo < 0 ? 'error' : 'warning'} />
+                    <div className="kpi-card-content">
+                        <Box sx={{ p: 0.5, bgcolor: analysis.menorSaldo < 0 ? '#ffebee' : '#fff3e0', borderRadius: 1, display: 'flex' }}>
+                            <Warning color={analysis.menorSaldo < 0 ? 'error' : 'warning'} fontSize="small" />
+                        </Box>
                         <div>
-                            <Typography variant="caption" color="textSecondary" fontWeight="bold">PONTO CRÍTICO</Typography>
-                            <Typography variant="h6" fontWeight="bold" color={analysis.menorSaldo < 0 ? 'error.main' : 'text.primary'}>
+                            <Typography variant="caption" color="textSecondary" fontWeight="bold" fontSize="0.7rem">PONTO CRÍTICO</Typography>
+                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.1} color={analysis.menorSaldo < 0 ? 'error.main' : 'text.primary'}>
                                 {formatMoney(analysis.menorSaldo)}
                             </Typography>
                         </div>
-                    </CardContent>
+                    </div>
                 </Card>
             </div>
 
-            {/* 2. Área Principal Controlada por CSS Grid */}
+            {/* 2. Área Principal */}
             <div className="main-chart-grid">
                 
                 {/* Gráfico */}
                 <Paper className="chart-paper" elevation={1}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography variant="h6" fontWeight="bold" color="#1a233b">Fluxo de Caixa</Typography>
-                        <Chip icon={<DateRange fontSize="small" />} label="30 Dias" size="small" variant="outlined" />
-                    </Box>
+                    <div className="chart-header">
+                        <Typography variant="subtitle2" fontWeight="bold" color="#1a233b">Fluxo de Caixa</Typography>
+                        <Chip icon={<DateRange style={{fontSize: 14}} />} label="30 Dias" size="small" variant="outlined" style={{height: 20, fontSize: '0.7rem'}} />
+                    </div>
                     <div className="chart-wrapper">
                         <Line data={chartData} options={options} />
                     </div>
@@ -170,11 +186,11 @@ export default function ProjecaoCaixaView() {
 
                 {/* Sidebar */}
                 <Paper className="sidebar-paper" elevation={0}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                        <Lightbulb sx={{ color: '#fbc02d' }} />
-                        <Typography variant="subtitle1" fontWeight="bold" color="#1a233b">Análise</Typography>
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
+                    <div className="sidebar-header">
+                        <Lightbulb sx={{ color: '#fbc02d', fontSize: 18 }} />
+                        <Typography variant="subtitle2" fontWeight="bold" color="#1a233b">Análise</Typography>
+                    </div>
+                    <Divider sx={{ mb: 1 }} />
                     
                     <div className="sidebar-content">
                         {analysis.mensagens.map((msg, i) => (
@@ -182,16 +198,21 @@ export default function ProjecaoCaixaView() {
                                 key={i} 
                                 severity={msg.tipo === 'erro' ? 'error' : msg.tipo === 'aviso' ? 'warning' : 'success'}
                                 variant="outlined"
-                                icon={msg.tipo === 'sucesso' ? <CheckCircle fontSize="inherit"/> : undefined}
-                                sx={{ bgcolor: '#fff' }}
+                                icon={msg.tipo === 'sucesso' ? <CheckCircle style={{fontSize: 16}}/> : undefined}
+                                sx={{ 
+                                    bgcolor: '#fff', 
+                                    py: 0, px: 1, 
+                                    '& .MuiAlert-message': { py: 0.5 },
+                                    '& .MuiAlert-icon': { py: 0.5, mr: 1 } 
+                                }}
                             >
-                                <strong>{msg.titulo}</strong><br/>
-                                <span style={{fontSize: '0.8rem'}}>{msg.texto}</span>
+                                <Typography variant="caption" fontWeight="bold" display="block">{msg.titulo}</Typography>
+                                <Typography variant="caption" style={{fontSize: '0.7rem'}}>{msg.texto}</Typography>
                             </Alert>
                         ))}
                         {analysis.mensagens.length === 0 && (
-                            <Typography variant="body2" color="textSecondary" align="center">
-                                Fluxo estável. Nenhuma anomalia detectada.
+                            <Typography variant="caption" color="textSecondary" align="center" sx={{mt: 2}}>
+                                Fluxo estável.
                             </Typography>
                         )}
                     </div>

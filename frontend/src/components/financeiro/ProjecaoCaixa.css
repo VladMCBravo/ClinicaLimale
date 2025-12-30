@@ -1,54 +1,67 @@
 /* src/components/financeiro/ProjecaoCaixa.css */
 
 .dashboard-container {
-    margin-top: 16px;
     width: 100%;
     box-sizing: border-box;
+    /* Remove margens externas desnecessárias */
+    margin-top: 8px; 
 }
 
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(3, 1fr); /* Força 3 colunas */
+    gap: 12px; /* Gap menor */
+    margin-bottom: 12px; /* Menos espaço entre KPI e Gráfico */
 }
 
-/* O Grid Principal que segura Gráfico e Sidebar */
+.kpi-card-content {
+    padding: 12px !important; /* Força padding pequeno no Material UI */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .main-chart-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr; /* 2 partes gráfico, 1 parte sidebar */
-    gap: 16px;
-    align-items: stretch; /* Força ambos a terem a mesma altura */
+    grid-template-columns: 2.5fr 1fr; /* Gráfico levemente maior proporcionalmente */
+    gap: 12px;
+    align-items: stretch;
     width: 100%;
 }
 
-/* Ajuste para telas menores (Mobile/Tablet vertical) */
 @media (max-width: 900px) {
-    .main-chart-grid {
-        grid-template-columns: 1fr; /* Um em cima do outro */
-    }
+    .kpi-grid { grid-template-columns: 1fr; }
+    .main-chart-grid { grid-template-columns: 1fr; }
 }
 
 .chart-paper {
-    padding: 24px;
+    padding: 16px; /* Padding reduzido */
     height: 100%;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    /* Garante que não ultrapasse a largura pai */
-    min-width: 0; 
+    min-width: 0;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px; /* Menos espaço pro título */
+    align-items: center;
 }
 
 .chart-wrapper {
     flex-grow: 1;
     position: relative;
     width: 100%;
-    min-height: 350px; /* Altura mínima confortável */
-    max-height: 400px; /* Trava a altura máxima para não esticar demais */
+    /* AQUI ESTÁ O SEGREDO DO TAMANHO: */
+    height: 280px; 
+    min-height: 280px; 
+    max-height: 280px;
 }
 
 .sidebar-paper {
-    padding: 16px;
+    padding: 12px; /* Sidebar mais compacta */
     height: 100%;
     background-color: #fafafa;
     display: flex;
@@ -57,10 +70,17 @@
     border: 1px solid #e0e0e0;
 }
 
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
 .sidebar-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    overflow-y: auto; /* Permite rolar se tiver muitas dicas */
-    max-height: 400px;
+    gap: 8px; /* Itens mais colados */
+    overflow-y: auto;
+    max-height: 280px; /* Alinha com a altura do gráfico */
 }
