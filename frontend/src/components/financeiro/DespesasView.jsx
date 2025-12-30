@@ -39,7 +39,8 @@ export default function DespesasView() {
     // Filtros e UI
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [mesFiltro, setMesFiltro] = useState(dayjs().month()); // 0-11
+    // ALTERAÇÃO: Começa como '' para mostrar TODOS
+    const [mesFiltro, setMesFiltro] = useState(''); 
     const [anoFiltro, setAnoFiltro] = useState(dayjs().year());
 
     // Modal
@@ -74,12 +75,14 @@ export default function DespesasView() {
     useEffect(() => {
         let lista = despesas;
 
-        // 1. Filtro de Mês/Ano (pela data de vencimento ou despesa)
-        lista = lista.filter(d => {
-            const dataRef = d.data_vencimento || d.data_despesa;
-            const dataObj = dayjs(dataRef);
-            return dataObj.month() === mesFiltro && dataObj.year() === anoFiltro;
-        });
+        // 1. Filtro de Mês/Ano (Só aplica se mesFiltro não for vazio)
+        if (mesFiltro !== '') {
+            lista = lista.filter(d => {
+                const dataRef = d.data_vencimento || d.data_despesa;
+                const dataObj = dayjs(dataRef);
+                return dataObj.month() === mesFiltro && dataObj.year() === anoFiltro;
+            });
+        }
 
         // 2. Busca textual
         if (searchTerm) {
@@ -124,11 +127,10 @@ export default function DespesasView() {
         setIsEditing(true);
         setFormData({
             ...item,
-            // Garante formato correto para inputs
             categoria: item.categoria, 
             data_despesa: item.data_despesa,
             data_vencimento: item.data_vencimento || item.data_despesa,
-            parcelado: false, // Não editamos parcelamento em massa na edição individual
+            parcelado: false, 
             qtd_parcelas: 1
         });
         setModalOpen(true);
@@ -141,11 +143,9 @@ export default function DespesasView() {
 
         try {
             if (isEditing) {
-                // UPDATE
                 await faturamentoService.updateDespesa(formData.id, formData);
                 showSnackbar('Despesa atualizada!', 'success');
             } else {
-                // CREATE (Com lógica de parcelas)
                 if (formData.parcelado && formData.qtd_parcelas > 1) {
                     const promises = [];
                     const valorParcela = parseFloat(formData.valor) / formData.qtd_parcelas;
@@ -192,7 +192,6 @@ export default function DespesasView() {
 
     const handleToggleStatus = async (despesa) => {
         const novoStatus = !despesa.pago;
-        // Optimistic UI Update
         setDespesas(prev => prev.map(d => d.id === despesa.id ? { ...d, pago: novoStatus } : d));
 
         try {
@@ -204,13 +203,12 @@ export default function DespesasView() {
                 data_despesa: despesa.data_despesa,
                 data_vencimento: despesa.data_vencimento,
                 pago: novoStatus,
-                // Se marcou como pago agora, define data_pagamento hoje, senão null
                 data_pagamento: novoStatus ? dayjs().format('YYYY-MM-DD') : null
             };
             await faturamentoService.updateDespesa(despesa.id, payload);
             showSnackbar(novoStatus ? 'Pago!' : 'Pendente.', 'success');
         } catch (error) {
-            fetchData(); // Reverte em caso de erro
+            fetchData();
             showSnackbar('Erro ao atualizar.', 'error');
         }
     };
@@ -218,33 +216,40 @@ export default function DespesasView() {
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     const formatDate = (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-';
 
-    // Helper para cor do vencimento
     const getVencimentoColor = (dataVenc, pago) => {
         if (pago) return 'text.secondary';
         const hoje = dayjs();
         const venc = dayjs(dataVenc);
-        if (venc.isBefore(hoje, 'day')) return 'error.main'; // Atrasado
-        if (venc.isSame(hoje, 'day')) return 'warning.main'; // Vence hoje
+        if (venc.isBefore(hoje, 'day')) return 'error.main'; 
+        if (venc.isSame(hoje, 'day')) return 'warning.main'; 
         return 'text.primary';
     };
 
-    // Componente de Card KPI
+    // ALTERAÇÃO: Componente de Card KPI MENOR e MAIS DELICADO
     const KpiCard = ({ title, value, color, icon: Icon, bgColor }) => (
         <Paper elevation={0} sx={{ 
-            p: 2, flex: 1, border: '1px solid #e0e0e0', borderRadius: '12px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            bgcolor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+            p: 1.5, // Padding reduzido
+            flex: 1, 
+            border: '1px solid #f0f0f0', 
+            borderRadius: '10px', // Borda mais suave
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            bgcolor: '#fff', 
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)', // Sombra super leve
+            transition: 'all 0.2s',
+            '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }
         }}>
             <Box>
-                <Typography variant="caption" fontWeight="bold" sx={{color: '#7f8c8d', textTransform: 'uppercase'}}>{title}</Typography>
-                <Typography variant="h5" fontWeight="bold" sx={{color: color, mt: 0.5}}>{formatMoney(value)}</Typography>
+                <Typography variant="caption" fontWeight="bold" sx={{color: '#95a5a6', textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.5px'}}>{title}</Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{color: color, mt: 0, fontSize: '1.1rem'}}>{formatMoney(value)}</Typography>
             </Box>
             <Box sx={{ 
                 bgcolor: bgColor, color: color, 
-                width: 40, height: 40, borderRadius: '10px', 
+                width: 32, height: 32, borderRadius: '8px', // Ícone menor
                 display: 'flex', alignItems: 'center', justifyContent: 'center' 
             }}>
-                <Icon fontSize="medium" />
+                <Icon sx={{ fontSize: 18 }} />
             </Box>
         </Paper>
     );
@@ -252,20 +257,31 @@ export default function DespesasView() {
     return (
         <Box sx={{ p: 1 }}>
             
-            {/* 1. TOPO: FILTROS E BOTÃO NOVO */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* 1. TOPO: FILTROS E BOTÃO */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FormControl size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel>Mês</InputLabel>
-                        <Select value={mesFiltro} label="Mês" onChange={(e) => setMesFiltro(e.target.value)}>
+                        <InputLabel sx={{ fontSize: '0.85rem' }}>Mês</InputLabel>
+                        <Select 
+                            value={mesFiltro} 
+                            label="Mês" 
+                            onChange={(e) => setMesFiltro(e.target.value)}
+                            sx={{ fontSize: '0.85rem', bgcolor: '#fff' }}
+                        >
+                            <MenuItem value=""><em>Todos</em></MenuItem>
                             {Array.from({length: 12}, (_, i) => (
                                 <MenuItem key={i} value={i}>{dayjs().month(i).format('MMMM')}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 100 }}>
-                        <InputLabel>Ano</InputLabel>
-                        <Select value={anoFiltro} label="Ano" onChange={(e) => setAnoFiltro(e.target.value)}>
+                    <FormControl size="small" sx={{ minWidth: 90 }}>
+                        <InputLabel sx={{ fontSize: '0.85rem' }}>Ano</InputLabel>
+                        <Select 
+                            value={anoFiltro} 
+                            label="Ano" 
+                            onChange={(e) => setAnoFiltro(e.target.value)}
+                            sx={{ fontSize: '0.85rem', bgcolor: '#fff' }}
+                        >
                             <MenuItem value={2024}>2024</MenuItem>
                             <MenuItem value={2025}>2025</MenuItem>
                             <MenuItem value={2026}>2026</MenuItem>
@@ -275,61 +291,61 @@ export default function DespesasView() {
 
                 <Button 
                     variant="contained" 
-                    startIcon={<AddCircleOutline />}
+                    startIcon={<AddCircleOutline fontSize="small" />}
                     onClick={handleOpenCreate}
-                    sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, borderRadius: '8px', px: 3 }}
+                    size="small"
+                    sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, borderRadius: '6px', px: 2, textTransform: 'none', fontWeight: 'bold' }}
                 >
                     Nova Despesa
                 </Button>
             </Box>
 
-            {/* 2. KPIs */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-                <KpiCard title="A Pagar (Este Mês)" value={financialSummary.aPagar} color="#dc3545" bgColor="#ffebee" icon={Warning} />
-                <KpiCard title="Pago (Este Mês)" value={financialSummary.pagas} color="#28a745" bgColor="#e8f5e9" icon={CheckCircle} />
-                <KpiCard title="Total Previsto" value={financialSummary.total} color="#1a233b" bgColor="#f4f7fa" icon={MoneyOff} />
+            {/* 2. KPIs (Mostra TOTAL se filtro de mês for "Todos") */}
+            <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <KpiCard title={mesFiltro === '' ? "A Pagar (Geral)" : "A Pagar (Mês)"} value={financialSummary.aPagar} color="#dc3545" bgColor="#fff5f5" icon={Warning} />
+                <KpiCard title={mesFiltro === '' ? "Pago (Geral)" : "Pago (Mês)"} value={financialSummary.pagas} color="#28a745" bgColor="#f0fff4" icon={CheckCircle} />
+                <KpiCard title="Total Acumulado" value={financialSummary.total} color="#1a233b" bgColor="#f8f9fa" icon={MoneyOff} />
             </Box>
 
             {/* 3. BARRA DE BUSCA */}
-            <Paper elevation={0} sx={{ p: 2, mb: 2, border: '1px solid #f0f0f0', borderRadius: '12px' }}>
+            <Paper elevation={0} sx={{ p: 1, mb: 2, border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                 <TextField 
                     fullWidth 
                     size="small" 
                     placeholder="Buscar por descrição ou categoria..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><Search color="action" /></InputAdornment> }}
-                    sx={{ bgcolor: '#f9f9f9', '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><Search color="action" fontSize="small" /></InputAdornment>, style: { fontSize: '0.9rem' } }}
+                    sx={{ bgcolor: '#fff', '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
                 />
             </Paper>
 
             {/* 4. TABELA DE DADOS */}
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '12px', overflow: 'hidden' }}>
+            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '8px', overflow: 'hidden' }}>
                 <Table size="small">
                     <TableHead sx={{ bgcolor: '#f8f9fa' }}>
                         <TableRow>
-                            <TableCell sx={{fontWeight:'bold', color:'#555'}}>Vencimento</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#555'}}>Descrição</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#555'}}>Categoria</TableCell>
-                            <TableCell align="right" sx={{fontWeight:'bold', color:'#555'}}>Valor</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold', color:'#555'}}>Status</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold', color:'#555'}}>Ações</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Vencimento</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Descrição</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Categoria</TableCell>
+                            <TableCell align="right" sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Valor</TableCell>
+                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Status</TableCell>
+                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {filteredDespesas.length > 0 ? filteredDespesas.map((item) => (
                             <TableRow key={item.id} hover>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: '0.8rem' }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <CalendarMonth fontSize="small" sx={{ color: 'action.active', opacity: 0.5 }} />
-                                        <Typography variant="body2" fontWeight="bold" color={getVencimentoColor(item.data_vencimento, item.pago)}>
+                                        <Typography variant="body2" fontWeight="500" color={getVencimentoColor(item.data_vencimento, item.pago)} sx={{ fontSize: '0.8rem' }}>
                                             {formatDate(item.data_vencimento)}
                                         </Typography>
                                     </Box>
                                 </TableCell>
-                                <TableCell>{item.descricao}</TableCell>
-                                <TableCell><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.7rem', height: 24}} /></TableCell>
-                                <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b'}}>
+                                <TableCell sx={{ fontSize: '0.85rem' }}>{item.descricao}</TableCell>
+                                <TableCell><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.65rem', height: 20, bgcolor: '#f5f5f5', color: '#555'}} /></TableCell>
+                                <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b', fontSize: '0.85rem'}}>
                                     {formatMoney(item.valor)}
                                 </TableCell>
                                 <TableCell align="center">
@@ -343,13 +359,13 @@ export default function DespesasView() {
                                     </Tooltip>
                                 </TableCell>
                                 <TableCell align="center">
-                                    <IconButton size="small" onClick={() => handleOpenEdit(item)}><Edit fontSize="small" /></IconButton>
-                                    <IconButton size="small" onClick={() => handleDelete(item.id)} color="error"><Delete fontSize="small" /></IconButton>
+                                    <IconButton size="small" onClick={() => handleOpenEdit(item)}><Edit sx={{ fontSize: 16 }} /></IconButton>
+                                    <IconButton size="small" onClick={() => handleDelete(item.id)} color="error"><Delete sx={{ fontSize: 16 }} /></IconButton>
                                 </TableCell>
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{py:4, color:'#999'}}>Nenhuma despesa encontrada para este período.</TableCell>
+                                <TableCell colSpan={6} align="center" sx={{py:4, color:'#999', fontSize: '0.85rem'}}>Nenhuma despesa encontrada.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -358,74 +374,95 @@ export default function DespesasView() {
 
             {/* MODAL DE CRIAÇÃO/EDIÇÃO */}
             <Dialog open={modalOpen} onClose={() => setModalOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b' }}>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '1rem', borderBottom: '1px solid #f0f0f0', pb: 1 }}>
                     {isEditing ? 'Editar Despesa' : 'Nova Despesa'}
                 </DialogTitle>
                 <form onSubmit={handleSubmit}>
-                    <DialogContent dividers>
+                    <DialogContent sx={{ pt: 2, bgcolor: '#fcfcfc' }}>
                         <Grid container spacing={2}>
+                            
+                            {/* BLOCO DE DADOS PRINCIPAIS (BOX) */}
                             <Grid item xs={12}>
-                                <TextField 
-                                    label="Descrição" fullWidth required 
-                                    value={formData.descricao} 
-                                    onChange={(e) => setFormData({...formData, descricao: e.target.value})}
-                                    placeholder="Ex: Aluguel, Compra de Material"
-                                />
+                                <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
+                                    <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={1} display="block">
+                                        DADOS GERAIS
+                                    </Typography>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12}>
+                                            <TextField 
+                                                label="Descrição" fullWidth required size="small"
+                                                value={formData.descricao} 
+                                                onChange={(e) => setFormData({...formData, descricao: e.target.value})}
+                                                placeholder="Ex: Aluguel, Compra de Material"
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <TextField 
+                                                select label="Categoria" fullWidth required size="small"
+                                                value={formData.categoria} 
+                                                onChange={(e) => setFormData({...formData, categoria: e.target.value})}
+                                            >
+                                                {categorias.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>)}
+                                            </TextField>
+                                        </Grid>
+                                    </Grid>
+                                </Paper>
                             </Grid>
+
+                            {/* BLOCO FINANCEIRO */}
                             <Grid item xs={12}>
-                                <TextField 
-                                    select label="Categoria" fullWidth required 
-                                    value={formData.categoria} 
-                                    onChange={(e) => setFormData({...formData, categoria: e.target.value})}
-                                >
-                                    {categorias.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>)}
-                                </TextField>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <TextField 
-                                    label="Valor (R$)" type="number" fullWidth required 
-                                    value={formData.valor} 
-                                    onChange={(e) => setFormData({...formData, valor: e.target.value})}
-                                    InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}
-                                />
-                            </Grid>
-                            <Grid item xs={6}>
-                                <FormControlLabel
-                                    control={<Switch checked={formData.pago} onChange={(e) => setFormData({...formData, pago: e.target.checked})} color="success"/>}
-                                    label="Já Pago?"
-                                    sx={{ mt: 1 }}
-                                />
-                            </Grid>
-                            <Grid item xs={6}>
-                                <DatePicker 
-                                    label="Data Emissão"
-                                    value={dayjs(formData.data_despesa)}
-                                    onChange={(v) => setFormData({...formData, data_despesa: v ? v.format('YYYY-MM-DD') : ''})}
-                                    slotProps={{ textField: { fullWidth: true, size: 'medium' } }}
-                                />
-                            </Grid>
-                            <Grid item xs={6}>
-                                <DatePicker 
-                                    label="Data Vencimento"
-                                    value={dayjs(formData.data_vencimento)}
-                                    onChange={(v) => setFormData({...formData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})}
-                                    slotProps={{ textField: { fullWidth: true, size: 'medium' } }}
-                                />
+                                <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
+                                    <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={1} display="block">
+                                        VALORES E DATAS
+                                    </Typography>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={6}>
+                                            <TextField 
+                                                label="Valor (R$)" type="number" fullWidth required size="small"
+                                                value={formData.valor} 
+                                                onChange={(e) => setFormData({...formData, valor: e.target.value})}
+                                                InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <FormControlLabel
+                                                control={<Switch size="small" checked={formData.pago} onChange={(e) => setFormData({...formData, pago: e.target.checked})} color="success"/>}
+                                                label={<Typography fontSize="0.85rem">Já Pago?</Typography>}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <DatePicker 
+                                                label="Data Emissão"
+                                                value={dayjs(formData.data_despesa)}
+                                                onChange={(v) => setFormData({...formData, data_despesa: v ? v.format('YYYY-MM-DD') : ''})}
+                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <DatePicker 
+                                                label="Vencimento"
+                                                value={dayjs(formData.data_vencimento)}
+                                                onChange={(v) => setFormData({...formData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})}
+                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                            />
+                                        </Grid>
+                                    </Grid>
+                                </Paper>
                             </Grid>
 
                             {!isEditing && (
                                 <Grid item xs={12}>
-                                    <Box sx={{ p: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px dashed #ccc' }}>
+                                    <Box sx={{ p: 1.5, bgcolor: '#f4f7fa', borderRadius: 2, border: '1px dashed #d0d7de', display: 'flex', alignItems: 'center' }}>
                                         <FormControlLabel
-                                            control={<Checkbox checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />}
-                                            label="Repetir / Parcelar?"
+                                            control={<Checkbox size="small" checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />}
+                                            label={<Typography fontSize="0.85rem">Repetir / Parcelar?</Typography>}
                                         />
                                         {formData.parcelado && (
                                             <TextField 
-                                                label="Quantas vezes (Meses)?" 
+                                                label="Vezes" 
                                                 type="number" 
                                                 size="small" 
-                                                sx={{ width: 150, ml: 2 }}
+                                                sx={{ width: 80, ml: 2, bgcolor: '#fff' }}
                                                 value={formData.qtd_parcelas}
                                                 onChange={(e) => setFormData({...formData, qtd_parcelas: e.target.value})}
                                             />
@@ -435,10 +472,10 @@ export default function DespesasView() {
                             )}
                         </Grid>
                     </DialogContent>
-                    <DialogActions sx={{ p: 2 }}>
-                        <Button onClick={() => setModalOpen(false)}>Cancelar</Button>
-                        <Button type="submit" variant="contained" disabled={isSubmitting} sx={{ bgcolor: '#1a233b', px: 4 }}>
-                            {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
+                    <DialogActions sx={{ p: 2, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
+                        <Button onClick={() => setModalOpen(false)} size="small" sx={{color: '#666'}}>Cancelar</Button>
+                        <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ bgcolor: '#1a233b', px: 3 }}>
+                            {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar'}
                         </Button>
                     </DialogActions>
                 </form>
