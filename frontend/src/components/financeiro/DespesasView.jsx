@@ -225,31 +225,31 @@ export default function DespesasView() {
         return 'text.primary';
     };
 
-    // ALTERAÇÃO: Componente de Card KPI MENOR e MAIS DELICADO
+    // --- KPI CARD MINI & DELICADO ---
     const KpiCard = ({ title, value, color, icon: Icon, bgColor }) => (
         <Paper elevation={0} sx={{ 
-            p: 1.5, // Padding reduzido
+            p: 1, // Padding mínimo
             flex: 1, 
             border: '1px solid #f0f0f0', 
-            borderRadius: '10px', // Borda mais suave
+            borderRadius: '8px', 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
             bgcolor: '#fff', 
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)', // Sombra super leve
+            boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
             transition: 'all 0.2s',
-            '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }
+            '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
         }}>
-            <Box>
-                <Typography variant="caption" fontWeight="bold" sx={{color: '#95a5a6', textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: '0.5px'}}>{title}</Typography>
-                <Typography variant="h6" fontWeight="bold" sx={{color: color, mt: 0, fontSize: '1.1rem'}}>{formatMoney(value)}</Typography>
+            <Box sx={{ px: 1 }}>
+                <Typography variant="caption" fontWeight="bold" sx={{color: '#95a5a6', textTransform: 'uppercase', fontSize: '0.6rem', letterSpacing: '0.5px'}}>{title}</Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{color: color, mt: 0, fontSize: '1rem'}}>{formatMoney(value)}</Typography>
             </Box>
             <Box sx={{ 
                 bgcolor: bgColor, color: color, 
-                width: 32, height: 32, borderRadius: '8px', // Ícone menor
-                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                width: 28, height: 28, borderRadius: '6px', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1 
             }}>
-                <Icon sx={{ fontSize: 18 }} />
+                <Icon sx={{ fontSize: 16 }} />
             </Box>
         </Paper>
     );
@@ -257,30 +257,28 @@ export default function DespesasView() {
     return (
         <Box sx={{ p: 1 }}>
             
-            {/* 1. TOPO: FILTROS E BOTÃO */}
+            {/* 1. TOPO: FILTROS E AÇÃO */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel sx={{ fontSize: '0.85rem' }}>Mês</InputLabel>
+                    <FormControl size="small" sx={{ minWidth: 110 }}>
+                        <InputLabel sx={{fontSize: '0.8rem'}}>Período</InputLabel>
                         <Select 
                             value={mesFiltro} 
-                            label="Mês" 
+                            label="Período" 
                             onChange={(e) => setMesFiltro(e.target.value)}
-                            sx={{ fontSize: '0.85rem', bgcolor: '#fff' }}
+                            sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '32px' }}
                         >
                             <MenuItem value=""><em>Todos</em></MenuItem>
                             {Array.from({length: 12}, (_, i) => (
-                                <MenuItem key={i} value={i}>{dayjs().month(i).format('MMMM')}</MenuItem>
+                                <MenuItem key={i} value={i} sx={{fontSize: '0.8rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 90 }}>
-                        <InputLabel sx={{ fontSize: '0.85rem' }}>Ano</InputLabel>
+                    <FormControl size="small" sx={{ minWidth: 80 }}>
                         <Select 
                             value={anoFiltro} 
-                            label="Ano" 
                             onChange={(e) => setAnoFiltro(e.target.value)}
-                            sx={{ fontSize: '0.85rem', bgcolor: '#fff' }}
+                            sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '32px' }}
                         >
                             <MenuItem value={2024}>2024</MenuItem>
                             <MenuItem value={2025}>2025</MenuItem>
@@ -291,16 +289,19 @@ export default function DespesasView() {
 
                 <Button 
                     variant="contained" 
-                    startIcon={<AddCircleOutline fontSize="small" />}
+                    startIcon={<AddCircleOutline sx={{fontSize: 18}} />}
                     onClick={handleOpenCreate}
-                    size="small"
-                    sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, borderRadius: '6px', px: 2, textTransform: 'none', fontWeight: 'bold' }}
+                    sx={{ 
+                        bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, 
+                        borderRadius: '6px', px: 2, py: 0.5, 
+                        textTransform: 'none', fontWeight: 'bold', fontSize: '0.8rem' 
+                    }}
                 >
                     Nova Despesa
                 </Button>
             </Box>
 
-            {/* 2. KPIs (Mostra TOTAL se filtro de mês for "Todos") */}
+            {/* 2. KPIs (Mostra TUDO se o filtro for Todos) */}
             <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexDirection: { xs: 'column', md: 'row' } }}>
                 <KpiCard title={mesFiltro === '' ? "A Pagar (Geral)" : "A Pagar (Mês)"} value={financialSummary.aPagar} color="#dc3545" bgColor="#fff5f5" icon={Warning} />
                 <KpiCard title={mesFiltro === '' ? "Pago (Geral)" : "Pago (Mês)"} value={financialSummary.pagas} color="#28a745" bgColor="#f0fff4" icon={CheckCircle} />
@@ -308,15 +309,18 @@ export default function DespesasView() {
             </Box>
 
             {/* 3. BARRA DE BUSCA */}
-            <Paper elevation={0} sx={{ p: 1, mb: 2, border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+            <Paper elevation={0} sx={{ p: 0.5, px: 1.5, mb: 2, border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                 <TextField 
                     fullWidth 
-                    size="small" 
-                    placeholder="Buscar por descrição ou categoria..." 
+                    variant="standard"
+                    placeholder="Buscar por descrição..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><Search color="action" fontSize="small" /></InputAdornment>, style: { fontSize: '0.9rem' } }}
-                    sx={{ bgcolor: '#fff', '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
+                    InputProps={{ 
+                        disableUnderline: true,
+                        startAdornment: <InputAdornment position="start"><Search sx={{color:'#ccc', fontSize: 20}} /></InputAdornment>, 
+                        style: { fontSize: '0.85rem' } 
+                    }}
                 />
             </Paper>
 
@@ -381,7 +385,7 @@ export default function DespesasView() {
                     <DialogContent sx={{ pt: 2, bgcolor: '#fcfcfc' }}>
                         <Grid container spacing={2}>
                             
-                            {/* BLOCO DE DADOS PRINCIPAIS (BOX) */}
+                            {/* BLOCO DE DADOS GERAIS */}
                             <Grid item xs={12}>
                                 <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                                     <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={1} display="block">
@@ -390,7 +394,7 @@ export default function DespesasView() {
                                     <Grid container spacing={2}>
                                         <Grid item xs={12}>
                                             <TextField 
-                                                label="Descrição" fullWidth required size="small"
+                                                label="Descrição" fullWidth required size="medium"
                                                 value={formData.descricao} 
                                                 onChange={(e) => setFormData({...formData, descricao: e.target.value})}
                                                 placeholder="Ex: Aluguel, Compra de Material"
@@ -398,7 +402,7 @@ export default function DespesasView() {
                                         </Grid>
                                         <Grid item xs={12}>
                                             <TextField 
-                                                select label="Categoria" fullWidth required size="small"
+                                                select label="Categoria" fullWidth required size="medium"
                                                 value={formData.categoria} 
                                                 onChange={(e) => setFormData({...formData, categoria: e.target.value})}
                                             >
@@ -418,16 +422,16 @@ export default function DespesasView() {
                                     <Grid container spacing={2}>
                                         <Grid item xs={6}>
                                             <TextField 
-                                                label="Valor (R$)" type="number" fullWidth required size="small"
+                                                label="Valor (R$)" type="number" fullWidth required size="medium"
                                                 value={formData.valor} 
                                                 onChange={(e) => setFormData({...formData, valor: e.target.value})}
                                                 InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}
                                             />
                                         </Grid>
-                                        <Grid item xs={6}>
+                                        <Grid item xs={6} display="flex" alignItems="center">
                                             <FormControlLabel
-                                                control={<Switch size="small" checked={formData.pago} onChange={(e) => setFormData({...formData, pago: e.target.checked})} color="success"/>}
-                                                label={<Typography fontSize="0.85rem">Já Pago?</Typography>}
+                                                control={<Switch checked={formData.pago} onChange={(e) => setFormData({...formData, pago: e.target.checked})} color="success"/>}
+                                                label={<Typography fontSize="0.9rem">Já Pago?</Typography>}
                                             />
                                         </Grid>
                                         <Grid item xs={6}>
@@ -435,7 +439,7 @@ export default function DespesasView() {
                                                 label="Data Emissão"
                                                 value={dayjs(formData.data_despesa)}
                                                 onChange={(v) => setFormData({...formData, data_despesa: v ? v.format('YYYY-MM-DD') : ''})}
-                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                                slotProps={{ textField: { fullWidth: true, size: 'medium' } }}
                                             />
                                         </Grid>
                                         <Grid item xs={6}>
@@ -443,7 +447,7 @@ export default function DespesasView() {
                                                 label="Vencimento"
                                                 value={dayjs(formData.data_vencimento)}
                                                 onChange={(v) => setFormData({...formData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})}
-                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                                slotProps={{ textField: { fullWidth: true, size: 'medium' } }}
                                             />
                                         </Grid>
                                     </Grid>
