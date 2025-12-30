@@ -29,7 +29,7 @@ export default function DashboardFinanceiro() {
     // Dados
     const [dashboardData, setDashboardData] = useState(null);
     const [extrato, setExtrato] = useState([]);
-    const [alertas, setAlertas] = useState([]);
+    const [alertas, setAlertas] = useState([]); // A variável se chama "alertas"
 
     // Estados para o Modal de Ação Rápida
     const [modalOpen, setModalOpen] = useState(false);
@@ -221,7 +221,8 @@ export default function DashboardFinanceiro() {
                         <div className="section-title" style={{marginBottom: 8}}>
                             <span><NotificationsActive sx={{fontSize: 16, mr: 0.5, color:'#f39c12', verticalAlign:'text-bottom'}}/>Avisos</span>
                         </div>
-                        {alertas.length > 0 ? alerts.map(alert => (
+                        {/* AQUI ESTAVA O ERRO: Mudamos de 'alerts' para 'alertas' */}
+                        {alertas.length > 0 ? alertas.map(alert => (
                             <div key={alert.id} className="bill-item">
                                 <span className="bill-date">{alert.date}</span>
                                 <span className="bill-info">{alert.desc}</span>
