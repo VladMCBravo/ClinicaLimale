@@ -1,7 +1,7 @@
 # backend/faturamento/views.py - VERSÃO FINAL, LIMPA E CORRIGIDA
 import csv
 import io
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time, timezone
 
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import generics, status, viewsets
@@ -10,11 +10,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 
-from django.db.models import Sum, Value, F
-from django.db.models.functions import TruncMonth, TruncDate, Coalesce
+from django.db.models import Sum
+from django.db.models.functions import TruncMonth, TruncDate
 from django.utils import timezone
 from django.http import HttpResponse
-from django.core.exceptions import FieldError  # <--- CORREÇÃO 1: IMPORT QUE FALTAVA
 
 # --- IMPORTAÇÕES DE OUTROS APPS ---
 from agendamentos.serializers import AgendamentoSerializer
@@ -47,133 +46,106 @@ class FinanceiroDashboardAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
-        # Data de referência (Hoje)
         hoje = timezone.localdate()
-        agora = timezone.now()
-        
-        # Define um horizonte de 7 dias para alertas futuros
-        data_limite_alertas = hoje + timedelta(days=7)
         
         # =========================================================================
-        # 1. TOTAIS DO DIA (CAIXA REAL)
+        # 1. TOTAIS GERAIS
         # =========================================================================
-        # Soma apenas o que efetivamente foi Pago/Recebido na data de hoje
+        receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
+        despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
         
-        receitas_hoje = Pagamento.objects.filter(
-            status='Pago', 
-            data_pagamento__date=hoje
-        ).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        despesas_hoje = Despesa.objects.filter(
-            pago=True, 
-            data_pagamento=hoje
-        ).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        # =========================================================================
-        # 2. SALDO GERAL ACUMULADO (Tudo o que a clínica tem)
-        # =========================================================================
         total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        # Se tiver integração com banco (Inter), pode substituir aqui pela leitura da API
         saldo_final = total_entradas - total_saidas
 
         # =========================================================================
-        # 3. EXTRATO UNIFICADO (REAL-TIME HISTORY)
+        # 2. EXTRATO (CORREÇÃO DE DATAS)
         # =========================================================================
-        # AQUI ESTÁ A CORREÇÃO PRINCIPAL: 
-        # Ordenamos estritamente pela data em que o dinheiro moveu (data_pagamento), 
-        # e não pela data que o boleto vencia. Isso reflete o extrato bancário.
+        # Objetivo: Converter tudo para DATETIME AWARE (com fuso horário) para ordenar corretamente
 
-        ultimas_receitas = Pagamento.objects.filter(
+        receitas_reais = Pagamento.objects.filter(
             status='Pago',
-            data_pagamento__isnull=False # Garante que só pega o que tem data de baixa
-        ).only('id', 'paciente', 'descricao', 'data_pagamento', 'valor', 'forma_pagamento')
+            data_pagamento__isnull=False 
+        ).select_related('paciente').only(
+            'id', 'paciente__nome_completo', 'descricao', 'data_pagamento', 'valor', 'forma_pagamento'
+        ).order_by('-data_pagamento')[:30]
 
-        ultimas_despesas = Despesa.objects.filter(
+        despesas_reais = Despesa.objects.filter(
             pago=True,
             data_pagamento__isnull=False
-        ).only('id', 'descricao', 'data_pagamento', 'valor', 'categoria')
+        ).only(
+            'id', 'descricao', 'data_pagamento', 'valor', 'categoria'
+        ).order_by('-data_pagamento')[:30]
 
         extrato = []
         
-        for p in ultimas_receitas:
-            # Tenta pegar o nome do paciente. Se não tiver, usa a descrição.
-            # Se ambos falharem, usa "Receita Diversa".
-            nome_display = "Receita Diversa"
-            if p.paciente:
-                nome_display = p.paciente.nome_completo
-            elif p.descricao:
-                nome_display = p.descricao
-
+        for r in receitas_reais:
+            nome = r.paciente.nome_completo if r.paciente else (r.descricao or "Receita Avulsa")
             extrato.append({
-                'id': f'rec-{p.id}',
-                'desc': nome_display,
-                'date': p.data_pagamento, # Data/Hora exata da baixa
-                'amount': float(p.valor),
+                'id': f'rec-{r.id}',
+                'desc': nome,
+                'date': r.data_pagamento, # Já é datetime aware
+                'amount': float(r.valor),
                 'type': 'income',
-                'forma': p.forma_pagamento
+                'forma': r.forma_pagamento
             })
-        
-        for d in ultimas_despesas:
+
+        for d in despesas_reais:
+            # CORREÇÃO CRÍTICA: Despesa é 'date', Pagamento é 'datetime'.
+            # Convertemos Despesa para 'datetime' (início do dia) para poder comparar.
+            data_full = d.data_pagamento
+            if isinstance(data_full, date) and not isinstance(data_full, datetime):
+                # Combina a data com a hora 00:00:00
+                data_naive = datetime.combine(data_full, time.min)
+                # Adiciona o fuso horário para ficar igual ao Pagamento
+                data_full = timezone.make_aware(data_naive)
+            
             extrato.append({
                 'id': f'desp-{d.id}',
                 'desc': d.descricao,
-                'date': d.data_pagamento, # Data exata da baixa
+                'date': data_full, 
                 'amount': float(d.valor),
                 'type': 'expense',
                 'forma': 'Despesa'
             })
 
-        # Ordena a lista combinada pela DATA REAL DE PAGAMENTO (do mais recente para o antigo)
-        # Se as datas forem iguais, usa o ID como critério de desempate
-        extrato.sort(key=lambda x: (x['date'] if x['date'] else datetime.min), reverse=True)
+        # Agora ordena sem erro (ambos são datetimes com fuso)
+        extrato.sort(key=lambda x: x['date'] if x['date'] else timezone.now(), reverse=True)
+        extrato = extrato[:40]
+
+        # =========================================================================
+        # 3. ALERTAS (CORREÇÃO DE TIPAGEM)
+        # =========================================================================
         
-        # Pega os 50 últimos movimentos para não perder histórico em dias movimentados
-        extrato = extrato[:50]
-
-        # =========================================================================
-        # 4. ALERTAS (O QUE VAI ACONTECER)
-        # =========================================================================
-        # Contas a Pagar vencendo (exclui pagas)
-        contas_a_pagar = Despesa.objects.filter(
-            pago=False, 
-            data_vencimento__gte=hoje,
-            data_vencimento__lte=data_limite_alertas
-        ).order_by('data_vencimento')
-
-        # Contas a Receber (Pendente) vencendo (exclui pagas)
-        contas_a_receber = Pagamento.objects.filter(
-            status='Pendente',
-            data_vencimento__gte=hoje,
-            data_vencimento__lte=data_limite_alertas
-        ).select_related('paciente').order_by('data_vencimento')
+        pagar_futuro = Despesa.objects.filter(pago=False, data_vencimento__gte=hoje).order_by('data_vencimento')[:10]
+        receber_futuro = Pagamento.objects.filter(status='Pendente', data_vencimento__gte=hoje).select_related('paciente').order_by('data_vencimento')[:10]
 
         alertas_list = []
-        
-        for c in contas_a_pagar:
+
+        for c in pagar_futuro:
             alertas_list.append({
-                'id': f'pagar-{c.id}',
+                'id': f'pg-{c.id}',
                 'desc': c.descricao,
-                'date': c.data_vencimento,
+                'date': c.data_vencimento, # É date
                 'valor': float(c.valor),
-                'tipo': 'saida' 
+                'tipo': 'saida'
             })
             
-        for r in contas_a_receber:
-            desc_text = r.paciente.nome_completo if r.paciente else (r.descricao or "A Receber")
+        for r in receber_futuro:
+            nome = r.paciente.nome_completo if r.paciente else (r.descricao or "A Receber")
             alertas_list.append({
-                'id': f'receber-{r.id}',
-                'desc': desc_text,
-                'date': r.data_vencimento,
+                'id': f'rc-{r.id}',
+                'desc': nome,
+                'date': r.data_vencimento, # É date
                 'valor': float(r.valor),
                 'tipo': 'entrada'
             })
 
-        # Ordena alertas por vencimento (mais urgente primeiro)
-        alertas_list.sort(key=lambda x: x['date'])
-
-        # Formatação final de datas para JSON
+        # CORREÇÃO CRÍTICA: Ordenação segura. Se date for None, joga para o final (date.max)
+        # Usamos date.max em vez de datetime.max para não dar erro de comparação
+        alertas_list.sort(key=lambda x: x['date'] if x['date'] else date.max)
+        
+        # Formata para string
         for item in alertas_list:
             item['date'] = item['date'].strftime('%d/%m') if item['date'] else 'S/D'
 
@@ -181,7 +153,7 @@ class FinanceiroDashboardAPIView(APIView):
             "saldo_em_conta": float(saldo_final),
             "faturamento_do_dia": float(receitas_hoje),
             "despesas_do_dia": float(despesas_hoje),
-            "extrato_real": extrato, # Lista puramente baseada no que aconteceu
+            "extrato_real": extrato,
             "alertas_vencimento": alertas_list
         })
 
