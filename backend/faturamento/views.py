@@ -335,9 +335,11 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 class PagamentosPendentesListAPIView(generics.ListAPIView):
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
+    
     def get_queryset(self):
-        return Pagamento.objects.filter(status='Pendente').order_by('agendamento__data_hora_inicio')
-
+        # CORREÇÃO: Ordena pela data de vencimento (que todo lançamento tem)
+        # Se não tiver vencimento, usa a data de criação (id)
+        return Pagamento.objects.filter(status='Pendente').order_by('data_vencimento', '-id')
 # ============================================================================
 #  VIEWS DE DESPESAS E RELATÓRIOS
 # ============================================================================
