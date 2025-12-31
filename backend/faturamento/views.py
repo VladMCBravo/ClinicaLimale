@@ -47,77 +47,107 @@ class FinanceiroDashboardAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
 
     def get(self, request):
+        # Data de referência (Hoje)
         hoje = timezone.localdate()
-        # Define um horizonte de 7 dias para alertas
+        agora = timezone.now()
+        
+        # Define um horizonte de 7 dias para alertas futuros
         data_limite_alertas = hoje + timedelta(days=7)
         
-        # 1. TOTAIS DO DIA (Regime de Caixa - O que entrou/saiu HOJE)
-        receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
-        despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
+        # =========================================================================
+        # 1. TOTAIS DO DIA (CAIXA REAL)
+        # =========================================================================
+        # Soma apenas o que efetivamente foi Pago/Recebido na data de hoje
         
-        # 2. SALDO GERAL ACUMULADO
+        receitas_hoje = Pagamento.objects.filter(
+            status='Pago', 
+            data_pagamento__date=hoje
+        ).aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        despesas_hoje = Despesa.objects.filter(
+            pago=True, 
+            data_pagamento=hoje
+        ).aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        # =========================================================================
+        # 2. SALDO GERAL ACUMULADO (Tudo o que a clínica tem)
+        # =========================================================================
         total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        # Se tiver integração com banco (Inter), pode substituir aqui pela leitura da API
         saldo_final = total_entradas - total_saidas
 
         # =========================================================================
-        # 3. EXTRATO UNIFICADO INTELIGENTE (A CORREÇÃO ESTÁ AQUI)
+        # 3. EXTRATO UNIFICADO (REAL-TIME HISTORY)
         # =========================================================================
-        
-        # Receitas: Prioriza Data Pagamento -> Se nula, usa Vencimento -> Se nula, usa Hoje
-        ultimas_receitas = Pagamento.objects.filter(status='Pago').annotate(
-            data_efetiva=Coalesce('data_pagamento', 'data_vencimento', Value(hoje))
-        ).order_by('-data_efetiva')[:30]
+        # AQUI ESTÁ A CORREÇÃO PRINCIPAL: 
+        # Ordenamos estritamente pela data em que o dinheiro moveu (data_pagamento), 
+        # e não pela data que o boleto vencia. Isso reflete o extrato bancário.
 
-        # Despesas: Prioriza Data Pagamento -> Se nula, usa Vencimento -> Se nula, usa Emissão
-        ultimas_despesas = Despesa.objects.filter(pago=True).annotate(
-            data_efetiva=Coalesce('data_pagamento', 'data_vencimento', 'data_despesa')
-        ).order_by('-data_efetiva')[:30]
+        ultimas_receitas = Pagamento.objects.filter(
+            status='Pago',
+            data_pagamento__isnull=False # Garante que só pega o que tem data de baixa
+        ).only('id', 'paciente', 'descricao', 'data_pagamento', 'valor', 'forma_pagamento')
+
+        ultimas_despesas = Despesa.objects.filter(
+            pago=True,
+            data_pagamento__isnull=False
+        ).only('id', 'descricao', 'data_pagamento', 'valor', 'categoria')
 
         extrato = []
         
         for p in ultimas_receitas:
+            # Tenta pegar o nome do paciente. Se não tiver, usa a descrição.
+            # Se ambos falharem, usa "Receita Diversa".
+            nome_display = "Receita Diversa"
+            if p.paciente:
+                nome_display = p.paciente.nome_completo
+            elif p.descricao:
+                nome_display = p.descricao
+
             extrato.append({
                 'id': f'rec-{p.id}',
-                'desc': p.paciente.nome_completo if p.paciente else (p.descricao or "Receita Avulsa"),
-                # Usa a data efetiva calculada pelo banco para ordenação correta
-                'date': p.data_efetiva, 
+                'desc': nome_display,
+                'date': p.data_pagamento, # Data/Hora exata da baixa
                 'amount': float(p.valor),
                 'type': 'income',
-                'status': 'Pago'
+                'forma': p.forma_pagamento
             })
         
         for d in ultimas_despesas:
             extrato.append({
                 'id': f'desp-{d.id}',
                 'desc': d.descricao,
-                # Usa a data efetiva calculada pelo banco para ordenação correta
-                'date': d.data_efetiva,
+                'date': d.data_pagamento, # Data exata da baixa
                 'amount': float(d.valor),
                 'type': 'expense',
-                'status': 'Pago'
+                'forma': 'Despesa'
             })
 
-        # Ordena a lista combinada pela data efetiva (Do mais recente para o mais antigo)
-        extrato.sort(key=lambda x: x['date'] if x['date'] else datetime.min, reverse=True)
+        # Ordena a lista combinada pela DATA REAL DE PAGAMENTO (do mais recente para o antigo)
+        # Se as datas forem iguais, usa o ID como critério de desempate
+        extrato.sort(key=lambda x: (x['date'] if x['date'] else datetime.min), reverse=True)
         
-        # Pega apenas os 30 últimos movimentos globais
-        extrato = extrato[:30]
+        # Pega os 50 últimos movimentos para não perder histórico em dias movimentados
+        extrato = extrato[:50]
 
-        # 4. AVISOS INTELIGENTES (Contas a Pagar E a Receber Próximas)
+        # =========================================================================
+        # 4. ALERTAS (O QUE VAI ACONTECER)
+        # =========================================================================
         # Contas a Pagar vencendo (exclui pagas)
         contas_a_pagar = Despesa.objects.filter(
             pago=False, 
             data_vencimento__gte=hoje,
             data_vencimento__lte=data_limite_alertas
-        ).only('id', 'descricao', 'data_vencimento', 'valor')
+        ).order_by('data_vencimento')
 
         # Contas a Receber (Pendente) vencendo (exclui pagas)
         contas_a_receber = Pagamento.objects.filter(
             status='Pendente',
             data_vencimento__gte=hoje,
             data_vencimento__lte=data_limite_alertas
-        ).select_related('paciente').only('id', 'descricao', 'data_vencimento', 'valor', 'paciente__nome_completo')
+        ).select_related('paciente').order_by('data_vencimento')
 
         alertas_list = []
         
@@ -127,35 +157,33 @@ class FinanceiroDashboardAPIView(APIView):
                 'desc': c.descricao,
                 'date': c.data_vencimento,
                 'valor': float(c.valor),
-                'tipo': 'saida' # Identificador para cor vermelha
+                'tipo': 'saida' 
             })
             
         for r in contas_a_receber:
-            # Tenta pegar nome do paciente ou descrição
             desc_text = r.paciente.nome_completo if r.paciente else (r.descricao or "A Receber")
             alertas_list.append({
                 'id': f'receber-{r.id}',
                 'desc': desc_text,
                 'date': r.data_vencimento,
                 'valor': float(r.valor),
-                'tipo': 'entrada' # Identificador para cor verde
+                'tipo': 'entrada'
             })
 
         # Ordena alertas por vencimento (mais urgente primeiro)
         alertas_list.sort(key=lambda x: x['date'])
 
-        # Formata a data para string BR apenas no final para não quebrar ordenação
+        # Formatação final de datas para JSON
         for item in alertas_list:
             item['date'] = item['date'].strftime('%d/%m') if item['date'] else 'S/D'
 
-        dados = {
+        return Response({
             "saldo_em_conta": float(saldo_final),
             "faturamento_do_dia": float(receitas_hoje),
             "despesas_do_dia": float(despesas_hoje),
-            "extrato_real": extrato,
-            "alertas_vencimento": alertas_list # Agora contém entradas e saídas
-        }
-        return Response(dados)
+            "extrato_real": extrato, # Lista puramente baseada no que aconteceu
+            "alertas_vencimento": alertas_list
+        })
 
 
 class ProjecaoFluxoCaixaAPIView(APIView):
