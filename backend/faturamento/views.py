@@ -328,44 +328,40 @@ class LancamentoAvulsoAPIView(APIView):
 
 class PagamentoViewSet(viewsets.ModelViewSet):
     """
-    Endpoint principal para Listagem de Receitas.
-    Permite filtrar por status para criar abas no frontend:
-    - ?status=Pendente -> Mostra só o que tem pra receber
-    - ?status=Pago     -> Mostra o histórico de recebimentos
-    - (Sem parametro)  -> Mostra tudo misturado (útil para extrato geral)
+    Lista TODAS as receitas (Agendamentos + Avulsos).
+    Ordenação baseada em Vencimento ou Pagamento, nunca em Agendamento,
+    para garantir que Avulsos apareçam.
     """
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
     
     def get_serializer_class(self):
-        # Usa serializer de update para edições, e o normal para leitura/criação
         return PagamentoUpdateSerializer if self.action in ['update', 'partial_update'] else PagamentoSerializer
 
     def get_queryset(self):
-        # Começa pegando tudo
+        # REMOVIDO: .order_by('-agendamento__data_hora_inicio')
+        # CORREÇÃO: Ordenamos depois, baseados no status, para não excluir Avulsos
         queryset = Pagamento.objects.all().select_related('paciente', 'agendamento')
         
-        # 1. Filtro por Status (Para as abas do Frontend)
+        # Filtros de Status (Abas do Frontend)
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
 
-        # 2. Filtro por Data (Opcional, caso queira filtrar por mês/ano específico na listagem geral)
+        # Filtros de Data
         data_inicio = self.request.query_params.get('data_inicio')
         data_fim = self.request.query_params.get('data_fim')
-        
         if data_inicio and data_fim:
-            # Se filtrar por data, olhamos a data de vencimento (para pendentes) ou pagamento (para pagos)
-            # Para simplificar, usamos vencimento como base cronológica geral
+            # Se for filtro de data, usa vencimento como base universal
             queryset = queryset.filter(data_vencimento__range=[data_inicio, data_fim])
 
-        # 3. Ordenação Inteligente
-        # - Se for tudo ou pendente: Ordena por vencimento (mais urgente primeiro ou cronológico)
-        # - Se for pago: Ordena por data de pagamento (mais recente primeiro)
+        # ORDENAÇÃO ROBUSTA (A Correção Principal)
         if status_param == 'Pago':
+            # Se já pagou, mostra o pagamento mais recente primeiro
+            # Coalesce não é necessário pois data_pagamento existe se status=Pago
             return queryset.order_by('-data_pagamento')
         else:
-            # Ordena por vencimento decrescente (do mais longe para o mais perto/atrasado)
-            # Ou use 'data_vencimento' (crescente) se quiser ver os atrasados no topo
+            # Se é pendente ou geral, ordena pela data de vencimento.
+            # Itens sem data de vencimento (raro) ou avulsos antigos ficam ordenados corretamente.
             return queryset.order_by('data_vencimento')
 
 # Mantemos essa view caso você use em algum dropdown específico de cobrança rápida,

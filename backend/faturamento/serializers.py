@@ -38,8 +38,11 @@ class LancamentoAvulsoReceitaSerializer(serializers.ModelSerializer):
         fields = ['paciente', 'descricao', 'valor', 'forma_pagamento', 'data_vencimento', 'status']
 
 class PagamentoSerializer(serializers.ModelSerializer):
-    # ALTERAÇÃO: Usamos SerializerMethodField para tratar casos de paciente null
+    # Lógica para mostrar "Outros / Avulso" se não tiver paciente
     paciente_nome = serializers.SerializerMethodField()
+    
+    # NOVO CAMPO: Unifica a descrição para o Front (seja avulso ou consulta)
+    descricao_visual = serializers.SerializerMethodField()
     
     registrado_por = serializers.StringRelatedField(read_only=True)
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
@@ -50,17 +53,38 @@ class PagamentoSerializer(serializers.ModelSerializer):
         model = Pagamento
         fields = [
             'id', 'agendamento', 'paciente', 'paciente_nome', 'descricao',
+            'descricao_visual', # <--- ADICIONADO AQUI
             'valor', 'status', 'status_display', 'forma_pagamento', 
-            'forma_pagamento_display', 'data_pagamento', 'data_vencimento', # <--- AQUI
+            'forma_pagamento_display', 'data_pagamento', 'data_vencimento',
             'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em','link_pagamento'
         ]
         read_only_fields = ['registrado_por']
 
-    # LÓGICA PARA NOME DO PACIENTE
     def get_paciente_nome(self, obj):
         if obj.paciente:
             return obj.paciente.nome_completo
-        return "Outros / Avulso"
+        return "Cliente Avulso" # Texto mais amigável que "Outros"
+
+    def get_descricao_visual(self, obj):
+        # 1. Prioridade: Se tem descrição manual (Avulso ou observação), usa ela
+        if obj.descricao:
+            return obj.descricao
+            
+        # 2. Se for agendamento, tenta pegar o nome do procedimento
+        # Precisamos verificar se existe agendamento E procedimento
+        if obj.agendamento:
+            # Dica: O serializer AgendamentoInfoSerializer não traz o procedimento detalhado,
+            # mas podemos acessar pelo objeto 'obj.agendamento' se o select_related estiver ok na view.
+            try:
+                if obj.agendamento.procedimento:
+                    return obj.agendamento.procedimento.descricao
+                else:
+                    return f"Consulta (ID: {obj.agendamento.id})"
+            except AttributeError:
+                pass
+
+        # 3. Fallback final
+        return "Receita Diversa"
 
 class PagamentoCreateSerializer(serializers.ModelSerializer):
     class Meta:
