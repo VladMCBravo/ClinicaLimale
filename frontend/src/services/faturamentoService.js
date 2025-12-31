@@ -1,4 +1,4 @@
-// src/services/faturamentoService.js - VERSÃO CORRIGIDA (COM UPDATE E DELETE DE DESPESAS)
+// src/services/faturamentoService.js
 import apiClient from '../api/axiosConfig';
 
 // --- Funções para Procedimentos ---
@@ -18,23 +18,24 @@ const uploadTuss = (formData) => {
 };
 
 // --- Funções para Pagamentos ---
+
+// 1. ESTA É A FUNÇÃO NOVA QUE FALTAVA:
+const getPagamentos = (params) => apiClient.get('/faturamento/pagamentos/', { params }); // <<< NOVO: Aceita filtros (?status=Pago)
+
 const getPagamentosPendentes = () => apiClient.get('/faturamento/pagamentos-pendentes/');
 const getCobrancasPendentes = (pacienteId) => apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`);
 const updatePagamento = (pagamentoId, data) => apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data);
 const deletePagamento = (id) => apiClient.delete(`/faturamento/pagamentos/${id}/`);
 
-// --- Funções para Despesas (ATUALIZADO AQUI) ---
+// --- Funções para Despesas ---
 const getDespesas = () => apiClient.get('/faturamento/despesas/');
 const getCategoriasDespesa = () => apiClient.get('/faturamento/categorias-despesa/');
 const createDespesa = (data) => apiClient.post('/faturamento/despesas/', data);
-
-// >>> ESTAS SÃO AS FUNÇÕES QUE FALTAVAM <<<
 const updateDespesa = (id, data) => apiClient.put(`/faturamento/despesas/${id}/`, data);
 const deleteDespesa = (id) => apiClient.delete(`/faturamento/despesas/${id}/`);
 
 // Para o formulário de Lançamento Avulso
 const createLancamentoAvulso = (data) => apiClient.post('/faturamento/lancamento-avulso/', data);
-
 
 // --- Funções para Relatórios ---
 const getRelatorioFinanceiro = () => apiClient.get('/faturamento/relatorios/financeiro/');
@@ -59,6 +60,7 @@ export const faturamentoService = {
     uploadTuss,
     
     // Pagamentos
+    getPagamentos, // <<< NÃO ESQUEÇA DE ADICIONAR AQUI
     getPagamentosPendentes,
     getCobrancasPendentes,
     updatePagamento,
@@ -68,8 +70,8 @@ export const faturamentoService = {
     getDespesas,
     getCategoriasDespesa,
     createDespesa,
-    updateDespesa, // <-- Adicionado ao export
-    deleteDespesa, // <-- Adicionado ao export
+    updateDespesa,
+    deleteDespesa,
     createLancamentoAvulso,
     
     // Relatórios
@@ -82,5 +84,5 @@ export const faturamentoService = {
     
     // Dashboard
     getDashboardFinanceiro,
-    getProjecaoFinanceira, // <--- Não esqueça de exportar
+    getProjecaoFinanceira,
 };
