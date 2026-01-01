@@ -6,80 +6,63 @@ import {
     Grid, IconButton, TextField, InputAdornment, Chip, Tabs, Tab
 } from '@mui/material';
 import { 
-    AttachMoney, CheckCircle, Search, AddCircleOutline, FilterList
+    AttachMoney, CheckCircle, Search, AddCircleOutline
 } from '@mui/icons-material';
 import DeleteIcon from '@mui/icons-material/Delete'; 
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Importação dos Modais
 import PagamentoModal from './PagamentoModal';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
+
+// Função auxiliar única e externa
+const formatDataSimples = (dataISO) => {
+    if (!dataISO) return '-';
+    // Garante que a data YYYY-MM-DD não volte um dia por causa do fuso
+    const partes = dataISO.split('T')[0].split('-'); // [YYYY, MM, DD]
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+};
 
 export default function ContasReceberView() {
     const { showSnackbar } = useSnackbar();
     
-    // --- ESTADOS ---
     const [listaPagamentos, setListaPagamentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // Estado para controlar a aba: 0 = A Receber (Pendente), 1 = Recebidos (Pago), 2 = Todos
     const [tabValue, setTabValue] = useState(0); 
 
     const [openPagarModal, setOpenPagarModal] = useState(false);
     const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
     const [selectedPagamento, setSelectedPagamento] = useState(null);
 
-    // --- FUNÇÃO DE BUSCA COM DEBUG ---
     const fetchPagamentos = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Define o status baseado na aba selecionada
             let statusFiltro = 'Pendente'; 
             if (tabValue === 1) statusFiltro = 'Pago';
-            if (tabValue === 2) statusFiltro = ''; // Traz tudo
+            if (tabValue === 2) statusFiltro = ''; 
 
-            console.log("🔄 Buscando pagamentos com status:", statusFiltro || 'TODOS');
-
-            // CHAMA O SERVICE (Certifique-se que seu service aceita o objeto de filtros)
-            // Se seu service for antigo, talvez precise ajustar para: faturamentoService.getPagamentos({ status: statusFiltro })
             const response = await faturamentoService.getPagamentos({ status: statusFiltro });
             
-            console.log("✅ Dados brutos recebidos do Backend:", response.data);
-            
-            // Verifica se veio array
             if (Array.isArray(response.data)) {
                 setListaPagamentos(response.data);
-                console.log(`📊 Total de registros carregados: ${response.data.length}`);
-                
-                // Debug específico para Avulsos
-                const avulsos = response.data.filter(i => !i.agendamento);
-                if (avulsos.length > 0) {
-                    console.log("💡 Encontrei lançamentos avulsos:", avulsos);
-                } else {
-                    console.warn("⚠️ Nenhum lançamento avulso encontrado nesta lista.");
-                }
-
             } else {
-                // Caso a API retorne paginado (results)
                 setListaPagamentos(response.data.results || []);
             }
 
         } catch (error) {
-            console.error("❌ Erro ao buscar pagamentos:", error);
+            console.error("Erro ao buscar pagamentos:", error);
             showSnackbar("Erro ao carregar dados financeiros.", 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [showSnackbar, tabValue]); // Recarrega quando muda a aba
+    }, [showSnackbar, tabValue]);
 
     useEffect(() => {
         fetchPagamentos();
     }, [fetchPagamentos]);
 
-    // --- CÁLCULOS ---
     const financialSummary = useMemo(() => {
         return listaPagamentos.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
@@ -89,11 +72,8 @@ export default function ContasReceberView() {
         }, { total: 0, qtd: 0 });
     }, [listaPagamentos]);
 
-    // --- HANDLERS ---
-    const handleTabChange = (event, newValue) => {
-        setTabValue(newValue);
-    };
-
+    const handleTabChange = (event, newValue) => setTabValue(newValue);
+    
     const handleOpenPagar = (pagamento) => {
         setSelectedPagamento(pagamento);
         setOpenPagarModal(true);
@@ -102,7 +82,7 @@ export default function ContasReceberView() {
     const handleSuccessPagamento = () => {
         setOpenPagarModal(false);
         setSelectedPagamento(null);
-        fetchPagamentos(); // Recarrega a lista
+        fetchPagamentos();
     };
 
     const handleCloseNovoLancamento = () => {
@@ -117,47 +97,22 @@ export default function ContasReceberView() {
                 showSnackbar('Lançamento excluído com sucesso', 'success');
                 fetchPagamentos();
             } catch (error) {
-                console.error("Erro delete:", error);
-                const msgErro = error.response?.data?.error || 'Erro desconhecido.';
-                showSnackbar(`Erro: ${msgErro}`, 'error');
+                showSnackbar('Erro ao excluir.', 'error');
             }
         }
     };
 
-    // --- FORMATADORES ---
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    
-    const formatDate = (pagamento) => {
-        // Lógica inteligente: Se está PAGO, mostra data pagamento. Se não, mostra vencimento.
-        const dataRelevante = pagamento.status === 'Pago' 
-            ? pagamento.data_pagamento 
-            : pagamento.data_vencimento;
 
-        if (!dataRelevante) return 'S/D';
-        
-        // Converter string ISO para Date
-        const dateObj = new Date(dataRelevante);
-        return dateObj.toLocaleDateString('pt-BR');
-    };
-
-    // --- FILTRAGEM LOCAL (BUSCA) ---
     const filteredList = listaPagamentos.filter(p => {
         const termo = searchTerm.toLowerCase();
-        // Usa descricao_visual (backend) ou paciente_nome ou descricao simples
         const nome = p.paciente_nome ? p.paciente_nome.toLowerCase() : '';
         const desc = p.descricao_visual ? p.descricao_visual.toLowerCase() : (p.descricao || '');
         return nome.includes(termo) || desc.includes(termo);
     });
 
-    // NOVO FORMATADOR PARA DUAS DATAS
-    const formatDateSimple = (dataStr) => {
-        if (!dataStr) return '-';
-        return new Date(dataStr).toLocaleDateString('pt-BR');
-    };
-
     return (
         <Box>
-            {/* --- 1. CARDS DE KPI (Mudam conforme a aba) --- */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={6}>
                     <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fff' }}>
@@ -189,51 +144,36 @@ export default function ContasReceberView() {
                 </Grid>
             </Grid>
 
-            {/* --- 2. ABAS DE NAVEGAÇÃO --- */}
             <Paper elevation={0} sx={{ mb: 2, borderBottom: '1px solid #e0e0e0' }}>
-                <Tabs 
-                    value={tabValue} 
-                    onChange={handleTabChange} 
-                    indicatorColor="primary" 
-                    textColor="primary"
-                >
+                <Tabs value={tabValue} onChange={handleTabChange} indicatorColor="primary" textColor="primary">
                     <Tab label="A Receber (Pendentes)" />
                     <Tab label="Recebidos (Histórico)" />
                     <Tab label="Todos" />
                 </Tabs>
             </Paper>
 
-            {/* --- 3. BARRA DE AÇÕES --- */}
             <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                 <TextField 
                     size="small"
                     placeholder="Buscar paciente ou descrição..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
-                    }}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
                     sx={{ flexGrow: 1, bgcolor: 'white' }}
                 />
-                
-                <Button 
-                    variant="contained" 
-                    startIcon={<AddCircleOutline />}
-                    onClick={() => setOpenNovoLancamentoModal(true)}
-                    sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, whiteSpace: 'nowrap' }}
-                >
+                <Button variant="contained" startIcon={<AddCircleOutline />} onClick={() => setOpenNovoLancamentoModal(true)} sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' } }}>
                     Novo Lançamento
                 </Button>
             </Box>
 
-            {/* --- 4. TABELA DE DADOS --- */}
             <TableContainer component={Paper} elevation={1}>
                 <Table size="small">
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#f9fafb' }}>
-                            {/* SEPARAMOS AS COLUNAS */}
-                            <TableCell sx={{ fontWeight: 'bold' }}>Vencimento</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Pagamento</TableCell>
+                            {/* --- COLUNAS SEPARADAS CONFORME SOLICITADO --- */}
+                            <TableCell sx={{ fontWeight: 'bold', width: '110px' }}>Vencimento</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', width: '110px' }}>Pagamento</TableCell>
+                            
                             <TableCell sx={{ fontWeight: 'bold' }}>Paciente / Cliente</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Descrição</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 'bold' }}>Status</TableCell>
@@ -243,18 +183,29 @@ export default function ContasReceberView() {
                     </TableHead>
                     <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={6} align="center"><CircularProgress size={24} sx={{ mt: 2 }} /></TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} align="center"><CircularProgress size={24} sx={{ mt: 2 }} /></TableCell></TableRow>
                         ) : filteredList.length > 0 ? (
                             filteredList.map((pag) => (
                                 <TableRow key={pag.id} hover>
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>
-                                        {formatDate(pag)}
+                                    
+                                    {/* DATA VENCIMENTO */}
+                                    <TableCell sx={{ fontSize: '0.85rem', color: '#555' }}>
+                                        {formatDataSimples(pag.data_vencimento)}
                                     </TableCell>
+                                    
+                                    {/* DATA PAGAMENTO (VERDE SE EXISTIR) */}
+                                    <TableCell sx={{ fontSize: '0.85rem' }}>
+                                        {pag.data_pagamento ? (
+                                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#2e7d32', bgcolor: '#e8f5e9', px: 0.8, py: 0.3, borderRadius: 1 }}>
+                                                {formatDataSimples(pag.data_pagamento)}
+                                            </Typography>
+                                        ) : '-'}
+                                    </TableCell>
+
                                     <TableCell sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
                                         {pag.paciente_nome || "Cliente Avulso"}
                                     </TableCell>
                                     <TableCell sx={{ fontSize: '0.85rem', color: 'text.secondary' }}>
-                                        {/* AQUI ESTÁ O TRUQUE: Usa o campo calculado do Backend */}
                                         {pag.descricao_visual || pag.descricao || "Sem descrição"}
                                     </TableCell>
                                     <TableCell align="center">
@@ -272,29 +223,11 @@ export default function ContasReceberView() {
                                     
                                     <TableCell align="center">
                                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                                            {/* Botão RECEBER só aparece se estiver pendente */}
                                             {pag.status === 'Pendente' && (
-                                                <Button 
-                                                    variant="outlined" 
-                                                    size="small"
-                                                    color="success"
-                                                    onClick={() => handleOpenPagar(pag)}
-                                                    sx={{ fontSize: '0.7rem', py: 0.5 }}
-                                                >
-                                                    Receber
-                                                </Button>
+                                                <Button variant="outlined" size="small" color="success" onClick={() => handleOpenPagar(pag)} sx={{ fontSize: '0.7rem', py: 0.5 }}>Receber</Button>
                                             )}
-                                            
-                                            {/* Botão EXCLUIR só aparece se não for agendamento (Avulso) */}
                                             {!pag.agendamento && (
-                                                <IconButton 
-                                                    onClick={() => handleDelete(pag.id)}
-                                                    sx={{ color: '#bdbdbd', '&:hover': { color: '#d32f2f' } }}
-                                                    title="Excluir Lançamento Avulso"
-                                                    size="small"
-                                                >
-                                                    <DeleteIcon fontSize="small" /> 
-                                                </IconButton>
+                                                <IconButton onClick={() => handleDelete(pag.id)} size="small" color="error"><DeleteIcon fontSize="small" /></IconButton>
                                             )}
                                         </Box>
                                     </TableCell>
@@ -302,8 +235,8 @@ export default function ContasReceberView() {
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                    Nenhum registro encontrado para este filtro.
+                                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                    Nenhum registro encontrado.
                                 </TableCell>
                             </TableRow>
                         )}
@@ -311,7 +244,6 @@ export default function ContasReceberView() {
                 </Table>
             </TableContainer>
 
-            {/* --- MODAIS --- */}
             {selectedPagamento && (
                 <PagamentoModal 
                     open={openPagarModal}

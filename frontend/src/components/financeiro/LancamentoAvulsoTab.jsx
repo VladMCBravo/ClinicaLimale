@@ -1,3 +1,4 @@
+// src/components/financeiro/LancamentoAvulsoTab.jsx
 import React, { useState, useEffect } from 'react';
 import {
     Box, Grid, TextField, Button, CircularProgress, Autocomplete, 
@@ -16,14 +17,21 @@ import { pacienteService } from '../../services/pacienteService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
 export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }) {
-    // Usa a prop para definir o estado inicial
     const [tipo, setTipo] = useState(initialType);
     const [origemReceita, setOrigemReceita] = useState('paciente');
+    
+    // CORREÇÃO 1: Inicializa o jaRecebido. Se for True, JÁ INICIALIZA A DATA DE PAGAMENTO NO FORM
     const [jaRecebido, setJaRecebido] = useState(true); 
 
-    const [formData, setFormData] = useState({ qtd_parcelas: 1 });
+    // CORREÇÃO 2: Estado inicial já com data_pagamento se estiver pago
+    const [formData, setFormData] = useState({ 
+        qtd_parcelas: 1,
+        data_vencimento: dayjs().format('YYYY-MM-DD'),
+        // Garante que se nascer pago, já tem a data de hoje preenchida no envio
+        data_pagamento: dayjs().format('YYYY-MM-DD') 
+    });
+
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
     const [pacientes, setPacientes] = useState([]);
     const [categorias, setCategorias] = useState([]);
     
@@ -34,11 +42,27 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
         faturamentoService.getCategoriasDespesa().then(res => setCategorias(res.data));
     }, []);
 
+    // Manipula a mudança do Switch PAGO/PENDENTE
+    const handleStatusChange = (e) => {
+        const isPago = e.target.checked;
+        setJaRecebido(isPago);
+        
+        if (isPago) {
+            // Se marcou como pago, define a data de pagamento (hoje) para garantir que seja enviada
+            setFormData(prev => ({ ...prev, data_pagamento: dayjs().format('YYYY-MM-DD') }));
+        } else {
+            // Se desmarcou, limpa a data
+            setFormData(prev => ({ ...prev, data_pagamento: null }));
+        }
+    };
+
     const handleTipoChange = (event, newTipo) => {
         if (newTipo !== null) {
             setTipo(newTipo);
-            setFormData({ qtd_parcelas: 1 }); 
+            setFormData(prev => ({ ...prev, qtd_parcelas: 1 })); 
+            // Ao trocar de tipo, reseta para pago e define data
             setJaRecebido(true);
+            setFormData(prev => ({ ...prev, data_pagamento: dayjs().format('YYYY-MM-DD') }));
         }
     };
 
@@ -80,21 +104,25 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
             ...formData,
             tipo: tipo,
             paciente: (tipo === 'receita' && origemReceita === 'paciente') ? formData.paciente?.id : null,
-            status: jaRecebido ? 'Pago' : 'Pendente' 
+            status: jaRecebido ? (tipo === 'receita' ? 'Pago' : 'Pago') : 'Pendente' // Ajuste simples
         };
+
+        // Debug para garantir que a data está indo
+        console.log("Enviando Payload:", payload);
 
         try {
             await faturamentoService.createLancamentoAvulso(payload);
             showSnackbar(`Lançamento salvo!`, 'success');
             onClose(); 
         } catch (error) {
+            console.error(error);
             showSnackbar(`Erro ao salvar.`, 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Card de Pagamento Ultra Compacto
+    // Componente visual do Cartão
     const PaymentCard = ({ value, label, icon: Icon }) => {
         const selected = formData.forma_pagamento === value;
         return (
@@ -102,17 +130,11 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                 elevation={0}
                 onClick={() => handlePaymentMethod(value)}
                 sx={{
-                    p: 0.5,
-                    cursor: 'pointer',
+                    p: 0.5, cursor: 'pointer',
                     border: selected ? '2px solid #1a233b' : '1px solid #e0e0e0',
                     bgcolor: selected ? '#f0f4fa' : '#fff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '50px',
-                    transition: 'all 0.1s',
-                    '&:hover': { borderColor: '#1a233b' }
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    minHeight: '50px', transition: 'all 0.1s', '&:hover': { borderColor: '#1a233b' }
                 }}
             >
                 <Icon sx={{ fontSize: 18, color: selected ? '#1a233b' : '#757575' }} />
@@ -125,8 +147,6 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
 
     return (
         <Box component="form" onSubmit={handleSubmit}>
-            
-            {/* SELEÇÃO DO TIPO */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
                 <ToggleButtonGroup value={tipo} exclusive onChange={handleTipoChange} size="small" sx={{height: '30px'}}>
                     <ToggleButton value="receita" color="success" sx={{ px: 3, fontSize: '0.75rem' }}>
@@ -139,52 +159,29 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
             </Box>
 
             <Grid container spacing={2}>
-                
-                {/* --- COLUNA ESQUERDA (Dados) --- */}
                 <Grid item xs={12} md={7}>
                     <Paper sx={{ p: 2 }} elevation={1}>
-                        
-                        {/* --- CORREÇÃO 1: HEADER ALINHADO COM SPACE-BETWEEN E GAP --- */}
                         <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1}}>
-                            <Typography variant="subtitle2" fontWeight="bold" sx={{color: '#1a233b', fontSize: '0.85rem'}}>
-                                Dados Gerais
-                            </Typography>
-                            
+                            <Typography variant="subtitle2" fontWeight="bold" sx={{color: '#1a233b', fontSize: '0.85rem'}}>Dados Gerais</Typography>
                             <FormControlLabel
-                                sx={{ margin: 0 }} // Remove margem negativa padrão
+                                sx={{ margin: 0 }}
                                 control={
                                     <Switch 
                                         size="small"
                                         checked={jaRecebido}
-                                        onChange={(e) => setJaRecebido(e.target.checked)}
+                                        onChange={handleStatusChange} // Usa a nova função corrigida
                                         color={tipo === 'receita' ? "success" : "error"}
                                     />
                                 }
-                                label={
-                                    <Typography fontSize="0.7rem" fontWeight="bold" sx={{minWidth: '60px', textAlign: 'right'}}>
-                                        {jaRecebido ? (tipo === 'receita' ? "RECEBIDO" : "PAGO") : "PENDENTE"}
-                                    </Typography>
-                                }
+                                label={<Typography fontSize="0.7rem" fontWeight="bold" sx={{minWidth: '60px', textAlign: 'right'}}>{jaRecebido ? (tipo === 'receita' ? "RECEBIDO" : "PAGO") : "PENDENTE"}</Typography>}
                             />
                         </Box>
                         
                         {tipo === 'receita' && (
                             <Box sx={{ mb: 1.5 }}>
-                                {/* --- CORREÇÃO 2: TEXTO MENOR NO BOTÃO PARA NÃO QUEBRAR --- */}
-                                <ToggleButtonGroup
-                                    value={origemReceita}
-                                    exclusive
-                                    onChange={handleOrigemChange}
-                                    size="small"
-                                    fullWidth
-                                    sx={{ mb: 1, height: '32px' }}
-                                >
-                                    <ToggleButton value="paciente" sx={{fontSize: '0.7rem', px: 1}}>
-                                        <Person fontSize="small" sx={{mr:0.5}}/> Paciente
-                                    </ToggleButton>
-                                    <ToggleButton value="outros" sx={{fontSize: '0.7rem', px: 1, whiteSpace: 'nowrap'}}>
-                                        <AccountBalance fontSize="small" sx={{mr:0.5}}/> Outros / Sócios
-                                    </ToggleButton>
+                                <ToggleButtonGroup value={origemReceita} exclusive onChange={handleOrigemChange} size="small" fullWidth sx={{ mb: 1, height: '32px' }}>
+                                    <ToggleButton value="paciente" sx={{fontSize: '0.7rem', px: 1}}><Person fontSize="small" sx={{mr:0.5}}/> Paciente</ToggleButton>
+                                    <ToggleButton value="outros" sx={{fontSize: '0.7rem', px: 1, whiteSpace: 'nowrap'}}><AccountBalance fontSize="small" sx={{mr:0.5}}/> Outros / Sócios</ToggleButton>
                                 </ToggleButtonGroup>
 
                                 {origemReceita === 'paciente' ? (
@@ -194,11 +191,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                                         getOptionLabel={(p) => p.nome_completo}
                                         value={formData.paciente || null}
                                         onChange={(e, value) => setFormData(prev => ({ ...prev, paciente: value }))}
-                                        renderInput={(params) => (
-                                            <TextField {...params} label="Paciente" placeholder="Buscar..." margin="dense" 
-                                                InputLabelProps={{style: {fontSize: '0.85rem'}}}
-                                            />
-                                        )}
+                                        renderInput={(params) => (<TextField {...params} label="Paciente" placeholder="Buscar..." margin="dense" InputLabelProps={{style: {fontSize: '0.85rem'}}} />)}
                                     />
                                 ) : (
                                     <TextField disabled fullWidth value="Sem vínculo (Caixa Geral)" size="small" margin="dense" sx={{ bgcolor: '#f5f5f5' }} InputProps={{style: {fontSize: '0.85rem'}}} />
@@ -206,108 +199,62 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                             </Box>
                         )}
 
-                        <TextField 
-                            name="descricao" 
-                            label="Descrição" 
-                            size="small"
-                            margin="dense"
-                            required 
-                            fullWidth 
-                            value={formData.descricao || ''} 
-                            onChange={handleChange} 
-                            InputLabelProps={{style: {fontSize: '0.85rem'}}}
-                            InputProps={{style: {fontSize: '0.9rem'}}}
-                        />
-                        <Grid container spacing={2}>
-    {/* COLUNA 1: Vencimento (Ocupa 6 se tiver pago, ou 12 se for pendente) */}
-    <Grid item xs={jaRecebido ? 6 : 12}>
-        <DatePicker
-            label="Data de Vencimento"
-            value={formData.data_vencimento ? dayjs(formData.data_vencimento) : dayjs()}
-            onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-            slotProps={{ 
-                textField: { 
-                    size: 'small', 
-                    margin: 'dense', 
-                    fullWidth: true,
-                    helperText: "Referência do mês"
-                } 
-            }}
-        />
-    </Grid>
-
-    {/* COLUNA 2: Data do Pagamento (SÓ APARECE SE ESTIVER MARCADO COMO PAGO/RECEBIDO) */}
-    {jaRecebido && (
-        <Grid item xs={6}>
-            <DatePicker
-                label={tipo === 'receita' ? "Data do Recebimento" : "Data do Pagamento"}
-                value={formData.data_pagamento ? dayjs(formData.data_pagamento) : dayjs()}
-                onChange={(newValue) => setFormData(prev => ({ ...prev, data_pagamento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-                slotProps={{ 
-                    textField: { 
-                        size: 'small', 
-                        margin: 'dense', 
-                        fullWidth: true,
-                        // Destaque visual para diferenciar do vencimento
-                        color: tipo === 'receita' ? "success" : "error", 
-                        focused: true,
-                        helperText: "Data real do caixa"
-                    } 
-                }}
-            />
-        </Grid>
-    )}
-</Grid>
+                        <TextField name="descricao" label="Descrição" size="small" margin="dense" required fullWidth value={formData.descricao || ''} onChange={handleChange} InputLabelProps={{style: {fontSize: '0.85rem'}}} InputProps={{style: {fontSize: '0.9rem'}}} />
                         
-                    
+                        {/* --- O CORAÇÃO DA MUDANÇA: AS DUAS DATAS --- */}
+                        <Grid container spacing={2}>
+                            <Grid item xs={jaRecebido ? 6 : 12}>
+                                <DatePicker
+                                    label="Data de Vencimento"
+                                    value={formData.data_vencimento ? dayjs(formData.data_vencimento) : null}
+                                    onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
+                                    slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true, helperText: "Vencimento Original" } }}
+                                />
+                            </Grid>
+
+                            {jaRecebido && (
+                                <Grid item xs={6}>
+                                    <DatePicker
+                                        label={tipo === 'receita' ? "Data do Recebimento" : "Data do Pagamento"}
+                                        value={formData.data_pagamento ? dayjs(formData.data_pagamento) : null}
+                                        onChange={(newValue) => setFormData(prev => ({ ...prev, data_pagamento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
+                                        slotProps={{ 
+                                            textField: { 
+                                                size: 'small', margin: 'dense', fullWidth: true, focused: true,
+                                                color: tipo === 'receita' ? "success" : "error",
+                                                helperText: "Data Real do Caixa" // Feedback visual
+                                            } 
+                                        }}
+                                    />
+                                </Grid>
+                            )}
+                        </Grid>
+                        
                         {tipo === 'despesa' && (
                             <Grid container spacing={1}>
-                                <Grid item xs={6}>
+                                <Grid item xs={12}>
                                     <TextField select name="categoria" label="Categoria" size="small" margin="dense" required fullWidth value={formData.categoria || ''} onChange={handleChange} SelectProps={{ native: true }} InputLabelProps={{style: {fontSize: '0.85rem'}}}>
                                         <option value="">Selecione...</option>
                                         {categorias.map(cat => <option key={cat.id} value={cat.id}>{cat.nome}</option>)}
                                     </TextField>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <DatePicker
-                                        label="Data"
-                                        value={formData.data_despesa ? dayjs(formData.data_despesa) : null}
-                                        onChange={(newValue) => setFormData(prev => ({ ...prev, data_despesa: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-                                        slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true } }}
-                                    />
                                 </Grid>
                             </Grid>
                         )}
                     </Paper>
                 </Grid>
 
-                {/* --- COLUNA DIREITA (Financeiro) --- */}
                 <Grid item xs={12} md={5}>
                     <Paper sx={{ p: 2, height: '100%', bgcolor: '#fafafa', display: 'flex', flexDirection: 'column' }} elevation={0} variant="outlined">
-                        
                         <TextField 
-                            name="valor" 
-                            label="Valor Total" 
-                            type="number" 
-                            size="small"
-                            margin="dense"
-                            required 
-                            fullWidth 
-                            value={formData.valor || ''} 
-                            onChange={handleChange} 
-                            InputProps={{
-                                startAdornment: <InputAdornment position="start"><Typography fontSize="0.8rem">R$</Typography></InputAdornment>,
-                                style: { fontWeight: 'bold', color: tipo === 'receita' ? '#2e7d32' : '#c62828', fontSize: '1rem' }
-                            }}
-                            InputLabelProps={{style: {fontSize: '0.85rem'}}}
-                            sx={{ mb: 1.5, bgcolor: '#fff' }}
+                            name="valor" label="Valor Total" type="number" size="small" margin="dense" required fullWidth 
+                            value={formData.valor || ''} onChange={handleChange} 
+                            InputProps={{ startAdornment: <InputAdornment position="start"><Typography fontSize="0.8rem">R$</Typography></InputAdornment>, style: { fontWeight: 'bold', color: tipo === 'receita' ? '#2e7d32' : '#c62828', fontSize: '1rem' } }}
+                            InputLabelProps={{style: {fontSize: '0.85rem'}}} sx={{ mb: 1.5, bgcolor: '#fff' }}
                         />
 
                         {tipo === 'receita' && jaRecebido && (
                             <>
-                                <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={0.5} display="block" sx={{fontSize: '0.7rem'}}>
-                                    FORMA DE PAGAMENTO
-                                </Typography>
+                                <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={0.5} display="block" sx={{fontSize: '0.7rem'}}>FORMA DE PAGAMENTO</Typography>
                                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.5, mb: 1.5 }}>
                                     <PaymentCard value="Dinheiro" label="Dinheiro" icon={LocalAtm} />
                                     <PaymentCard value="PIX" label="PIX" icon={QrCode} />
@@ -318,45 +265,16 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
 
                                 {formData.forma_pagamento === 'CartaoCredito' && (
                                     <Box sx={{ p: 1, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #90caf9', mb: 1 }}>
-                                        <TextField
-                                            select
-                                            label="Parcelamento"
-                                            value={formData.qtd_parcelas || 1}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, qtd_parcelas: Number(e.target.value) }))}
-                                            fullWidth
-                                            size="small"
-                                            margin="none"
-                                            variant="standard"
-                                            InputProps={{ disableUnderline: true, style: { fontSize: '0.9rem', color: '#1565c0', fontWeight: 'bold' } }}
-                                        >
-                                            {[...Array(12)].map((_, i) => (
-                                                <MenuItem key={i + 1} value={i + 1}>
-                                                    {i + 1}x {formData.valor ? `de R$ ${(formData.valor / (i + 1)).toFixed(2)}` : ''}
-                                                </MenuItem>
-                                            ))}
+                                        <TextField select label="Parcelamento" value={formData.qtd_parcelas || 1} onChange={(e) => setFormData(prev => ({ ...prev, qtd_parcelas: Number(e.target.value) }))} fullWidth size="small" margin="none" variant="standard" InputProps={{ disableUnderline: true, style: { fontSize: '0.9rem', color: '#1565c0', fontWeight: 'bold' } }}>
+                                            {[...Array(12)].map((_, i) => (<MenuItem key={i + 1} value={i + 1}>{i + 1}x {formData.valor ? `de R$ ${(formData.valor / (i + 1)).toFixed(2)}` : ''}</MenuItem>))}
                                         </TextField>
                                     </Box>
                                 )}
                             </>
                         )}
 
-                        {tipo === 'receita' && !jaRecebido && (
-                            <Box sx={{ p: 1.5, bgcolor: '#fff3e0', borderRadius: 1, border: '1px dashed #ffb74d', mb: 'auto' }}>
-                                <Typography variant="caption" color="warning.main" display="flex" alignItems="center">
-                                    <Event fontSize="small" sx={{mr: 0.5}} />
-                                    Ficará como "A Receber".
-                                </Typography>
-                            </Box>
-                        )}
-                        
                         <Box sx={{ mt: 'auto' }}>
-                            <Button 
-                                type="submit" 
-                                variant="contained" 
-                                fullWidth
-                                disabled={isSubmitting}
-                                sx={{ py: 0.8, fontSize: '0.8rem', fontWeight: 'bold', bgcolor: '#1a233b' }}
-                            >
+                            <Button type="submit" variant="contained" fullWidth disabled={isSubmitting} sx={{ py: 0.8, fontSize: '0.8rem', fontWeight: 'bold', bgcolor: '#1a233b' }}>
                                 {isSubmitting ? <CircularProgress size={18} color="inherit" /> : 'CONFIRMAR'}
                             </Button>
                         </Box>
