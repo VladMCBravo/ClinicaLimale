@@ -149,6 +149,12 @@ export default function ContasReceberView() {
         return nome.includes(termo) || desc.includes(termo);
     });
 
+    // NOVO FORMATADOR PARA DUAS DATAS
+    const formatDateSimple = (dataStr) => {
+        if (!dataStr) return '-';
+        return new Date(dataStr).toLocaleDateString('pt-BR');
+    };
+
     return (
         <Box>
             {/* --- 1. CARDS DE KPI (Mudam conforme a aba) --- */}
@@ -225,9 +231,9 @@ export default function ContasReceberView() {
                 <Table size="small">
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#f9fafb' }}>
-                            <TableCell sx={{ fontWeight: 'bold' }}>
-                                {tabValue === 1 ? 'Data Pagamento' : 'Vencimento'}
-                            </TableCell>
+                            {/* SEPARAMOS AS COLUNAS */}
+                            <TableCell sx={{ fontWeight: 'bold' }}>Vencimento</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Pagamento</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Paciente / Cliente</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Descrição</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 'bold' }}>Status</TableCell>

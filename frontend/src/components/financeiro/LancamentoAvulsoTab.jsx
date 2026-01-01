@@ -218,20 +218,45 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                             InputLabelProps={{style: {fontSize: '0.85rem'}}}
                             InputProps={{style: {fontSize: '0.9rem'}}}
                         />
-                        <Grid item xs={12} sm={6}>
-    <DatePicker
-        label="Data de Vencimento"
-        value={formData.data_vencimento ? dayjs(formData.data_vencimento) : dayjs()} // Padrão hoje
-        onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-        slotProps={{ 
-            textField: { 
-                size: 'small', 
-                margin: 'dense', 
-                fullWidth: true,
-                helperText: "Para controle de fluxo futuro"
-            } 
-        }}
-    />
+                        <Grid container spacing={2}>
+    {/* COLUNA 1: Vencimento (Ocupa 6 se tiver pago, ou 12 se for pendente) */}
+    <Grid item xs={jaRecebido ? 6 : 12}>
+        <DatePicker
+            label="Data de Vencimento"
+            value={formData.data_vencimento ? dayjs(formData.data_vencimento) : dayjs()}
+            onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
+            slotProps={{ 
+                textField: { 
+                    size: 'small', 
+                    margin: 'dense', 
+                    fullWidth: true,
+                    helperText: "Referência do mês"
+                } 
+            }}
+        />
+    </Grid>
+
+    {/* COLUNA 2: Data do Pagamento (SÓ APARECE SE ESTIVER MARCADO COMO PAGO/RECEBIDO) */}
+    {jaRecebido && (
+        <Grid item xs={6}>
+            <DatePicker
+                label={tipo === 'receita' ? "Data do Recebimento" : "Data do Pagamento"}
+                value={formData.data_pagamento ? dayjs(formData.data_pagamento) : dayjs()}
+                onChange={(newValue) => setFormData(prev => ({ ...prev, data_pagamento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
+                slotProps={{ 
+                    textField: { 
+                        size: 'small', 
+                        margin: 'dense', 
+                        fullWidth: true,
+                        // Destaque visual para diferenciar do vencimento
+                        color: tipo === 'receita' ? "success" : "error", 
+                        focused: true,
+                        helperText: "Data real do caixa"
+                    } 
+                }}
+            />
+        </Grid>
+    )}
 </Grid>
                         
                     

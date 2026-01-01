@@ -2,6 +2,7 @@
 import csv
 import io
 from datetime import datetime, timedelta, date, time, timezone
+from dateutil.relativedelta import relativedelta
 
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import generics, status, viewsets
@@ -265,104 +266,126 @@ class LancamentoAvulsoAPIView(APIView):
     
     def post(self, request, *args, **kwargs):
         tipo = request.data.get('tipo')
+        dados = request.data.copy()
         
-        # Lógica para RECEITA (Pagamento)
+        # Pega a data de vencimento base (ou hoje se não vier)
+        data_vencimento_base_str = dados.get('data_vencimento')
+        if data_vencimento_base_str:
+            data_vencimento_base = datetime.strptime(data_vencimento_base_str, '%Y-%m-%d').date()
+        else:
+            data_vencimento_base = timezone.localdate()
+
+        # Pega a data de pagamento (se o usuário informou)
+        data_pagamento_manual = dados.get('data_pagamento') # Formato YYYY-MM-DD ou None
+        
+        # --- Lógica para RECEITA ---
         if tipo == 'receita':
-            dados = request.data.copy()
             qtd_parcelas = int(dados.get('qtd_parcelas', 1))
             forma_pagamento = dados.get('forma_pagamento')
             valor_total = float(dados.get('valor', 0))
             descricao_original = dados.get('descricao', '')
-            
-            # Se for Crédito e tiver parcelas > 1, cria múltiplos registros
-            if forma_pagamento == 'CartaoCredito' and qtd_parcelas > 1:
+            status_lancamento = dados.get('status', 'Pendente')
+
+            # Se for Cartão de Crédito parcelado ou Parcelamento manual > 1
+            if qtd_parcelas > 1:
                 valor_parcela = valor_total / qtd_parcelas
-                data_base = timezone.localdate() # Começa hoje (ou use data do payload se houver)
                 
                 pagamentos_criados = []
                 
                 for i in range(qtd_parcelas):
-                    # Calcula data futura (30 dias por parcela)
-                    data_vencimento = data_base + timedelta(days=30 * (i + 1))
+                    # CÁLCULO INTELIGENTE DE DATA (Usa relativedelta para somar meses corretamente)
+                    # Ex: 31/01 + 1 mês = 28/02 (ou 29), sem pular dias
+                    data_venc_parcela = data_vencimento_base + relativedelta(months=i)
                     
+                    # Se for a 1ª parcela e já estiver marcado como pago, usa a data informada ou hoje
+                    # As parcelas seguintes (2, 3...) nascem Pendentes, a menos que a lógica de negócio fosse diferente
+                    status_parcela = status_lancamento if i == 0 else 'Pendente'
+                    data_pag_parcela = data_pagamento_manual if (i == 0 and status_parcela == 'Pago') else None
+
+                    # Criação do Objeto
                     novo_pagamento = Pagamento.objects.create(
-                        paciente_id=dados.get('paciente'), # Pode ser None
+                        paciente_id=dados.get('paciente'),
                         descricao=f"{descricao_original} ({i+1}/{qtd_parcelas})",
                         valor=valor_parcela,
                         forma_pagamento=forma_pagamento,
-                        status='Pendente', # Parcelas futuras nascem como Pendente (A Receber)
-                        data_pagamento=None, # Ainda não caiu na conta
+                        status=status_parcela,
+                        data_vencimento=data_venc_parcela, 
+                        data_pagamento=data_pag_parcela,
                         registrado_por=request.user
                     )
-                    # Opcional: Se a 1ª parcela já foi paga na hora, você pode marcar a primeira como paga aqui
                     pagamentos_criados.append(novo_pagamento)
                 
                 return Response({'msg': f'{qtd_parcelas} parcelas geradas.'}, status=status.HTTP_201_CREATED)
 
-            # Lançamento normal (1x ou à vista)
+            # Lançamento Único (À vista ou 1x)
             else:
-                serializer = LancamentoAvulsoReceitaSerializer(data=request.data)
+                serializer = LancamentoAvulsoReceitaSerializer(data=dados)
                 if serializer.is_valid():
-                    # Se for dinheiro ou débito, geralmente já nasce pago. 
-                    # Se quiser confirmar, pode passar status='Pago' no front ou forçar aqui.
                     obj = serializer.save(registrado_por=request.user)
                     
-                    # Força data de hoje se já veio como Pago
-                    if obj.status == 'Pago' and not obj.data_pagamento:
-                        obj.data_pagamento = timezone.now()
-                        obj.save()
-                        
+                    # Ajusta datas manualmente após salvar
+                    obj.data_vencimento = data_vencimento_base
+                    
+                    if obj.status == 'Pago':
+                        # Se veio data manual, usa ela. Se não, usa hoje.
+                        if data_pagamento_manual:
+                            obj.data_pagamento = data_pagamento_manual
+                        elif not obj.data_pagamento:
+                            obj.data_pagamento = timezone.now()
+                    
+                    obj.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Lógica para DESPESA (mantida)
+        # --- Lógica para DESPESA ---
         elif tipo == 'despesa':
-            serializer = DespesaSerializer(data=request.data)
+            # Nota: A lógica de parcelamento de despesa também deve ser ajustada
+            # mas geralmente é feita no loop do Frontend (DespesasView).
+            # Se quiser centralizar aqui, avise. Por enquanto, mantém o serializer padrão.
+            serializer = DespesaSerializer(data=dados)
             if serializer.is_valid():
-                serializer.save(registrado_por=request.user)
+                obj = serializer.save(registrado_por=request.user)
+                # Garante data de pagamento correta se vier manual
+                if obj.pago and data_pagamento_manual:
+                    obj.data_pagamento = data_pagamento_manual
+                    obj.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         else:
             return Response({'error': 'Tipo inválido'}, status=status.HTTP_400_BAD_REQUEST)
 
+# CORREÇÃO DA ORDENAÇÃO (Timeline: Recentes no topo)
 class PagamentoViewSet(viewsets.ModelViewSet):
-    """
-    Lista TODAS as receitas (Agendamentos + Avulsos).
-    Ordenação baseada em Vencimento ou Pagamento, nunca em Agendamento,
-    para garantir que Avulsos apareçam.
-    """
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
     
     def get_serializer_class(self):
         return PagamentoUpdateSerializer if self.action in ['update', 'partial_update'] else PagamentoSerializer
 
     def get_queryset(self):
-        # REMOVIDO: .order_by('-agendamento__data_hora_inicio')
-        # CORREÇÃO: Ordenamos depois, baseados no status, para não excluir Avulsos
         queryset = Pagamento.objects.all().select_related('paciente', 'agendamento')
         
-        # Filtros de Status (Abas do Frontend)
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
 
-        # Filtros de Data
         data_inicio = self.request.query_params.get('data_inicio')
         data_fim = self.request.query_params.get('data_fim')
         if data_inicio and data_fim:
-            # Se for filtro de data, usa vencimento como base universal
             queryset = queryset.filter(data_vencimento__range=[data_inicio, data_fim])
 
-        # ORDENAÇÃO ROBUSTA (A Correção Principal)
+        # ORDENAÇÃO TIMELINE (DESC)
+        # Mais recentes (Futuro) no topo -> Mais antigos (Passado) no fim?
+        # OU 
+        # Mais recentes (Hoje/Futuro) no topo.
         if status_param == 'Pago':
-            # Se já pagou, mostra o pagamento mais recente primeiro
-            # Coalesce não é necessário pois data_pagamento existe se status=Pago
+            # Pagos recentemente no topo
             return queryset.order_by('-data_pagamento')
         else:
-            # Se é pendente ou geral, ordena pela data de vencimento.
-            # Itens sem data de vencimento (raro) ou avulsos antigos ficam ordenados corretamente.
-            return queryset.order_by('data_vencimento')
+            # Vencimentos futuros ou recentes no topo. 
+            # Se quiser vencidos no topo, use 'data_vencimento'.
+            # Se quiser linha do tempo (2026 -> 2025), use '-data_vencimento'.
+            return queryset.order_by('-data_vencimento')
 
 # Mantemos essa view caso você use em algum dropdown específico de cobrança rápida,
 # mas a PagamentoViewSet acima já cobre a função dela se usar ?status=Pendente
@@ -382,40 +405,28 @@ class CategoriaDespesaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
 
 class DespesaViewSet(viewsets.ModelViewSet):
-    """
-    Endpoint principal para Listagem de Despesas.
-    Filtros para o Frontend:
-    - ?status=pago     -> Histórico de contas pagas
-    - ?status=pendente -> Contas a pagar (boleto, fornecedor)
-    """
     serializer_class = DespesaSerializer
-    permission_classes = [IsAdminUser] # Apenas admin vê despesas
+    permission_classes = [IsAdminUser]
 
     def get_queryset(self):
         queryset = Despesa.objects.all()
 
-        # 1. Filtro por Status
-        status_param = self.request.query_params.get('status') # 'pago' ou 'pendente'
-        
+        status_param = self.request.query_params.get('status')
         if status_param == 'pago':
             queryset = queryset.filter(pago=True)
         elif status_param == 'pendente':
             queryset = queryset.filter(pago=False)
 
-        # 2. Filtro por Data
         data_inicio = self.request.query_params.get('data_inicio')
         data_fim = self.request.query_params.get('data_fim')
         if data_inicio and data_fim:
             queryset = queryset.filter(data_vencimento__range=[data_inicio, data_fim])
 
-        # 3. Ordenação
+        # ORDENAÇÃO TIMELINE (DESC)
         if status_param == 'pago':
-            # Pagas: Data que pagou (recente primeiro)
             return queryset.order_by('-data_pagamento')
         else:
-            # A Pagar: Data de vencimento (Próximos a vencer ou vencidos no topo)
-            # Ordenação crescente: vencidos (-10 dias) aparecem antes de futuros (+10 dias)
-            return queryset.order_by('data_vencimento')
+            return queryset.order_by('-data_vencimento')
 
     def perform_create(self, serializer):
         serializer.save(registrado_por=self.request.user)
