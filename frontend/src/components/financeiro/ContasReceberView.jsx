@@ -1,100 +1,136 @@
-// src/components/financeiro/ContasReceberView.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Button, CircularProgress, Typography, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Grid, IconButton, TextField, InputAdornment, Chip, Tabs, Tab
+    Grid, IconButton, TextField, InputAdornment, Chip, Dialog, DialogTitle, 
+    DialogContent, DialogActions, FormControlLabel, Switch
 } from '@mui/material';
 import { 
-    AttachMoney, CheckCircle, Search, AddCircleOutline
+    AttachMoney, CheckCircle, Search, AddCircleOutline, Edit
 } from '@mui/icons-material';
 import DeleteIcon from '@mui/icons-material/Delete'; 
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-import PagamentoModal from './PagamentoModal';
-import LancamentoCaixaModal from './LancamentoCaixaModal';
+import PagamentoModal from './PagamentoModal'; // Modal de "Receber" (Baixa)
+import LancamentoCaixaModal from './LancamentoCaixaModal'; // Modal de "Novo"
 
-// Função auxiliar única e externa
+// Função auxiliar de formatação
 const formatDataSimples = (dataISO) => {
     if (!dataISO) return '-';
-    // Garante que a data YYYY-MM-DD não volte um dia por causa do fuso
-    const partes = dataISO.split('T')[0].split('-'); // [YYYY, MM, DD]
+    const partes = dataISO.split('T')[0].split('-'); 
+    if(partes.length < 3) return dataISO;
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
 };
 
 export default function ContasReceberView() {
     const { showSnackbar } = useSnackbar();
     
+    // Estados de Dados
     const [listaPagamentos, setListaPagamentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [tabValue, setTabValue] = useState(0); 
-
-    const [openPagarModal, setOpenPagarModal] = useState(false);
-    const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
+    
+    // Estados de Modais
+    const [openPagarModal, setOpenPagarModal] = useState(false); // Modal de Baixa Rápida
+    const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false); // Modal Criar
+    const [openEditModal, setOpenEditModal] = useState(false); // NOVO: Modal Editar
+    
     const [selectedPagamento, setSelectedPagamento] = useState(null);
+    const [editFormData, setEditFormData] = useState({}); // Dados para edição
 
+    // --- CARGA DE DADOS (SEM FILTRO DE STATUS = TRAZ TUDO) ---
     const fetchPagamentos = useCallback(async () => {
         setIsLoading(true);
         try {
-            let statusFiltro = 'Pendente'; 
-            if (tabValue === 1) statusFiltro = 'Pago';
-            if (tabValue === 2) statusFiltro = ''; 
-
-            const response = await faturamentoService.getPagamentos({ status: statusFiltro });
+            // Removemos o filtro de status para trazer TODOS
+            const response = await faturamentoService.getPagamentos({});
             
             if (Array.isArray(response.data)) {
-                setListaPagamentos(response.data);
+                // Ordenação padrão: Mais recentes primeiro (seja pagamento ou vencimento)
+                const sorted = response.data.sort((a, b) => {
+                    const dataA = a.data_pagamento || a.data_vencimento;
+                    const dataB = b.data_pagamento || b.data_vencimento;
+                    return new Date(dataB) - new Date(dataA);
+                });
+                setListaPagamentos(sorted);
             } else {
                 setListaPagamentos(response.data.results || []);
             }
-
         } catch (error) {
-            console.error("Erro ao buscar pagamentos:", error);
-            showSnackbar("Erro ao carregar dados financeiros.", 'error');
+            console.error("Erro ao buscar:", error);
+            showSnackbar("Erro ao carregar dados.", 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [showSnackbar, tabValue]);
+    }, [showSnackbar]);
 
     useEffect(() => {
         fetchPagamentos();
     }, [fetchPagamentos]);
 
+    // --- KPIs ---
     const financialSummary = useMemo(() => {
         return listaPagamentos.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
+            if (item.status === 'Pago') {
+                acc.recebidos += valor;
+            } else {
+                acc.aReceber += valor;
+            }
             acc.total += valor;
-            acc.qtd += 1;
             return acc;
-        }, { total: 0, qtd: 0 });
+        }, { recebidos: 0, aReceber: 0, total: 0 });
     }, [listaPagamentos]);
 
-    const handleTabChange = (event, newValue) => setTabValue(newValue);
-    
+    // --- AÇÕES ---
     const handleOpenPagar = (pagamento) => {
         setSelectedPagamento(pagamento);
         setOpenPagarModal(true);
     };
 
-    const handleSuccessPagamento = () => {
-        setOpenPagarModal(false);
-        setSelectedPagamento(null);
-        fetchPagamentos();
+    // NOVO: Abrir modal de edição
+    const handleOpenEdit = (pagamento) => {
+        setEditFormData({
+            id: pagamento.id,
+            descricao: pagamento.descricao || '',
+            // Se for avulso ou consulta, permite editar a data
+            data_vencimento: pagamento.data_vencimento,
+            data_pagamento: pagamento.data_pagamento,
+            status: pagamento.status,
+            pago: pagamento.status === 'Pago'
+        });
+        setOpenEditModal(true);
     };
 
-    const handleCloseNovoLancamento = () => {
-        setOpenNovoLancamentoModal(false);
-        fetchPagamentos();
+    // NOVO: Salvar Edição
+    const handleSaveEdit = async () => {
+        try {
+            const payload = {
+                descricao: editFormData.descricao,
+                data_vencimento: editFormData.data_vencimento,
+                data_pagamento: editFormData.pago ? (editFormData.data_pagamento || dayjs().format('YYYY-MM-DD')) : null,
+                status: editFormData.pago ? 'Pago' : 'Pendente'
+            };
+
+            await faturamentoService.updatePagamento(editFormData.id, payload);
+            showSnackbar('Atualizado com sucesso!', 'success');
+            setOpenEditModal(false);
+            fetchPagamentos();
+        } catch (error) {
+            console.error(error);
+            showSnackbar('Erro ao atualizar.', 'error');
+        }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Tem certeza que deseja excluir este lançamento?")) {
+        if (window.confirm("Tem certeza que deseja excluir?")) {
             try {
                 await faturamentoService.deletePagamento(id); 
-                showSnackbar('Lançamento excluído com sucesso', 'success');
+                showSnackbar('Excluído com sucesso', 'success');
                 fetchPagamentos();
             } catch (error) {
                 showSnackbar('Erro ao excluir.', 'error');
@@ -112,46 +148,30 @@ export default function ContasReceberView() {
     });
 
     return (
-        <Box>
+        <Box sx={{ p: 1 }}>
+            {/* 1. KPIs UNIFICADOS */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={6}>
-                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fff' }}>
+                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
                         <Box>
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                                {tabValue === 1 ? 'TOTAL RECEBIDO' : 'TOTAL A RECEBER'}
-                            </Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#1a233b">
-                                {formatMoney(financialSummary.total)}
-                            </Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">RECEBIDO</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="#2e7d32">{formatMoney(financialSummary.recebidos)}</Typography>
                         </Box>
-                        <Box sx={{ bgcolor: 'rgba(26, 35, 59, 0.1)', p: 1, borderRadius: '50%' }}>
-                            <AttachMoney sx={{ color: '#1a233b' }} />
-                        </Box>
+                        <CheckCircle sx={{ color: '#2e7d32', opacity: 0.2 }} />
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#fff' }}>
+                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
                         <Box>
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold">QTD ITENS</Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#c0a46f">
-                                {financialSummary.qtd}
-                            </Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">A RECEBER</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="#f57c00">{formatMoney(financialSummary.aReceber)}</Typography>
                         </Box>
-                        <Box sx={{ bgcolor: 'rgba(192, 164, 111, 0.1)', p: 1, borderRadius: '50%' }}>
-                            <CheckCircle sx={{ color: '#c0a46f' }} />
-                        </Box>
+                        <AttachMoney sx={{ color: '#f57c00', opacity: 0.2 }} />
                     </Paper>
                 </Grid>
             </Grid>
 
-            <Paper elevation={0} sx={{ mb: 2, borderBottom: '1px solid #e0e0e0' }}>
-                <Tabs value={tabValue} onChange={handleTabChange} indicatorColor="primary" textColor="primary">
-                    <Tab label="A Receber (Pendentes)" />
-                    <Tab label="Recebidos (Histórico)" />
-                    <Tab label="Todos" />
-                </Tabs>
-            </Paper>
-
+            {/* 2. BARRA DE AÇÕES (Sem Abas) */}
             <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                 <TextField 
                     size="small"
@@ -166,19 +186,18 @@ export default function ContasReceberView() {
                 </Button>
             </Box>
 
-            <TableContainer component={Paper} elevation={1}>
+            {/* 3. TABELA PADRONIZADA */}
+            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                 <Table size="small">
-                    <TableHead>
-                        <TableRow sx={{ bgcolor: '#f9fafb' }}>
-                            {/* --- COLUNAS SEPARADAS CONFORME SOLICITADO --- */}
-                            <TableCell sx={{ fontWeight: 'bold', width: '110px' }}>Vencimento</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', width: '110px' }}>Pagamento</TableCell>
-                            
+                    <TableHead sx={{ bgcolor: '#f8f9fa' }}>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', width: '100px' }}>Vencimento</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', width: '100px' }}>Pagamento</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Paciente / Cliente</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Descrição</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 'bold' }}>Status</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 'bold' }}>Valor</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>Ação</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -187,21 +206,16 @@ export default function ContasReceberView() {
                         ) : filteredList.length > 0 ? (
                             filteredList.map((pag) => (
                                 <TableRow key={pag.id} hover>
-                                    
-                                    {/* DATA VENCIMENTO */}
-                                    <TableCell sx={{ fontSize: '0.85rem', color: '#555' }}>
+                                    <TableCell sx={{ fontSize: '0.8rem', color: '#555' }}>
                                         {formatDataSimples(pag.data_vencimento)}
                                     </TableCell>
-                                    
-                                    {/* DATA PAGAMENTO (VERDE SE EXISTIR) */}
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>
+                                    <TableCell sx={{ fontSize: '0.8rem' }}>
                                         {pag.data_pagamento ? (
                                             <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#2e7d32', bgcolor: '#e8f5e9', px: 0.8, py: 0.3, borderRadius: 1 }}>
                                                 {formatDataSimples(pag.data_pagamento)}
                                             </Typography>
                                         ) : '-'}
                                     </TableCell>
-
                                     <TableCell sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
                                         {pag.paciente_nome || "Cliente Avulso"}
                                     </TableCell>
@@ -212,50 +226,94 @@ export default function ContasReceberView() {
                                         <Chip 
                                             label={pag.status} 
                                             size="small" 
-                                            color={pag.status === 'Pago' ? 'success' : 'warning'}
-                                            variant={pag.status === 'Pago' ? 'filled' : 'outlined'}
+                                            color={pag.status === 'Pago' ? 'success' : 'warning'} 
+                                            variant={pag.status === 'Pago' ? 'filled' : 'outlined'} 
                                             sx={{ fontSize: '0.7rem' }}
                                         />
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1a233b' }}>
                                         {formatMoney(pag.valor)}
                                     </TableCell>
-                                    
                                     <TableCell align="center">
-                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            {/* Edição para TODOS */}
+                                            <IconButton size="small" onClick={() => handleOpenEdit(pag)}>
+                                                <Edit sx={{ fontSize: 18, color: '#1976d2' }} />
+                                            </IconButton>
+                                            
+                                            {/* Recebimento Rápido (Se pendente) */}
                                             {pag.status === 'Pendente' && (
-                                                <Button variant="outlined" size="small" color="success" onClick={() => handleOpenPagar(pag)} sx={{ fontSize: '0.7rem', py: 0.5 }}>Receber</Button>
+                                                <IconButton size="small" onClick={() => handleOpenPagar(pag)} title="Receber agora">
+                                                    <CheckCircle sx={{ fontSize: 18, color: '#2e7d32' }} />
+                                                </IconButton>
                                             )}
-                                            {!pag.agendamento && (
-                                                <IconButton onClick={() => handleDelete(pag.id)} size="small" color="error"><DeleteIcon fontSize="small" /></IconButton>
-                                            )}
+
+                                            {/* Delete (Só se não for agendamento ou se for admin) */}
+                                            <IconButton size="small" onClick={() => handleDelete(pag.id)} color="error">
+                                                <DeleteIcon sx={{ fontSize: 18 }} />
+                                            </IconButton>
                                         </Box>
                                     </TableCell>
                                 </TableRow>
                             ))
                         ) : (
-                            <TableRow>
-                                <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                                    Nenhum registro encontrado.
-                                </TableCell>
-                            </TableRow>
+                            <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: '#999' }}>Nenhum registro encontrado.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
             </TableContainer>
 
+            {/* MODAL DE EDIÇÃO SIMPLIFICADO */}
+            <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="xs">
+                <DialogTitle>Editar Lançamento</DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <TextField 
+                            label="Descrição" 
+                            fullWidth 
+                            value={editFormData.descricao || ''} 
+                            onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})}
+                        />
+                        <DatePicker 
+                            label="Data de Vencimento"
+                            value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null}
+                            onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})}
+                            slotProps={{ textField: { fullWidth: true } }}
+                        />
+                        
+                        <FormControlLabel 
+                            control={<Switch checked={editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} />} 
+                            label="Está Pago?" 
+                        />
+
+                        {editFormData.pago && (
+                            <DatePicker 
+                                label="Data do Pagamento"
+                                value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : dayjs()}
+                                onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})}
+                                slotProps={{ textField: { fullWidth: true, color: 'success', focused: true } }}
+                            />
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenEditModal(false)}>Cancelar</Button>
+                    <Button variant="contained" onClick={handleSaveEdit}>Salvar</Button>
+                </DialogActions>
+            </Dialog>
+
             {selectedPagamento && (
                 <PagamentoModal 
                     open={openPagarModal}
                     onClose={() => setOpenPagarModal(false)}
-                    onSave={handleSuccessPagamento}
+                    onSave={() => { setOpenPagarModal(false); fetchPagamentos(); }}
                     pagamento={selectedPagamento}
                 />
             )}
 
             <LancamentoCaixaModal 
                 open={openNovoLancamentoModal}
-                onClose={handleCloseNovoLancamento}
+                onClose={() => { setOpenNovoLancamentoModal(false); fetchPagamentos(); }}
             />
         </Box>
     );
