@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { 
     Edit, Delete, AddCircleOutline, Search, 
-    MoneyOff, CheckCircle, Warning 
+    MoneyOff, CheckCircle, Warning, AttachMoney 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -16,7 +16,7 @@ import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Estado inicial: data_despesa ainda existe aqui para não quebrar o backend, mas será invisível
+// Estado inicial do formulário
 const initialFormState = { 
     descricao: '', 
     valor: '', 
@@ -94,7 +94,7 @@ export default function DespesasView() {
             );
         }
 
-        // Ordenação: Pagos e Pendentes misturados, ordem de Vencimento (Timeline)
+        // Ordenação: Timeline (Mais recentes/futuros no topo)
         lista.sort((a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento));
         setFilteredDespesas(lista);
     }, [despesas, mesFiltro, anoFiltro, searchTerm]);
@@ -120,7 +120,6 @@ export default function DespesasView() {
         setFormData({
             ...item,
             categoria: item.categoria, 
-            // Mantemos data_despesa no state, mas não mostramos no form
             data_despesa: item.data_despesa || item.data_vencimento,
             data_vencimento: item.data_vencimento,
             data_pagamento: item.data_pagamento || dayjs().format('YYYY-MM-DD'), 
@@ -142,14 +141,10 @@ export default function DespesasView() {
         setIsSubmitting(true);
 
         try {
-            // LÓGICA DE PRESERVAÇÃO: 
-            // Se o usuário não vê 'data_despesa', assumimos que ela é igual à 'data_vencimento'
-            // Isso impede que vá vazio para o backend.
             const dataEmissaoAutomatica = formData.data_vencimento;
-
             const payloadBase = {
                 ...formData,
-                data_despesa: dataEmissaoAutomatica, // Sincroniza invisiblemente
+                data_despesa: dataEmissaoAutomatica,
                 data_pagamento: formData.pago ? formData.data_pagamento : null
             };
 
@@ -168,7 +163,7 @@ export default function DespesasView() {
                             ...payloadBase,
                             descricao: `${formData.descricao} (${i + 1}/${formData.qtd_parcelas})`,
                             valor: valorParcela.toFixed(2),
-                            data_despesa: novaDataVenc, // Emissão acompanha vencimento na projeção
+                            data_despesa: novaDataVenc,
                             data_vencimento: novaDataVenc,
                             pago: i === 0 ? formData.pago : false, 
                             data_pagamento: (i === 0 && formData.pago) ? formData.data_pagamento : null
@@ -240,37 +235,80 @@ export default function DespesasView() {
     return (
         <Box sx={{ p: 1 }}>
             
-            {/* TOPO E FILTROS */}
+            {/* 1. KPIs PADRONIZADOS (Igual ContasReceberView, mas com 3 cards) */}
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} md={4}>
+                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">TOTAL GERAL</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="#1a233b">{formatMoney(financialSummary.total)}</Typography>
+                        </Box>
+                        <MoneyOff sx={{ color: '#1a233b', opacity: 0.2 }} />
+                    </Paper>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">TOTAL PAGO</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="#2e7d32">{formatMoney(financialSummary.pagas)}</Typography>
+                        </Box>
+                        <CheckCircle sx={{ color: '#2e7d32', opacity: 0.2 }} />
+                    </Paper>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">A PAGAR</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="#d32f2f">{formatMoney(financialSummary.aPagar)}</Typography>
+                        </Box>
+                        <Warning sx={{ color: '#d32f2f', opacity: 0.2 }} />
+                    </Paper>
+                </Grid>
+            </Grid>
+
+            {/* 2. BARRA DE AÇÕES E FILTROS */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FormControl size="small" sx={{ minWidth: 110 }}>
-                        <InputLabel sx={{fontSize: '0.8rem'}}>Período</InputLabel>
-                        <Select value={mesFiltro} label="Período" onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '32px' }}>
-                            <MenuItem value=""><em>Todos</em></MenuItem>
-                            {Array.from({length: 12}, (_, i) => (
-                                <MenuItem key={i} value={i} sx={{fontSize: '0.8rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 80 }}>
-                        <Select value={anoFiltro} onChange={(e) => setAnoFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '32px' }}>
-                            <MenuItem value={2024}>2024</MenuItem>
-                            <MenuItem value={2025}>2025</MenuItem>
-                            <MenuItem value={2026}>2026</MenuItem>
-                        </Select>
-                    </FormControl>
+                <Box sx={{ display: 'flex', gap: 2, flexGrow: 1 }}>
+                    {/* Filtros de Data */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FormControl size="small" sx={{ minWidth: 110 }}>
+                            <Select value={mesFiltro} displayEmpty onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '40px' }}>
+                                <MenuItem value=""><em>Todos Meses</em></MenuItem>
+                                {Array.from({length: 12}, (_, i) => (
+                                    <MenuItem key={i} value={i} sx={{fontSize: '0.8rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 80 }}>
+                            <Select value={anoFiltro} onChange={(e) => setAnoFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '40px' }}>
+                                <MenuItem value={2024}>2024</MenuItem>
+                                <MenuItem value={2025}>2025</MenuItem>
+                                <MenuItem value={2026}>2026</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Box>
+
+                    {/* Busca */}
+                    <TextField 
+                        size="small"
+                        placeholder="Buscar despesa..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
+                        sx={{ flexGrow: 1, bgcolor: 'white', maxWidth: '400px' }}
+                    />
                 </Box>
-                <Button variant="contained" startIcon={<AddCircleOutline sx={{fontSize: 18}} />} onClick={handleOpenCreate} sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, borderRadius: '6px', px: 2, py: 0.5, textTransform: 'none', fontWeight: 'bold', fontSize: '0.8rem' }}>
+
+                <Button variant="contained" startIcon={<AddCircleOutline />} onClick={handleOpenCreate} sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' } }}>
                     Nova Despesa
                 </Button>
             </Box>
 
-            {/* TABELA */}
+            {/* 3. TABELA PADRONIZADA */}
             <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                 <Table size="small">
                     <TableHead sx={{ bgcolor: '#f8f9fa' }}>
                         <TableRow>
-                            {/* APENAS DUAS DATAS AGORA */}
                             <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem', width: '100px'}}>Vencimento</TableCell>
                             <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem', width: '100px'}}>Pagamento</TableCell>
                             <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Descrição</TableCell>
@@ -298,14 +336,36 @@ export default function DespesasView() {
                                 <TableCell sx={{ fontSize: '0.85rem' }}>{item.descricao}</TableCell>
                                 <TableCell><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.65rem', height: 20, bgcolor: '#f5f5f5', color: '#555'}} /></TableCell>
                                 <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b', fontSize: '0.85rem'}}>{formatMoney(item.valor)}</TableCell>
+                                
+                                {/* COLUNA STATUS (Chip em vez de Switch) */}
                                 <TableCell align="center">
-                                    <Tooltip title={item.pago ? "Marcar como pendente" : "Marcar como pago"}>
-                                        <Switch size="small" checked={!!item.pago} onChange={() => handleToggleStatus(item)} color="success"/>
-                                    </Tooltip>
+                                    <Chip 
+                                        label={item.pago ? "Pago" : "Pendente"} 
+                                        size="small" 
+                                        color={item.pago ? 'success' : 'warning'} 
+                                        variant={item.pago ? 'filled' : 'outlined'} 
+                                        sx={{ fontSize: '0.7rem' }}
+                                    />
                                 </TableCell>
+                                
+                                {/* COLUNA AÇÕES */}
                                 <TableCell align="center">
-                                    <IconButton size="small" onClick={() => handleOpenEdit(item)}><Edit sx={{ fontSize: 16 }} /></IconButton>
-                                    <IconButton size="small" onClick={() => handleDelete(item.id)} color="error"><Delete sx={{ fontSize: 16 }} /></IconButton>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <IconButton size="small" onClick={() => handleOpenEdit(item)}>
+                                            <Edit sx={{ fontSize: 18, color: '#1976d2' }} />
+                                        </IconButton>
+                                        
+                                        {/* Botão de Pagar Rápido (Só se não estiver pago) */}
+                                        {!item.pago && (
+                                            <IconButton size="small" onClick={() => handleToggleStatus(item)} title="Marcar como Pago">
+                                                <CheckCircle sx={{ fontSize: 18, color: '#2e7d32' }} />
+                                            </IconButton>
+                                        )}
+
+                                        <IconButton size="small" onClick={() => handleDelete(item.id)} color="error">
+                                            <Delete sx={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         )) : (
@@ -315,7 +375,7 @@ export default function DespesasView() {
                 </Table>
             </TableContainer>
 
-            {/* MODAL PADRONIZADO (Sem campo Data Despesa) */}
+            {/* MODAL (Mantido igual, mas com o Switch interno para edição detalhada) */}
             <Dialog open={modalOpen} onClose={() => setModalOpen(false)} fullWidth maxWidth="sm">
                 <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '1rem', borderBottom: '1px solid #f0f0f0', pb: 1 }}>
                     {isEditing ? 'Editar Despesa' : 'Nova Despesa'}
@@ -348,7 +408,6 @@ export default function DespesasView() {
                                             <FormControlLabel control={<Switch checked={formData.pago} onChange={handlePagoSwitchChange} color="success"/>} label={<Typography fontSize="0.9rem">Já Pago?</Typography>} />
                                         </Grid>
                                         
-                                        {/* AQUI ESTÁ A MUDANÇA: REMOVIDO CAMPO DATA DESPESA DA TELA */}
                                         <Grid item xs={12}>
                                             <DatePicker label="Data de Vencimento" value={dayjs(formData.data_vencimento)} onChange={(v) => setFormData({...formData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'medium' } }}/>
                                         </Grid>
