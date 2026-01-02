@@ -8,16 +8,27 @@ import {
 } from '@mui/material';
 import { 
     Edit, Delete, AddCircleOutline, Search, 
-    MoneyOff, CheckCircle, Warning 
+    MoneyOff, CheckCircle, Warning, BarChart as BarChartIcon 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { 
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
+} from 'recharts'; // Importação do Gráfico
 import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Importamos o Modal "Bonito" (Padronizado)
+// Importamos o Modal Padronizado
 import LancamentoCaixaModal from './LancamentoCaixaModal';
+
+// Formatação compacta de moeda para o gráfico
+const formatCurrencyCompact = (value) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+    return value;
+};
+
+const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 const formatDataSimples = (dataISO) => {
     if (!dataISO) return '-';
@@ -29,22 +40,22 @@ const formatDataSimples = (dataISO) => {
 export default function DespesasView() {
     const { showSnackbar } = useSnackbar();
     
-    // Estados de Dados
+    // Dados
     const [despesas, setDespesas] = useState([]);
     const [categorias, setCategorias] = useState([]);
     const [filteredDespesas, setFilteredDespesas] = useState([]);
     
-    // UI e Filtros
+    // UI
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [mesFiltro, setMesFiltro] = useState(''); 
     const [anoFiltro, setAnoFiltro] = useState(dayjs().year());
 
-    // Estados dos Modais
-    const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false); // Modal Padrão (Criação)
-    const [openEditModal, setOpenEditModal] = useState(false); // Modal Interno (Apenas Edição)
+    // Modais
+    const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
+    const [openEditModal, setOpenEditModal] = useState(false);
     
-    // Estado do Formulário de Edição
+    // Edição
     const [editFormData, setEditFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,12 +99,11 @@ export default function DespesasView() {
             );
         }
 
-        // Ordenação Timeline (Mais recentes no topo)
         lista.sort((a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento));
         setFilteredDespesas(lista);
     }, [despesas, mesFiltro, anoFiltro, searchTerm]);
 
-    // --- KPIs ---
+    // --- KPIs (Baseados no filtro atual) ---
     const financialSummary = useMemo(() => {
         return filteredDespesas.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
@@ -104,14 +114,26 @@ export default function DespesasView() {
         }, { pagas: 0, aPagar: 0, total: 0 });
     }, [filteredDespesas]);
 
-    // --- AÇÕES ---
-    
-    // Abre o Modal Padrão (Bonito) para criar nova despesa
-    const handleOpenCreate = () => {
-        setOpenNovoLancamentoModal(true);
-    };
+    // --- DADOS DO GRÁFICO (Baseado em TODO o período carregado, conforme solicitado) ---
+    const chartData = useMemo(() => {
+        const groups = {};
+        // Usa 'despesas' (sem filtro) para mostrar todo o período, ou 'filteredDespesas' se quiser dinamico.
+        // O pedido foi "todo o período da clínica", então usamos 'despesas'.
+        despesas.forEach(d => {
+            const cat = d.categoria_nome || 'Sem Categoria';
+            groups[cat] = (groups[cat] || 0) + parseFloat(d.valor);
+        });
 
-    // Abre o Modal Interno apenas para EDITAR
+        // Transforma em array e ordena (Top 5 categorias para caber no gráfico pequeno)
+        return Object.keys(groups)
+            .map(key => ({ name: key, value: groups[key] }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5); 
+    }, [despesas]);
+
+    // --- AÇÕES ---
+    const handleOpenCreate = () => setOpenNovoLancamentoModal(true);
+
     const handleOpenEdit = (item) => {
         setEditFormData({
             id: item.id,
@@ -119,51 +141,42 @@ export default function DespesasView() {
             valor: item.valor,
             categoria: item.categoria,
             data_vencimento: item.data_vencimento,
-            // Lógica de preservação de data: Se não tem pagto, sugere hoje ao marcar pago
             data_pagamento: item.data_pagamento || dayjs().format('YYYY-MM-DD'),
             pago: item.pago
         });
         setOpenEditModal(true);
     };
 
-    // Salvar Edição
     const handleSaveEdit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            // Payload de atualização
             const payload = {
                 ...editFormData,
-                // Mantém data_despesa sincronizada com vencimento nos bastidores
-                data_despesa: editFormData.data_vencimento,
+                data_despesa: editFormData.data_vencimento, // Sincronização background
                 data_pagamento: editFormData.pago ? editFormData.data_pagamento : null
             };
-            
             await faturamentoService.updateDespesa(editFormData.id, payload);
             showSnackbar('Despesa atualizada!', 'success');
             setOpenEditModal(false);
             fetchData();
         } catch (error) {
-            console.error(error);
             showSnackbar('Erro ao atualizar.', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Toggle Rápido de Status (Pago/Pendente)
     const handleToggleStatus = async (despesa) => {
         const novoStatus = !despesa.pago;
-        // Atualização Otimista na UI
         setDespesas(prev => prev.map(d => d.id === despesa.id ? { ...d, pago: novoStatus } : d));
-
         try {
             const payload = {
                 id: despesa.id,
                 descricao: despesa.descricao,
                 valor: despesa.valor,
                 categoria: despesa.categoria,
-                data_despesa: despesa.data_despesa, // Mantém original
+                data_despesa: despesa.data_despesa,
                 data_vencimento: despesa.data_vencimento,
                 pago: novoStatus,
                 data_pagamento: novoStatus ? dayjs().format('YYYY-MM-DD') : null
@@ -171,7 +184,7 @@ export default function DespesasView() {
             await faturamentoService.updateDespesa(despesa.id, payload);
             showSnackbar(novoStatus ? 'Pago!' : 'Pendente.', 'success');
         } catch (error) {
-            fetchData(); // Reverte se der erro
+            fetchData();
             showSnackbar('Erro ao atualizar.', 'error');
         }
     };
@@ -187,8 +200,6 @@ export default function DespesasView() {
         }
     };
 
-    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
     const getVencimentoColor = (dataVenc, pago) => {
         if (pago) return 'text.secondary';
         const hoje = dayjs();
@@ -198,154 +209,212 @@ export default function DespesasView() {
         return 'text.primary';
     };
 
+    // Componente Card Compacto para KPIs
+    const CompactKpi = ({ title, value, color, icon: Icon }) => (
+        <Paper elevation={0} sx={{ 
+            p: 1.5, flex: 1, border: '1px solid #e0e0e0', borderRadius: '8px', 
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%',
+            bgcolor: '#fff'
+        }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                    {title}
+                </Typography>
+                <Icon sx={{ color: color, fontSize: '1rem', opacity: 0.6 }} />
+            </Box>
+            <Typography variant="h6" fontWeight="bold" sx={{ color: color, fontSize: '1.1rem' }}>
+                {formatMoney(value)}
+            </Typography>
+        </Paper>
+    );
+
     return (
         <Box sx={{ p: 1 }}>
             
-            {/* 1. KPIs */}
-            <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={12} md={4}>
-                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold">TOTAL GERAL</Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#1a233b">{formatMoney(financialSummary.total)}</Typography>
-                        </Box>
-                        <MoneyOff sx={{ color: '#1a233b', opacity: 0.2 }} />
-                    </Paper>
+            {/* 1. SEÇÃO TOPO: KPIs (Esquerda) + GRÁFICO (Direita) */}
+            <Grid container spacing={1.5} sx={{ mb: 1.5, height: '140px' }}>
+                
+                {/* ESQUERDA: KPIs em linha */}
+                <Grid item xs={12} md={7} sx={{ height: '100%' }}>
+                    <Grid container spacing={1.5} sx={{ height: '100%' }}>
+                        <Grid item xs={4} sx={{ height: '100%' }}>
+                            <CompactKpi title="TOTAL GERAL" value={financialSummary.total} color="#1a233b" icon={MoneyOff} />
+                        </Grid>
+                        <Grid item xs={4} sx={{ height: '100%' }}>
+                            <CompactKpi title="TOTAL PAGO" value={financialSummary.pagas} color="#2e7d32" icon={CheckCircle} />
+                        </Grid>
+                        <Grid item xs={4} sx={{ height: '100%' }}>
+                            <CompactKpi title="A PAGAR" value={financialSummary.aPagar} color="#d32f2f" icon={Warning} />
+                        </Grid>
+                    </Grid>
                 </Grid>
-                <Grid item xs={12} md={4}>
-                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold">TOTAL PAGO</Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#2e7d32">{formatMoney(financialSummary.pagas)}</Typography>
+
+                {/* DIREITA: Gráfico Compacto */}
+                <Grid item xs={12} md={5} sx={{ height: '100%' }}>
+                    <Paper elevation={0} sx={{ 
+                        p: 1, height: '100%', border: '1px solid #e0e0e0', borderRadius: '8px',
+                        display: 'flex', flexDirection: 'column', bgcolor: '#fff'
+                    }}>
+                        <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ ml: 1, mb: 0.5, fontSize: '0.65rem' }}>
+                            GASTOS POR CATEGORIA (TOP 5)
+                        </Typography>
+                        <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                                    <XAxis type="number" hide />
+                                    <YAxis 
+                                        type="category" 
+                                        dataKey="name" 
+                                        width={80} 
+                                        tick={{fontSize: 10, fill: '#666'}} 
+                                        interval={0}
+                                    />
+                                    <RechartsTooltip 
+                                        formatter={(value) => formatMoney(value)}
+                                        contentStyle={{ fontSize: '12px', borderRadius: '4px', border: 'none', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Bar dataKey="value" fill="#1a233b" radius={[0, 4, 4, 0]} barSize={12}>
+                                        {chartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#1a233b' : '#3949ab'} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </Box>
-                        <CheckCircle sx={{ color: '#2e7d32', opacity: 0.2 }} />
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" fontWeight="bold">A PAGAR</Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#d32f2f">{formatMoney(financialSummary.aPagar)}</Typography>
-                        </Box>
-                        <Warning sx={{ color: '#d32f2f', opacity: 0.2 }} />
                     </Paper>
                 </Grid>
             </Grid>
 
-            {/* 2. BARRA DE AÇÕES */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 2, flexGrow: 1 }}>
-                    {/* Filtros */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <FormControl size="small" sx={{ minWidth: 110 }}>
-                            <Select value={mesFiltro} displayEmpty onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '40px' }}>
-                                <MenuItem value=""><em>Todos Meses</em></MenuItem>
-                                {Array.from({length: 12}, (_, i) => (
-                                    <MenuItem key={i} value={i} sx={{fontSize: '0.8rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                        <FormControl size="small" sx={{ minWidth: 80 }}>
-                            <Select value={anoFiltro} onChange={(e) => setAnoFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '40px' }}>
-                                <MenuItem value={2024}>2024</MenuItem>
-                                <MenuItem value={2025}>2025</MenuItem>
-                                <MenuItem value={2026}>2026</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
+            {/* 2. FILTROS E BOTÃO (Compacto) */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+                    <FormControl size="small" sx={{ width: 120 }}>
+                        <Select 
+                            value={mesFiltro} 
+                            displayEmpty 
+                            onChange={(e) => setMesFiltro(e.target.value)} 
+                            sx={{ fontSize: '0.75rem', bgcolor: '#fff', height: '32px' }}
+                        >
+                            <MenuItem value=""><em>Todos Meses</em></MenuItem>
+                            {Array.from({length: 12}, (_, i) => (
+                                <MenuItem key={i} value={i} sx={{fontSize: '0.75rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ width: 80 }}>
+                        <Select 
+                            value={anoFiltro} 
+                            onChange={(e) => setAnoFiltro(e.target.value)} 
+                            sx={{ fontSize: '0.75rem', bgcolor: '#fff', height: '32px' }}
+                        >
+                            <MenuItem value={2024} sx={{fontSize: '0.75rem'}}>2024</MenuItem>
+                            <MenuItem value={2025} sx={{fontSize: '0.75rem'}}>2025</MenuItem>
+                            <MenuItem value={2026} sx={{fontSize: '0.75rem'}}>2026</MenuItem>
+                        </Select>
+                    </FormControl>
 
-                    {/* Busca */}
                     <TextField 
                         size="small"
                         placeholder="Buscar despesa..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
-                        sx={{ flexGrow: 1, bgcolor: 'white', maxWidth: '400px' }}
+                        InputProps={{ 
+                            startAdornment: <InputAdornment position="start"><Search sx={{fontSize: 18, color: '#999'}} /></InputAdornment>,
+                            style: { fontSize: '0.75rem', height: '32px' }
+                        }}
+                        sx={{ flexGrow: 1, bgcolor: 'white', maxWidth: '300px' }}
                     />
                 </Box>
 
-                {/* BOTÃO PADRONIZADO - ABRE O MODAL BONITO */}
-                <Button variant="contained" startIcon={<AddCircleOutline />} onClick={handleOpenCreate} sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' } }}>
+                <Button 
+                    variant="contained" 
+                    startIcon={<AddCircleOutline sx={{fontSize: 16}} />} 
+                    onClick={handleOpenCreate} 
+                    sx={{ 
+                        bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' },
+                        height: '32px', fontSize: '0.75rem', textTransform: 'none', px: 2 
+                    }}
+                >
                     Nova Despesa
                 </Button>
             </Box>
 
-            {/* 3. TABELA */}
+            {/* 3. TABELA COMPACTA */}
             <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                 <Table size="small">
                     <TableHead sx={{ bgcolor: '#f8f9fa' }}>
                         <TableRow>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem', width: '100px'}}>Vencimento</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem', width: '100px'}}>Pagamento</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Descrição</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Categoria</TableCell>
-                            <TableCell align="right" sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Valor</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Status</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.75rem'}}>Ações</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1, width: '90px'}}>Vencimento</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1, width: '90px'}}>Pagamento</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Descrição</TableCell>
+                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Categoria</TableCell>
+                            <TableCell align="right" sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Valor</TableCell>
+                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Status</TableCell>
+                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {filteredDespesas.length > 0 ? filteredDespesas.map((item) => (
-                            <TableRow key={item.id} hover>
-                                <TableCell sx={{ fontSize: '0.8rem' }}>
-                                    <Typography variant="body2" fontWeight="500" color={getVencimentoColor(item.data_vencimento, item.pago)} sx={{ fontSize: '0.8rem' }}>
+                            <TableRow key={item.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>
+                                    <Typography variant="body2" fontWeight="500" color={getVencimentoColor(item.data_vencimento, item.pago)} sx={{ fontSize: '0.75rem' }}>
                                         {formatDataSimples(item.data_vencimento)}
                                     </Typography>
                                 </TableCell>
-                                <TableCell sx={{ fontSize: '0.8rem' }}>
+                                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>
                                     {item.data_pagamento ? (
-                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#2e7d32', bgcolor: '#e8f5e9', px: 0.8, py: 0.3, borderRadius: 1 }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#2e7d32', bgcolor: '#e8f5e9', px: 0.6, py: 0.2, borderRadius: 1, fontSize: '0.7rem' }}>
                                             {formatDataSimples(item.data_pagamento)}
                                         </Typography>
                                     ) : '-'}
                                 </TableCell>
-                                <TableCell sx={{ fontSize: '0.85rem' }}>{item.descricao}</TableCell>
-                                <TableCell><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.65rem', height: 20, bgcolor: '#f5f5f5', color: '#555'}} /></TableCell>
-                                <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b', fontSize: '0.85rem'}}>{formatMoney(item.valor)}</TableCell>
-                                <TableCell align="center">
+                                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>{item.descricao}</TableCell>
+                                <TableCell sx={{ py: 0.5 }}><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.65rem', height: 18, bgcolor: '#f5f5f5', color: '#666'}} /></TableCell>
+                                <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b', fontSize: '0.75rem', py: 0.5}}>{formatMoney(item.valor)}</TableCell>
+                                <TableCell align="center" sx={{ py: 0.5 }}>
                                     <Chip 
                                         label={item.pago ? "Pago" : "Pendente"} 
                                         size="small" 
                                         color={item.pago ? 'success' : 'warning'} 
                                         variant={item.pago ? 'filled' : 'outlined'} 
-                                        sx={{ fontSize: '0.7rem' }}
+                                        sx={{ fontSize: '0.65rem', height: 20 }}
                                     />
                                 </TableCell>
-                                <TableCell align="center">
+                                <TableCell align="center" sx={{ py: 0.5 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <IconButton size="small" onClick={() => handleOpenEdit(item)}>
-                                            <Edit sx={{ fontSize: 18, color: '#1976d2' }} />
+                                        <IconButton size="small" onClick={() => handleOpenEdit(item)} sx={{p: 0.5}}>
+                                            <Edit sx={{ fontSize: 16, color: '#1976d2' }} />
                                         </IconButton>
                                         {!item.pago && (
-                                            <IconButton size="small" onClick={() => handleToggleStatus(item)} title="Marcar como Pago">
-                                                <CheckCircle sx={{ fontSize: 18, color: '#2e7d32' }} />
+                                            <IconButton size="small" onClick={() => handleToggleStatus(item)} title="Marcar como Pago" sx={{p: 0.5}}>
+                                                <CheckCircle sx={{ fontSize: 16, color: '#2e7d32' }} />
                                             </IconButton>
                                         )}
-                                        <IconButton size="small" onClick={() => handleDelete(item.id)} color="error">
-                                            <Delete sx={{ fontSize: 18 }} />
+                                        <IconButton size="small" onClick={() => handleDelete(item.id)} color="error" sx={{p: 0.5}}>
+                                            <Delete sx={{ fontSize: 16 }} />
                                         </IconButton>
                                     </Box>
                                 </TableCell>
                             </TableRow>
                         )) : (
-                            <TableRow><TableCell colSpan={7} align="center" sx={{py:4, color:'#999', fontSize: '0.85rem'}}>Nenhuma despesa encontrada.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} align="center" sx={{py:3, color:'#999', fontSize: '0.75rem'}}>Nenhuma despesa encontrada.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
             </TableContainer>
 
-            {/* MODAL PADRÃO (BONITO) PARA CRIAÇÃO */}
+            {/* Modal de Criação (Bonito) */}
             <LancamentoCaixaModal 
                 open={openNovoLancamentoModal} 
                 onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} 
-                initialTab={1} // Aba de "Avulso"
-                initialType="despesa" // Já seleciona Despesa
+                initialTab={1} 
+                initialType="despesa" 
             />
 
-            {/* MODAL INTERNO (SIMPLES) APENAS PARA EDIÇÃO */}
+            {/* Modal de Edição (Simples) */}
             <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="sm">
-                <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '1rem', borderBottom: '1px solid #f0f0f0', pb: 1 }}>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '0.9rem', borderBottom: '1px solid #f0f0f0', py: 1.5 }}>
                     Editar Despesa
                 </DialogTitle>
                 <form onSubmit={handleSaveEdit}>
@@ -355,10 +424,10 @@ export default function DespesasView() {
                                 <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                                     <Grid container spacing={2}>
                                         <Grid item xs={12}>
-                                            <TextField label="Descrição" fullWidth required size="medium" value={editFormData.descricao || ''} onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})} />
+                                            <TextField label="Descrição" fullWidth required size="small" value={editFormData.descricao || ''} onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})} InputLabelProps={{style: {fontSize: '0.8rem'}}} />
                                         </Grid>
                                         <Grid item xs={12}>
-                                            <TextField select label="Categoria" fullWidth required size="medium" value={editFormData.categoria || ''} onChange={(e) => setEditFormData({...editFormData, categoria: e.target.value})}>
+                                            <TextField select label="Categoria" fullWidth required size="small" value={editFormData.categoria || ''} onChange={(e) => setEditFormData({...editFormData, categoria: e.target.value})} SelectProps={{style: {fontSize: '0.8rem'}}} InputLabelProps={{style: {fontSize: '0.8rem'}}}>
                                                 {categorias.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>)}
                                             </TextField>
                                         </Grid>
@@ -370,24 +439,17 @@ export default function DespesasView() {
                                 <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                                     <Grid container spacing={2}>
                                         <Grid item xs={6}>
-                                            <TextField label="Valor (R$)" type="number" fullWidth required size="medium" value={editFormData.valor || ''} onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})} InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}/>
+                                            <TextField label="Valor (R$)" type="number" fullWidth required size="small" value={editFormData.valor || ''} onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})} InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment>, style: {fontSize: '0.8rem'} }} InputLabelProps={{style: {fontSize: '0.8rem'}}} />
                                         </Grid>
                                         <Grid item xs={6} display="flex" alignItems="center">
-                                            <FormControlLabel control={<Switch checked={!!editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} color="success"/>} label={<Typography fontSize="0.9rem">Já Pago?</Typography>} />
+                                            <FormControlLabel control={<Switch size="small" checked={!!editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} color="success"/>} label={<Typography fontSize="0.8rem">Já Pago?</Typography>} />
                                         </Grid>
-                                        
                                         <Grid item xs={12}>
-                                            <DatePicker label="Vencimento" value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null} onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'medium' } }}/>
+                                            <DatePicker label="Vencimento" value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null} onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
                                         </Grid>
-
                                         {editFormData.pago && (
                                             <Grid item xs={12}>
-                                                <DatePicker 
-                                                    label="Data Pagamento" 
-                                                    value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : null} 
-                                                    onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})} 
-                                                    slotProps={{ textField: { fullWidth: true, size: 'medium', color: 'success', focused: true } }}
-                                                />
+                                                <DatePicker label="Data Pagamento" value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : null} onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'small', color: 'success', focused: true } }} />
                                             </Grid>
                                         )}
                                     </Grid>
@@ -395,10 +457,10 @@ export default function DespesasView() {
                             </Grid>
                         </Grid>
                     </DialogContent>
-                    <DialogActions sx={{ p: 2, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
-                        <Button onClick={() => setOpenEditModal(false)} size="small" sx={{color: '#666'}}>Cancelar</Button>
-                        <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ bgcolor: '#1a233b', px: 3 }}>
-                            {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar Alterações'}
+                    <DialogActions sx={{ p: 1.5, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
+                        <Button onClick={() => setOpenEditModal(false)} size="small" sx={{color: '#666', fontSize: '0.75rem'}}>Cancelar</Button>
+                        <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem' }}>
+                            {isSubmitting ? <CircularProgress size={16} color="inherit" /> : 'Salvar Alterações'}
                         </Button>
                     </DialogActions>
                 </form>
