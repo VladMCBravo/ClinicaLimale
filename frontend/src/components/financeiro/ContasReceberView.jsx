@@ -44,7 +44,7 @@ export default function ContasReceberView() {
     
     // Filtros de Data
     const [mesFiltro, setMesFiltro] = useState('');
-    const [anoFiltro, setAnoFiltro] = useState(dayjs().year());
+    const [anoFiltro, setAnoFiltro] = useState("");
 
     // Modais
     const [openPagarModal, setOpenPagarModal] = useState(false);
