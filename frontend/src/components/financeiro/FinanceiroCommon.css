@@ -2,25 +2,31 @@
 
 /* --- CONTAINER PRINCIPAL --- */
 .financeiro-view-container {
+    /* Ajuste: box-sizing garante que o padding não some ao 100% da largura */
+    box-sizing: border-box; 
     padding: 10px;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: hidden; /* Garante corte de qualquer milímetro excedente */
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* --- SEÇÃO SUPERIOR (KPIs + GRÁFICO) --- */
 .financeiro-top-section {
     display: flex;
-    gap: 12px; /* Gap reduzido */
+    gap: 10px; /* Gap reduzido de 12px para 10px */
     margin-bottom: 15px;
-    height: 120px; /* Altura total reduzida para ficar mais compacto */
+    height: 120px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* GRUPO DE CARDS (Esquerda) */
 .kpi-group {
-    flex: 0.4; /* AJUSTE: Reduzido de 0.6 para 0.4 (40% da tela) */
+    /* MÁGICA DO ALINHAMENTO: 40% da tela MENOS metade do gap (5px) */
+    width: calc(40% - 5px); 
     display: flex;
-    gap: 10px; /* Menos espaço entre cards */
+    gap: 10px;
 }
 
 .kpi-card {
@@ -28,15 +34,15 @@
     background-color: #fff;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    padding: 8px 12px; /* AJUSTE: Padding mais compacto */
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     height: 100%;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Vital para não estourar */
     transition: transform 0.2s;
-    min-width: 0; /* Impede que o texto estoure o flex */
+    min-width: 0;
 }
 
 .kpi-card:hover {
@@ -48,11 +54,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px; /* Margem reduzida */
+    margin-bottom: 4px;
 }
 
 .kpi-title {
-    font-size: 0.6rem; /* Fonte menor */
+    font-size: 0.65rem;
     font-weight: 700;
     color: #757575;
     text-transform: uppercase;
@@ -61,34 +67,35 @@
 }
 
 .kpi-icon {
-    font-size: 0.9rem; /* Ícone menor */
+    font-size: 1rem;
     opacity: 0.5;
 }
 
 .kpi-value {
-    font-size: 1.1rem; /* AJUSTE: Fonte do valor reduzida para não gritar na tela */
+    font-size: 1.15rem;
     font-weight: 700;
     line-height: 1.2;
-    white-space: nowrap; /* Evita quebra de linha */
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 /* ÁREA DO GRÁFICO (Direita) */
 .chart-container-box {
-    flex: 0.6; /* AJUSTE: Aumentado de 0.4 para 0.6 (60% da tela) - O Gráfico manda agora */
+    /* MÁGICA DO ALINHAMENTO: 60% da tela MENOS metade do gap (5px) */
+    width: calc(60% - 5px);
     background-color: #fff;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 8px 12px;
     height: 100%;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Vital */
     display: flex;
     flex-direction: column;
 }
 
 .chart-title {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 700;
     color: #757575;
     margin-bottom: 2px;
@@ -110,6 +117,8 @@
     margin-bottom: 10px;
     gap: 10px;
     flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .toolbar-left {
@@ -125,19 +134,21 @@
     border-radius: 8px;
     overflow: hidden;
     background-color: #fff;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .table-header-cell {
     font-weight: 700 !important;
     color: #666 !important;
-    font-size: 0.7rem !important; /* Fonte tabela um pouco menor */
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+    font-size: 0.75rem !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
     background-color: #f8f9fa;
 }
 
 .table-body-cell {
-    font-size: 0.75rem !important;
+    font-size: 0.8rem !important;
     padding-top: 6px !important;
     padding-bottom: 6px !important;
     color: #333;
@@ -150,11 +161,11 @@
         height: auto;
     }
     .kpi-group {
-        flex: 1;
+        width: 100%;
         margin-bottom: 10px;
     }
     .chart-container-box {
+        width: 100%;
         height: 200px;
-        flex: 1;
     }
 }
