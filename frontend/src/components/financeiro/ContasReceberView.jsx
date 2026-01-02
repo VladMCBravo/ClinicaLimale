@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
-    Typography, Grid, Switch, FormControlLabel, Chip, Box, FormControl, Select, MenuItem,
+    IconButton, Typography, Chip, Box, FormControl, Select, MenuItem,
     InputAdornment
 } from '@mui/material';
 import { 
@@ -44,9 +43,7 @@ export default function ContasReceberView() {
     
     // Filtros de Data
     const [mesFiltro, setMesFiltro] = useState('');
-    
-    // MUDANÇA 1: Começa vazio para pegar todo o período da clínica
-    const [anoFiltro, setAnoFiltro] = useState(''); 
+    const [anoFiltro, setAnoFiltro] = useState(''); // Começa vazio para pegar tudo
 
     // Modais
     const [openPagarModal, setOpenPagarModal] = useState(false);
@@ -89,14 +86,12 @@ export default function ContasReceberView() {
     const filteredList = useMemo(() => {
         let lista = listaPagamentos;
 
-        // Filtra por Mês e Ano (se selecionados)
         if (mesFiltro !== '' || anoFiltro !== '') {
             lista = lista.filter(p => {
                 const dataRef = p.data_pagamento || p.data_vencimento;
                 if (!dataRef) return false;
                 const dataObj = dayjs(dataRef);
                 
-                // Se anoFiltro estiver vazio, ignora o ano (pega todos). Se tiver valor, filtra.
                 const matchAno = anoFiltro === '' ? true : dataObj.year() === anoFiltro;
                 const matchMes = mesFiltro === '' ? true : dataObj.month() === mesFiltro;
                 
@@ -120,11 +115,12 @@ export default function ContasReceberView() {
     const dashboardData = useMemo(() => {
         const baseCalculo = filteredList; 
 
-        let totalFaturamentoRealizado = 0; // Só o que está PAGO
-        let qtdConsultasRealizadas = 0; // Só pagas
+        let totalFaturamentoRealizado = 0;
+        let qtdConsultasRealizadas = 0;
         let totalInvestido = 0;
         let aporteDaniel = 0;
         let aporteAlejandro = 0;
+        let outrosAportes = 0;
 
         baseCalculo.forEach(item => {
             const valor = parseFloat(item.valor) || 0;
@@ -132,37 +128,26 @@ export default function ContasReceberView() {
             const visualDesc = (item.descricao_visual || '').toLowerCase();
             const estaPago = item.status === 'Pago';
 
-            // 1. Faturamento de Consultas
             if (item.agendamento) {
-                // MUDANÇA 2: Só soma no KPI se estiver PAGO
                 if (estaPago) {
                     totalFaturamentoRealizado += valor;
                     qtdConsultasRealizadas++;
                 }
-            } 
-            // 2. Aporte de Sócios (Consideramos que aporte é dinheiro que entrou)
-            else {
-                // Geralmente aporte nasce pago, mas vamos checar por segurança ou somar tudo
-                // Aqui assumo que aporte registrado é dinheiro em caixa ou a receber garantido.
-                // Se quiser só aporte pago, adicione (&& estaPago).
+            } else {
                 if (desc.includes('daniel') || visualDesc.includes('daniel')) {
                     aporteDaniel += valor;
                     totalInvestido += valor;
                 } else if (desc.includes('alejandro') || visualDesc.includes('alejandro')) {
                     aporteAlejandro += valor;
                     totalInvestido += valor;
+                } else {
+                    outrosAportes += valor; 
                 }
             }
         });
 
-        // Cálculo de ROI / Break-even
-        // Ticket Médio baseado apenas no realizado
         const ticketMedio = qtdConsultasRealizadas > 0 ? (totalFaturamentoRealizado / qtdConsultasRealizadas) : 0;
-        
-        // Saldo para cobrir = O que os sócios puseram MENOS o que a clínica já gerou de caixa real
         const saldoParaCobrir = totalInvestido - totalFaturamentoRealizado;
-        
-        // Quantas consultas FALTAM (baseado no ticket médio atual)
         const consultasNecessarias = ticketMedio > 0 ? Math.ceil(saldoParaCobrir / ticketMedio) : 0;
 
         return {
@@ -170,14 +155,14 @@ export default function ContasReceberView() {
             investimento: totalInvestido,
             daniel: aporteDaniel,
             alejandro: aporteAlejandro,
+            outros: outrosAportes,
             saldo: saldoParaCobrir,
             ticketMedio: ticketMedio,
             consultasNecessarias: consultasNecessarias,
-            lucro: saldoParaCobrir <= 0 // Se saldo <= 0, já pagou o investimento
+            lucro: saldoParaCobrir <= 0
         };
     }, [filteredList]);
 
-    // Dados para o Gráfico
     const chartData = useMemo(() => {
         return [
             { name: 'Faturamento (Pago)', value: dashboardData.faturamento, color: '#2e7d32' },
@@ -235,15 +220,25 @@ export default function ContasReceberView() {
         }
     };
 
+    // --- FUNÇÕES QUE FALTAVAM (CORREÇÃO DO ERRO DE DEPLOY) ---
+    const handleSuccessPagamento = () => {
+        setOpenPagarModal(false);
+        fetchPagamentos();
+    };
+
+    const handleCloseNovoLancamento = () => {
+        setOpenNovoLancamentoModal(false);
+        fetchPagamentos();
+    };
+
     return (
         <div className="financeiro-view-container">
             
-            {/* 1. SEÇÃO TOPO: KPIs e GRÁFICO */}
+            {/* 1. SEÇÃO TOPO */}
             <div className="financeiro-top-section">
                 
-                {/* ESQUERDA: KPIs Inteligentes */}
+                {/* ESQUERDA: KPIs */}
                 <div className="kpi-group">
-                    {/* MUDANÇA: Títulos Ajustados */}
                     <div className="kpi-card">
                         <div className="kpi-header">
                             <span className="kpi-title">FATURAMENTO REAL (PAGO)</span>
@@ -289,7 +284,7 @@ export default function ContasReceberView() {
                     </div>
                 </div>
 
-                {/* DIREITA: Gráfico Comparativo */}
+                {/* DIREITA: Gráfico */}
                 <div className="chart-container-box">
                     <div className="chart-title">ORIGEM RECEITA (FATURAMENTO PAGO vs APORTES)</div>
                     <div className="chart-wrapper">
@@ -302,7 +297,6 @@ export default function ContasReceberView() {
                                     interval={0}
                                     tickLine={false}
                                     axisLine={false}
-                                    // Abrevia nomes para caber
                                     tickFormatter={(value) => value.length > 10 ? `${value.substring(0, 10)}...` : value}
                                 />
                                 <YAxis 
@@ -344,7 +338,6 @@ export default function ContasReceberView() {
                         </Select>
                     </FormControl>
                     <FormControl size="small" sx={{ width: 110 }}>
-                        {/* MUDANÇA: Opção "Todo o Período" */}
                         <Select 
                             value={anoFiltro} 
                             displayEmpty
@@ -384,7 +377,7 @@ export default function ContasReceberView() {
                 </Button>
             </div>
 
-            {/* 3. TABELA (CSS Padrão) */}
+            {/* 3. TABELA */}
             <TableContainer component={Paper} elevation={0} className="financeiro-table-container">
                 <Table size="small">
                     <TableHead>
