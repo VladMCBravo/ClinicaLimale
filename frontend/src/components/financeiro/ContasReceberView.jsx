@@ -3,7 +3,8 @@ import {
     Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
-    Typography, InputAdornment, Switch, FormControlLabel, Chip, Box, FormControl, Select, MenuItem
+    Typography, Grid, Switch, FormControlLabel, Chip, Box, FormControl, Select, MenuItem,
+    InputAdornment
 } from '@mui/material';
 import { 
     AttachMoney, CheckCircle, Search, AddCircleOutline, 
@@ -22,7 +23,6 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import PagamentoModal from './PagamentoModal';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
 
-// Reusa o CSS padrão para manter a homogeneidade
 import './FinanceiroCommon.css';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -44,7 +44,9 @@ export default function ContasReceberView() {
     
     // Filtros de Data
     const [mesFiltro, setMesFiltro] = useState('');
-    const [anoFiltro, setAnoFiltro] = useState("");
+    
+    // MUDANÇA 1: Começa vazio para pegar todo o período da clínica
+    const [anoFiltro, setAnoFiltro] = useState(''); 
 
     // Modais
     const [openPagarModal, setOpenPagarModal] = useState(false);
@@ -59,11 +61,9 @@ export default function ContasReceberView() {
     const fetchPagamentos = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Traz tudo (sem filtrar status no backend) para calcularmos os totais corretamente
             const response = await faturamentoService.getPagamentos({});
             
             if (Array.isArray(response.data)) {
-                // Ordenação padrão: Mais recentes primeiro
                 const sorted = response.data.sort((a, b) => {
                     const dataA = a.data_pagamento || a.data_vencimento;
                     const dataB = b.data_pagamento || b.data_vencimento;
@@ -85,28 +85,25 @@ export default function ContasReceberView() {
         fetchPagamentos();
     }, [fetchPagamentos]);
 
-    // --- FILTRAGEM LOCAL (Data e Busca) ---
+    // --- FILTRAGEM LOCAL ---
     const filteredList = useMemo(() => {
         let lista = listaPagamentos;
 
-        // 1. Filtro de Mês/Ano (Baseado no Vencimento ou Pagamento)
-        if (mesFiltro !== '') {
+        // Filtra por Mês e Ano (se selecionados)
+        if (mesFiltro !== '' || anoFiltro !== '') {
             lista = lista.filter(p => {
                 const dataRef = p.data_pagamento || p.data_vencimento;
                 if (!dataRef) return false;
                 const dataObj = dayjs(dataRef);
-                return dataObj.month() === mesFiltro && dataObj.year() === anoFiltro;
-            });
-        } else {
-            // Se não filtrar mês, filtra só pelo ano para não misturar tudo
-            lista = lista.filter(p => {
-                const dataRef = p.data_pagamento || p.data_vencimento;
-                if (!dataRef) return false;
-                return dayjs(dataRef).year() === anoFiltro;
+                
+                // Se anoFiltro estiver vazio, ignora o ano (pega todos). Se tiver valor, filtra.
+                const matchAno = anoFiltro === '' ? true : dataObj.year() === anoFiltro;
+                const matchMes = mesFiltro === '' ? true : dataObj.month() === mesFiltro;
+                
+                return matchAno && matchMes;
             });
         }
 
-        // 2. Filtro de Busca
         if (searchTerm) {
             const termo = searchTerm.toLowerCase();
             lista = lista.filter(p => {
@@ -119,72 +116,74 @@ export default function ContasReceberView() {
         return lista;
     }, [listaPagamentos, mesFiltro, anoFiltro, searchTerm]);
 
-    // --- INTELIGÊNCIA FINANCEIRA (SÓCIOS E PROJEÇÃO) ---
+    // --- INTELIGÊNCIA FINANCEIRA ---
     const dashboardData = useMemo(() => {
-        // Usamos a lista completa (ou filtrada pelo ano) para métricas macro
-        // Se quiser métricas só do mês, use 'filteredList'. Aqui vou usar 'filteredList' para refletir o que está na tela.
         const baseCalculo = filteredList; 
 
-        let totalFaturamentoConsultas = 0;
-        let qtdConsultas = 0;
+        let totalFaturamentoRealizado = 0; // Só o que está PAGO
+        let qtdConsultasRealizadas = 0; // Só pagas
         let totalInvestido = 0;
         let aporteDaniel = 0;
         let aporteAlejandro = 0;
-        let outrosAportes = 0;
 
         baseCalculo.forEach(item => {
             const valor = parseFloat(item.valor) || 0;
             const desc = (item.descricao || '').toLowerCase();
             const visualDesc = (item.descricao_visual || '').toLowerCase();
+            const estaPago = item.status === 'Pago';
 
-            // Lógica: Se tem agendamento, é Faturamento de Consulta
+            // 1. Faturamento de Consultas
             if (item.agendamento) {
-                totalFaturamentoConsultas += valor;
-                qtdConsultas++;
+                // MUDANÇA 2: Só soma no KPI se estiver PAGO
+                if (estaPago) {
+                    totalFaturamentoRealizado += valor;
+                    qtdConsultasRealizadas++;
+                }
             } 
-            // Se não tem agendamento, verificamos se é Aporte de Sócio
+            // 2. Aporte de Sócios (Consideramos que aporte é dinheiro que entrou)
             else {
+                // Geralmente aporte nasce pago, mas vamos checar por segurança ou somar tudo
+                // Aqui assumo que aporte registrado é dinheiro em caixa ou a receber garantido.
+                // Se quiser só aporte pago, adicione (&& estaPago).
                 if (desc.includes('daniel') || visualDesc.includes('daniel')) {
                     aporteDaniel += valor;
                     totalInvestido += valor;
                 } else if (desc.includes('alejandro') || visualDesc.includes('alejandro')) {
                     aporteAlejandro += valor;
                     totalInvestido += valor;
-                } else {
-                    // Outras receitas avulsas (ex: aluguel, venda de produto)
-                    // Se quiser somar no faturamento da clínica, descomente abaixo:
-                    // totalFaturamentoConsultas += valor;
-                    outrosAportes += valor; 
                 }
             }
         });
 
-        // Cálculo de Break-even (Ponto de Equilíbrio)
-        const ticketMedio = qtdConsultas > 0 ? (totalFaturamentoConsultas / qtdConsultas) : 0;
-        const saldoParaCobrir = totalInvestido - totalFaturamentoConsultas;
+        // Cálculo de ROI / Break-even
+        // Ticket Médio baseado apenas no realizado
+        const ticketMedio = qtdConsultasRealizadas > 0 ? (totalFaturamentoRealizado / qtdConsultasRealizadas) : 0;
+        
+        // Saldo para cobrir = O que os sócios puseram MENOS o que a clínica já gerou de caixa real
+        const saldoParaCobrir = totalInvestido - totalFaturamentoRealizado;
+        
+        // Quantas consultas FALTAM (baseado no ticket médio atual)
         const consultasNecessarias = ticketMedio > 0 ? Math.ceil(saldoParaCobrir / ticketMedio) : 0;
 
         return {
-            faturamento: totalFaturamentoConsultas,
+            faturamento: totalFaturamentoRealizado,
             investimento: totalInvestido,
             daniel: aporteDaniel,
             alejandro: aporteAlejandro,
-            outros: outrosAportes,
             saldo: saldoParaCobrir,
             ticketMedio: ticketMedio,
             consultasNecessarias: consultasNecessarias,
-            lucro: saldoParaCobrir < 0 // Se saldo para cobrir é negativo, já pagou e sobrou
+            lucro: saldoParaCobrir <= 0 // Se saldo <= 0, já pagou o investimento
         };
     }, [filteredList]);
 
     // Dados para o Gráfico
     const chartData = useMemo(() => {
         return [
-            { name: 'Faturamento', value: dashboardData.faturamento, color: '#2e7d32' }, // Verde
-            { name: 'Sócio Daniel', value: dashboardData.daniel, color: '#1565c0' }, // Azul
-            { name: 'Sócio Alejandro', value: dashboardData.alejandro, color: '#0288d1' }, // Azul Claro
-            // { name: 'Outros', value: dashboardData.outros, color: '#9e9e9e' }
-        ].filter(d => d.value > 0); // Só mostra o que tem valor
+            { name: 'Faturamento (Pago)', value: dashboardData.faturamento, color: '#2e7d32' },
+            { name: 'Sócio Daniel', value: dashboardData.daniel, color: '#1565c0' },
+            { name: 'Sócio Alejandro', value: dashboardData.alejandro, color: '#0288d1' },
+        ].filter(d => d.value > 0);
     }, [dashboardData]);
 
     // --- AÇÕES ---
@@ -239,15 +238,15 @@ export default function ContasReceberView() {
     return (
         <div className="financeiro-view-container">
             
-            {/* 1. SEÇÃO TOPO: KPIs e GRÁFICO (Padrão Despesas) */}
+            {/* 1. SEÇÃO TOPO: KPIs e GRÁFICO */}
             <div className="financeiro-top-section">
                 
                 {/* ESQUERDA: KPIs Inteligentes */}
                 <div className="kpi-group">
-                    {/* Card 1: Faturamento Real (Consultas) */}
+                    {/* MUDANÇA: Títulos Ajustados */}
                     <div className="kpi-card">
                         <div className="kpi-header">
-                            <span className="kpi-title">FATURAMENTO (CONSULTAS)</span>
+                            <span className="kpi-title">FATURAMENTO REAL (PAGO)</span>
                             <TrendingUp className="kpi-icon" sx={{ color: '#2e7d32' }} />
                         </div>
                         <span className="kpi-value" style={{ color: '#2e7d32' }}>
@@ -255,10 +254,9 @@ export default function ContasReceberView() {
                         </span>
                     </div>
 
-                    {/* Card 2: Investimento Sócios */}
                     <div className="kpi-card">
                         <div className="kpi-header">
-                            <span className="kpi-title">TOTAL INVESTIDO (SÓCIOS)</span>
+                            <span className="kpi-title">TOTAL APORTES (SÓCIOS)</span>
                             <Group className="kpi-icon" sx={{ color: '#1565c0' }} />
                         </div>
                         <span className="kpi-value" style={{ color: '#1565c0' }}>
@@ -266,25 +264,24 @@ export default function ContasReceberView() {
                         </span>
                     </div>
 
-                    {/* Card 3: Break-even / Estimativa */}
                     <div className="kpi-card" style={{ backgroundColor: dashboardData.lucro ? '#e8f5e9' : '#fff' }}>
                         <div className="kpi-header">
                             <span className="kpi-title">
-                                {dashboardData.lucro ? "LUCRO (ROI)" : "PARA COBRIR APORTES"}
+                                {dashboardData.lucro ? "SUPERÁVIT (LUCRO)" : "PARA COBRIR APORTE"}
                             </span>
                             <AccountBalance className="kpi-icon" sx={{ color: '#f57c00' }} />
                         </div>
                         
                         {dashboardData.lucro ? (
                             <span className="kpi-value" style={{ color: '#2e7d32' }}>
-                                Superávit: {formatMoney(Math.abs(dashboardData.saldo))}
+                                + {formatMoney(Math.abs(dashboardData.saldo))}
                             </span>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span className="kpi-value" style={{ color: '#d32f2f', fontSize: '1rem' }}>
                                     Faltam: {formatMoney(dashboardData.saldo)}
                                 </span>
-                                <Typography variant="caption" color="text.secondary" fontWeight="bold">
+                                <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ fontSize: '0.65rem' }}>
                                     ~ {dashboardData.consultasNecessarias} consultas
                                 </Typography>
                             </div>
@@ -294,17 +291,18 @@ export default function ContasReceberView() {
 
                 {/* DIREITA: Gráfico Comparativo */}
                 <div className="chart-container-box">
-                    <div className="chart-title">ORIGEM DA RECEITA (FATURAMENTO vs APORTES)</div>
+                    <div className="chart-title">ORIGEM RECEITA (FATURAMENTO PAGO vs APORTES)</div>
                     <div className="chart-wrapper">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                                 <XAxis 
                                     dataKey="name" 
-                                    tick={{fontSize: 10, fill: '#666'}} 
+                                    tick={{fontSize: 9, fill: '#666'}} 
                                     interval={0}
                                     tickLine={false}
                                     axisLine={false}
+                                    // Abrevia nomes para caber
                                     tickFormatter={(value) => value.length > 10 ? `${value.substring(0, 10)}...` : value}
                                 />
                                 <YAxis 
@@ -345,12 +343,15 @@ export default function ContasReceberView() {
                             ))}
                         </Select>
                     </FormControl>
-                    <FormControl size="small" sx={{ width: 80 }}>
+                    <FormControl size="small" sx={{ width: 110 }}>
+                        {/* MUDANÇA: Opção "Todo o Período" */}
                         <Select 
                             value={anoFiltro} 
+                            displayEmpty
                             onChange={(e) => setAnoFiltro(e.target.value)} 
                             sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '36px' }}
                         >
+                            <MenuItem value=""><em>Todo Período</em></MenuItem>
                             <MenuItem value={2024} sx={{fontSize: '0.8rem'}}>2024</MenuItem>
                             <MenuItem value={2025} sx={{fontSize: '0.8rem'}}>2025</MenuItem>
                             <MenuItem value={2026} sx={{fontSize: '0.8rem'}}>2026</MenuItem>
@@ -443,7 +444,6 @@ export default function ContasReceberView() {
                                                 </IconButton>
                                             )}
 
-                                            {/* Delete apenas se não for agendamento (para integridade) ou se for admin */}
                                             <IconButton size="small" onClick={() => handleDelete(pag.id)} color="error" sx={{p: 0.5}}>
                                                 <DeleteIcon sx={{ fontSize: 16 }} />
                                             </IconButton>
@@ -462,61 +462,18 @@ export default function ContasReceberView() {
                 </Table>
             </TableContainer>
 
-            {/* MODAIS */}
-            <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="xs">
-                <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '0.9rem', borderBottom: '1px solid #f0f0f0', py: 1.5 }}>
-                    Editar Lançamento
-                </DialogTitle>
-                <DialogContent sx={{ pt: 2, bgcolor: '#fcfcfc' }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField 
-                            label="Descrição" 
-                            fullWidth 
-                            size="small"
-                            value={editFormData.descricao || ''} 
-                            onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})}
-                            InputLabelProps={{style: {fontSize: '0.8rem'}}}
-                        />
-                        <DatePicker 
-                            label="Data de Vencimento"
-                            value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null}
-                            onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})}
-                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
-                        />
-                        
-                        <FormControlLabel 
-                            control={<Switch size="small" checked={editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} color="success"/>} 
-                            label={<Typography fontSize="0.8rem">Está Pago?</Typography>} 
-                        />
-
-                        {editFormData.pago && (
-                            <DatePicker 
-                                label="Data do Pagamento"
-                                value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : dayjs()}
-                                onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})}
-                                slotProps={{ textField: { fullWidth: true, size: 'small', color: 'success', focused: true } }}
-                            />
-                        )}
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: 1.5, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
-                    <Button onClick={() => setOpenEditModal(false)} size="small" sx={{color: '#666', fontSize: '0.75rem'}}>Cancelar</Button>
-                    <Button variant="contained" onClick={handleSaveEdit} size="small" sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem' }}>Salvar</Button>
-                </DialogActions>
-            </Dialog>
-
             {selectedPagamento && (
                 <PagamentoModal 
                     open={openPagarModal}
                     onClose={() => setOpenPagarModal(false)}
-                    onSave={() => { setOpenPagarModal(false); fetchPagamentos(); }}
+                    onSave={handleSuccessPagamento}
                     pagamento={selectedPagamento}
                 />
             )}
 
             <LancamentoCaixaModal 
                 open={openNovoLancamentoModal}
-                onClose={() => { setOpenNovoLancamentoModal(false); fetchPagamentos(); }}
+                onClose={handleCloseNovoLancamento}
             />
         </div>
     );
