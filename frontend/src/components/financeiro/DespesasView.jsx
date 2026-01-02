@@ -212,6 +212,7 @@ export default function DespesasView() {
                                     interval={0}
                                     tickLine={false}
                                     axisLine={false}
+                                    tickFormatter={(value) => value.length > 12 ? `${value.substring(0, 12)}...` : value}
                                 />
                                 <YAxis 
                                     tick={{fontSize: 10, fill: '#ccc'}} 

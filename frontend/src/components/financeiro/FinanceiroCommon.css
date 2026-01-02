@@ -11,16 +11,16 @@
 /* --- SEÇÃO SUPERIOR (KPIs + GRÁFICO) --- */
 .financeiro-top-section {
     display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
-    height: 130px; /* Altura fixa para alinhar tudo */
+    gap: 12px; /* Gap reduzido */
+    margin-bottom: 15px;
+    height: 120px; /* Altura total reduzida para ficar mais compacto */
 }
 
 /* GRUPO DE CARDS (Esquerda) */
 .kpi-group {
-    flex: 0.6; /* Ocupa 60% da largura */
+    flex: 0.4; /* AJUSTE: Reduzido de 0.6 para 0.4 (40% da tela) */
     display: flex;
-    gap: 15px;
+    gap: 10px; /* Menos espaço entre cards */
 }
 
 .kpi-card {
@@ -28,14 +28,15 @@
     background-color: #fff;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    padding: 10px 15px;
+    padding: 8px 12px; /* AJUSTE: Padding mais compacto */
     display: flex;
     flex-direction: column;
-    justify-content: center; /* Centraliza verticalmente */
+    justify-content: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     height: 100%;
     box-sizing: border-box;
     transition: transform 0.2s;
+    min-width: 0; /* Impede que o texto estoure o flex */
 }
 
 .kpi-card:hover {
@@ -47,35 +48,39 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 4px; /* Margem reduzida */
 }
 
 .kpi-title {
-    font-size: 0.65rem;
+    font-size: 0.6rem; /* Fonte menor */
     font-weight: 700;
     color: #757575;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .kpi-icon {
-    font-size: 1rem;
+    font-size: 0.9rem; /* Ícone menor */
     opacity: 0.5;
 }
 
 .kpi-value {
-    font-size: 1.25rem; /* Tamanho fonte do valor */
+    font-size: 1.1rem; /* AJUSTE: Fonte do valor reduzida para não gritar na tela */
     font-weight: 700;
     line-height: 1.2;
+    white-space: nowrap; /* Evita quebra de linha */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ÁREA DO GRÁFICO (Direita) */
 .chart-container-box {
-    flex: 0.4; /* Ocupa 40% da largura */
+    flex: 0.6; /* AJUSTE: Aumentado de 0.4 para 0.6 (60% da tela) - O Gráfico manda agora */
     background-color: #fff;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    padding: 10px;
+    padding: 8px 12px;
     height: 100%;
     box-sizing: border-box;
     display: flex;
@@ -83,33 +88,33 @@
 }
 
 .chart-title {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
     color: #757575;
-    margin-bottom: 5px;
-    margin-left: 5px;
+    margin-bottom: 2px;
+    margin-left: 2px;
     text-transform: uppercase;
 }
 
 .chart-wrapper {
     flex-grow: 1;
     width: 100%;
-    min-height: 0; /* Importante para o Recharts não estourar */
+    min-height: 0;
 }
 
-/* --- BARRA DE FERRAMENTAS (Filtros e Botões) --- */
+/* --- BARRA DE FERRAMENTAS --- */
 .toolbar-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     gap: 10px;
     flex-wrap: wrap;
 }
 
 .toolbar-left {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
     flex-grow: 1;
 }
@@ -125,16 +130,16 @@
 .table-header-cell {
     font-weight: 700 !important;
     color: #666 !important;
-    font-size: 0.75rem !important;
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
+    font-size: 0.7rem !important; /* Fonte tabela um pouco menor */
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
     background-color: #f8f9fa;
 }
 
 .table-body-cell {
-    font-size: 0.8rem !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+    font-size: 0.75rem !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
     color: #333;
 }
 
@@ -145,9 +150,11 @@
         height: auto;
     }
     .kpi-group {
-        flex-wrap: wrap;
+        flex: 1;
+        margin-bottom: 10px;
     }
     .chart-container-box {
-        height: 200px; /* Altura fixa mobile */
+        height: 200px;
+        flex: 1;
     }
 }
