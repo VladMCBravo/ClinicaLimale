@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import { 
     Edit, Delete, AddCircleOutline, Search, 
-    MoneyOff, CheckCircle, Warning, AttachMoney 
+    MoneyOff, CheckCircle, Warning 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -16,18 +16,8 @@ import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// Estado inicial do formulário
-const initialFormState = { 
-    descricao: '', 
-    valor: '', 
-    categoria: '', 
-    data_despesa: dayjs().format('YYYY-MM-DD'),
-    data_vencimento: dayjs().format('YYYY-MM-DD'),
-    data_pagamento: dayjs().format('YYYY-MM-DD'), 
-    parcelado: false,
-    qtd_parcelas: 1,
-    pago: false
-};
+// Importamos o Modal "Bonito" (Padronizado)
+import LancamentoCaixaModal from './LancamentoCaixaModal';
 
 const formatDataSimples = (dataISO) => {
     if (!dataISO) return '-';
@@ -39,23 +29,26 @@ const formatDataSimples = (dataISO) => {
 export default function DespesasView() {
     const { showSnackbar } = useSnackbar();
     
-    // Estados
+    // Estados de Dados
     const [despesas, setDespesas] = useState([]);
     const [categorias, setCategorias] = useState([]);
     const [filteredDespesas, setFilteredDespesas] = useState([]);
     
-    // UI
+    // UI e Filtros
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [mesFiltro, setMesFiltro] = useState(''); 
     const [anoFiltro, setAnoFiltro] = useState(dayjs().year());
 
-    // Modal
-    const [modalOpen, setModalOpen] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
-    const [formData, setFormData] = useState(initialFormState);
+    // Estados dos Modais
+    const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false); // Modal Padrão (Criação)
+    const [openEditModal, setOpenEditModal] = useState(false); // Modal Interno (Apenas Edição)
+    
+    // Estado do Formulário de Edição
+    const [editFormData, setEditFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // --- CARGA DE DADOS ---
     const fetchData = async () => {
         setIsLoading(true);
         try {
@@ -75,6 +68,7 @@ export default function DespesasView() {
 
     useEffect(() => { fetchData(); }, []);
 
+    // --- FILTRAGEM ---
     useEffect(() => {
         let lista = despesas;
 
@@ -94,11 +88,12 @@ export default function DespesasView() {
             );
         }
 
-        // Ordenação: Timeline (Mais recentes/futuros no topo)
+        // Ordenação Timeline (Mais recentes no topo)
         lista.sort((a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento));
         setFilteredDespesas(lista);
     }, [despesas, mesFiltro, anoFiltro, searchTerm]);
 
+    // --- KPIs ---
     const financialSummary = useMemo(() => {
         return filteredDespesas.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
@@ -109,81 +104,75 @@ export default function DespesasView() {
         }, { pagas: 0, aPagar: 0, total: 0 });
     }, [filteredDespesas]);
 
+    // --- AÇÕES ---
+    
+    // Abre o Modal Padrão (Bonito) para criar nova despesa
     const handleOpenCreate = () => {
-        setIsEditing(false);
-        setFormData(initialFormState);
-        setModalOpen(true);
+        setOpenNovoLancamentoModal(true);
     };
 
+    // Abre o Modal Interno apenas para EDITAR
     const handleOpenEdit = (item) => {
-        setIsEditing(true);
-        setFormData({
-            ...item,
-            categoria: item.categoria, 
-            data_despesa: item.data_despesa || item.data_vencimento,
+        setEditFormData({
+            id: item.id,
+            descricao: item.descricao,
+            valor: item.valor,
+            categoria: item.categoria,
             data_vencimento: item.data_vencimento,
-            data_pagamento: item.data_pagamento || dayjs().format('YYYY-MM-DD'), 
-            parcelado: false, qtd_parcelas: 1
+            // Lógica de preservação de data: Se não tem pagto, sugere hoje ao marcar pago
+            data_pagamento: item.data_pagamento || dayjs().format('YYYY-MM-DD'),
+            pago: item.pago
         });
-        setModalOpen(true);
+        setOpenEditModal(true);
     };
 
-    const handlePagoSwitchChange = (e) => {
-        const isPago = e.target.checked;
-        setFormData(prev => ({
-            ...prev, pago: isPago,
-            data_pagamento: isPago ? dayjs().format('YYYY-MM-DD') : null 
-        }));
-    };
-
-    const handleSubmit = async (e) => {
+    // Salvar Edição
+    const handleSaveEdit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-
         try {
-            const dataEmissaoAutomatica = formData.data_vencimento;
-            const payloadBase = {
-                ...formData,
-                data_despesa: dataEmissaoAutomatica,
-                data_pagamento: formData.pago ? formData.data_pagamento : null
+            // Payload de atualização
+            const payload = {
+                ...editFormData,
+                // Mantém data_despesa sincronizada com vencimento nos bastidores
+                data_despesa: editFormData.data_vencimento,
+                data_pagamento: editFormData.pago ? editFormData.data_pagamento : null
             };
-
-            if (isEditing) {
-                await faturamentoService.updateDespesa(formData.id, payloadBase);
-                showSnackbar('Despesa atualizada!', 'success');
-            } else {
-                if (formData.parcelado && formData.qtd_parcelas > 1) {
-                    const promises = [];
-                    const valorParcela = parseFloat(formData.valor) / formData.qtd_parcelas;
-                    let dataBaseVencimento = dayjs(formData.data_vencimento);
-
-                    for (let i = 0; i < formData.qtd_parcelas; i++) {
-                        const novaDataVenc = dataBaseVencimento.add(i, 'month').format('YYYY-MM-DD');
-                        const payload = {
-                            ...payloadBase,
-                            descricao: `${formData.descricao} (${i + 1}/${formData.qtd_parcelas})`,
-                            valor: valorParcela.toFixed(2),
-                            data_despesa: novaDataVenc,
-                            data_vencimento: novaDataVenc,
-                            pago: i === 0 ? formData.pago : false, 
-                            data_pagamento: (i === 0 && formData.pago) ? formData.data_pagamento : null
-                        };
-                        promises.push(faturamentoService.createDespesa(payload));
-                    }
-                    await Promise.all(promises);
-                    showSnackbar(`${formData.qtd_parcelas} parcelas geradas!`, 'success');
-                } else {
-                    await faturamentoService.createDespesa(payloadBase);
-                    showSnackbar('Despesa lançada!', 'success');
-                }
-            }
-            setModalOpen(false);
+            
+            await faturamentoService.updateDespesa(editFormData.id, payload);
+            showSnackbar('Despesa atualizada!', 'success');
+            setOpenEditModal(false);
             fetchData();
         } catch (error) {
             console.error(error);
-            showSnackbar('Erro ao salvar.', 'error');
+            showSnackbar('Erro ao atualizar.', 'error');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // Toggle Rápido de Status (Pago/Pendente)
+    const handleToggleStatus = async (despesa) => {
+        const novoStatus = !despesa.pago;
+        // Atualização Otimista na UI
+        setDespesas(prev => prev.map(d => d.id === despesa.id ? { ...d, pago: novoStatus } : d));
+
+        try {
+            const payload = {
+                id: despesa.id,
+                descricao: despesa.descricao,
+                valor: despesa.valor,
+                categoria: despesa.categoria,
+                data_despesa: despesa.data_despesa, // Mantém original
+                data_vencimento: despesa.data_vencimento,
+                pago: novoStatus,
+                data_pagamento: novoStatus ? dayjs().format('YYYY-MM-DD') : null
+            };
+            await faturamentoService.updateDespesa(despesa.id, payload);
+            showSnackbar(novoStatus ? 'Pago!' : 'Pendente.', 'success');
+        } catch (error) {
+            fetchData(); // Reverte se der erro
+            showSnackbar('Erro ao atualizar.', 'error');
         }
     };
 
@@ -195,29 +184,6 @@ export default function DespesasView() {
             fetchData();
         } catch (error) {
             showSnackbar('Erro ao excluir.', 'error');
-        }
-    };
-
-    const handleToggleStatus = async (despesa) => {
-        const novoStatus = !despesa.pago;
-        setDespesas(prev => prev.map(d => d.id === despesa.id ? { ...d, pago: novoStatus } : d));
-
-        try {
-            const payload = {
-                id: despesa.id,
-                descricao: despesa.descricao,
-                valor: despesa.valor,
-                categoria: despesa.categoria,
-                data_despesa: despesa.data_despesa,
-                data_vencimento: despesa.data_vencimento,
-                pago: novoStatus,
-                data_pagamento: novoStatus ? dayjs().format('YYYY-MM-DD') : null
-            };
-            await faturamentoService.updateDespesa(despesa.id, payload);
-            showSnackbar(novoStatus ? 'Pago!' : 'Pendente.', 'success');
-        } catch (error) {
-            fetchData();
-            showSnackbar('Erro ao atualizar.', 'error');
         }
     };
 
@@ -235,7 +201,7 @@ export default function DespesasView() {
     return (
         <Box sx={{ p: 1 }}>
             
-            {/* 1. KPIs PADRONIZADOS (Igual ContasReceberView, mas com 3 cards) */}
+            {/* 1. KPIs */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={4}>
                     <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', bgcolor: '#fff' }}>
@@ -266,10 +232,10 @@ export default function DespesasView() {
                 </Grid>
             </Grid>
 
-            {/* 2. BARRA DE AÇÕES E FILTROS */}
+            {/* 2. BARRA DE AÇÕES */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                 <Box sx={{ display: 'flex', gap: 2, flexGrow: 1 }}>
-                    {/* Filtros de Data */}
+                    {/* Filtros */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <FormControl size="small" sx={{ minWidth: 110 }}>
                             <Select value={mesFiltro} displayEmpty onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '40px' }}>
@@ -299,12 +265,13 @@ export default function DespesasView() {
                     />
                 </Box>
 
+                {/* BOTÃO PADRONIZADO - ABRE O MODAL BONITO */}
                 <Button variant="contained" startIcon={<AddCircleOutline />} onClick={handleOpenCreate} sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' } }}>
                     Nova Despesa
                 </Button>
             </Box>
 
-            {/* 3. TABELA PADRONIZADA */}
+            {/* 3. TABELA */}
             <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                 <Table size="small">
                     <TableHead sx={{ bgcolor: '#f8f9fa' }}>
@@ -336,8 +303,6 @@ export default function DespesasView() {
                                 <TableCell sx={{ fontSize: '0.85rem' }}>{item.descricao}</TableCell>
                                 <TableCell><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.65rem', height: 20, bgcolor: '#f5f5f5', color: '#555'}} /></TableCell>
                                 <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b', fontSize: '0.85rem'}}>{formatMoney(item.valor)}</TableCell>
-                                
-                                {/* COLUNA STATUS (Chip em vez de Switch) */}
                                 <TableCell align="center">
                                     <Chip 
                                         label={item.pago ? "Pago" : "Pendente"} 
@@ -347,21 +312,16 @@ export default function DespesasView() {
                                         sx={{ fontSize: '0.7rem' }}
                                     />
                                 </TableCell>
-                                
-                                {/* COLUNA AÇÕES */}
                                 <TableCell align="center">
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <IconButton size="small" onClick={() => handleOpenEdit(item)}>
                                             <Edit sx={{ fontSize: 18, color: '#1976d2' }} />
                                         </IconButton>
-                                        
-                                        {/* Botão de Pagar Rápido (Só se não estiver pago) */}
                                         {!item.pago && (
                                             <IconButton size="small" onClick={() => handleToggleStatus(item)} title="Marcar como Pago">
                                                 <CheckCircle sx={{ fontSize: 18, color: '#2e7d32' }} />
                                             </IconButton>
                                         )}
-
                                         <IconButton size="small" onClick={() => handleDelete(item.id)} color="error">
                                             <Delete sx={{ fontSize: 18 }} />
                                         </IconButton>
@@ -375,22 +335,30 @@ export default function DespesasView() {
                 </Table>
             </TableContainer>
 
-            {/* MODAL (Mantido igual, mas com o Switch interno para edição detalhada) */}
-            <Dialog open={modalOpen} onClose={() => setModalOpen(false)} fullWidth maxWidth="sm">
+            {/* MODAL PADRÃO (BONITO) PARA CRIAÇÃO */}
+            <LancamentoCaixaModal 
+                open={openNovoLancamentoModal} 
+                onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} 
+                initialTab={1} // Aba de "Avulso"
+                initialType="despesa" // Já seleciona Despesa
+            />
+
+            {/* MODAL INTERNO (SIMPLES) APENAS PARA EDIÇÃO */}
+            <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="sm">
                 <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '1rem', borderBottom: '1px solid #f0f0f0', pb: 1 }}>
-                    {isEditing ? 'Editar Despesa' : 'Nova Despesa'}
+                    Editar Despesa
                 </DialogTitle>
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSaveEdit}>
                     <DialogContent sx={{ pt: 2, bgcolor: '#fcfcfc' }}>
                         <Grid container spacing={2}>
                             <Grid item xs={12}>
                                 <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                                     <Grid container spacing={2}>
                                         <Grid item xs={12}>
-                                            <TextField label="Descrição" fullWidth required size="medium" value={formData.descricao} onChange={(e) => setFormData({...formData, descricao: e.target.value})} placeholder="Ex: Aluguel, Material"/>
+                                            <TextField label="Descrição" fullWidth required size="medium" value={editFormData.descricao || ''} onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})} />
                                         </Grid>
                                         <Grid item xs={12}>
-                                            <TextField select label="Categoria" fullWidth required size="medium" value={formData.categoria} onChange={(e) => setFormData({...formData, categoria: e.target.value})}>
+                                            <TextField select label="Categoria" fullWidth required size="medium" value={editFormData.categoria || ''} onChange={(e) => setEditFormData({...editFormData, categoria: e.target.value})}>
                                                 {categorias.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>)}
                                             </TextField>
                                         </Grid>
@@ -402,46 +370,35 @@ export default function DespesasView() {
                                 <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                                     <Grid container spacing={2}>
                                         <Grid item xs={6}>
-                                            <TextField label="Valor (R$)" type="number" fullWidth required size="medium" value={formData.valor} onChange={(e) => setFormData({...formData, valor: e.target.value})} InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}/>
+                                            <TextField label="Valor (R$)" type="number" fullWidth required size="medium" value={editFormData.valor || ''} onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})} InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}/>
                                         </Grid>
                                         <Grid item xs={6} display="flex" alignItems="center">
-                                            <FormControlLabel control={<Switch checked={formData.pago} onChange={handlePagoSwitchChange} color="success"/>} label={<Typography fontSize="0.9rem">Já Pago?</Typography>} />
+                                            <FormControlLabel control={<Switch checked={!!editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} color="success"/>} label={<Typography fontSize="0.9rem">Já Pago?</Typography>} />
                                         </Grid>
                                         
                                         <Grid item xs={12}>
-                                            <DatePicker label="Data de Vencimento" value={dayjs(formData.data_vencimento)} onChange={(v) => setFormData({...formData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'medium' } }}/>
+                                            <DatePicker label="Vencimento" value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null} onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'medium' } }}/>
                                         </Grid>
 
-                                        {formData.pago && (
+                                        {editFormData.pago && (
                                             <Grid item xs={12}>
                                                 <DatePicker 
-                                                    label="Data do Pagamento" 
-                                                    value={dayjs(formData.data_pagamento)} 
-                                                    onChange={(v) => setFormData({...formData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})} 
-                                                    slotProps={{ textField: { fullWidth: true, size: 'medium', color: 'success', focused: true, helperText: "Data real da saída" } }}
+                                                    label="Data Pagamento" 
+                                                    value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : null} 
+                                                    onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})} 
+                                                    slotProps={{ textField: { fullWidth: true, size: 'medium', color: 'success', focused: true } }}
                                                 />
                                             </Grid>
                                         )}
                                     </Grid>
                                 </Paper>
                             </Grid>
-
-                            {!isEditing && (
-                                <Grid item xs={12}>
-                                    <Box sx={{ p: 1.5, bgcolor: '#f4f7fa', borderRadius: 2, border: '1px dashed #d0d7de', display: 'flex', alignItems: 'center' }}>
-                                        <FormControlLabel control={<Checkbox size="small" checked={formData.parcelado} onChange={(e) => setFormData({...formData, parcelado: e.target.checked})} />} label={<Typography fontSize="0.85rem">Repetir / Parcelar?</Typography>} />
-                                        {formData.parcelado && (
-                                            <TextField label="Vezes" type="number" size="small" sx={{ width: 80, ml: 2, bgcolor: '#fff' }} value={formData.qtd_parcelas} onChange={(e) => setFormData({...formData, qtd_parcelas: e.target.value})} />
-                                        )}
-                                    </Box>
-                                </Grid>
-                            )}
                         </Grid>
                     </DialogContent>
                     <DialogActions sx={{ p: 2, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
-                        <Button onClick={() => setModalOpen(false)} size="small" sx={{color: '#666'}}>Cancelar</Button>
+                        <Button onClick={() => setOpenEditModal(false)} size="small" sx={{color: '#666'}}>Cancelar</Button>
                         <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ bgcolor: '#1a233b', px: 3 }}>
-                            {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar'}
+                            {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar Alterações'}
                         </Button>
                     </DialogActions>
                 </form>
