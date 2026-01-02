@@ -1,32 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    Box, Button, CircularProgress, TextField, Paper,
+    Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Select, MenuItem, InputLabel, FormControl, IconButton, Checkbox,
+    Select, MenuItem, FormControl, IconButton,
     FormControlLabel, Dialog, DialogTitle, DialogContent, DialogActions,
-    Typography, Grid, Switch, Tooltip, InputAdornment, Chip
+    Typography, Grid, Switch, InputAdornment, Chip, Box
 } from '@mui/material';
 import { 
     Edit, Delete, AddCircleOutline, Search, 
-    MoneyOff, CheckCircle, Warning, BarChart as BarChartIcon 
+    MoneyOff, CheckCircle, Warning 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
-} from 'recharts'; // Importação do Gráfico
+} from 'recharts';
 import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
-
-// Importamos o Modal Padronizado
 import LancamentoCaixaModal from './LancamentoCaixaModal';
 
-// Formatação compacta de moeda para o gráfico
-const formatCurrencyCompact = (value) => {
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-    return value;
-};
+// IMPORTAÇÃO DO CSS PADRÃO
+import './FinanceiroCommon.css';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -40,7 +35,7 @@ const formatDataSimples = (dataISO) => {
 export default function DespesasView() {
     const { showSnackbar } = useSnackbar();
     
-    // Dados
+    // Estados
     const [despesas, setDespesas] = useState([]);
     const [categorias, setCategorias] = useState([]);
     const [filteredDespesas, setFilteredDespesas] = useState([]);
@@ -54,12 +49,9 @@ export default function DespesasView() {
     // Modais
     const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
     const [openEditModal, setOpenEditModal] = useState(false);
-    
-    // Edição
     const [editFormData, setEditFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // --- CARGA DE DADOS ---
     const fetchData = async () => {
         setIsLoading(true);
         try {
@@ -79,10 +71,8 @@ export default function DespesasView() {
 
     useEffect(() => { fetchData(); }, []);
 
-    // --- FILTRAGEM ---
     useEffect(() => {
         let lista = despesas;
-
         if (mesFiltro !== '') {
             lista = lista.filter(d => {
                 const dataRef = d.data_vencimento || d.data_despesa;
@@ -90,7 +80,6 @@ export default function DespesasView() {
                 return dataObj.month() === mesFiltro && dataObj.year() === anoFiltro;
             });
         }
-
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             lista = lista.filter(d => 
@@ -98,12 +87,10 @@ export default function DespesasView() {
                 (d.categoria_nome && d.categoria_nome.toLowerCase().includes(term))
             );
         }
-
         lista.sort((a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento));
         setFilteredDespesas(lista);
     }, [despesas, mesFiltro, anoFiltro, searchTerm]);
 
-    // --- KPIs (Baseados no filtro atual) ---
     const financialSummary = useMemo(() => {
         return filteredDespesas.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
@@ -114,92 +101,56 @@ export default function DespesasView() {
         }, { pagas: 0, aPagar: 0, total: 0 });
     }, [filteredDespesas]);
 
-    // --- DADOS DO GRÁFICO (Baseado em TODO o período carregado, conforme solicitado) ---
+    // DADOS DO GRÁFICO (Top 5 categorias)
     const chartData = useMemo(() => {
         const groups = {};
-        // Usa 'despesas' (sem filtro) para mostrar todo o período, ou 'filteredDespesas' se quiser dinamico.
-        // O pedido foi "todo o período da clínica", então usamos 'despesas'.
         despesas.forEach(d => {
-            const cat = d.categoria_nome || 'Sem Categoria';
+            const cat = d.categoria_nome || 'Outros';
             groups[cat] = (groups[cat] || 0) + parseFloat(d.valor);
         });
-
-        // Transforma em array e ordena (Top 5 categorias para caber no gráfico pequeno)
         return Object.keys(groups)
             .map(key => ({ name: key, value: groups[key] }))
             .sort((a, b) => b.value - a.value)
-            .slice(0, 5); 
+            .slice(0, 6); 
     }, [despesas]);
 
-    // --- AÇÕES ---
+    // --- HANDLERS ---
     const handleOpenCreate = () => setOpenNovoLancamentoModal(true);
-
+    
     const handleOpenEdit = (item) => {
-        setEditFormData({
-            id: item.id,
-            descricao: item.descricao,
-            valor: item.valor,
-            categoria: item.categoria,
-            data_vencimento: item.data_vencimento,
-            data_pagamento: item.data_pagamento || dayjs().format('YYYY-MM-DD'),
-            pago: item.pago
-        });
+        setEditFormData({ ...item, data_pagamento: item.data_pagamento || dayjs().format('YYYY-MM-DD') });
         setOpenEditModal(true);
     };
-
+    
     const handleSaveEdit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const payload = {
-                ...editFormData,
-                data_despesa: editFormData.data_vencimento, // Sincronização background
-                data_pagamento: editFormData.pago ? editFormData.data_pagamento : null
-            };
+            const payload = { ...editFormData, data_despesa: editFormData.data_vencimento, data_pagamento: editFormData.pago ? editFormData.data_pagamento : null };
             await faturamentoService.updateDespesa(editFormData.id, payload);
-            showSnackbar('Despesa atualizada!', 'success');
+            showSnackbar('Atualizado!', 'success');
             setOpenEditModal(false);
             fetchData();
-        } catch (error) {
-            showSnackbar('Erro ao atualizar.', 'error');
-        } finally {
-            setIsSubmitting(false);
-        }
+        } catch (error) { showSnackbar('Erro ao atualizar.', 'error'); } finally { setIsSubmitting(false); }
     };
-
+    
     const handleToggleStatus = async (despesa) => {
         const novoStatus = !despesa.pago;
         setDespesas(prev => prev.map(d => d.id === despesa.id ? { ...d, pago: novoStatus } : d));
         try {
-            const payload = {
-                id: despesa.id,
-                descricao: despesa.descricao,
-                valor: despesa.valor,
-                categoria: despesa.categoria,
-                data_despesa: despesa.data_despesa,
-                data_vencimento: despesa.data_vencimento,
-                pago: novoStatus,
-                data_pagamento: novoStatus ? dayjs().format('YYYY-MM-DD') : null
-            };
-            await faturamentoService.updateDespesa(despesa.id, payload);
+            await faturamentoService.updateDespesa(despesa.id, { ...despesa, pago: novoStatus, data_pagamento: novoStatus ? dayjs().format('YYYY-MM-DD') : null });
             showSnackbar(novoStatus ? 'Pago!' : 'Pendente.', 'success');
-        } catch (error) {
-            fetchData();
-            showSnackbar('Erro ao atualizar.', 'error');
-        }
+        } catch (error) { fetchData(); showSnackbar('Erro.', 'error'); }
     };
-
+    
     const handleDelete = async (id) => {
-        if(!window.confirm("Excluir esta despesa?")) return;
-        try {
+        if(window.confirm("Excluir?")) {
             await faturamentoService.deleteDespesa(id);
-            showSnackbar('Despesa removida.', 'success');
             fetchData();
-        } catch (error) {
-            showSnackbar('Erro ao excluir.', 'error');
+            showSnackbar('Excluído.', 'success');
         }
     };
-
+    
     const getVencimentoColor = (dataVenc, pago) => {
         if (pago) return 'text.secondary';
         const hoje = dayjs();
@@ -209,96 +160,94 @@ export default function DespesasView() {
         return 'text.primary';
     };
 
-    // Componente Card Compacto para KPIs
-    const CompactKpi = ({ title, value, color, icon: Icon }) => (
-        <Paper elevation={0} sx={{ 
-            p: 1.5, flex: 1, border: '1px solid #e0e0e0', borderRadius: '8px', 
-            display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%',
-            bgcolor: '#fff'
-        }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>
-                    {title}
-                </Typography>
-                <Icon sx={{ color: color, fontSize: '1rem', opacity: 0.6 }} />
-            </Box>
-            <Typography variant="h6" fontWeight="bold" sx={{ color: color, fontSize: '1.1rem' }}>
-                {formatMoney(value)}
-            </Typography>
-        </Paper>
-    );
-
     return (
-        <Box sx={{ p: 1 }}>
+        <div className="financeiro-view-container">
             
-            {/* 1. SEÇÃO TOPO: KPIs (Esquerda) + GRÁFICO (Direita) */}
-            <Grid container spacing={1.5} sx={{ mb: 1.5, height: '140px' }}>
+            {/* 1. SEÇÃO TOPO: KPIs e GRÁFICO */}
+            <div className="financeiro-top-section">
                 
-                {/* ESQUERDA: KPIs em linha */}
-                <Grid item xs={12} md={7} sx={{ height: '100%' }}>
-                    <Grid container spacing={1.5} sx={{ height: '100%' }}>
-                        <Grid item xs={4} sx={{ height: '100%' }}>
-                            <CompactKpi title="TOTAL GERAL" value={financialSummary.total} color="#1a233b" icon={MoneyOff} />
-                        </Grid>
-                        <Grid item xs={4} sx={{ height: '100%' }}>
-                            <CompactKpi title="TOTAL PAGO" value={financialSummary.pagas} color="#2e7d32" icon={CheckCircle} />
-                        </Grid>
-                        <Grid item xs={4} sx={{ height: '100%' }}>
-                            <CompactKpi title="A PAGAR" value={financialSummary.aPagar} color="#d32f2f" icon={Warning} />
-                        </Grid>
-                    </Grid>
-                </Grid>
+                {/* ESQUERDA: KPIs */}
+                <div className="kpi-group">
+                    <div className="kpi-card">
+                        <div className="kpi-header">
+                            <span className="kpi-title">TOTAL GERAL</span>
+                            <MoneyOff className="kpi-icon" sx={{ color: '#1a233b' }} />
+                        </div>
+                        <span className="kpi-value" style={{ color: '#1a233b' }}>
+                            {formatMoney(financialSummary.total)}
+                        </span>
+                    </div>
 
-                {/* DIREITA: Gráfico Compacto */}
-                <Grid item xs={12} md={5} sx={{ height: '100%' }}>
-                    <Paper elevation={0} sx={{ 
-                        p: 1, height: '100%', border: '1px solid #e0e0e0', borderRadius: '8px',
-                        display: 'flex', flexDirection: 'column', bgcolor: '#fff'
-                    }}>
-                        <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ ml: 1, mb: 0.5, fontSize: '0.65rem' }}>
-                            GASTOS POR CATEGORIA (TOP 5)
-                        </Typography>
-                        <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
-                                    <XAxis type="number" hide />
-                                    <YAxis 
-                                        type="category" 
-                                        dataKey="name" 
-                                        width={80} 
-                                        tick={{fontSize: 10, fill: '#666'}} 
-                                        interval={0}
-                                    />
-                                    <RechartsTooltip 
-                                        formatter={(value) => formatMoney(value)}
-                                        contentStyle={{ fontSize: '12px', borderRadius: '4px', border: 'none', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
-                                    />
-                                    <Bar dataKey="value" fill="#1a233b" radius={[0, 4, 4, 0]} barSize={12}>
-                                        {chartData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#1a233b' : '#3949ab'} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </Box>
-                    </Paper>
-                </Grid>
-            </Grid>
+                    <div className="kpi-card">
+                        <div className="kpi-header">
+                            <span className="kpi-title">TOTAL PAGO</span>
+                            <CheckCircle className="kpi-icon" sx={{ color: '#2e7d32' }} />
+                        </div>
+                        <span className="kpi-value" style={{ color: '#2e7d32' }}>
+                            {formatMoney(financialSummary.pagas)}
+                        </span>
+                    </div>
 
-            {/* 2. FILTROS E BOTÃO (Compacto) */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, gap: 1 }}>
-                <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+                    <div className="kpi-card">
+                        <div className="kpi-header">
+                            <span className="kpi-title">A PAGAR</span>
+                            <Warning className="kpi-icon" sx={{ color: '#d32f2f' }} />
+                        </div>
+                        <span className="kpi-value" style={{ color: '#d32f2f' }}>
+                            {formatMoney(financialSummary.aPagar)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* DIREITA: Gráfico Horizontal */}
+                <div className="chart-container-box">
+                    <div className="chart-title">GASTOS POR CATEGORIA</div>
+                    <div className="chart-wrapper">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                <XAxis 
+                                    dataKey="name" 
+                                    tick={{fontSize: 10, fill: '#666'}} 
+                                    interval={0}
+                                    tickLine={false}
+                                    axisLine={false}
+                                />
+                                <YAxis 
+                                    tick={{fontSize: 10, fill: '#ccc'}} 
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(val) => `R$${val/1000}k`}
+                                />
+                                <RechartsTooltip 
+                                    cursor={{fill: '#f5f5f5'}}
+                                    formatter={(value) => [formatMoney(value), 'Total']}
+                                    contentStyle={{ fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}
+                                />
+                                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={30}>
+                                    {chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#1a233b' : '#3949ab'} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. BARRA DE FERRAMENTAS */}
+            <div className="toolbar-container">
+                <div className="toolbar-left">
                     <FormControl size="small" sx={{ width: 120 }}>
                         <Select 
                             value={mesFiltro} 
                             displayEmpty 
                             onChange={(e) => setMesFiltro(e.target.value)} 
-                            sx={{ fontSize: '0.75rem', bgcolor: '#fff', height: '32px' }}
+                            sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '36px' }}
                         >
                             <MenuItem value=""><em>Todos Meses</em></MenuItem>
                             {Array.from({length: 12}, (_, i) => (
-                                <MenuItem key={i} value={i} sx={{fontSize: '0.75rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
+                                <MenuItem key={i} value={i} sx={{fontSize: '0.8rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
@@ -306,11 +255,11 @@ export default function DespesasView() {
                         <Select 
                             value={anoFiltro} 
                             onChange={(e) => setAnoFiltro(e.target.value)} 
-                            sx={{ fontSize: '0.75rem', bgcolor: '#fff', height: '32px' }}
+                            sx={{ fontSize: '0.8rem', bgcolor: '#fff', height: '36px' }}
                         >
-                            <MenuItem value={2024} sx={{fontSize: '0.75rem'}}>2024</MenuItem>
-                            <MenuItem value={2025} sx={{fontSize: '0.75rem'}}>2025</MenuItem>
-                            <MenuItem value={2026} sx={{fontSize: '0.75rem'}}>2026</MenuItem>
+                            <MenuItem value={2024} sx={{fontSize: '0.8rem'}}>2024</MenuItem>
+                            <MenuItem value={2025} sx={{fontSize: '0.8rem'}}>2025</MenuItem>
+                            <MenuItem value={2026} sx={{fontSize: '0.8rem'}}>2026</MenuItem>
                         </Select>
                     </FormControl>
 
@@ -321,67 +270,71 @@ export default function DespesasView() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         InputProps={{ 
                             startAdornment: <InputAdornment position="start"><Search sx={{fontSize: 18, color: '#999'}} /></InputAdornment>,
-                            style: { fontSize: '0.75rem', height: '32px' }
+                            style: { fontSize: '0.8rem', height: '36px' }
                         }}
-                        sx={{ flexGrow: 1, bgcolor: 'white', maxWidth: '300px' }}
+                        sx={{ bgcolor: 'white', width: '300px' }}
                     />
-                </Box>
+                </div>
 
                 <Button 
                     variant="contained" 
-                    startIcon={<AddCircleOutline sx={{fontSize: 16}} />} 
+                    startIcon={<AddCircleOutline sx={{fontSize: 18}} />} 
                     onClick={handleOpenCreate} 
                     sx={{ 
                         bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' },
-                        height: '32px', fontSize: '0.75rem', textTransform: 'none', px: 2 
+                        height: '36px', fontSize: '0.8rem', textTransform: 'none', px: 3, fontWeight: 600
                     }}
                 >
-                    Nova Despesa
+                    NOVA DESPESA
                 </Button>
-            </Box>
+            </div>
 
-            {/* 3. TABELA COMPACTA */}
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+            {/* 3. TABELA (CSS Padrão) */}
+            <TableContainer component={Paper} elevation={0} className="financeiro-table-container">
                 <Table size="small">
-                    <TableHead sx={{ bgcolor: '#f8f9fa' }}>
+                    <TableHead>
                         <TableRow>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1, width: '90px'}}>Vencimento</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1, width: '90px'}}>Pagamento</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Descrição</TableCell>
-                            <TableCell sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Categoria</TableCell>
-                            <TableCell align="right" sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Valor</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Status</TableCell>
-                            <TableCell align="center" sx={{fontWeight:'bold', color:'#666', fontSize:'0.7rem', py: 1}}>Ações</TableCell>
+                            <TableCell className="table-header-cell" style={{width: '90px'}}>Vencimento</TableCell>
+                            <TableCell className="table-header-cell" style={{width: '90px'}}>Pagamento</TableCell>
+                            <TableCell className="table-header-cell">Descrição</TableCell>
+                            <TableCell className="table-header-cell">Categoria</TableCell>
+                            <TableCell align="right" className="table-header-cell">Valor</TableCell>
+                            <TableCell align="center" className="table-header-cell">Status</TableCell>
+                            <TableCell align="center" className="table-header-cell">Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {filteredDespesas.length > 0 ? filteredDespesas.map((item) => (
-                            <TableRow key={item.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>
-                                    <Typography variant="body2" fontWeight="500" color={getVencimentoColor(item.data_vencimento, item.pago)} sx={{ fontSize: '0.75rem' }}>
+                            <TableRow key={item.id} hover>
+                                <TableCell className="table-body-cell">
+                                    <Typography variant="body2" fontWeight="500" color={getVencimentoColor(item.data_vencimento, item.pago)} sx={{ fontSize: '0.8rem' }}>
                                         {formatDataSimples(item.data_vencimento)}
                                     </Typography>
                                 </TableCell>
-                                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>
+                                <TableCell className="table-body-cell">
                                     {item.data_pagamento ? (
-                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#2e7d32', bgcolor: '#e8f5e9', px: 0.6, py: 0.2, borderRadius: 1, fontSize: '0.7rem' }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#2e7d32', bgcolor: '#e8f5e9', px: 0.6, py: 0.2, borderRadius: 1, fontSize: '0.75rem' }}>
                                             {formatDataSimples(item.data_pagamento)}
                                         </Typography>
                                     ) : '-'}
                                 </TableCell>
-                                <TableCell sx={{ fontSize: '0.75rem', py: 0.5 }}>{item.descricao}</TableCell>
-                                <TableCell sx={{ py: 0.5 }}><Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.65rem', height: 18, bgcolor: '#f5f5f5', color: '#666'}} /></TableCell>
-                                <TableCell align="right" sx={{fontWeight:'bold', color:'#1a233b', fontSize: '0.75rem', py: 0.5}}>{formatMoney(item.valor)}</TableCell>
-                                <TableCell align="center" sx={{ py: 0.5 }}>
+                                <TableCell className="table-body-cell">{item.descricao}</TableCell>
+                                <TableCell className="table-body-cell">
+                                    <Chip label={item.categoria_nome} size="small" sx={{fontSize:'0.7rem', height: 20, bgcolor: '#f5f5f5', color: '#666'}} />
+                                </TableCell>
+                                <TableCell align="right" className="table-body-cell" sx={{fontWeight:'bold', color:'#1a233b'}}>
+                                    {formatMoney(item.valor)}
+                                </TableCell>
+                                <TableCell align="center" className="table-body-cell">
                                     <Chip 
                                         label={item.pago ? "Pago" : "Pendente"} 
                                         size="small" 
                                         color={item.pago ? 'success' : 'warning'} 
                                         variant={item.pago ? 'filled' : 'outlined'} 
-                                        sx={{ fontSize: '0.65rem', height: 20 }}
+                                        sx={{ fontSize: '0.7rem', height: 22 }}
                                     />
                                 </TableCell>
-                                <TableCell align="center" sx={{ py: 0.5 }}>
+                                <TableCell align="center" className="table-body-cell">
                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <IconButton size="small" onClick={() => handleOpenEdit(item)} sx={{p: 0.5}}>
                                             <Edit sx={{ fontSize: 16, color: '#1976d2' }} />
@@ -398,13 +351,13 @@ export default function DespesasView() {
                                 </TableCell>
                             </TableRow>
                         )) : (
-                            <TableRow><TableCell colSpan={7} align="center" sx={{py:3, color:'#999', fontSize: '0.75rem'}}>Nenhuma despesa encontrada.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} align="center" sx={{py:3, color:'#999', fontSize: '0.8rem'}}>Nenhuma despesa encontrada.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
             </TableContainer>
 
-            {/* Modal de Criação (Bonito) */}
+            {/* MODAIS */}
             <LancamentoCaixaModal 
                 open={openNovoLancamentoModal} 
                 onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} 
@@ -412,7 +365,6 @@ export default function DespesasView() {
                 initialType="despesa" 
             />
 
-            {/* Modal de Edição (Simples) */}
             <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="sm">
                 <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '0.9rem', borderBottom: '1px solid #f0f0f0', py: 1.5 }}>
                     Editar Despesa
@@ -434,7 +386,6 @@ export default function DespesasView() {
                                     </Grid>
                                 </Paper>
                             </Grid>
-
                             <Grid item xs={12}>
                                 <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                                     <Grid container spacing={2}>
@@ -465,6 +416,6 @@ export default function DespesasView() {
                     </DialogActions>
                 </form>
             </Dialog>
-        </Box>
+        </div>
     );
 }

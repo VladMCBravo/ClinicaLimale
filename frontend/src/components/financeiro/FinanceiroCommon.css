@@ -1,0 +1,153 @@
+/* src/components/financeiro/FinanceiroCommon.css */
+
+/* --- CONTAINER PRINCIPAL --- */
+.financeiro-view-container {
+    padding: 10px;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* --- SEÇÃO SUPERIOR (KPIs + GRÁFICO) --- */
+.financeiro-top-section {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    height: 130px; /* Altura fixa para alinhar tudo */
+}
+
+/* GRUPO DE CARDS (Esquerda) */
+.kpi-group {
+    flex: 0.6; /* Ocupa 60% da largura */
+    display: flex;
+    gap: 15px;
+}
+
+.kpi-card {
+    flex: 1;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centraliza verticalmente */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    height: 100%;
+    box-sizing: border-box;
+    transition: transform 0.2s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.kpi-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #757575;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-icon {
+    font-size: 1rem;
+    opacity: 0.5;
+}
+
+.kpi-value {
+    font-size: 1.25rem; /* Tamanho fonte do valor */
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* ÁREA DO GRÁFICO (Direita) */
+.chart-container-box {
+    flex: 0.4; /* Ocupa 40% da largura */
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #757575;
+    margin-bottom: 5px;
+    margin-left: 5px;
+    text-transform: uppercase;
+}
+
+.chart-wrapper {
+    flex-grow: 1;
+    width: 100%;
+    min-height: 0; /* Importante para o Recharts não estourar */
+}
+
+/* --- BARRA DE FERRAMENTAS (Filtros e Botões) --- */
+.toolbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.toolbar-left {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-grow: 1;
+}
+
+/* --- TABELA PADRONIZADA --- */
+.financeiro-table-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #fff;
+}
+
+.table-header-cell {
+    font-weight: 700 !important;
+    color: #666 !important;
+    font-size: 0.75rem !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+    background-color: #f8f9fa;
+}
+
+.table-body-cell {
+    font-size: 0.8rem !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    color: #333;
+}
+
+/* AJUSTES RESPONSIVOS */
+@media (max-width: 900px) {
+    .financeiro-top-section {
+        flex-direction: column;
+        height: auto;
+    }
+    .kpi-group {
+        flex-wrap: wrap;
+    }
+    .chart-container-box {
+        height: 200px; /* Altura fixa mobile */
+    }
+}
