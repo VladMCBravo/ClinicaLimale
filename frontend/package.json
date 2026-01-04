@@ -53,6 +53,9 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -70,9 +73,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-    },
-  "overrides": {
-    "webpack": "5.89.0",
-    "semver": "^7.5.4"
-  }
+    }
 }
