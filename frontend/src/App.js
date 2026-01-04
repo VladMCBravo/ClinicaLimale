@@ -1,36 +1,30 @@
-// src/App.js // Forçando o rebuild da Vercel
+// src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
-// --- 1. IMPORTE OS COMPONENTES NECESSÁRIOS ---
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import 'dayjs/locale/pt-br'; // Importa a localidade para o português
+import 'dayjs/locale/pt-br';
 
-// Importe os novos componentes de layout e proteção
+// Componentes de Layout e Proteção
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './components/MainLayout';
 
-// Importe suas páginas
+// Importe suas páginas PRINCIPAIS
 import LoginPage from './pages/LoginPage';
 import PainelMedicoPage from './pages/PainelMedico/PainelMedicoPage'; 
-import PainelRecepcaoPage from './pages/PainelRecepcaoPage'; // <-- ADICIONE ESTA LINHA
+import PainelRecepcaoPage from './pages/PainelRecepcaoPage';
 import PacientesPage from './pages/PacientesPage';
 import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
-import ConfiguracoesLayout from './layouts/ConfiguracoesLayout'; // Importe o novo layout
-import ConfiguracoesPage from './pages/ConfiguracoesPage';
-import CategoriasDespesaPage from './pages/CategoriasDespesaPage';
-import ConveniosPage from './pages/ConveniosPage';
-import EspecialidadesPage from './pages/EspecialidadesPage';
-import TelemedicinaPage from './pages/TelemedicinaPage';
-import JornadaTrabalhoPage from './pages/JornadaTrabalhoPage';
-import ProcedimentosView from './components/financeiro/ProcedimentosView';
-import SalasPage from './pages/SalasPage';
-import LaudosPage from './pages/LaudosPage'; // <-- Adicione isso lá em cima
-import PortalResultados from './pages/PortalResultados'; // <--- Adicione esta linha
+import LaudosPage from './pages/LaudosPage';
+import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
+import TelemedicinaPage from './pages/TelemedicinaPage';
+
+// A NOVA PÁGINA DE CONFIGURAÇÕES (O Hub Central)
+import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
 function App() {
   return (
@@ -38,36 +32,33 @@ function App() {
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
         <Router>
           <Routes>
-            {/* Rota de Login (Pública) */}
+            {/* Rota Pública */}
             <Route path="/login" element={<LoginPage />} />
-            {/* --- NOVA ROTA DO PACIENTE (Pública) --- */}
             <Route path="/resultados" element={<PortalResultados />} />
             
             {/* Rotas Protegidas */}
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
-                {/* A ROTA PRINCIPAL AGORA APONTA PARA O PAINEL DO MÉDICO */}
+                
                 <Route path="/" element={<PainelMedicoPage />} />
-                {/* A ROTA /painel CONTINUA CORRETA PARA A RECEPÇÃO */}
                 <Route path="/painel" element={<PainelRecepcaoPage />} /> 
-                {/* ADICIONE ESTA LINHA AQUI: */}
+                
                 <Route path="/laudos" element={<LaudosPage />} />
                 <Route path="/vincular" element={<VincularExames />} />
+                
                 <Route path="/pacientes" element={<PacientesPage />} />
                 <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
+                
                 <Route path="/telemedicina" element={<TelemedicinaPage />} />
+                
+                {/* O Financeiro geralmente tem sub-rotas internas, então mantemos o /* */}
                 <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                <Route path="/configuracoes" element={<ConfiguracoesLayout />}>
-                {/* Redireciona /configuracoes para /configuracoes/usuarios */}
-                <Route index element={<Navigate to="usuarios" replace />} /> 
-                <Route path="usuarios" element={<ConfiguracoesPage />} />
-                <Route path="especialidades" element={<EspecialidadesPage />} />
-                <Route path="jornadas" element={<JornadaTrabalhoPage />} /> {/* <-- NOVO */}
-                <Route path="convenios" element={<ConveniosPage />} />
-                <Route path="categorias-despesa" element={<CategoriasDespesaPage />} />
-                <Route path="procedimentos" element={<ProcedimentosView />} />
-                <Route path="salas" element={<SalasPage />} /> {/* <-- NOVO */}
-                </Route> {/* <-- Esta linha (60) fecha o </ProtectedRoute> */}
+
+                {/* --- A GRANDE MUDANÇA AQUI --- */}
+                {/* Em vez de várias rotas filhas, temos apenas UMA rota para o painel de configurações. */}
+                {/* A navegação entre Usuários, Salas, etc., agora é feita pelas ABAS dentro dessa página. */}
+                <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+
               </Route>
             </Route>
           </Routes>
