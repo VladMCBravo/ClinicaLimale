@@ -1,69 +1,60 @@
-// src/components/PacienteModal.jsx - VERSÃO DEBUGGABLE
+// src/components/PacienteModal.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, CircularProgress, Box, Autocomplete, Typography,
+  TextField, Button, CircularProgress, Box, Autocomplete, 
   FormControl, InputLabel, Select, MenuItem,
-  Grid, InputAdornment
+  Grid, InputAdornment, Tabs, Tab, Paper, Divider, IconButton
 } from '@mui/material';
+import { 
+    Person, Home, MedicalServices, SupervisorAccount, Close 
+} from '@mui/icons-material';
+
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from './common/MaskedInput';
 
 const initialState = {
-  nome_completo: '',
-  data_nascimento: '',
-  email: '',
-  telefone_celular: '',
-  cpf: '',
-  genero: '',
-  peso: '',
-  altura: '',
-  medico_responsavel: null,
-  plano_convenio: null,
-  numero_carteirinha: '',
-  cep: '',
-  endereco: '',
-  numero: '',
-  complemento: '',
-  bairro: '',
-  cidade: '',
-  estado: '',
-  nome_responsavel: '',
-  cpf_responsavel: '',
-  telefone_responsavel: '',
+  nome_completo: '', data_nascimento: '', email: '', telefone_celular: '', cpf: '', genero: '',
+  peso: '', altura: '', medico_responsavel: null,
+  plano_convenio: null, numero_carteirinha: '',
+  cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
+  nome_responsavel: '', cpf_responsavel: '', telefone_responsavel: '',
 };
 
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
-  console.log('[DEBUG] RENDER: PacienteModal renderizou. Open:', open);
-
   const { showSnackbar } = useSnackbar();
+  
+  // --- Estados ---
   const [formData, setFormData] = useState(initialState);
+  const [tabIndex, setTabIndex] = useState(0); // Controle da Aba Ativa
   const [isLoading, setIsLoading] = useState(false);
+  const [isCepLoading, setIsCepLoading] = useState(false);
+  
+  // --- Dados Auxiliares ---
   const [medicos, setMedicos] = useState([]);
   const [convenios, setConvenios] = useState([]);
   const [convenioSelecionado, setConvenioSelecionado] = useState(null);
   const [planosFiltrados, setPlanosFiltrados] = useState([]);
-  const [isCepLoading, setIsCepLoading] = useState(false);
 
+  // --- Carregamento Inicial ---
   useEffect(() => {
     if (open) {
-      console.log('[DEBUG] EFFECT: Modal abriu. Buscando dados auxiliares...');
       Promise.all([
         apiClient.get('/usuarios/usuarios/?cargo=medico'),
         apiClient.get('/faturamento/convenios/')
       ]).then(([medicosRes, conveniosRes]) => {
-        console.log('[DEBUG] DADOS: Médicos e convênios carregados.');
         setMedicos(medicosRes.data);
         setConvenios(conveniosRes.data);
-      }).catch(err => console.error('[DEBUG] ERRO: Falha ao carregar auxiliares', err));
+      }).catch(err => console.error('Erro ao carregar auxiliares', err));
     }
   }, [open]);
 
+  // --- Preenchimento do Form (Edição ou Reset) ---
   useEffect(() => {
     if (open) {
+      setTabIndex(0); // Sempre volta para a primeira aba ao abrir
       if (pacienteParaEditar) {
-        console.log('[DEBUG] EFFECT: Modo Edição iniciada para ID:', pacienteParaEditar.id);
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
@@ -88,16 +79,14 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           telefone_responsavel: pacienteParaEditar.telefone_responsavel || '',
         });
       } else {
-        console.log('[DEBUG] EFFECT: Modo Criação (Resetando form)');
         setFormData(initialState);
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
-        setIsCepLoading(false);
       }
     }
   }, [pacienteParaEditar, open]);
 
-  // Lógica de convênios
+  // --- Lógica de Convênios ---
   useEffect(() => {
     if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
       const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
@@ -115,85 +104,47 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     setPlanosFiltrados(novoConvenio ? novoConvenio.planos || [] : []);
   };
 
+  // --- Handlers Gerais ---
   const handleChange = (e) => {
-    // console.log(`[DEBUG] Change no campo: ${e.target.name} = ${e.target.value}`);
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
-  
-  // LOGS ESPECÍFICOS PARA O CEP
-  const handleCepKeyDown = (e) => {
-    console.log('[DEBUG] CEP KeyDown:', e.key);
-    if (e.key === 'Enter') {
-      console.log('[DEBUG] CEP: Enter pressionado! Bloqueando default...');
-      e.preventDefault();
-      e.stopPropagation();
-      // Opcional: chamar busca manual aqui se quiser
-      // handleCepBlur();
-    }
+
+  const handleTabChange = (event, newValue) => {
+    setTabIndex(newValue);
   };
 
+  // --- Busca de CEP ---
   const handleCepBlur = useCallback(async () => {
-    console.log('[DEBUG] CEP: Evento Blur disparado. Valor atual:', formData.cep);
-    
     const cepLimpo = formData.cep?.replace(/[^0-9]/g, '');
-    console.log('[DEBUG] CEP Limpo:', cepLimpo);
-
     if (cepLimpo && cepLimpo.length === 8) {
-      console.log('[DEBUG] CEP: Iniciando fetch no ViaCEP...');
       setIsCepLoading(true);
       try {
         const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-        if (!response.ok) throw new Error('Erro na requisição');
-        
         const data = await response.json();
-        console.log('[DEBUG] CEP: Resposta recebida:', data);
-        
-        if (data.erro) {
-          console.warn('[DEBUG] CEP: Erro na API (CEP inexistente)');
+        if (!data.erro) {
+          setFormData(prev => ({
+            ...prev,
+            endereco: data.logradouro || '',
+            bairro: data.bairro || '',
+            cidade: data.localidade || '',
+            estado: data.uf || '',
+            complemento: data.complemento || '',
+          }));
+          showSnackbar('Endereço encontrado!', 'success');
+        } else {
           showSnackbar('CEP não localizado.', 'warning');
-          return;
         }
-
-        console.log('[DEBUG] CEP: Atualizando estado do formulário...');
-        setFormData(prev => ({
-          ...prev,
-          endereco: data.logradouro || '',
-          bairro: data.bairro || '',
-          cidade: data.localidade || '',
-          estado: data.uf || '',
-          complemento: data.complemento || '',
-        }));
-        showSnackbar('Endereço encontrado!', 'success');
       } catch (error) {
-        console.error('[DEBUG] CEP CRITICAL ERROR:', error);
-        showSnackbar('Erro ao buscar CEP.', 'error');
+        console.error('Erro CEP', error);
       } finally {
         setIsCepLoading(false);
-        console.log('[DEBUG] CEP: Loading finalizado');
       }
-    } else {
-        console.log('[DEBUG] CEP: Ignorando busca (tamanho inválido ou vazio)');
     }
   }, [formData.cep, showSnackbar]);
 
-  const cepInputProps = useMemo(() => {
-    // console.log('[DEBUG] Recalculando InputProps do CEP. Loading:', isCepLoading);
-    return {
-      inputComponent: TextMaskCEP,
-      endAdornment: (
-        <InputAdornment position="end">
-          {isCepLoading && <CircularProgress size={20} />}
-        </InputAdornment>
-      )
-    };
-  }, [isCepLoading]);
-
-  // FUNÇÃO DE SALVAR ISOLADA
+  // --- Salvar ---
   const handleSaveClick = async () => {
-    console.log('[DEBUG] SAVE: Botão Salvar clicado. Dados:', formData);
-    
     setIsLoading(true);
-    
     const dataToSend = { 
       ...formData,
       peso: formData.peso === '' ? null : formData.peso,
@@ -204,187 +155,193 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
 
     try {
       if (pacienteParaEditar) {
-        console.log('[DEBUG] SAVE: Enviando PUT...');
         await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
-        showSnackbar('Paciente atualizado com sucesso!', 'success');
+        showSnackbar('Paciente atualizado!', 'success');
       } else {
-        console.log('[DEBUG] SAVE: Enviando POST...');
         await apiClient.post('/pacientes/', dataToSend);
-        showSnackbar('Paciente criado com sucesso!', 'success');
+        showSnackbar('Paciente criado!', 'success');
       }
-      
-      console.log('[DEBUG] SAVE: Sucesso API. Fechando modal.');
       if (onSave) onSave();
       onClose();
     } catch (error) {
-      console.error("[DEBUG] SAVE ERROR:", error);
-      const errorData = error.response?.data;
-      const errorMsg = typeof errorData === 'object' 
-        ? JSON.stringify(Object.values(errorData).flat()) 
-        : 'Erro ao salvar paciente.';
-      showSnackbar(errorMsg.replace(/[\[\]"]/g, ''), 'error');
+      const errorMsg = error.response?.data ? JSON.stringify(error.response.data) : 'Erro ao salvar.';
+      showSnackbar(errorMsg.replace(/[\[\]"{}]/g, ''), 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const medicoValue = medicos.find(m => m.id === formData.medico_responsavel) || null;
-  const planoValue = planosFiltrados.find(p => p.id === formData.plano_convenio) || null;
+  // --- Renderização dos Conteúdos das Abas ---
+  const renderTabContent = () => {
+    switch (tabIndex) {
+      case 0: // Pessoais
+        return (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={8}>
+              <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} required fullWidth size="small" />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField name="data_nascimento" label="Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth size="small" />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+               <FormControl fullWidth size="small">
+                  <InputLabel>Gênero</InputLabel>
+                  <Select name="genero" value={formData.genero || ''} label="Gênero" onChange={handleChange}>
+                      <MenuItem value="Masculino">Masculino</MenuItem>
+                      <MenuItem value="Feminino">Feminino</MenuItem>
+                      <MenuItem value="Outro">Outro</MenuItem>
+                  </Select>
+               </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField name="telefone_celular" label="Celular/WhatsApp" value={formData.telefone_celular} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField name="email" label="Email" type="email" value={formData.email} onChange={handleChange} fullWidth size="small" />
+            </Grid>
+          </Grid>
+        );
+      case 1: // Endereço
+        return (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={4}>
+              <TextField 
+                name="cep" label="CEP" value={formData.cep} onChange={handleChange} onBlur={handleCepBlur} fullWidth size="small"
+                InputProps={{ 
+                  inputComponent: TextMaskCEP,
+                  endAdornment: isCepLoading && <InputAdornment position="end"><CircularProgress size={20} /></InputAdornment> 
+                }} 
+              />
+            </Grid>
+            <Grid item xs={12} sm={8}>
+              <TextField name="endereco" label="Logradouro" value={formData.endereco} onChange={handleChange} fullWidth size="small" InputLabelProps={{ shrink: !!formData.endereco }} />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField name="numero" label="Número" value={formData.numero} onChange={handleChange} fullWidth size="small" />
+            </Grid>
+            <Grid item xs={12} sm={5}>
+              <TextField name="complemento" label="Complemento" value={formData.complemento} onChange={handleChange} fullWidth size="small" />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField name="bairro" label="Bairro" value={formData.bairro} onChange={handleChange} fullWidth size="small" InputLabelProps={{ shrink: !!formData.bairro }} />
+            </Grid>
+            <Grid item xs={12} sm={9}>
+              <TextField name="cidade" label="Cidade" value={formData.cidade} onChange={handleChange} fullWidth size="small" InputLabelProps={{ shrink: !!formData.cidade }} />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField name="estado" label="UF" value={formData.estado} onChange={handleChange} fullWidth size="small" inputProps={{ maxLength: 2 }} InputLabelProps={{ shrink: !!formData.estado }} />
+            </Grid>
+          </Grid>
+        );
+      case 2: // Clínico e Convênio
+        return (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+             <Grid item xs={12}>
+                 <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Dados Físicos</Typography>
+                 <Grid container spacing={2}>
+                    <Grid item xs={6}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={6}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth size="small" /></Grid>
+                 </Grid>
+             </Grid>
+             
+             <Grid item xs={12}>
+                <Divider sx={{my: 1}} />
+                <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Médico e Plano</Typography>
+             </Grid>
+
+            <Grid item xs={12}>
+              <Autocomplete
+                options={medicos}
+                getOptionLabel={(o) => `${o.first_name} ${o.last_name}`}
+                value={medicos.find(m => m.id === formData.medico_responsavel) || null}
+                onChange={(e, v) => setFormData(prev => ({ ...prev, medico_responsavel: v ? v.id : null }))}
+                renderInput={(params) => <TextField {...params} label="Médico Responsável" size="small" />}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                options={convenios}
+                getOptionLabel={(o) => o.nome || ''}
+                value={convenioSelecionado}
+                onChange={handleConvenioChange}
+                renderInput={(params) => <TextField {...params} label="Convênio" size="small" />}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                options={planosFiltrados}
+                getOptionLabel={(o) => o.nome || ''}
+                value={planosFiltrados.find(p => p.id === formData.plano_convenio) || null}
+                onChange={(e, v) => setFormData(prev => ({ ...prev, plano_convenio: v ? v.id : null }))}
+                disabled={!convenioSelecionado}
+                renderInput={(params) => <TextField {...params} label="Plano" size="small" />}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField name="numero_carteirinha" label="Carteirinha" value={formData.numero_carteirinha} onChange={handleChange} disabled={!formData.plano_convenio} fullWidth size="small" />
+            </Grid>
+          </Grid>
+        );
+      case 3: // Responsável
+        return (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+             <Grid item xs={12}>
+                 <Paper variant="outlined" sx={{p: 2, bgcolor: '#f8f9fa'}}>
+                    <Typography variant="caption" display="block" sx={{mb: 2}}>
+                        Preencha apenas se o paciente for menor de idade ou necessitar de um responsável legal.
+                    </Typography>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}><TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth size="small" /></Grid>
+                        <Grid item xs={12} sm={6}><TextField name="cpf_responsavel" label="CPF Responsável" value={formData.cpf_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} /></Grid>
+                        <Grid item xs={12} sm={6}><TextField name="telefone_responsavel" label="Tel. Responsável" value={formData.telefone_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
+                    </Grid>
+                 </Paper>
+            </Grid>
+          </Grid>
+        );
+      default: return null;
+    }
+  };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={() => { onClose(); setConvenioSelecionado(null); }} 
-      fullWidth 
-      maxWidth="lg"
-      disableEscapeKeyDown={isLoading} 
-    >
-      <DialogTitle>{pacienteParaEditar ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
-      
-      {/* IMPORTANTE: REMOVI A TAG <form> E SUBSTITUI POR <Box> 
-         ISSO MATA O COMPORTAMENTO DE RELOAD DO NAVEGADOR.
-         AGORA O "SALVAR" DEPENDE EXCLUSIVAMENTE DO onClick.
-      */}
-      <Box component="div" sx={{ display: 'flex', flexDirection: 'column' }}> 
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
-            
-            <Typography variant="h6" sx={{ color: 'text.secondary' }}>Dados Pessoais</Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} required fullWidth />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField name="data_nascimento" label="Data de Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField name="cpf" label="CPF (do paciente)" value={formData.cpf} onChange={handleChange} fullWidth
-                  InputProps={{ inputComponent: TextMaskCPF }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <FormControl fullWidth>
-                    <InputLabel id="genero-select-label">Gênero</InputLabel>
-                    <Select labelId="genero-select-label" name="genero" value={formData.genero || ''} label="Gênero" onChange={handleChange}>
-                        <MenuItem value="Masculino">Masculino</MenuItem>
-                        <MenuItem value="Feminino">Feminino</MenuItem>
-                        <MenuItem value="Outro">Outro</MenuItem>
-                    </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField name="telefone_celular" label="Telefone Celular" value={formData.telefone_celular} onChange={handleChange} fullWidth
-                  InputProps={{ inputComponent: TextMaskTelefone }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField name="email" label="Email" type="email" value={formData.email} onChange={handleChange} fullWidth />
-              </Grid>
-            </Grid>
-            
-            <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Endereço</Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={3}>
-                <TextField 
-                  name="cep" 
-                  label="CEP" 
-                  value={formData.cep} 
-                  onChange={handleChange} 
-                  onBlur={handleCepBlur} 
-                  onKeyDown={handleCepKeyDown} 
-                  fullWidth
-                  InputProps={cepInputProps} 
-                />
-              </Grid>
-              <Grid item xs={12} sm={7}>
-                <TextField name="endereco" label="Endereço" value={formData.endereco} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
-              </Grid>
-              <Grid item xs={12} sm={2}>
-                <TextField name="numero" label="Número" value={formData.numero} onChange={handleChange} fullWidth />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField name="complemento" label="Complemento" value={formData.complemento} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField name="bairro" label="Bairro" value={formData.bairro} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
-              </Grid>
-              <Grid item xs={12} sm={3}>
-                <TextField name="cidade" label="Cidade" value={formData.cidade} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
-              </Grid>
-              <Grid item xs={12} sm={1}>
-                <TextField name="estado" label="UF" value={formData.estado} onChange={handleChange} fullWidth inputProps={{ maxLength: 2 }} InputLabelProps={{ shrink: true }} />
-              </Grid>
-            </Grid>
+    <Dialog open={open} onClose={() => { onClose(); setTabIndex(0); }} fullWidth maxWidth="md" disableEscapeKeyDown={isLoading}>
+      {/* Cabeçalho Personalizado */}
+      <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: '#333' }}>
+          {pacienteParaEditar ? 'Editar Paciente' : 'Novo Paciente'}
+        </Typography>
+        <IconButton onClick={onClose} size="small"><Close /></IconButton>
+      </DialogTitle>
 
-            {/* Campos de Responsável e Dados Clínicos mantidos igual... */}
-             <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Responsável (Opcional)</Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}><TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth /></Grid>
-              <Grid item xs={12} sm={3}>
-                <TextField name="cpf_responsavel" label="CPF do Responsável" value={formData.cpf_responsavel} onChange={handleChange} fullWidth
-                  InputProps={{ inputComponent: TextMaskCPF }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={3}>
-                <TextField name="telefone_responsavel" label="Telefone do Responsável" value={formData.telefone_responsavel} onChange={handleChange} fullWidth
-                  InputProps={{ inputComponent: TextMaskTelefone }}
-                />
-              </Grid>
-            </Grid>
+      {/* Conteúdo com Abas */}
+      <Box component="div" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Paper elevation={0} square sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs 
+                value={tabIndex} 
+                onChange={handleTabChange} 
+                variant="scrollable" 
+                scrollButtons="auto" 
+                indicatorColor="primary" 
+                textColor="primary"
+            >
+                <Tab icon={<Person />} iconPosition="start" label="Pessoais" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
+                <Tab icon={<Home />} iconPosition="start" label="Endereço" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
+                <Tab icon={<MedicalServices />} iconPosition="start" label="Convênio" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
+                <Tab icon={<SupervisorAccount />} iconPosition="start" label="Responsável" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
+            </Tabs>
+        </Paper>
 
-            <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Dados Clínicos e Convênio</Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth /></Grid>
-              <Grid item xs={6} sm={3}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth /></Grid>
-              <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  options={medicos}
-                  getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
-                  value={medicoValue}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(event, newValue) => setFormData(prev => ({ ...prev, medico_responsavel: newValue ? newValue.id : null }))}
-                  renderInput={(params) => <TextField {...params} label="Médico Responsável" />}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Autocomplete
-                  options={convenios}
-                  getOptionLabel={(option) => option.nome || ''}
-                  value={convenioSelecionado}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={handleConvenioChange}
-                  renderInput={(params) => <TextField {...params} label="Convênio" />}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Autocomplete
-                  options={planosFiltrados}
-                  getOptionLabel={(option) => option.nome || ''}
-                  value={planoValue}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  onChange={(event, newValue) => setFormData(prev => ({ ...prev, plano_convenio: newValue ? newValue.id : null }))}
-                  disabled={!convenioSelecionado} 
-                  renderInput={(params) => <TextField {...params} label="Plano" />}
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  name="numero_carteirinha"
-                  label="Número da Carteirinha"
-                  value={formData.numero_carteirinha}
-                  onChange={handleChange}
-                  disabled={!formData.plano_convenio}
-                  fullWidth
-                />
-              </Grid>
-            </Grid>
-          </Box>
+        <DialogContent sx={{ py: 2, px: 3, minHeight: '300px' }}>
+            {renderTabContent()}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} color="inherit">Cancelar</Button>
-          {/* Botão agora chama handleSaveClick diretamente, sem depender de submit de form */}
-          <Button onClick={handleSaveClick} variant="contained" disabled={isLoading || isCepLoading}>
-            {(isLoading || isCepLoading) ? <CircularProgress size={24} color="inherit" /> : 'Salvar'}
+
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
+          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none' }}>Cancelar</Button>
+          <Button onClick={handleSaveClick} variant="contained" disabled={isLoading || isCepLoading} sx={{ px: 4, textTransform: 'none', fontWeight: 'bold' }}>
+            {(isLoading || isCepLoading) ? <CircularProgress size={24} color="inherit" /> : 'Salvar Dados'}
           </Button>
         </DialogActions>
       </Box>
