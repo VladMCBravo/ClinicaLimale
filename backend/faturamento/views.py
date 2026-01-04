@@ -45,221 +45,94 @@ from .serializers import (
 
 class FinanceiroDashboardAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
-
     def get(self, request):
         hoje = timezone.localdate()
-        
-        # =========================================================================
-        # 1. TOTAIS GERAIS
-        # =========================================================================
         receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
         despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
-        
         total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
         saldo_final = total_entradas - total_saidas
 
-        # =========================================================================
-        # 2. EXTRATO (CORREÇÃO DE DATAS)
-        # =========================================================================
-        # Objetivo: Converter tudo para DATETIME AWARE (com fuso horário) para ordenar corretamente
-
-        receitas_reais = Pagamento.objects.filter(
-            status='Pago',
-            data_pagamento__isnull=False 
-        ).select_related('paciente').only(
-            'id', 'paciente__nome_completo', 'descricao', 'data_pagamento', 'valor', 'forma_pagamento'
-        ).order_by('-data_pagamento')[:30]
-
-        despesas_reais = Despesa.objects.filter(
-            pago=True,
-            data_pagamento__isnull=False
-        ).only(
-            'id', 'descricao', 'data_pagamento', 'valor', 'categoria'
-        ).order_by('-data_pagamento')[:30]
+        receitas_reais = Pagamento.objects.filter(status='Pago', data_pagamento__isnull=False).select_related('paciente').order_by('-data_pagamento')[:30]
+        despesas_reais = Despesa.objects.filter(pago=True, data_pagamento__isnull=False).order_by('-data_pagamento')[:30]
 
         extrato = []
-        
         for r in receitas_reais:
             nome = r.paciente.nome_completo if r.paciente else (r.descricao or "Receita Avulsa")
-            extrato.append({
-                'id': f'rec-{r.id}',
-                'desc': nome,
-                'date': r.data_pagamento, # Já é datetime aware
-                'amount': float(r.valor),
-                'type': 'income',
-                'forma': r.forma_pagamento
-            })
+            extrato.append({'id': f'rec-{r.id}', 'desc': nome, 'date': r.data_pagamento, 'amount': float(r.valor), 'type': 'income', 'forma': r.forma_pagamento})
 
         for d in despesas_reais:
-            # CORREÇÃO CRÍTICA: Despesa é 'date', Pagamento é 'datetime'.
-            # Convertemos Despesa para 'datetime' (início do dia) para poder comparar.
             data_full = d.data_pagamento
             if isinstance(data_full, date) and not isinstance(data_full, datetime):
-                # Combina a data com a hora 00:00:00
                 data_naive = datetime.combine(data_full, time.min)
-                # Adiciona o fuso horário para ficar igual ao Pagamento
                 data_full = timezone.make_aware(data_naive)
-            
-            extrato.append({
-                'id': f'desp-{d.id}',
-                'desc': d.descricao,
-                'date': data_full, 
-                'amount': float(d.valor),
-                'type': 'expense',
-                'forma': 'Despesa'
-            })
+            extrato.append({'id': f'desp-{d.id}', 'desc': d.descricao, 'date': data_full, 'amount': float(d.valor), 'type': 'expense', 'forma': 'Despesa'})
 
-        # Agora ordena sem erro (ambos são datetimes com fuso)
         extrato.sort(key=lambda x: x['date'] if x['date'] else timezone.now(), reverse=True)
         extrato = extrato[:40]
 
-        # =========================================================================
-        # 3. ALERTAS (CORREÇÃO DE TIPAGEM)
-        # =========================================================================
-        
         pagar_futuro = Despesa.objects.filter(pago=False, data_vencimento__gte=hoje).order_by('data_vencimento')[:10]
         receber_futuro = Pagamento.objects.filter(status='Pendente', data_vencimento__gte=hoje).select_related('paciente').order_by('data_vencimento')[:10]
 
         alertas_list = []
-
         for c in pagar_futuro:
-            alertas_list.append({
-                'id': f'pg-{c.id}',
-                'desc': c.descricao,
-                'date': c.data_vencimento, # É date
-                'valor': float(c.valor),
-                'tipo': 'saida'
-            })
-            
+            alertas_list.append({'id': f'pg-{c.id}', 'desc': c.descricao, 'date': c.data_vencimento, 'valor': float(c.valor), 'tipo': 'saida'})
         for r in receber_futuro:
             nome = r.paciente.nome_completo if r.paciente else (r.descricao or "A Receber")
-            alertas_list.append({
-                'id': f'rc-{r.id}',
-                'desc': nome,
-                'date': r.data_vencimento, # É date
-                'valor': float(r.valor),
-                'tipo': 'entrada'
-            })
-
-        # CORREÇÃO CRÍTICA: Ordenação segura. Se date for None, joga para o final (date.max)
-        # Usamos date.max em vez de datetime.max para não dar erro de comparação
-        alertas_list.sort(key=lambda x: x['date'] if x['date'] else date.max)
+            alertas_list.append({'id': f'rc-{r.id}', 'desc': nome, 'date': r.data_vencimento, 'valor': float(r.valor), 'tipo': 'entrada'})
         
-        # Formata para string
+        alertas_list.sort(key=lambda x: x['date'] if x['date'] else date.max)
         for item in alertas_list:
             item['date'] = item['date'].strftime('%d/%m') if item['date'] else 'S/D'
 
         return Response({
-            "saldo_em_conta": float(saldo_final),
-            "faturamento_do_dia": float(receitas_hoje),
-            "despesas_do_dia": float(despesas_hoje),
-            "extrato_real": extrato,
-            "alertas_vencimento": alertas_list
+            "saldo_em_conta": float(saldo_final), "faturamento_do_dia": float(receitas_hoje), "despesas_do_dia": float(despesas_hoje),
+            "extrato_real": extrato, "alertas_vencimento": alertas_list
         })
-
 
 class ProjecaoFluxoCaixaAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
-
     def get(self, request):
         hoje = timezone.localdate()
         data_final = hoje + timedelta(days=30)
-        
-        # 1. CÁLCULO DO SALDO INICIAL REAL (Baseado no histórico do sistema)
-        # Se não usar API do banco Inter, calculamos: Tudo que entrou - Tudo que saiu (status Pago)
         total_entradas_historico = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas_historico = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
-        
-        # Saldo de partida para o gráfico de hoje
         saldo_acumulado = float(total_entradas_historico) - float(total_saidas_historico)
         
-        # (Opcional) Se tiver integração Inter ativa e quiser usar o saldo real do banco:
-        # try:
-        #     if inter_service:
-        #         saldo_banco = inter_service.consultar_saldo()
-        #         if saldo_banco is not None:
-        #             saldo_acumulado = float(saldo_banco)
-        # except: pass
-
-        # 2. MAPEAR RECEITAS FUTURAS (Agendamentos + Financeiro Pendente)
         mapa_receitas = {}
+        receitas_fin = Pagamento.objects.filter(status='Pendente', data_vencimento__range=[hoje, data_final]).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+        for r in receitas_fin: mapa_receitas[r['dia']] = mapa_receitas.get(r['dia'], 0) + (float(r['total'] or 0))
 
-        # A) Financeiro já lançado (Boletos gerados, Parcelas de cartão a cair)
-        receitas_fin = Pagamento.objects.filter(
-            status='Pendente',
-            data_vencimento__range=[hoje, data_final]
-        ).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+        agendamentos_futuros = Agendamento.objects.filter(data_hora_inicio__date__range=[hoje, data_final], status__in=['Agendado', 'Confirmado'], pagamento__isnull=True).annotate(dia=TruncDate('data_hora_inicio')).values('dia').annotate(total=Sum('procedimento__valor_particular')).order_by('dia')
+        for ag in agendamentos_futuros: mapa_receitas[ag['dia']] = mapa_receitas.get(ag['dia'], 0) + (float(ag['total'] or 0))
 
-        for r in receitas_fin:
-            d = r['dia']
-            mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(r['total'] or 0))
-
-        # B) Agendamentos Confirmados (Que AINDA NÃO têm financeiro lançado)
-        # Isso é crucial: Pega consultas futuras que vão virar dinheiro.
-        agendamentos_futuros = Agendamento.objects.filter(
-            data_hora_inicio__date__range=[hoje, data_final],
-            status__in=['Agendado', 'Confirmado'],
-            pagamento__isnull=True  # Só os que não geraram cobrança ainda
-        ).annotate(dia=TruncDate('data_hora_inicio')).values('dia').annotate(
-            # Tenta pegar valor do procedimento ou valor fixo da consulta
-            total=Sum('procedimento__valor_particular') 
-        ).order_by('dia')
-
-        for ag in agendamentos_futuros:
-            d = ag['dia']
-            # Se o valor for null (ex: retorno), soma 0
-            mapa_receitas[d] = mapa_receitas.get(d, 0) + (float(ag['total'] or 0))
-
-        # 3. MAPEAR DESPESAS FUTURAS (Contas a Pagar)
         mapa_despesas = {}
-        despesas_futuras = Despesa.objects.filter(
-            pago=False,
-            data_vencimento__range=[hoje, data_final]
-        ).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
-        
-        for d in despesas_futuras:
-            mapa_despesas[d['dia']] = float(d['total'] or 0)
+        despesas_futuras = Despesa.objects.filter(pago=False, data_vencimento__range=[hoje, data_final]).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+        for d in despesas_futuras: mapa_despesas[d['dia']] = float(d['total'] or 0)
 
-        # 4. CONSTRUÇÃO DA LINHA DO TEMPO
-        datas = []
-        saldo_linha = []
-        despesa_linha = []
-
+        datas, saldo_linha, despesa_linha = [], [], []
         saldo_atual_loop = saldo_acumulado
-
         for i in range(31):
             data_corrente = hoje + timedelta(days=i)
-            
             entrada = float(mapa_receitas.get(data_corrente, 0))
             saida = float(mapa_despesas.get(data_corrente, 0))
-            
             saldo_atual_loop = saldo_atual_loop + entrada - saida
-            
             datas.append(data_corrente.strftime('%d/%m'))
             saldo_linha.append(saldo_atual_loop)
             despesa_linha.append(saida)
 
-        return Response({
-            'labels': datas,
-            'saldo_projetado': saldo_linha,
-            'despesas_previstas': despesa_linha
-        })
-
-# ============================================================================
-#  VIEWS DE PAGAMENTOS E COBRANÇAS
-# ============================================================================
+        return Response({'labels': datas, 'saldo_projetado': saldo_linha, 'despesas_previstas': despesa_linha})
 
 class CobrancasPendentesPacienteAPIView(generics.ListAPIView):
     serializer_class = CobrancaPendenteSerializer
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
     def get_queryset(self):
-        paciente_id = self.kwargs.get('paciente_id')
-        return Pagamento.objects.filter(
-            paciente_id=paciente_id,
-            status='Pendente',
-            agendamento__isnull=False
-        ).order_by('agendamento__data_hora_inicio')
+        return Pagamento.objects.filter(paciente_id=self.kwargs.get('paciente_id'), status='Pendente', agendamento__isnull=False).order_by('agendamento__data_hora_inicio')
+
+
+# ============================================================================
+#  A CORREÇÃO IMPORTANTE ESTÁ AQUI
+# ============================================================================
 
 class LancamentoAvulsoAPIView(APIView):
     permission_classes = [IsAuthenticated, IsRecepcaoOrAdmin]
@@ -275,15 +148,14 @@ class LancamentoAvulsoAPIView(APIView):
         else:
             data_vencimento_base = timezone.localdate()
 
-        # Pega a data de pagamento (se o usuário informou)
-        data_pagamento_manual = dados.get('data_pagamento') # Formato YYYY-MM-DD ou None
+        data_pagamento_manual = dados.get('data_pagamento')
         
         # Dados comuns
         qtd_parcelas = int(dados.get('qtd_parcelas', 1))
         valor_total = float(dados.get('valor', 0))
         descricao_original = dados.get('descricao', '')
 
-        # --- Lógica para RECEITA ---
+        # --- RECEITA ---
         if tipo == 'receita':
             forma_pagamento = dados.get('forma_pagamento')
             status_lancamento = dados.get('status', 'Pendente')
@@ -294,8 +166,6 @@ class LancamentoAvulsoAPIView(APIView):
                 
                 for i in range(qtd_parcelas):
                     data_venc_parcela = data_vencimento_base + relativedelta(months=i)
-                    
-                    # 1ª parcela segue o status do form, as próximas nascem Pendentes
                     status_parcela = status_lancamento if i == 0 else 'Pendente'
                     data_pag_parcela = data_pagamento_manual if (i == 0 and status_parcela == 'Pago') else None
 
@@ -312,26 +182,20 @@ class LancamentoAvulsoAPIView(APIView):
                     pagamentos_criados.append(novo_pagamento)
                 
                 return Response({'msg': f'{qtd_parcelas} parcelas de receita geradas.'}, status=status.HTTP_201_CREATED)
-
             else:
-                # Lançamento Único (Receita)
                 serializer = LancamentoAvulsoReceitaSerializer(data=dados)
                 if serializer.is_valid():
                     obj = serializer.save(registrado_por=request.user)
                     obj.data_vencimento = data_vencimento_base
                     if obj.status == 'Pago':
-                        if data_pagamento_manual:
-                            obj.data_pagamento = data_pagamento_manual
-                        elif not obj.data_pagamento:
-                            obj.data_pagamento = timezone.now()
+                        obj.data_pagamento = data_pagamento_manual or timezone.now()
                     obj.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # --- Lógica para DESPESA (CORRIGIDA) ---
+        # --- DESPESA (CORRIGIDO AQUI) ---
         elif tipo == 'despesa':
             pago_inicialmente = dados.get('pago', False)
-            # O frontend manda 'pago' como boolean, converte se vier string
             if isinstance(pago_inicialmente, str):
                 pago_inicialmente = (pago_inicialmente.lower() == 'true')
 
@@ -341,22 +205,12 @@ class LancamentoAvulsoAPIView(APIView):
                 despesas_criadas = []
 
                 for i in range(qtd_parcelas):
-                    # Data de vencimento incrementa 1 mês a cada loop
-                    data_venc_parcela = data_vencimento_base + relativedelta(months=i)
+                    # Calcula a data para este mês específico
+                    nova_data = data_vencimento_base + relativedelta(months=i)
                     
-                    # Lógica de Status:
-                    # Geralmente, ao parcelar uma compra, a 1ª pode ser à vista (paga) e o resto a pagar.
-                    # Ou se for cartão de crédito da empresa, tudo fica "a pagar" na data da fatura.
-                    # A lógica abaixo assume: Se marcou "Pago", só a 1ª conta como paga agora.
+                    # Lógica de Pagamento: Apenas a primeira parcela considera o status enviado
                     esta_pago = pago_inicialmente if i == 0 else False
                     data_pag_parcela = data_pagamento_manual if (i == 0 and esta_pago) else None
-
-                    # Usamos o serializer para validar, mas alteramos os dados antes de salvar
-                    dados_parcela = dados.copy()
-                    dados_parcela['descricao'] = f"{descricao_original} ({i+1}/{qtd_parcelas})"
-                    dados_parcela['valor'] = valor_parcela
-                    # Precisamos passar datas formatadas para o serializer ou salvar direto.
-                    # Vamos salvar direto para simplificar a manipulação de datas complexas
                     
                     categoria_id = dados.get('categoria')
                     
@@ -364,8 +218,14 @@ class LancamentoAvulsoAPIView(APIView):
                         categoria_id=categoria_id,
                         descricao=f"{descricao_original} ({i+1}/{qtd_parcelas})",
                         valor=valor_parcela,
-                        data_despesa=data_vencimento_base, # Data de competência (data da compra)
-                        data_vencimento=data_venc_parcela, # Data que o boleto vence
+                        
+                        # [CORREÇÃO]: A data_despesa (competência) TAMBÉM avança nos meses
+                        # Assim cada parcela aparecerá no seu respectivo mês no gráfico/tabela
+                        data_despesa=nova_data, 
+                        
+                        # A data de vencimento também acompanha
+                        data_vencimento=nova_data, 
+                        
                         pago=esta_pago,
                         data_pagamento=data_pag_parcela,
                         registrado_por=request.user
@@ -374,14 +234,13 @@ class LancamentoAvulsoAPIView(APIView):
 
                 return Response({'msg': f'{qtd_parcelas} despesas geradas.'}, status=status.HTTP_201_CREATED)
 
-            # Despesa Única (Padrão)
+            # Despesa Única
             else:
                 serializer = DespesaSerializer(data=dados)
                 if serializer.is_valid():
                     obj = serializer.save(registrado_por=request.user)
-                    # Garante data de pagamento correta se vier manual
-                    if obj.pago and data_pagamento_manual:
-                        obj.data_pagamento = data_pagamento_manual
+                    if obj.pago:
+                        obj.data_pagamento = data_pagamento_manual or timezone.now().date() # Garante data hoje se nulo
                         obj.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
