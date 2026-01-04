@@ -38,68 +38,79 @@ const formatDataSimples = (dataISO) => {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
 };
 
-// --- COMPONENTE DE TABELA REUTILIZÁVEL (Para deixar o código limpo) ---
+// --- COMPONENTE DE TABELA REUTILIZÁVEL (VERSÃO COMPACTA) ---
 const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onToggleStatus, onDelete }) => (
     <Paper elevation={0} sx={{ border: `1px solid ${corTema}40`, borderRadius: 2, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* Cabeçalho da Tabela */}
-        <Box sx={{ p: 2, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1, borderBottom: `1px solid ${corTema}20` }}>
-            {icone}
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: corTema, flexGrow: 1 }}>
+        {/* Cabeçalho do Card (Mais fino) */}
+        <Box sx={{ px: 1.5, py: 1, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1, borderBottom: `1px solid ${corTema}20` }}>
+            {React.cloneElement(icone, { sx: { fontSize: 18, color: corTema } })}
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: corTema, flexGrow: 1, fontSize: '0.8rem' }}>
                 {titulo}
             </Typography>
             <Chip 
-                label={`${dados.length} itens`} 
+                label={`${dados.length}`} 
                 size="small" 
-                sx={{ bgcolor: 'white', color: corTema, fontWeight: 'bold', fontSize: '0.7rem' }} 
+                sx={{ bgcolor: 'white', color: corTema, fontWeight: 'bold', fontSize: '0.65rem', height: 20 }} 
             />
         </Box>
 
-        <TableContainer sx={{ flexGrow: 1, maxHeight: '400px' }}> {/* Scroll individual se ficar muito grande */}
-            <Table size="small" stickyHeader>
+        <TableContainer sx={{ flexGrow: 1, maxHeight: '400px' }}>
+            <Table size="small" stickyHeader padding="none"> {/* padding="none" remove espaços extras */}
                 <TableHead>
                     <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold', color: '#666', fontSize: '0.75rem' }}>Vencimento</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', color: '#666', fontSize: '0.75rem' }}>Descrição</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', color: '#666', fontSize: '0.75rem' }}>Valor</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', color: '#666', fontSize: '0.75rem' }}>Ações</TableCell>
+                        <TableCell sx={{ pl: 1, py: 0.5, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '70px' }}>Data</TableCell>
+                        <TableCell sx={{ px: 0.5, py: 0.5, fontWeight: 'bold', color: '#666', fontSize: '0.7rem' }}>Descrição</TableCell>
+                        <TableCell align="right" sx={{ px: 0.5, py: 0.5, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '80px' }}>Valor</TableCell>
+                        <TableCell align="center" sx={{ pr: 1, py: 0.5, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '70px' }}>Ações</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
                     {dados.length > 0 ? dados.map((item) => (
-                        <TableRow key={item.id} hover>
-                            <TableCell sx={{ fontSize: '0.75rem', color: '#444' }}>
-                                <div style={{display: 'flex', flexDirection: 'column'}}>
+                        <TableRow key={item.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                            {/* Coluna DATA */}
+                            <TableCell sx={{ pl: 1, py: 0.5, fontSize: '0.7rem', color: '#444', borderBottom: '1px solid #f0f0f0' }}>
+                                <div style={{display: 'flex', flexDirection: 'column', lineHeight: 1.1}}>
                                     <span>{formatDataSimples(item.data_vencimento)}</span>
-                                    {item.pago && <span style={{fontSize: '0.6rem', color: '#2e7d32'}}>Pago</span>}
+                                    {item.pago && <span style={{fontSize: '0.6rem', color: '#2e7d32', fontWeight: 600}}>PAGO</span>}
                                 </div>
                             </TableCell>
-                            <TableCell sx={{ fontSize: '0.75rem' }}>
-                                <div style={{ fontWeight: 600, color: '#333' }}>{item.descricao}</div>
-                                <div style={{ fontSize: '0.65rem', color: '#888' }}>{item.categoria_nome}</div>
+
+                            {/* Coluna DESCRIÇÃO (Com limite de largura e cortes) */}
+                            <TableCell sx={{ px: 0.5, py: 0.5, fontSize: '0.7rem', borderBottom: '1px solid #f0f0f0', maxWidth: '140px' }}>
+                                <div style={{ fontWeight: 600, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.descricao}>
+                                    {item.descricao}
+                                </div>
+                                <div style={{ fontSize: '0.65rem', color: '#888', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {item.categoria_nome}
+                                </div>
                             </TableCell>
-                            <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1a233b' }}>
+
+                            {/* Coluna VALOR */}
+                            <TableCell align="right" sx={{ px: 0.5, py: 0.5, fontSize: '0.7rem', fontWeight: 'bold', color: '#1a233b', borderBottom: '1px solid #f0f0f0' }}>
                                 {formatMoney(item.valor)}
                             </TableCell>
-                            <TableCell align="center">
-                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                    <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.5 }}>
-                                        <Edit sx={{ fontSize: 14, color: '#1976d2' }} />
+
+                            {/* Coluna AÇÕES */}
+                            <TableCell align="center" sx={{ pr: 1, py: 0.5, borderBottom: '1px solid #f0f0f0' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                    <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.2 }}>
+                                        <Edit sx={{ fontSize: 13, color: '#1976d2' }} />
                                     </IconButton>
                                     {!item.pago && (
-                                        <IconButton size="small" onClick={() => onToggleStatus(item)} sx={{ p: 0.5 }}>
-                                            <CheckCircle sx={{ fontSize: 14, color: '#2e7d32' }} />
+                                        <IconButton size="small" onClick={() => onToggleStatus(item)} sx={{ p: 0.2 }}>
+                                            <CheckCircle sx={{ fontSize: 13, color: '#2e7d32' }} />
                                         </IconButton>
                                     )}
-                                    <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.5 }}>
-                                        <Delete sx={{ fontSize: 14, color: '#d32f2f' }} />
+                                    <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.2 }}>
+                                        <Delete sx={{ fontSize: 13, color: '#d32f2f' }} />
                                     </IconButton>
                                 </Box>
                             </TableCell>
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={4} align="center" sx={{ py: 3, fontSize: '0.75rem', color: '#999' }}>
-                                Nenhuma despesa nesta categoria.
+                            <TableCell colSpan={4} align="center" sx={{ py: 3, fontSize: '0.7rem', color: '#999' }}>
+                                Vazio.
                             </TableCell>
                         </TableRow>
                     )}
@@ -107,10 +118,10 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onToggleStatus,
             </Table>
         </TableContainer>
         
-        {/* Rodapé com Totalizador Rápido */}
-        <Box sx={{ p: 1.5, bgcolor: '#fafafa', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary">Total:</Typography>
-            <Typography variant="subtitle2" color={corTema} fontWeight="bold">
+        {/* Rodapé Compacto */}
+        <Box sx={{ px: 1.5, py: 1, bgcolor: '#fafafa', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary" sx={{fontSize: '0.7rem'}}>Total:</Typography>
+            <Typography variant="subtitle2" color={corTema} fontWeight="bold" sx={{fontSize: '0.8rem'}}>
                 {formatMoney(dados.reduce((acc, curr) => acc + parseFloat(curr.valor || 0), 0))}
             </Typography>
         </Box>
@@ -356,20 +367,127 @@ export default function DespesasView() {
             {/* --- MODAIS (Edit e Create) PERMANECEM IGUAIS --- */}
             <LancamentoCaixaModal open={openNovoLancamentoModal} onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} initialTab={1} initialType="despesa" />
             <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="sm">
-                <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '0.9rem', borderBottom: '1px solid #f0f0f0', py: 1.5 }}>Editar Despesa</DialogTitle>
-                <form onSubmit={handleSaveEdit}>
-                    <DialogContent sx={{ pt: 2, bgcolor: '#fcfcfc' }}>
+    <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b', fontSize: '0.9rem', borderBottom: '1px solid #f0f0f0', py: 1.5 }}>
+        {editFormData.id ? 'Editar Despesa' : 'Nova Despesa'}
+    </DialogTitle>
+    <form onSubmit={handleSaveEdit}>
+        <DialogContent sx={{ pt: 2, bgcolor: '#fcfcfc' }}>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
                         <Grid container spacing={2}>
-                            <Grid item xs={12}><Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}><Grid container spacing={2}><Grid item xs={12}><TextField label="Descrição" fullWidth required size="small" value={editFormData.descricao || ''} onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})} InputLabelProps={{style: {fontSize: '0.8rem'}}} /></Grid><Grid item xs={12}><TextField select label="Categoria" fullWidth required size="small" value={editFormData.categoria || ''} onChange={(e) => setEditFormData({...editFormData, categoria: e.target.value})} SelectProps={{style: {fontSize: '0.8rem'}}} InputLabelProps={{style: {fontSize: '0.8rem'}}}>{categorias.map(cat => <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>)}</TextField></Grid></Grid></Paper></Grid>
-                            <Grid item xs={12}><Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}><Grid container spacing={2}><Grid item xs={6}><TextField label="Valor (R$)" type="number" fullWidth required size="small" value={editFormData.valor || ''} onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})} InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment>, style: {fontSize: '0.8rem'} }} InputLabelProps={{style: {fontSize: '0.8rem'}}} /></Grid><Grid item xs={6} display="flex" alignItems="center"><FormControlLabel control={<Switch size="small" checked={!!editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} color="success"/>} label={<Typography fontSize="0.8rem">Já Pago?</Typography>} /></Grid><Grid item xs={12}><DatePicker label="Vencimento" value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null} onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'small' } }} /></Grid>{editFormData.pago && (<Grid item xs={12}><DatePicker label="Data Pagamento" value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : null} onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'small', color: 'success', focused: true } }} /></Grid>)}</Grid></Paper></Grid>
+                            <Grid item xs={12}>
+                                <TextField 
+                                    label="Descrição" 
+                                    fullWidth 
+                                    required 
+                                    size="small" 
+                                    value={editFormData.descricao || ''} 
+                                    onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})} 
+                                    InputLabelProps={{style: {fontSize: '0.8rem'}}} 
+                                />
+                            </Grid>
+                            
+                            {/* SELEÇÃO DE CATEGORIA MELHORADA */}
+                            <Grid item xs={12}>
+                                <TextField 
+                                    select 
+                                    label="Categoria" 
+                                    fullWidth 
+                                    required 
+                                    size="small" 
+                                    value={editFormData.categoria || ''} 
+                                    onChange={(e) => {
+                                        // Encontra a categoria completa para saber se é fixa ou variável na hora
+                                        const catObj = categorias.find(c => c.id === e.target.value);
+                                        // Atualiza o form e também salva o nome/tipo temporariamente para feedback visual
+                                        setEditFormData({
+                                            ...editFormData, 
+                                            categoria: e.target.value,
+                                            categoria_nome: catObj ? catObj.nome : '',
+                                            categoria_tipo: catObj ? catObj.tipo : ''
+                                        });
+                                    }} 
+                                    SelectProps={{style: {fontSize: '0.8rem'}}} 
+                                    InputLabelProps={{style: {fontSize: '0.8rem'}}}
+                                >
+                                    {categorias.map(cat => (
+                                        <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>{cat.nome}</span>
+                                            {/* Mostra visualmente o tipo no dropdown */}
+                                            <span style={{ 
+                                                fontSize: '0.65rem', 
+                                                color: cat.tipo === 'Fixa' ? '#1565c0' : '#e65100',
+                                                fontWeight: 'bold',
+                                                backgroundColor: cat.tipo === 'Fixa' ? '#e3f2fd' : '#fff3e0',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px'
+                                            }}>
+                                                {cat.tipo === 'Fixa' ? 'FIXA' : 'VARIÁVEL'}
+                                            </span>
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                                
+                                {/* FEEDBACK VISUAL ABAIXO DO CAMPO */}
+                                {editFormData.categoria && (
+                                    <Box sx={{ mt: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Tipo identificado:
+                                        </Typography>
+                                        <Chip 
+                                            label={
+                                                // Verifica na lista de categorias baseado no ID selecionado
+                                                (categorias.find(c => c.id === editFormData.categoria)?.tipo === 'Fixa') 
+                                                ? "DESPESA FIXA (Estrutural)" 
+                                                : "DESPESA VARIÁVEL (Consumo)"
+                                            }
+                                            size="small"
+                                            sx={{ 
+                                                height: 20, 
+                                                fontSize: '0.65rem', 
+                                                fontWeight: 'bold',
+                                                bgcolor: (categorias.find(c => c.id === editFormData.categoria)?.tipo === 'Fixa') ? '#e3f2fd' : '#fff3e0',
+                                                color: (categorias.find(c => c.id === editFormData.categoria)?.tipo === 'Fixa') ? '#1565c0' : '#e65100'
+                                            }}
+                                        />
+                                    </Box>
+                                )}
+                            </Grid>
                         </Grid>
-                    </DialogContent>
-                    <DialogActions sx={{ p: 1.5, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
-                        <Button onClick={() => setOpenEditModal(false)} size="small" sx={{color: '#666', fontSize: '0.75rem'}}>Cancelar</Button>
-                        <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem' }}>{isSubmitting ? <CircularProgress size={16} color="inherit" /> : 'Salvar Alterações'}</Button>
-                    </DialogActions>
-                </form>
-            </Dialog>
+                    </Paper>
+                </Grid>
+
+                <Grid item xs={12}>
+                    <Paper elevation={0} variant="outlined" sx={{ p: 2, bgcolor: '#fff' }}>
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <TextField label="Valor (R$)" type="number" fullWidth required size="small" value={editFormData.valor || ''} onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})} InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment>, style: {fontSize: '0.8rem'} }} InputLabelProps={{style: {fontSize: '0.8rem'}}} />
+                            </Grid>
+                            <Grid item xs={6} display="flex" alignItems="center">
+                                <FormControlLabel control={<Switch size="small" checked={!!editFormData.pago} onChange={(e) => setEditFormData({...editFormData, pago: e.target.checked})} color="success"/>} label={<Typography fontSize="0.8rem">Já Pago?</Typography>} />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <DatePicker label="Vencimento" value={editFormData.data_vencimento ? dayjs(editFormData.data_vencimento) : null} onChange={(v) => setEditFormData({...editFormData, data_vencimento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'small' } }} />
+                            </Grid>
+                            {editFormData.pago && (
+                                <Grid item xs={12}>
+                                    <DatePicker label="Data Pagamento" value={editFormData.data_pagamento ? dayjs(editFormData.data_pagamento) : null} onChange={(v) => setEditFormData({...editFormData, data_pagamento: v ? v.format('YYYY-MM-DD') : ''})} slotProps={{ textField: { fullWidth: true, size: 'small', color: 'success', focused: true } }} />
+                                </Grid>
+                            )}
+                        </Grid>
+                    </Paper>
+                </Grid>
+            </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 1.5, bgcolor: '#fcfcfc', borderTop: '1px solid #f0f0f0' }}>
+            <Button onClick={() => setOpenEditModal(false)} size="small" sx={{color: '#666', fontSize: '0.75rem'}}>Cancelar</Button>
+            <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem' }}>
+                {isSubmitting ? <CircularProgress size={16} color="inherit" /> : 'Salvar Alterações'}
+            </Button>
+        </DialogActions>
+    </form>
+</Dialog>
         </div>
     );
 }
