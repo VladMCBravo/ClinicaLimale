@@ -3,7 +3,9 @@ import {
     Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     IconButton, Typography, Chip, Box, FormControl, Select, MenuItem,
-    InputAdornment
+    InputAdornment,
+    // ADICIONE ESTES AQUI:
+    Dialog, DialogTitle, DialogContent, DialogActions, FormControlLabel, Switch
 } from '@mui/material';
 import { 
     AttachMoney, CheckCircle, Search, AddCircleOutline, 
@@ -454,6 +456,64 @@ export default function ContasReceberView() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Editar Lançamento</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <TextField
+                            label="Descrição"
+                            fullWidth
+                            value={editFormData.descricao || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, descricao: e.target.value })}
+                        />
+                        
+                        <TextField
+                            label="Data de Vencimento"
+                            type="date"
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                            value={editFormData.data_vencimento || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, data_vencimento: e.target.value })}
+                        />
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={editFormData.pago || false}
+                                    onChange={(e) => setEditFormData({ ...editFormData, pago: e.target.checked })}
+                                />
+                            }
+                            label={editFormData.pago ? "Status: PAGO" : "Status: PENDENTE"}
+                        />
+
+                        {editFormData.pago && (
+                            <TextField
+                                label="Data do Pagamento"
+                                type="date"
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                                value={editFormData.data_pagamento || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, data_pagamento: e.target.value })}
+                            />
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenEditModal(false)} color="inherit">
+                        Cancelar
+                    </Button>
+                    <Button 
+                        onClick={handleSaveEdit} 
+                        variant="contained" 
+                        color="primary"
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* FIM DA CORREÇÃO */}
 
             {selectedPagamento && (
                 <PagamentoModal 
