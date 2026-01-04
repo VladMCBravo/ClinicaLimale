@@ -72,8 +72,6 @@
     ]
     },
   "overrides": {
-    "webpack": "5.89.0",
-    "semver": "7.5.4",
-    "check-side-effects": false
+    "webpack": "5.89.0"
   }
 }
