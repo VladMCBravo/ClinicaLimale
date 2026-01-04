@@ -1,14 +1,15 @@
 // src/theme.js
 import { createTheme } from '@mui/material/styles';
-import { ptBR } from '@mui/material/locale';
+// A LINHA ABAIXO FOI REMOVIDA PARA CORRIGIR O ERRO NO VERCEL:
+// import { ptBR } from '@mui/material/locale';
 
 const theme = createTheme({
     palette: {
         primary: {
-            main: '#1a233b', // Azul escuro do seu Navbar
+            main: '#1a233b',
         },
         secondary: {
-            main: '#c0a46f', // Dourado do seu sistema
+            main: '#c0a46f',
         },
         background: {
             default: '#f4f7fa',
@@ -16,30 +17,29 @@ const theme = createTheme({
     },
     typography: {
         fontFamily: "'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif",
-        fontSize: 13, // Reduz ligeiramente a fonte base (padrão é 14) para ficar mais compacto
+        fontSize: 13,
         h5: {
             fontWeight: 600,
-            fontSize: '1.25rem', // Títulos menos agressivos
+            fontSize: '1.25rem',
         },
         h6: {
             fontWeight: 600,
             fontSize: '1.1rem',
         },
         button: {
-            textTransform: 'none', // Remove o CAIXA ALTA dos botões para ficar mais elegante
+            textTransform: 'none',
             fontWeight: 600,
         },
     },
     components: {
-        // --- FORÇA O TAMANHO PEQUENO EM TUDO ---
         MuiButton: {
             defaultProps: {
                 size: 'small',
-                disableElevation: true, // Botões planos (sem sombra excessiva)
+                disableElevation: true,
             },
             styleOverrides: {
                 root: {
-                    borderRadius: 6, // Cantos ligeiramente arredondados
+                    borderRadius: 6,
                     padding: '6px 16px',
                 },
             },
@@ -58,7 +58,7 @@ const theme = createTheme({
         MuiFormControl: {
             defaultProps: {
                 size: 'small',
-                margin: 'dense', // Reduz espaçamento entre campos
+                margin: 'dense',
             },
         },
         MuiInputLabel: {
@@ -67,7 +67,7 @@ const theme = createTheme({
             },
             styleOverrides: {
                 root: {
-                    fontSize: '0.9rem', // Etiqueta mais delicada
+                    fontSize: '0.9rem',
                 },
             },
         },
@@ -78,13 +78,13 @@ const theme = createTheme({
         },
         MuiTable: {
             defaultProps: {
-                size: 'small', // Tabelas mais compactas
+                size: 'small',
             },
         },
         MuiTableCell: {
             styleOverrides: {
                 root: {
-                    padding: '8px 16px', // Espaçamento interno menor nas células
+                    padding: '8px 16px',
                 },
                 head: {
                     fontWeight: 600,
@@ -101,6 +101,6 @@ const theme = createTheme({
             },
         },
     },
-}, ptBR); // Aplica traduções PT-BR padrão do Material UI
+}); // REMOVIDO O SEGUNDO ARGUMENTO 'ptBR'
 
 export default theme;
