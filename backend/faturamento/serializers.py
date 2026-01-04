@@ -121,10 +121,14 @@ class DespesaSerializer(serializers.ModelSerializer):
 
 # --- Serializers de Convênios e Planos (Mantidos) ---
 class PlanoConvenioSerializer(serializers.ModelSerializer):
+    # ADICIONE ESTE CAMPO:
+    convenio_nome = serializers.CharField(source='convenio.nome', read_only=True)
+
     class Meta:
         model = PlanoConvenio
-        fields = ['id', 'nome', 'descricao', 'ativo']
-
+        # ADICIONE 'convenio_nome' NA LISTA:
+        fields = ['id', 'nome', 'descricao', 'ativo', 'convenio_nome']
+        
 class ConvenioSerializer(serializers.ModelSerializer):
     planos = PlanoConvenioSerializer(many=True, required=False)
     class Meta:
