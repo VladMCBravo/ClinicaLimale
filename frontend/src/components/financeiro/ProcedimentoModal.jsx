@@ -3,63 +3,101 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, 
     CircularProgress, Box, Typography, List, ListItem, ListItemText, 
-    IconButton, Select, MenuItem, FormControl, InputLabel, Divider 
+    IconButton, Select, MenuItem, FormControl, InputLabel, Divider, Grid, InputAdornment 
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 
+// Lista de Categorias (Igual ao Backend)
+const CATEGORIAS = [
+    { value: 'US_GERAL', label: 'Ultrassonografia Geral' },
+    { value: 'MED_FETAL', label: 'Medicina Fetal' },
+    { value: 'ECOCARDIOGRAMA', label: 'Ecocardiograma' },
+    { value: 'MUSCULO', label: 'Musculoesquelético' },
+    { value: 'DOPPLER', label: 'Doppler Vascular' },
+    { value: 'OUTROS', label: 'Outros' },
+];
+
 export default function ProcedimentoModal({ open, onClose, onSave, procedimento }) {
     const { showSnackbar } = useSnackbar();
     
-    const [formData, setFormData] = useState({ codigo_tuss: '', descricao: '', valor_particular: '' });
+    // Se 'procedimento' for null, estamos criando um novo.
+    const isEditing = !!procedimento;
+
+    const [formData, setFormData] = useState({ 
+        codigo_tuss: '', 
+        descricao: '', 
+        categoria: 'OUTROS',
+        valor_particular: '' 
+    });
+    
+    // Estados para Preços de Convênio (Apenas Edição)
     const [valoresConvenio, setValoresConvenio] = useState([]);
     const [planosDisponiveis, setPlanosDisponiveis] = useState([]);
     const [planoSelecionadoId, setPlanoSelecionadoId] = useState('');
     const [valorConvenio, setValorConvenio] = useState('');
+    
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (procedimento) {
-            setFormData({
-                codigo_tuss: procedimento.codigo_tuss,
-                descricao: procedimento.descricao,
-                valor_particular: procedimento.valor_particular,
-            });
-            setValoresConvenio(procedimento.valores_convenio || []);
-        }
-
-        // CARREGA E FILTRA OS PLANOS
-        faturamentoService.getPlanosConvenio()
-            .then(response => {
-                // Filtra para NÃO mostrar "Particular" (case insensitive)
-                // e garante que só mostra planos ativos
-                const planosFiltrados = response.data.filter(plano => {
-                    const nomeConvenio = plano.convenio_nome || ''; 
-                    return nomeConvenio.toLowerCase() !== 'particular';
+        if (open) {
+            if (isEditing) {
+                // Modo Edição: Carrega dados existentes
+                setFormData({
+                    codigo_tuss: procedimento.codigo_tuss || '',
+                    descricao: procedimento.descricao || '',
+                    categoria: procedimento.categoria || 'OUTROS',
+                    valor_particular: procedimento.valor_particular || '',
                 });
+                setValoresConvenio(procedimento.valores_convenio || []);
                 
-                // Ordena por nome do convênio para ficar organizado visualmente
-                planosFiltrados.sort((a, b) => (a.convenio_nome || '').localeCompare(b.convenio_nome || ''));
-                
-                setPlanosDisponiveis(planosFiltrados);
-            })
-            .catch(() => showSnackbar('Erro ao carregar planos.', 'error'));
-            
-    }, [procedimento, open, showSnackbar]);
+                // Carrega Planos apenas se estiver editando (pois precisa do ID do procedimento salvo)
+                faturamentoService.getPlanosConvenio()
+                    .then(response => {
+                        const planosFiltrados = response.data.filter(plano => 
+                            (plano.convenio_nome || '').toLowerCase() !== 'particular'
+                        );
+                        planosFiltrados.sort((a, b) => (a.convenio_nome || '').localeCompare(b.convenio_nome || ''));
+                        setPlanosDisponiveis(planosFiltrados);
+                    })
+                    .catch(() => showSnackbar('Erro ao carregar planos.', 'error'));
+            } else {
+                // Modo Criação: Reseta
+                setFormData({ codigo_tuss: '', descricao: '', categoria: 'OUTROS', valor_particular: '' });
+                setValoresConvenio([]);
+            }
+        }
+    }, [procedimento, open, isEditing, showSnackbar]);
 
     const handleSaveBasicData = async () => {
+        if (!formData.descricao) {
+            showSnackbar('Descrição é obrigatória.', 'warning');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            await faturamentoService.updateProcedimento(procedimento.id, {
+            const payload = {
+                codigo_tuss: formData.codigo_tuss,
                 descricao: formData.descricao,
-                valor_particular: formData.valor_particular
-            });
-            showSnackbar('Dados atualizados!', 'success');
-            onSave(); 
+                categoria: formData.categoria,
+                valor_particular: formData.valor_particular ? parseFloat(formData.valor_particular) : 0
+            };
+
+            if (isEditing) {
+                await faturamentoService.updateProcedimento(procedimento.id, payload);
+                showSnackbar('Dados atualizados!', 'success');
+            } else {
+                await faturamentoService.createProcedimento(payload);
+                showSnackbar('Procedimento criado com sucesso!', 'success');
+            }
+            onSave(); // Recarrega a lista no pai
+            if (!isEditing) onClose(); // Se for criação, fecha o modal. Se for edição, mantém aberto para editar preços.
         } catch (error) {
-            showSnackbar('Erro ao atualizar.', 'error');
+            console.error(error);
+            showSnackbar('Erro ao salvar.', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -78,7 +116,7 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
             showSnackbar('Preço salvo!', 'success');
             setPlanoSelecionadoId('');
             setValorConvenio('');
-            onSave(); // Recarrega dados do pai
+            onSave(); // Recarrega lista para atualizar o objeto 'procedimento' com os novos preços
         } catch (error) {
             showSnackbar('Erro ao salvar preço.', 'error');
         } finally {
@@ -89,114 +127,122 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
             <DialogTitle sx={{ fontWeight: 'bold', borderBottom: '1px solid #eee' }}>
-                Gerenciar Preços do Procedimento
+                {isEditing ? 'Editar Procedimento e Preços' : 'Cadastrar Novo Exame'}
             </DialogTitle>
             <DialogContent sx={{ pt: 3 }}>
                 
-                {/* DADOS BÁSICOS (TUSS + PARTICULAR) */}
-                <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 2, mb: 3, mt: 2 }}>
-                    <Typography variant="subtitle2" color="primary" sx={{ mb: 1, fontWeight: 'bold' }}>
-                        VALOR PARTICULAR & DESCRIÇÃO
+                {/* DADOS BÁSICOS */}
+                <Box sx={{ bgcolor: '#fff', p: 1, mb: 2 }}>
+                    <Typography variant="subtitle2" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>
+                        DADOS DO EXAME (PARTICULAR)
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
+                    
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={4}>
                             <TextField 
                                 label="Código TUSS" 
                                 value={formData.codigo_tuss} 
-                                InputProps={{ readOnly: true }} 
-                                disabled size="small" sx={{ width: 150 }}
-                            />
-                            <TextField 
-                                label="Descrição" 
-                                value={formData.descricao} 
-                                onChange={(e) => setFormData({...formData, descricao: e.target.value})} 
+                                onChange={(e) => setFormData({...formData, codigo_tuss: e.target.value})}
                                 size="small" fullWidth
                             />
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        </Grid>
+                        <Grid item xs={12} sm={8}>
+                             <FormControl fullWidth size="small">
+                                <InputLabel>Categoria</InputLabel>
+                                <Select
+                                    value={formData.categoria}
+                                    label="Categoria"
+                                    onChange={(e) => setFormData({...formData, categoria: e.target.value})}
+                                >
+                                    {CATEGORIAS.map(cat => (
+                                        <MenuItem key={cat.value} value={cat.value}>{cat.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={8}>
                             <TextField 
-                                label="Valor Particular (R$)" 
+                                label="Descrição do Procedimento" 
+                                value={formData.descricao} 
+                                onChange={(e) => setFormData({...formData, descricao: e.target.value})} 
+                                size="small" fullWidth multiline maxRows={2}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField 
+                                label="Valor Particular" 
                                 type="number"
                                 value={formData.valor_particular} 
                                 onChange={(e) => setFormData({...formData, valor_particular: e.target.value})} 
-                                size="small" sx={{ width: 200 }}
+                                size="small" fullWidth
+                                InputProps={{
+                                    startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                                }}
                             />
-                            <Button 
-                                variant="contained" 
-                                startIcon={isSubmitting ? <CircularProgress size={20} color="inherit"/> : <SaveIcon />}
-                                onClick={handleSaveBasicData}
-                                disabled={isSubmitting}
-                            >
-                                Salvar Base
-                            </Button>
-                        </Box>
+                        </Grid>
+                    </Grid>
+
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button 
+                            variant="contained" 
+                            startIcon={isSubmitting ? <CircularProgress size={20} color="inherit"/> : <SaveIcon />}
+                            onClick={handleSaveBasicData}
+                            disabled={isSubmitting}
+                        >
+                            {isEditing ? 'Atualizar Dados Básicos' : 'Salvar e Criar'}
+                        </Button>
                     </Box>
                 </Box>
                 
-                <Divider sx={{ my: 3 }} />
-
-                {/* PREÇOS DE CONVÊNIOS */}
-                <Typography variant="subtitle2" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>
-                    TABELA DE PREÇOS POR CONVÊNIO
-                </Typography>
-                <Typography variant="caption" display="block" sx={{ mb: 2, color: 'text.secondary' }}>
-                    Adicione preços específicos para planos de saúde. Se não definido, o sistema usará o valor padrão do convênio ou TUSS.
-                </Typography>
-                
-                <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center', p: 2, border: '1px dashed #ccc', borderRadius: 2 }}>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Selecione o Convênio/Plano</InputLabel>
-                        <Select
-                            value={planoSelecionadoId}
-                            label="Selecione o Convênio/Plano"
-                            onChange={(e) => setPlanoSelecionadoId(e.target.value)}
-                        >
-                            {planosDisponiveis.map(plano => (
-                                <MenuItem key={plano.id} value={plano.id}>
-                                    {/* AQUI ESTÁ A CORREÇÃO VISUAL: */}
-                                    <strong>{plano.convenio_nome}</strong> &nbsp;—&nbsp; {plano.nome}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <TextField
-                        label="Valor (R$)"
-                        type="number"
-                        value={valorConvenio}
-                        onChange={(e) => setValorConvenio(e.target.value)}
-                        size="small" sx={{ minWidth: 120 }}
-                    />
-                    <Button onClick={handleAddPrecoConvenio} variant="outlined" disabled={isSubmitting}>
-                        Adicionar
-                    </Button>
-                </Box>
-
-                <List dense sx={{ bgcolor: 'white', border: '1px solid #eee', borderRadius: 1, maxHeight: 300, overflow: 'auto' }}>
-                    {valoresConvenio.map(item => (
-                        <ListItem 
-                            key={item.id} 
-                            divider
-                            secondaryAction={
-                                <IconButton edge="end" disabled title="Para remover, defina o valor como 0 ou implemente delete">
-                                    <DeleteIcon fontSize="small" color="disabled" />
-                                </IconButton>
-                            }
-                        >
-                            <ListItemText 
-                                // Ajuste para mostrar o nome corretamente caso já venha do backend populado
-                                primary={item.plano_convenio?.convenio_nome ? `${item.plano_convenio.convenio_nome} - ${item.plano_convenio.nome}` : (item.plano_convenio?.nome || 'Plano')}
-                                secondary={
-                                    <Typography variant="body2" component="span" color="primary" fontWeight="bold">
-                                        R$ {item.valor}
-                                    </Typography>
-                                } 
+                {/* SEÇÃO DE PREÇOS DE CONVÊNIO (SÓ APARECE SE ESTIVER EDITANDO) */}
+                {isEditing && (
+                    <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" color="primary" sx={{ mb: 2, fontWeight: 'bold' }}>
+                            TABELA DE PREÇOS POR CONVÊNIO
+                        </Typography>
+                        
+                        <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center', p: 2, bgcolor: '#f9f9f9', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                            <FormControl fullWidth size="small" sx={{flex: 2}}>
+                                <InputLabel>Selecione o Convênio/Plano</InputLabel>
+                                <Select
+                                    value={planoSelecionadoId}
+                                    label="Selecione o Convênio/Plano"
+                                    onChange={(e) => setPlanoSelecionadoId(e.target.value)}
+                                >
+                                    {planosDisponiveis.map(plano => (
+                                        <MenuItem key={plano.id} value={plano.id}>
+                                            <strong>{plano.convenio_nome}</strong> &nbsp;—&nbsp; {plano.nome}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <TextField
+                                label="Valor (R$)"
+                                type="number"
+                                value={valorConvenio}
+                                onChange={(e) => setValorConvenio(e.target.value)}
+                                size="small" sx={{ flex: 1 }}
                             />
-                        </ListItem>
-                    ))}
-                    {valoresConvenio.length === 0 && (
-                        <ListItem><ListItemText secondary="Nenhum preço específico definido." /></ListItem>
-                    )}
-                </List>
+                            <Button onClick={handleAddPrecoConvenio} variant="contained" color="secondary" disabled={isSubmitting} sx={{height: '40px'}}>
+                                Adicionar
+                            </Button>
+                        </Box>
+
+                        <List dense sx={{ bgcolor: 'white', border: '1px solid #eee', borderRadius: 1, maxHeight: 200, overflow: 'auto' }}>
+                            {valoresConvenio.map(item => (
+                                <ListItem key={item.id} divider>
+                                    <ListItemText 
+                                        primary={item.plano_convenio?.convenio_nome ? `${item.plano_convenio.convenio_nome} - ${item.plano_convenio.nome}` : 'Plano Desconhecido'}
+                                        secondary={<Typography variant="body2" color="primary" fontWeight="bold">R$ {item.valor}</Typography>} 
+                                    />
+                                </ListItem>
+                            ))}
+                            {valoresConvenio.length === 0 && <ListItem><ListItemText secondary="Nenhum preço específico definido (Usa tabela padrão)." /></ListItem>}
+                        </List>
+                    </>
+                )}
+
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Fechar</Button>
