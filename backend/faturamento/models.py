@@ -81,10 +81,25 @@ class Pagamento(models.Model):
 # --- O restante do arquivo (Despesas, Convênios) permanece o mesmo ---
 
 class CategoriaDespesa(models.Model):
-    # ... (sem alterações) ...
+    # ADICIONE ESTAS OPÇÕES
+    TIPO_CHOICES = [
+        ('Fixa', 'Fixa (Estrutura/Recorrente)'),
+        ('Variavel', 'Variável (Consumo/Eventual)'),
+    ]
+
     nome = models.CharField(max_length=100, unique=True)
     descricao = models.TextField(blank=True, null=True)
-    def __str__(self): return self.nome
+    
+    # ADICIONE ESTE CAMPO
+    tipo = models.CharField(
+        max_length=20, 
+        choices=TIPO_CHOICES, 
+        default='Variavel',
+        help_text="Define se entra no cálculo de custo fixo ou variável"
+    )
+
+    def __str__(self): return f"{self.nome} ({self.get_tipo_display()})"
+    
     class Meta:
         verbose_name = "Categoria de Despesa"
         verbose_name_plural = "Categorias de Despesas"

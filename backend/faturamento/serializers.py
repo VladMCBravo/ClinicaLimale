@@ -99,17 +99,23 @@ class PagamentoUpdateSerializer(serializers.ModelSerializer):
 class CategoriaDespesaSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaDespesa
-        fields = '__all__'
+        fields = '__all__' # Ele já vai pegar o novo campo 'tipo' automaticamente
 
 class DespesaSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    
+    # ADICIONE ESTE CAMPO PARA O FRONTEND LER
+    categoria_tipo = serializers.CharField(source='categoria.tipo', read_only=True)
+    
     registrado_por_nome = serializers.CharField(source='registrado_por.get_full_name', read_only=True, allow_null=True)
     
     class Meta:
         model = Despesa
         fields = [
-            'id', 'categoria', 'categoria_nome', 'descricao', 
-            'valor', 'data_despesa', 'data_vencimento', 'pago', 'data_pagamento', # <--- NOVOS
+            'id', 'categoria', 'categoria_nome', 
+            'categoria_tipo', # <--- NÃO ESQUEÇA DE ADICIONAR AQUI NA LISTA
+            'descricao', 
+            'valor', 'data_despesa', 'data_vencimento', 'pago', 'data_pagamento',
             'registrado_por', 'registrado_por_nome', 'data_registro'
         ]
 
