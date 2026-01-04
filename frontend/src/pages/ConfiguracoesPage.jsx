@@ -4,57 +4,65 @@ import {
     Box, Typography, Tabs, Tab, Paper, Container, Divider, useTheme
 } from '@mui/material';
 import { 
-    People,           // Ícone para Equipe
-    Business,         // Ícone para Clínica/Estrutura
-    AttachMoney,      // Ícone para Financeiro
-    AccessTime,       // Ícone para Jornada
-    Badge,            // Ícone para Crachá/Usuário
-    ListAlt,
-    LocalHospital,
-    MeetingRoom,      // Ícone para Salas
-    CardMembership    // Ícone para Convênios
+    People, Business, AttachMoney, AccessTime, Badge, 
+    ListAlt, LocalHospital, MeetingRoom, CardMembership
 } from '@mui/icons-material';
 
-// --- IMPORTS DOS COMPONENTES ---
+// Imports dos seus componentes
 import UsuariosTab from '../components/configuracoes/UsuariosTab';
-import JornadasTab from '../components/configuracoes/JornadasTab'; // Novo (antiga Page)
+import JornadasTab from '../components/configuracoes/JornadasTab';
 import CategoriasTab from '../components/configuracoes/CategoriasTab';
 import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 import EspecialidadesPage from './EspecialidadesPage'; 
-import ConveniosTab from '../components/configuracoes/ConveniosTab'; // Novo (antiga Page)
-import SalasTab from '../components/configuracoes/SalasTab'; // Novo (antiga Page)
+import ConveniosTab from '../components/configuracoes/ConveniosTab';
+import SalasTab from '../components/configuracoes/SalasTab';
 
-// Componente visual para conteúdo das abas
+// Painel com menos padding (p=2 em vez de p=3)
 function TabPanel({ children, value, index, ...other }) {
     return (
         <div role="tabpanel" hidden={value !== index} {...other} style={{ width: '100%' }}>
-            {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+            {value === index && <Box sx={{ py: 2 }}>{children}</Box>}
         </div>
     );
 }
 
-// Componente visual para Sub-Abas (Estilo "Pill")
+// Sub-abas mais finas e delicadas
 function SubTabs({ value, onChange, tabs }) {
     const theme = useTheme();
     return (
         <Paper elevation={0} sx={{ 
-            border: '1px solid #ddd', borderRadius: 3, p: 0.5, display: 'inline-flex', bgcolor: '#f5f5f5', mb: 3 
+            border: '1px solid #e0e0e0', 
+            borderRadius: 2, 
+            p: 0.5, 
+            display: 'inline-flex', 
+            bgcolor: '#f8f9fa', 
+            mb: 2 // Margem inferior menor
         }}>
             <Tabs 
                 value={value} onChange={onChange}
                 sx={{ 
-                    minHeight: 40,
+                    minHeight: 32, // Altura reduzida
                     '& .MuiTab-root': { 
-                        minHeight: 40, borderRadius: 2.5, zIndex: 1, px: 3, textTransform: 'none', fontWeight: 600
+                        minHeight: 32, 
+                        borderRadius: 1.5, 
+                        zIndex: 1, 
+                        px: 2, 
+                        py: 0.5,
+                        textTransform: 'none', 
+                        fontWeight: 600,
+                        fontSize: '0.85rem', // Fonte menor
+                        minWidth: 'auto'
                     },
                     '& .Mui-selected': { 
-                        bgcolor: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', color: theme.palette.primary.main
+                        bgcolor: 'white', 
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.08)', 
+                        color: theme.palette.primary.main
                     },
                     '& .MuiTabs-indicator': { display: 'none' }
                 }}
             >
                 {tabs.map((t, i) => (
-                    <Tab key={i} label={t.label} icon={t.icon} iconPosition="start" />
+                    <Tab key={i} label={t.label} icon={t.icon} iconPosition="start" sx={{ '& .MuiSvgIcon-root': { fontSize: 18, mb: '0px !important', mr: 1 } }} />
                 ))}
             </Tabs>
         </Paper>
@@ -67,73 +75,86 @@ export default function ConfiguracoesPage() {
     const [servicosTab, setServicosTab] = useState(0);
 
     return (
-        <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: '#1a233b', letterSpacing: '-0.5px' }}>
-                    Configurações
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    Gerencie equipe, estrutura da clínica e financeiro em um só lugar.
-                </Typography>
+        <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}> {/* Margens externas reduzidas */}
+            
+            {/* Cabeçalho Compacto */}
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a233b', letterSpacing: '-0.5px', fontSize: '1.5rem' }}>
+                        Configurações
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                        Gestão unificada do sistema.
+                    </Typography>
+                </Box>
             </Box>
             
             <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-                {/* ABAS PRINCIPAIS */}
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#f8f9fa' }}>
+                {/* ABAS PRINCIPAIS - Altura reduzida para 48px */}
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}>
                     <Tabs 
                         value={mainTab} onChange={(e, v) => setMainTab(v)} 
                         textColor="primary" indicatorColor="primary"
-                        sx={{ '& .MuiTab-root': { fontWeight: 600, minHeight: 64, textTransform: 'none', fontSize: '1rem' } }}
+                        sx={{ 
+                            minHeight: 48,
+                            '& .MuiTab-root': { 
+                                fontWeight: 600, 
+                                minHeight: 48, 
+                                textTransform: 'none', 
+                                fontSize: '0.95rem',
+                                px: 3
+                            } 
+                        }}
                     >
-                        <Tab icon={<People />} iconPosition="start" label="Gestão de Equipe" />
-                        <Tab icon={<Business />} iconPosition="start" label="Clínica e Serviços" />
-                        <Tab icon={<AttachMoney />} iconPosition="start" label="Financeiro" />
+                        <Tab icon={<People sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Equipe" />
+                        <Tab icon={<Business sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Clínica" />
+                        <Tab icon={<AttachMoney sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Financeiro" />
                     </Tabs>
                 </Box>
 
-                <Box sx={{ p: 3, minHeight: 400 }}>
+                <Box sx={{ p: 2, minHeight: 400, bgcolor: '#fafafa' }}>
                     
-                    {/* === ABA 1: EQUIPE (Usuários + Jornadas) === */}
+                    {/* === ABA 1: EQUIPE === */}
                     <TabPanel value={mainTab} index={0}>
                         <SubTabs 
-                            value={equipeTab} 
-                            onChange={(e, v) => setEquipeTab(v)}
+                            value={equipeTab} onChange={(e, v) => setEquipeTab(v)}
                             tabs={[
-                                { label: 'Usuários do Sistema', icon: <Badge fontSize="small"/> },
-                                { label: 'Jornadas de Trabalho', icon: <AccessTime fontSize="small"/> }
+                                { label: 'Usuários', icon: <Badge /> },
+                                { label: 'Jornadas', icon: <AccessTime /> }
                             ]}
                         />
-                        {equipeTab === 0 && <UsuariosTab />}
-                        {equipeTab === 1 && <JornadasTab />}
+                        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
+                            {equipeTab === 0 && <UsuariosTab />}
+                            {equipeTab === 1 && <JornadasTab />}
+                        </Paper>
                     </TabPanel>
 
-                    {/* === ABA 2: CLÍNICA E SERVIÇOS === */}
+                    {/* === ABA 2: CLÍNICA === */}
                     <TabPanel value={mainTab} index={1}>
                         <SubTabs 
-                            value={servicosTab} 
-                            onChange={(e, v) => setServicosTab(v)}
+                            value={servicosTab} onChange={(e, v) => setServicosTab(v)}
                             tabs={[
-                                { label: 'Procedimentos', icon: <ListAlt fontSize="small"/> },
-                                { label: 'Especialidades', icon: <LocalHospital fontSize="small"/> },
-                                { label: 'Convênios', icon: <CardMembership fontSize="small"/> },
-                                { label: 'Salas', icon: <MeetingRoom fontSize="small"/> }
+                                { label: 'Procedimentos', icon: <ListAlt /> },
+                                { label: 'Especialidades', icon: <LocalHospital /> },
+                                { label: 'Convênios', icon: <CardMembership /> },
+                                { label: 'Salas', icon: <MeetingRoom /> }
                             ]}
                         />
-                        <Box className="animate-fade-in">
+                        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
                             {servicosTab === 0 && <ProcedimentosView />}
                             {servicosTab === 1 && <EspecialidadesPage />}
                             {servicosTab === 2 && <ConveniosTab />}
                             {servicosTab === 3 && <SalasTab />}
-                        </Box>
+                        </Paper>
                     </TabPanel>
 
                     {/* === ABA 3: FINANCEIRO === */}
                     <TabPanel value={mainTab} index={2}>
-                        <Box>
-                            <Typography variant="h6" sx={{mb: 2, fontWeight: 'bold'}}>Categorias de Receitas e Despesas</Typography>
-                            <Divider sx={{mb:3}} />
+                        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
+                            <Typography variant="subtitle1" sx={{mb: 1, fontWeight: 'bold'}}>Categorias Financeiras</Typography>
+                            <Divider sx={{mb: 2}} />
                             <CategoriasTab />
-                        </Box>
+                        </Paper>
                     </TabPanel>
                 </Box>
             </Paper>
