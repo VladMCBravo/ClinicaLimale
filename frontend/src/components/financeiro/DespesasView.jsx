@@ -24,18 +24,15 @@ import './FinanceiroCommon.css';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// CORREÇÃO DAS DATAS: Aceita tanto "2025-09-11" quanto "2025-09-11T14:00:00"
 const formatDataSimples = (dataString) => {
     if (!dataString) return '-';
-    // Pega apenas a parte da data (antes do T, se houver)
     const dataLimpa = dataString.split('T')[0]; 
     const partes = dataLimpa.split('-'); 
     if(partes.length < 3) return '-';
-    // Retorna Dia/Mes/Ano
     return `${partes[2]}/${partes[1]}/${partes[0]}`; 
 };
 
-// --- COMPONENTE DE TABELA (Versão Compacta) ---
+// --- COMPONENTE DE TABELA (Layout Fixo e Compacto) ---
 const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onToggleStatus, onDelete }) => (
     <Paper elevation={0} sx={{ border: `1px solid ${corTema}40`, borderRadius: 2, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ px: 2, py: 1.5, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1, borderBottom: `1px solid ${corTema}20` }}>
@@ -50,7 +47,7 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onToggleStatus,
             <Table size="small" stickyHeader padding="none">
                 <TableHead>
                     <TableRow>
-                        <TableCell sx={{ pl: 2, py: 1, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '90px' }}>Data</TableCell>
+                        <TableCell sx={{ pl: 2, py: 1, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '90px' }}>Datas</TableCell>
                         <TableCell sx={{ px: 1, py: 1, fontWeight: 'bold', color: '#666', fontSize: '0.7rem' }}>Descrição</TableCell>
                         <TableCell align="right" sx={{ px: 1, py: 1, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '90px' }}>Valor</TableCell>
                         <TableCell align="center" sx={{ pr: 2, py: 1, fontWeight: 'bold', color: '#666', fontSize: '0.7rem', width: '80px' }}>Ações</TableCell>
@@ -61,17 +58,18 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onToggleStatus,
                         <TableRow key={item.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                             <TableCell sx={{ pl: 2, py: 0.5, fontSize: '0.7rem', color: '#444', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' }}>
                                 <div style={{display: 'flex', flexDirection: 'column', lineHeight: 1.2}}>
-                                    {/* Exibe DATA_DESPESA como Vencimento (conforme solicitado) */}
                                     <span style={{fontWeight: 600, color: '#555'}}>{formatDataSimples(item.data_despesa)}</span>
                                     {item.pago && (
                                         <span style={{fontSize: '0.65rem', color: '#2e7d32', marginTop: '2px'}}>
-                                            Pago: {formatDataSimples(item.data_pagamento || item.data_vencimento)}
+                                            Pg: {formatDataSimples(item.data_pagamento || item.data_vencimento)}
                                         </span>
                                     )}
                                 </div>
                             </TableCell>
                             <TableCell sx={{ px: 1, py: 0.5, fontSize: '0.75rem', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' }}>
-                                <div style={{ fontWeight: 600, color: '#333', lineHeight: 1.1 }}>{item.descricao}</div>
+                                <div style={{ fontWeight: 600, color: '#333', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                                    {item.descricao}
+                                </div>
                                 <div style={{ fontSize: '0.65rem', color: '#888' }}>{item.categoria_nome}</div>
                             </TableCell>
                             <TableCell align="right" sx={{ px: 1, py: 0.5, fontSize: '0.75rem', fontWeight: 'bold', color: '#1a233b', borderBottom: '1px solid #f0f0f0', verticalAlign: 'middle' }}>
@@ -142,7 +140,7 @@ export default function DespesasView() {
         let lista = despesas;
         if (mesFiltro !== '') {
             lista = lista.filter(d => {
-                const dataRef = d.data_despesa || d.data_vencimento; // Prioriza data_despesa
+                const dataRef = d.data_despesa || d.data_vencimento;
                 if(!dataRef) return false;
                 const dataObj = dayjs(dataRef);
                 return dataObj.month() === mesFiltro && dataObj.year() === anoFiltro;
@@ -262,15 +260,20 @@ export default function DespesasView() {
                 <Button variant="contained" startIcon={<AddCircleOutline sx={{fontSize: 18}} />} onClick={handleOpenCreate} sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' }, height: '36px', fontSize: '0.8rem', textTransform: 'none', px: 3, fontWeight: 600 }}>NOVA DESPESA</Button>
             </div>
 
-            {/* CORREÇÃO DO GRID LADO A LADO */}
-            <Grid container spacing={2}> 
-                <Grid item xs={12} md={6}>
+            {/* --- LAYOUT FORÇADO LADO A LADO --- */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'flex-start', width: '100%' }}>
+                
+                {/* Lado Esquerdo (FIXAS) */}
+                <Box sx={{ flex: 1, width: { xs: '100%', sm: '50%' }, minWidth: 0 }}>
                     <TabelaDespesas dados={fixas} titulo="FIXAS (Estrutura)" icone={<Domain />} corTema="#1565c0" onEdit={handleOpenEdit} onToggleStatus={handleToggleStatus} onDelete={handleDelete} />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Box>
+
+                {/* Lado Direito (VARIÁVEIS) */}
+                <Box sx={{ flex: 1, width: { xs: '100%', sm: '50%' }, minWidth: 0 }}>
                     <TabelaDespesas dados={variaveis} titulo="VARIÁVEIS (Consumo)" icone={<LocalCafe />} corTema="#e65100" onEdit={handleOpenEdit} onToggleStatus={handleToggleStatus} onDelete={handleDelete} />
-                </Grid>
-            </Grid>
+                </Box>
+
+            </Box>
 
             {/* MODAIS */}
             <LancamentoCaixaModal open={openNovoLancamentoModal} onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} initialTab={1} initialType="despesa" />
