@@ -5,7 +5,7 @@ import apiClient from '../api/axiosConfig';
 const createProcedimento = (data) => apiClient.post('/faturamento/procedimentos/', data);
 const deleteProcedimento = (id) => apiClient.delete(`/faturamento/procedimentos/${id}/`);
 const getProcedimentos = () => apiClient.get('/faturamento/procedimentos/');
-const updateProcedimento = (id, data) => apiClient.put(`/faturamento/procedimentos/${id}/`, data);
+const updateProcedimento = (id, data) => apiClient.patch(`/faturamento/procedimentos/${id}/`, data);
 const definirPrecoConvenio = (procedimentoId, data) => apiClient.post(`/faturamento/procedimentos/${procedimentoId}/definir-preco-convenio/`, data);
 const getPlanosConvenio = () => apiClient.get('/faturamento/planos/');
 

@@ -1,213 +1,162 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// src/pages/ConfiguracoesPage.jsx
+import React, { useState } from 'react';
 import { 
-    Box, Typography, Paper, Table, TableBody, TableCell, 
-    TableContainer, TableHead, TableRow, CircularProgress, Switch, Button, IconButton, Tabs, Tab,
-    Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel, Chip
+    Box, Typography, Tabs, Tab, Paper, Container, Divider, useTheme
 } from '@mui/material';
-import apiClient from '../api/axiosConfig';
-import { useSnackbar } from '../contexts/SnackbarContext';
-import UsuarioModal from '../components/configuracoes/UsuarioModal';
-import EditIcon from '@mui/icons-material/Edit';
-import { Category, People } from '@mui/icons-material';
+import { 
+    ManageAccounts, // Ícone para Usuários
+    MedicalServices, // Ícone para Serviços
+    AttachMoney, // Ícone para Financeiro
+    ListAlt, // Ícone para Lista
+    LocalHospital // Ícone para Hospital
+} from '@mui/icons-material';
 
-// --- SUB-COMPONENTE: TAB DE USUÁRIOS (O QUE VOCÊ JÁ TINHA) ---
-const UsuariosTab = () => {
-    const [users, setUsers] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const { showSnackbar } = useSnackbar();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState(null);
-    
-    const fetchUsers = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await apiClient.get('/usuarios/usuarios/');
-            setUsers(response.data);
-        } catch (error) { showSnackbar('Erro ao carregar usuários.', 'error'); } 
-        finally { setIsLoading(false); }
-    }, [showSnackbar]);
+// --- IMPORTS DOS SEUS COMPONENTES ---
+// Ajuste os caminhos conforme sua estrutura de pastas
+import UsuariosTab from '../components/configuracoes/UsuariosTab'; // (Assumindo que você extraiu o código antigo para este componente)
+import CategoriasTab from '../components/configuracoes/CategoriasTab'; // (Assumindo que você extraiu o código antigo)
+import ProcedimentosView from '../components/financeiro/ProcedimentosView';
+import EspecialidadesPage from './EspecialidadesPage'; // Ou '../components/configuracoes/EspecialidadesList'
 
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
-
-    const handleToggleActive = async (user) => {
-        try {
-            await apiClient.patch(`/usuarios/usuarios/${user.id}/`, { is_active: !user.is_active });
-            showSnackbar(`Status atualizado.`, 'success');
-            fetchUsers();
-        } catch (error) { showSnackbar('Erro ao atualizar.', 'error'); }
-    };
-
+// Componente auxiliar para o conteúdo das abas
+function TabPanel(props) {
+    const { children, value, index, ...other } = props;
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button variant="contained" onClick={() => { setEditingUser(null); setIsModalOpen(true); }} sx={{bgcolor: '#1a233b'}}>
-                    Novo Usuário
-                </Button>
-            </Box>
-            <TableContainer component={Paper} variant="outlined">
-                <Table>
-                    <TableHead sx={{ bgcolor: '#f5f5f5' }}>
-                        <TableRow>
-                            <TableCell>Nome</TableCell>
-                            <TableCell>Login</TableCell>
-                            <TableCell>Cargo</TableCell>
-                            <TableCell align="center">Status</TableCell>
-                            <TableCell align="right">Ações</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {users.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell>{user.first_name} {user.last_name}</TableCell>
-                                <TableCell>{user.username}</TableCell>
-                                <TableCell sx={{ textTransform: 'capitalize' }}>{user.cargo}</TableCell>
-                                <TableCell align="center">
-                                    <Switch checked={user.is_active} onChange={() => handleToggleActive(user)} color="success" size="small" />
-                                </TableCell>
-                                <TableCell align="right">
-                                    <IconButton onClick={() => { setEditingUser(user); setIsModalOpen(true); }} size="small"><EditIcon fontSize="small" /></IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <UsuarioModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchUsers} usuarioParaEditar={editingUser} />
-        </Box>
+        <div role="tabpanel" hidden={value !== index} {...other} style={{ width: '100%' }}>
+            {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+        </div>
     );
-};
+}
 
-// --- SUB-COMPONENTE: TAB DE CATEGORIAS (NOVO) ---
-const CategoriasTab = () => {
-    const [categorias, setCategorias] = useState([]);
-    const { showSnackbar } = useSnackbar();
-    const [openModal, setOpenModal] = useState(false);
-    const [editData, setEditData] = useState({});
-
-    const fetchCats = useCallback(async () => {
-        try {
-            const res = await apiClient.get('/faturamento/categorias-despesa/');
-            setCategorias(res.data);
-        } catch (error) { showSnackbar('Erro ao buscar categorias', 'error'); }
-    }, [showSnackbar]);
-
-    useEffect(() => { fetchCats(); }, [fetchCats]);
-
-    const handleSave = async () => {
-        try {
-            if (editData.id) {
-                await apiClient.patch(`/faturamento/categorias-despesa/${editData.id}/`, editData);
-            } else {
-                await apiClient.post(`/faturamento/categorias-despesa/`, editData);
-            }
-            showSnackbar('Categoria salva!', 'success');
-            setOpenModal(false);
-            fetchCats();
-        } catch (error) { showSnackbar('Erro ao salvar.', 'error'); }
-    };
-
-    return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button variant="contained" onClick={() => { setEditData({ tipo: 'Variavel' }); setOpenModal(true); }} sx={{bgcolor: '#1a233b'}}>
-                    Nova Categoria
-                </Button>
-            </Box>
-            <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                    <TableHead sx={{ bgcolor: '#f5f5f5' }}>
-                        <TableRow>
-                            <TableCell>Nome da Categoria</TableCell>
-                            <TableCell>Descrição</TableCell>
-                            <TableCell align="center">Tipo Financeiro</TableCell>
-                            <TableCell align="right">Editar</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {categorias.map((cat) => (
-                            <TableRow key={cat.id} hover>
-                                <TableCell sx={{ fontWeight: 500 }}>{cat.nome}</TableCell>
-                                <TableCell>{cat.descricao || '-'}</TableCell>
-                                <TableCell align="center">
-                                    <Chip 
-                                        label={cat.tipo === 'Fixa' ? 'FIXA (Estrutura)' : 'VARIÁVEL (Consumo)'} 
-                                        size="small"
-                                        sx={{ 
-                                            bgcolor: cat.tipo === 'Fixa' ? '#e3f2fd' : '#fff3e0',
-                                            color: cat.tipo === 'Fixa' ? '#1565c0' : '#e65100',
-                                            fontWeight: 'bold', fontSize: '0.7rem'
-                                        }}
-                                    />
-                                </TableCell>
-                                <TableCell align="right">
-                                    <IconButton onClick={() => { setEditData(cat); setOpenModal(true); }} size="small">
-                                        <EditIcon fontSize="small" sx={{ color: '#1976d2' }} />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
-            {/* MODAL DE EDIÇÃO DE CATEGORIA */}
-            <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Categoria de Despesa</DialogTitle>
-                <DialogContent sx={{ pt: 2 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField 
-                            label="Nome" fullWidth size="small" 
-                            value={editData.nome || ''} 
-                            onChange={(e) => setEditData({...editData, nome: e.target.value})} 
-                        />
-                        <TextField 
-                            label="Descrição (Opcional)" fullWidth size="small" 
-                            value={editData.descricao || ''} 
-                            onChange={(e) => setEditData({...editData, descricao: e.target.value})} 
-                        />
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Tipo Financeiro</InputLabel>
-                            <Select 
-                                value={editData.tipo || 'Variavel'} 
-                                label="Tipo Financeiro"
-                                onChange={(e) => setEditData({...editData, tipo: e.target.value})}
-                            >
-                                <MenuItem value="Fixa">Fixa (Aluguel, Salários, Contratos)</MenuItem>
-                                <MenuItem value="Variavel">Variável (Compras, Mercado, Manutenção)</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenModal(false)}>Cancelar</Button>
-                    <Button variant="contained" onClick={handleSave}>Salvar</Button>
-                </DialogActions>
-            </Dialog>
-        </Box>
-    );
-};
-
-// --- COMPONENTE PRINCIPAL (PÁGINA) ---
 export default function ConfiguracoesPage() {
-    const [tabIndex, setTabIndex] = useState(0);
+    const theme = useTheme();
+    const [mainTab, setMainTab] = useState(0);
+    const [medicalTab, setMedicalTab] = useState(0); // Controle da sub-aba (Procedimentos vs Especialidades)
 
-    const handleChange = (event, newValue) => {
-        setTabIndex(newValue);
-    };
+    const handleMainTabChange = (event, newValue) => setMainTab(newValue);
+    const handleMedicalTabChange = (event, newValue) => setMedicalTab(newValue);
 
     return (
-        <Box sx={{ width: '100%' }}>
-            <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold', color: '#1a233b' }}>Configurações do Sistema</Typography>
-            
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-                <Tabs value={tabIndex} onChange={handleChange} aria-label="abas de configuração">
-                    <Tab icon={<People fontSize="small"/>} iconPosition="start" label="Usuários e Acesso" />
-                    <Tab icon={<Category fontSize="small"/>} iconPosition="start" label="Categorias Financeiras" />
-                </Tabs>
+        <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+            {/* CABEÇALHO */}
+            <Box sx={{ mb: 4 }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: '#1a233b', letterSpacing: '-0.5px' }}>
+                    Configurações
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Gerencie o sistema, serviços médicos e parâmetros financeiros.
+                </Typography>
             </Box>
+            
+            <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
+                {/* ABAS PRINCIPAIS */}
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#f8f9fa' }}>
+                    <Tabs 
+                        value={mainTab} 
+                        onChange={handleMainTabChange} 
+                        textColor="primary"
+                        indicatorColor="primary"
+                        sx={{ 
+                            '& .MuiTab-root': { 
+                                fontWeight: 600, 
+                                minHeight: 64,
+                                textTransform: 'none',
+                                fontSize: '1rem'
+                            } 
+                        }}
+                    >
+                        <Tab icon={<ManageAccounts />} iconPosition="start" label="Usuários e Acesso" />
+                        <Tab icon={<MedicalServices />} iconPosition="start" label="Serviços Médicos" />
+                        <Tab icon={<AttachMoney />} iconPosition="start" label="Financeiro" />
+                    </Tabs>
+                </Box>
 
-            {tabIndex === 0 && <UsuariosTab />}
-            {tabIndex === 1 && <CategoriasTab />}
-        </Box>
+                {/* CONTEÚDO */}
+                <Box sx={{ p: 3, minHeight: 400 }}>
+                    
+                    {/* ABA 0: USUÁRIOS (Seu código existente) */}
+                    <TabPanel value={mainTab} index={0}>
+                         {/* Se você ainda não extraiu o código da versão anterior para um arquivo separado, 
+                             pode colar o componente <UsuariosTab /> aqui ou importá-lo. */}
+                         <UsuariosTab />
+                    </TabPanel>
+
+                    {/* ABA 1: SERVIÇOS MÉDICOS (UNIFICADA) */}
+                    <TabPanel value={mainTab} index={1}>
+                        <Box sx={{ mb: 3 }}>
+                            {/* Toggle Switch para Sub-abas (Estilo "Pill") */}
+                            <Paper 
+                                elevation={0} 
+                                sx={{ 
+                                    border: '1px solid #ddd', 
+                                    borderRadius: 3, 
+                                    p: 0.5, 
+                                    display: 'inline-flex', 
+                                    bgcolor: '#f5f5f5' 
+                                }}
+                            >
+                                <Tabs 
+                                    value={medicalTab} 
+                                    onChange={handleMedicalTabChange}
+                                    sx={{ 
+                                        minHeight: 40,
+                                        '& .MuiTab-root': { 
+                                            minHeight: 40, 
+                                            borderRadius: 2.5, 
+                                            zIndex: 1, 
+                                            px: 3,
+                                            textTransform: 'none',
+                                            fontWeight: 600
+                                        },
+                                        '& .Mui-selected': { 
+                                            bgcolor: 'white', 
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                            color: theme.palette.primary.main
+                                        },
+                                        '& .MuiTabs-indicator': { display: 'none' }
+                                    }}
+                                >
+                                    <Tab label="Procedimentos & TUSS" icon={<ListAlt fontSize="small" sx={{mr: 1}}/>} iconPosition="start"/>
+                                    <Tab label="Especialidades" icon={<LocalHospital fontSize="small" sx={{mr: 1}}/>} iconPosition="start"/>
+                                </Tabs>
+                            </Paper>
+                        </Box>
+
+                        {medicalTab === 0 && (
+                            <Box className="animate-fade-in">
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography variant="h6" fontWeight="bold">Tabela de Procedimentos</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Gerencie códigos TUSS, valores particulares e preços por convênio.
+                                    </Typography>
+                                </Box>
+                                <Divider sx={{ mb: 3 }} />
+                                {/* Aqui entra o componente que você já tinha, com o Modal corrigido */}
+                                <ProcedimentosView /> 
+                            </Box>
+                        )}
+
+                        {medicalTab === 1 && (
+                            <Box className="animate-fade-in">
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography variant="h6" fontWeight="bold">Especialidades Médicas</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Cadastre as especialidades atendidas na clínica e seus valores base de consulta.
+                                    </Typography>
+                                </Box>
+                                <Divider sx={{ mb: 3 }} />
+                                {/* Importando a página de especialidades como componente */}
+                                <EspecialidadesPage />
+                            </Box>
+                        )}
+                    </TabPanel>
+
+                    {/* ABA 2: FINANCEIRO (Categorias) */}
+                    <TabPanel value={mainTab} index={2}>
+                        <CategoriasTab />
+                    </TabPanel>
+                </Box>
+            </Paper>
+        </Container>
     );
 }
