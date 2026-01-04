@@ -1,10 +1,11 @@
 // src/components/PacienteModal.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, CircularProgress, Box, Autocomplete, 
   FormControl, InputLabel, Select, MenuItem,
-  Grid, InputAdornment, Tabs, Tab, Paper, Divider, IconButton
+  Grid, InputAdornment, Tabs, Tab, Paper, Divider, IconButton,
+  Typography // <--- O ERRO ESTAVA AQUI: Faltava importar o Typography
 } from '@mui/material';
 import { 
     Person, Home, MedicalServices, SupervisorAccount, Close 
@@ -27,7 +28,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   
   // --- Estados ---
   const [formData, setFormData] = useState(initialState);
-  const [tabIndex, setTabIndex] = useState(0); // Controle da Aba Ativa
+  const [tabIndex, setTabIndex] = useState(0); 
   const [isLoading, setIsLoading] = useState(false);
   const [isCepLoading, setIsCepLoading] = useState(false);
   
@@ -50,10 +51,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [open]);
 
-  // --- Preenchimento do Form (Edição ou Reset) ---
+  // --- Preenchimento do Form ---
   useEffect(() => {
     if (open) {
-      setTabIndex(0); // Sempre volta para a primeira aba ao abrir
+      setTabIndex(0);
       if (pacienteParaEditar) {
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
@@ -104,7 +105,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     setPlanosFiltrados(novoConvenio ? novoConvenio.planos || [] : []);
   };
 
-  // --- Handlers Gerais ---
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -113,7 +113,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     setTabIndex(newValue);
   };
 
-  // --- Busca de CEP ---
   const handleCepBlur = useCallback(async () => {
     const cepLimpo = formData.cep?.replace(/[^0-9]/g, '');
     if (cepLimpo && cepLimpo.length === 8) {
@@ -142,7 +141,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [formData.cep, showSnackbar]);
 
-  // --- Salvar ---
   const handleSaveClick = async () => {
     setIsLoading(true);
     const dataToSend = { 
@@ -171,10 +169,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   };
 
-  // --- Renderização dos Conteúdos das Abas ---
   const renderTabContent = () => {
     switch (tabIndex) {
-      case 0: // Pessoais
+      case 0:
         return (
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={8}>
@@ -204,7 +201,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             </Grid>
           </Grid>
         );
-      case 1: // Endereço
+      case 1:
         return (
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={4}>
@@ -236,7 +233,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             </Grid>
           </Grid>
         );
-      case 2: // Clínico e Convênio
+      case 2:
         return (
           <Grid container spacing={2} sx={{ mt: 1 }}>
              <Grid item xs={12}>
@@ -246,12 +243,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                     <Grid item xs={6}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth size="small" /></Grid>
                  </Grid>
              </Grid>
-             
              <Grid item xs={12}>
                 <Divider sx={{my: 1}} />
                 <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Médico e Plano</Typography>
              </Grid>
-
             <Grid item xs={12}>
               <Autocomplete
                 options={medicos}
@@ -285,7 +280,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             </Grid>
           </Grid>
         );
-      case 3: // Responsável
+      case 3:
         return (
           <Grid container spacing={2} sx={{ mt: 1 }}>
              <Grid item xs={12}>
@@ -308,15 +303,12 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
 
   return (
     <Dialog open={open} onClose={() => { onClose(); setTabIndex(0); }} fullWidth maxWidth="md" disableEscapeKeyDown={isLoading}>
-      {/* Cabeçalho Personalizado */}
       <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
         <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: '#333' }}>
           {pacienteParaEditar ? 'Editar Paciente' : 'Novo Paciente'}
         </Typography>
         <IconButton onClick={onClose} size="small"><Close /></IconButton>
       </DialogTitle>
-
-      {/* Conteúdo com Abas */}
       <Box component="div" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Paper elevation={0} square sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs 
@@ -333,11 +325,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                 <Tab icon={<SupervisorAccount />} iconPosition="start" label="Responsável" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
             </Tabs>
         </Paper>
-
         <DialogContent sx={{ py: 2, px: 3, minHeight: '300px' }}>
             {renderTabContent()}
         </DialogContent>
-
         <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
           <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none' }}>Cancelar</Button>
           <Button onClick={handleSaveClick} variant="contained" disabled={isLoading || isCepLoading} sx={{ px: 4, textTransform: 'none', fontWeight: 'bold' }}>
