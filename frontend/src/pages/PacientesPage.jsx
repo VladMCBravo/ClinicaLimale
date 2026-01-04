@@ -11,10 +11,19 @@ import {
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useSnackbar } from '../contexts/SnackbarContext';
-// Adicione nos imports
 import LinkIcon from '@mui/icons-material/Link';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'; // Opcional: ícone visual
+import { useSnackbar } from '../contexts/SnackbarContext';
 import ModalVincularExame from '../components/prontuario/ModalVincularExame';
+
+// Função auxiliar para formatar data (YYYY-MM-DD -> DD/MM/YYYY)
+const formatData = (dataString) => {
+    if (!dataString) return '-';
+    // Evita problemas de timezone fazendo split direto na string
+    const partes = dataString.split('-'); 
+    if(partes.length < 3) return dataString;
+    return `${partes[2]}/${partes[1]}/${partes[0]}`; 
+};
 
 export default function PacientesPage() {
   const navigate = useNavigate();
@@ -36,33 +45,28 @@ export default function PacientesPage() {
       setModalVincularOpen(true);
   };
 
-  // UseCallback estabilizado: removemos showSnackbar da dependência para evitar loops
   const fetchPacientes = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.get('/pacientes/');
       
-      // --- ORDENAÇÃO ALFABÉTICA ADICIONADA AQUI ---
       const dadosOrdenados = response.data.sort((a, b) => 
         a.nome_completo.localeCompare(b.nome_completo, 'pt-BR', { sensitivity: 'base' })
       );
 
       setPacientes(dadosOrdenados);
-      // Inicialmente, a lista filtrada é igual à completa (e já ordenada)
       setFilteredPacientes(dadosOrdenados); 
     } catch (error) {
       console.error("Erro ao buscar pacientes:", error);
-      // showSnackbar('Erro ao carregar a lista.', 'error'); // Mantido comentado conforme ajuste anterior
     } finally {
       setIsLoading(false);
     }
-  }, []); // Dependências vazias
+  }, []); 
   
   useEffect(() => {
     fetchPacientes();
   }, [fetchPacientes]);
 
-  // Filtro local
   useEffect(() => {
     if (!pacientes) return;
     const lowercasedFilter = searchTerm.toLowerCase();
@@ -124,8 +128,6 @@ export default function PacientesPage() {
         />
       </Box>
 
-      {/* CORREÇÃO CRÍTICA: O Loading agora é apenas visual na tabela, 
-          NÃO desmonta a página inteira (o que matava o Modal) */}
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
           <CircularProgress />
@@ -135,16 +137,31 @@ export default function PacientesPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Nome Completo</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell align="right">Ações</TableCell>
+                <TableCell sx={{fontWeight: 'bold'}}>Nome Completo</TableCell>
+                <TableCell sx={{fontWeight: 'bold'}}>Telefone / WhatsApp</TableCell> {/* NOVA COLUNA */}
+                <TableCell sx={{fontWeight: 'bold'}}>Nascimento</TableCell> {/* NOVA COLUNA */}
+                <TableCell sx={{fontWeight: 'bold'}}>Email</TableCell>
+                <TableCell align="right" sx={{fontWeight: 'bold'}}>Ações</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredPacientes.map((paciente) => (
-                <TableRow key={paciente.id}>
+                <TableRow key={paciente.id} hover>
                   <TableCell>{paciente.nome_completo}</TableCell>
-                  <TableCell>{paciente.email}</TableCell>
+                  
+                  {/* --- NOVAS COLUNAS --- */}
+                  <TableCell>
+                      {paciente.telefone_celular ? (
+                          <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5}}>
+                              <WhatsAppIcon sx={{fontSize: 16, color: '#25D366'}} />
+                              {paciente.telefone_celular}
+                          </Box>
+                      ) : '-'}
+                  </TableCell>
+                  <TableCell>{formatData(paciente.data_nascimento)}</TableCell>
+                  
+                  <TableCell>{paciente.email || '-'}</TableCell>
+                  
                   <TableCell align="right">
                     <IconButton onClick={() => handleOpenVincular(paciente)} title="Vincular Exame Solto"><LinkIcon color="primary" /></IconButton>
                     <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
@@ -159,7 +176,7 @@ export default function PacientesPage() {
               ))}
               {filteredPacientes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} align="center">Nenhum paciente encontrado.</TableCell>
+                  <TableCell colSpan={5} align="center">Nenhum paciente encontrado.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -167,7 +184,6 @@ export default function PacientesPage() {
         </TableContainer>
       )}
       
-      {/* O MODAL AGORA ESTÁ FORA DO BLOCO DE LOADING, PORTANTO NUNCA É DESMONTADO */}
       <PacienteModal 
         open={isModalOpen}
         onClose={handleCloseModal}
@@ -175,11 +191,11 @@ export default function PacientesPage() {
         pacienteParaEditar={pacienteParaEditar}
       />
       <ModalVincularExame 
-    open={modalVincularOpen}
-    onClose={() => setModalVincularOpen(false)}
-    paciente={pacienteParaVincular}
-    onSuccess={() => showSnackbar('Exame vinculado com sucesso!', 'success')}
-/>
+        open={modalVincularOpen}
+        onClose={() => setModalVincularOpen(false)}
+        paciente={pacienteParaVincular}
+        onSuccess={() => showSnackbar('Exame vinculado com sucesso!', 'success')}
+      />
     </Paper>
   );
 }
