@@ -278,31 +278,27 @@ class LancamentoAvulsoAPIView(APIView):
         # Pega a data de pagamento (se o usuário informou)
         data_pagamento_manual = dados.get('data_pagamento') # Formato YYYY-MM-DD ou None
         
+        # Dados comuns
+        qtd_parcelas = int(dados.get('qtd_parcelas', 1))
+        valor_total = float(dados.get('valor', 0))
+        descricao_original = dados.get('descricao', '')
+
         # --- Lógica para RECEITA ---
         if tipo == 'receita':
-            qtd_parcelas = int(dados.get('qtd_parcelas', 1))
             forma_pagamento = dados.get('forma_pagamento')
-            valor_total = float(dados.get('valor', 0))
-            descricao_original = dados.get('descricao', '')
             status_lancamento = dados.get('status', 'Pendente')
 
-            # Se for Cartão de Crédito parcelado ou Parcelamento manual > 1
             if qtd_parcelas > 1:
                 valor_parcela = valor_total / qtd_parcelas
-                
                 pagamentos_criados = []
                 
                 for i in range(qtd_parcelas):
-                    # CÁLCULO INTELIGENTE DE DATA (Usa relativedelta para somar meses corretamente)
-                    # Ex: 31/01 + 1 mês = 28/02 (ou 29), sem pular dias
                     data_venc_parcela = data_vencimento_base + relativedelta(months=i)
                     
-                    # Se for a 1ª parcela e já estiver marcado como pago, usa a data informada ou hoje
-                    # As parcelas seguintes (2, 3...) nascem Pendentes, a menos que a lógica de negócio fosse diferente
+                    # 1ª parcela segue o status do form, as próximas nascem Pendentes
                     status_parcela = status_lancamento if i == 0 else 'Pendente'
                     data_pag_parcela = data_pagamento_manual if (i == 0 and status_parcela == 'Pago') else None
 
-                    # Criação do Objeto
                     novo_pagamento = Pagamento.objects.create(
                         paciente_id=dados.get('paciente'),
                         descricao=f"{descricao_original} ({i+1}/{qtd_parcelas})",
@@ -315,42 +311,80 @@ class LancamentoAvulsoAPIView(APIView):
                     )
                     pagamentos_criados.append(novo_pagamento)
                 
-                return Response({'msg': f'{qtd_parcelas} parcelas geradas.'}, status=status.HTTP_201_CREATED)
+                return Response({'msg': f'{qtd_parcelas} parcelas de receita geradas.'}, status=status.HTTP_201_CREATED)
 
-            # Lançamento Único (À vista ou 1x)
             else:
+                # Lançamento Único (Receita)
                 serializer = LancamentoAvulsoReceitaSerializer(data=dados)
                 if serializer.is_valid():
                     obj = serializer.save(registrado_por=request.user)
-                    
-                    # Ajusta datas manualmente após salvar
                     obj.data_vencimento = data_vencimento_base
-                    
                     if obj.status == 'Pago':
-                        # Se veio data manual, usa ela. Se não, usa hoje.
                         if data_pagamento_manual:
                             obj.data_pagamento = data_pagamento_manual
                         elif not obj.data_pagamento:
                             obj.data_pagamento = timezone.now()
-                    
                     obj.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # --- Lógica para DESPESA ---
+        # --- Lógica para DESPESA (CORRIGIDA) ---
         elif tipo == 'despesa':
-            # Nota: A lógica de parcelamento de despesa também deve ser ajustada
-            # mas geralmente é feita no loop do Frontend (DespesasView).
-            # Se quiser centralizar aqui, avise. Por enquanto, mantém o serializer padrão.
-            serializer = DespesaSerializer(data=dados)
-            if serializer.is_valid():
-                obj = serializer.save(registrado_por=request.user)
-                # Garante data de pagamento correta se vier manual
-                if obj.pago and data_pagamento_manual:
-                    obj.data_pagamento = data_pagamento_manual
-                    obj.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            pago_inicialmente = dados.get('pago', False)
+            # O frontend manda 'pago' como boolean, converte se vier string
+            if isinstance(pago_inicialmente, str):
+                pago_inicialmente = (pago_inicialmente.lower() == 'true')
+
+            # PARCELAMENTO DE DESPESA
+            if qtd_parcelas > 1:
+                valor_parcela = valor_total / qtd_parcelas
+                despesas_criadas = []
+
+                for i in range(qtd_parcelas):
+                    # Data de vencimento incrementa 1 mês a cada loop
+                    data_venc_parcela = data_vencimento_base + relativedelta(months=i)
+                    
+                    # Lógica de Status:
+                    # Geralmente, ao parcelar uma compra, a 1ª pode ser à vista (paga) e o resto a pagar.
+                    # Ou se for cartão de crédito da empresa, tudo fica "a pagar" na data da fatura.
+                    # A lógica abaixo assume: Se marcou "Pago", só a 1ª conta como paga agora.
+                    esta_pago = pago_inicialmente if i == 0 else False
+                    data_pag_parcela = data_pagamento_manual if (i == 0 and esta_pago) else None
+
+                    # Usamos o serializer para validar, mas alteramos os dados antes de salvar
+                    dados_parcela = dados.copy()
+                    dados_parcela['descricao'] = f"{descricao_original} ({i+1}/{qtd_parcelas})"
+                    dados_parcela['valor'] = valor_parcela
+                    # Precisamos passar datas formatadas para o serializer ou salvar direto.
+                    # Vamos salvar direto para simplificar a manipulação de datas complexas
+                    
+                    categoria_id = dados.get('categoria')
+                    
+                    nova_despesa = Despesa.objects.create(
+                        categoria_id=categoria_id,
+                        descricao=f"{descricao_original} ({i+1}/{qtd_parcelas})",
+                        valor=valor_parcela,
+                        data_despesa=data_vencimento_base, # Data de competência (data da compra)
+                        data_vencimento=data_venc_parcela, # Data que o boleto vence
+                        pago=esta_pago,
+                        data_pagamento=data_pag_parcela,
+                        registrado_por=request.user
+                    )
+                    despesas_criadas.append(nova_despesa)
+
+                return Response({'msg': f'{qtd_parcelas} despesas geradas.'}, status=status.HTTP_201_CREATED)
+
+            # Despesa Única (Padrão)
+            else:
+                serializer = DespesaSerializer(data=dados)
+                if serializer.is_valid():
+                    obj = serializer.save(registrado_por=request.user)
+                    # Garante data de pagamento correta se vier manual
+                    if obj.pago and data_pagamento_manual:
+                        obj.data_pagamento = data_pagamento_manual
+                        obj.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         else:
             return Response({'error': 'Tipo inválido'}, status=status.HTTP_400_BAD_REQUEST)

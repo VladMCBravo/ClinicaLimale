@@ -8,7 +8,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
     Person, AccountBalance, AttachMoney, MoneyOff, 
-    CreditCard, LocalAtm, QrCode, PointOfSale, Event
+    CreditCard, LocalAtm, QrCode, PointOfSale
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 
@@ -20,14 +20,11 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
     const [tipo, setTipo] = useState(initialType);
     const [origemReceita, setOrigemReceita] = useState('paciente');
     
-    // CORREÇÃO 1: Inicializa o jaRecebido. Se for True, JÁ INICIALIZA A DATA DE PAGAMENTO NO FORM
     const [jaRecebido, setJaRecebido] = useState(true); 
 
-    // CORREÇÃO 2: Estado inicial já com data_pagamento se estiver pago
     const [formData, setFormData] = useState({ 
         qtd_parcelas: 1,
         data_vencimento: dayjs().format('YYYY-MM-DD'),
-        // Garante que se nascer pago, já tem a data de hoje preenchida no envio
         data_pagamento: dayjs().format('YYYY-MM-DD') 
     });
 
@@ -42,16 +39,13 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
         faturamentoService.getCategoriasDespesa().then(res => setCategorias(res.data));
     }, []);
 
-    // Manipula a mudança do Switch PAGO/PENDENTE
     const handleStatusChange = (e) => {
         const isPago = e.target.checked;
         setJaRecebido(isPago);
         
         if (isPago) {
-            // Se marcou como pago, define a data de pagamento (hoje) para garantir que seja enviada
             setFormData(prev => ({ ...prev, data_pagamento: dayjs().format('YYYY-MM-DD') }));
         } else {
-            // Se desmarcou, limpa a data
             setFormData(prev => ({ ...prev, data_pagamento: null }));
         }
     };
@@ -60,7 +54,6 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
         if (newTipo !== null) {
             setTipo(newTipo);
             setFormData(prev => ({ ...prev, qtd_parcelas: 1 })); 
-            // Ao trocar de tipo, reseta para pago e define data
             setJaRecebido(true);
             setFormData(prev => ({ ...prev, data_pagamento: dayjs().format('YYYY-MM-DD') }));
         }
@@ -100,19 +93,19 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
 
         setIsSubmitting(true);
         
+        // Ajustamos o payload conforme o tipo
         const payload = {
             ...formData,
             tipo: tipo,
             paciente: (tipo === 'receita' && origemReceita === 'paciente') ? formData.paciente?.id : null,
-            status: jaRecebido ? (tipo === 'receita' ? 'Pago' : 'Pago') : 'Pendente' // Ajuste simples
+            // Lógica unificada de status
+            status: jaRecebido ? 'Pago' : 'Pendente', 
+            pago: jaRecebido // Para despesas backend lê 'pago' boolean, para receitas lê 'status' string. Mando os dois para garantir.
         };
-
-        // Debug para garantir que a data está indo
-        console.log("Enviando Payload:", payload);
 
         try {
             await faturamentoService.createLancamentoAvulso(payload);
-            showSnackbar(`Lançamento salvo!`, 'success');
+            showSnackbar(`Lançamento salvo com sucesso!`, 'success');
             onClose(); 
         } catch (error) {
             console.error(error);
@@ -122,7 +115,6 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
         }
     };
 
-    // Componente visual do Cartão
     const PaymentCard = ({ value, label, icon: Icon }) => {
         const selected = formData.forma_pagamento === value;
         return (
@@ -169,7 +161,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                                     <Switch 
                                         size="small"
                                         checked={jaRecebido}
-                                        onChange={handleStatusChange} // Usa a nova função corrigida
+                                        onChange={handleStatusChange}
                                         color={tipo === 'receita' ? "success" : "error"}
                                     />
                                 }
@@ -201,14 +193,13 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
 
                         <TextField name="descricao" label="Descrição" size="small" margin="dense" required fullWidth value={formData.descricao || ''} onChange={handleChange} InputLabelProps={{style: {fontSize: '0.85rem'}}} InputProps={{style: {fontSize: '0.9rem'}}} />
                         
-                        {/* --- O CORAÇÃO DA MUDANÇA: AS DUAS DATAS --- */}
                         <Grid container spacing={2}>
                             <Grid item xs={jaRecebido ? 6 : 12}>
                                 <DatePicker
                                     label="Data de Vencimento"
                                     value={formData.data_vencimento ? dayjs(formData.data_vencimento) : null}
                                     onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-                                    slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true, helperText: "Vencimento Original" } }}
+                                    slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true, helperText: tipo === 'despesa' ? "1º Vencimento" : "Vencimento Original" } }}
                                 />
                             </Grid>
 
@@ -222,7 +213,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                                             textField: { 
                                                 size: 'small', margin: 'dense', fullWidth: true, focused: true,
                                                 color: tipo === 'receita' ? "success" : "error",
-                                                helperText: "Data Real do Caixa" // Feedback visual
+                                                helperText: "Data Real do Caixa"
                                             } 
                                         }}
                                     />
@@ -252,6 +243,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                             InputLabelProps={{style: {fontSize: '0.85rem'}}} sx={{ mb: 1.5, bgcolor: '#fff' }}
                         />
 
+                        {/* --- LÓGICA DE PARCELAMENTO PARA RECEITA --- */}
                         {tipo === 'receita' && jaRecebido && (
                             <>
                                 <Typography variant="caption" fontWeight="bold" color="text.secondary" mb={0.5} display="block" sx={{fontSize: '0.7rem'}}>FORMA DE PAGAMENTO</Typography>
@@ -271,6 +263,19 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                                     </Box>
                                 )}
                             </>
+                        )}
+
+                        {/* --- NOVA LÓGICA DE PARCELAMENTO PARA DESPESA --- */}
+                        {tipo === 'despesa' && (
+                            <Box sx={{ p: 1, bgcolor: '#ffebee', borderRadius: 1, border: '1px solid #ef9a9a', mb: 1 }}>
+                                <Typography variant="caption" fontWeight="bold" color="error" sx={{display: 'block', mb: 0.5}}>PARCELAMENTO / RECORRÊNCIA</Typography>
+                                <TextField select label="Quantidade de Parcelas" value={formData.qtd_parcelas || 1} onChange={(e) => setFormData(prev => ({ ...prev, qtd_parcelas: Number(e.target.value) }))} fullWidth size="small" margin="none" variant="standard" InputProps={{ disableUnderline: true, style: { fontSize: '0.9rem', color: '#c62828', fontWeight: 'bold' } }}>
+                                    {[...Array(24)].map((_, i) => (<MenuItem key={i + 1} value={i + 1}>{i + 1}x {formData.valor ? `de R$ ${(formData.valor / (i + 1)).toFixed(2)}` : ''}</MenuItem>))}
+                                </TextField>
+                                <Typography variant="caption" color="text.secondary" sx={{fontSize: '0.65rem', mt: 0.5, display: 'block'}}>
+                                    * Gera despesas mensais consecutivas
+                                </Typography>
+                            </Box>
                         )}
 
                         <Box sx={{ mt: 'auto' }}>
