@@ -1,6 +1,6 @@
 // src/pages/PainelRecepcaoPage.jsx - VERSÃO FINAL COM TUDO INTEGRADO
 import React, { useState, useEffect } from 'react';
-import { Box } from '@mui/material';
+import { Box, Drawer, Typography, Paper } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
 
 // Componentes do Painel
