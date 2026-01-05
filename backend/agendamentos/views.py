@@ -273,3 +273,38 @@ class MinhaAgendaView(generics.ListAPIView):
             data_hora_inicio__date__gte=hoje,
             status__in=['Agendado', 'Confirmado']
         ).order_by('data_hora_inicio')
+
+class DashboardKPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        hoje = timezone.localtime(timezone.now()).date()
+        agora = timezone.now()
+        inicio_mes = hoje.replace(day=1)
+
+        # 1. Consultas de Hoje (Todas as agendadas para a data de hoje)
+        count_hoje = Agendamento.objects.filter(data_hora_inicio__date=hoje).count()
+
+        # 2. A Confirmar (Futuros com status 'Agendado')
+        count_confirmar = Agendamento.objects.filter(
+            data_hora_inicio__gte=agora,
+            status='Agendado'
+        ).count()
+
+        # 3. Pacientes Novos no Mês (Tenta contar pacientes cadastrados este mês)
+        # OBS: Verifique se o campo de data no seu model Paciente é 'data_cadastro' ou 'created_at'
+        try:
+            from pacientes.models import Paciente
+            # Se seu model usar 'created_at', mude abaixo para created_at__gte
+            count_novos = Paciente.objects.filter(data_cadastro__gte=inicio_mes).count()
+        except AttributeError:
+            # Fallback: Se der erro no campo, retorna 0 para não quebrar
+            count_novos = 0
+        except Exception:
+            count_novos = 0
+
+        return Response({
+            "hoje": count_hoje,
+            "novos": count_novos,
+            "confirmar": count_confirmar
+        })

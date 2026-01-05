@@ -30,7 +30,7 @@ def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
             "motivo": "O profissional selecionado não foi encontrado."
         }
 
-    DURACAO_CONSULTA_MINUTOS = 20
+    DURACAO_CONSULTA_MINUTOS = 30
     
     dia_da_semana = data_selecionada.weekday()
     jornadas_do_dia = JornadaDeTrabalho.objects.filter(medico=medico, dia_da_semana=dia_da_semana)

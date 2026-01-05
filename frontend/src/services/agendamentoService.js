@@ -1,85 +1,69 @@
-// src/services/agendamentoService.js
+// src/services/agendamentoService.js - VERSÃO REVISADA E CORRIGIDA
 import apiClient from '../api/axiosConfig';
 
 const getAgendamentos = (medicoId, especialidadeId) => {
     const params = new URLSearchParams();
-    if (medicoId) {
-        params.append('medico_id', medicoId);
-    }
-    if (especialidadeId) {
-        params.append('especialidade_id', especialidadeId);
-    }
+    if (medicoId) params.append('medico_id', medicoId);
+    if (especialidadeId) params.append('especialidade_id', especialidadeId);
     const queryString = params.toString();
-    const url = `/agendamentos/${queryString ? `?${queryString}` : ''}`;
-    return apiClient.get(url);
+    return apiClient.get(`/agendamentos/${queryString ? `?${queryString}` : ''}`);
 };
 
 const getAgendamentosHoje = (medicoId) => {
     const params = new URLSearchParams();
-    if (medicoId) {
-        params.append('medico_id', medicoId);
-    }
+    if (medicoId) params.append('medico_id', medicoId);
     const queryString = params.toString();
-    const url = `/agendamentos/hoje/${queryString ? `?${queryString}` : ''}`;
-    return apiClient.get(url);
+    return apiClient.get(`/agendamentos/hoje/${queryString ? `?${queryString}` : ''}`);
 };
-// ADICIONE A NOVA FUNÇÃO ABAIXO
+
 const getListaEspera = () => {
     return apiClient.get('/agendamentos/espera/');
 };
-// <<-- NOVA FUNÇÃO ADICIONADA AQUI -->>
+
+// --- FUNÇÃO QUE ESTAVA FALTANDO PARA O DASHBOARD ---
+const getDashboardKPIs = () => {
+    return apiClient.get('/agendamentos/dashboard/kpi/');
+};
+
 const getSalas = () => {
     return apiClient.get('/agendamentos/salas/');
 };
-// --- ADICIONE ESTAS 3 FUNÇÕES ABAIXO ---
-const createSala = (data) => {
-    return apiClient.post('/agendamentos/salas/', data);
-};
 
-const updateSala = (id, data) => {
-    return apiClient.put(`/agendamentos/salas/${id}/`, data);
-};
-
-const deleteSala = (id) => {
-    return apiClient.delete(`/agendamentos/salas/${id}/`);
-};
+const createSala = (data) => apiClient.post('/agendamentos/salas/', data);
+const updateSala = (id, data) => apiClient.put(`/agendamentos/salas/${id}/`, data);
+const deleteSala = (id) => apiClient.delete(`/agendamentos/salas/${id}/`);
 
 const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
 const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
-const verificarCapacidade = (inicio, fim) => {
+
+// --- CORREÇÃO: Adicionado parâmetro salaId opcional ---
+const verificarCapacidade = (inicio, fim, salaId = null) => {
     const params = new URLSearchParams({ inicio, fim });
+    if (salaId) {
+        params.append('sala', salaId);
+    }
     return apiClient.get(`/agendamentos/verificar-capacidade/?${params.toString()}`);
 };
 
-
-
 const getModalData = () => {
-    const fetchPacientes = apiClient.get('/pacientes/');
-    const fetchProcedimentos = apiClient.get('/faturamento/procedimentos/');
-    const fetchMedicos = apiClient.get('/usuarios/usuarios/?cargo=medico');
-    const fetchEspecialidades = apiClient.get('/usuarios/especialidades/');
-    return Promise.all([fetchPacientes, fetchProcedimentos, fetchMedicos, fetchEspecialidades]);
+    return Promise.all([
+        apiClient.get('/pacientes/'),
+        apiClient.get('/faturamento/procedimentos/'),
+        apiClient.get('/usuarios/usuarios/?cargo=medico'),
+        apiClient.get('/usuarios/especialidades/')
+    ]);
 };
 
-// ADICIONE A NOVA FUNÇÃO ABAIXO
 const verificarDisponibilidade = ({ data, medicoId, especialidadeId }) => {
     const params = new URLSearchParams();
-    params.append('data', data); // Formato YYYY-MM-DD
-    if (medicoId) {
-        params.append('medico_id', medicoId);
-    }
-    if (especialidadeId) {
-        params.append('especialidade_id', especialidadeId);
-    }
+    params.append('data', data);
+    if (medicoId) params.append('medico_id', medicoId);
+    if (especialidadeId) params.append('especialidade_id', especialidadeId);
     
-    /// A CORREÇÃO ESTÁ AQUI: 'disponiveis' em vez de 'disponisponiveis'
-    const url = `/agendamentos/horarios-disponiveis/?${params.toString()}`;
-    
-    return apiClient.get(url);
+    return apiClient.get(`/agendamentos/horarios-disponiveis/?${params.toString()}`);
 };
 
 const getMinhaAgenda = () => {
-    // Este endpoint deve corresponder ao que você criou no backend
     return apiClient.get('/agendamentos/minha-agenda/'); 
 };
 
@@ -87,7 +71,8 @@ export const agendamentoService = {
     getAgendamentos,
     getAgendamentosHoje,
     getListaEspera,
-    getSalas, // <-- Exporte a nova função
+    getDashboardKPIs, // <--- NÃO ESQUEÇA DE EXPORTAR AQUI
+    getSalas,
     createSala,
     updateSala,
     deleteSala,

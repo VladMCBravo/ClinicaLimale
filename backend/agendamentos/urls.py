@@ -14,7 +14,8 @@ from .views import (
     TelemedicinaListView,
     ExecutarCancelamentosExpiradosView,
     VerificarCapacidadeHorarioAPIView,
-    HorariosDisponiveisAPIView
+    HorariosDisponiveisAPIView,
+    DashboardKPIView
 )
 
 urlpatterns = [
@@ -31,4 +32,5 @@ urlpatterns = [
     path('executar-cancelamentos/', ExecutarCancelamentosExpiradosView.as_view(), name='executar-cancelamentos'),
     path('verificar-capacidade/', VerificarCapacidadeHorarioAPIView.as_view(), name='verificar-capacidade'),
     path('minha-agenda/', MinhaAgendaView.as_view(), name='minha-agenda'),
+    path('dashboard/kpi/', DashboardKPIView.as_view(), name='dashboard-kpi'),
 ]
