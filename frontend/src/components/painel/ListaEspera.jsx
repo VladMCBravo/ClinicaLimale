@@ -45,9 +45,13 @@ export default function ListaEspera({ onAgendamentoSelect, refreshTrigger }) {
                                             <EventBusyIcon color="warning" />
                                         </ListItemIcon>
                                         <ListItemText
-                                            primary={ag.paciente_nome}
-                                            secondary={`Para: ${new Date(ag.data_hora_inicio).toLocaleDateString('pt-BR')} às ${new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
-                                        />
+    primary={<Typography variant="body2" sx={{ fontWeight: 600 }}>{ag.paciente_nome}</Typography>}
+    secondary={
+        <Typography variant="caption" display="block" color="text.secondary">
+           {new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {ag.procedimento_descricao || 'Consulta'}
+        </Typography>
+    }
+/>
                                     </ListItemButton>
                                 </ListItem>
                             ))}
