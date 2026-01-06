@@ -3,8 +3,9 @@
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from usuarios.permissions import IsRecepcaoOrAdmin, IsAdminUser, AllowRead_WriteRecepcaoAdmin
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError # <--- Importante para bloquear exclusão
+from usuarios.permissions import IsRecepcaoOrAdmin, AllowRead_WriteRecepcaoAdmin
 from django.utils.dateparse import parse_datetime, parse_date
 from .models import Agendamento, Sala
 from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer, SalaSerializer
@@ -51,29 +52,26 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         return AgendamentoSerializer
     
     def perform_create(self, serializer):
-        # 1. Salva o agendamento
         agendamento = serializer.save()
         
-        # 2. Lógica Manual de Criação do Pagamento (Substituindo o services)
+        # --- MUDANÇA 1: DESCRIÇÃO LIMPA ---
+        # Antes: "Ref. Agendamento 196 - Obstétrico..."
+        # Agora: "Obstétrico com Doppler" (ou "Consulta")
         valor_inicial = 0
-        descricao_texto = f"Ref. Agendamento {agendamento.id}"
+        descricao_texto = "Consulta"
 
-        # Verifica se tem procedimento para puxar o valor e nome
         if agendamento.procedimento:
             valor_inicial = agendamento.procedimento.valor_particular
-            descricao_texto += f" - {agendamento.procedimento.descricao}"
-        else:
-            descricao_texto += " - Consulta"
+            descricao_texto = agendamento.procedimento.descricao 
 
-        # Criação explícita no banco
         Pagamento.objects.create(
-            agendamento=agendamento,          # VÍNCULO VITAL: Resolve o "Lançamento Avulso"
-            paciente=agendamento.paciente,    # VÍNCULO VITAL: Resolve o paciente sumindo
+            agendamento=agendamento,
+            paciente=agendamento.paciente,
             valor=valor_inicial,
-            descricao=descricao_texto,        # Resolve o "None"
+            descricao=descricao_texto, 
             status='Pendente',
             data_vencimento=agendamento.data_hora_inicio.date(),
-            registrado_por=self.request.user  # Usuário logado
+            registrado_por=self.request.user
         )
 
 
@@ -89,35 +87,52 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return AgendamentoSerializer
 
     def perform_update(self, serializer):
-        # 1. Salva as alterações do agendamento
         agendamento = serializer.save()
+        pagamento = getattr(agendamento, 'pagamento', None)
         
-        # 2. Tenta atualizar o pagamento vinculado (se existir e estiver Pendente)
-        try:
-            # O getattr evita erro caso não tenha pagamento criado ainda
-            pagamento = getattr(agendamento, 'pagamento', None)
-            
+        # --- MUDANÇA 2: NÃO COMPARECEU ---
+        if agendamento.status == 'Não Compareceu':
+            # Se o paciente não foi, cancelamos a cobrança pendente.
+            # "Cancelado" faz sumir das listas de "A Receber", mas mantêm o registro auditável.
             if pagamento and pagamento.status == 'Pendente':
-                # Recalcula valor caso tenha mudado o procedimento
-                valor_novo = 0
-                desc_nova = f"Ref. Agendamento {agendamento.id}"
-                
-                if agendamento.procedimento:
-                    valor_novo = agendamento.procedimento.valor_particular
-                    desc_nova += f" - {agendamento.procedimento.descricao}"
-                else:
-                    desc_nova += " - Consulta"
-
-                # Atualiza os campos
-                pagamento.paciente = agendamento.paciente # Caso tenha trocado o paciente
-                pagamento.valor = valor_novo
-                pagamento.descricao = desc_nova
-                pagamento.data_vencimento = agendamento.data_hora_inicio.date()
+                pagamento.status = 'Cancelado'
                 pagamento.save()
-                
-        except Exception as e:
-            # Não queremos que o update do agendamento falhe se o financeiro der erro
-            print(f"Erro ao atualizar financeiro: {e}")
+            return # Encerra aqui, não recalcula valor
+
+        # Atualização normal (se ainda for Pendente)
+        if pagamento and pagamento.status == 'Pendente':
+            valor_novo = 0
+            desc_nova = "Consulta"
+            
+            if agendamento.procedimento:
+                valor_novo = agendamento.procedimento.valor_particular
+                desc_nova = agendamento.procedimento.descricao # Descrição Limpa
+            
+            pagamento.paciente = agendamento.paciente
+            pagamento.valor = valor_novo
+            pagamento.descricao = desc_nova
+            pagamento.data_vencimento = agendamento.data_hora_inicio.date()
+            pagamento.save()
+
+    def perform_destroy(self, instance):
+        """
+        Lógica personalizada de exclusão.
+        """
+        agora = timezone.now()
+        
+        # --- MUDANÇA 3: BLOQUEIO DE PASSADO ---
+        # "Qualquer agendamento depois do horario da consulta nao será excluído"
+        # (Interpretei como: se a consulta já passou, não pode excluir)
+        if instance.data_hora_inicio < agora:
+            raise ValidationError("Por segurança e histórico, não é permitido excluir agendamentos passados. Marque como 'Cancelado' ou 'Não Compareceu'.")
+
+        # --- MUDANÇA 4: APAGAR FINANCEIRO FUTURO ---
+        # "Excluir até um tempo determinado antes... exclui também o financeiro"
+        pagamento = getattr(instance, 'pagamento', None)
+        if pagamento and pagamento.status == 'Pendente':
+            pagamento.delete()
+            
+        instance.delete()
 
 
 class AgendamentosNaoPagosListAPIView(generics.ListAPIView):
