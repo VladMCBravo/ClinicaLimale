@@ -61,8 +61,8 @@ export default function AgendaPrincipal({
                     left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth'
                 }}
                 buttonText={{ resourceTimeGridDay: 'Salas', week: 'Semana', month: 'Mês', today: 'Hoje' }}
-                eventMinHeight={30}  // Altura mínima em pixels (garante leitura)
-                eventShortHeight={30} // Garante que eventos curtos não virem "bolinhas"
+                eventMinHeight={45}  // Altura mínima em pixels (garante leitura)
+                eventShortHeight={45} // Garante que eventos curtos não virem "bolinhas"
                 locale="pt-br"
                 height="100%"
                 events={fetchEvents}

@@ -92,21 +92,32 @@
 }
 /* ---------------------------------------------------- */
 
-/* --- CORREÇÃO DE EVENTOS ESMAGADOS --- */
+/* --- CORREÇÃO DE EVENTOS ESMAGADOS (Versão Otimizada) --- */
 
-/* Remove o padding vertical excessivo dentro do evento */
+/* Container do texto dentro do evento */
 .fc-timegrid-event .fc-event-main {
-    padding: 1px 4px !important; /* Reduz espaço interno */
+    padding: 2px 2px !important; /* Quase sem borda interna */
     display: flex;
-    flex-direction: column;
-    justify-content: center; /* Centraliza o texto verticalmente */
-    line-height: 1.1 !important; /* Junta mais as linhas de texto */
+    flex-direction: column;      /* Um em cima do outro */
+    justify-content: flex-start; /* Começa bem do topo */
+    gap: 0px !important;         /* Zero espaço entre hora e nome */
+    line-height: 1 !important;   /* Linhas bem coladas */
 }
 
-/* Opcional: Diminui um pouco a fonte APENAS dentro do evento se for muito pequeno */
-.fc-timegrid-event .fc-event-title {
-    font-size: 0.85rem !important;
-    white-space: nowrap; /* Evita que o texto quebre linha se ficar feio */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Adiciona "..." se não couber */
+/* Ajuste da HORA */
+.fc-event-time {
+    font-size: 0.7rem !important; /* Hora bem pequena */
+    margin-bottom: 0px !important;
+    line-height: 1 !important;
+    opacity: 0.9;
+}
+
+/* Ajuste do NOME (Título) */
+.fc-event-title {
+    font-size: 0.75rem !important; /* Nome um pouco maior que a hora */
+    font-weight: bold;
+    white-space: nowrap;      /* Não quebra linha */
+    overflow: hidden;         /* Corta se for muito longo */
+    text-overflow: ellipsis;  /* Coloca "..." no final */
+    margin-top: 1px !important; 
 }
