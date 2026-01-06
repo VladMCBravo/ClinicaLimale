@@ -51,10 +51,30 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         return AgendamentoSerializer
     
     def perform_create(self, serializer):
-        # O serializer já valida se a sala é compatível (se você colocou a lógica lá)
-        # Aqui apenas salvamos e geramos o financeiro pendente
+        # 1. Salva o agendamento
         agendamento = serializer.save()
-        services.criar_agendamento_e_pagamento_pendente(agendamento, self.request.user)
+        
+        # 2. Lógica Manual de Criação do Pagamento (Substituindo o services)
+        valor_inicial = 0
+        descricao_texto = f"Ref. Agendamento {agendamento.id}"
+
+        # Verifica se tem procedimento para puxar o valor e nome
+        if agendamento.procedimento:
+            valor_inicial = agendamento.procedimento.valor_particular
+            descricao_texto += f" - {agendamento.procedimento.descricao}"
+        else:
+            descricao_texto += " - Consulta"
+
+        # Criação explícita no banco
+        Pagamento.objects.create(
+            agendamento=agendamento,          # VÍNCULO VITAL: Resolve o "Lançamento Avulso"
+            paciente=agendamento.paciente,    # VÍNCULO VITAL: Resolve o paciente sumindo
+            valor=valor_inicial,
+            descricao=descricao_texto,        # Resolve o "None"
+            status='Pendente',
+            data_vencimento=agendamento.data_hora_inicio.date(),
+            registrado_por=self.request.user  # Usuário logado
+        )
 
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -67,6 +87,37 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ['PUT', 'PATCH']:
             return AgendamentoWriteSerializer
         return AgendamentoSerializer
+
+    def perform_update(self, serializer):
+        # 1. Salva as alterações do agendamento
+        agendamento = serializer.save()
+        
+        # 2. Tenta atualizar o pagamento vinculado (se existir e estiver Pendente)
+        try:
+            # O getattr evita erro caso não tenha pagamento criado ainda
+            pagamento = getattr(agendamento, 'pagamento', None)
+            
+            if pagamento and pagamento.status == 'Pendente':
+                # Recalcula valor caso tenha mudado o procedimento
+                valor_novo = 0
+                desc_nova = f"Ref. Agendamento {agendamento.id}"
+                
+                if agendamento.procedimento:
+                    valor_novo = agendamento.procedimento.valor_particular
+                    desc_nova += f" - {agendamento.procedimento.descricao}"
+                else:
+                    desc_nova += " - Consulta"
+
+                # Atualiza os campos
+                pagamento.paciente = agendamento.paciente # Caso tenha trocado o paciente
+                pagamento.valor = valor_novo
+                pagamento.descricao = desc_nova
+                pagamento.data_vencimento = agendamento.data_hora_inicio.date()
+                pagamento.save()
+                
+        except Exception as e:
+            # Não queremos que o update do agendamento falhe se o financeiro der erro
+            print(f"Erro ao atualizar financeiro: {e}")
 
 
 class AgendamentosNaoPagosListAPIView(generics.ListAPIView):
@@ -211,14 +262,12 @@ class ExecutarCancelamentosExpiradosView(APIView):
             return Response({"error": str(e)}, status=500)
 
 
-# <<-- AQUI ESTAVA O PROBLEMA DO ERRO 400. ESTA É A VERSÃO CORRIGIDA -->>
 class VerificarCapacidadeHorarioAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         inicio_str = request.query_params.get('inicio')
         fim_str = request.query_params.get('fim')
-        # Ignoramos sala_id aqui para o contador global, pois queremos saber o total da clínica
         
         if not inicio_str or not fim_str:
             return Response({'detail': 'Dados insuficientes.'}, status=400)
@@ -229,20 +278,17 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         except ValueError:
             return Response({'detail': 'Data inválida.'}, status=400)
 
-        # Busca GLOBAL de agendamentos ativos naquele horário (exceto cancelados)
-        # Verifica intersecção de horário: (start < fim_req) AND (end > inicio_req)
         agendamentos_conflitantes = Agendamento.objects.filter(
             data_hora_inicio__lt=fim, 
             data_hora_fim__gt=inicio,
         ).exclude(status='Cancelado')
 
-        # Contagem Global
         qtd_consultas = agendamentos_conflitantes.filter(tipo_agendamento='Consulta').count()
         qtd_procedimentos = agendamentos_conflitantes.filter(tipo_agendamento='Procedimento').count()
         
         return Response({
-            'consultas_agendadas': qtd_consultas,     # Ex: 2 (de 3 possíveis)
-            'procedimentos_agendados': qtd_procedimentos, # Ex: 1 (de 1 possível)
+            'consultas_agendadas': qtd_consultas,
+            'procedimentos_agendados': qtd_procedimentos,
             'verificacao_por_sala': False
         })
         
@@ -266,23 +312,17 @@ class DashboardKPIView(APIView):
         agora = timezone.now()
         inicio_mes = hoje.replace(day=1)
 
-        # 1. Consultas de Hoje (Todas as agendadas para a data de hoje)
         count_hoje = Agendamento.objects.filter(data_hora_inicio__date=hoje).count()
 
-        # 2. A Confirmar (Futuros com status 'Agendado')
         count_confirmar = Agendamento.objects.filter(
             data_hora_inicio__gte=agora,
             status='Agendado'
         ).count()
 
-        # 3. Pacientes Novos no Mês (Tenta contar pacientes cadastrados este mês)
-        # OBS: Verifique se o campo de data no seu model Paciente é 'data_cadastro' ou 'created_at'
         try:
             from pacientes.models import Paciente
-            # Se seu model usar 'created_at', mude abaixo para created_at__gte
             count_novos = Paciente.objects.filter(data_cadastro__gte=inicio_mes).count()
         except AttributeError:
-            # Fallback: Se der erro no campo, retorna 0 para não quebrar
             count_novos = 0
         except Exception:
             count_novos = 0
