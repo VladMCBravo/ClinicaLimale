@@ -53,7 +53,7 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
                 });
                 setValoresConvenio(procedimento.valores_convenio || []);
                 
-                // Carrega Planos apenas se estiver editando (pois precisa do ID do procedimento salvo)
+                // Carrega Planos apenas se estiver editando
                 faturamentoService.getPlanosConvenio()
                     .then(response => {
                         const planosFiltrados = response.data.filter(plano => 
@@ -94,10 +94,32 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
                 showSnackbar('Procedimento criado com sucesso!', 'success');
             }
             onSave(); // Recarrega a lista no pai
-            if (!isEditing) onClose(); // Se for criação, fecha o modal. Se for edição, mantém aberto para editar preços.
+            if (!isEditing) onClose(); 
         } catch (error) {
             console.error(error);
             showSnackbar('Erro ao salvar.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // --- NOVA LÓGICA: Deletar Procedimento ---
+    const handleDelete = async () => {
+        if (!isEditing) return;
+
+        if (!window.confirm(`Deseja realmente excluir o procedimento "${formData.descricao}"? Isso pode afetar agendamentos passados.`)) {
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await faturamentoService.deleteProcedimento(procedimento.id);
+            showSnackbar('Procedimento excluído com sucesso.', 'success');
+            onSave(); // Atualiza a lista no pai
+            onClose(); // Fecha modal
+        } catch (error) {
+            console.error(error);
+            showSnackbar('Erro ao excluir procedimento. Verifique se existem agendamentos vinculados.', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -116,7 +138,7 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
             showSnackbar('Preço salvo!', 'success');
             setPlanoSelecionadoId('');
             setValorConvenio('');
-            onSave(); // Recarrega lista para atualizar o objeto 'procedimento' com os novos preços
+            onSave();
         } catch (error) {
             showSnackbar('Erro ao salvar preço.', 'error');
         } finally {
@@ -244,8 +266,22 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
                 )}
 
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Fechar</Button>
+            
+            {/* AÇÕES FINAIS (INCLUINDO DELETAR) */}
+            <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
+                <Box>
+                {isEditing && (
+                    <Button 
+                        color="error" 
+                        startIcon={<DeleteIcon />} 
+                        onClick={handleDelete}
+                        disabled={isSubmitting}
+                    >
+                        Excluir Procedimento
+                    </Button>
+                )}
+                </Box>
+                <Button onClick={onClose} disabled={isSubmitting}>Fechar</Button>
             </DialogActions>
         </Dialog>
     );

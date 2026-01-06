@@ -1,16 +1,20 @@
-// src/components/AgendamentoModal.jsx - VERSÃO COM FILTRO INTELIGENTE DE SALAS
-
+// src/components/AgendamentoModal.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
   Box, Typography, Divider, Chip, Grid
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete'; // Importando ícone
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+
+// Configura o locale para português
+dayjs.locale('pt-br');
 
 const getInitialFormData = () => ({
     paciente: null, data_hora_inicio: null, data_hora_fim: null, status: 'Agendado',
@@ -31,10 +35,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [procedimentos, setProcedimentos] = useState([]);
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
-    const [salas, setSalas] = useState([]); // Todas as salas do banco
+    const [salas, setSalas] = useState([]); 
     
     // Dados filtrados/calculados
-    const [salasFiltradas, setSalasFiltradas] = useState([]); // <--- NOVO ESTADO: Salas permitidas
+    const [salasFiltradas, setSalasFiltradas] = useState([]);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
@@ -46,7 +50,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
                     setPacientes(pacientesRes.data);
-                    // Filtra procedimentos que não sejam 'consulta' genérica
                     setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
                     setMedicos(medicosRes.data);
                     setEspecialidades(especialidadesRes.data);
@@ -55,34 +58,27 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             agendamentoService.getSalas()
                 .then(response => {
                     setSalas(response.data);
-                    setSalasFiltradas(response.data); // Inicialmente mostra todas
+                    setSalasFiltradas(response.data); 
                 })
                 .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
         }
     }, [open, showSnackbar]);
 
-    // --- NOVA LÓGICA: FILTRO INTELIGENTE DE SALAS ---
+    // Filtro Inteligente de Salas
     useEffect(() => {
-        // Se não tem procedimento selecionado (ou é consulta), mostra todas as salas
         if (!formData.procedimento || tipoAgendamento === 'Consulta') {
             setSalasFiltradas(salas);
             return;
         }
 
-        // O backend precisa mandar o campo 'equipamento_obrigatorio' no objeto do procedimento
-        // Se o seu serializer ainda não manda, ele vai ser undefined e mostrar todas as salas (sem quebrar)
         const equipamentoNecessario = formData.procedimento.equipamento_obrigatorio;
 
         if (equipamentoNecessario) {
-            // Filtra apenas salas que tenham a tag do equipamento
             const compativeis = salas.filter(sala => 
                 sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario)
             );
-            
             setSalasFiltradas(compativeis);
 
-            // Lógica de Segurança:
-            // Se já tinha uma sala selecionada, mas ela NÃO tem o equipamento, remove a seleção.
             if (formData.sala) {
                 const salaTemEquipamento = formData.sala.equipamentos && formData.sala.equipamentos.includes(equipamentoNecessario);
                 if (!salaTemEquipamento) {
@@ -91,12 +87,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 }
             }
         } else {
-            // Se o procedimento não exige nada específico, libera todas
             setSalasFiltradas(salas);
         }
     }, [formData.procedimento, tipoAgendamento, salas, formData.sala, showSnackbar]);
 
-    // Efeito para preencher o formulário (Edição ou Novo)
+    // Efeito para preencher o formulário
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -131,8 +126,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             setFormData(prev => ({ 
                 ...prev, 
                 data_hora_inicio: startTime,
-                data_hora_fim: startTime.add(50, 'minute'), // Valor padrão visual, o backend recalcula depois
+                data_hora_fim: startTime.add(50, 'minute'), 
                 sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
+                medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
+                especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
             }));
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
@@ -151,7 +148,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
     useEffect(() => {
         const CAPACIDADE_CONSULTAS = 3;
-        const CAPACidade_procedimentos = 1;
+        const CAPACIDADE_PROCEDIMENTOS = 1;
         if (!open) return;
         let consultasOcupadas = capacidade.consultas;
         let procedimentosOcupados = capacidade.procedimentos;
@@ -161,7 +158,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (tipoOriginal === 'Procedimento') procedimentosOcupados = Math.max(0, procedimentosOcupados - 1);
         }
         if (tipoAgendamento === 'Consulta') setIsSlotAvailable(consultasOcupadas < CAPACIDADE_CONSULTAS);
-        else if (tipoAgendamento === 'Procedimento') setIsSlotAvailable(procedimentosOcupados < CAPACidade_procedimentos);
+        else if (tipoAgendamento === 'Procedimento') setIsSlotAvailable(procedimentosOcupados < CAPACIDADE_PROCEDIMENTOS);
         else setIsSlotAvailable(true);
     }, [capacidade, tipoAgendamento, editingEvent, open]);
 
@@ -179,8 +176,44 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, []);
 
+    // --- NOVA LÓGICA: Validação do Formulário ---
+    const validarFormulario = () => {
+        if (!formData.paciente) return "Selecione um paciente.";
+        if (!formData.data_hora_inicio || !formData.data_hora_fim) return "Defina o horário de início e fim.";
+        
+        // Validação de Data Antiga (Opcional: permitir editar antigo se for admin, mas aqui bloqueamos criaçao)
+        if (!editingEvent && formData.data_hora_inicio.isBefore(dayjs())) {
+            return "Não é possível criar agendamentos no passado.";
+        }
+
+        if (formData.data_hora_inicio.isAfter(formData.data_hora_fim)) {
+            return "A data de fim deve ser posterior à data de início.";
+        }
+
+        if (!formData.sala) return "Selecione uma sala/consultório.";
+
+        if (tipoAgendamento === 'Consulta') {
+            if (!formData.especialidade) return "Selecione a especialidade.";
+            if (!formData.medico) return "Selecione o médico.";
+        } else {
+            if (!formData.procedimento) return "Selecione o procedimento.";
+        }
+
+        if (!isSlotAvailable) return "Não há capacidade disponível para este horário.";
+
+        return null; // Sem erros
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // 1. Validação Prévia
+        const erroValidacao = validarFormulario();
+        if (erroValidacao) {
+            showSnackbar(erroValidacao, 'warning');
+            return;
+        }
+
         setIsSubmitting(true);
         const submissionData = {
           ...formData,
@@ -206,6 +239,28 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                  errorMsg = Object.values(errorData).flat()[0];
             }
             showSnackbar(errorMsg, 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // --- NOVA LÓGICA: Excluir Agendamento ---
+    const handleDelete = async () => {
+        if (!editingEvent?.id) return;
+        
+        if (!window.confirm("Tem certeza que deseja EXCLUIR este agendamento? Esta ação não pode ser desfeita.")) {
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await agendamentoService.deleteAgendamento(editingEvent.id);
+            showSnackbar("Agendamento excluído com sucesso.", "success");
+            onSave(); // Atualiza a agenda no pai
+            onClose(); // Fecha o modal
+        } catch (error) {
+            console.error(error);
+            showSnackbar("Erro ao excluir agendamento.", "error");
         } finally {
             setIsSubmitting(false);
         }
@@ -250,7 +305,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={7}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                                {/* MUDANÇA AQUI: Usa 'salasFiltradas' ao invés de 'salas' */}
                                 <FormControl fullWidth>
                                     <Autocomplete 
                                         options={salasFiltradas} 
@@ -258,12 +312,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         value={formData.sala} 
                                         isOptionEqualToValue={(o, v) => o.id === v.id} 
                                         onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))} 
-                                        renderInput={(params) => (<TextField {...params} label="Sala *" size="small" />)} 
+                                        renderInput={(params) => (<TextField {...params} label="Sala *" size="small" error={!formData.sala} helperText={!formData.sala ? "Obrigatório" : ""} />)} 
                                         noOptionsText="Nenhuma sala compatível encontrada"
                                     />
                                 </FormControl>
 
-                                <FormControl fullWidth><Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''} value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handlePacienteChange} renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" />)} /></FormControl>
+                                <FormControl fullWidth><Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''} value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handlePacienteChange} renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" error={!formData.paciente} />)} /></FormControl>
                                 {pacienteDetalhes?.plano_convenio_detalhes && (<Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}><Typography variant="body2" color="text.secondary">Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome} - {pacienteDetalhes.plano_convenio_detalhes.nome}</strong></Typography></Box>)}
                                 <Divider sx={{ my: 1 }}><Chip label="Detalhes do Agendamento" size="small" /></Divider>
                                 <FormControl fullWidth size="small"><InputLabel>Tipo de Agendamento</InputLabel><Select value={tipoAgendamento} label="Tipo de Agendamento" onChange={(e) => setTipoAgendamento(e.target.value)}><MenuItem value="Consulta">Consulta</MenuItem><MenuItem value="Procedimento">Procedimento</MenuItem></Select></FormControl>
@@ -284,17 +338,62 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem></Select></FormControl>
                                 {valorExibido && (<Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}><Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>{valorExibido}</Typography></Box>)}
                                 <Divider sx={{ my: 1 }}><Chip label="Horário" size="small" /></Divider>
-                                <Grid container spacing={2}><Grid item xs={12} sm={6}><DateTimePicker label="Início *" value={formData.data_hora_inicio} onChange={(newValue) => { setFormData({ ...formData, data_hora_inicio: newValue, data_hora_fim: newValue ? newValue.add(50, 'minute') : null }); }} slotProps={{ textField: { size: 'small' } }} /></Grid><Grid item xs={12} sm={6}><DateTimePicker label="Fim *" value={formData.data_hora_fim} onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} slotProps={{ textField: { size: 'small' } }} /></Grid></Grid>
+                                
+                                {/* MUDANÇA AQUI: DateTimePicker com formato explícito */}
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12}>
+                                        <DateTimePicker 
+                                            label="Início *" 
+                                            value={formData.data_hora_inicio} 
+                                            onChange={(newValue) => { setFormData({ ...formData, data_hora_inicio: newValue, data_hora_fim: newValue ? newValue.add(50, 'minute') : null }); }} 
+                                            ampm={false}
+                                            format="DD/MM/YYYY HH:mm"
+                                            slotProps={{ textField: { size: 'small', fullWidth: true } }} 
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12}>
+                                        <DateTimePicker 
+                                            label="Fim *" 
+                                            value={formData.data_hora_fim} 
+                                            onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} 
+                                            ampm={false}
+                                            format="DD/MM/YYYY HH:mm"
+                                            slotProps={{ textField: { size: 'small', fullWidth: true } }} 
+                                        />
+                                    </Grid>
+                                </Grid>
+                                
                                 <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado (Aguardando Pagamento)</MenuItem><MenuItem value="Confirmado">Confirmado (Pago)</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Não Compareceu</MenuItem></Select></FormControl>
                             </Box>
                         </Grid>
                     </Grid>
                 </DialogContent>
-                <DialogActions sx={{ p: '16px 24px' }}>
-                    <Button onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={isSubmitting || !formData.paciente || !isSlotAvailable || !formData.sala}>
-                        {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
-                    </Button>
+                <DialogActions sx={{ p: '16px 24px', justifyContent: 'space-between' }}>
+                    
+                    {/* Botão de Excluir (Só aparece se estiver editando) */}
+                    <Box>
+                        {editingEvent && (
+                            <Button 
+                                onClick={handleDelete} 
+                                color="error" 
+                                startIcon={<DeleteIcon />}
+                                disabled={isSubmitting}
+                            >
+                                Excluir
+                            </Button>
+                        )}
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+                        <Button 
+                            type="submit" 
+                            variant="contained" 
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
+                        </Button>
+                    </Box>
                 </DialogActions>
             </form>
         </Dialog>
