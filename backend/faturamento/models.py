@@ -189,18 +189,24 @@ class Procedimento(models.Model):
         ('OUTROS', 'Outros'),
     ]
 
-    codigo_tuss = models.CharField(max_length=20, help_text="Código do procedimento na tabela TUSS") 
-    # Nota: Removi o unique=True do codigo_tuss, pois você pode ter o mesmo TUSS 
-    # para "Obstétrico Gemelar" e "Obstétrico Único" com preços diferentes.
+    # ALTERAÇÃO PRINCIPAL AQUI: Adicionado blank=True e null=True
+    codigo_tuss = models.CharField(
+        max_length=20, 
+        blank=True, 
+        null=True, 
+        help_text="Código do procedimento na tabela TUSS"
+    ) 
     
-    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default='OUTROS') # <--- NOVO CAMPO
+    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default='OUTROS')
     descricao = models.CharField(max_length=255)
     descricao_detalhada = models.TextField(blank=True)
     valor_particular = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Particular (R$)")
     ativo = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.codigo_tuss} - {self.descricao}"
+        # Ajuste visual: Se não tiver código, mostra "S/C" (Sem Código) ou apenas a descrição
+        codigo = self.codigo_tuss if self.codigo_tuss else "S/C"
+        return f"{codigo} - {self.descricao}"
 
     class Meta:
         ordering = ['categoria', 'descricao']
