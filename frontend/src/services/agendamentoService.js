@@ -35,6 +35,7 @@ const deleteSala = (id) => apiClient.delete(`/agendamentos/salas/${id}/`);
 
 const createAgendamento = (data) => apiClient.post('/agendamentos/', data);
 const updateAgendamento = (id, data) => apiClient.put(`/agendamentos/${id}/`, data);
+const deleteAgendamento = (id) => apiClient.delete(`/agendamentos/${id}/`);
 
 // --- CORREÇÃO: Adicionado parâmetro salaId opcional ---
 const verificarCapacidade = (inicio, fim, salaId = null) => {
@@ -78,6 +79,7 @@ export const agendamentoService = {
     deleteSala,
     createAgendamento,
     updateAgendamento,
+    deleteAgendamento,
     getModalData,
     verificarCapacidade,
     verificarDisponibilidade,
