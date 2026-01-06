@@ -135,14 +135,25 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
     
-    // --- LÓGICA DE CAPACIDADE ATUALIZADA ---
+    // --- LÓGICA DE CAPACIDADE ATUALIZADA (COM BLINDAGEM) ---
     useEffect(() => {
-        if (open && formData.data_hora_inicio && formData.data_hora_fim) {
+        // BLINDAGEM: Verifica se existe E se é uma data válida (isValid do dayjs)
+        const inicioValido = formData.data_hora_inicio && formData.data_hora_inicio.isValid();
+        const fimValido = formData.data_hora_fim && formData.data_hora_fim.isValid();
+
+        if (open && inicioValido && fimValido) {
             setCapacidade(prev => ({ ...prev, loading: true }));
+            
+            // Agora é seguro chamar toISOString()
             const inicioISO = formData.data_hora_inicio.toISOString();
             const fimISO = formData.data_hora_fim.toISOString();
             
-            agendamentoService.verificarCapacidade(inicioISO, fimISO)
+            // Adicionei verificação se a sala existe, pois verificarCapacidade pode precisar dela
+            const salaId = formData.sala ? formData.sala.id : null;
+
+            // Nota: Se sua API aceitar salaId, passe aqui. Se não, mantenha como estava.
+            // Vou manter conforme seu código original que passava inicio e fim:
+            agendamentoService.verificarCapacidade(inicioISO, fimISO, salaId)
                 .then(response => {
                     const ocupadasConsultas = response.data.consultas_agendadas;
                     const ocupadosProcedimentos = response.data.procedimentos_agendados;
@@ -158,7 +169,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); 
                 });
         }
-    }, [open, formData.data_hora_inicio, formData.data_hora_fim]);
+    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]); // Adicionei formData.sala nas dependências se a capacidade depender da sala
 
     // Calcula se deve bloquear baseado no Tipo selecionado
     useEffect(() => {
