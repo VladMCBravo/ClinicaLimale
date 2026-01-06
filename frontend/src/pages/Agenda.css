@@ -91,3 +91,22 @@
     padding: 4px 6px !important; /* <-- PADDING AJUSTADO */
 }
 /* ---------------------------------------------------- */
+
+/* --- CORREÇÃO DE EVENTOS ESMAGADOS --- */
+
+/* Remove o padding vertical excessivo dentro do evento */
+.fc-timegrid-event .fc-event-main {
+    padding: 1px 4px !important; /* Reduz espaço interno */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centraliza o texto verticalmente */
+    line-height: 1.1 !important; /* Junta mais as linhas de texto */
+}
+
+/* Opcional: Diminui um pouco a fonte APENAS dentro do evento se for muito pequeno */
+.fc-timegrid-event .fc-event-title {
+    font-size: 0.85rem !important;
+    white-space: nowrap; /* Evita que o texto quebre linha se ficar feio */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Adiciona "..." se não couber */
+}
