@@ -178,8 +178,9 @@ class ProcedimentoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 
             'codigo_tuss', 
+            'categoria',        # <--- ADICIONE ESTA LINHA AQUI
             'descricao', 
-            'valor_particular', # 4. Corrigido de 'valor' para 'valor_particular'
+            'valor_particular', 
             'ativo', 
-            'valores_convenio' # 5. Campo aninhado com a lista de preços
+            'valores_convenio'
         ]
