@@ -1,60 +1,33 @@
-# backend/agendamentos/serializers.py - VERSÃO FINAL E COMPLETA
+# backend/agendamentos/serializers.py - VERSÃO FINAL E CORRETA
 
 from rest_framework import serializers
 from .models import Agendamento, Sala
 from pacientes.models import Paciente
 from usuarios.models import CustomUser, Especialidade
 from faturamento.models import Procedimento
-from django.utils import timezone
-
 
 # --- Serializer para LEITURA (GET) ---
-# Mostra os dados de forma legível para o frontend
 class AgendamentoSerializer(serializers.ModelSerializer):
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
     status_pagamento = serializers.CharField(source='pagamento.status', read_only=True, default='Pendente')
     primeira_consulta = serializers.SerializerMethodField()
     
-    # --- NOVOS CAMPOS PARA EXIBIÇÃO ---
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True, default=None)
     especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True, default=None)
     procedimento_descricao = serializers.CharField(source='procedimento.descricao', read_only=True, default=None)
     plano_utilizado = serializers.CharField(source='plano_utilizado.nome', read_only=True, default=None)
-    # <<-- NOVO CAMPO PARA EXIBIÇÃO DA SALA -->>
     sala_nome = serializers.CharField(source='sala.nome', read_only=True)
 
     class Meta:
         model = Agendamento
         fields = [
-            'id', 
-            'paciente', 
-            'paciente_nome', 
-            'data_hora_inicio', 
-            'data_hora_fim', 
-            'status',
-            'plano_utilizado',
-            'tipo_atendimento',
-            'observacoes',
-            'status_pagamento',
-            'primeira_consulta',
-            'link_telemedicina',
-            'modalidade',
-            'tipo_visita',
-            
-            # --- CAMPOS DA NOVA LÓGICA ---
-            'tipo_agendamento',
-            'medico', # ID do médico
-            'medico_nome', # Nome do médico
-            'especialidade', # ID da especialidade
-            'especialidade_nome', # Nome da especialidade
-            'procedimento', # ID do procedimento
-            'procedimento_descricao', # Descrição do procedimento
-            'data_criacao', # Adicionado para visualização
-            'data_atualizacao', # Adicionado para visualização
-            'expira_em', # Adicionado para visualização
-            'id_sala_telemedicina', # Adicionado para visualização
-            'sala', # <-- Adiciona o ID da sala
-            'sala_nome' # <-- Adiciona o nome da sala
+            'id', 'paciente', 'paciente_nome', 'data_hora_inicio', 'data_hora_fim', 
+            'status', 'plano_utilizado', 'tipo_atendimento', 'observacoes', 
+            'status_pagamento', 'primeira_consulta', 'link_telemedicina', 
+            'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 
+            'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao', 
+            'data_criacao', 'data_atualizacao', 'expira_em', 'id_sala_telemedicina', 
+            'sala', 'sala_nome'
         ]
 
     def get_primeira_consulta(self, obj):
@@ -65,16 +38,11 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         ).exists()
 
 # --- Serializer para ESCRITA (POST, PUT) ---
-# A MUDANÇA PRINCIPAL OCORRE AQUI
 class AgendamentoWriteSerializer(serializers.ModelSerializer):
     paciente = serializers.PrimaryKeyRelatedField(queryset=Paciente.objects.all())
     medico = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.filter(cargo='medico'), required=False, allow_null=True)
     especialidade = serializers.PrimaryKeyRelatedField(queryset=Especialidade.objects.all(), required=False, allow_null=True)
     procedimento = serializers.PrimaryKeyRelatedField(queryset=Procedimento.objects.all(), required=False, allow_null=True)
-    # <<-- NOVO CAMPO OBRIGATÓRIO PARA ESCRITA -->>
-    # <<-- A MUDANÇA ESTÁ AQUI -->>
-    # A sala agora não é obrigatória por padrão, permitindo requisições do chatbot.
-    # A obrigatoriedade será verificada na lógica de validação abaixo.
     sala = serializers.PrimaryKeyRelatedField(queryset=Sala.objects.all(), required=False, allow_null=True)
 
     class Meta:
@@ -87,123 +55,71 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         ]
                   
     def validate(self, data):
-        """
-        Validação corrigida: Aceita a sala enviada pelo frontend.
-        """
-        CAPACIDADE_CONSULTAS = 3
-        CAPACIDADE_PROCEDIMENTOS = 1
+        # REGRAS DE CAPACIDADE
+        LIMITE_GLOBAL_CONSULTAS = 3
+        LIMITE_GLOBAL_PROCEDIMENTOS = 1
 
-        tipo_agendamento_atual = data.get('tipo_agendamento')
+        tipo_agendamento = data.get('tipo_agendamento')
         inicio = data.get('data_hora_inicio')
         fim = data.get('data_hora_fim')
-        sala_atual = data.get('sala') # Pega a sala enviada pelo Frontend
+        sala_selecionada = data.get('sala')
+        agendamento_id = self.instance.pk if self.instance else None
 
-        # --- REGRAS DE NEGÓCIO (Consulta vs Procedimento) ---
-        if tipo_agendamento_atual == 'Consulta':
-            if not data.get('medico'):
-                raise serializers.ValidationError({"medico": "É necessário selecionar um médico para a consulta."})
-            if not data.get('especialidade'):
-                raise serializers.ValidationError({"especialidade": "É necessário selecionar uma especialidade para a consulta."})
+        # 1. Validação Básica de Campos
+        if tipo_agendamento == 'Consulta':
+            if not data.get('medico'): raise serializers.ValidationError({"medico": "Selecione um médico."})
             data['procedimento'] = None
-            
-        elif tipo_agendamento_atual == 'Procedimento':
-            if not data.get('procedimento'):
-                raise serializers.ValidationError({"procedimento": "É necessário selecionar um procedimento."})
-            
+        elif tipo_agendamento == 'Procedimento':
+            if not data.get('procedimento'): raise serializers.ValidationError({"procedimento": "Selecione um procedimento."})
             data['medico'] = None
             data['especialidade'] = None
-            data['modalidade'] = 'Presencial'
             
-            # --- CORREÇÃO AQUI: Removemos a busca fixa por "Sala 1" ---
-            if not sala_atual:
-                 # Tenta buscar uma sala configurada como de exame
-                 sala_padrao = Sala.objects.filter(e_sala_exame=True).first()
-                 if sala_padrao:
-                     data['sala'] = sala_padrao
-                     sala_atual = sala_padrao
-                 else:
-                    # Último recurso: pega qualquer sala para não travar
-                    sala_qualquer = Sala.objects.first()
-                    if sala_qualquer:
-                         data['sala'] = sala_qualquer
-                         sala_atual = sala_qualquer
-                    else:
-                        raise serializers.ValidationError({
-                            "sala": "Nenhuma sala selecionada e nenhuma sala cadastrada no sistema."
-                        })
+            # Tenta atribuir sala automaticamente para procedimentos se não informada
+            if not sala_selecionada:
+                sala_exame = Sala.objects.filter(e_sala_exame=True).first()
+                if sala_exame:
+                    data['sala'] = sala_exame
+                    sala_selecionada = sala_exame
+                else:
+                    raise serializers.ValidationError({"sala": "Nenhuma sala de procedimentos encontrada."})
 
-        # --- VALIDAÇÃO DE OBRIGATORIEDADE DE SALA (Para Recepção) ---
-        request = self.context.get('request')
-        usuario_logado = request.user if request and hasattr(request, 'user') else None
-
-        if usuario_logado and hasattr(usuario_logado, 'cargo') and usuario_logado.cargo in ['recepcao', 'admin']:
-             modalidade = data.get('modalidade', 'Presencial')
-             if not sala_atual and modalidade == 'Presencial':
-                 raise serializers.ValidationError({"sala": "A seleção da sala é obrigatória."})
-
-        # --- VALIDAÇÃO DE CAPACIDADE DA SALA ---
-        if sala_atual:
-            conflitos = Agendamento.objects.filter(
-                data_hora_inicio__lt=fim, 
-                data_hora_fim__gt=inicio,
-                sala=sala_atual
+        # 2. Validação de Conflito Físico (Sala Específica)
+        if sala_selecionada:
+            conflito_sala = Agendamento.objects.filter(
+                sala=sala_selecionada,
+                data_hora_inicio__lt=fim,
+                data_hora_fim__gt=inicio
             ).exclude(status='Cancelado')
 
-            if self.instance:
-                conflitos = conflitos.exclude(pk=self.instance.pk)
+            if agendamento_id: conflito_sala = conflito_sala.exclude(pk=agendamento_id)
 
-            consultas_na_sala = conflitos.filter(tipo_agendamento='Consulta').count()
-            procedimentos_na_sala = conflitos.filter(tipo_agendamento='Procedimento').count()
+            if conflito_sala.exists():
+                raise serializers.ValidationError({"sala": f"A sala '{sala_selecionada.nome}' já está ocupada neste horário."})
 
-            if tipo_agendamento_atual == 'Consulta' and consultas_na_sala >= CAPACIDADE_CONSULTAS:
-                raise serializers.ValidationError(f"Capacidade esgotada ({CAPACIDADE_CONSULTAS} consultas) para esta sala.")
-            elif tipo_agendamento_atual == 'Procedimento' and procedimentos_na_sala >= CAPACIDADE_PROCEDIMENTOS:
-                raise serializers.ValidationError(f"A sala já está ocupada por um procedimento neste horário.")
+        # 3. Validação de Limite Global (Contador da Clínica)
+        conflitos_globais = Agendamento.objects.filter(
+            data_hora_inicio__lt=fim,
+            data_hora_fim__gt=inicio,
+            tipo_agendamento=tipo_agendamento
+        ).exclude(status='Cancelado')
+
+        if agendamento_id: conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
+
+        qtd_existente = conflitos_globais.count()
+
+        if tipo_agendamento == 'Consulta' and qtd_existente >= LIMITE_GLOBAL_CONSULTAS:
+            raise serializers.ValidationError({
+                "non_field_errors": f"Limite de consultas simultâneas atingido ({LIMITE_GLOBAL_CONSULTAS}). Não há salas disponíveis."
+            })
         
+        elif tipo_agendamento == 'Procedimento' and qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS:
+             raise serializers.ValidationError({
+                "non_field_errors": f"A sala de procedimentos já está ocupada neste horário (Limite: {LIMITE_GLOBAL_PROCEDIMENTOS})."
+            })
+
         return data
     
-# --- Serializer simples para listar as salas ---
 class SalaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sala
         fields = ['id', 'nome', 'descricao']
-
-# <<-- NOVA FUNÇÃO 1 -->>
-def listar_agendamentos_futuros(cpf):
-    """Busca no banco de dados todos os agendamentos futuros de um paciente."""
-    try:
-        paciente = Paciente.objects.get(cpf=cpf)
-        agora = timezone.now()
-        
-        agendamentos = Agendamento.objects.filter(
-            paciente=paciente,
-            data_hora_inicio__gte=agora,
-            status__in=['Agendado', 'Confirmado']
-        ).order_by('data_hora_inicio')
-        
-        return list(agendamentos)
-    except Paciente.DoesNotExist:
-        return []
-
-# <<-- NOVA FUNÇÃO 2 -->>
-def cancelar_agendamento_service(agendamento_id):
-    """Altera o status de um agendamento para 'Cancelado'."""
-    try:
-        agendamento = Agendamento.objects.get(id=agendamento_id)
-        
-        # Lógica de negócio: talvez não possa cancelar muito perto da data
-        # Por enquanto, vamos permitir o cancelamento a qualquer momento
-        
-        agendamento.status = 'Cancelado'
-        agendamento.save()
-        
-        # Opcional: cancelar também o pagamento associado
-        if hasattr(agendamento, 'pagamento'):
-            pagamento = agendamento.pagamento
-            pagamento.status = 'Cancelado'
-            pagamento.save()
-            # Aqui entraria a lógica de estorno, se aplicável
-            
-        return {"status": "sucesso", "mensagem": "Agendamento cancelado com sucesso."}
-    except Agendamento.DoesNotExist:
-        return {"status": "erro", "mensagem": "Agendamento não encontrado."}

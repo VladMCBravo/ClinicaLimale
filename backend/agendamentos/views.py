@@ -218,9 +218,8 @@ class VerificarCapacidadeHorarioAPIView(APIView):
     def get(self, request, *args, **kwargs):
         inicio_str = request.query_params.get('inicio')
         fim_str = request.query_params.get('fim')
-        # O Frontend agora envia a sala_id (pode vir no body ou query param)
-        sala_id = request.query_params.get('sala') # Tenta pegar da URL
-
+        # Ignoramos sala_id aqui para o contador global, pois queremos saber o total da clínica
+        
         if not inicio_str or not fim_str:
             return Response({'detail': 'Dados insuficientes.'}, status=400)
 
@@ -230,38 +229,23 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         except ValueError:
             return Response({'detail': 'Data inválida.'}, status=400)
 
-        # Base da query: conflitos de horário (exceto cancelados)
-        conflitos_base = Agendamento.objects.filter(
+        # Busca GLOBAL de agendamentos ativos naquele horário (exceto cancelados)
+        # Verifica intersecção de horário: (start < fim_req) AND (end > inicio_req)
+        agendamentos_conflitantes = Agendamento.objects.filter(
             data_hora_inicio__lt=fim, 
             data_hora_fim__gt=inicio,
         ).exclude(status='Cancelado')
 
-        # LÓGICA DE CAPACIDADE INTELIGENTE
-        if sala_id:
-            # 1. Se veio uma SALA específica, verificamos conflitos APENAS nela
-            # Isso resolve o erro "Sala não encontrada", pois usamos o ID direto
-            ocupacao_sala = conflitos_base.filter(sala_id=sala_id).count()
-            
-            # Se a sala já tem 1 agendamento nesse horário, está cheia (capacidade da sala = 1)
-            # Retornamos números que forçam o frontend a bloquear
-            return Response({
-                'consultas_agendadas': ocupacao_sala,     # Se for 1, o frontend bloqueia
-                'procedimentos_agendados': ocupacao_sala, # Se for 1, o frontend bloqueia
-                'verificacao_por_sala': True 
-            })
+        # Contagem Global
+        qtd_consultas = agendamentos_conflitantes.filter(tipo_agendamento='Consulta').count()
+        qtd_procedimentos = agendamentos_conflitantes.filter(tipo_agendamento='Procedimento').count()
         
-        else:
-            # 2. Se NÃO veio sala (ex: Consulta genérica sem sala definida ainda),
-            # usamos a lógica antiga de contagem global
-            consultas = conflitos_base.filter(tipo_agendamento='Consulta').count()
-            procedimentos = conflitos_base.filter(tipo_agendamento='Procedimento').count()
-            
-            return Response({
-                'consultas_agendadas': consultas,
-                'procedimentos_agendados': procedimentos,
-                'verificacao_por_sala': False
-            })
-
+        return Response({
+            'consultas_agendadas': qtd_consultas,     # Ex: 2 (de 3 possíveis)
+            'procedimentos_agendados': qtd_procedimentos, # Ex: 1 (de 1 possível)
+            'verificacao_por_sala': False
+        })
+        
 
 class MinhaAgendaView(generics.ListAPIView):
     serializer_class = AgendamentoSerializer

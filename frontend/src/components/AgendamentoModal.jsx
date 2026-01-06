@@ -134,32 +134,57 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
     
-    // Verificação de Capacidade
+    // --- LÓGICA DE CAPACIDADE ATUALIZADA ---
     useEffect(() => {
         if (open && formData.data_hora_inicio && formData.data_hora_fim) {
             setCapacidade(prev => ({ ...prev, loading: true }));
             const inicioISO = formData.data_hora_inicio.toISOString();
             const fimISO = formData.data_hora_fim.toISOString();
+            
             agendamentoService.verificarCapacidade(inicioISO, fimISO)
-                .then(response => setCapacidade({ consultas: response.data.consultas_agendadas, procedimentos: response.data.procedimentos_agendados, loading: false }))
-                .catch(err => { console.error("Erro ao verificar capacidade", err); setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); });
+                .then(response => {
+                    const ocupadasConsultas = response.data.consultas_agendadas;
+                    const ocupadosProcedimentos = response.data.procedimentos_agendados;
+                    
+                    setCapacidade({ 
+                        consultas: ocupadasConsultas, 
+                        procedimentos: ocupadosProcedimentos, 
+                        loading: false 
+                    });
+                })
+                .catch(err => { 
+                    console.error("Erro capacidade", err); 
+                    setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); 
+                });
         }
     }, [open, formData.data_hora_inicio, formData.data_hora_fim]);
 
+    // Calcula se deve bloquear baseado no Tipo selecionado
     useEffect(() => {
-        const CAPACIDADE_CONSULTAS = 3;
-        const CAPACIDADE_PROCEDIMENTOS = 1;
+        const CAPACIDADE_MAX_CONSULTAS = 3;
+        const CAPACIDADE_MAX_PROCEDIMENTOS = 1;
+        
         if (!open) return;
-        let consultasOcupadas = capacidade.consultas;
-        let procedimentosOcupados = capacidade.procedimentos;
+
+        let ocupacaoConsultas = capacidade.consultas;
+        let ocupacaoProcedimentos = capacidade.procedimentos;
+
+        // Se estamos editando, subtraímos o próprio agendamento da contagem para não contar duplicado
         if (editingEvent) {
             const tipoOriginal = editingEvent.extendedProps ? editingEvent.extendedProps.tipo_agendamento : editingEvent.tipo_agendamento;
-            if (tipoOriginal === 'Consulta') consultasOcupadas = Math.max(0, consultasOcupadas - 1);
-            if (tipoOriginal === 'Procedimento') procedimentosOcupados = Math.max(0, procedimentosOcupados - 1);
+            if (tipoOriginal === 'Consulta') ocupacaoConsultas = Math.max(0, ocupacaoConsultas - 1);
+            if (tipoOriginal === 'Procedimento') ocupacaoProcedimentos = Math.max(0, ocupacaoProcedimentos - 1);
         }
-        if (tipoAgendamento === 'Consulta') setIsSlotAvailable(consultasOcupadas < CAPACIDADE_CONSULTAS);
-        else if (tipoAgendamento === 'Procedimento') setIsSlotAvailable(procedimentosOcupados < CAPACIDADE_PROCEDIMENTOS);
-        else setIsSlotAvailable(true);
+
+        let bloqueado = false;
+        if (tipoAgendamento === 'Consulta') {
+            bloqueado = ocupacaoConsultas >= CAPACIDADE_MAX_CONSULTAS;
+        } else if (tipoAgendamento === 'Procedimento') {
+            bloqueado = ocupacaoProcedimentos >= CAPACIDADE_MAX_PROCEDIMENTOS;
+        }
+
+        setBloqueioCapacidade(bloqueado);
+
     }, [capacidade, tipoAgendamento, editingEvent, open]);
 
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
@@ -201,7 +226,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
         if (!isSlotAvailable) return "Não há capacidade disponível para este horário.";
 
-        return null; // Sem erros
+        if (bloqueioCapacidade) {
+            if (tipoAgendamento === 'Consulta') return "Limite de consultas simultâneas (3) atingido neste horário.";
+            if (tipoAgendamento === 'Procedimento') return "A sala de procedimentos já está ocupada neste horário.";
+        }
+        
+        return null;
     };
 
     const handleSubmit = async (e) => {
@@ -275,29 +305,49 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.tipo_atendimento]);
 
     const renderCapacidadeInfo = () => {
-        const CAPACIDADE_CONSULTAS = 3;
-        const CAPACIDADE_PROCEDIMENTOS = 1;
-        const consultasDisponiveis = CAPACIDADE_CONSULTAS - capacidade.consultas;
-        const procedimentosDisponiveis = CAPACIDADE_PROCEDIMENTOS - capacidade.procedimentos;
+        const MAX_CONS = 3;
+        const MAX_PROC = 1;
+        
+        // Ajuste visual para considerar o próprio agendamento na contagem se estiver editando
+        let visualConsultas = capacidade.consultas;
+        let visualProc = capacidade.procedimentos;
+        
+        // Cores e Labels
+        const corConsultas = visualConsultas >= MAX_CONS ? "error" : "success";
+        const corProc = visualProc >= MAX_PROC ? "error" : "success";
+
         return (
-            <Box sx={{ p: 1.5, backgroundColor: '#f0f4f8', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center', mt: 1, mb: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Disponibilidade:</Typography>
-                {capacidade.loading ? <CircularProgress size={20} /> : (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Chip label={`Consultas: ${consultasDisponiveis}`} color={consultasDisponiveis > 0 ? "success" : "error"} size="small" variant="outlined" />
-                        <Chip label={`Procedimentos: ${procedimentosDisponiveis}`} color={procedimentosDisponiveis > 0 ? "success" : "error"} size="small" variant="outlined" />
-                    </Box>
+            <Box sx={{ p: 1, bgcolor: '#f5f5f5', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#666' }}>OCUPAÇÃO DO HORÁRIO:</Typography>
+                {capacidade.loading ? <CircularProgress size={16} /> : (
+                    <>
+                        <Chip 
+                            label={`Consultas: ${visualConsultas}/${MAX_CONS}`} 
+                            color={corConsultas} 
+                            size="small" 
+                            variant={tipoAgendamento === 'Consulta' ? "filled" : "outlined"} // Destaca o atual
+                            sx={{ fontWeight: 'bold' }}
+                        />
+                        <Chip 
+                            label={`Procedimentos: ${visualProc}/${MAX_PROC}`} 
+                            color={corProc} 
+                            size="small" 
+                            variant={tipoAgendamento === 'Procedimento' ? "filled" : "outlined"} // Destaca o atual
+                            sx={{ fontWeight: 'bold' }}
+                        />
+                    </>
                 )}
             </Box>
         );
     };
-    
+
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div">{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</Typography>
-                    {formData.data_hora_inicio && renderCapacidadeInfo()} 
+            <DialogTitle sx={{ pb: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Typography variant="h6">{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</Typography>
+                    {/* Renderiza o contador no topo */}
+                    {formData.data_hora_inicio && renderCapacidadeInfo()}
                 </Box>
             </DialogTitle>
             <form onSubmit={handleSubmit}>
