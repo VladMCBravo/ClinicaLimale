@@ -42,6 +42,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
+    const [bloqueioCapacidade, setBloqueioCapacidade] = useState(false);
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
 
     // Efeito para buscar dados gerais
