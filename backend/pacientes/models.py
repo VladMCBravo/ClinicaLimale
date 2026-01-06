@@ -25,7 +25,7 @@ class Paciente(models.Model):
     # Dados Demográficos
     nome_completo = models.CharField(max_length=255)
     data_nascimento = models.DateField()
-    cpf = models.CharField(max_length=14, unique=True)
+    cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
     genero = models.CharField(max_length=20, choices=GENERO_CHOICES, blank=True)
     # Dados VITAIS mais recentes (aferidos na recepção ou última consulta)
     peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Peso em kg")
