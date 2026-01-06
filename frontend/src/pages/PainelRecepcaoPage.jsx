@@ -137,7 +137,8 @@ export default function PainelRecepcaoPage() {
                         especialidadeFiltro={especialidadeFiltro} 
                         onDateClick={handleDateClick} 
                         onEventClick={handleEventClick} 
-                        salas={salas} 
+                        salas={salas}
+                        refreshTrigger={refreshTrigger} // <--- ADICIONE ESTA LINHA AQUI
                     />
                 </Box>
             </Box>
