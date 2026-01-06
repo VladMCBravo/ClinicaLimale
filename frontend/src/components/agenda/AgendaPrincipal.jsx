@@ -20,7 +20,12 @@ const getColorForSala = (salaId) => {
 };
 
 export default function AgendaPrincipal({
-    medicoFiltro, especialidadeFiltro, onDateClick, onEventClick, salas = []
+    medicoFiltro, 
+    especialidadeFiltro, 
+    onDateClick, 
+    onEventClick, 
+    salas = [],
+    refreshTrigger // <--- 1. ADICIONE ESTA NOVA PROP AQUI
 }) {
     const calendarRef = useRef(null);
 
@@ -46,9 +51,10 @@ export default function AgendaPrincipal({
 
     useEffect(() => {
         if (calendarRef.current) {
+            console.log("Recarregando eventos da agenda..."); // Opcional: para debug
             calendarRef.current.getApi().refetchEvents();
         }
-    }, [medicoFiltro, especialidadeFiltro]);
+    }, [medicoFiltro, especialidadeFiltro, refreshTrigger]); // <--- 2. ADICIONE ELA NAS DEPENDÊNCIAS
 
     return (
         <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
