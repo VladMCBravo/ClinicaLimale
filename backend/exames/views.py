@@ -59,21 +59,33 @@ class AcessarResultadosView(APIView):
     """
     API pública para o paciente acessar seus exames via Código e Senha.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny] # Garante que não precisa de token
 
     def post(self, request):
-        codigo = request.data.get('codigo_acesso')
-        senha = request.data.get('senha_acesso')
+        # 1. Tenta pegar os campos como o Front envia (codigo/senha) 
+        #    OU como o banco espera (codigo_acesso/senha_acesso) para garantir.
+        codigo = request.data.get('codigo') or request.data.get('codigo_acesso')
+        senha = request.data.get('senha') or request.data.get('senha_acesso')
 
         if not codigo or not senha:
-            return Response({'erro': 'Código e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'erro': 'Código e senha são obrigatórios.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Busca exame pelo código (case insensitive)
-        exame = get_object_or_404(Exame, codigo_acesso__iexact=codigo)
+        # 2. Busca exame pelo código (case insensitive)
+        # O try/except é mais seguro que get_object_or_404 para APIs públicas
+        try:
+            exame = Exame.objects.get(codigo_acesso__iexact=codigo)
+        except Exame.DoesNotExist:
+            # Retornar 404 ou 403 genérico para segurança
+            return Response({'erro': 'Exame não encontrado ou credenciais inválidas.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # 3. Verifica a senha
         if exame.senha_acesso != senha:
             return Response({'erro': 'Senha incorreta.'}, status=status.HTTP_403_FORBIDDEN)
 
+        # 4. Monta a resposta
         arquivos_data = []
         for arquivo in exame.arquivos.all():
             arquivos_data.append({
@@ -83,7 +95,6 @@ class AcessarResultadosView(APIView):
             })
 
         return Response({
-            # CORREÇÃO AQUI: Mostra o nome da pasta se não tiver paciente vinculado
             'paciente': exame.paciente.nome_completo if exame.paciente else exame.nome_paciente_pasta,
             'data_exame': exame.data_exame,
             'arquivos': arquivos_data
