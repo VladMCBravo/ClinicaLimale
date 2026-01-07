@@ -1,7 +1,7 @@
 # backend/core/urls.py
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse # <-- Importe isso
+from django.http import JsonResponse # <-- Importe isso
 # 1. Importe TODAS as views de PDF que você precisa
 from prontuario.views import (
     GerarAtestadoPDFView, 
@@ -15,11 +15,19 @@ from prontuario.views import (
 from usuarios.views import CustomAuthTokenLoginView, LogoutView
 from .views import debug_env_view, list_urls_view
 
-# Crie uma view simples
-def home_view(request):
-    return HttpResponse("<h1>Sistema de Clínica - API Online 🚀</h1>")
+# 2. Crie esta função simples
+def api_root(request):
+    return JsonResponse({
+        "status": "online", 
+        "message": "API Clinicalimale operante",
+        "backend": "Django/Render"
+    })
 
 urlpatterns = [
+    # --- ROTA DA RAIZ (ADICIONE ESTA LINHA) ---
+    # É ela que chama a função api_root quando acessam o site principal
+    path('', api_root, name='api-root'),
+    
     path('admin/', admin.site.urls),
     
     # --- Rotas de Debug ---
