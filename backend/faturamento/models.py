@@ -58,11 +58,15 @@ class Pagamento(models.Model):
 
 
     def __str__(self):
-        # --- ALTERAÇÃO NO STR PARA EVITAR ERRO ---
-        nome_paciente = self.paciente.nome_completo if self.paciente else "Sem Paciente"
-        if self.agendamento:
+        # CORREÇÃO: Prioridade para Paciente. 
+        # Se tem paciente vinculado, não é avulso, é receita de paciente.
+        if self.paciente:
+            origem = "Agendamento" if self.agendamento else "Receita Paciente"
             return f"Pagamento de R$ {self.valor} para {self.paciente.nome_completo} ({self.status})"
-        return f"Lançamento Avulso: {self.descricao} - R$ {self.valor} ({self.status})"
+        
+        # Só é avulso se NÃO tiver paciente
+        desc = self.descricao if self.descricao else "Sem descrição"
+        return f"Lançamento Avulso: {desc} - R$ {self.valor} ({self.status})"
 
 
     def save(self, *args, **kwargs):

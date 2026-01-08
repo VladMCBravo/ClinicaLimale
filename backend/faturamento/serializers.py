@@ -66,22 +66,23 @@ class PagamentoSerializer(serializers.ModelSerializer):
         return "Cliente Avulso" # Texto mais amigável que "Outros"
 
     def get_descricao_visual(self, obj):
-        # 1. Prioridade: Se tem descrição manual (Avulso ou observação), usa ela
-        if obj.descricao:
-            return obj.descricao
-            
-        # 2. Se for agendamento, tenta pegar o nome do procedimento
-        # Precisamos verificar se existe agendamento E procedimento
+        # CORREÇÃO: Invertemos a prioridade.
+        # 1. Primeiro verificamos se é um Agendamento (Fluxo Clínico)
         if obj.agendamento:
-            # Dica: O serializer AgendamentoInfoSerializer não traz o procedimento detalhado,
-            # mas podemos acessar pelo objeto 'obj.agendamento' se o select_related estiver ok na view.
+            # Tenta pegar o nome bonito do procedimento ou consulta
             try:
                 if obj.agendamento.procedimento:
                     return obj.agendamento.procedimento.descricao
+                elif obj.agendamento.tipo_agendamento == 'Consulta':
+                    return "Consulta Médica"
                 else:
-                    return f"Consulta (ID: {obj.agendamento.id})"
+                    return f"Atendimento (ID: {obj.agendamento.id})"
             except AttributeError:
                 pass
+
+        # 2. Se não for agendamento, mas tiver descrição manual (Avulso), usa ela
+        if obj.descricao:
+            return obj.descricao
 
         # 3. Fallback final
         return "Receita Diversa"
