@@ -16,22 +16,39 @@ class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        nome_pasta = request.data.get('nome_paciente')
+        nome_pasta = request.data.get('nome_paciente') # Ex: SEIXAS_AMANDA
         data_str = request.data.get('data_exame') 
         files = request.FILES.getlist('arquivos') 
 
         if not nome_pasta or not data_str:
             return Response({'erro': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. Tenta achar o paciente (CORRIGIDO PARA nome_completo)
+        # --- CORREÇÃO DE BUSCA INTELIGENTE ---
         paciente_encontrado = None
         
-        # Busca simples
-        candidatos = Paciente.objects.filter(nome_completo__icontains=nome_pasta.split('_')[-1].strip())
-        if candidatos.exists():
-            paciente_encontrado = candidatos.first()
+        # 1. Limpa o nome: Troca underline por espaço
+        # Ex: "SEIXAS_AMANDA" vira "SEIXAS AMANDA"
+        nome_limpo = nome_pasta.replace('_', ' ').strip()
+        
+        # 2. Tenta busca exata primeiro (Melhor precisão)
+        pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
+        
+        if not pacientes.exists():
+            # 3. Se não achar, tenta conter o nome (Ex: "Amanda Seixas" contém "Seixas Amanda"?)
+            # Aqui invertemos a lógica: Buscamos se partes do nome da pasta estão no banco
+            termos = nome_limpo.split()
+            # Pega o primeiro e o último nome para tentar filtrar (Ex: SEIXAS e AMANDA)
+            if len(termos) >= 1:
+                query = Paciente.objects.filter(nome_completo__icontains=termos[0])
+                if len(termos) > 1:
+                    query = query.filter(nome_completo__icontains=termos[-1])
+                
+                pacientes = query
 
-        # 3. Cria o Exame
+        if pacientes.exists():
+            paciente_encontrado = pacientes.first()
+
+        # Cria o Exame
         exame = Exame.objects.create(
             paciente=paciente_encontrado,
             data_exame=data_str,
@@ -39,7 +56,7 @@ class UploadExameView(APIView):
             status='DISPONIVEL' if paciente_encontrado else 'PENDENTE'
         )
 
-        # 4. Salva os Arquivos
+        # Salva Arquivos
         count_imgs = 0
         for f in files:
             tipo = 'VIDEO' if f.name.lower().endswith(('.mp4', '.avi', '.mov')) else 'IMAGEM'
@@ -52,9 +69,7 @@ class UploadExameView(APIView):
             'status': 'sucesso',
             'exame_id': exame.id,
             'arquivos_salvos': count_imgs,
-            # --- A CORREÇÃO É AQUI EMBAIXO ---
-            # Antes estava .nome, agora é .nome_completo
-            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else None
+            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO (Faça manual)"
         }, status=status.HTTP_201_CREATED)
 
 class AcessarResultadosView(APIView):
@@ -103,21 +118,22 @@ class AcessarResultadosView(APIView):
         })
 
 class ListarExamesPendentesView(ListAPIView):
-    """ Lista apenas exames que ainda não têm paciente vinculado """
-    permission_classes = [IsAuthenticated] # Apenas staff logado
+    """ 
+    Lista TODOS os exames que estão 'soltos' (sem paciente vinculado).
+    Usado pelo ModalVincularExame no Frontend.
+    """
+    permission_classes = [IsAuthenticated]
     serializer_class = ExameSerializer
 
     def get_queryset(self):
-        paciente_id = self.request.query_params.get('paciente_id')
-        if paciente_id:
-            return Exame.objects.filter(paciente_id=paciente_id).order_by('-data_exame')
-        return Exame.objects.none()
+        # ANTES (ERRADO): Filtrava por paciente_id (retornava exames JÁ vinculados)
+        # return Exame.objects.filter(paciente_id=paciente_id)...
+        
+        # AGORA (CORRETO): Retorna apenas quem NÃO tem paciente (paciente__isnull=True)
+        return Exame.objects.filter(paciente__isnull=True).order_by('-data_exame')
 
-# --- AQUI ESTAVA FALTANDO ESSA CLASSE ---
 class ListarExamesDoPacienteView(ListAPIView):
-    """ 
-    Para o MÉDICO (Laudos): Lista exames de um paciente específico.
-    """
+    """ Lista exames de um paciente específico (para o Prontuário/Laudos) """
     permission_classes = [IsAuthenticated]
     serializer_class = ExameSerializer
 
@@ -128,7 +144,7 @@ class ListarExamesDoPacienteView(ListAPIView):
         return Exame.objects.none()
 
 class VincularPacienteView(APIView):
-    """ Recebe o ID do exame e o ID do paciente para fazer o casamento """
+    """ Ação final do botão de vincular """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -140,20 +156,14 @@ class VincularPacienteView(APIView):
 
         paciente = get_object_or_404(Paciente, pk=paciente_id)
         
-        # Realiza o vínculo
         exame.paciente = paciente
-        exame.status = 'DISPONIVEL' # Libera para visualização
+        exame.status = 'DISPONIVEL'
         exame.save()
         
         return Response({'status': 'vínculo realizado', 'paciente': paciente.nome_completo})
 
+# --- CORREÇÃO 3: RESGATE COM DUPLA VERIFICAÇÃO DE PASTA ---
 class ResgatarPorNomeView(APIView):
-    """
-    VARREDURA SUPER FLEXÍVEL:
-    Busca na pasta 'laudos_imagens/ANO/MES/'.
-    Se o arquivo contiver QUALQUER parte do nome (Primeiro nome OU Sobrenome),
-    ele vincula.
-    """
     def get(self, request, exame_id):
         try:
             exame = Exame.objects.get(id=exame_id)
@@ -161,15 +171,12 @@ class ResgatarPorNomeView(APIView):
             return Response({'erro': 'Exame não encontrado'}, status=404)
 
         if not exame.paciente:
-            return Response({'erro': 'Erro: Selecione um paciente no Admin antes de rodar.'}, status=400)
+            return Response({'erro': 'Selecione um paciente antes de resgatar.'}, status=400)
 
-        # 1. Cria lista de Termos (Ignora palavras curtas como 'da', 'de')
-        partes_nome = exame.paciente.nome_completo.lower().split()
-        termos_busca = [p for p in partes_nome if len(p) > 2]
-            
-        print(f"--> Buscando arquivos que contenham qualquer um destes: {termos_busca}")
-
-        # 2. Conexão Supabase
+        # Termos de busca (Ignora palavras pequenas)
+        termos_busca = [p.lower() for p in exame.paciente.nome_completo.split() if len(p) > 2]
+        
+        # Configura cliente S3
         s3 = boto3.client(
             's3',
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -177,59 +184,48 @@ class ResgatarPorNomeView(APIView):
             endpoint_url=settings.AWS_S3_ENDPOINT_URL,
             region_name='us-east-1'
         )
-
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
-        # Pasta Alvo (Mês inteiro)
-        ano = exame.data_exame.year
-        mes = f"{exame.data_exame.month:02d}"
-        prefixo = f"laudos_imagens/{ano}/{mes}/" 
+        ano = exame.data_exame.strftime('%Y')
+        mes = exame.data_exame.strftime('%m')
         
-        print(f"--> Pasta Alvo: {prefixo}")
-
-        try:
-            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefixo)
-        except Exception as e:
-            return Response({'erro': f'Erro de conexão S3: {str(e)}'}, status=500)
-
-        arquivos_vinculados = []
+        # PROCURA NOS DOIS LUGARES: Onde deveria estar e onde foi parar errado
+        pastas_possiveis = [
+            f"laudos_imagens/{ano}/{mes}/", # Caminho Correto
+            f"{ano}/{mes}/"                 # Caminho Antigo/Errado (2026 solto)
+        ]
         
-        if 'Contents' in response:
-            for item in response['Contents']:
-                caminho_arquivo = item['Key'] # ex: laudos_imagens/2026/01/Amanda Silva.jpg
-                nome_arquivo_lower = caminho_arquivo.lower()
-                
-                # --- LÓGICA FLEXÍVEL ---
-                # Verifica se ALGUM dos nomes está no arquivo
-                # Ex: Se termos=['amanda', 'seixas'], e arquivo='amanda.jpg', dá Match.
-                encontrou = False
-                for termo in termos_busca:
-                    if termo in nome_arquivo_lower:
-                        encontrou = True
-                        break # Se achou um, já serve
-                
-                if encontrou:
-                    # Evita duplicar se já salvou antes
-                    if not ArquivoExame.objects.filter(arquivo=caminho_arquivo).exists():
-                        tipo = 'VIDEO' if caminho_arquivo.endswith(('.mp4', '.avi')) else 'IMAGEM'
-                        if caminho_arquivo.endswith('.pdf'): tipo = 'LAUDO'
+        arquivos_encontrados = []
+        
+        for prefixo in pastas_possiveis:
+            try:
+                response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefixo)
+                if 'Contents' in response:
+                    for item in response['Contents']:
+                        caminho_arquivo = item['Key']
+                        nome_lower = caminho_arquivo.lower()
+                        
+                        # Verifica se algum termo do nome do paciente está no arquivo
+                        match = False
+                        for termo in termos_busca:
+                            if termo in nome_lower:
+                                match = True
+                                break
+                        
+                        if match:
+                            # Evita duplicar se já vinculou
+                            if not ArquivoExame.objects.filter(arquivo=caminho_arquivo).exists():
+                                tipo = 'VIDEO' if caminho_arquivo.endswith(('.mp4', '.avi')) else 'IMAGEM'
+                                if caminho_arquivo.endswith('.pdf'): tipo = 'LAUDO'
 
-                        ArquivoExame.objects.create(
-                            exame=exame,
-                            arquivo=caminho_arquivo,
-                            tipo=tipo
-                        )
-                        arquivos_vinculados.append(caminho_arquivo)
+                                ArquivoExame.objects.create(exame=exame, arquivo=caminho_arquivo, tipo=tipo)
+                                arquivos_encontrados.append(caminho_arquivo)
+            except Exception as e:
+                print(f"Erro ao ler pasta {prefixo}: {e}")
 
-        # Se achou arquivos, libera o exame
-        if arquivos_vinculados:
+        if arquivos_encontrados:
             exame.status = 'DISPONIVEL'
             exame.save()
-
-        return Response({
-            'status': 'Sucesso',
-            'criterio': 'Qualquer parte do nome',
-            'termos_usados': termos_busca,
-            'arquivos_resgatados': len(arquivos_vinculados),
-            'lista': arquivos_vinculados
-        })
+            return Response({'msg': f'Resgatados {len(arquivos_encontrados)} arquivos!', 'arquivos': arquivos_encontrados})
+        
+        return Response({'msg': 'Nenhum arquivo novo encontrado.', 'locais_verificados': pastas_possiveis})
