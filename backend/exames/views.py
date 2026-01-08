@@ -149,8 +149,10 @@ class VincularPacienteView(APIView):
 
 class ResgatarPorNomeView(APIView):
     """
-    VARREDURA POR NOME (CORRIGIDA - PASTA LAUDOS_IMAGENS):
-    Busca na pasta 'laudos_imagens/ANO/MES/' que é onde os arquivos reais estão.
+    VARREDURA SUPER FLEXÍVEL:
+    Busca na pasta 'laudos_imagens/ANO/MES/'.
+    Se o arquivo contiver QUALQUER parte do nome (Primeiro nome OU Sobrenome),
+    ele vincula.
     """
     def get(self, request, exame_id):
         try:
@@ -161,15 +163,11 @@ class ResgatarPorNomeView(APIView):
         if not exame.paciente:
             return Response({'erro': 'Erro: Selecione um paciente no Admin antes de rodar.'}, status=400)
 
-        # 1. Termo de busca (Nome)
-        # Ex: "Amanda Seixas"
+        # 1. Cria lista de Termos (Ignora palavras curtas como 'da', 'de')
         partes_nome = exame.paciente.nome_completo.lower().split()
-        if len(partes_nome) >= 2:
-            termo_busca = f"{partes_nome[0]} {partes_nome[1]}"
-        else:
-            termo_busca = partes_nome[0]
+        termos_busca = [p for p in partes_nome if len(p) > 2]
             
-        print(f"--> Buscando arquivos com: '{termo_busca}'")
+        print(f"--> Buscando arquivos que contenham qualquer um destes: {termos_busca}")
 
         # 2. Conexão Supabase
         s3 = boto3.client(
@@ -182,12 +180,10 @@ class ResgatarPorNomeView(APIView):
 
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
-        # --- A CORREÇÃO ESTÁ AQUI ---
-        # Mudamos de 'exames/' para 'laudos_imagens/'
+        # Pasta Alvo (Mês inteiro)
         ano = exame.data_exame.year
         mes = f"{exame.data_exame.month:02d}"
-        
-        prefixo = f"laudos_imagens/{ano}/{mes}/" # ex: laudos_imagens/2026/01/
+        prefixo = f"laudos_imagens/{ano}/{mes}/" 
         
         print(f"--> Pasta Alvo: {prefixo}")
 
@@ -200,12 +196,19 @@ class ResgatarPorNomeView(APIView):
         
         if 'Contents' in response:
             for item in response['Contents']:
-                caminho_arquivo = item['Key'] # laudos_imagens/2026/01/Amanda Seixas_0.jpeg
+                caminho_arquivo = item['Key'] # ex: laudos_imagens/2026/01/Amanda Silva.jpg
                 nome_arquivo_lower = caminho_arquivo.lower()
                 
-                # Verifica se o nome "amanda seixas" está no caminho do arquivo
-                if termo_busca in nome_arquivo_lower:
-                    
+                # --- LÓGICA FLEXÍVEL ---
+                # Verifica se ALGUM dos nomes está no arquivo
+                # Ex: Se termos=['amanda', 'seixas'], e arquivo='amanda.jpg', dá Match.
+                encontrou = False
+                for termo in termos_busca:
+                    if termo in nome_arquivo_lower:
+                        encontrou = True
+                        break # Se achou um, já serve
+                
+                if encontrou:
                     # Evita duplicar se já salvou antes
                     if not ArquivoExame.objects.filter(arquivo=caminho_arquivo).exists():
                         tipo = 'VIDEO' if caminho_arquivo.endswith(('.mp4', '.avi')) else 'IMAGEM'
@@ -218,15 +221,15 @@ class ResgatarPorNomeView(APIView):
                         )
                         arquivos_vinculados.append(caminho_arquivo)
 
-        # Se achou arquivos, libera o exame no portal
+        # Se achou arquivos, libera o exame
         if arquivos_vinculados:
             exame.status = 'DISPONIVEL'
             exame.save()
 
         return Response({
             'status': 'Sucesso',
-            'pasta_buscada': prefixo,
-            'termo_usado': termo_busca,
+            'criterio': 'Qualquer parte do nome',
+            'termos_usados': termos_busca,
             'arquivos_resgatados': len(arquivos_vinculados),
             'lista': arquivos_vinculados
         })
