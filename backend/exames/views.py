@@ -149,9 +149,8 @@ class VincularPacienteView(APIView):
 
 class ResgatarPorNomeView(APIView):
     """
-    VARREDURA POR NOME (CORRIGIDA):
-    Busca na pasta do MÊS (ex: 2026/01/) em vez do dia,
-    para encontrar arquivos que foram salvos sem a pasta do dia.
+    VARREDURA POR NOME (CORRIGIDA - PASTA LAUDOS_IMAGENS):
+    Busca na pasta 'laudos_imagens/ANO/MES/' que é onde os arquivos reais estão.
     """
     def get(self, request, exame_id):
         try:
@@ -160,16 +159,17 @@ class ResgatarPorNomeView(APIView):
             return Response({'erro': 'Exame não encontrado'}, status=404)
 
         if not exame.paciente:
-            return Response({'erro': 'Selecione um paciente no Admin antes.'}, status=400)
+            return Response({'erro': 'Erro: Selecione um paciente no Admin antes de rodar.'}, status=400)
 
         # 1. Termo de busca (Nome)
+        # Ex: "Amanda Seixas"
         partes_nome = exame.paciente.nome_completo.lower().split()
         if len(partes_nome) >= 2:
-            termo_busca = f"{partes_nome[0]} {partes_nome[1]}" # ex: "amanda seixas"
+            termo_busca = f"{partes_nome[0]} {partes_nome[1]}"
         else:
             termo_busca = partes_nome[0]
             
-        print(f"--> Buscando: '{termo_busca}'")
+        print(f"--> Buscando arquivos com: '{termo_busca}'")
 
         # 2. Conexão Supabase
         s3 = boto3.client(
@@ -182,31 +182,31 @@ class ResgatarPorNomeView(APIView):
 
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
-        # --- CORREÇÃO AQUI ---
-        # Removido o dia, agora busca na pasta do mês inteiro
+        # --- A CORREÇÃO ESTÁ AQUI ---
+        # Mudamos de 'exames/' para 'laudos_imagens/'
         ano = exame.data_exame.year
         mes = f"{exame.data_exame.month:02d}"
         
-        prefixo = f"exames/{ano}/{mes}/" # ex: exames/2026/01/
+        prefixo = f"laudos_imagens/{ano}/{mes}/" # ex: laudos_imagens/2026/01/
         
         print(f"--> Pasta Alvo: {prefixo}")
 
         try:
             response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefixo)
         except Exception as e:
-            return Response({'erro': f'Erro S3: {str(e)}'}, status=500)
+            return Response({'erro': f'Erro de conexão S3: {str(e)}'}, status=500)
 
         arquivos_vinculados = []
         
         if 'Contents' in response:
             for item in response['Contents']:
-                caminho_arquivo = item['Key']
+                caminho_arquivo = item['Key'] # laudos_imagens/2026/01/Amanda Seixas_0.jpeg
                 nome_arquivo_lower = caminho_arquivo.lower()
                 
-                # Verifica se o nome está no arquivo
+                # Verifica se o nome "amanda seixas" está no caminho do arquivo
                 if termo_busca in nome_arquivo_lower:
                     
-                    # Evita duplicatas
+                    # Evita duplicar se já salvou antes
                     if not ArquivoExame.objects.filter(arquivo=caminho_arquivo).exists():
                         tipo = 'VIDEO' if caminho_arquivo.endswith(('.mp4', '.avi')) else 'IMAGEM'
                         if caminho_arquivo.endswith('.pdf'): tipo = 'LAUDO'
@@ -218,7 +218,7 @@ class ResgatarPorNomeView(APIView):
                         )
                         arquivos_vinculados.append(caminho_arquivo)
 
-        # Atualiza status
+        # Se achou arquivos, libera o exame no portal
         if arquivos_vinculados:
             exame.status = 'DISPONIVEL'
             exame.save()
