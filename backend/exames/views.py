@@ -9,6 +9,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListAPIView, UpdateAPIView
 from .serializers import ExameSerializer
+import boto3
+from django.conf import settings
 
 class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -144,3 +146,86 @@ class VincularPacienteView(APIView):
         exame.save()
         
         return Response({'status': 'vínculo realizado', 'paciente': paciente.nome_completo})
+
+class ResgatarPorNomeView(APIView):
+    """
+    VARREDURA POR NOME:
+    Ignora IDs. Busca arquivos que contenham o Primeiro e Segundo nome do paciente.
+    """
+    def get(self, request, exame_id):
+        # 1. Pega o exame e o nome do paciente alvo
+        try:
+            exame = Exame.objects.get(id=exame_id)
+        except Exame.DoesNotExist:
+            return Response({'erro': 'Exame não encontrado'}, status=404)
+
+        if not exame.paciente:
+            return Response({'erro': 'O exame precisa ter um paciente selecionado no Admin antes de rodar isso.'}, status=400)
+
+        # 2. Prepara o termo de busca (Ex: "amanda seixas")
+        # Pega as 2 primeiras partes do nome para garantir o match mesmo se o arquivo for mais curto
+        partes_nome = exame.paciente.nome_completo.lower().split()
+        if len(partes_nome) >= 2:
+            termo_busca = f"{partes_nome[0]} {partes_nome[1]}" # amanda seixas
+        else:
+            termo_busca = partes_nome[0] # amanda (caso seja nome unico)
+            
+        print(f"--> Buscando arquivos que contenham: '{termo_busca}'")
+
+        # 3. Conecta no Supabase
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+            region_name='us-east-1'
+        )
+
+        # Define a pasta do dia (ex: exames/2026/01/07/)
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+        ano = exame.data_exame.year
+        mes = f"{exame.data_exame.month:02d}"
+        dia = f"{exame.data_exame.day:02d}"
+        prefixo = f"exames/{ano}/{mes}/{dia}/"
+
+        try:
+            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefixo)
+        except Exception as e:
+            return Response({'erro': f'Erro de conexão S3: {str(e)}'}, status=500)
+
+        arquivos_vinculados = []
+        
+        # 4. Varredura
+        if 'Contents' in response:
+            for item in response['Contents']:
+                caminho_arquivo = item['Key'] # ex: exames/.../Amanda Seixas_0.jpeg
+                nome_arquivo_lower = caminho_arquivo.lower()
+                
+                # --- A LÓGICA DE OURO ---
+                # Verifica se "amanda seixas" está dentro do nome do arquivo
+                if termo_busca in nome_arquivo_lower:
+                    
+                    # Evita duplicatas (não adiciona se já estiver no banco)
+                    if not ArquivoExame.objects.filter(arquivo=caminho_arquivo).exists():
+                        
+                        tipo = 'VIDEO' if caminho_arquivo.endswith(('.mp4', '.avi')) else 'IMAGEM'
+                        if caminho_arquivo.endswith('.pdf'): tipo = 'LAUDO'
+
+                        ArquivoExame.objects.create(
+                            exame=exame,
+                            arquivo=caminho_arquivo,
+                            tipo=tipo
+                        )
+                        arquivos_vinculados.append(caminho_arquivo)
+
+        # 5. Atualiza status para DISPONIVEL se achou algo
+        if arquivos_vinculados:
+            exame.status = 'DISPONIVEL'
+            exame.save()
+
+        return Response({
+            'status': 'Sucesso',
+            'termo_usado': termo_busca,
+            'arquivos_resgatados': len(arquivos_vinculados),
+            'lista': arquivos_vinculados
+        })
