@@ -139,8 +139,15 @@ class LancamentoAvulsoAPIView(APIView):
     
     def post(self, request, *args, **kwargs):
         tipo = request.data.get('tipo')
+        # Utilizamos copy() para poder modificar o dicionário (ex: adicionar data_despesa)
         dados = request.data.copy()
         
+        # --- CORREÇÃO 1: Limpeza de Datas Vazias ---
+        # Django não aceita string vazia "" em DateField, tem que ser None
+        for campo in ['data_pagamento', 'data_vencimento']:
+            if campo in dados and dados[campo] == '':
+                dados[campo] = None
+
         # Pega a data de vencimento base (ou hoje se não vier)
         data_vencimento_base_str = dados.get('data_vencimento')
         if data_vencimento_base_str:
@@ -150,7 +157,6 @@ class LancamentoAvulsoAPIView(APIView):
 
         data_pagamento_manual = dados.get('data_pagamento')
         
-        # Dados comuns
         qtd_parcelas = int(dados.get('qtd_parcelas', 1))
         valor_total = float(dados.get('valor', 0))
         descricao_original = dados.get('descricao', '')
@@ -193,11 +199,12 @@ class LancamentoAvulsoAPIView(APIView):
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # --- DESPESA (CORRIGIDO AQUI) ---
+        # --- DESPESA ---
         elif tipo == 'despesa':
             pago_inicialmente = dados.get('pago', False)
             if isinstance(pago_inicialmente, str):
                 pago_inicialmente = (pago_inicialmente.lower() == 'true')
+                dados['pago'] = pago_inicialmente # Atualiza no dicionário para o serializer
 
             # PARCELAMENTO DE DESPESA
             if qtd_parcelas > 1:
@@ -205,10 +212,8 @@ class LancamentoAvulsoAPIView(APIView):
                 despesas_criadas = []
 
                 for i in range(qtd_parcelas):
-                    # Calcula a data para este mês específico
                     nova_data = data_vencimento_base + relativedelta(months=i)
                     
-                    # Lógica de Pagamento: Apenas a primeira parcela considera o status enviado
                     esta_pago = pago_inicialmente if i == 0 else False
                     data_pag_parcela = data_pagamento_manual if (i == 0 and esta_pago) else None
                     
@@ -218,14 +223,8 @@ class LancamentoAvulsoAPIView(APIView):
                         categoria_id=categoria_id,
                         descricao=f"{descricao_original} ({i+1}/{qtd_parcelas})",
                         valor=valor_parcela,
-                        
-                        # [CORREÇÃO]: A data_despesa (competência) TAMBÉM avança nos meses
-                        # Assim cada parcela aparecerá no seu respectivo mês no gráfico/tabela
                         data_despesa=nova_data, 
-                        
-                        # A data de vencimento também acompanha
                         data_vencimento=nova_data, 
-                        
                         pago=esta_pago,
                         data_pagamento=data_pag_parcela,
                         registrado_por=request.user
@@ -236,13 +235,22 @@ class LancamentoAvulsoAPIView(APIView):
 
             # Despesa Única
             else:
+                # --- CORREÇÃO 2: Inserir data_despesa se faltar ---
+                # O frontend não manda 'data_despesa', então usamos a 'data_vencimento' como competência padrão
+                if 'data_despesa' not in dados or not dados['data_despesa']:
+                    dados['data_despesa'] = data_vencimento_base
+
                 serializer = DespesaSerializer(data=dados)
                 if serializer.is_valid():
                     obj = serializer.save(registrado_por=request.user)
                     if obj.pago:
-                        obj.data_pagamento = data_pagamento_manual or timezone.now().date() # Garante data hoje se nulo
+                        # Garante que data_pagamento não seja nula se está pago
+                        obj.data_pagamento = data_pagamento_manual or timezone.now().date()
                         obj.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
+                
+                # Logar erros para facilitar debug no futuro
+                print("Erros Despesa Serializer:", serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         else:

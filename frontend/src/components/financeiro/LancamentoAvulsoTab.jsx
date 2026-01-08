@@ -194,32 +194,38 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
                         <TextField name="descricao" label="Descrição" size="small" margin="dense" required fullWidth value={formData.descricao || ''} onChange={handleChange} InputLabelProps={{style: {fontSize: '0.85rem'}}} InputProps={{style: {fontSize: '0.9rem'}}} />
                         
                         <Grid container spacing={2}>
-                            <Grid item xs={jaRecebido ? 6 : 12}>
-                                <DatePicker
-                                    label="Data de Vencimento"
-                                    value={formData.data_vencimento ? dayjs(formData.data_vencimento) : null}
-                                    onChange={(newValue) => setFormData(prev => ({ ...prev, data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-                                    slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true, helperText: tipo === 'despesa' ? "1º Vencimento" : "Vencimento Original" } }}
-                                />
-                            </Grid>
+    <Grid item xs={jaRecebido ? 6 : 12}>
+        <DatePicker
+            label="Data de Vencimento"
+            value={formData.data_vencimento ? dayjs(formData.data_vencimento) : null}
+            onChange={(newValue) => setFormData(prev => ({ 
+                ...prev, 
+                data_vencimento: newValue ? newValue.format('YYYY-MM-DD') : null // Use null aqui
+            }))}
+            slotProps={{ textField: { size: 'small', margin: 'dense', fullWidth: true, helperText: tipo === 'despesa' ? "1º Vencimento" : "Vencimento Original" } }}
+        />
+    </Grid>
 
-                            {jaRecebido && (
-                                <Grid item xs={6}>
-                                    <DatePicker
-                                        label={tipo === 'receita' ? "Data do Recebimento" : "Data do Pagamento"}
-                                        value={formData.data_pagamento ? dayjs(formData.data_pagamento) : null}
-                                        onChange={(newValue) => setFormData(prev => ({ ...prev, data_pagamento: newValue ? newValue.format('YYYY-MM-DD') : '' }))}
-                                        slotProps={{ 
-                                            textField: { 
-                                                size: 'small', margin: 'dense', fullWidth: true, focused: true,
-                                                color: tipo === 'receita' ? "success" : "error",
-                                                helperText: "Data Real do Caixa"
-                                            } 
-                                        }}
-                                    />
-                                </Grid>
-                            )}
-                        </Grid>
+    {jaRecebido && (
+        <Grid item xs={6}>
+            <DatePicker
+                label={tipo === 'receita' ? "Data do Recebimento" : "Data do Pagamento"}
+                value={formData.data_pagamento ? dayjs(formData.data_pagamento) : null}
+                onChange={(newValue) => setFormData(prev => ({ 
+                    ...prev, 
+                    data_pagamento: newValue ? newValue.format('YYYY-MM-DD') : null // Use null aqui
+                }))}
+                slotProps={{ 
+                    textField: { 
+                        size: 'small', margin: 'dense', fullWidth: true, focused: true,
+                        color: tipo === 'receita' ? "success" : "error",
+                        helperText: "Data Real do Caixa"
+                    } 
+                }}
+            />
+        </Grid>
+    )}
+</Grid>
                         
                         {tipo === 'despesa' && (
                             <Grid container spacing={1}>
