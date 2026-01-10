@@ -139,24 +139,39 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 3. ESTRUTURA GERAL (ÚTERO, PLACENTA, MEMBROS) - PARA OUTROS EXAMES
+    // 3. ESTRUTURA GERAL E ESTÁTICA FETAL (DADOS GERAIS)
     // -------------------------------------------------------------------------
     
-    // Cabeçalho Básico
-    if (d.subtipo === 'OBSTETRICO_1_TRI') {
-        texto += `ÚTERO\nApresenta-se em AVF, com dimensões adequadas para a idade gestacional, apresentando contornos regulares e textura miometrial homogênea.\n\n`;
-    } else {
-        if (d.localizacaoFeto) texto += `Feto em situação ${d.localizacaoFeto}.\n`; // Ex: Longitudinal cefálica
-        else texto += `Gestação tópica, feto único.\n`; 
-        
-        if (d.situacao && d.apresentacao) {
-            texto += `Situação ${d.situacao}, apresentação ${d.apresentacao}`;
-            if (d.dorso) texto += ` e dorso ${d.dorso}`;
-            texto += `.\n`;
-        }
+    // Gêmeos (Corionicidade)
+    if (d.corionicidade || d.amnionicidade) {
+        texto += `Gestação ${d.corionicidade || ''} e ${d.amnionicidade || ''}.\n`;
+    }
+
+    // Posição do Feto (Geral)
+    if (d.localizacaoFeto) {
+        texto += `Feto localizado ${d.localizacaoFeto}.\n`;
+    } 
+    else if (!d.subtipo.includes("GEMELAR")) {
+        texto += `Gestação tópica, feto único.\n`; 
+    }
+
+    // Estática (Situação/Apresentação/Dorso) - Pega de SecaoDadosGerais ou SecaoColoDados
+    if (d.situacao && d.apresentacao && d.subtipo !== 'OBSTETRICO_1_TRI') {
+        texto += `Situação ${d.situacao}, apresentação ${d.apresentacao}`;
+        if (d.dorso) texto += ` e dorso ${d.dorso}`;
+        texto += `.\n`;
     }
     
-    // Placenta
+    // Bexiga Materna (Atualizado com opção do select)
+    if (d.bexigaMaterna && d.bexigaMaterna !== 'não visualizada') {
+        texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
+    }
+
+    texto += '\n';
+
+    // -------------------------------------------------------------------------
+    // 4. PLACENTA E LÍQUIDO AMNIÓTICO
+    // -------------------------------------------------------------------------
     if (d.placentaLocalizacao) {
         if (d.subtipo === 'OBSTETRICO_1_TRI') texto += `PLACENTA\n`;
         texto += `Placenta com inserção ${d.placentaLocalizacao}`;
@@ -165,65 +180,116 @@ export const gerarRelatorioFeto = (d) => {
         texto += `. Não há sinais de descolamento.\n`;
     }
 
-    // Líquido Amniótico
     if (d.liquidoAmniotico && d.subtipo !== 'OBSTETRICO_1_TRI') {
-        texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
-        if (d.mbv) texto += ` (Maior bolsão vertical = ${d.mbv} mm)`;
-        else if (d.ila) texto += ` (ILA = ${d.ila} mm)`;
-        texto += `.\n`;
+        texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}. `;
+        if (d.mbv) {
+            texto += `Maior bolsão vertical medindo ${d.mbv} mm.`;
+        } 
+        else if (d.ila) {
+            texto += `Índice de Líquido Amniótico (ILA) de ${d.ila} mm`;
+            if (d.ilaRefMin || d.ilaRefMax) {
+                const min = d.ilaRefMin || '80';
+                const max = d.ilaRefMax || '180';
+                texto += ` (Ref: ${min} a ${max} mm)`;
+            }
+            texto += `.`;
+        }
+        texto += `\n`;
     }
-    
     texto += '\n';
 
     // -------------------------------------------------------------------------
-    // 4. MORFOLOGIA FETAL (1º TRIMESTRE)
+    // 5. AVALIAÇÃO DO COLO UTERINO (NOVA LÓGICA - SecaoColoDados)
     // -------------------------------------------------------------------------
-    if (d.subtipo === 'OBSTETRICO_1_TRI') {
-        texto += `MORFOLOGIA FETAL\n`;
+    // Imprime se houver medição do colo ou dados específicos de colo preenchidos
+    if (d.comprimentoColo || d.coloEge || d.coloSludge === 'presente' || d.coloConclusao) {
+        texto += `AVALIAÇÃO DO COLO UTERINO (VIA ENDOVAGINAL)\n`;
         
-        // Cabeça
-        texto += `POLO CEFÁLICO: Contorno craniano íntegro. Plexos coróides simétricos (“sinal da borboleta”). Foice cerebral presente. Tálamos visualizados.\n`;
+        if (d.comprimentoColo) {
+            texto += `Colo uterino medindo ${d.comprimentoColo} mm de comprimento.\n`;
+        }
         
-        // Face
-        texto += `FACE: Perfil facial com aspecto adequado para a idade gestacional.\n`;
+        if (d.coloEge && d.coloEge !== 'nao_visualizado') {
+            texto += `Eco Glandular Endocervical (EGE): ${d.coloEge}.\n`;
+        }
 
-        // Coluna
-        texto += `COLUNA VERTEBRAL: Visibilizada em toda sua extensão, com aspecto aparentemente normal.\n`;
+        if (d.coloSludge === 'presente') {
+            texto += `Presença de sinal do "Sludge" (sedimentos amnióticos junto ao orifício interno).\n`;
+        } else if (d.coloSludge === 'ausente') {
+            // Opcional: só citar se quiser afirmar a negativa
+            // texto += `Ausência de sinal do Sludge.\n`;
+        }
 
-        // Tórax / Coração
-        texto += `TÓRAX E CORAÇÃO: Tórax de forma normal e contornos regulares. Coração com situs solitus. Visibilizado o corte de 4 câmaras.\n`;
-        if (d.bcf) texto += `Batimentos cardíacos fetais presentes e rítmicos: ${d.bcf} bpm.\n`;
-        
-        // Abdome
-        texto += `ABDOME: Parede abdominal íntegra com inserção tópica do cordão umbilical. Estômago e bexiga visualizados.\n`;
-        if (d.checkUmb) texto += `Doppler colorido evidencia duas artérias umbilicais ladeando a bexiga.\n`;
+        if (d.coloAfunilamento) { // Checkbox marcado significa "Sem sinais"
+            texto += `Ausência de sinais de afunilamento (funneling) do colo uterino às manobras de compressão fúndica.\n`;
+        }
 
-        // Membros
-        texto += `MEMBROS: Visualizados 4 membros com 3 segmentos cada, simétricos e com motilidade preservada.\n\n`;
+        if (d.coloConclusao) {
+            texto += `Parecer: ${d.coloConclusao}.\n`;
+        }
+        texto += `\n`;
     }
 
     // -------------------------------------------------------------------------
-    // 5. MORFOLOGIA FETAL (2º TRIMESTRE)
+    // 6. MORFOLOGIA E VITALIDADE
     // -------------------------------------------------------------------------
+    
+    // --> MORFOLÓGICO 1º TRIMESTRE
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `MORFOLOGIA FETAL\n`;
+        if (d.morfCranio || d.morfCerebro) texto += `POLO CEFÁLICO: Contorno craniano íntegro. Plexos coróides simétricos. Foice cerebral presente.\n`;
+        if (d.morfFace) texto += `FACE: Perfil facial com aspecto adequado para a idade gestacional.\n`;
+        if (d.morfColuna) texto += `COLUNA VERTEBRAL: Visibilizada em toda sua extensão, com aspecto aparentemente normal.\n`;
+        if (d.morfTorax || d.morfCoracao) texto += `TÓRAX E CORAÇÃO: Tórax de forma normal. Coração com situs solitus. Visibilizado o corte de 4 câmaras.\n`;
+        
+        // Vitalidade 1 Tri
+        if (d.bcf) texto += `Batimentos cardíacos fetais presentes e rítmicos: ${d.bcf} bpm.\n`;
+        
+        if (d.morfEstomago || d.morfParedeAbd || d.morfBexiga) texto += `ABDOME: Parede abdominal íntegra. Estômago e bexiga visualizados.\n`;
+        if (d.checkUmb) texto += `Doppler colorido evidencia duas artérias umbilicais ladeando a bexiga.\n`;
+        if (d.morfMembros) texto += `MEMBROS: Visualizados 4 membros com 3 segmentos cada, simétricos.\n`;
+        texto += `\n`;
+    }
+
+    // --> MORFOLÓGICO 2º TRIMESTRE
     if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') {
         texto += `ANÁLISE MORFOLÓGICA\n`;
+        if (d.morfCranio) texto += `Crânio: Configuração e contornos normais.\n`;
+        if (d.morfFace) texto += `Face: Perfil facial normal. Cristalinos visualizados.\n`;
+        if (d.morfColuna) texto += `Coluna: Íntegra em toda sua extensão.\n`;
+        if (d.morfCoracao) texto += `Coração: Situs solitus. 4 câmaras e Vias de Saída visualizados.\n`;
+        if (d.morfEstomago || d.morfRins || d.morfBexiga) texto += `Abdome: Estômago e vesícula biliar à esquerda. Rins tópicos. Bexiga visualizada.\n`;
+        if (d.morfMembros) texto += `Membros: Visualizados ossos longos dos 4 membros.\n`;
+        texto += `\n`;
+    }
+    
+    // --> EXAME OBSTÉTRICO SIMPLES (Dados Gerais Checkboxes)
+    // Se não for morfológico, mas marcou estômago/bexiga no card de "Dados Gerais"
+    if (d.subtipo !== 'OBSTETRICO_1_TRI' && d.subtipo !== 'OBSTETRICO_MORFOLOGICO') {
+        const estruturasVisiveis = [];
+        if (d.estomagoVisualizado) estruturasVisiveis.push("Estômago");
+        if (d.bexigaVisualizada) estruturasVisiveis.push("Bexiga");
         
-        // Usando o helper listarNormais se houver lista de itens checados no frontend
-        if (d.itensCabeca) texto += `Cabeça: ${listarNormais(d.itensCabeca)}\n`;
-        else texto += `Polo Cefálico: Estruturas intracranianas (cavum do septo pelúcido, tálamos, ventrículos e cerebelo) com aspecto habitual.\n`;
-        
-        texto += `Face: Lábio superior íntegro. Perfil facial normal. Cristalinos visualizados.\n`;
-        texto += `Coluna: Íntegra em toda sua extensão (cortes sagital, coronal e transversal).\n`;
-        texto += `Tórax: Pulmões de ecotextura homogênea.\n`;
-        texto += `Coração: Situs solitus. 4 câmaras, Vias de Saída (VE/VD) e Arco aórtico visualizados. Ritmo regular.\n`;
-        texto += `Abdome: Estômago e vesícula biliar à esquerda. Rins tópicos e normais. Bexiga visualizada. Inserção umbilical normal.\n`;
-        texto += `Membros: Visualizados ossos longos dos 4 membros. Mãos e pés com dedos presentes.\n\n`;
+        if (estruturasVisiveis.length > 0) {
+            texto += `ANATOMIA BÁSICA: ${estruturasVisiveis.join(' e ')} visualizados.\n\n`;
+        }
+    }
+
+    // --> VITALIDADE FETAL (Para Obstétrico Geral e Morfológico 2º Tri)
+    if (d.subtipo !== 'OBSTETRICO_1_TRI') {
+        if (d.bcf || d.movFetal || d.degluticao) {
+            texto += `VITALIDADE FETAL\n`;
+            if (d.bcf) texto += `Batimentos cardíacos fetais rítmicos: ${d.bcf} bpm.\n`;
+            if (d.movFetal) texto += `Movimentação fetal ativa: Presente.\n`;
+            if (d.degluticao) texto += `Movimentos de deglutição: Visualizados.\n`;
+            texto += `\n`;
+        }
     }
 
     // -------------------------------------------------------------------------
     // 6. BIOMETRIA FETAL (TABELA COM PONTINHOS)
     // -------------------------------------------------------------------------
-    const temBiometria = d.dbp || d.cc || d.femur || d.ccn || d.cerebelo || d.tnMedida || d.ossoNasal;
+    const temBiometria = d.dbp || d.cc || d.femur || d.ccn || d.cerebelo || d.tnMedida || d.ossoNasal || d.orbitaInterna || d.compBexiga;
 
     if (temBiometria) {
         texto += `BIOMETRIA E ANATOMIA FETAL\n`;
@@ -251,27 +317,26 @@ export const gerarRelatorioFeto = (d) => {
             formatBioLine('Cerebelo (Transverso)', d.cerebelo),
             formatBioLine('Cisterna Magna', d.cisternaMagna),
             formatBioLine('Ventrículo Lateral (Átrio)', d.ventriculoPosterior),
-            formatBioLine('Osso Nasal', d.ossoNasal), // Se tiver medida
-            formatBioLine('Distância Biorbitária', d.orbitaExterna),
+            formatBioLine('Osso Nasal', d.ossoNasal), 
+            formatBioLine('Distância Biorbitária (Ext)', d.orbitaExterna),
+            formatBioLine('Distância Interorbitária (Int)', d.orbitaInterna), // <--- ADICIONADO
         ].filter(Boolean);
         
-        // Se Osso Nasal foi marcado como presente mas sem medida numérica
         if (!d.ossoNasal && d.ossoNasalPresente) {
             neuroFace.push("Osso Nasal ..................................... Visualizado.");
         }
 
         const outros = [
             formatBioLine('Comprimento do Pé', d.peMedida),
+            formatBioLine('Comprimento da Bexiga', d.compBexiga), // <--- ADICIONADO
             formatBioLine('Colo Uterino', d.comprimentoColo),
         ].filter(Boolean);
 
-        // Renderiza os grupos
         if (medidasBasicas.length) texto += medidasBasicas.join('\n') + '\n';
         if (neuroFace.length) texto += neuroFace.join('\n') + '\n';
         if (ossosLongos.length) texto += ossosLongos.join('\n') + '\n';
         if (outros.length) texto += outros.join('\n') + '\n';
         
-        // Peso Fetal
         if (d.pesoFetal) {
             texto += `\nEstimativa de Peso Fetal (Hadlock): ${d.pesoFetal} gramas (+/- 15%).\n`;
             if (d.percentil) texto += `Percentil: ${d.percentil}\n`;

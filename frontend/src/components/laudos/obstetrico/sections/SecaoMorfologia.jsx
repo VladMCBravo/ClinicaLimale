@@ -3,14 +3,15 @@ import { FaHeartbeat, FaCheckSquare, FaExclamationTriangle } from 'react-icons/f
 
 // Componente auxiliar para Checkbox simples
 const CheckItem = ({ label, name, checked, onChange }) => (
-    <label className="laudo-checkbox-label" style={{display:'flex', alignItems:'center', marginBottom:'3px'}}>
+    <label className="laudo-checkbox-label" style={{display:'flex', alignItems:'center', marginBottom:'3px', cursor:'pointer'}}>
         <input 
             type="checkbox" 
             name={name} 
             checked={!!checked} 
             onChange={onChange} 
+            style={{cursor:'pointer'}}
         /> 
-        <span style={{marginLeft:'6px'}}>{label}</span>
+        <span style={{marginLeft:'6px', fontSize:'13px'}}>{label}</span>
     </label>
 );
 
@@ -37,50 +38,61 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                             Rastreamento de Cromossomopatias (11 - 14 semanas)
                         </div>
                         
-                        <div className="laudo-grid-2" style={{alignItems:'center'}}>
-                            {/* Checkbox Osso Nasal */}
-                            <label className="laudo-checkbox-label" style={{fontWeight:'bold', color:'#333'}}>
-                                <input 
-                                    type="checkbox" 
-                                    name="ossoNasalPresente" 
-                                    checked={!!data.ossoNasalPresente} 
-                                    onChange={handleChange} 
-                                />
-                                Osso Nasal Presente
-                            </label>
+                        {/* Marcadores Principais */}
+                        <div style={{marginBottom:'10px', display:'flex', gap:'15px', flexWrap:'wrap'}}>
+                            <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
+                            <CheckItem label="Regurgitação Tricúspide" name="tricuspide" checked={data.tricuspide} onChange={handleChange} />
+                        </div>
 
-                            {/* Inputs de Risco */}
-                            <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                    <span className="label-pequeno" style={{width:'100px'}}>Risco Idade:</span>
-                                    <input 
-                                        type="text" 
-                                        name="riscoIdade" 
-                                        value={data.riscoIdade} 
-                                        onChange={handleChange} 
-                                        className="laudo-input" 
-                                        placeholder="ex: 1:1400"
-                                        style={{flex:1}}
-                                    />
-                                </div>
-                                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                    <span className="label-pequeno" style={{width:'100px'}}>Risco Exame:</span>
-                                    <input 
-                                        type="text" 
-                                        name="riscoExame" 
-                                        value={data.riscoExame} 
-                                        onChange={handleChange} 
-                                        className="laudo-input" 
-                                        placeholder="ex: 1:5000"
-                                        style={{flex:1}}
-                                    />
-                                </div>
+                        {/* Ducto Venoso */}
+                        <div style={{background:'rgba(255,255,255,0.5)', padding:'5px', borderRadius:'4px', marginBottom:'10px'}}>
+                            <span className="label-pequeno">Ducto Venoso (Onda A):</span>
+                            <div style={{display:'flex', gap:'10px', marginTop:'3px'}}>
+                                <label style={{fontSize:'12px'}}><input type="radio" name="dvOnda" value="positiva" checked={data.dvOnda !== 'zero' && data.dvOnda !== 'reversa'} onChange={() => handleChange({target: {name:'dvOnda', value:'positiva'}})} /> Positiva (Normal)</label>
+                                <label style={{fontSize:'12px'}}><input type="radio" name="dvOnda" value="zero" checked={data.dvOnda === 'zero'} onChange={() => handleChange({target: {name:'dvOnda', value:'zero'}})} /> Zero</label>
+                                <label style={{fontSize:'12px'}}><input type="radio" name="dvOnda" value="reversa" checked={data.dvOnda === 'reversa'} onChange={() => handleChange({target: {name:'dvOnda', value:'reversa'}})} /> Reversa</label>
                             </div>
+                            <div style={{marginTop:'5px', display:'flex', alignItems:'center'}}>
+                                <span className="label-pequeno" style={{marginRight:'5px'}}>IP Ducto:</span>
+                                <input type="number" name="dvIP" value={data.dvIP} onChange={handleChange} className="laudo-input-small" />
+                            </div>
+                        </div>
+
+                        {/* TABELA DE RISCOS (Fetal Medicine Foundation) */}
+                        <div style={{background:'#fff', border:'1px solid #ddd', padding:'5px', borderRadius:'4px'}}>
+                            <div style={{fontWeight:'bold', fontSize:'11px', marginBottom:'5px', color:'#555', textAlign:'center'}}>CÁLCULO DE RISCO (1:X)</div>
+                            <table style={{width:'100%', fontSize:'11px', borderCollapse:'collapse'}}>
+                                <thead>
+                                    <tr style={{background:'#f0f0f0'}}>
+                                        <th style={{padding:'2px'}}></th>
+                                        <th style={{padding:'2px'}}>T21</th>
+                                        <th style={{padding:'2px'}}>T18</th>
+                                        <th style={{padding:'2px'}}>T13</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style={{fontWeight:'bold'}}>Basal</td>
+                                        <td><input type="text" name="riscoT21Basal" value={data.riscoT21Basal} onChange={handleChange} className="laudo-input" style={{width:'100%'}} placeholder="Ex: 1500"/></td>
+                                        <td><input type="text" name="riscoT18Basal" value={data.riscoT18Basal} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
+                                        <td><input type="text" name="riscoT13Basal" value={data.riscoT13Basal} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
+                                    </tr>
+                                    <tr>
+                                        <td style={{fontWeight:'bold'}}>Corrigido</td>
+                                        <td><input type="text" name="riscoT21Corrigido" value={data.riscoT21Corrigido} onChange={handleChange} className="laudo-input" style={{width:'100%'}} placeholder="Ex: 8500"/></td>
+                                        <td><input type="text" name="riscoT18Corrigido" value={data.riscoT18Corrigido} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
+                                        <td><input type="text" name="riscoT13Corrigido" value={data.riscoT13Corrigido} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
 
                 {/* --- CHECKLIST ANATÔMICO (Comum) --- */}
+                <div style={{marginBottom:'5px', fontStyle:'italic', fontSize:'11px', color:'#666'}}>
+                    * Marque os itens visualizados e normais. Desmarque para omitir ou citar não visualização.
+                </div>
                 <div className="laudo-grid-2" style={{gap: '15px'}}>
                     
                     {/* Coluna Esquerda */}
@@ -125,6 +137,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         onChange={handleChange} 
                         className="laudo-input" 
                         style={{width:'60px', marginLeft:'5px', marginRight:'5px', fontWeight:'bold', color:'#2E7D32'}}
+                        placeholder="bpm"
                     /> 
                      <span style={{marginRight:'20px'}}>bpm</span>
 
