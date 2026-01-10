@@ -100,6 +100,13 @@ export const gerarRelatorioFeto = (d) => {
         texto += `O orifício interno do colo permanece fechado`;
         if (d.comprimentoColo) texto += `, medindo ${d.comprimentoColo} mm`;
         texto += `.\n`;
+
+        // Detalhes extras do Colo (se preenchido)
+        if (d.coloEge && d.coloEge !== 'nao_visualizado') texto += `Eco glandular endocervical: ${d.coloEge}.\n`;
+        if (d.coloSludge === 'presente') texto += `Sinal do Sludge: PRESENTE.\n`;
+        if (d.coloAfunilamento) texto += `Sem sinais de afunilamento à manobra de compressão fúndica.\n`;
+        if (d.coloConclusao) texto += `Conclusão do colo: ${d.coloConclusao}.\n`;
+
         texto += `Anexos parauterinos normais.\n`;
         texto += `\nIMPRESSÃO DIAGNÓSTICA:\n`;
         let igConclusao = d.resIgCcn || d.resIgSg || d.igDum || "--";
@@ -111,6 +118,10 @@ export const gerarRelatorioFeto = (d) => {
             if (d.bcf) texto += `- Embrião vivo.\n`;
         }
         if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
+
+        // 3D/4D no Inicial (caso use)
+        if (d.usar3D) texto += gerarTexto3D(d);
+
         return { texto, tituloExame }; 
     }
 
@@ -143,6 +154,17 @@ export const gerarRelatorioFeto = (d) => {
             else if (d.ila) texto += ` (ILA= ${d.ila} mm)`;
             texto += `.\n\n`;
         }
+    }
+
+    // AVALIAÇÃO DO COLO (Se houver dados relevantes preenchidos)
+    if (d.comprimentoColo || d.coloSludge === 'presente' || d.coloAfunilamento) {
+        texto += `AVALIAÇÃO DO COLO UTERINO (Via Transvaginal)\n`;
+        if (d.comprimentoColo) texto += `Comprimento do colo: ${d.comprimentoColo} mm.\n`;
+        if (d.coloEge && d.coloEge !== 'nao_visualizado') texto += `Eco glandular endocervical: ${d.coloEge.replace('_', ' ')}.\n`;
+        if (d.coloSludge === 'presente') texto += `Sinal do Sludge: PRESENTE.\n`;
+        if (d.coloAfunilamento) texto += `Ausência de afunilamento à manobra de compressão fúndica.\n`;
+        if (d.coloConclusao) texto += `Conclusão: ${d.coloConclusao}.\n`;
+        texto += `\n`;
     }
 
     // MORFOLOGIA FETAL
@@ -227,6 +249,9 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\n`;
     }
 
+    // 3D/4D
+    if (d.usar3D) texto += gerarTexto3D(d);
+
     // CONCLUSÃO
     texto += `CONCLUSÃO\n`;
     
@@ -293,3 +318,48 @@ const addDays = (date, days) => {
 };
 
 export const montarTextoFinal = (res) => res.texto;
+
+const gerarTexto3D = (d) => {
+    let t = `\nESTUDO TRIDIMENSIONAL (3D/4D)\n`;
+
+    const modos = [];
+    if (d.modoSurface) modos.push('Surface');
+    if (d.modoMultiplanar) modos.push('Multiplanar');
+    if (modos.length > 0) t += `Realizado estudo nos modos: ${modos.join(' e ')}.\n`;
+
+    t += `Qualidade técnica: ${d.qualidade3D}`;
+    if (d.fatorLimitante) t += ` (Limitada por: ${d.fatorLimitante})`;
+    t += `.\n`;
+
+    if (d.face3D && d.face3D !== 'encoberta') t += `Face fetal: ${d.face3D}.\n`;
+
+    const anat = [];
+    if (d.labios3D) anat.push('Lábios');
+    if (d.nariz3D) anat.push('Nariz');
+    if (d.olhos3D) anat.push('Olhos');
+    if (d.orelhas3D) anat.push('Orelhas');
+    if (anat.length > 0) t += `Estruturas visualizadas: ${anat.join(', ')}.\n`;
+
+    // Membros 3D
+    const membros = [];
+    if (d.maoDir3D) membros.push('Mão Dir');
+    if (d.maoEsq3D) membros.push('Mão Esq');
+    if (d.peDir3D) membros.push('Pé Dir');
+    if (d.peEsq3D) membros.push('Pé Esq');
+    if (membros.length > 0) t += `Extremidades identificadas: ${membros.join(', ')}.\n`;
+
+    const comp = [];
+    if (d.movBocejo) comp.push('Bocejo');
+    if (d.movSorriso) comp.push('Sorriso');
+    if (d.movPiscar) comp.push('Piscar');
+    if (d.movLingua) comp.push('Protrusão de língua');
+    if (d.movMaoFace) comp.push('Mão na face');
+    if (d.movSuccao) comp.push('Sucção');
+    if (d.movDegluticao3D) comp.push('Deglutição');
+
+    if (comp.length > 0) t += `Comportamento fetal observado: ${comp.join(', ')}.\n`;
+
+    if (d.obs3D) t += `Obs: ${d.obs3D}\n`;
+
+    return t + '\n';
+};
