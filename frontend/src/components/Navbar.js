@@ -82,8 +82,8 @@ const Navbar = () => {
                             <FaUserFriends /> <span>Pacientes</span>
                         </NavLink>
 
-                        {/* Financeiro (Apenas Admin e Recepção) */}
-                        {(user.isAdmin || user.isRecepcao) && (
+                        {/* Financeiro (Apenas Admin) */}
+                        {user.isAdmin && (
                             <NavLink to="/financeiro">
                                 <FaFileInvoiceDollar /> <span>Financeiro</span>
                             </NavLink>
