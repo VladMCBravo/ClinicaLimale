@@ -175,20 +175,66 @@ export const gerarRelatorioFeto = (d) => {
         texto += `MEMBROS\nMembros superiores e inferiores visibilizados apresentando-se simétricos, sem dismorfismos aparentes, bem posicionados para a idade gestacional.\n\n`;
     }
 
-    // BIOMETRIA
-    if (d.dbp || d.cc || d.femur || d.ccn) {
-        texto += `BIOMETRIA FETAL\n`;
-        const bioLines = [
+    // =========================================================================
+    // 4. BIOMETRIA FETAL (AQUI ESTAVA O PROBLEMA - CORRIGIDO)
+    // =========================================================================
+    // Verifica se tem algum dado de biometria para não imprimir título vazio
+    const temBiometria = d.dbp || d.cc || d.femur || d.ccn || d.cerebelo || d.tnMedida || d.ossoNasal;
+
+    if (temBiometria) {
+        texto += `BIOMETRIA E ANATOMIA FETAL\n`;
+        
+        // Vamos criar grupos para organizar melhor
+        const medidasBasicas = [
             formatBioLine('Comprimento cabeça-nádegas (CCN)', d.ccn),
             formatBioLine('Diâmetro biparietal (DBP)', d.dbp),
             formatBioLine('Diâmetro occipitofrontal (DOF)', d.dof),
             formatBioLine('Circunferência cefálica (CC)', d.cc),
             formatBioLine('Circunferência abdominal (CA)', d.ca),
+        ].filter(Boolean);
+
+        const ossosLongos = [
             formatBioLine('Comprimento do fêmur (CF)', d.femur),
             formatBioLine('Comprimento do úmero', d.umero),
-            formatBioLine('Translucência Nucal', d.tnMedida),
+            formatBioLine('Comprimento da tíbia', d.tibia),
+            formatBioLine('Comprimento da fíbula', d.fibula),
+            formatBioLine('Comprimento do rádio', d.radio),
+            formatBioLine('Comprimento da ulna', d.ulna),
         ].filter(Boolean);
-        texto += bioLines.join('\n') + `\n\n`;
+
+        const neuroFace = [
+            formatBioLine('Translucência Nucal (TN)', d.tnMedida),
+            formatBioLine('Prega Nucal', d.pregaNucal),
+            formatBioLine('Cerebelo (Transverso)', d.cerebelo),
+            formatBioLine('Cisterna Magna', d.cisternaMagna),
+            formatBioLine('Ventrículo Lateral (Átrio)', d.ventriculoPosterior),
+            formatBioLine('Distância Biorbitária (Externa)', d.orbitaExterna),
+            formatBioLine('Distância Interorbitária (Interna)', d.orbitaInterna),
+        ].filter(Boolean);
+
+        const outros = [
+            formatBioLine('Comprimento do Pé', d.peMedida),
+            formatBioLine('Comprimento da Bexiga', d.compBexiga),
+        ].filter(Boolean);
+
+        // LÓGICA ESPECIAL PARA OSSO NASAL (Unificando Biometria e Checkbox)
+        let linhaOssoNasal = null;
+        if (d.ossoNasal) {
+            // Se tem medida (Biometria)
+            linhaOssoNasal = formatBioLine('Osso Nasal', d.ossoNasal);
+        } else if (d.ossoNasalPresente) {
+            // Se só tem o checkbox (Morfologia)
+            linhaOssoNasal = "Osso Nasal ..................................... Visualizado.";
+        }
+        if (linhaOssoNasal) neuroFace.push(linhaOssoNasal);
+
+        // Monta o bloco
+        if (medidasBasicas.length) texto += medidasBasicas.join('\n') + '\n';
+        if (neuroFace.length) texto += neuroFace.join('\n') + '\n';
+        if (ossosLongos.length) texto += ossosLongos.join('\n') + '\n';
+        if (outros.length) texto += outros.join('\n') + '\n';
+        
+        texto += '\n';
     }
 
     // =========================================================================
