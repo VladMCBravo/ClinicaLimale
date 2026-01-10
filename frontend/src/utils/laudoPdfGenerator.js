@@ -2,14 +2,13 @@
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
-// 1. Importe o arquivo de imagem diretamente (O Vite vai lidar com o caminho)
+// 1. Importe o arquivo de imagem diretamente
 import logoImagemPath from '../assets/Logo-pdf.png';
-// 2. Importe o helper que criamos no Passo 2
+// 2. Importe o helper
 import { getBase64FromUrl } from "./imageHelper";
 
-import { assinarPdfRemotamente } from "../api/pdfService"; // <--- Importe o serviço
+import { assinarPdfRemotamente } from "../api/pdfService"; 
 
-//
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 export const gerarPDFLaudo = async ({
@@ -21,18 +20,16 @@ export const gerarPDFLaudo = async ({
     dadosEstruturados, 
     imagensBase64,
     comTimbre = true,
-    usaAssinaturaDigital = false // <--- NOVO PARÂMETRO 
+    usaAssinaturaDigital = false 
 }) => {
 
     // --- CONVERSÃO AUTOMÁTICA DO LOGO ---
     let logoBase64 = null;
     if (comTimbre) {
         try {
-            // Converte o arquivo .png para Base64 na hora
             logoBase64 = await getBase64FromUrl(logoImagemPath);
         } catch (error) {
             console.error("Erro ao carregar o logo:", error);
-            // Se der erro, o PDF gera sem logo para não travar
         }
     }
     // Margens: [Esq, Top, Dir, Inf]
@@ -43,15 +40,11 @@ export const gerarPDFLaudo = async ({
         margin: [40, 20, 40, 0], 
         stack: [
             { 
-                // Se logoBase64 existir, usa ele. Se não, não exibe nada.
                 image: logoBase64 ? logoBase64 : null, 
                 width: 140, 
                 alignment: 'center',
                 margin: [0, 0, 0, 10] 
             },
-            // Se o logo falhar, você pode descomentar a linha abaixo para debug:
-            // { text: logoBase64 ? '' : 'FALHA NO LOGO', alignment: 'center' },
-
             { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 1.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
         ]
     } : null;
@@ -84,7 +77,8 @@ export const gerarPDFLaudo = async ({
         if (!textoRaw) return [];
         return textoRaw.split('\n').map(line => {
             if (line.trim() === '') return { text: '', margin: [0, 2] };
-            if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO:')) {
+            // Detecta títulos de seção
+            if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO') || line.toUpperCase() === 'BIOMETRIA FETAL' || line.toUpperCase() === 'MORFOLOGIA FETAL' || line.includes('RASTREAMENTO MORFOLÓGICO')) {
                 return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
             }
             return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
@@ -109,6 +103,47 @@ export const gerarPDFLaudo = async ({
                 { table: { widths: ['*', 100], body: bodyTable }, layout: 'noBorders' }
             ],
             unbreakable: true 
+        };
+    };
+
+    // --- NOVO: TABELA DE RISCOS (IGUAL FOTO) ---
+    const criarTabelaRiscos = (d) => {
+        if (!d.riscoT21Basal && !d.riscoT21Corrigido) return null;
+
+        return {
+            stack: [
+                { text: 'CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS', style: 'sectionHeader', margin: [0, 15, 0, 5] },
+                {
+                    table: {
+                        widths: ['*', '*', '*', '*'], // 4 colunas iguais
+                        body: [
+                            // Cabeçalho
+                            [
+                                { text: '', border: [false, false, false, true] },
+                                { text: 'Risco Trissomia 21', style: 'tableHeader', bold: true, fillColor: '#f0f0f0' },
+                                { text: 'Risco Trissomia 18', style: 'tableHeader', bold: true, fillColor: '#f0f0f0' },
+                                { text: 'Risco Trissomia 13', style: 'tableHeader', bold: true, fillColor: '#f0f0f0' }
+                            ],
+                            // Linha 1: Risco Inicial
+                            [
+                                { text: 'Risco Inicial', fontSize: 9, bold: true, color: '#333', margin:[0,5] },
+                                { text: `1/${d.riscoT21Basal || '---'}`, fontSize: 9, margin:[0,5] },
+                                { text: `1/${d.riscoT18Basal || '---'}`, fontSize: 9, margin:[0,5] },
+                                { text: `1/${d.riscoT13Basal || '---'}`, fontSize: 9, margin:[0,5] }
+                            ],
+                            // Linha 2: Risco Corrigido
+                            [
+                                { text: 'Risco Corrigido', fontSize: 9, bold: true, color: '#333', margin:[0,5] },
+                                { text: `1/${d.riscoT21Corrigido || '---'}`, fontSize: 9, margin:[0,5] },
+                                { text: `1/${d.riscoT18Corrigido || '---'}`, fontSize: 9, margin:[0,5] },
+                                { text: `1/${d.riscoT13Corrigido || '---'}`, fontSize: 9, margin:[0,5] }
+                            ]
+                        ]
+                    },
+                    layout: 'lightHorizontalLines' // Linhas finas horizontais
+                }
+            ],
+            unbreakable: true
         };
     };
 
@@ -139,22 +174,42 @@ export const gerarPDFLaudo = async ({
         text: tituloExame || 'RELATÓRIO MÉDICO', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 20] 
     });
 
-    // C. Processamento Inteligente do Texto (Para a Assinatura)
-    const paragrafosTexto = processarTexto(textoLaudo);
-    let ultimoParagrafo = null;
+    // C. Processamento do Texto (COM LIMPEZA DA TABELA ASCII)
+    let textoParaImprimir = textoLaudo || '';
+
+    // Se tivermos dados de risco estruturados, removemos a "tabela de texto" feia do laudo
+    // para substituir pela tabela bonita do PDF.
+    if (dadosEstruturados && (dadosEstruturados.riscoT21Basal || dadosEstruturados.feto1?.riscoT21Basal)) {
+        // Regex remove o bloco desde o título até a linha de traços final
+        const regexRemoveTabela = /CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS[\s\S]*?-{10,}\n/g;
+        textoParaImprimir = textoParaImprimir.replace(regexRemoveTabela, '');
+    }
+
+    const paragrafosTexto = processarTexto(textoParaImprimir);
     
-    // Remove o último parágrafo da lista principal para colar ele na assinatura depois
+    // Tratamento para Assinatura (não ficar sozinha na página)
+    let ultimoParagrafo = null;
     if (paragrafosTexto.length > 0) {
         ultimoParagrafo = paragrafosTexto.pop(); 
     }
 
-    // Adiciona todo o texto (exceto o último parágrafo)
     content.push(...paragrafosTexto);
 
-    // Linha divisória fina após texto
+    // D. Tabelas Especiais (Biometria e Riscos)
+    
+    // 1. Tabela de Riscos (NOVO) - Inserimos antes da linha final ou tabelas de biometria
+    // Verificamos se está na raiz (feto único) ou dentro de feto1 (multiplo)
+    const dadosRisco = dadosEstruturados?.riscoT21Basal ? dadosEstruturados : (dadosEstruturados?.feto1?.riscoT21Basal ? dadosEstruturados.feto1 : null);
+    
+    if (dadosRisco) {
+        content.push(criarTabelaRiscos(dadosRisco));
+        content.push({ text: ' ', margin: [0, 10] }); // Espaço após tabela
+    }
+
+    // Linha divisória fina
     content.push({ canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 10, 0, 10] });
     
-    // D. Tabelas (se houver)
+    // 2. Tabelas de Biometria
     if (dadosEstruturados?.feto1?.tabelaBiometria?.length > 0) {
         const titulo = dadosEstruturados.isGemelar ? 'BIOMETRIA FETAL - FETO 1' : 'TABELA BIOMÉTRICA';
         content.push(criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria, titulo));
@@ -178,23 +233,18 @@ export const gerarPDFLaudo = async ({
         }
     }
 
-    // --- LÓGICA DO PREFIXO MÉDICO (Dr. ou Dra.) ---
+    // --- ASSINATURA ---
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
-    // Se terminar em 'a' (ex: Camila, Ana) usa Dra., senão Dr.
     const isDra = primeiroNome.endsWith('a'); 
     const prefixoMedico = isDra ? 'Dra.' : 'Dr.';
     const nomeFormatado = medicoNome ? `${prefixoMedico} ${medicoNome}` : 'Médico Examinador';
 
-    // --- BLOCO DA ASSINATURA (HÍBRIDO) ---
-    // Aqui decidimos se desenhamos a LINHA (Manual) ou o BOX (Digital)
-    
     let elementoAssinatura = null;
 
     if (usaAssinaturaDigital) {
-        // OPÇÃO A: VISUAL DIGITAL (BOX CINZA)
         elementoAssinatura = {
             stack: [
-                { text: '', margin: [0, 20] }, // Espaço
+                { text: '', margin: [0, 20] }, 
                 {
                     table: {
                         widths: ['*'],
@@ -214,12 +264,11 @@ export const gerarPDFLaudo = async ({
                         ]]
                     },
                     layout: { defaultBorder: true },
-                    margin: [120, 0, 120, 0] // Margens laterais para centralizar e reduzir largura
+                    margin: [120, 0, 120, 0] 
                 }
             ]
         };
     } else {
-        // OPÇÃO B: VISUAL MANUAL (LINHA DE CANETA)
         elementoAssinatura = {
             stack: [
                 { text: '', margin: [0, 35] }, 
@@ -230,7 +279,6 @@ export const gerarPDFLaudo = async ({
         };
     }
 
-    // Adiciona o bloco final (Texto restante + Assinatura escolhida)
     content.push({
         stack: [
             ultimoParagrafo ? ultimoParagrafo : {},
@@ -255,21 +303,16 @@ export const gerarPDFLaudo = async ({
         defaultStyle: { font: 'Roboto' }
     };
     
-    // --- DECISÃO FINAL: ABRIR OU ASSINAR? ---
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 
     if (usaAssinaturaDigital) {
-        // 1. Gera o arquivo (Blob)
         pdfDocGenerator.getBlob(async (blob) => {
             try {
-                // Abre aba de "Aguarde" para não ser bloqueado pelo navegador
                 const newWindow = window.open('', '_blank');
                 if(newWindow) newWindow.document.write('<h2>Aguarde, aplicando assinatura digital...</h2>');
 
-                // 2. Envia para o Backend Django assinar
                 const pdfAssinadoBlob = await assinarPdfRemotamente(blob);
                 
-                // 3. Abre o PDF que voltou assinado
                 const fileURL = URL.createObjectURL(pdfAssinadoBlob);
                 if(newWindow) newWindow.location.href = fileURL;
                 
@@ -279,7 +322,6 @@ export const gerarPDFLaudo = async ({
             }
         });
     } else {
-        // Modo Clássico: Abre direto
         pdfDocGenerator.open();
     }
 };
