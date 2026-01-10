@@ -34,8 +34,8 @@ import ConfiguracoesPage from './pages/ConfiguracoesPage';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}> {/* 1. Aplica o Tema Global */}
-      <CssBaseline /> {/* 2. Reseta estilos padrão do navegador */}
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
       <SnackbarProvider>
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
           <Router>
@@ -44,10 +44,11 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/resultados" element={<PortalResultados />} />
               
-              {/* Rotas Protegidas */}
+              {/* Rotas Protegidas (Requer Login) */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   
+                  {/* Acesso Geral (Médicos, Recepção, Admin) */}
                   <Route path="/" element={<PainelMedicoPage />} />
                   <Route path="/painel" element={<PainelRecepcaoPage />} /> 
                   
@@ -59,10 +60,12 @@ function App() {
                   
                   <Route path="/telemedicina" element={<TelemedicinaPage />} />
                   
-                  <Route path="/financeiro/*" element={<FinanceiroPage />} />
-
-                  {/* Rota de Configurações Unificada */}
-                  <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                  {/* --- ÁREA RESTRITA (ADMINISTRADOR) --- */}
+                  {/* Envolvemos Financeiro e Configurações no AdminRoute */}
+                  <Route element={<AdminRoute />}>
+                      <Route path="/financeiro/*" element={<FinanceiroPage />} />
+                      <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                  </Route>
 
                 </Route>
               </Route>
