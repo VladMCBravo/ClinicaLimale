@@ -41,7 +41,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   };
 
   // Lógica para esconder seções que não fazem sentido no Transvaginal Inicial
-  const isInicial = formState.subtipo && (formState.subtipo.includes("INICIAL") || formState.subtipo.includes("1_TRI"));
+  const isTransvaginalOnly = formState.subtipo === "OBSTETRICO_INICIAL";
 
  return (
     <div className="flex flex-col gap-3 pb-8">
@@ -129,20 +129,22 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
         {/* É útil em todas as fases, mas principalmente Inicial/1Tri/Morfológico */}
         <SecaoColoDados {...commonProps} />
 
-        {/* Condicionais de Inicial */}
-        {formState.subtipo && formState.subtipo.includes("INICIAL") && (
+        {/* Lógica Condicional Ajustada */}        
+        {/* Saco Gestacional: Geralmente apenas no Inicial ou se for muito precoce */}
+        {(formState.subtipo === "OBSTETRICO_INICIAL" || formState.subtipo === "OBSTETRICO_1_TRI") && (
             <SecaoSacoGestacional {...commonProps} />
         )}
-
-        {formState.subtipo && formState.subtipo.includes("1_TRI") && (
-            <SecaoEmbriao {...commonProps} />
-        )}
-        
-        {!isInicial && (
+        {/* Demais seções: Para 1º Tri (Morfológico), 2º Tri, Doppler, etc. */}
+        {!isTransvaginalOnly && (
             <>
-                <SecaoPlacentaLiquido {...commonProps} />
+                {/* CORREÇÃO 1: Passando qtdFetos */}
+                <SecaoPlacentaLiquido {...commonProps} qtdFetos={qtdFetos} />
+                
                 <SecaoBiometria {...commonProps} />
+                
+                {/* CORREÇÃO 2: Morfologia agora aparece no 1º TRI também */}
                 <SecaoMorfologia {...commonProps} />
+                
                 <SecaoDoppler {...commonProps} />
             </>
         )}
