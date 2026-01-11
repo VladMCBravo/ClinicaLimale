@@ -2,11 +2,8 @@
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
-// 1. Importe o arquivo de imagem diretamente
 import logoImagemPath from '../assets/Logo-pdf.png';
-// 2. Importe o helper
 import { getBase64FromUrl } from "./imageHelper";
-
 import { assinarPdfRemotamente } from "../api/pdfService"; 
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
@@ -77,8 +74,21 @@ export const gerarPDFLaudo = async ({
         if (!textoRaw) return [];
         return textoRaw.split('\n').map(line => {
             if (line.trim() === '') return { text: '', margin: [0, 2] };
-            // Detecta títulos de seção
-            if (line.includes('---') || line.toUpperCase().includes('CONCLUSÃO') || line.toUpperCase() === 'BIOMETRIA FETAL' || line.toUpperCase() === 'MORFOLOGIA FETAL' || line.includes('RASTREAMENTO MORFOLÓGICO')) {
+            
+            // Detecta títulos de seção para negrito e cor
+            const titulosConhecidos = [
+                'CONCLUSÃO', 
+                'BIOMETRIA FETAL', 
+                'MORFOLOGIA FETAL', 
+                'RASTREAMENTO MORFOLÓGICO',
+                'ESTUDO DOPPLERFLUXOMÉTRICO',
+                'ANÁLISE MORFOLÓGICA',
+                'ESTUDO TRIDIMENSIONAL',
+                'AVALIAÇÃO DO COLO UTERINO'
+            ];
+            
+            // Se a linha contém um desses títulos ou traços separadores
+            if (line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t))) {
                 return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
             }
             return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
@@ -106,8 +116,9 @@ export const gerarPDFLaudo = async ({
         };
     };
 
-    // --- NOVO: TABELA DE RISCOS (IGUAL FOTO) ---
+    // --- TABELA DE RISCOS (ATUALIZADA) ---
     const criarTabelaRiscos = (d) => {
+        // Verifica se tem dados de risco (Basal ou Corrigido)
         if (!d.riscoT21Basal && !d.riscoT21Corrigido) return null;
 
         return {
@@ -115,32 +126,29 @@ export const gerarPDFLaudo = async ({
                 { text: 'CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS', style: 'sectionHeader', margin: [0, 15, 0, 5] },
                 {
                     table: {
-                        widths: ['*', '*', '*', '*'], // 4 colunas iguais
+                        widths: ['*', '*', '*', '*'], 
                         body: [
-                            // Cabeçalho
                             [
                                 { text: '', border: [false, false, false, true] },
-                                { text: 'Risco Trissomia 21', style: 'tableHeader', bold: true, fillColor: '#f0f0f0' },
-                                { text: 'Risco Trissomia 18', style: 'tableHeader', bold: true, fillColor: '#f0f0f0' },
-                                { text: 'Risco Trissomia 13', style: 'tableHeader', bold: true, fillColor: '#f0f0f0' }
+                                { text: 'T21', style: 'tableHeader', bold: true, fillColor: '#f0f0f0', alignment: 'center' },
+                                { text: 'T18', style: 'tableHeader', bold: true, fillColor: '#f0f0f0', alignment: 'center' },
+                                { text: 'T13', style: 'tableHeader', bold: true, fillColor: '#f0f0f0', alignment: 'center' }
                             ],
-                            // Linha 1: Risco Inicial
                             [
-                                { text: 'Risco Inicial', fontSize: 9, bold: true, color: '#333', margin:[0,5] },
-                                { text: `1/${d.riscoT21Basal || '---'}`, fontSize: 9, margin:[0,5] },
-                                { text: `1/${d.riscoT18Basal || '---'}`, fontSize: 9, margin:[0,5] },
-                                { text: `1/${d.riscoT13Basal || '---'}`, fontSize: 9, margin:[0,5] }
+                                { text: 'Risco Basal', fontSize: 9, bold: true, color: '#333', margin:[0,5] },
+                                { text: `1 / ${d.riscoT21Basal || '---'}`, fontSize: 9, alignment: 'center', margin:[0,5] },
+                                { text: `1 / ${d.riscoT18Basal || '---'}`, fontSize: 9, alignment: 'center', margin:[0,5] },
+                                { text: `1 / ${d.riscoT13Basal || '---'}`, fontSize: 9, alignment: 'center', margin:[0,5] }
                             ],
-                            // Linha 2: Risco Corrigido
                             [
                                 { text: 'Risco Corrigido', fontSize: 9, bold: true, color: '#333', margin:[0,5] },
-                                { text: `1/${d.riscoT21Corrigido || '---'}`, fontSize: 9, margin:[0,5] },
-                                { text: `1/${d.riscoT18Corrigido || '---'}`, fontSize: 9, margin:[0,5] },
-                                { text: `1/${d.riscoT13Corrigido || '---'}`, fontSize: 9, margin:[0,5] }
+                                { text: `1 / ${d.riscoT21Corrigido || '---'}`, fontSize: 9, alignment: 'center', margin:[0,5] },
+                                { text: `1 / ${d.riscoT18Corrigido || '---'}`, fontSize: 9, alignment: 'center', margin:[0,5] },
+                                { text: `1 / ${d.riscoT13Corrigido || '---'}`, fontSize: 9, alignment: 'center', margin:[0,5] }
                             ]
                         ]
                     },
-                    layout: 'lightHorizontalLines' // Linhas finas horizontais
+                    layout: 'lightHorizontalLines'
                 }
             ],
             unbreakable: true
@@ -174,20 +182,22 @@ export const gerarPDFLaudo = async ({
         text: tituloExame || 'RELATÓRIO MÉDICO', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 20] 
     });
 
-    // C. Processamento do Texto (COM LIMPEZA DA TABELA ASCII)
+    // C. Processamento do Texto (COM LIMPEZA DA TABELA ANTIGA)
     let textoParaImprimir = textoLaudo || '';
 
-    // Se tivermos dados de risco estruturados, removemos a "tabela de texto" feia do laudo
-    // para substituir pela tabela bonita do PDF.
-    if (dadosEstruturados && (dadosEstruturados.riscoT21Basal || dadosEstruturados.feto1?.riscoT21Basal)) {
-        // Regex remove o bloco desde o título até a linha de traços final
-        const regexRemoveTabela = /CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS[\s\S]*?-{10,}\n/g;
+    // Verifica se há dados de risco para decidir se remove o texto duplicado
+    const temRisco = dadosEstruturados?.riscoT21Basal || dadosEstruturados?.feto1?.riscoT21Basal;
+
+    if (temRisco) {
+        // CORREÇÃO: Regex ajustado para o novo padrão "CÁLCULO DE RISCO (1:X)" gerado pelo relatorioGenerator.js
+        // Remove desde o título até o final das linhas de T13
+        const regexRemoveTabela = /CÁLCULO DE RISCO \(1:X\)[\s\S]*?Corrigido 1\/.*?\n/g;
         textoParaImprimir = textoParaImprimir.replace(regexRemoveTabela, '');
     }
 
     const paragrafosTexto = processarTexto(textoParaImprimir);
     
-    // Tratamento para Assinatura (não ficar sozinha na página)
+    // Separa o último parágrafo para tentar manter junto da assinatura
     let ultimoParagrafo = null;
     if (paragrafosTexto.length > 0) {
         ultimoParagrafo = paragrafosTexto.pop(); 
@@ -195,21 +205,21 @@ export const gerarPDFLaudo = async ({
 
     content.push(...paragrafosTexto);
 
-    // D. Tabelas Especiais (Biometria e Riscos)
+    // D. Tabelas Especiais (Inseridas ANTES da assinatura)
     
-    // 1. Tabela de Riscos (NOVO) - Inserimos antes da linha final ou tabelas de biometria
-    // Verificamos se está na raiz (feto único) ou dentro de feto1 (multiplo)
+    // 1. Tabela de Riscos (PDF Formatado)
     const dadosRisco = dadosEstruturados?.riscoT21Basal ? dadosEstruturados : (dadosEstruturados?.feto1?.riscoT21Basal ? dadosEstruturados.feto1 : null);
     
     if (dadosRisco) {
         content.push(criarTabelaRiscos(dadosRisco));
-        content.push({ text: ' ', margin: [0, 10] }); // Espaço após tabela
+        content.push({ text: ' ', margin: [0, 10] }); 
     }
 
     // Linha divisória fina
     content.push({ canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 10, 0, 10] });
     
-    // 2. Tabelas de Biometria
+    // 2. Tabelas de Biometria (Se houver array preparado)
+    // NOTA: Certifique-se que o frontend cria 'tabelaBiometria' dentro de dadosEstruturados
     if (dadosEstruturados?.feto1?.tabelaBiometria?.length > 0) {
         const titulo = dadosEstruturados.isGemelar ? 'BIOMETRIA FETAL - FETO 1' : 'TABELA BIOMÉTRICA';
         content.push(criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria, titulo));
