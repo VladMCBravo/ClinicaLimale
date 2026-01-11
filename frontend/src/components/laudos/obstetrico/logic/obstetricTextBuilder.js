@@ -273,6 +273,15 @@ export const gerarRelatorioFeto = (d) => {
             texto += `\n`;
         }
 
+        // Ducto Venoso (Seção Doppler)
+        if (d.checkDv || d.dvIP) {
+             texto += `Ducto Venoso: ${d.dvIP ? 'IP '+d.dvIP : 'Avaliado'}`;
+             if (d.dvOndaAZero) texto += ` (Onda A Zero)`;
+             else if (d.dvOndaAReversa) texto += ` (Onda A Reversa)`;
+             else if (d.dvIP) texto += ` (Onda A Positiva)`;
+             texto += `.\n`;
+        }
+
         // Relação C/U
         if (d.relacaoCerebroUmbilical) {
             texto += `Relação Cérebro/Umbilical: ${d.relacaoCerebroUmbilical}.\n`;
@@ -339,12 +348,29 @@ export const gerarRelatorioFeto = (d) => {
         
         // Qualidade
         texto += `Qualidade da imagem: ${d.qualidade3D || 'Satisfatória'}. `;
-        if (d.fatorLimitante) texto += `Limitada por: ${d.fatorLimitante}.`;
+        
+        // Fator Limitante (Só se não for ótima/boa)
+        if ((d.qualidade3D === 'regular' || d.qualidade3D === 'ruim') && d.fatorLimitante) {
+            let motivo = d.fatorLimitante;
+            if (motivo === 'liquido') motivo = 'Líquido Reduzido';
+            if (motivo === 'posicao') motivo = 'Posição Fetal';
+            if (motivo === 'biotipo') motivo = 'Biotipo Materno';
+            if (motivo === 'placenta') motivo = 'Interposição Placentária';
+            if (motivo === 'membros') motivo = 'Membros na face';
+            texto += `Fator limitante: ${motivo}.`;
+        }
         texto += `\n`;
         
         // Análise Facial
-        if (d.face3D) texto += `Face fetal: ${d.face3D === 'visualizada' ? 'Visualizada e íntegra' : d.face3D}.\n`;
+        if (d.face3D) {
+            let faceTexto = d.face3D;
+            if(d.face3D === 'visualizada') faceTexto = 'Visualizada e íntegra';
+            if(d.face3D === 'parcial') faceTexto = 'Parcialmente Visualizada';
+            if(d.face3D === 'encoberta') faceTexto = 'Encoberta / Não visualizada';
+            texto += `Face fetal: ${faceTexto}.\n`;
+        }
         
+        // Estruturas 3D
         const estruturas3d = [];
         if (d.labios3D) estruturas3d.push("Lábios");
         if (d.olhos3D) estruturas3d.push("Olhos");
@@ -376,18 +402,18 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 11. CONCLUSÃO E DIAGNÓSTICO (REFEITO BASEADO NO SECAOCONCLUSAO.JSX)
+    // 11. CONCLUSÃO E DIAGNÓSTICO (CORRIGIDO: PESO, SEXO, NOTAS)
     // -------------------------------------------------------------------------
     texto += `CONCLUSÃO\n`;
     let igFinal = d.igBiometria || d.igDum || "---";
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
 
-    // Conclusões de Aborto
+    // Aborto
     if (d.sgAbortoIncompleto) {
         texto += `Quadro compatível com Abortamento Incompleto (Restos ovulares).\n`;
     }
     else {
-        // Conclusão Base
+        // Frase Principal
         if (d.subtipo === 'OBSTETRICO_1_TRI') {
             texto += `Gestação única de ${d.ccn ? diasParaTextoIG(calcularDiasPeloCCN(d.ccn)) : igFinal}.\n`;
         } else {
@@ -395,8 +421,7 @@ export const gerarRelatorioFeto = (d) => {
             texto += `- Biometria compatível com ${igFinal}.\n`;
         }
         
-        // Peso e Percentil (Vem da Seção Conclusão)
-        // Preferência para o peso editável da conclusão (pesoEstimado), senão o calculado (pesoFetal)
+        // 1. Peso (Prioridade: pesoEstimado > pesoFetal)
         const pesoFinal = d.pesoEstimado || d.pesoFetal;
         if (pesoFinal) {
             texto += `- Peso fetal estimado: ${pesoFinal} g (+/- 10%).`;
@@ -404,19 +429,25 @@ export const gerarRelatorioFeto = (d) => {
             texto += `\n`;
         }
         
-        // Sexo Fetal
+        // 2. Sexo Fetal
         if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
-             // Formata MASCULINO -> Masculino
-             const sexoFormatado = d.sexoFetal.charAt(0).toUpperCase() + d.sexoFetal.slice(1).toLowerCase();
-             texto += `- Sexo fetal: ${sexoFormatado}.\n`;
+             let sexoTexto = d.sexoFetal.toLowerCase();
+             if(d.sexoFetal === 'MASCULINO') sexoTexto = 'Masculino';
+             if(d.sexoFetal === 'FEMININO') sexoTexto = 'Feminino';
+             if(d.sexoFetal === 'NAO_VISUALIZADO') sexoTexto = 'Não visualizado';
+             texto += `- Sexo fetal: ${sexoTexto}.\n`;
         }
 
-        // Sugestões / Alertas (Checkboxes da Conclusão)
+        // 3. Notas e Sugestões (Checkboxes)
         if (d.morfoPrejudicado45mm) texto += `- Avaliação morfológica prejudicada (CCN < 45mm).\n`;
         if (d.sugereNipt) texto += `- Risco aumentado para cromossomopatias. Sugere-se NIPT ou cariótipo.\n`;
-        if (d.sugereGolfBall) texto += `- Foco hiperecogênico (Golf Ball). Sugere-se controle.\n`;
-        if (d.sugerePieloectasia) texto += `- Pieloectasia fetal. Sugere-se controle.\n`;
+        if (d.sugereGolfBall) texto += `- Foco hiperecogênico no VE (Golf Ball). Sugere-se controle.\n`;
+        if (d.sugerePieloectasia) texto += `- Pieloectasia fetal. Sugere-se controle evolutivo.\n`;
         if (d.sugereDopplerRciu) texto += `- Sugere-se acompanhamento com Dopplerfluxometria (Risco de RCIU).\n`;
+        
+        // Conclusão Morfológico/Doppler
+        if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') texto += `- Exame morfológico sem evidências de anomalias estruturais.\n`;
+        if (d.usarDoppler) texto += `- Estudo Dopplerfluxométrico dentro dos padrões de normalidade.\n`;
     }
     
     // Observações Finais
