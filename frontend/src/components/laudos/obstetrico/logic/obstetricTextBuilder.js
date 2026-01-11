@@ -3,7 +3,6 @@ import { formatData } from './obstetricCalculations';
 // =============================================================================
 // HELPERS (Formatação Visual)
 // =============================================================================
-
 const formatBioLine = (label, value, unit = 'mm') => {
     if (!value) return null;
     const spaces = 50 - label.length; 
@@ -12,21 +11,22 @@ const formatBioLine = (label, value, unit = 'mm') => {
 };
 
 // =============================================================================
-// TEXTOS FIXOS (Disclaimers)
+// TEXTOS FIXOS (JURÍDICOS DA MÉDICA)
 // =============================================================================
-const TEXTO_DISCLAIMER_MORFO_1 = "A sensibilidade da medida da translucência nucal e a avaliação do osso nasal na detecção de cromossomopatias (trissomia 21) é de aproximadamente 90%, quando realizada entre 11 e 14 semanas. O risco corrigido foi calculado com base na Fetal Medicine Foundation.";
-const TEXTO_DISCLAIMER_MORFO_2 = "O ultrassom morfológico tem uma sensibilidade de 83,5%, entre a 20ª e a 24ª semana de gestação, na detecção de anomalias estruturais (Estudo F. Gonçalves).";
+const TEXTO_DISCLAIMER_MORFO_1 = "A sensibilidade da medida da translucência nucal e a avaliação do osso nasal na detecção de cromossomopatias (trissomia 21) é de aproximadamente 90%, quando realizada entre 11 e 14 semanas (CCN de 45 a 84 mm) e de aproximadamente 95% quando associada a marcadores bioquímicos. Para o cálculo do risco de cromossomopatias utilizou-se o programa desenvolvido pela 'Fetal Medicine Foundation' de Londres. O risco corrigido foi calculado com base nos resultados obtidos em mais de 100.000 pacientes submetidas ao exame ultrassonográfico no primeiro trimestre de gestação. Deve-se considerar que os riscos nesta fase da gestação são superiores aos riscos avaliados no segundo e terceiro trimestre de gestação. Cerca de 40% dos fetos com trissomias resultam em abortamento espontâneo.";
+
+const TEXTO_DISCLAIMER_MORFO_2 = "O exame morfológico tem uma sensibilidade de 83,5%, entre a 20ª e a 24ª semana de gestação, na detecção de anomalias estruturais, segundo estudo de F. Gonçalves. (Publicado na Revista da Sociedade Brasileira de Medicina Fetal, abril de 2000).";
 
 // =============================================================================
-// GERADOR DE RELATÓRIO (AUDITORIA TOTAL BASEADA NAS IMAGENS)
+// GERADOR DE RELATÓRIO (FUSÃO: LÓGICA ATUAL + TEXTO DA MÉDICA)
 // =============================================================================
 export const gerarRelatorioFeto = (d) => {
     let texto = '';
     
-    // Título (Mapeamento padrão)
+    // --- TÍTULO DO EXAME ---
     const mapTitulos = {
         'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL (INICIAL)',
-        'OBSTETRICO_1_TRI': 'ULTRASSONOGRAFIA MORFOLÓGICA DO 1º TRIMESTRE',
+        'OBSTETRICO_1_TRI': 'ULTRASSONOGRAFIA MORFOLÓGICA DO I TRIMESTRE', // Ajuste Romano (I)
         'OBSTETRICO_2_3_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA',
         'OBSTETRICO_DOPPLER': 'ULTRASSONOGRAFIA OBSTÉTRICA COM DOPPLERFLUXOMETRIA',
         'OBSTETRICO_MORFOLOGICO': 'ULTRASSONOGRAFIA MORFOLÓGICA DO 2º TRIMESTRE',
@@ -35,16 +35,16 @@ export const gerarRelatorioFeto = (d) => {
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
     
     // -------------------------------------------------------------------------
-    // 1. DATAÇÃO (Sempre roda)
+    // 1. DATAÇÃO E IG
     // -------------------------------------------------------------------------
     if (d.usarDum) {
-        if (d.exibirDataDum && d.dum) texto += `Data da última menstruação (DUM): ${formatData(d.dum)}\n`;
+        if (d.exibirDataDum && d.dum) texto += `Data da última menstruação: ${formatData(d.dum)}\n`;
         if (d.citarDppDum && d.dppDum) {
             texto += `DPP (DUM): ${d.dppDum}`;
             if (d.igDum) texto += `, compatível com ${d.igDum}`;
             texto += `.\n`;
         } else if (d.igDum) {
-            texto += `Exame realizado com ${d.igDum} (cronológica).\n`;
+            texto += `Exame ultrassonográfico realizado com ${d.igDum} de idade gestacional segundo a data da última menstruação.\n`;
         }
     } else if (d.dumDesconhecida) {
         texto += `Data da última menstruação: Desconhecida / Não referida.\n`;
@@ -59,101 +59,91 @@ export const gerarRelatorioFeto = (d) => {
     texto += '\n';
 
     // -------------------------------------------------------------------------
-    // 2. ÚTERO E SACO GESTACIONAL (Imagens 2, 4, 6)
+    // 2. ÚTERO E SACO GESTACIONAL
     // -------------------------------------------------------------------------
     
-    // Bexiga Materna (Universal)
+    // --> ÚTERO: Texto Específico da Médica para 1º Tri
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `ÚTERO\nApresenta-se em AVF com dimensões adequadas para a idade gestacional apresentando contornos e textura normais.\n\n`;
+    } 
+    else {
+        // Texto Padrão para outros exames
+        if (d.utero) {
+            const uteroTexto = d.utero === 'globoso' ? 'globoso, aumentado de volume' : d.utero;
+            texto += `Útero ${uteroTexto}`;
+            if (d.miometrio) texto += `, miométrio ${d.miometrio}`;
+            texto += `.\n`;
+        }
+    }
+
     if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar' && d.bexigaMaterna !== 'não visualizada') {
         texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
     }
 
-    // Útero
-    if (d.utero) {
-        const uteroTexto = d.utero === 'globoso' ? 'globoso, aumentado de volume' : d.utero;
-        texto += `Útero ${uteroTexto}`;
-        if (d.miometrio) texto += `, miométrio ${d.miometrio}`;
-        texto += `.\n`;
-    }
-
-    // Lógica do Saco Gestacional
-    // Ativa se checkbox "Citar Saco" estiver on OU se for subtipo INICIAL
+    // SACO GESTACIONAL (Lógica mantida do seu arquivo funcional)
     if (d.citarSg || (d.subtipo && d.subtipo.includes("INICIAL"))) {
-        
-        // Localização
-        if (d.sgLocalizacao) texto += `Saco gestacional de inserção ${d.sgLocalizacao}.\n`;
-        
-        // Biometria SG (Imagem 4)
+        if (d.sgLocalizacao) texto += `Saco gestacional de inserção ${d.sgLocalizacao}, de contornos regulares.\n`;
         if (d.resDmsg) texto += `Diâmetro Médio do Saco Gestacional (DMSG): ${d.resDmsg} mm.\n`;
         
-        // Embrião / Vesícula
         if (d.embriaoNaoVisualizado) {
-            texto += `Vesícula vitelina ${d.citarVv ? 'visualizada' : 'não visualizada'}. Embrião não caracterizado.\n`;
+            texto += `Vesícula vitelina ${d.citarVv ? 'visualizada' : 'não visualizada'}. Embrião não caracterizado no momento.\n`;
         } else if (d.ccn) {
-            texto += `Visualizado embrião medindo ${d.ccn} mm (CCN).\n`;
+            texto += `Visualizado embrião medindo ${d.ccn} mm de CCN.\n`;
         }
         
-        // Trofoblasto (Imagem 2)
-        if (d.trofoblasto) texto += `Trofoblasto de inserção ${d.trofoblasto}.\n`;
+        if (d.trofoblasto) texto += `As vilosidades placentárias têm inserção ${d.trofoblasto}.\n`;
         
-        // Hematoma / Descolamento (Imagem 2)
         if (d.sgComDescolamento || (d.desc1 && parseFloat(d.desc1) > 0)) {
-            texto += `Observa-se área de descolamento/hematoma medindo ${d.desc1 || '-'} x ${d.desc2 || '-'} mm.\n`;
+            texto += `Observa-se área de descolamento medindo ${d.desc1 || '-'} x ${d.desc2 || '-'} mm.\n`;
         } else if (d.sgSemDescolamento) {
-            texto += `Não se observam áreas de descolamento ovular.\n`;
+            texto += `Não se observa coágulo intra uterino.\n`;
         }
         
-        // Abortamento (Imagem 6)
         if (d.sgAbortoIncompleto) {
-            texto += `Cavidade uterina preenchida por conteúdo heterogêneo (restos ovulares).\n`;
+            texto += `Observa-se na cavidade uterina conteúdo heterogêneo amorfo, compatível com restos ovulares (Abortamento Incompleto).\n`;
         }
     }
-    texto += '\n';
 
     // -------------------------------------------------------------------------
-    // 3. ESTÁTICA FETAL (Imagem 1)
+    // 3. PLACENTA E LÍQUIDO (Texto Ajustado)
     // -------------------------------------------------------------------------
-    if (d.corionicidade) texto += `Gestação ${d.corionicidade} / ${d.amnionicidade}.\n`;
-
-    if (d.localizacaoFeto) texto += `Feto localizado: ${d.localizacaoFeto}.\n`;
-    
-    // Agora imprime SEMPRE que preenchido (destravado)
-    if (d.situacao && d.apresentacao) {
-        texto += `Situação ${d.situacao}, apresentação ${d.apresentacao}`;
-        if (d.dorso) texto += ` e dorso ${d.dorso}`;
-        texto += `.\n`;
-    }
-
-    // Anatomia Básica (Checkboxes "Estômago" e "Bexiga" da imagem 4)
-    const anatomiaBasica = [];
-    if (d.estomagoVisualizado) anatomiaBasica.push("Estômago");
-    if (d.bexigaVisualizada) anatomiaBasica.push("Bexiga");
-    if (anatomiaBasica.length > 0) texto += `Anatomia básica: ${anatomiaBasica.join(' e ')} visualizados.\n`;
-
-    // -------------------------------------------------------------------------
-    // 4. PLACENTA E LÍQUIDO (Imagem 5)
-    // -------------------------------------------------------------------------
-    if (d.placentaLocalizacao) {
-        texto += `Placenta ${d.placentaLocalizacao}`;
-        if (d.placentaGrau) texto += `, grau ${d.placentaGrau}`;
-        if (d.placentaEspessura) texto += `, espessura ${d.placentaEspessura} mm`;
+    if (d.placentaLocalizacao && !d.citarSg) {
+        if (d.subtipo === 'OBSTETRICO_1_TRI') texto += `PLACENTA\n`;
+        texto += `Inserção ${d.placentaLocalizacao}, grau ${d.placentaGrau || '0'} e espessura média normal`;
+        if (d.placentaEspessura) texto += ` (${d.placentaEspessura} mm)`;
         texto += `, sem sinais de descolamento.\n`;
     }
 
     if (d.liquidoAmniotico) {
-        texto += `Líquido amniótico: ${d.liquidoAmniotico}. `;
+        texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}. `;
         if (d.mbv) {
-            texto += `Maior bolsão vertical: ${d.mbv} mm.`;
+            texto += `(MBV = ${d.mbv} mm).`;
         } else if (d.ila) {
-            texto += `ILA: ${d.ila} mm`;
-            // CORREÇÃO: Referência do líquido (Imagem 5)
-            if (d.ilaRefMin || d.ilaRefMax) {
-                texto += ` (Ref: ${d.ilaRefMin || '80'} a ${d.ilaRefMax || '180'} mm)`;
-            }
+            texto += `(ILA = ${d.ila} mm)`;
+            if (d.ilaRefMin || d.ilaRefMax) texto += ` (Ref: ${d.ilaRefMin || '80'} a ${d.ilaRefMax || '180'} mm)`;
             texto += `.`;
         }
         texto += `\n`;
     }
     texto += '\n';
+
+    // -------------------------------------------------------------------------
+    // 4. ESTÁTICA FETAL (Mantendo variáveis funcionais)
+    // -------------------------------------------------------------------------
+    if (d.corionicidade) texto += `Gestação ${d.corionicidade} / ${d.amnionicidade}.\n`;
+    if (d.localizacaoFeto) texto += `Feto localizado: ${d.localizacaoFeto}.\n`;
+    
+    if (d.situacao && d.apresentacao && d.subtipo !== 'OBSTETRICO_1_TRI') {
+        texto += `Situação ${d.situacao}, apresentação ${d.apresentacao}`;
+        if (d.dorso) texto += ` e com dorso ${d.dorso}`;
+        texto += `.\n\n`;
+    }
+
+    // Anatomia Básica (Checkboxes)
+    const anatomiaBasica = [];
+    if (d.estomagoVisualizado) anatomiaBasica.push("Estômago");
+    if (d.bexigaVisualizada) anatomiaBasica.push("Bexiga");
+    if (anatomiaBasica.length > 0) texto += `Anatomia básica: ${anatomiaBasica.join(' e ')} visualizados.\n\n`;
 
     // -------------------------------------------------------------------------
     // 5. COLO UTERINO
@@ -169,187 +159,185 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 6. MORFOLOGIA GERAL (Imagens 3 e 4)
+    // 6. MORFOLOGIA FETAL (FRASEADO DA MÉDICA APLICADO NA LÓGICA FUNCIONAL)
     // -------------------------------------------------------------------------
-    // Lógica unificada: Se o checkbox está true, imprime o texto.
     
-    const itensMorfo = [];
-    
-    // Cabeça e Pescoço
-    if (d.morfCranio) itensMorfo.push("Crânio/Calota íntegros");
-    if (d.morfCerebro) itensMorfo.push("Encéfalo/Ventrículos normais");
-    if (d.morfFace) itensMorfo.push("Face/Perfil normais");
-    if (d.morfColuna) itensMorfo.push("Coluna Vertebral íntegra");
-    
-    // Tórax
-    if (d.morfTorax) itensMorfo.push("Pulmões homogêneos");
-    if (d.morfCoracao) itensMorfo.push("Coração (4 câmaras) visualizado");
-    if (d.morfVasosBase) itensMorfo.push("Vasos da base visualizados");
-    
-    // Abdome
-    if (d.morfEstomago) itensMorfo.push("Estômago visualizado");
-    if (d.morfFigado) itensMorfo.push("Fígado/Vesícula visualizados");
-    if (d.morfRins) itensMorfo.push("Rins tópicos");
-    if (d.morfBexiga) itensMorfo.push("Bexiga visualizada");
-    if (d.morfParedeAbd) itensMorfo.push("Parede Abdominal íntegra");
-    
-    // Outros
-    if (d.morfGenitalia) itensMorfo.push("Genitália Externa normal");
-    if (d.morfMembros) itensMorfo.push("Membros (sup/inf) visualizados");
+    // --> 1º TRIMESTRE (Textos dos Prints)
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `MORFOLOGIA FETAL\n`;
+        
+        texto += `POLO CEFÁLICO\n`;
+        if (d.morfCranio || d.morfCerebro) texto += `Contorno craniano de aspecto habitual e plexos coróides simétricos.\n`;
+        if (d.morfFace) texto += `Órbitas simétricas e aparentemente regulares.\nPerfil facial com aspecto adequado para a idade gestacional.\n`;
+        
+        texto += `\nCOLUNA VERTEBRAL\n`;
+        if (d.morfColuna) texto += `Coluna vertebral visibilizada com aspecto aparentemente normal para a idade gestacional.\n`;
+        
+        texto += `\nTÓRAX\n`;
+        texto += `Forma normal e contornos regulares. Parede anterior íntegra.\n`;
+        if (d.morfCoracao) {
+            texto += `Coração de tamanho normal para a idade gestacional com ápice voltado para a esquerda.\n`;
+            texto += `Visibilizado o esboço das quatro câmaras cardíacas.\n`;
+        }
+        if (d.bcf) texto += `Batimentos cardíacos fetais ${d.bcf} bpm.\n`;
+        
+        texto += `\nABDOME\n`;
+        texto += `Parede abdominal íntegra com inserção tópica do cordão umbilical.\n`;
+        if (d.morfEstomago) texto += `Estômago com conteúdo líquido, ipsilateral à área cardíaca.\n`;
+        if (d.morfBexiga) texto += `Bexiga fetal visibilizada${d.compBexiga ? ' medindo ' + d.compBexiga + ' mm' : ''}.\n`;
+        if (d.checkUmb) texto += `Estudo Dopplerfluxométrico evidencia as duas artérias umbilicais.\n`;
 
-    // Se tiver itens marcados, imprime a seção
-    if (itensMorfo.length > 0 || d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `\nMEMBROS\n`;
+        if (d.morfMembros) texto += `Membros superiores e inferiores visibilizados apresentando-se simétricos, sem dismorfismos aparentes, bem posicionados para a idade gestacional.\n`;
+        
+        texto += `\n`;
+    }
+
+    // --> 2º TRIMESTRE / OUTROS (Lógica de Checkboxes mantida)
+    else if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') {
         texto += `ANÁLISE MORFOLÓGICA\n`;
-        
-        // Rastreamento 1º Tri Específico (Imagem 3 - Risco)
-        if (d.subtipo === 'OBSTETRICO_1_TRI') {
-             if (d.citarTn && d.tnMedida) texto += `Translucência Nucal: ${d.tnMedida} mm.\n`;
-             if (d.ossoNasalPresente) texto += `Osso Nasal: Presente.\n`;
-             if (d.tricuspide) texto += `Regurgitação Tricúspide: Presente.\n`;
-             // Ducto Venoso (Imagem 8 e 10)
-             if (d.dvOnda || d.dvIP) {
-                 texto += `Ducto Venoso: IP ${d.dvIP || '-'}, Onda A ${d.dvOnda === 'zero' ? 'Zero' : d.dvOnda === 'reversa' ? 'Reversa' : 'Positiva'}.\n`;
-             }
-             
-             // Tabela de Risco (Imagem 3)
-             if (d.riscoT21Basal) {
-                 texto += `\nCÁLCULO DE RISCO (1:X)\n`;
-                 texto += `T21: Basal 1/${d.riscoT21Basal} | Corrigido 1/${d.riscoT21Corrigido}\n`;
-                 texto += `T18: Basal 1/${d.riscoT18Basal} | Corrigido 1/${d.riscoT18Corrigido}\n`;
-                 texto += `T13: Basal 1/${d.riscoT13Basal} | Corrigido 1/${d.riscoT13Corrigido}\n\n`;
-             }
-        }
-        
-        // Lista os itens anatômicos checados
-        if (itensMorfo.length > 0) {
-            texto += `Estruturas visualizadas de aspecto habitual: ${itensMorfo.join(', ')}.\n`;
-        }
+        if (d.morfCranio) texto += `Polo Cefálico: Estruturas intracranianas (cavum do septo pelúcido, tálamos, ventrículos e cerebelo) com aspecto habitual.\n`;
+        if (d.morfFace) texto += `Face: Lábio superior íntegro. Perfil facial normal. Cristalinos visualizados.\n`;
+        if (d.morfColuna) texto += `Coluna: Íntegra em toda sua extensão.\n`;
+        if (d.morfCoracao) texto += `Coração: Situs solitus. 4 câmaras e Vias de Saída visualizados.\n`;
+        if (d.morfEstomago || d.morfRins) texto += `Abdome: Estômago e vesícula biliar à esquerda. Rins tópicos e normais. Bexiga visualizada.\n`;
+        if (d.morfMembros) texto += `Membros: Visualizados ossos longos dos 4 membros. Mãos e pés com dedos presentes.\n`;
+        texto += `\n`;
     }
-    texto += '\n';
-
-    // -------------------------------------------------------------------------
-    // 7. VITALIDADE
-    // -------------------------------------------------------------------------
-    if (d.bcf || d.movFetal || d.degluticao) { // Imagem: Checkbox Deglutição
-        texto += `VITALIDADE FETAL: `;
-        if (d.bcf) texto += `BCF ${d.bcf} bpm. `;
-        if (d.movFetal) texto += `Movimentação somática presente. `;
-        if (d.degluticao) texto += `Movimentos de deglutição visualizados. `;
-        texto += `\n\n`;
+    
+    // Vitalidade Geral (Se não for 1º Tri)
+    if (d.subtipo !== 'OBSTETRICO_1_TRI' && (d.bcf || d.movFetal || d.degluticao)) {
+        if (d.bcf) texto += `Batimentos cardíacos fetais rítmicos: ${d.bcf} bpm.\n`;
+        if (d.movFetal) texto += `Movimentação fetal ativa: Presente.\n`;
+        if (d.degluticao) texto += `Movimentos de deglutição: Visualizados.\n`;
+        texto += `\n`;
     }
 
     // -------------------------------------------------------------------------
-    // 8. DOPPLERFLUXOMETRIA (CORRIGIDO: CHECKBOXES E TRAVA)
+    // 7. BIOMETRIA FETAL (LÓGICA RESTAURADA: CAMPOS NOVOS INCLUÍDOS)
     // -------------------------------------------------------------------------
-    // Só imprime se a trava "usarDoppler" estiver ativada
-    if (d.usarDoppler) {
-        texto += `ESTUDO DOPPLERFLUXOMÉTRICO\n`;
-        
-        // Uterinas
-        if (d.checkUtDir || d.checkUtEsq || d.utDirIP || d.utEsqIP) {
-            texto += `Artérias Uterinas: `;
-            if (d.utDirIP) texto += `Direita (IP: ${d.utDirIP}, IR: ${d.utDirIR}). `;
-            if (d.utEsqIP) texto += `Esquerda (IP: ${d.utEsqIP}, IR: ${d.utEsqIR}). `;
-            
-            const incisuras = [];
-            if (d.utDirIncisura) incisuras.push("Direita");
-            if (d.utEsqIncisura) incisuras.push("Esquerda");
-            if (incisuras.length > 0) texto += `Incisura presente: ${incisuras.join(', ')}.`;
-            texto += `\n`;
-        }
-
-        // Umbilical
-        if (d.checkUmb || d.umbIP) {
-            texto += `Artéria Umbilical: IP: ${d.umbIP}, IR: ${d.umbIR}, S/D: ${d.umbSD}. `;
-            if (d.umbDiastoleZero) texto += `(Diástole Zero). `;
-            if (d.umbDiastoleReversa) texto += `(Diástole Reversa). `;
-            texto += `\n`;
-        }
-
-        // Cerebral (ACM)
-        if (d.checkAcm || d.acmIP) {
-            texto += `Artéria Cerebral Média: IP: ${d.acmIP}, PVS: ${d.acmPVS} cm/s. `;
-            if (d.acmDiastoleAlta) texto += `(Sinais de Centralização). `;
-            texto += `\n`;
-        }
-
-        // Ducto Venoso (Seção Doppler)
-        if (d.checkDv || d.dvIP) {
-             texto += `Ducto Venoso: ${d.dvIP ? 'IP '+d.dvIP : 'Avaliado'}`;
-             if (d.dvOndaAZero) texto += ` (Onda A Zero)`;
-             else if (d.dvOndaAReversa) texto += ` (Onda A Reversa)`;
-             else if (d.dvIP) texto += ` (Onda A Positiva)`;
-             texto += `.\n`;
-        }
-
-        // Relação C/U
-        if (d.relacaoCerebroUmbilical) {
-            texto += `Relação Cérebro/Umbilical: ${d.relacaoCerebroUmbilical}.\n`;
-        }
-        texto += '\n';
-    }
-
-    // -------------------------------------------------------------------------
-    // 9. BIOMETRIA (Imagens 7 e 9)
-    // -------------------------------------------------------------------------
-    // Verificando todos os campos das imagens
     const temBiometria = d.dbp || d.cc || d.femur || d.orbitaInterna || d.tibia || d.peMedida;
 
     if (temBiometria) {
         texto += `BIOMETRIA FETAL\n`;
         const bios = [
-            formatBioLine('CCN', d.ccn),
-            formatBioLine('DBP', d.dbp),
-            formatBioLine('DOF', d.dof),
-            formatBioLine('CC', d.cc),
-            formatBioLine('CA', d.ca),
-            // Ossos Longos (Imagem 9)
-            formatBioLine('Fêmur', d.femur),
-            formatBioLine('Úmero', d.umero),
-            formatBioLine('Tíbia', d.tibia),
-            formatBioLine('Fíbula', d.fibula),
-            formatBioLine('Rádio', d.radio),
-            formatBioLine('Ulna', d.ulna),
-            // Face e Neuro (Imagem 7)
-            formatBioLine('TN', d.tnMedida),
+            formatBioLine('Comprimento cabeça-nádegas (CCN)', d.ccn),
+            formatBioLine('Diâmetro biparietal (DBP)', d.dbp),
+            formatBioLine('Diâmetro occipitofrontal (DOF)', d.dof),
+            formatBioLine('Circunferência cefálica (CC)', d.cc),
+            formatBioLine('Circunferência abdominal (CA)', d.ca),
+            formatBioLine('Comprimento do fêmur (CF)', d.femur),
+            formatBioLine('Comprimento do úmero', d.umero),
+            formatBioLine('Comprimento da tíbia', d.tibia),
+            formatBioLine('Comprimento da fíbula', d.fibula),
+            formatBioLine('Comprimento do rádio', d.radio),
+            formatBioLine('Comprimento da ulna', d.ulna),
+            formatBioLine('Translucência Nucal', d.tnMedida),
             formatBioLine('Prega Nucal', d.pregaNucal),
             formatBioLine('Osso Nasal', d.ossoNasal),
             formatBioLine('Dist. Biorbitária (Ext)', d.orbitaExterna),
-            formatBioLine('Dist. Interorbitária (Int)', d.orbitaInterna), // <--- Adicionado
+            formatBioLine('Dist. Interorbitária (Int)', d.orbitaInterna), // Mantido
             formatBioLine('Cerebelo', d.cerebelo),
             formatBioLine('Cisterna Magna', d.cisternaMagna),
             formatBioLine('Ventrículo Lateral', d.ventriculoPosterior),
-            // Outros (Imagem 9)
-            formatBioLine('Comp. Pé', d.peMedida), // <--- Adicionado
-            formatBioLine('Comp. Bexiga', d.compBexiga), // <--- Adicionado
+            formatBioLine('Comp. Pé', d.peMedida), // Mantido
+            formatBioLine('Comp. Bexiga', d.compBexiga), // Mantido
         ].filter(Boolean);
         
-        texto += bios.join('\n') + '\n';
-        
-        if (d.pesoFetal) {
-            texto += `\nPeso Fetal Estimado: ${d.pesoFetal} g (+/- 15%).\n`;
-            if (d.percentil) texto += `Percentil: ${d.percentil}\n`;
-        }
-        texto += '\n';
+        texto += bios.join('\n') + '\n\n';
     }
 
     // -------------------------------------------------------------------------
-    // 10. 3D/4D (CORRIGIDO: MODOS, OBS E TRAVA)
+    // 8. RASTREAMENTO 1º TRI (Lógica Funcional + Texto Médica)
     // -------------------------------------------------------------------------
-    // Só imprime se a trava "usar3D" estiver ativada
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `RASTREAMENTO MORFOLÓGICO DE I TRIMESTRE\n`;
+        
+        if (d.dum) texto += `Data de nascimento estimada (DUM): ${formatData(new Date(new Date(d.dum).setDate(new Date(d.dum).getDate() + 280)).toISOString().split('T')[0])}.\n`;
+        
+        if (d.citarTn && d.tnMedida) texto += `Translucência Nucal: ${d.tnMedida} mm.\n`;
+        
+        if (d.ossoNasalPresente) texto += `Osso Nasal: presente.\n`;
+        
+        // Ducto Venoso (Lógica corrigida com variáveis atuais)
+        if (d.dvOnda || d.dvIP) {
+             let ondaTexto = 'positiva (normal)';
+             if (d.dvOnda === 'zero') ondaTexto = 'zero (anormal)';
+             if (d.dvOnda === 'reversa') ondaTexto = 'reversa (anormal)';
+             texto += `Dopplervelocimetria do Ducto Venoso: onda A ${ondaTexto}. IP: ${d.dvIP || '-'}\n`;
+        }
+        
+        if (d.morfCerebro) texto += `Translucência intracraniana: visível.\n`;
+
+        // Tabela de Risco
+        if (d.riscoT21Basal) {
+            texto += `\nCÁLCULO DE RISCO (1:X)\n`;
+            texto += `T21: Basal 1/${d.riscoT21Basal} | Corrigido 1/${d.riscoT21Corrigido}\n`;
+            texto += `T18: Basal 1/${d.riscoT18Basal} | Corrigido 1/${d.riscoT18Corrigido}\n`;
+            texto += `T13: Basal 1/${d.riscoT13Basal} | Corrigido 1/${d.riscoT13Corrigido}\n\n`;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. DOPPLER (LÓGICA RESTAURADA)
+    // -------------------------------------------------------------------------
+    if (d.usarDoppler) {
+        texto += `ESTUDO DOPPLERFLUXOMÉTRICO\n`;
+        
+        // Uterinas
+        if (d.checkUtDir || d.checkUtEsq || d.utDirIP || d.utEsqIP) {
+            texto += `Artérias Uterinas:\n`;
+            if (d.checkUtDir || d.utDirIP) {
+                texto += `- Direita: ${d.utDirIP ? 'IP '+d.utDirIP : 'Visualizada'}`;
+                if (d.utDirIR) texto += `, IR ${d.utDirIR}`;
+                if (d.utDirIncisura) texto += ` (Com Incisura Protodiastólica)`;
+                texto += `.\n`;
+            }
+            if (d.checkUtEsq || d.utEsqIP) {
+                texto += `- Esquerda: ${d.utEsqIP ? 'IP '+d.utEsqIP : 'Visualizada'}`;
+                if (d.utEsqIR) texto += `, IR ${d.utEsqIR}`;
+                if (d.utEsqIncisura) texto += ` (Com Incisura Protodiastólica)`;
+                texto += `.\n`;
+            }
+        }
+
+        // Umbilical
+        if (d.checkUmb || d.umbIP) {
+            texto += `Artéria Umbilical: ${d.umbIP ? 'IP '+d.umbIP : 'Avaliada'}`;
+            if (d.umbIR) texto += `, IR ${d.umbIR}`;
+            if (d.umbSD) texto += `, S/D ${d.umbSD}`;
+            if (d.umbDiastoleZero) texto += ` (Diástole Zero)`;
+            if (d.umbDiastoleReversa) texto += ` (Diástole Reversa)`;
+            texto += `.\n`;
+        }
+
+        // Cerebral
+        if (d.checkAcm || d.acmIP) {
+            texto += `Artéria Cerebral Média: ${d.acmIP ? 'IP '+d.acmIP : 'Avaliada'}`;
+            if (d.acmPVS) texto += `, PVS ${d.acmPVS} cm/s`;
+            if (d.acmDiastoleAlta) texto += ` (Sinais de Centralização)`;
+            texto += `.\n`;
+        }
+
+        // Relação
+        if (d.relacaoCerebroUmbilical) {
+            texto += `Relação Cérebro/Umbilical: ${d.relacaoCerebroUmbilical}.\n`;
+        }
+        texto += `\n`;
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. 3D/4D (LÓGICA RESTAURADA)
+    // -------------------------------------------------------------------------
     if (d.usar3D) {
         texto += `ESTUDO TRIDIMENSIONAL (3D) E DINÂMICO (4D)\n`;
         
-        // Modos
         const modos = [];
         if (d.modoSurface) modos.push('Surface');
         if (d.modoMultiplanar) modos.push('Multiplanar');
         if (modos.length > 0) texto += `Modos utilizados: ${modos.join(' e ')}.\n`;
         
-        // Qualidade
         texto += `Qualidade da imagem: ${d.qualidade3D || 'Satisfatória'}. `;
-        
-        // Fator Limitante (Só se não for ótima/boa)
         if ((d.qualidade3D === 'regular' || d.qualidade3D === 'ruim') && d.fatorLimitante) {
             let motivo = d.fatorLimitante;
             if (motivo === 'liquido') motivo = 'Líquido Reduzido';
@@ -361,7 +349,6 @@ export const gerarRelatorioFeto = (d) => {
         }
         texto += `\n`;
         
-        // Análise Facial
         if (d.face3D) {
             let faceTexto = d.face3D;
             if(d.face3D === 'visualizada') faceTexto = 'Visualizada e íntegra';
@@ -396,40 +383,43 @@ export const gerarRelatorioFeto = (d) => {
         
         if (comportamento.length > 0) texto += `Comportamento fetal (4D): ${comportamento.join(', ')}.\n`;
         
-        // Observações Específicas 3D
         if (d.obs3D) texto += `Obs: ${d.obs3D}\n`;
         texto += `\n`;
     }
 
     // -------------------------------------------------------------------------
-    // 11. CONCLUSÃO E DIAGNÓSTICO (CORRIGIDO: PESO, SEXO, NOTAS)
+    // 11. CONCLUSÃO (Lógica Funcional + Frases Exatas)
     // -------------------------------------------------------------------------
     texto += `CONCLUSÃO\n`;
     let igFinal = d.igBiometria || d.igDum || "---";
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
 
-    // Aborto
     if (d.sgAbortoIncompleto) {
-        texto += `Quadro compatível com Abortamento Incompleto (Restos ovulares).\n`;
+        texto += `Quadro compatível com Abortamento Incompleto.\n`;
     }
-    else {
-        // Frase Principal
-        if (d.subtipo === 'OBSTETRICO_1_TRI') {
-            texto += `Gestação única de ${d.ccn ? diasParaTextoIG(calcularDiasPeloCCN(d.ccn)) : igFinal}.\n`;
+    // CONCLUSÃO 1º TRI (FRASE EXATA)
+    else if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        if (d.ccn) {
+            texto += `Feto único com idade gestacional estimada pelo comprimento cabeça-nádegas (CCN), de ${diasParaTextoIG(calcularDiasPeloCCN(d.ccn))}, com variação de 5 dias.\n`;
         } else {
-            texto += `- Gestação tópica.\n`;
-            texto += `- Biometria compatível com ${igFinal}.\n`;
+            texto += `Feto único com idade gestacional compatível com ${igFinal}.\n`;
         }
         
-        // 1. Peso (Prioridade: pesoEstimado > pesoFetal)
-        const pesoFinal = d.pesoEstimado || d.pesoFetal;
-        if (pesoFinal) {
-            texto += `- Peso fetal estimado: ${pesoFinal} g (+/- 10%).`;
-            if (d.percentil) texto += ` (Percentil: ${d.percentil}).`;
-            texto += `\n`;
+        texto += `Os marcadores de cromossomopatias do 1º trimestre reduziram o risco inicial baseado na idade materna.\n`;
+        texto += `Não foram encontradas anomalias nas estruturas fetais observadas no presente exame.\n`;
+    } 
+    // CONCLUSÃO PADRÃO
+    else {
+        texto += `- Gestação tópica, feto único vivo.\n`;
+        texto += `- Biometria fetal compatível com ${igFinal}.\n`;
+        // Peso (Prioridade: Estimado > Calculado)
+        if (d.pesoEstimado || d.pesoFetal) {
+            texto += `- Peso fetal estimado: ${d.pesoEstimado || d.pesoFetal} g.`;
+            if (d.percentil) texto += ` (Percentil: ${d.percentil})`;
+            texto += `.\n`;
         }
         
-        // 2. Sexo Fetal
+        // Sexo
         if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
              let sexoTexto = d.sexoFetal.toLowerCase();
              if(d.sexoFetal === 'MASCULINO') sexoTexto = 'Masculino';
@@ -438,29 +428,27 @@ export const gerarRelatorioFeto = (d) => {
              texto += `- Sexo fetal: ${sexoTexto}.\n`;
         }
 
-        // 3. Notas e Sugestões (Checkboxes)
-        if (d.morfoPrejudicado45mm) texto += `- Avaliação morfológica prejudicada (CCN < 45mm).\n`;
-        if (d.sugereNipt) texto += `- Risco aumentado para cromossomopatias. Sugere-se NIPT ou cariótipo.\n`;
-        if (d.sugereGolfBall) texto += `- Foco hiperecogênico no VE (Golf Ball). Sugere-se controle.\n`;
-        if (d.sugerePieloectasia) texto += `- Pieloectasia fetal. Sugere-se controle evolutivo.\n`;
-        if (d.sugereDopplerRciu) texto += `- Sugere-se acompanhamento com Dopplerfluxometria (Risco de RCIU).\n`;
-        
-        // Conclusão Morfológico/Doppler
         if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') texto += `- Exame morfológico sem evidências de anomalias estruturais.\n`;
-        if (d.usarDoppler) texto += `- Estudo Dopplerfluxométrico dentro dos padrões de normalidade.\n`;
     }
     
-    // Observações Finais
+    // Checkboxes de Alerta
+    if (d.sugereGolfBall) texto += `- Foco hiperecogênico (Golf Ball) em VE. Sugere-se controle.\n`;
+    if (d.morfoPrejudicado45mm) texto += `- Avaliação morfológica prejudicada (CCN < 45mm).\n`;
+    if (d.sugereNipt) texto += `- Risco aumentado para cromossomopatias. Sugere-se NIPT ou cariótipo.\n`;
+    if (d.sugerePieloectasia) texto += `- Pieloectasia fetal. Sugere-se controle evolutivo.\n`;
+    if (d.sugereDopplerRciu) texto += `- Sugere-se acompanhamento com Dopplerfluxometria (Risco de RCIU).\n`;
+
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
     return { texto, tituloExame };
 };
 
 // =============================================================================
-// HELPERS FINAIS
+// HELPERS FINAIS (MULTI-FETO & DISCLAIMERS)
 // =============================================================================
 export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGerais = {}) => {
     let textoFinal = '';
+    
     if (resF1 && resF1.tituloExame) {
         const sufixo = (qtdFetos > 1 && !resF1.tituloExame.includes("GEMELAR")) ? ' GEMELAR' : '';
         textoFinal += `${resF1.tituloExame}${sufixo}\n\n`;
@@ -475,12 +463,23 @@ export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGer
     if (qtdFetos >= 2 && resF2) { textoFinal += `\n\n--- FETO II ---\n`; textoFinal += resF2.texto; }
     if (qtdFetos >= 3 && resF3) { textoFinal += `\n\n--- FETO III ---\n`; textoFinal += resF3.texto; }
 
-    if (dadosGerais.subtipo === 'OBSTETRICO_1_TRI') textoFinal += `\n\n---\n${TEXTO_DISCLAIMER_MORFO_1}`;
-    if (dadosGerais.subtipo === 'OBSTETRICO_MORFOLOGICO') textoFinal += `\n\n---\n${TEXTO_DISCLAIMER_MORFO_2}`;
-    
+    // DISCLAIMERS FINAIS (Idêntico ao Print)
+    if (dadosGerais.subtipo === 'OBSTETRICO_1_TRI') {
+        textoFinal += `\n\n--------------------------------------------------------------\n`;
+        textoFinal += TEXTO_DISCLAIMER_MORFO_1;
+    } 
+    else if (dadosGerais.subtipo === 'OBSTETRICO_MORFOLOGICO') {
+        textoFinal += `\n\n--------------------------------------------------------------\n`;
+        textoFinal += TEXTO_DISCLAIMER_MORFO_2;
+    }
+
     return textoFinal;
 };
 
 export const montarTextoFinal = (res) => res.texto;
 const calcularDiasPeloCCN = (ccn) => Math.round(parseFloat(ccn) + 42);
-const diasParaTextoIG = (totalDias) => `${Math.floor(totalDias / 7)} semanas e ${totalDias % 7} dias`;
+const diasParaTextoIG = (totalDias) => {
+    const s = Math.floor(totalDias / 7);
+    const d = totalDias % 7;
+    return `${s} semanas e ${d} dias`;
+};
