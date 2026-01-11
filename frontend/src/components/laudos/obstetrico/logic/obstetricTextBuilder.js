@@ -239,16 +239,14 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 8. DOPPLERFLUXOMETRIA (CORRIGIDO NOMES DAS VARIÁVEIS)
+    // 8. DOPPLERFLUXOMETRIA (CORRIGIDO: CHECKBOXES E TRAVA)
     // -------------------------------------------------------------------------
-    // Antes estava d.uterinaDirIP, agora d.utDirIP (como no JSX)
-    const temDoppler = d.utDirIP || d.umbIP || d.acmIP || (d.dvIP && d.subtipo === 'OBSTETRICO_DOPPLER');
-    
-    if (temDoppler) {
+    // Só imprime se a trava "usarDoppler" estiver ativada
+    if (d.usarDoppler) {
         texto += `ESTUDO DOPPLERFLUXOMÉTRICO\n`;
         
         // Uterinas
-        if (d.utDirIP || d.utEsqIP) {
+        if (d.checkUtDir || d.checkUtEsq || d.utDirIP || d.utEsqIP) {
             texto += `Artérias Uterinas: `;
             if (d.utDirIP) texto += `Direita (IP: ${d.utDirIP}, IR: ${d.utDirIR}). `;
             if (d.utEsqIP) texto += `Esquerda (IP: ${d.utEsqIP}, IR: ${d.utEsqIR}). `;
@@ -261,7 +259,7 @@ export const gerarRelatorioFeto = (d) => {
         }
 
         // Umbilical
-        if (d.umbIP) {
+        if (d.checkUmb || d.umbIP) {
             texto += `Artéria Umbilical: IP: ${d.umbIP}, IR: ${d.umbIR}, S/D: ${d.umbSD}. `;
             if (d.umbDiastoleZero) texto += `(Diástole Zero). `;
             if (d.umbDiastoleReversa) texto += `(Diástole Reversa). `;
@@ -269,9 +267,8 @@ export const gerarRelatorioFeto = (d) => {
         }
 
         // Cerebral (ACM)
-        if (d.acmIP) {
+        if (d.checkAcm || d.acmIP) {
             texto += `Artéria Cerebral Média: IP: ${d.acmIP}, PVS: ${d.acmPVS} cm/s. `;
-            // No JSX o checkbox chama 'acmDiastoleAlta' mas o label é Centralização
             if (d.acmDiastoleAlta) texto += `(Sinais de Centralização). `;
             texto += `\n`;
         }
@@ -328,15 +325,24 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 10. 3D/4D (CORRIGIDO NOMES DAS VARIÁVEIS)
+    // 10. 3D/4D (CORRIGIDO: MODOS, OBS E TRAVA)
     // -------------------------------------------------------------------------
-    // JSX: face3D, labios3D... Gerador antigo: face3d...
-    const tem3d = d.face3D || d.movBocejo || d.movMaoFace;
-    
-    if (tem3d || d.subtipo === 'OBSTETRICO_3D' || d.usar3D) {
-        texto += `AVALIAÇÃO TRIDIMENSIONAL (3D/4D)\n`;
-        texto += `Qualidade da imagem: ${d.qualidade3D || 'Satisfatória'}.\n`;
+    // Só imprime se a trava "usar3D" estiver ativada
+    if (d.usar3D) {
+        texto += `ESTUDO TRIDIMENSIONAL (3D) E DINÂMICO (4D)\n`;
         
+        // Modos
+        const modos = [];
+        if (d.modoSurface) modos.push('Surface');
+        if (d.modoMultiplanar) modos.push('Multiplanar');
+        if (modos.length > 0) texto += `Modos utilizados: ${modos.join(' e ')}.\n`;
+        
+        // Qualidade
+        texto += `Qualidade da imagem: ${d.qualidade3D || 'Satisfatória'}. `;
+        if (d.fatorLimitante) texto += `Limitada por: ${d.fatorLimitante}.`;
+        texto += `\n`;
+        
+        // Análise Facial
         if (d.face3D) texto += `Face fetal: ${d.face3D === 'visualizada' ? 'Visualizada e íntegra' : d.face3D}.\n`;
         
         const estruturas3d = [];
@@ -345,14 +351,14 @@ export const gerarRelatorioFeto = (d) => {
         if (d.nariz3D) estruturas3d.push("Nariz");
         if (d.orelhas3D) estruturas3d.push("Orelhas");
         
-        // Mãos e Pés separados no JSX
         if (d.maoDir3D) estruturas3d.push("Mão Dir");
         if (d.maoEsq3D) estruturas3d.push("Mão Esq");
         if (d.peDir3D) estruturas3d.push("Pé Dir");
         if (d.peEsq3D) estruturas3d.push("Pé Esq");
         
-        if (estruturas3d.length > 0) texto += `Identificados: ${estruturas3d.join(', ')}.\n`;
+        if (estruturas3d.length > 0) texto += `Estruturas identificadas: ${estruturas3d.join(', ')}.\n`;
         
+        // Comportamento
         const comportamento = [];
         if (d.movBocejo) comportamento.push("Bocejo");
         if (d.movSorriso) comportamento.push("Sorriso");
@@ -363,34 +369,57 @@ export const gerarRelatorioFeto = (d) => {
         if (d.movDegluticao3D) comportamento.push("Deglutição");
         
         if (comportamento.length > 0) texto += `Comportamento fetal (4D): ${comportamento.join(', ')}.\n`;
+        
+        // Observações Específicas 3D
+        if (d.obs3D) texto += `Obs: ${d.obs3D}\n`;
         texto += `\n`;
     }
 
     // -------------------------------------------------------------------------
-    // 11. CONCLUSÃO
+    // 11. CONCLUSÃO E DIAGNÓSTICO (REFEITO BASEADO NO SECAOCONCLUSAO.JSX)
     // -------------------------------------------------------------------------
     texto += `CONCLUSÃO\n`;
     let igFinal = d.igBiometria || d.igDum || "---";
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
 
+    // Conclusões de Aborto
     if (d.sgAbortoIncompleto) {
         texto += `Quadro compatível com Abortamento Incompleto (Restos ovulares).\n`;
     }
-    else if (d.subtipo === 'OBSTETRICO_1_TRI') {
-        texto += `Gestação única de ${d.ccn ? diasParaTextoIG(calcularDiasPeloCCN(d.ccn)) : igFinal}.\n`;
-        if (d.riscoT21Corrigido && parseInt(d.riscoT21Corrigido) > 100) {
-            texto += `Rastreamento: BAIXO RISCO para cromossomopatias.\n`;
-        }
-        texto += `Morfologia adequada para a idade gestacional.\n`;
-    } 
     else {
-        texto += `- Gestação tópica.\n`;
-        texto += `- Biometria compatível com ${igFinal}.\n`;
-        if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') texto += `- Exame morfológico sem evidências de anomalias.\n`;
-        if (temDoppler) texto += `- Estudo Dopplerfluxométrico dentro dos padrões de normalidade.\n`;
+        // Conclusão Base
+        if (d.subtipo === 'OBSTETRICO_1_TRI') {
+            texto += `Gestação única de ${d.ccn ? diasParaTextoIG(calcularDiasPeloCCN(d.ccn)) : igFinal}.\n`;
+        } else {
+            texto += `- Gestação tópica.\n`;
+            texto += `- Biometria compatível com ${igFinal}.\n`;
+        }
+        
+        // Peso e Percentil (Vem da Seção Conclusão)
+        // Preferência para o peso editável da conclusão (pesoEstimado), senão o calculado (pesoFetal)
+        const pesoFinal = d.pesoEstimado || d.pesoFetal;
+        if (pesoFinal) {
+            texto += `- Peso fetal estimado: ${pesoFinal} g (+/- 10%).`;
+            if (d.percentil) texto += ` (Percentil: ${d.percentil}).`;
+            texto += `\n`;
+        }
+        
+        // Sexo Fetal
+        if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
+             // Formata MASCULINO -> Masculino
+             const sexoFormatado = d.sexoFetal.charAt(0).toUpperCase() + d.sexoFetal.slice(1).toLowerCase();
+             texto += `- Sexo fetal: ${sexoFormatado}.\n`;
+        }
+
+        // Sugestões / Alertas (Checkboxes da Conclusão)
+        if (d.morfoPrejudicado45mm) texto += `- Avaliação morfológica prejudicada (CCN < 45mm).\n`;
+        if (d.sugereNipt) texto += `- Risco aumentado para cromossomopatias. Sugere-se NIPT ou cariótipo.\n`;
+        if (d.sugereGolfBall) texto += `- Foco hiperecogênico (Golf Ball). Sugere-se controle.\n`;
+        if (d.sugerePieloectasia) texto += `- Pieloectasia fetal. Sugere-se controle.\n`;
+        if (d.sugereDopplerRciu) texto += `- Sugere-se acompanhamento com Dopplerfluxometria (Risco de RCIU).\n`;
     }
     
-    if (d.sugereGolfBall) texto += `- Foco hiperecogênico (Golf Ball). Sugere-se controle.\n`;
+    // Observações Finais
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
     return { texto, tituloExame };
