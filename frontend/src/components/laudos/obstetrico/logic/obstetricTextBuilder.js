@@ -341,7 +341,6 @@ export const gerarRelatorioFeto = (d) => {
              texto += `Ducto Venoso: onda A ${ondaTexto}, IP ${d.dvIP || '-'}.\n`;
         }
         texto += `\n`;
-    }
 
     // -------------------------------------------------------------------------
     // 10. 3D/4D (LÓGICA RESTAURADA)
@@ -454,6 +453,7 @@ export const gerarRelatorioFeto = (d) => {
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
     return { texto, tituloExame };
+};
 
 // =============================================================================
 // HELPERS FINAIS (MULTI-FETO & DISCLAIMERS)
