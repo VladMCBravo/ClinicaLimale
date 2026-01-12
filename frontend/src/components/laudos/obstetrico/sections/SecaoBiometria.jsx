@@ -1,17 +1,16 @@
 import React, { useMemo } from 'react';
-import { FaRulerCombined, FaBrain, FaBone, FaShoePrints } from 'react-icons/fa';
+import { FaRulerCombined, FaBrain, FaBone, FaShoePrints, FaBaby } from 'react-icons/fa';
 
 // Componente de Linha Compacta
 const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60px" }) => {
-    
     // Lógica visual de IG aproximada ao digitar
     const igAprox = useMemo(() => {
         if (!value || isNaN(value)) return null;
         const v = parseFloat(value) / 10; // cm
         let weeks = 0;
-        // Aproximações rápidas para feedback visual (não é o cálculo oficial do laudo)
         if (name === 'dbp') weeks = 9.54 + (1.48 * v) + (0.16 * v * v);
         else if (name === 'femur') weeks = 10.35 + (2.46 * v) + (0.17 * v * v);
+        else if (name === 'ccn') weeks = (parseFloat(value) + 42) / 7; // Regra simples CCN dias
         else return null; 
         
         return weeks > 0 && weeks < 43 ? `~${Math.floor(weeks)}s` : null;
@@ -48,6 +47,18 @@ const SecaoBiometria = ({ data, handleChange }) => {
         
         <div className="laudo-section-body">
             
+            {/* NOVO: CCN (Aparece em destaque se for exame precoce) */}
+            <div style={{marginBottom:'15px', padding:'10px', background:'#E1F5FE', borderRadius:'4px', border:'1px solid #81D4FA'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                    <FaBaby color="#0277BD" />
+                    <span style={{fontWeight:'bold', color:'#0277BD', fontSize:'12px'}}>CCN (Comprimento Cabeça-Nádegas):</span>
+                    <BioItem label="" name="ccn" value={data.ccn} onChange={handleChange} width="80px" />
+                </div>
+                <div style={{fontSize:'10px', color:'#666', marginTop:'4px'}}>
+                    * Preencha para calcular IG em exames de 1º Trimestre.
+                </div>
+            </div>
+
             <div className="laudo-grid-2" style={{alignItems:'start', gap:'20px'}}>
                 
                 {/* COLUNA 1: BIOMETRIA PRINCIPAL & NEURO */}
@@ -119,15 +130,22 @@ const SecaoBiometria = ({ data, handleChange }) => {
                 </div>
             </div>
 
-            {/* RODAPÉ: ÍNDICES AUTOMÁTICOS */}
-            { (data.dbp && data.dof) || (data.cc && data.ca) ? (
-                <div style={{marginTop:'10px', padding:'6px', background:'#E0F2F1', borderRadius:'4px', border:'1px solid #80CBC4', display:'flex', justifyContent:'space-around', fontSize:'11px'}}>
-                    <span><strong>I.Cefálico:</strong> {data.resIc || '--'}</span>
-                    <span><strong>CC/CA:</strong> {data.resCcCa || '--'}</span>
-                    <span><strong>CF/CA:</strong> {data.resCfCa || '--'}</span>
-                    <span><strong>CF/CC:</strong> {data.resCfCc || '--'}</span>
-                </div>
-            ) : null }
+            {/* RODAPÉ: ÍNDICES AUTOMÁTICOS (EXPLICAÇÃO VISUAL) */}
+            <div style={{marginTop:'10px', padding:'6px', background:'#E0F2F1', borderRadius:'4px', border:'1px solid #80CBC4', fontSize:'11px'}}>
+                 <div style={{fontWeight:'bold', color:'#00695C', marginBottom:'3px'}}>Índices Calculados (Automático):</div>
+                 { (data.dbp && data.dof) || (data.cc && data.ca) ? (
+                    <div style={{display:'flex', justifyContent:'space-around'}}>
+                        <span><strong>I.Cefálico:</strong> {data.resIc || '--'}</span>
+                        <span><strong>CC/CA:</strong> {data.resCcCa || '--'}</span>
+                        <span><strong>CF/CA:</strong> {data.resCfCa || '--'}</span>
+                        <span><strong>CF/CC:</strong> {data.resCfCc || '--'}</span>
+                    </div>
+                ) : (
+                    <div style={{color:'#666', fontStyle:'italic'}}>
+                        Preencha DBP, CC, CA e Fêmur para ver os índices aqui.
+                    </div>
+                )}
+            </div>
 
         </div>
     </div>

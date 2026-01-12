@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
 // Ícones
-import { FaBaby, FaLayerGroup } from 'react-icons/fa';
+import { FaBaby, FaLayerGroup, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { MdChildCare } from 'react-icons/md';
 
-// Seções (Todas as peças do quebra-cabeça)
+// Seções
 import SecaoSubtipo from './sections/SecaoSubtipo';
 import SecaoDatacao from './sections/SecaoDatacao';
 import SecaoDadosGerais from './sections/SecaoDadosGerais';
@@ -15,12 +15,45 @@ import SecaoMorfologia from './sections/SecaoMorfologia';
 import SecaoDoppler from './sections/SecaoDoppler';
 import Secao3D from './sections/Secao3D';
 import SecaoConclusao from './sections/SecaoConclusao';
+import SecaoDadosMaternos1Tri from './sections/SecaoDadosMaternos1Tri';
+import SecaoColoDados from './sections/SecaoColoDados';
+import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
+import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos';
 
-// Seções Específicas por Fase
-import SecaoDadosMaternos1Tri from './sections/SecaoDadosMaternos1Tri'; // Ovários/Útero Inicial
-import SecaoColoDados from './sections/SecaoColoDados'; // Colo detalhado (2º/3º Tri)
-import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido'; // Placenta/ILA (2º/3º Tri)
-import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos'; // Índices e Gráficos Doppler
+// COMPONENTE WRAPPER PARA COLAPSO E COR
+const SectionWrapper = ({ id, title, colorHex, children, isOpen, onToggle }) => {
+    return (
+        <div className="laudo-section" style={{ 
+            borderLeft: `4px solid ${colorHex}`, 
+            marginBottom: '8px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
+            borderRadius: '4px'
+        }}>
+            <div 
+                onClick={() => onToggle(id)}
+                style={{
+                    background: `linear-gradient(90deg, ${colorHex} 0%, #fff 100%)`, 
+                    padding: '8px 12px', 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}
+            >
+                <span style={{fontWeight: 'bold', color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>
+                    {title}
+                </span>
+                {isOpen ? <FaChevronUp color="#555"/> : <FaChevronDown color="#555"/>}
+            </div>
+            
+            {/* Animação simples de display */}
+            <div style={{ display: isOpen ? 'block' : 'none', padding: '0' }}>
+                {children}
+            </div>
+        </div>
+    );
+};
 
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
@@ -33,33 +66,33 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       handleTabChange
   } = useObstetricoForm(onUpdate, initialValues);
 
+  // Estado para controlar qual seção está aberta (Inicia com Datação aberta)
+  const [secaoAberta, setSecaoAberta] = useState('datacao');
+
+  const toggleSecao = (id) => {
+      // Se clicar na que está aberta, fecha. Se não, abre a nova.
+      setSecaoAberta(prev => prev === id ? null : id);
+  };
+
   if (!formState) return <div className="p-4">Carregando formulário...</div>;
 
   const commonProps = {
       data: formState,
       handleChange: handleInputChange,
       onChange: handleInputChange,
-      qtdFetos // Necessário para Placenta/Líquido (ILA vs MBV)
+      qtdFetos 
   };
 
   const subtipo = formState.subtipo;
-
-  // --- LÓGICA DE EXIBIÇÃO POR SUBTIPO (O CORAÇÃO DO SISTEMA) ---
-  
-  // 1. Fase Inicial (< 11 semanas)
   const isInicial = subtipo === "OBSTETRICO_INICIAL";
-  
-  // 2. Morfológico 1º Tri (11 - 14 semanas)
   const is1Tri = subtipo === "OBSTETRICO_1_TRI";
-  
-  // 3. Fases Tardias (2º/3º Tri, Morfológico 2º Tri, Doppler)
   const isTardio = !isInicial && !is1Tri;
 
   return (
     <div className="flex flex-col gap-3 pb-8">
       
-      {/* 1. CABEÇALHO & CONFIGURAÇÃO */}
-      <div className="laudo-section" style={{borderLeft: '4px solid #4A3B80', overflow:'visible'}}>
+      {/* 1. CABEÇALHO FIXO (Sempre visível) */}
+      <div className="laudo-section" style={{borderLeft: '4px solid #333', overflow:'visible'}}>
           <div className="laudo-section-body" style={{padding:'8px 12px'}}>
               <div style={{display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', gap: '20px'}}>
                   <div>
@@ -90,7 +123,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
           </div>
       </div>
 
-      {/* 2. ABAS (Só aparecem se for gêmeos) */}
+      {/* 2. ABAS GÊMEOS */}
       {qtdFetos > 1 && (
           <div className="gemelar-tabs-container">
               <div className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`} onClick={() => handleTabChange(1)}>
@@ -107,10 +140,9 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
           </div>
       )}
 
-      {/* 3. CONTEÚDO DINÂMICO BASEADO NO SUBTIPO */}
+      {/* 3. CONTEÚDO ACORDEÃO */}
       <div className={qtdFetos > 1 ? "tab-content-wrapper" : ""}>
         
-        {/* Aviso de Gêmeos */}
         {qtdFetos > 1 && (
             <div className="mb-3 p-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
                 <MdChildCare size={14}/>
@@ -118,72 +150,91 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
             </div>
         )}
 
-        {/* -----------------------------------------------------------
-            ROTEIRO 1: OBSTÉTRICO INICIAL (< 11 SEMANAS)
-            Foco: Onde está o saco? Tem embrião? Como estão os ovários?
-           ----------------------------------------------------------- */}
+        {/* --- DATAÇÃO (Sempre presente) - COR ROXA --- */}
+        <SectionWrapper id="datacao" title="1. Datação e Cronologia" colorHex="#7B1FA2" isOpen={secaoAberta === 'datacao'} onToggle={toggleSecao}>
+            <SecaoDatacao {...commonProps} />
+        </SectionWrapper>
+
+        {/* --- DADOS GERAIS (Sempre presente) - COR AZUL MARINHO --- */}
+        <SectionWrapper id="dadosGerais" title="2. Dados Gerais e Estática" colorHex="#0D47A1" isOpen={secaoAberta === 'dadosGerais'} onToggle={toggleSecao}>
+            <SecaoDadosGerais {...commonProps} />
+        </SectionWrapper>
+
+        {/* --- ROTEIRO 1: INICIAL (< 11 SEMANAS) --- */}
         {isInicial && (
             <>
-                <SecaoDatacao {...commonProps} />
-                <SecaoSacoGestacional {...commonProps} />
-                <SecaoDadosGerais {...commonProps} /> {/* Para Vitalidade/BCF */}
+                <SectionWrapper id="saco" title="3. Saco Gestacional" colorHex="#00897B" isOpen={secaoAberta === 'saco'} onToggle={toggleSecao}>
+                    <SecaoSacoGestacional {...commonProps} />
+                </SectionWrapper>
                 
-                {/* Aqui entra a avaliação de Útero/Ovários/Corpo Lúteo */}
-                <SecaoDadosMaternos1Tri {...commonProps} />
-                
-                {/* Biometria simplificada (CCN) */}
-                <SecaoBiometria {...commonProps} /> 
+                <SectionWrapper id="anexos1tri" title="4. Útero e Anexos (1º Tri)" colorHex="#039BE5" isOpen={secaoAberta === 'anexos1tri'} onToggle={toggleSecao}>
+                    <SecaoDadosMaternos1Tri {...commonProps} />
+                </SectionWrapper>
+
+                <SectionWrapper id="biometria" title="5. Biometria (CCN)" colorHex="#2E7D32" isOpen={secaoAberta === 'biometria'} onToggle={toggleSecao}>
+                    <SecaoBiometria {...commonProps} /> 
+                </SectionWrapper>
             </>
         )}
 
-        {/* -----------------------------------------------------------
-            ROTEIRO 2: MORFOLÓGICO 1º TRIMESTRE (11 - 14 SEMANAS)
-            Foco: TN, Osso Nasal, Ducto, Anatomia Precoce
-           ----------------------------------------------------------- */}
+        {/* --- ROTEIRO 2: MORFOLÓGICO 1º TRI --- */}
         {is1Tri && (
             <>
-                <SecaoDatacao {...commonProps} />
-                <SecaoDadosGerais {...commonProps} />
+                <SectionWrapper id="anexos1tri" title="3. Útero e Anexos" colorHex="#039BE5" isOpen={secaoAberta === 'anexos1tri'} onToggle={toggleSecao}>
+                    <SecaoDadosMaternos1Tri {...commonProps} />
+                </SectionWrapper>
+
+                <SectionWrapper id="biometria" title="4. Biometria (CCN/TN)" colorHex="#2E7D32" isOpen={secaoAberta === 'biometria'} onToggle={toggleSecao}>
+                    <SecaoBiometria {...commonProps} />
+                </SectionWrapper>
                 
-                {/* No 1º Tri, avaliamos o Colo/Útero de forma diferente (Via TV ou Abd) */}
-                <SecaoDadosMaternos1Tri {...commonProps} />
-                
-                {/* Medidas (CCN, TN) */}
-                <SecaoBiometria {...commonProps} />
-                
-                {/* Anatomia (Osso Nasal, Tricúspide removida, Ducto) */}
-                <SecaoMorfologia {...commonProps} />
-                
-                {/* Doppler (Opcional nesta fase, mas Ducto e Uterinas são comuns) */}
-                <SecaoDoppler {...commonProps} />
+                <SectionWrapper id="morfo" title="5. Morfologia e Riscos" colorHex="#EF6C00" isOpen={secaoAberta === 'morfo'} onToggle={toggleSecao}>
+                    <SecaoMorfologia {...commonProps} />
+                </SectionWrapper>
+
+                <SectionWrapper id="doppler" title="6. Dopplerfluxometria" colorHex="#1565C0" isOpen={secaoAberta === 'doppler'} onToggle={toggleSecao}>
+                    <SecaoDoppler {...commonProps} />
+                </SectionWrapper>
             </>
         )}
 
-        {/* -----------------------------------------------------------
-            ROTEIRO 3: OBSTÉTRICO TARDIO / MORFOLÓGICO 2º TRI / DOPPLER
-            Foco: Anatomia completa, Placenta, Líquido, Crescimento
-           ----------------------------------------------------------- */}
+        {/* --- ROTEIRO 3: TARDIO (2º/3º TRI) --- */}
         {isTardio && (
             <>
-                <SecaoDatacao {...commonProps} />
-                <SecaoDadosGerais {...commonProps} />
+                <SectionWrapper id="placenta" title="3. Placenta e Líquido" colorHex="#D81B60" isOpen={secaoAberta === 'placenta'} onToggle={toggleSecao}>
+                    <SecaoPlacentaLiquido {...commonProps} />
+                </SectionWrapper>
+
+                <SectionWrapper id="colo" title="4. Colo Uterino" colorHex="#AD1457" isOpen={secaoAberta === 'colo'} onToggle={toggleSecao}>
+                    <SecaoColoDados {...commonProps} />
+                </SectionWrapper>
                 
-                {/* Avaliação do Colo (Sludge, Funneling) */}
-                <SecaoColoDados {...commonProps} />
+                <SectionWrapper id="biometria" title="5. Biometria e Índices" colorHex="#2E7D32" isOpen={secaoAberta === 'biometria'} onToggle={toggleSecao}>
+                    <SecaoBiometria {...commonProps} />
+                </SectionWrapper>
                 
-                {/* Placenta e Líquido (Grannum, ILA) */}
-                <SecaoPlacentaLiquido {...commonProps} />
-                
-                <SecaoBiometria {...commonProps} />
-                <SecaoMorfologia {...commonProps} />
-                <SecaoDoppler {...commonProps} />
+                <SectionWrapper id="morfo" title="6. Análise Morfológica" colorHex="#EF6C00" isOpen={secaoAberta === 'morfo'} onToggle={toggleSecao}>
+                    <SecaoMorfologia {...commonProps} />
+                </SectionWrapper>
+
+                <SectionWrapper id="doppler" title="7. Dopplerfluxometria" colorHex="#1565C0" isOpen={secaoAberta === 'doppler'} onToggle={toggleSecao}>
+                    <SecaoDoppler {...commonProps} />
+                </SectionWrapper>
             </>
         )}
 
-        {/* MÓDULOS UNIVERSAIS (Sempre disponíveis no final) */}
-        <Secao3D {...commonProps} />
-        <SecaoIndicesGraficos {...commonProps} />
-        <SecaoConclusao {...commonProps} />
+        {/* --- UNIVERSAIS --- */}
+        <SectionWrapper id="3d" title="3D / 4D" colorHex="#FBC02D" isOpen={secaoAberta === '3d'} onToggle={toggleSecao}>
+            <Secao3D {...commonProps} />
+        </SectionWrapper>
+
+        <SectionWrapper id="graficos" title="Opções de Gráficos" colorHex="#8E24AA" isOpen={secaoAberta === 'graficos'} onToggle={toggleSecao}>
+            <SecaoIndicesGraficos {...commonProps} />
+        </SectionWrapper>
+
+        <SectionWrapper id="conclusao" title="Conclusão e Laudo" colorHex="#D32F2F" isOpen={true} onToggle={() => {}}>
+            <SecaoConclusao {...commonProps} />
+        </SectionWrapper>
 
       </div>
     </div>
