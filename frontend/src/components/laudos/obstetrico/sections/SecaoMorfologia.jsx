@@ -1,6 +1,6 @@
 import React from 'react';
-import { FaHeartbeat, FaCheckSquare, FaExclamationTriangle } from 'react-icons/fa';
-import { FaCalculator, FaExternalLinkAlt } from 'react-icons/fa'; // Adicione ao import
+import { FaHeartbeat, FaCheckSquare, FaExclamationTriangle, FaCommentMedical } from 'react-icons/fa'; 
+import { FaCalculator, FaExternalLinkAlt } from 'react-icons/fa';
 
 // Componente auxiliar para Checkbox simples
 const CheckItem = ({ label, name, checked, onChange }) => (
