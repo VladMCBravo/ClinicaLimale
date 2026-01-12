@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { FaRulerCombined, FaBrain, FaBone, FaShoePrints, FaBaby } from 'react-icons/fa';
+import { FaArrowUp } from 'react-icons/fa'; // Ícone de "Enviar para cima"
 
 // Componente de Linha Compacta
 const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60px" }) => {
@@ -39,6 +40,14 @@ const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60
 };
 
 const SecaoBiometria = ({ data, handleChange }) => {
+    // Função para jogar o valor do CCN lá para a Datação
+    const aplicarIgCcn = () => {
+       if(!data.resIgCcn) return;
+       // Simula eventos de change para atualizar os campos de Datação
+       handleChange({ target: { name: 'igBiometria', value: data.resIgCcn } });
+       handleChange({ target: { name: 'citarDppBiometria', value: true, type:'checkbox', checked:true } });
+    };
+
   return (
     <div className="laudo-section">
         <div className="header-base header-green">
@@ -57,6 +66,20 @@ const SecaoBiometria = ({ data, handleChange }) => {
                 <div style={{fontSize:'10px', color:'#666', marginTop:'4px'}}>
                     * Preencha para calcular IG em exames de 1º Trimestre.
                 </div>
+                {/* SE TIVER CÁLCULO, MOSTRA O BOTÃO DE APLICAR */}
+           {data.resIgCcn && (
+               <button 
+                   onClick={aplicarIgCcn}
+                   style={{
+                       fontSize:'10px', background:'#E3F2FD', border:'1px solid #2196F3', 
+                       color:'#1565C0', padding:'2px 6px', borderRadius:'4px', cursor:'pointer',
+                       display:'flex', alignItems:'center', gap:'4px'
+                   }}
+                   title="Usar esta IG como datação oficial do laudo"
+               >
+                   <FaArrowUp /> Usar IG: {data.resIgCcn}
+               </button>
+           )}
             </div>
 
             <div className="laudo-grid-2" style={{alignItems:'start', gap:'20px'}}>

@@ -114,5 +114,12 @@ export const initialState = {
     sugereNipt: false,          
     sugereGolfBall: false,      
     sugerePieloectasia: false,  
-    sugereRciu: false           
+    sugereRciu: false,      
+    
+    // Adicione esses campos no final do objeto initialState
+    obsDatacao: '',
+    obsBiometria: '',
+    obsMorfologia: '',
+    obsDoppler: '',
+    obsPlacenta: '',
 };

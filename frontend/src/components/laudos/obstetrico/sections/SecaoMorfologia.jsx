@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaHeartbeat, FaCheckSquare, FaExclamationTriangle } from 'react-icons/fa';
+import { FaCalculator, FaExternalLinkAlt } from 'react-icons/fa'; // Adicione ao import
 
 // Componente auxiliar para Checkbox simples
 const CheckItem = ({ label, name, checked, onChange }) => (
@@ -104,8 +105,27 @@ const SecaoMorfologia = ({ data, handleChange }) => {
 </div>
 
                         {/* TABELA DE RISCOS (Fetal Medicine Foundation) */}
-                        <div style={{background:'#fff', border:'1px solid #ddd', padding:'5px', borderRadius:'4px'}}>
-                            <div style={{fontWeight:'bold', fontSize:'11px', marginBottom:'5px', color:'#555', textAlign:'center'}}>CÁLCULO DE RISCO (1:X)</div>
+<div style={{background:'#fff', border:'1px solid #ddd', padding:'5px', borderRadius:'4px'}}>
+    
+    {/* CABEÇALHO COM BOTÃO DA CALCULADORA */}
+    <div style={{
+        display:'flex', justifyContent:'space-between', alignItems:'center', 
+        borderBottom:'1px solid #eee', paddingBottom:'5px', marginBottom:'5px'
+    }}>
+        <div style={{fontWeight:'bold', fontSize:'11px', color:'#555'}}>
+            CÁLCULO DE RISCO (1:X)
+        </div>
+        <button 
+            onClick={() => window.open('https://www.fetalmedicine.org/research/assess/trisomies', 'CalculadoraFMF', 'width=1000,height=800,scrollbars=yes')}
+            style={{
+                background: '#1565C0', color: 'white', border: 'none', borderRadius: '4px',
+                padding: '4px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+            }}
+            title="Abrir Calculadora Oficial da FMF"
+        >
+            <FaExternalLinkAlt /> Abrir FMF
+        </button>
+    </div>
                             <table style={{width:'100%', fontSize:'11px', borderCollapse:'collapse'}}>
                                 <thead>
                                     <tr style={{background:'#f0f0f0'}}>
@@ -193,6 +213,19 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                      <CheckItem label="Deglutição" name="degluticao" checked={data.degluticao} onChange={handleChange} />
                  </div>
              </div>
+             {/* CAMPO DE OBSERVAÇÃO LIVRE DA SEÇÃO */}
+    <div style={{marginTop:'10px'}}>
+        <span className="label-pequeno" style={{fontWeight:'bold', color:'#555'}}>Nota Médica (Adicional):</span>
+        <textarea 
+            name="obsMorfologia" 
+            value={data.obsMorfologia} 
+            onChange={handleChange} 
+            className="laudo-textarea"
+            rows="2"
+            style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', marginTop:'2px'}}
+            placeholder="Digite aqui observações específicas sobre a morfologia..."
+        />
+    </div>
         </div>
     </>
   );

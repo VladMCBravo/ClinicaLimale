@@ -248,6 +248,7 @@ export const gerarPDFLaudo = async ({
     const isDra = primeiroNome.endsWith('a'); 
     const prefixoMedico = isDra ? 'Dra.' : 'Dr.';
     const nomeFormatado = medicoNome ? `${prefixoMedico} ${medicoNome}` : 'Médico Examinador';
+    const limparCRM = (crm) => crm ? crm.replace(/[^\w\s]/gi, '') : '';
 
     let elementoAssinatura = null;
 
@@ -263,8 +264,8 @@ export const gerarPDFLaudo = async ({
                                 stack: [
                                     { text: 'DOCUMENTO ASSINADO DIGITALMENTE', fontSize: 8, color: '#555', margin: [0, 0, 0, 2] },
                                     { text: nomeFormatado, bold: true, fontSize: 10, color: '#000' },
-                                    { text: `CRM: ${medicoCrm || 'N/A'}`, fontSize: 9 },
-                                    { text: 'Assinado eletronicamente conforme MP 2.200-2/2001 (ICP-Brasil).', fontSize: 7, color: '#777', margin: [0, 5, 0, 0] },
+                                    { text: `CRM: ${limparCRM(medicoCrm) || 'N/A'}`, fontSize: 9 },
+                                    { text: 'Assinado eletronicamente conforme MP 2.200-2/2001 (ICP-Brasil).', fontSize: 7, color: '#777', margin: [0, 5, 0, 0] },  
                                     { text: 'Valide em: verificador.iti.gov.br', fontSize: 7, color: '#777' }
                                 ],
                                 alignment: 'center',
@@ -284,7 +285,7 @@ export const gerarPDFLaudo = async ({
                 { text: '', margin: [0, 35] }, 
                 { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
                 { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
-                { text: medicoCrm ? `CRM: ${medicoCrm}` : '', alignment: 'center', fontSize: 9, color: '#555' }
+                { text: medicoCrm ? `CRM: ${limparCRM(medicoCrm)}` : '', alignment: 'center', fontSize: 9, color: '#555' }
             ]
         };
     }

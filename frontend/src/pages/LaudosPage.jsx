@@ -153,7 +153,12 @@ const LaudosPage = () => {
   const [medicosFiltrados, setMedicosFiltrados] = useState([]); // Lista exibida no dropdown
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false); // <--- NOVO
-  
+  const maskCRM = (value) => {
+  return value
+    .replace(/\D/g, '') // Remove letras
+    .replace(/(\d{5})(\d)/, '$1-$2') // Coloca traço
+    .replace(/(-\d{2})\d+?$/, '$1'); // Limita tamanho
+};
   // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
@@ -694,63 +699,73 @@ const handleEnviarEmail = () => {
         {/* CARD DE IDENTIFICAÇÃO */}
         <div style={styles.card}>
             
-            {/* LINHA 1: PACIENTE */}
-            <div style={{marginBottom: '10px'}}>
-                <div style={styles.label}><FaUserInjured color="#1C2E4A"/> PACIENTE</div>
-                {paciente ? (
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        background: '#E8F5E9', border: '1px solid #2E7D32', borderRadius: '4px',
-                        padding: '0 10px', height: '30px'
-                    }}>
-                        <span style={{fontWeight: 'bold', color: '#1B5E20', fontSize: '13px'}}>
-                            {paciente.nome_completo}
-                        </span>
-                        <button 
-                            onClick={() => { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); }}
-                            style={{background:'none', border:'none', color:'#C62828', cursor:'pointer', display:'flex', alignItems:'center'}}
-                            title="Remover paciente"
-                        >
-                            <FaTimes />
-                        </button>
-                    </div>
-                ) : (
-                    <div style={{position: 'relative'}}>
-                        <div style={{position:'relative'}}>
-                            <input 
-                                placeholder="Digite 3 letras para buscar..." 
-                                value={termoBusca} 
-                                onChange={handleBuscaPacienteChange} 
-                                style={styles.input} 
-                            />
-                            {loadingBusca && (
-                                <span style={{position:'absolute', right:'10px', top:'7px', color:'#999'}}>
-                                    <FaSpinner className="spin"/>
-                                </span>
-                            )}
-                        </div>
-                        
-                        {/* LISTA DE SUGESTÕES */}
-                        {pacientesEncontrados.length > 0 && (
-                            <div style={styles.dropdownList}>
-                                {pacientesEncontrados.map(p => (
-                                    <div 
-                                        key={p.id} 
-                                        onClick={() => { setPaciente(p); setPacientesEncontrados([]); }} 
-                                        style={styles.dropdownItem}
-                                        className="hover:bg-gray-100" 
-                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                                    >
-                                        <span style={{fontWeight:'bold'}}>{p.nome_completo}</span>
-                                        <span style={{color:'#777', fontSize:'10px'}}>CPF: {p.cpf || '---'}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+            {/* LINHA 1: PACIENTE (Busca Inteligente) */}
+<div style={{marginBottom: '10px'}}>
+    <div style={styles.label}><FaUserInjured color="#1C2E4A"/> PACIENTE</div>
+    
+    <div style={{position:'relative'}}>
+        <div style={{position:'relative', display:'flex', alignItems:'center'}}>
+            <input 
+                placeholder="Digite o nome para buscar..." 
+                value={paciente ? paciente.nome_completo : termoBusca} 
+                onChange={(e) => {
+                    // Se já tinha um paciente selecionado e o usuário digitou, limpa a seleção
+                    if (paciente) setPaciente(null);
+                    handleBuscaPacienteChange(e);
+                }}
+                disabled={!!paciente} // Trava se tiver paciente selecionado (obriga a clicar no X)
+                style={{
+                    ...styles.input, 
+                    paddingRight: '30px', // Espaço para o ícone
+                    background: paciente ? '#E8F5E9' : '#fff',
+                    borderColor: paciente ? '#2E7D32' : '#ccc',
+                    fontWeight: paciente ? 'bold' : 'normal',
+                    color: paciente ? '#1B5E20' : '#333'
+                }} 
+            />
+            
+            {/* Botão de Limpar ou Loading */}
+            <div style={{position:'absolute', right:'8px', top:'6px', cursor:'pointer'}}>
+                {loadingBusca ? (
+                    <FaSpinner className="spin" color="#999"/>
+                ) : paciente || termoBusca.length > 0 ? (
+                    <FaTimes 
+                        color={paciente ? "#C62828" : "#999"} 
+                        onClick={() => {
+                            setPaciente(null);
+                            setTermoBusca('');
+                            setPacientesEncontrados([]);
+                        }}
+                    />
+                ) : null}
             </div>
+        </div>
+        
+        {/* LISTA DE SUGESTÕES (Dropdown) */}
+        {!paciente && pacientesEncontrados.length > 0 && (
+            <div style={styles.dropdownList}>
+                {pacientesEncontrados.map(p => (
+                    <div 
+                        key={p.id} 
+                        onClick={() => { 
+                            setPaciente(p); 
+                            setTermoBusca(''); // Limpa o termo auxiliar
+                            setPacientesEncontrados([]); // Fecha lista
+                        }} 
+                        style={styles.dropdownItem}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                        <span style={{fontWeight:'bold', display:'block'}}>{p.nome_completo}</span>
+                        <span style={{color:'#777', fontSize:'10px'}}>
+                            CPF: {p.cpf || '---'} | Nasc: {p.data_nascimento || '--/--/----'}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        )}
+    </div>
+</div>
 
             {/* LINHA 2: TIPO, MÉDICO E CRM */}
             <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '10px'}}>
@@ -809,9 +824,9 @@ const handleEnviarEmail = () => {
                     <input 
                         placeholder="00000"
                         value={medicoCrm}
-                        onChange={(e) => setMedicoCrm(e.target.value)}
-                        style={{...styles.input, textAlign:'center', background: '#f9f9f9'}}
-                    />
+                        onChange={(e) => setMedicoCrm(maskCRM(e.target.value))} // <--- AQUI
+    style={{...styles.input, textAlign:'center', background: '#f9f9f9'}}
+/>
                 </div>
             </div>
         </div>
@@ -885,13 +900,28 @@ const handleEnviarEmail = () => {
              </div>
              
              {/* TEXTAREA (FOLHA DE PAPEL) */}
-             <div style={{flex: 1, padding: '15px', overflowY: 'auto', background: '#EEEEEE'}}>
-                 <textarea 
-                     value={textoFinal} 
-                     onChange={(e) => setTextoFinal(e.target.value)}
-                     style={{ width: '100%', height: '100%', border: 'none', padding: '25px', resize: 'none', outline: 'none', fontFamily: '"Times New Roman", serif', fontSize: '14px', lineHeight: '1.5', color: '#000', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                 />
-             </div>
+<div style={{flex: 1, padding: '0', overflow: 'hidden', background: '#EEEEEE', position: 'relative'}}>
+    <textarea 
+        value={textoFinal} 
+        readOnly={true} // TRAVA A EDIÇÃO
+        style={{ 
+            width: '100%', 
+            height: '100%', // Ocupa tudo
+            border: 'none', 
+            padding: '25px', // Margem interna do papel
+            resize: 'none', 
+            outline: 'none', 
+            fontFamily: '"Times New Roman", serif', 
+            fontSize: '14px', 
+            lineHeight: '1.5', 
+            color: '#000', 
+            background: '#FAFAFA',
+            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)', // Sombra interna sutil
+            cursor: 'default',
+            overflowY: 'auto' // A rolagem fica APENAS aqui dentro
+        }}
+    />
+</div>
 
              {/* IMAGENS (PREVIEW NO RODAPÉ) */}
              {imagens.length > 0 && (

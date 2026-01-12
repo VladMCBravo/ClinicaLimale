@@ -412,6 +412,11 @@ export const gerarRelatorioFeto = (d) => {
             // 10. MEMBROS
             if (d.morfMembros) texto += `- Membros: Visualizados ossos longos dos quatro membros. Mãos e pés com dedos presentes.\n`;
             
+            // INJEÇÃO DA OBSERVAÇÃO MANUAL
+            if (d.obsMorfologia) {
+                texto += `Nota: ${d.obsMorfologia}\n`;
+            }
+
             texto += `\n`;
         }
     }
