@@ -46,17 +46,62 @@ const SecaoMorfologia = ({ data, handleChange }) => {
 
                         {/* Ducto Venoso */}
                         <div style={{background:'rgba(255,255,255,0.5)', padding:'5px', borderRadius:'4px', marginBottom:'10px'}}>
-                            <span className="label-pequeno">Ducto Venoso (Onda A):</span>
-                            <div style={{display:'flex', gap:'10px', marginTop:'3px'}}>
-                                <label style={{fontSize:'12px'}}><input type="radio" name="dvOnda" value="positiva" checked={data.dvOnda !== 'zero' && data.dvOnda !== 'reversa'} onChange={() => handleChange({target: {name:'dvOnda', value:'positiva'}})} /> Positiva (Normal)</label>
-                                <label style={{fontSize:'12px'}}><input type="radio" name="dvOnda" value="zero" checked={data.dvOnda === 'zero'} onChange={() => handleChange({target: {name:'dvOnda', value:'zero'}})} /> Zero</label>
-                                <label style={{fontSize:'12px'}}><input type="radio" name="dvOnda" value="reversa" checked={data.dvOnda === 'reversa'} onChange={() => handleChange({target: {name:'dvOnda', value:'reversa'}})} /> Reversa</label>
-                            </div>
-                            <div style={{marginTop:'5px', display:'flex', alignItems:'center'}}>
-                                <span className="label-pequeno" style={{marginRight:'5px'}}>IP Ducto:</span>
-                                <input type="number" name="dvIP" value={data.dvIP} onChange={handleChange} className="laudo-input-small" />
-                            </div>
-                        </div>
+    <span className="label-pequeno">Ducto Venoso (Onda A):</span>
+    <div style={{display:'flex', gap:'10px', marginTop:'3px'}}>
+        {/* OPÇÃO POSITIVA: Zera os riscos */}
+        <label style={{fontSize:'12px', cursor:'pointer'}}>
+            <input 
+                type="radio" 
+                name="dvStatus" 
+                checked={!data.dvOndaAZero && !data.dvOndaAReversa} 
+                onChange={() => handleChange({
+                    target: { 
+                        name: 'dvOndaAZero', value: false, 
+                        // Truque: Passamos um objeto fake para atualizar 2 estados de uma vez se seu hook permitir, 
+                        // mas vamos simplificar: O ideal é atualizar um por um ou usar um handler customizado.
+                        // Como seu handleChange é simples, vamos garantir via UX:
+                    } 
+                }, 
+                // Forçamos a limpeza manual dos outros estados chamando handleChange multiplas vezes ou
+                // (Melhor solução para React simples):
+                handleChange({target: {name: 'dvOndaAZero', value: false, type:'checkbox', checked: false}}),
+                handleChange({target: {name: 'dvOndaAReversa', value: false, type:'checkbox', checked: false}})
+                )} 
+            /> Positiva (Normal)
+        </label>
+
+        {/* OPÇÃO ZERO */}
+        <label style={{fontSize:'12px', cursor:'pointer'}}>
+            <input 
+                type="radio" 
+                name="dvStatus" 
+                checked={!!data.dvOndaAZero} 
+                onChange={() => {
+                    handleChange({target: {name: 'dvOndaAZero', value: true, type:'checkbox', checked: true}});
+                    handleChange({target: {name: 'dvOndaAReversa', value: false, type:'checkbox', checked: false}});
+                }} 
+            /> Zero
+        </label>
+
+        {/* OPÇÃO REVERSA */}
+        <label style={{fontSize:'12px', cursor:'pointer'}}>
+            <input 
+                type="radio" 
+                name="dvStatus" 
+                checked={!!data.dvOndaAReversa} 
+                onChange={() => {
+                    handleChange({target: {name: 'dvOndaAZero', value: false, type:'checkbox', checked: false}});
+                    handleChange({target: {name: 'dvOndaAReversa', value: true, type:'checkbox', checked: true}});
+                }} 
+            /> Reversa
+        </label>
+    </div>
+    
+    <div style={{marginTop:'5px', display:'flex', alignItems:'center'}}>
+        <span className="label-pequeno" style={{marginRight:'5px'}}>IP Ducto:</span>
+        <input type="number" step="0.01" name="dvIP" value={data.dvIP} onChange={handleChange} className="laudo-input-small" style={{width:'50px'}} />
+    </div>
+</div>
 
                         {/* TABELA DE RISCOS (Fetal Medicine Foundation) */}
                         <div style={{background:'#fff', border:'1px solid #ddd', padding:'5px', borderRadius:'4px'}}>

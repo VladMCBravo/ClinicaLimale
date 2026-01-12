@@ -193,56 +193,76 @@ export const gerarRelatorioFeto = (d) => {
     // 6. MORFOLOGIA FETAL (Corrigido: Membros, Osso Nasal, Vitalidade)
     // -------------------------------------------------------------------------
     
-    // --> 1º TRIMESTRE
-    if (d.subtipo === 'OBSTETRICO_1_TRI') {
-        texto += `MORFOLOGIA FETAL\n`;
-        
-        texto += `POLO CEFÁLICO\n`;
-        if (d.morfCranio || d.morfCerebro) texto += `Contorno craniano de aspecto habitual e plexos coróides simétricos.\n`;
-        if (d.morfFace) texto += `Órbitas simétricas e aparentemente regulares.\nPerfil facial com aspecto adequado para a idade gestacional.\n`;
-        
-        texto += `\nCOLUNA VERTEBRAL\n`;
-        if (d.morfColuna) texto += `Coluna vertebral visibilizada com aspecto aparentemente normal para a idade gestacional.\n`;
-        
-        texto += `\nTÓRAX\n`;
-        texto += `Forma normal e contornos regulares. Parede anterior íntegra.\n`;
-        if (d.morfCoracao) {
-            texto += `Coração de tamanho normal para a idade gestacional com ápice voltado para a esquerda.\n`;
-            texto += `Visibilizado o esboço das quatro câmaras cardíacas.\n`;
-        }
-        if (d.bcf) texto += `Batimentos cardíacos fetais ${d.bcf} bpm.\n`;
-        
-        texto += `\nABDOME\n`;
-        texto += `Parede abdominal íntegra com inserção tópica do cordão umbilical.\n`;
-        if (d.morfEstomago) texto += `Estômago com conteúdo líquido, ipsilateral à área cardíaca.\n`;
-        if (d.morfBexiga) texto += `Bexiga fetal visibilizada${d.compBexiga ? ' medindo ' + d.compBexiga + ' mm' : ''}.\n`;
-        if (d.checkUmb) texto += `Estudo Dopplerfluxométrico evidencia as duas artérias umbilicais.\n`;
-
-        texto += `\nMEMBROS\n`;
-        // Só mostra se o checkbox 'morfMembros' estiver marcado
-        if (d.morfMembros) texto += `Membros superiores e inferiores visibilizados apresentando-se simétricos, sem dismorfismos aparentes, bem posicionados para a idade gestacional.\n`;
-        
-        texto += `\n`;
-    }
-
-    // --> 2º TRIMESTRE / OUTROS
-    else if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') {
-        texto += `ANÁLISE MORFOLÓGICA\n`;
-        if (d.morfCranio) texto += `Polo Cefálico: Estruturas intracranianas (cavum do septo pelúcido, tálamos, ventrículos e cerebelo) com aspecto habitual.\n`;
-        if (d.morfFace) texto += `Face: Lábio superior íntegro. Perfil facial normal. Cristalinos visualizados.\n`;
-        if (d.morfColuna) texto += `Coluna: Íntegra em toda sua extensão.\n`;
-        if (d.morfCoracao) texto += `Coração: Situs solitus. 4 câmaras e Vias de Saída visualizados.\n`;
-        if (d.morfEstomago || d.morfRins) texto += `Abdome: Estômago e vesícula biliar à esquerda. Rins tópicos e normais. Bexiga visualizada.\n`;
-        if (d.morfMembros) texto += `Membros: Visualizados ossos longos dos 4 membros. Mãos e pés com dedos presentes.\n`;
-        texto += `\n`;
-    }
+    // --> A. VITALIDADE (Aparece antes ou depois, conforme preferência. Aqui coloco integrado)
+    const textoVitalidade = [];
+    if (d.bcf) textoVitalidade.push(`Batimentos cardíacos fetais rítmicos: ${d.bcf} bpm`);
+    if (d.movFetal) textoVitalidade.push(`Movimentação fetal ativa: Presente`);
+    if (d.degluticao) textoVitalidade.push(`Movimentos de deglutição visualizados`);
     
-    // Vitalidade Geral (Corrigido: Funciona para todos os tipos se preenchido)
-    if (d.bcf || d.movFetal || d.degluticao) {
-        if (d.bcf) texto += `Batimentos cardíacos fetais rítmicos: ${d.bcf} bpm.\n`;
-        if (d.movFetal) texto += `Movimentação fetal ativa: Presente.\n`;
-        if (d.degluticao) texto += `Movimentos de deglutição: Visualizados.\n`;
+    if (textoVitalidade.length > 0) {
+        texto += textoVitalidade.join('. ') + '.\n\n';
+    }
+
+    // --> B. 1º TRIMESTRE (Morfológico Precoce)
+    if (d.subtipo === 'OBSTETRICO_1_TRI') {
+        texto += `ANÁLISE MORFOLÓGICA (11 - 14 SEMANAS)\n`;
+        
+        // Checklist Anatômico 1º Tri
+        if (d.morfCranio || d.morfCerebro) texto += `- Polo Cefálico: Contorno craniano de aspecto habitual e plexos coróides simétricos.\n`;
+        if (d.morfFace) texto += `- Face: Órbitas simétricas. Perfil facial com aspecto adequado.\n`;
+        if (d.morfColuna) texto += `- Coluna: Visibilizada com aspecto aparentemente normal.\n`;
+        if (d.morfTorax || d.morfCoracao) texto += `- Tórax/Coração: Forma normal. Situs solitus. Esboço das 4 câmaras visibilizado.\n`;
+        if (d.morfParedeAbd || d.morfEstomago) texto += `- Abdome: Parede íntegra. Estômago visibilizado.\n`;
+        if (d.morfBexiga) texto += `- Bexiga: Visibilizada.\n`;
+        if (d.morfMembros) texto += `- Membros: Superiores e inferiores visibilizados e simétricos.\n`;
+
+        texto += `\nRASTREAMENTO DE CROMOSSOMOPATIAS\n`;
+        // Osso Nasal
+        const statusOsso = d.ossoNasalPresente ? "Presente" : "Ausente / Não visualizado";
+        texto += `- Osso Nasal: ${statusOsso}.\n`;
+        
+        // Tricúspide
+        if (d.tricuspide) texto += `- Valva Tricúspide: Com regurgitação (marcador positivo).\n`;
+        else texto += `- Valva Tricúspide: Fluxo habitual (sem regurgitação).\n`;
+
+        // Ducto Venoso (Lógica corrigida para os Radios)
+        let ondaA = "Positiva (Normal)";
+        if (d.dvOndaAZero) ondaA = "Zero (Anormal)";
+        if (d.dvOndaAReversa) ondaA = "Reversa (Anormal)";
+        
+        texto += `- Ducto Venoso: Onda A ${ondaA}`;
+        if (d.dvIP) texto += ` (IP: ${d.dvIP})`;
+        texto += `.\n`;
+
+        // Tabela de Risco (Só imprime se tiver preenchido o Basal T21)
+        if (d.riscoT21Basal) {
+            texto += `\nCÁLCULO DE RISCO (Fetal Medicine Foundation):\n`;
+            texto += `Trissomia 21: Basal 1:${d.riscoT21Basal}  |  Corrigido 1:${d.riscoT21Corrigido || '-'}\n`;
+            if(d.riscoT18Basal) texto += `Trissomia 18: Basal 1:${d.riscoT18Basal}  |  Corrigido 1:${d.riscoT18Corrigido || '-'}\n`;
+            if(d.riscoT13Basal) texto += `Trissomia 13: Basal 1:${d.riscoT13Basal}  |  Corrigido 1:${d.riscoT13Corrigido || '-'}\n`;
+        }
         texto += `\n`;
+    }
+
+    // --> C. 2º TRIMESTRE / MORFOLÓGICO
+    else {
+        // Só imprime o título se tiver algum item marcado
+        const temMorfo = d.morfCranio || d.morfFace || d.morfCoracao || d.morfRins;
+        
+        if (temMorfo) {
+            texto += `ANÁLISE MORFOLÓGICA FETAL\n`;
+            if (d.morfCranio) texto += `- Polo Cefálico: Estruturas intracranianas (CSP, tálamos, ventrículos e cerebelo) com aspecto habitual.\n`;
+            if (d.morfFace) texto += `- Face: Lábio superior íntegro. Perfil facial normal. Cristalinos visualizados.\n`;
+            if (d.morfColuna) texto += `- Coluna Vertebral: Íntegra em toda sua extensão (cortes sagitais, coronais e transversais).\n`;
+            if (d.morfCoracao) texto += `- Coração: Situs solitus. Quatro câmaras cardíacas e vias de saída (VE/VD) visualizadas.\n`;
+            if (d.morfTorax) texto += `- Tórax: Pulmões com ecotextura homogênea. Sem derrames ou massas.\n`;
+            if (d.morfEstomago || d.morfFigado) texto += `- Abdome Superior: Estômago e vesícula biliar à esquerda. Aspecto habitual.\n`;
+            if (d.morfRins || d.morfBexiga) texto += `- Aparelho Urinário: Rins tópicos com ecotextura preservada. Bexiga visualizada.\n`;
+            if (d.morfParedeAbd) texto += `- Parede Abdominal: Íntegra, com inserção normal do cordão umbilical.\n`;
+            if (d.morfGenitalia) texto += `- Genitália: Visualizada, compatível com o sexo fetal.\n`;
+            if (d.morfMembros) texto += `- Membros: Visualizados ossos longos dos quatro membros. Mãos e pés com dedos presentes.\n`;
+            texto += `\n`;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -347,57 +367,70 @@ export const gerarRelatorioFeto = (d) => {
     if (d.usarDoppler) {
         texto += `ESTUDO DOPPLERFLUXOMÉTRICO\n`;
         
-        // Uterinas
+        // 1. Artérias Uterinas (Materno)
         if (d.checkUtDir || d.checkUtEsq || d.utDirIP || d.utEsqIP) {
             texto += `Artérias Uterinas:\n`;
+            // Direita
             if (d.checkUtDir || d.utDirIP) {
-                texto += `- Direita: ${d.utDirIP ? 'IP '+d.utDirIP : 'Visualizada'}`;
+                texto += `- Direita: IP ${d.utDirIP || '---'}`;
                 if (d.utDirIR) texto += `, IR ${d.utDirIR}`;
-                if (d.utDirIncisura) texto += ` (Com Incisura Protodiastólica)`;
+                if (d.utDirIncisura) texto += ` (Presença de Incisura Protodiastólica)`;
                 texto += `.\n`;
             }
+            // Esquerda
             if (d.checkUtEsq || d.utEsqIP) {
-                texto += `- Esquerda: ${d.utEsqIP ? 'IP '+d.utEsqIP : 'Visualizada'}`;
+                texto += `- Esquerda: IP ${d.utEsqIP || '---'}`;
                 if (d.utEsqIR) texto += `, IR ${d.utEsqIR}`;
-                if (d.utEsqIncisura) texto += ` (Com Incisura Protodiastólica)`;
+                if (d.utEsqIncisura) texto += ` (Presença de Incisura Protodiastólica)`;
                 texto += `.\n`;
+            }
+            // Média
+            if (d.ipMedioUterinas) {
+                texto += `- IP Médio das Uterinas: ${d.ipMedioUterinas}.\n`;
             }
         }
 
-        // Umbilical
+        // 2. Artéria Umbilical (Fetal)
         if (d.checkUmb || d.umbIP) {
-            texto += `Artéria Umbilical: ${d.umbIP ? 'IP '+d.umbIP : 'Avaliada'}`;
+            texto += `Artéria Umbilical: IP ${d.umbIP || '---'}`;
             if (d.umbIR) texto += `, IR ${d.umbIR}`;
             if (d.umbSD) texto += `, S/D ${d.umbSD}`;
-            if (d.umbDiastoleZero) texto += ` (Diástole Zero)`;
-            if (d.umbDiastoleReversa) texto += ` (Diástole Reversa)`;
+            
+            // Alertas Graves
+            if (d.umbDiastoleZero) texto += `. OBS: DIÁSTOLE ZERO (Fluxo ausente na diástole)`;
+            else if (d.umbDiastoleReversa) texto += `. OBS: DIÁSTOLE REVERSA (Fluxo reverso na diástole)`;
+            else texto += `. (Fluxo diastólico preservado)`;
+            
             texto += `.\n`;
         }
 
-        // Cerebral
+        // 3. Artéria Cerebral Média (Fetal)
         if (d.checkAcm || d.acmIP) {
-            texto += `Artéria Cerebral Média: ${d.acmIP ? 'IP '+d.acmIP : 'Avaliada'}`;
-            if (d.acmPVS) texto += `, PVS ${d.acmPVS} cm/s`;
-            if (d.acmDiastoleAlta) texto += ` (Sinais de Centralização)`;
+            texto += `Artéria Cerebral Média: IP ${d.acmIP || '---'}`;
+            if (d.acmPVS) texto += `, Pico de Velocidade Sistólica (PVS): ${d.acmPVS} cm/s`;
+            
+            if (d.acmDiastoleAlta) texto += `. (Sinais de Centralização Fetal / Vasodilatação)`;
             texto += `.\n`;
         }
 
-        // Relação
+        // 4. Relação C/U
         if (d.relacaoCerebroUmbilical) {
-            texto += `Relação Cérebro/Umbilical: ${d.relacaoCerebroUmbilical}.\n`;
+            texto += `Relação Cérebro/Umbilical (RCP): ${d.relacaoCerebroUmbilical}.\n`;
         }
-        texto += `\n`;
 
-        // Repete Ducto Venoso aqui se for exame tardio
+        // 5. Ducto Venoso (Repetido aqui caso não seja exame de 1º Tri)
         if ((d.checkDv || d.dvIP) && d.subtipo !== 'OBSTETRICO_1_TRI') {
-             let ondaTexto = 'positiva';
-             if (d.dvOndaAZero) ondaTexto = 'zero';
-             else if (d.dvOndaAReversa) ondaTexto = 'reversa';
-             texto += `Ducto Venoso: onda A ${ondaTexto}, IP ${d.dvIP || '-'}.\n`;
+             let ondaTexto = 'Positiva';
+             if (d.dvOndaAZero) ondaTexto = 'Zero';
+             if (d.dvOndaAReversa) ondaTexto = 'Reversa';
+             
+             texto += `Ducto Venoso: Onda A ${ondaTexto}`;
+             if (d.dvIP) texto += `, IP ${d.dvIP}`;
+             texto += `.\n`;
         }
+        
         texto += `\n`;
     }
-
     // -------------------------------------------------------------------------
     // 10. 3D/4D (LÓGICA RESTAURADA)
     // -------------------------------------------------------------------------
