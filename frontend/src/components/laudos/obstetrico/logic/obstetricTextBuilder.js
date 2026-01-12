@@ -263,30 +263,58 @@ export const gerarRelatorioFeto = (d) => {
         texto += textoVitalidade.join('. ') + '.\n\n';
     }
 
-    // --> 1º TRIMESTRE (Mantivemos a lógica padrão que já estava boa)
+    // --> 1º TRIMESTRE (11 - 14 SEMANAS) - AGORA COM LÓGICA INDEPENDENTE
     if (d.subtipo === 'OBSTETRICO_1_TRI') {
         texto += `ANÁLISE MORFOLÓGICA (11 - 14 SEMANAS)\n`;
         
-        texto += `POLO CEFÁLICO\n`;
-        if (d.morfCranio || d.morfCerebro) texto += `Contorno craniano de aspecto habitual e plexos coróides simétricos.\n`;
-        if (d.morfFace) texto += `Órbitas simétricas. Perfil facial com aspecto adequado.\n`;
+        // 1. POLO CEFÁLICO (Crânio e Encéfalo)
+        // Frase conjunta se ambos marcados
+        if (d.morfCranio && d.morfCerebro) {
+            texto += `- Polo Cefálico: Contorno craniano íntegro (ossificação presente) e plexos coróides simétricos.\n`;
+        } else {
+            // Frases individuais
+            if (d.morfCranio) texto += `- Crânio: Contorno craniano com ossificação presente e aspecto habitual.\n`;
+            if (d.morfCerebro) texto += `- Encéfalo: Plexos coróides visibilizados e simétricos.\n`;
+        }
+
+        // 2. FACE
+        if (d.morfFace) texto += `- Face: Perfil facial com aspecto adequado. Órbitas aparentemente simétricas.\n`;
         
-        texto += `\nCOLUNA VERTEBRAL\n`;
-        if (d.morfColuna) texto += `Coluna vertebral visibilizada com aspecto aparentemente normal.\n`;
+        // 3. COLUNA
+        if (d.morfColuna) texto += `- Coluna: Visibilizada longitudinalmente, com alinhamento preservado.\n`;
         
-        texto += `\nTÓRAX\n`;
-        texto += `Forma normal e contornos regulares. Parede anterior íntegra.\n`;
-        if (d.morfCoracao) texto += `Coração de tamanho normal. Visibilizado o esboço das quatro câmaras cardíacas.\n`;
-        if (d.bcf) texto += `Batimentos cardíacos fetais ${d.bcf} bpm.\n`;
+        // 4. TÓRAX E CORAÇÃO
+        if (d.morfTorax) texto += `- Tórax: Formato habitual. Parede anterior íntegra.\n`;
         
-        texto += `\nABDOME\n`;
-        texto += `Parede abdominal íntegra com inserção tópica do cordão umbilical.\n`;
-        if (d.morfEstomago) texto += `Estômago com conteúdo líquido, ipsilateral à área cardíaca.\n`;
-        if (d.morfBexiga) texto += `Bexiga fetal visibilizada${d.compBexiga ? ' medindo ' + d.compBexiga + ' mm' : ''}.\n`;
+        // Lógica granular para Coração (4 câmaras vs Vasos)
+        if (d.morfCoracao && d.morfVasosBase) {
+             texto += `- Coração: Situs solitus. Esboço das 4 câmaras e vias de saída visibilizados.\n`;
+        } else {
+             if (d.morfCoracao) texto += `- Coração: Esboço das 4 câmaras cardíacas visibilizado.\n`;
+             if (d.morfVasosBase) texto += `- Coração: Vias de saída ventriculares visibilizadas.\n`;
+        }
+
+        // 5. ABDOME (Parede, Estômago, Rins, Bexiga)
+        if (d.morfParedeAbd) texto += `- Parede Abdominal: Íntegra, com inserção normal do cordão umbilical.\n`;
         
-        texto += `\nMEMBROS\n`;
-        if (d.morfMembros) texto += `Membros superiores e inferiores visibilizados e simétricos.\n`;
+        // Estômago e Fígado (Raro avaliar fígado no 1º tri, mas se marcar, sai)
+        if (d.morfEstomago) texto += `- Estômago: Imagem anecóica (conteúdo líquido) presente no quadrante superior esquerdo.\n`;
+        if (d.morfFigado) texto += `- Abdome Superior: Fígado/Vesícula com aspecto habitual.\n`;
+
+        // Urinário
+        if (d.morfRins && d.morfBexiga) {
+             texto += `- Aparelho Urinário: Rins e bexiga visibilizados.\n`;
+        } else {
+             if (d.morfRins) texto += `- Rins: Lojas renais ocupadas, aspecto ecográfico habitual.\n`;
+             if (d.morfBexiga) texto += `- Bexiga: Visibilizada na pelve fetal.\n`;
+        }
+
+        // 6. MEMBROS
+        if (d.morfMembros) texto += `- Membros: Superiores e inferiores visibilizados (presença de 3 segmentos).\n`;
         
+        // Vitalidade (Integrado ao bloco se preferir, ou deixar no bloco geral)
+        if (d.bcf) texto += `- Vitalidade: BCF ${d.bcf} bpm.\n`;
+
         texto += `\n`;
     }
 
