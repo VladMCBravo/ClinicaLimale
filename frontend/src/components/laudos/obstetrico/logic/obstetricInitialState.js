@@ -116,10 +116,10 @@ export const initialState = {
     sugerePieloectasia: false,  
     sugereRciu: false,      
     
-    // Adicione esses campos no final do objeto initialState
-    obsDatacao: '',
-    obsBiometria: '',
+    // --- CAMPOS DE OBSERVAÇÃO (ADICIONE ISTO AQUI) ---
     obsMorfologia: '',
+    obsBiometria: '',
     obsDoppler: '',
     obsPlacenta: '',
-};
+    obsDatacao: ''
+}; // Fim do objeto
