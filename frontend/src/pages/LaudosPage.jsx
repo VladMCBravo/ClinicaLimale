@@ -118,6 +118,12 @@ const styles = {
 };
 
 const STORAGE_KEY = 'laudos_rascunho_auto_save';
+const maskCRM = (value) => {
+  return value
+    .replace(/\D/g, '') // Remove letras
+    .replace(/(\d{5})(\d)/, '$1-$2') // Coloca traço
+    .replace(/(-\d{2})\d+?$/, '$1'); // Limita tamanho
+};
 
 const LaudosPage = () => {
   const getInitialState = (key, fallback) => {
@@ -153,12 +159,7 @@ const LaudosPage = () => {
   const [medicosFiltrados, setMedicosFiltrados] = useState([]); // Lista exibida no dropdown
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false); // <--- NOVO
-  const maskCRM = (value) => {
-  return value
-    .replace(/\D/g, '') // Remove letras
-    .replace(/(\d{5})(\d)/, '$1-$2') // Coloca traço
-    .replace(/(-\d{2})\d+?$/, '$1'); // Limita tamanho
-};
+  
   // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
@@ -169,6 +170,7 @@ const LaudosPage = () => {
   const [dadosAcesso, setDadosAcesso] = useState(null); // Armazena login/senha retornados
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
   const [credenciais, setCredenciais] = useState(null);
+  const [anchorElPrint, setAnchorElPrint] = useState(null); // Estado do Menu de Impressão
 
   // Ref para debounce da busca de paciente
   const searchTimeoutRef = useRef(null);
@@ -497,6 +499,20 @@ const handleShareEmail = () => {
     handlePrint(); // Baixa o PDF
     
     window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`);
+};
+
+    // Handlers do Menu de Impressão
+const handleOpenPrintMenu = (event) => {
+    setAnchorElPrint(event.currentTarget);
+};
+
+const handleClosePrintMenu = () => {
+    setAnchorElPrint(null);
+};
+
+const handlePrintChoice = (usarTimbre) => {
+    handleClosePrintMenu();
+    handlePrint(usarTimbre); // Chama sua função existente passando true ou false
 };
 
   const handlePrint = (usarTimbre = true) => {
@@ -889,13 +905,35 @@ const handleEnviarEmail = () => {
                      <button onClick={handleImprimirTermo} title="Termo" style={{background: '#78909C', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}><FaFileSignature /></button>
                                                                                    
                      <button onClick={handleSave} title="Salvar" style={{background: '#66BB6A', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}>{saving ? <FaSpinner className="spin"/> : <FaSave />}</button>
-                     <button 
-    onClick={() => handlePrint(false)} 
-    title="Imprimir (Sem Timbre/Logo)" 
-    style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer'}}
+                     {/* --- NOVO BOTÃO DE IMPRIMIR COM MENU --- */}
+<button 
+    onClick={handleOpenPrintMenu} 
+    title="Imprimir / Gerar PDF" 
+    style={{background: '#42A5F5', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'5px'}}
 >
-    <FaPrint />
+    <FaPrint /> <span style={{fontSize:'10px'}}>Imprimir</span>
 </button>
+
+<Menu
+    anchorEl={anchorElPrint}
+    open={Boolean(anchorElPrint)}
+    onClose={handleClosePrintMenu}
+>
+    <MenuItem onClick={() => handlePrintChoice(true)} style={{fontSize:'12px', gap:'10px'}}>
+        <FaFileAlt color="#1C2E4A"/> 
+        <div>
+            <strong>Com Logotipo</strong>
+            <div style={{fontSize:'10px', color:'#777'}}>Para envio digital (WhatsApp/Email)</div>
+        </div>
+    </MenuItem>
+    <MenuItem onClick={() => handlePrintChoice(false)} style={{fontSize:'12px', gap:'10px'}}>
+        <FaPrint color="#555"/> 
+        <div>
+            <strong>Sem Cabeçalho</strong>
+            <div style={{fontSize:'10px', color:'#777'}}>Para imprimir em papel timbrado</div>
+        </div>
+    </MenuItem>
+</Menu>
                  </div>
              </div>
              
