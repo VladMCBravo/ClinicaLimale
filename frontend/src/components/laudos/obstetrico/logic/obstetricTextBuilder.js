@@ -205,11 +205,16 @@ export const gerarRelatorioFeto = (d) => {
         texto += `.\n`;
     }
 
-    // Bexiga Materna
-    if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar' && d.bexigaMaterna !== 'não visualizada') {
-        texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
+    // Estômag e Bexiga Materna
+    // Seção onde aparecem os checkboxes 'estomagoVisualizado' e 'bexigaVisualizada'
+    const viscerasGerais = [];
+    if (d.estomagoVisualizado) viscerasGerais.push("Estômago");
+    if (d.bexigaVisualizada) viscerasGerais.push("Bexiga");
+    
+    if (viscerasGerais.length > 0) {
+        texto += `${viscerasGerais.join(' e ')} visualizados.\n`;
     }
-    texto += '\n';
+    texto += `\n`;
 
     // -------------------------------------------------------------------------
     // 5. COLO UTERINO (Compatível com SecaoColoDados.jsx)
@@ -258,98 +263,93 @@ export const gerarRelatorioFeto = (d) => {
         texto += textoVitalidade.join('. ') + '.\n\n';
     }
 
-    // --> B. 1º TRIMESTRE (Morfológico Precoce)
+    // --> 1º TRIMESTRE (Mantivemos a lógica padrão que já estava boa)
     if (d.subtipo === 'OBSTETRICO_1_TRI') {
         texto += `ANÁLISE MORFOLÓGICA (11 - 14 SEMANAS)\n`;
         
-        // Checklist Anatômico 1º Tri
-        if (d.morfCranio || d.morfCerebro) texto += `- Polo Cefálico: Contorno craniano de aspecto habitual e plexos coróides simétricos.\n`;
-        if (d.morfFace) texto += `- Face: Órbitas simétricas. Perfil facial com aspecto adequado.\n`;
-        if (d.morfColuna) texto += `- Coluna: Visibilizada com aspecto aparentemente normal.\n`;
-        if (d.morfTorax || d.morfCoracao) texto += `- Tórax/Coração: Forma normal. Situs solitus. Esboço das 4 câmaras visibilizado.\n`;
-        if (d.morfParedeAbd || d.morfEstomago) texto += `- Abdome: Parede íntegra. Estômago visibilizado.\n`;
-        if (d.morfBexiga) texto += `- Bexiga: Visibilizada.\n`;
-        if (d.morfMembros) texto += `- Membros: Superiores e inferiores visibilizados e simétricos.\n`;
-
-        texto += `\nRASTREAMENTO DE CROMOSSOMOPATIAS\n`;
-        // Osso Nasal
-        const statusOsso = d.ossoNasalPresente ? "Presente" : "Ausente / Não visualizado";
-        texto += `- Osso Nasal: ${statusOsso}.\n`;
+        texto += `POLO CEFÁLICO\n`;
+        if (d.morfCranio || d.morfCerebro) texto += `Contorno craniano de aspecto habitual e plexos coróides simétricos.\n`;
+        if (d.morfFace) texto += `Órbitas simétricas. Perfil facial com aspecto adequado.\n`;
         
-        // Tricúspide
-        if (d.tricuspide) texto += `- Valva Tricúspide: Com regurgitação (marcador positivo).\n`;
-        else texto += `- Valva Tricúspide: Fluxo habitual (sem regurgitação).\n`;
-
-        // Ducto Venoso (Lógica corrigida para os Radios)
-        let ondaA = "Positiva (Normal)";
-        if (d.dvOndaAZero) ondaA = "Zero (Anormal)";
-        if (d.dvOndaAReversa) ondaA = "Reversa (Anormal)";
+        texto += `\nCOLUNA VERTEBRAL\n`;
+        if (d.morfColuna) texto += `Coluna vertebral visibilizada com aspecto aparentemente normal.\n`;
         
-        texto += `- Ducto Venoso: Onda A ${ondaA}`;
-        if (d.dvIP) texto += ` (IP: ${d.dvIP})`;
-        texto += `.\n`;
-
-        // Tabela de Risco (Só imprime se tiver preenchido o Basal T21)
-        if (d.riscoT21Basal) {
-            texto += `\nCÁLCULO DE RISCO (Fetal Medicine Foundation):\n`;
-            texto += `Trissomia 21: Basal 1:${d.riscoT21Basal}  |  Corrigido 1:${d.riscoT21Corrigido || '-'}\n`;
-            if(d.riscoT18Basal) texto += `Trissomia 18: Basal 1:${d.riscoT18Basal}  |  Corrigido 1:${d.riscoT18Corrigido || '-'}\n`;
-            if(d.riscoT13Basal) texto += `Trissomia 13: Basal 1:${d.riscoT13Basal}  |  Corrigido 1:${d.riscoT13Corrigido || '-'}\n`;
-        }
+        texto += `\nTÓRAX\n`;
+        texto += `Forma normal e contornos regulares. Parede anterior íntegra.\n`;
+        if (d.morfCoracao) texto += `Coração de tamanho normal. Visibilizado o esboço das quatro câmaras cardíacas.\n`;
+        if (d.bcf) texto += `Batimentos cardíacos fetais ${d.bcf} bpm.\n`;
+        
+        texto += `\nABDOME\n`;
+        texto += `Parede abdominal íntegra com inserção tópica do cordão umbilical.\n`;
+        if (d.morfEstomago) texto += `Estômago com conteúdo líquido, ipsilateral à área cardíaca.\n`;
+        if (d.morfBexiga) texto += `Bexiga fetal visibilizada${d.compBexiga ? ' medindo ' + d.compBexiga + ' mm' : ''}.\n`;
+        
+        texto += `\nMEMBROS\n`;
+        if (d.morfMembros) texto += `Membros superiores e inferiores visibilizados e simétricos.\n`;
+        
         texto += `\n`;
     }
 
-    // --> C. 2º TRIMESTRE / MORFOLÓGICO
+    // --> 2º TRIMESTRE / MORFOLÓGICO (AQUI ESTÁ A GRANDE MUDANÇA)
     else {
-        // Verifica se QUALQUER item da morfologia foi marcado para exibir o título
+        // Verifica se exibe o título (se pelo menos um item foi marcado)
         const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.morfColuna || 
                          d.morfCoracao || d.morfVasosBase || d.morfTorax || 
                          d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga || 
                          d.morfParedeAbd || d.morfGenitalia || d.morfMembros;
-        
+
         if (temMorfo) {
             texto += `ANÁLISE MORFOLÓGICA FETAL\n`;
             
-            // 1. Polo Cefálico (Crânio OU Encéfalo)
-            if (d.morfCranio || d.morfCerebro) {
+            // 1. CABEÇA (Crânio e Encéfalo)
+            if (d.morfCranio && d.morfCerebro) {
                 texto += `- Polo Cefálico: Contorno craniano, cavum do septo pelúcido, tálamos, ventrículos e cerebelo com aspecto habitual.\n`;
+            } else {
+                if (d.morfCranio) texto += `- Crânio: Contorno craniano íntegro e formato habitual.\n`;
+                if (d.morfCerebro) texto += `- Encéfalo: Cavum do septo pelúcido, tálamos, ventrículos e cerebelo com aspecto habitual.\n`;
             }
-            // 2. Face
-            if (d.morfFace) {
-                texto += `- Face: Lábio superior íntegro. Perfil facial normal. Cristalinos visualizados.\n`;
-            }
-            // 3. Coluna
-            if (d.morfColuna) {
-                texto += `- Coluna Vertebral: Íntegra em toda sua extensão (cortes sagitais, coronais e transversais).\n`;
-            }
-            // 4. Tórax
-            if (d.morfTorax) {
-                texto += `- Tórax: Pulmões com ecotextura homogênea. Sem derrames ou massas.\n`;
-            }
-            // 5. Coração (Coração OU Vasos da Base) - CORREÇÃO AQUI
-            if (d.morfCoracao || d.morfVasosBase) {
+
+            // 2. FACE
+            if (d.morfFace) texto += `- Face: Lábio superior íntegro. Perfil facial normal. Cristalinos visualizados.\n`;
+
+            // 3. COLUNA
+            if (d.morfColuna) texto += `- Coluna Vertebral: Íntegra em toda sua extensão (cortes sagitais, coronais e transversais).\n`;
+
+            // 4. TÓRAX
+            if (d.morfTorax) texto += `- Tórax: Pulmões com ecotextura homogênea. Sem derrames ou massas.\n`;
+
+            // 5. CORAÇÃO (4 Câmaras e Vasos)
+            if (d.morfCoracao && d.morfVasosBase) {
                 texto += `- Coração: Situs solitus. Quatro câmaras cardíacas, vias de saída (VE/VD) e vasos da base visualizados.\n`;
+            } else {
+                if (d.morfCoracao) texto += `- Coração: Situs solitus. Visibilizadas as quatro câmaras cardíacas.\n`;
+                if (d.morfVasosBase) texto += `- Coração: Vias de saída dos ventrículos e vasos da base visualizados.\n`;
             }
-            // 6. Abdome Superior (Estômago OU Fígado) - CORREÇÃO AQUI
-            if (d.morfEstomago || d.morfFigado) {
-                texto += `- Abdome Superior: Estômago e vesícula biliar visualizados à esquerda. Aspecto habitual.\n`;
+
+            // 6. ABDOME SUPERIOR (Estômago e Fígado/Vesícula)
+            if (d.morfEstomago && d.morfFigado) {
+                texto += `- Abdome Superior: Estômago e vesícula biliar visualizados. Situs visceral preservado.\n`;
+            } else {
+                if (d.morfEstomago) texto += `- Estômago: Visualizado à esquerda, com aspecto habitual.\n`;
+                if (d.morfFigado) texto += `- Fígado/Vesícula: Visualizados no hipocôndrio direito.\n`;
             }
-            // 7. Parede Abdominal
-            if (d.morfParedeAbd) {
-                texto += `- Parede Abdominal: Íntegra, com inserção normal do cordão umbilical.\n`;
-            }
-            // 8. Aparelho Urinário (Rins OU Bexiga)
-            if (d.morfRins || d.morfBexiga) {
+
+            // 7. PAREDE ABDOMINAL
+            if (d.morfParedeAbd) texto += `- Parede Abdominal: Íntegra, com inserção normal do cordão umbilical.\n`;
+
+            // 8. APARELHO URINÁRIO (Rins e Bexiga)
+            if (d.morfRins && d.morfBexiga) {
                 texto += `- Aparelho Urinário: Rins tópicos com ecotextura preservada. Bexiga visualizada.\n`;
+            } else {
+                if (d.morfRins) texto += `- Rins: Tópicos, com dimensões e ecotextura preservadas.\n`;
+                if (d.morfBexiga) texto += `- Bexiga: Visualizada e com repleção adequada.\n`;
             }
-            // 9. Genitália
-            if (d.morfGenitalia) {
-                texto += `- Genitália: Visualizada, compatível com o sexo fetal.\n`;
-            }
-            // 10. Membros
-            if (d.morfMembros) {
-                texto += `- Membros: Visualizados ossos longos dos quatro membros. Mãos e pés com dedos presentes.\n`;
-            }
+
+            // 9. GENITÁLIA
+            if (d.morfGenitalia) texto += `- Genitália: Visualizada, compatível com o sexo fetal.\n`;
+
+            // 10. MEMBROS
+            if (d.morfMembros) texto += `- Membros: Visualizados ossos longos dos quatro membros. Mãos e pés com dedos presentes.\n`;
             
             texto += `\n`;
         }

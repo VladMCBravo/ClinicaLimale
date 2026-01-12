@@ -38,10 +38,10 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                             Rastreamento de Cromossomopatias (11 - 14 semanas)
                         </div>
                         
-                        {/* Marcadores Principais */}
+                        {/* Marcadores Principais (REMOVIDO TRICÚSPIDE) */}
                         <div style={{marginBottom:'10px', display:'flex', gap:'15px', flexWrap:'wrap'}}>
                             <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
-                            <CheckItem label="Regurgitação Tricúspide" name="tricuspide" checked={data.tricuspide} onChange={handleChange} />
+                            {/* Tricúspide removido daqui conforme solicitado */}
                         </div>
 
                         {/* Ducto Venoso */}
