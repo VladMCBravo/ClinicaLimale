@@ -35,7 +35,7 @@ export const gerarRelatorioFeto = (d) => {
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
     
     // -------------------------------------------------------------------------
-    // 1. DATAÇÃO (Corrigido: USG Anterior)
+    // 1. DATAÇÃO (Corrigido: Variáveis exatas do SecaoDatacao.jsx)
     // -------------------------------------------------------------------------
     if (d.usarDum) {
         if (d.exibirDataDum && d.dum) texto += `Data da última menstruação: ${formatData(d.dum)}\n`;
@@ -52,10 +52,10 @@ export const gerarRelatorioFeto = (d) => {
 
     if (d.usarExameAnterior && d.dataExameAnterior) {
         const dataAnt = formatData(d.dataExameAnterior);
-        // Tenta pegar a IG calculada ou monta com os campos manuais se existirem
+        // CORREÇÃO AQUI: Nomes exatos do formulário (igAnteriorSemanas)
         let igAnt = d.igIgCorrigidaCalculada; 
-        if (!igAnt && (d.igAntSemanas || d.igAntDias)) {
-            igAnt = `${d.igAntSemanas || 0} semanas e ${d.igAntDias || 0} dias`;
+        if (!igAnt && (d.igAnteriorSemanas || d.igAnteriorDias)) {
+            igAnt = `${d.igAnteriorSemanas || 0} semanas e ${d.igAnteriorDias || 0} dias`;
         }
         texto += `Idade gestacional datada pelo ultrassom de ${dataAnt}: ${igAnt || '...'}.\n`;
     } 
@@ -331,9 +331,8 @@ export const gerarRelatorioFeto = (d) => {
             texto += `Relação Cérebro/Umbilical: ${d.relacaoCerebroUmbilical}.\n`;
         }
         texto += `\n`;
-    }
 
-    // Repete Ducto Venoso aqui se for exame tardio
+        // Repete Ducto Venoso aqui se for exame tardio
         if ((d.checkDv || d.dvIP) && d.subtipo !== 'OBSTETRICO_1_TRI') {
              let ondaTexto = 'positiva';
              if (d.dvOndaAZero) ondaTexto = 'zero';
@@ -341,6 +340,7 @@ export const gerarRelatorioFeto = (d) => {
              texto += `Ducto Venoso: onda A ${ondaTexto}, IP ${d.dvIP || '-'}.\n`;
         }
         texto += `\n`;
+    }
 
     // -------------------------------------------------------------------------
     // 10. 3D/4D (LÓGICA RESTAURADA)
@@ -404,12 +404,13 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 11. CONCLUSÃO (Corrigido: Peso, Sexo, Percentil)
+    // 11. CONCLUSÃO (Corrigido: Peso/Sexo/Percentil aparecem SEMPRE)
     // -------------------------------------------------------------------------
     texto += `CONCLUSÃO\n`;
     let igFinal = d.igBiometria || d.igDum || "---";
     if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
 
+    // 1. Frase de Abertura (Varia por tipo)
     if (d.sgAbortoIncompleto) {
         texto += `Quadro compatível com Abortamento Incompleto.\n`;
     }
@@ -419,41 +420,48 @@ export const gerarRelatorioFeto = (d) => {
         } else {
             texto += `Feto único com idade gestacional compatível com ${igFinal}.\n`;
         }
-        
         texto += `Os marcadores de cromossomopatias do 1º trimestre reduziram o risco inicial baseado na idade materna.\n`;
         texto += `Não foram encontradas anomalias nas estruturas fetais observadas no presente exame.\n`;
     } 
     else {
+        // Frase Padrão
         texto += `- Gestação tópica, feto único vivo.\n`;
         texto += `- Biometria fetal compatível com ${igFinal}.\n`;
-        
-        // Correção Peso/Percentil/Sexo
-        if (d.pesoEstimado || d.pesoFetal) {
-            texto += `- Peso fetal estimado: ${d.pesoEstimado || d.pesoFetal} g.`;
-            // Só mostra percentil se NÃO estiver marcado "Sem dados"
-            if (d.percentil && !d.semDadosPercentil) {
-                texto += ` (Percentil: ${d.percentil})`;
-            }
-            texto += `.\n`;
-        }
-        
-        if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR' && d.sexoFetal !== 'NAO_VISUALIZADO') {
-             let sexoTexto = d.sexoFetal.toLowerCase();
-             if(d.sexoFetal === 'MASCULINO') sexoTexto = 'Masculino';
-             if(d.sexoFetal === 'FEMININO') sexoTexto = 'Feminino';
-             texto += `- Sexo fetal: ${sexoTexto}.\n`;
-        } else if (d.sexoFetal === 'NAO_VISUALIZADO') {
-             texto += `- Sexo fetal: Não visualizado.\n`;
-        }
-
         if (d.subtipo === 'OBSTETRICO_MORFOLOGICO') texto += `- Exame morfológico sem evidências de anomalias estruturais.\n`;
     }
+
+    // 2. Dados do Feto (UNIVERSAL - Roda para qualquer exame se preenchido)
     
+    // Peso e Percentil
+    if (d.pesoEstimado || d.pesoFetal) {
+        texto += `- Peso fetal estimado: ${d.pesoEstimado || d.pesoFetal} g.`;
+        // Checkbox "Sem dados" no JSX se chama 'semDadosPercentil'
+        if (d.percentil && !d.semDadosPercentil) {
+            texto += ` (Percentil: ${d.percentil})`;
+        }
+        texto += `.\n`;
+    }
+    
+    // Sexo Fetal
+    if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR' && d.sexoFetal !== 'NAO_VISUALIZADO') {
+         let sexoTexto = d.sexoFetal.toLowerCase();
+         if(d.sexoFetal === 'MASCULINO') sexoTexto = 'Masculino';
+         if(d.sexoFetal === 'FEMININO') sexoTexto = 'Feminino';
+         texto += `- Sexo fetal: ${sexoTexto}.\n`;
+    } else if (d.sexoFetal === 'NAO_VISUALIZADO') {
+         texto += `- Sexo fetal: Não visualizado.\n`;
+    }
+
+    // 3. Notas e Sugestões (UNIVERSAL)
     if (d.sugereGolfBall) texto += `- Foco hiperecogênico (Golf Ball) em VE. Sugere-se controle.\n`;
+    if (d.morfoPrejudicado45mm) texto += `- Avaliação morfológica prejudicada (CCN < 45mm).\n`;
+    if (d.sugereNipt) texto += `- Risco aumentado para cromossomopatias. Sugere-se NIPT ou cariótipo.\n`;
+    if (d.sugerePieloectasia) texto += `- Pieloectasia fetal. Sugere-se controle evolutivo.\n`;
+    if (d.sugereDopplerRciu) texto += `- Sugere-se acompanhamento com Dopplerfluxometria (Risco de RCIU).\n`;
+
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
-    return { texto, tituloExame };
-};
+    return { texto, tituloExame }; };
 
 // =============================================================================
 // HELPERS FINAIS (MULTI-FETO & DISCLAIMERS)
