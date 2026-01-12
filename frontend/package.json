@@ -28,6 +28,7 @@
     "cornerstone-wado-image-loader": "^4.13.2",
     "dayjs": "^1.11.13",
     "dicom-parser": "^1.8.21",
+    "jspdf": "^4.0.0",
     "pdfmake": "^0.2.12",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
@@ -42,10 +43,10 @@
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@types/node": "^20.16.5",
     "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11" 
+    "@types/react-dom": "^18.3.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -73,5 +74,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-    }
+  }
 }
