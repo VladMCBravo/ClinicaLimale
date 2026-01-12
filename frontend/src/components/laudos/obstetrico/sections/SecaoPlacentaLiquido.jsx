@@ -1,4 +1,5 @@
 import React from 'react';
+import { FaCommentMedical } from 'react-icons/fa';
 
 const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
 

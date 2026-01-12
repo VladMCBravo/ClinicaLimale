@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { MdDateRange, MdWarning, MdAccessTime } from 'react-icons/md';
-import { FaCalendarAlt, FaCalculator, FaHistory } from 'react-icons/fa';
+import { MdDateRange, MdWarning } from 'react-icons/md';
+import { FaCalendarAlt, FaCalculator, FaHistory, FaCommentMedical} from 'react-icons/fa';
 
 const SecaoDatacao = ({ data, handleChange }) => {
 

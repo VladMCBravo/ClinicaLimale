@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FaWaveSquare, FaVenus, FaBaby, FaCalculator, FaTable } from 'react-icons/fa';
+import { FaWaveSquare, FaVenus, FaBaby, FaTable, FaCommentMedical} from 'react-icons/fa';
 import ModalTabelaVPS from './ModalTabelaVPS';
 
 // Componente de Input Compacto (Estilo Biometria)

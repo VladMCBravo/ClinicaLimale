@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { FaRulerCombined, FaBrain, FaBone, FaShoePrints, FaBaby } from 'react-icons/fa';
-import { FaArrowUp } from 'react-icons/fa'; // Ícone de "Enviar para cima"
+import { FaArrowUp, FaCommentMedical} from 'react-icons/fa'; // Ícone de "Enviar para cima"
 
 // Componente de Linha Compacta
 const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60px" }) => {
