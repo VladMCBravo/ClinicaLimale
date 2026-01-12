@@ -1,3 +1,5 @@
+import random
+import string
 from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
@@ -45,23 +47,50 @@ class Laudo(models.Model):
         null=True, blank=True
     )
     
+    # --- CAMPOS QUE FALTAVAM ---
     titulo_exame = models.CharField(max_length=255)
     
-    # --- O CORAÇÃO DO SISTEMA TURING ---
-    # Aqui salvamos o estado dos inputs: { "dbp": 45, "cranioNormal": true, ... }
-    # Isso permite reabrir o laudo e continuar editando os campos, não apenas o texto.
+    # Importante: Salvar qual tipo foi (OBSTETRICO, TRANSVAGINAL, etc)
+    tipo_exame = models.CharField(max_length=50, default='OBSTETRICO') 
+    
+    # Importante: Salvar o CRM usado no momento do laudo (histórico)
+    crm_medico = models.CharField(max_length=20, blank=True, null=True)
+
     dados_estruturados = models.JSONField(default=dict, blank=True)
-    
-    # O texto final gerado para o PDF (HTML ou Texto Puro)
     texto_laudo = models.TextField(blank=True)
-    
-    # IDs das imagens do Orthanc ou URLs do S3
     imagens_ids = models.JSONField(default=list, blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RASCUNHO')
     
+    # --- CREDENCIAIS DE ACESSO DO PACIENTE ---
+    codigo_acesso = models.CharField(max_length=20, blank=True, null=True, unique=True)
+    senha_acesso = models.CharField(max_length=20, blank=True, null=True)
+
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Gera credenciais automáticas se não existirem
+        if not self.codigo_acesso:
+            self.codigo_acesso = self.gerar_codigo_unico()
+        if not self.senha_acesso:
+            self.senha_acesso = self.gerar_senha_simples()
+        
+        super().save(*args, **kwargs)
+
+    def gerar_codigo_unico(self):
+        # Ex: PCT-12345
+        prefixo = "PCT"
+        while True:
+            numero = ''.join(random.choices(string.digits, k=6))
+            codigo = f"{prefixo}-{numero}"
+            if not Laudo.objects.filter(codigo_acesso=codigo).exists():
+                return codigo
+
+    def gerar_senha_simples(self):
+        # Ex: A1B2
+        chars = string.ascii_uppercase + string.digits
+        return ''.join(random.choices(chars, k=6))
 
     def __str__(self):
         return f"Laudo: {self.titulo_exame} - {self.paciente.nome_completo}"

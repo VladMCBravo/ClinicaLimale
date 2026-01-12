@@ -171,6 +171,7 @@ const LaudosPage = () => {
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
   const [credenciais, setCredenciais] = useState(null);
   const [anchorElPrint, setAnchorElPrint] = useState(null); // Estado do Menu de Impressão
+  const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); // Armazena o ID se já foi salvo
 
   // Ref para debounce da busca de paciente
   const searchTimeoutRef = useRef(null);
@@ -291,6 +292,7 @@ const LaudosPage = () => {
   // Auto-Save Effect
   useEffect(() => {
     const dadosParaSalvar = {
+        laudoId,
         tipoExame,
         paciente,
         medicoNome,
@@ -312,11 +314,13 @@ const LaudosPage = () => {
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
+  }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
 
   const handleLimpar = () => {
     if (window.confirm("Limpar formulário? Rascunho será perdido.")) {
         localStorage.removeItem(STORAGE_KEY);
+        setLaudoId(null); // <--- LIMPA O ID
+        setCredenciais(null); // <--- LIMPA CREDENCIAIS ANTIGAS
         setTipoExame('OBSTETRICO');
         setPaciente(null);
         setMedicoNome('');
@@ -437,17 +441,36 @@ const adicionarImagemDaNuvem = async (url) => {
               status: "FINALIZADO"
           };
           
-          const response = await apiClient.post('/prontuario/laudos/', payload);
+          let response;
 
-        // Verifica se o backend retornou as credenciais (que fizemos no Passo 1)
+          // LÓGICA DE UPSERT (CRIAR OU ATUALIZAR)
+          if (laudoId) {
+              // --- MODO EDIÇÃO (PUT) ---
+              // Se já temos ID, atualizamos o existente.
+              // O backend deve manter as mesmas credenciais neste endpoint.
+              response = await apiClient.put(`/prontuario/laudos/${laudoId}/`, payload);
+              console.log("Laudo atualizado:", response.data);
+          } else {
+              // --- MODO CRIAÇÃO (POST) ---
+              // Se não temos ID, criamos um novo.
+              response = await apiClient.post('/prontuario/laudos/', payload);
+              
+              // SALVAMOS O ID RETORNADO PARA OS PRÓXIMOS CLIQUES
+              if (response.data && response.data.id) {
+                  setLaudoId(response.data.id);
+              }
+          }
+
+        // Verifica credenciais (O backend deve retornar credenciais tanto no POST quanto no PUT)
         if (response.data && response.data.credenciais) {
             setCredenciais(response.data.credenciais);
+        } else if (credenciais) {
+            // Se o PUT não retornou credenciais novas, mantemos as antigas que já estão no estado
+            // (Não fazemos nada, mantemos o estado atual)
         } else {
-            // Fallback caso não tenha encontrado exame vinculado
             setCredenciais({ codigo: 'Consulte a recepção', senha: '---', link: 'limale.com.br' });
         }
 
-        // Abre o modal de sucesso/envio
         setModalSucessoOpen(true);
 
     } catch (e) { 
@@ -763,11 +786,24 @@ const handleEnviarEmail = () => {
                 {pacientesEncontrados.map(p => (
                     <div 
                         key={p.id} 
-                        onClick={() => { 
+                        onClick={async () => {
                             setPaciente(p); 
                             setTermoBusca(''); // Limpa o termo auxiliar
                             setPacientesEncontrados([]); // Fecha lista
-                        }} 
+                            // --- BUSCA CREDENCIAIS ATIVAS (NOVA LÓGICA) ---
+        try {
+            // Você precisará criar este endpoint no Django ou filtrar laudos recentes
+            const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`);
+            if (res.data && res.data.codigo) {
+                setCredenciais(res.data);
+                // Se quiser editar o laudo em aberto, você também poderia recuperar o setLaudoId(res.data.laudo_id) aqui
+            } else {
+                setCredenciais(null); // Nenhuma ativa encontrada
+            }
+        } catch (e) {
+            console.log("Nenhuma credencial prévia encontrada.");
+        }
+    }}
                         style={styles.dropdownItem}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
