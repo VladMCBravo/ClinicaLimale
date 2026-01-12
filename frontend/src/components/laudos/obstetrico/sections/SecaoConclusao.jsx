@@ -1,5 +1,15 @@
 import React from 'react';
-import { FaWeight, FaChartLine, FaVenusMars, FaNotesMedical, FaExclamationTriangle, FaCommentMedical } from 'react-icons/fa';
+import { FaWeight, FaChartLine, FaVenusMars, FaNotesMedical, FaExclamationTriangle, FaCommentMedical, FaPlusCircle } from 'react-icons/fa';
+
+// LISTA DE FRASES PRONTAS (Pode ser expandida)
+const FRASES_COMUNS = [
+    "Exame dificultado por panículo adiposo materno.",
+    "Exame dificultado pela posição fetal.",
+    "Sugere-se correlação clínica e laboratorial.",
+    "Sugere-se controle evolutivo.",
+    "Bexiga materna em repleção parcial.",
+    "Imagens obtidas limitadas por interposição gasosa."
+];
 
 const SecaoConclusao = ({ data, handleChange }) => {
     
@@ -10,6 +20,17 @@ const SecaoConclusao = ({ data, handleChange }) => {
   const estiloPercentil = isRciu 
       ? { width:'60px', background: '#FFEBEE', color: '#D32F2F', borderColor: '#D32F2F', fontWeight: 'bold', textAlign: 'center' }
       : { width:'60px', textAlign: 'center' };
+
+      // Função para adicionar frase
+  const addFrase = (frase) => {
+      const textoAtual = data.obsAdicionais || '';
+      // Adiciona espaço se já tiver texto e não terminar com espaço
+      const separador = textoAtual.length > 0 && !textoAtual.endsWith(' ') ? ' ' : '';
+      
+      handleChange({
+          target: { name: 'obsAdicionais', value: textoAtual + separador + frase }
+      });
+  };
 
   return (
     <div className="laudo-section" style={{marginBottom: '50px', borderLeft: '4px solid #D32F2F'}}> 
@@ -119,33 +140,41 @@ const SecaoConclusao = ({ data, handleChange }) => {
                 </div>
             </div>
 
-            {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (Inserir antes de fechar a laudo-section) */}
-                     <div style={{
-                         borderTop: '1px solid #eee', 
-                         padding: '10px 12px', // Espaçamento interno para não colar na borda
-                         background: '#FAFAFA', 
-                         borderBottomLeftRadius: '4px',
-                         borderBottomRightRadius: '4px'
-                     }}>
-                        <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
-                            <FaCommentMedical color="#555"/>
-                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
-                        </div>
+            {/* --- ÁREA DE OBSERVAÇÕES COM SNIPPETS --- */}
+            <div style={{marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'8px'}}>
+                    <FaCommentMedical color="#555"/>
+                    <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Observações Adicionais:</span>
+                </div>
+
+                {/* BOTÕES DE FRASES RÁPIDAS */}
+                <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
+                    {FRASES_COMUNS.map((frase, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => addFrase(frase)}
+                            title="Adicionar esta frase"
+                            style={{
+                                background: '#F5F5F5', border: '1px solid #DDD', borderRadius: '15px',
+                                padding: '4px 10px', fontSize: '10px', color: '#555', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '4px', transition: '0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#E0E0E0'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                        >
+                            <FaPlusCircle size={9} color="#2E7D32"/> {frase}
+                        </button>
+                    ))}
+                </div>
+
                 <textarea 
                     name="obsAdicionais" 
                     value={data.obsAdicionais} 
                     onChange={handleChange} 
                     className="laudo-textarea"
                     rows="3"
-                    style={{
-                                width:'100%', 
-                                fontSize:'11px', 
-                                border:'1px solid #ccc', 
-                                borderRadius: '4px', // Bordas arredondadas no campo
-                                padding: '8px', // Espaço interno do texto
-                                boxSizing: 'border-box' // Garante que não vaze a largura
-                            }}
-                    placeholder="Digite aqui observações livres para sair no final do laudo..."
+                    style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius:'4px', padding:'8px'}}
+                    placeholder="Digite aqui ou selecione as frases acima..."
                 />
             </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaHeartbeat, FaCheckSquare, FaExclamationTriangle, FaCommentMedical } from 'react-icons/fa'; 
-import { FaCalculator, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaExternalLinkAlt } from 'react-icons/fa';
 
 // Componente auxiliar para Checkbox simples
 const CheckItem = ({ label, name, checked, onChange }) => (
@@ -16,9 +16,21 @@ const CheckItem = ({ label, name, checked, onChange }) => (
     </label>
 );
 
+const FRASES_MORFO = [
+    "Visualização prejudicada por sombra acústica.",
+    "Membros fletidos dificultando avaliação detalhada.",
+    "Colo uterino impérvio.",
+    "Feto em posição posterior."
+];
+
 const SecaoMorfologia = ({ data, handleChange }) => {
 
   const isMorfo1Tri = data.subtipo === 'OBSTETRICO_1_TRI';
+  const addFraseMorfo = (frase) => {
+      const textoAtual = data.obsMorfologia || '';
+      const separador = textoAtual.length > 0 && !textoAtual.endsWith(' ') ? ' ' : '';
+      handleChange({ target: { name: 'obsMorfologia', value: textoAtual + separador + frase } });
+  };
 
   return (
     <>
@@ -213,10 +225,10 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                      <CheckItem label="Deglutição" name="degluticao" checked={data.degluticao} onChange={handleChange} />
                  </div>
              </div>
-             {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (Inserir antes de fechar a laudo-section) */}
+             {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (No final do return) */}
              <div style={{
                  borderTop: '1px solid #eee', 
-                 padding: '10px 12px', // Espaçamento interno para não colar na borda
+                 padding: '10px 12px', 
                  background: '#FAFAFA', 
                  borderBottomLeftRadius: '4px',
                  borderBottomRightRadius: '4px'
@@ -225,24 +237,36 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                     <FaCommentMedical color="#555"/>
                     <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
                 </div>
+
+                {/* BOTÕES DE FRASES */}
+                <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
+                    {FRASES_MORFO.map((frase, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => addFraseMorfo(frase)}
+                            style={{
+                                background: '#FFF', border: '1px solid #CCC', borderRadius: '12px',
+                                padding: '2px 8px', fontSize: '9px', color: '#666', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '3px'
+                            }}
+                        >
+                            + {frase}
+                        </button>
+                    ))}
+                </div>
+
                 <textarea 
                     name="obsMorfologia" 
                     value={data.obsMorfologia || ''} 
                     onChange={handleChange} 
                     className="laudo-textarea"
                     rows="2"
-                    style={{
-                        width:'100%', 
-                        fontSize:'11px', 
-                        border:'1px solid #ccc', 
-                        borderRadius: '4px', // Bordas arredondadas no campo
-                        padding: '8px', // Espaço interno do texto
-                        boxSizing: 'border-box' // Garante que não vaze a largura
-                    }}
-                    placeholder="Digite aqui observações específicas sobre a morfologia..."
+                    style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius:'4px', padding:'8px'}}
+                    placeholder="Digite observações..."
                 />
             </div>
-        </div>
+
+        </div> {/* Fecha laudo-section */}
     </>
   );
 };
