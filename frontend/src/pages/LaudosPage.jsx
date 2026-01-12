@@ -24,7 +24,7 @@ import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
-import DeclaracaoModal from '../components/shared/DeclaracaoModal'; // Ajuste o caminho
+import DeclaracaoModal from '../components/laudos/DeclaracaoModal';
 
 import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 
