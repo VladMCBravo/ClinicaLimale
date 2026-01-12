@@ -24,6 +24,7 @@ import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
+import DeclaracaoModal from '../components/shared/DeclaracaoModal'; // Ajuste o caminho
 
 import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 
@@ -172,6 +173,7 @@ const LaudosPage = () => {
   const [credenciais, setCredenciais] = useState(null);
   const [anchorElPrint, setAnchorElPrint] = useState(null); // Estado do Menu de Impressão
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); // Armazena o ID se já foi salvo
+  const [modalDeclaracaoOpen, setModalDeclaracaoOpen] = useState(false);
 
   // Ref para debounce da busca de paciente
   const searchTimeoutRef = useRef(null);
@@ -970,6 +972,25 @@ const handleEnviarEmail = () => {
         </div>
     </MenuItem>
 </Menu>
+{/* --- NOVO BOTÃO DECLARAÇÃO (Estilizado) --- */}
+<button 
+   onClick={() => setModalDeclaracaoOpen(true)} 
+   title="Declaração de Comparecimento"
+   style={{
+       background: '#7E57C2', // Roxo para diferenciar
+       color: 'white', 
+       border: 'none', 
+       padding: '6px 10px', 
+       borderRadius: '4px', 
+       cursor: 'pointer',
+       display:'flex', 
+       alignItems:'center', 
+       gap:'5px'
+   }}
+>
+   {/* Usei FaCheckCircle ou FaFileSignature, mantendo o padrão */}
+   <FaFileSignature /> <span style={{fontSize:'10px'}}>Declaração</span>
+</button>
                  </div>
              </div>
              
@@ -1115,9 +1136,21 @@ const handleEnviarEmail = () => {
                 Fechar Janela
             </Button>
         </DialogActions>
+        <DialogActions>
+            <Button onClick={() => setModalSucessoOpen(false)} style={{color: '#888'}}>
+                Fechar Janela
+            </Button>
+        </DialogActions>
       </Dialog>
+      {/* --- 3. Modal de Declaração (NOVO LOCAL) --- */}
+      <DeclaracaoModal 
+           open={modalDeclaracaoOpen}
+           onClose={() => setModalDeclaracaoOpen(false)}
+           paciente={paciente} 
+           medico={medicoNome} 
+       />
 
-    </div>
+    </div> // Fim do container principal
   );
 };
 
