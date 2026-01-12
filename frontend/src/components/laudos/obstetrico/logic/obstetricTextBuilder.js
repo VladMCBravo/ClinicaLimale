@@ -35,30 +35,55 @@ export const gerarRelatorioFeto = (d) => {
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
     
     // -------------------------------------------------------------------------
-    // 1. DATAÇÃO (Corrigido: Nomes exatos do SecaoDatacao.jsx)
+    // 1. DATAÇÃO (Lógica Blindada)
     // -------------------------------------------------------------------------
+    
+    // --- A. DUM (Data da Última Menstruação) ---
     if (d.usarDum) {
-        if (d.exibirDataDum && d.dum) texto += `Data da última menstruação: ${formatData(d.dum)}\n`;
-        if (d.citarDppDum && d.dppDum) {
-            texto += `DPP (DUM): ${d.dppDum}`;
-            if (d.igDum) texto += `, compatível com ${d.igDum}`;
-            texto += `.\n`;
-        } else if (d.igDum) {
-            texto += `Exame ultrassonográfico realizado com ${d.igDum} de idade gestacional segundo a data da última menstruação.\n`;
+        // Se tem DUM preenchida
+        if (d.dum) {
+            if (d.exibirDataDum) {
+                texto += `Data da última menstruação: ${formatData(d.dum)}.\n`;
+            }
+            // Se pede para citar a DPP baseada na DUM
+            if (d.citarDppDum && d.dppDum) {
+                texto += `DPP (DUM): ${d.dppDum}`;
+                // Só mostra a IG se ela foi calculada
+                if (d.igDum) texto += `, compatível com ${d.igDum}`;
+                texto += `.\n`;
+            } 
+            // Se não citar DPP, mas quiser dizer a IG pela DUM
+            else if (d.igDum) {
+                texto += `Idade gestacional cronológica (DUM): ${d.igDum}.\n`;
+            }
+        } else {
+            // Checkbox marcado mas sem data
+            texto += `Data da última menstruação referida, porém não informada.\n`;
         }
-    } else if (d.dumDesconhecida) {
+    } 
+    // --- B. DUM Desconhecida ---
+    else if (d.dumDesconhecida) {
         texto += `Data da última menstruação: Desconhecida / Não referida.\n`;
     }
 
+    // --- C. USG Anterior (Para datação principal) ---
     if (d.usarExameAnterior && d.dataExameAnterior) {
         const dataAnt = formatData(d.dataExameAnterior);
-        // CORREÇÃO AQUI: Nomes exatos do formulário (igAnteriorSemanas)
-        let igAnt = d.igIgCorrigidaCalculada; 
-        if (!igAnt && (d.igAnteriorSemanas || d.igAnteriorDias)) {
-            igAnt = `${d.igAnteriorSemanas || 0} semanas e ${d.igAnteriorDias || 0} dias`;
+        // O IMPORTANTE: Usar a IG Corrigida (Projetada para hoje) e não a antiga
+        const igHojePeloAnterior = d.igIgCorrigidaCalculada;
+        
+        if (igHojePeloAnterior) {
+            texto += `Idade gestacional datada pelo ultrassom de ${dataAnt}: ${igHojePeloAnterior}.\n`;
+        } else {
+            // Fallback de segurança caso o cálculo falhe, mas avisando que é a IG da época
+            texto += `Exame anterior realizado em ${dataAnt} (IG na época: ${d.igAnteriorSemanas || 0}s ${d.igAnteriorDias || 0}d).\n`;
         }
-        texto += `Idade gestacional datada pelo ultrassom de ${dataAnt}: ${igAnt || '...'}.\n`;
-    } else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
+    } 
+    
+    // --- D. Biometria Atual (Se escolhida como Datador Principal) ---
+    // Usado quando a DUM não é confiável e não tem exame anterior
+    else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
+         texto += `Idade Gestacional pela biometria atual: ${d.igBiometria || '...'}.\n`;
          texto += `DPP (Biometria atual): ${d.dppBiometriaCalculada}.\n`;
     }
     
@@ -221,37 +246,66 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 7. BIOMETRIA FETAL (LÓGICA RESTAURADA: CAMPOS NOVOS INCLUÍDOS)
+    // 7. BIOMETRIA FETAL (ATUALIZADO PARA SECAO BIOMETRIA.JSX)
     // -------------------------------------------------------------------------
-    const temBiometria = d.dbp || d.cc || d.femur || d.orbitaInterna || d.tibia || d.peMedida;
+    
+    // Verifica se tem alguma medida preenchida para decidir se exibe o título
+    const temBiometria = d.dbp || d.cc || d.femur || d.ca || d.umero || d.cerebelo;
 
     if (temBiometria) {
         texto += `BIOMETRIA FETAL\n`;
+        
+        // Array com a ordem exata que deve aparecer no laudo
+        // O helper formatBioLine cuida dos pontinhos "....." e da unidade "mm"
         const bios = [
-            formatBioLine('Comprimento cabeça-nádegas (CCN)', d.ccn),
-            formatBioLine('Diâmetro biparietal (DBP)', d.dbp),
-            formatBioLine('Diâmetro occipitofrontal (DOF)', d.dof),
-            formatBioLine('Circunferência cefálica (CC)', d.cc),
-            formatBioLine('Circunferência abdominal (CA)', d.ca),
-            formatBioLine('Comprimento do fêmur (CF)', d.femur),
-            formatBioLine('Comprimento do úmero', d.umero),
-            formatBioLine('Comprimento da tíbia', d.tibia),
-            formatBioLine('Comprimento da fíbula', d.fibula),
-            formatBioLine('Comprimento do rádio', d.radio),
-            formatBioLine('Comprimento da ulna', d.ulna),
+            // Medidas Básicas (Hadlock)
+            formatBioLine('Diâmetro Biparietal (DBP)', d.dbp),
+            formatBioLine('Diâmetro Occipitofrontal (DOF)', d.dof),
+            formatBioLine('Circunferência Cefálica (CC)', d.cc),
+            formatBioLine('Circunferência Abdominal (CA)', d.ca),
+            
+            // Ossos Longos
+            formatBioLine('Comprimento do Fêmur (CF)', d.femur),
+            formatBioLine('Comprimento do Úmero', d.umero),
+            formatBioLine('Comprimento da Tíbia', d.tibia),
+            formatBioLine('Comprimento da Fíbula', d.fibula),
+            formatBioLine('Comprimento do Rádio', d.radio),
+            formatBioLine('Comprimento da Ulna', d.ulna),
+            
+            // Neuro e Face
+            formatBioLine('Cerebelo', d.cerebelo),
+            formatBioLine('Cisterna Magna', d.cisternaMagna),
+            formatBioLine('Ventrículo Lateral (Átrio)', d.ventriculoPosterior), // Nome técnico ajustado
             formatBioLine('Translucência Nucal', d.tnMedida),
             formatBioLine('Prega Nucal', d.pregaNucal),
             formatBioLine('Osso Nasal', d.ossoNasal),
-            formatBioLine('Dist. Biorbitária (Ext)', d.orbitaExterna),
-            formatBioLine('Dist. Interorbitária (Int)', d.orbitaInterna), // Mantido
-            formatBioLine('Cerebelo', d.cerebelo),
-            formatBioLine('Cisterna Magna', d.cisternaMagna),
-            formatBioLine('Ventrículo Lateral', d.ventriculoPosterior),
-            formatBioLine('Comp. Pé', d.peMedida), // Mantido
-            formatBioLine('Comp. Bexiga', d.compBexiga), // Mantido
-        ].filter(Boolean);
+            formatBioLine('Dist. Biorbitária Externa', d.orbitaExterna),
+            formatBioLine('Dist. Interorbitária (Int)', d.orbitaInterna),
+            
+            // Outros
+            formatBioLine('Comprimento do Pé', d.peMedida),
+            formatBioLine('Comprimento da Bexiga', d.compBexiga),
+            
+            // CCN (Caso seja inserido aqui, embora comum no 1º tri)
+            formatBioLine('Comprimento Cabeça-Nádegas', d.ccn),
+        ].filter(Boolean); // Remove linhas vazias (campos não preenchidos)
         
-        texto += bios.join('\n') + '\n\n';
+        texto += bios.join('\n') + '\n';
+
+        // Adiciona os Índices calculados logo abaixo das medidas, se existirem
+        if (d.resIc || d.resCcCa || d.resCfCa || d.pesoEstimado) {
+            texto += `\nÍNDICES E ESTIMATIVAS:\n`;
+            if (d.pesoEstimado || d.pesoFetal) {
+                 texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g`;
+                 if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
+                 texto += `.\n`;
+            }
+            if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
+            // Outros índices se o médico quiser que saia no papel:
+            // if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`; 
+        }
+        
+        texto += '\n';
     }
 
     // -------------------------------------------------------------------------
@@ -406,11 +460,27 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 11. CONCLUSÃO (Corrigido: Peso/Sexo/Percentil aparecem SEMPRE)
+    // 11. CONCLUSÃO 
     // -------------------------------------------------------------------------
     texto += `CONCLUSÃO\n`;
-    let igFinal = d.igBiometria || d.igDum || "---";
-    if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
+    
+    // Hierarquia de qual IG mostrar na conclusão:
+    // 1. Se tem exame anterior e está marcado para usar -> IG Corrigida pelo Anterior
+    // 2. Se a biometria atual foi marcada como referência (citarDppBiometria) -> IG Biometria
+    // 3. Se DUM é válida -> IG DUM
+    // 4. Padrão -> IG Biometria Atual
+    
+    let igFinal = d.igBiometria || "---"; 
+
+    if (d.usarExameAnterior && d.igIgCorrigidaCalculada) {
+        igFinal = d.igIgCorrigidaCalculada;
+    } 
+    else if (d.citarDppBiometria && d.igBiometria) {
+        igFinal = d.igBiometria;
+    }
+    else if (d.usarDum && d.igDum) {
+        igFinal = d.igDum;
+    }
 
     // 1. Frase de Abertura (Varia por tipo)
     if (d.sgAbortoIncompleto) {
