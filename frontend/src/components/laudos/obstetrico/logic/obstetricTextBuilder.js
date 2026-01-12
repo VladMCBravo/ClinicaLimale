@@ -33,7 +33,24 @@ export const gerarRelatorioFeto = (d) => {
         'OBSTETRICO_3D': 'ULTRASSONOGRAFIA OBSTÉTRICA 3D/4D'
     };
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
+    // ADICIONE ISTO: Via de Exame (Importante para Inicial/1º Tri)
+    if (d.viaExame && d.viaExame !== 'não citar') {
+        texto += `Exame realizado por via ${d.viaExame}.\n\n`;
+    }
     
+    // ADICIONE ISTO: Anexos (Corpo Lúteo) - Geralmente para Inicial/1º Tri
+    if (d.subtipo === 'OBSTETRICO_INICIAL' || d.subtipo === 'OBSTETRICO_1_TRI') {
+        if (d.corpoLuteo && d.corpoLuteo !== 'não citar') {
+             texto += `ANEXOS\nVisualizado corpo lúteo gravídico em ovário ${d.corpoLuteo}. `;
+             if (d.citarMedidasAnexo && d.anx1) {
+                 texto += `Medindo ${d.anx1} x ${d.anx2} x ${d.anx3} mm`;
+                 if (d.calcVolAnexo && d.resVolAnexo) texto += ` (Vol: ${d.resVolAnexo} cm³)`;
+                 texto += `.`;
+             }
+             texto += `\n\n`;
+        }
+    }
+
     // -------------------------------------------------------------------------
     // 1. DATAÇÃO (Lógica Blindada)
     // -------------------------------------------------------------------------
@@ -189,6 +206,22 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\n`;
     }
     texto += '\n';
+
+    // ADICIONE ESTE BLOCO NOVO PARA O CORDÃO:
+    if (d.cordaoNormal || (d.cordaoCircular && d.cordaoCircular !== 'não citar')) {
+        texto += `Cordão Umbilical: `;
+        const partesCordao = [];
+        if (d.cordaoNormal) partesCordao.push("com três vasos (duas artérias e uma veia)");
+        
+        if (d.cordaoCircular && d.cordaoCircular !== 'não citar' && d.cordaoCircular !== '') {
+            if (d.cordaoCircular === 'ausente') partesCordao.push("livre de circulares cervicais");
+            else partesCordao.push(`com circular cervical (${d.cordaoCircular})`);
+        }
+        
+        texto += partesCordao.join(', ') + `.\n`;
+    }
+    
+    texto += '\n'; // Espaçamento final da seção
 
     // -------------------------------------------------------------------------
     // 4. ESTÁTICA E DADOS GERAIS (Compatível com SecaoDadosGerais.jsx)

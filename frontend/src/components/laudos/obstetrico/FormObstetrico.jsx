@@ -1,31 +1,32 @@
 import React from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
-// Ícones Visuais (LINHA CORRIGIDA ABAIXO)
-import { FaBaby, FaRulerCombined, FaHeartbeat, FaWaveSquare, FaNotesMedical, FaFileMedicalAlt, FaLayerGroup, FaCheckSquare } from 'react-icons/fa';
-import { GiFetus, GiWaterDrop } from 'react-icons/gi';
-import { MdChildCare, MdDateRange } from 'react-icons/md';
+// Ícones
+import { FaBaby, FaLayerGroup } from 'react-icons/fa';
+import { MdChildCare } from 'react-icons/md';
 
-// Seções (Visual)
+// Seções (Todas as peças do quebra-cabeça)
 import SecaoSubtipo from './sections/SecaoSubtipo';
-import SecaoDadosGerais from './sections/SecaoDadosGerais';
 import SecaoDatacao from './sections/SecaoDatacao';
+import SecaoDadosGerais from './sections/SecaoDadosGerais';
+import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
 import SecaoBiometria from './sections/SecaoBiometria';
-import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
 import SecaoMorfologia from './sections/SecaoMorfologia';
 import SecaoDoppler from './sections/SecaoDoppler';
+import Secao3D from './sections/Secao3D';
 import SecaoConclusao from './sections/SecaoConclusao';
-import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
-import SecaoEmbriao from './sections/SecaoEmbriao';
-import Secao3D from './sections/Secao3D'; // <--- 1. IMPORTAR AQUI
-import SecaoColoDados from './sections/SecaoColoDados'; // <--- 1. IMPORTAR AQUI
+
+// Seções Específicas por Fase
+import SecaoDadosMaternos1Tri from './sections/SecaoDadosMaternos1Tri'; // Ovários/Útero Inicial
+import SecaoColoDados from './sections/SecaoColoDados'; // Colo detalhado (2º/3º Tri)
+import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido'; // Placenta/ILA (2º/3º Tri)
+import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos'; // Índices e Gráficos Doppler
 
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
   const { 
       formState, 
       handleInputChange, 
-      // Novos exports do hook:
       qtdFetos, 
       handleChangeQtdFetos,
       fetoAtivo,
@@ -37,28 +38,33 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   const commonProps = {
       data: formState,
       handleChange: handleInputChange,
-      onChange: handleInputChange 
+      onChange: handleInputChange,
+      qtdFetos // Necessário para Placenta/Líquido (ILA vs MBV)
   };
 
-  // Lógica para esconder seções que não fazem sentido no Transvaginal Inicial
-  const isTransvaginalOnly = formState.subtipo === "OBSTETRICO_INICIAL";
+  const subtipo = formState.subtipo;
 
- return (
+  // --- LÓGICA DE EXIBIÇÃO POR SUBTIPO (O CORAÇÃO DO SISTEMA) ---
+  
+  // 1. Fase Inicial (< 11 semanas)
+  const isInicial = subtipo === "OBSTETRICO_INICIAL";
+  
+  // 2. Morfológico 1º Tri (11 - 14 semanas)
+  const is1Tri = subtipo === "OBSTETRICO_1_TRI";
+  
+  // 3. Fases Tardias (2º/3º Tri, Morfológico 2º Tri, Doppler)
+  const isTardio = !isInicial && !is1Tri;
+
+  return (
     <div className="flex flex-col gap-3 pb-8">
       
-      {/* 1. CABEÇALHO COMPACTO (LADO A LADO) */}
+      {/* 1. CABEÇALHO & CONFIGURAÇÃO */}
       <div className="laudo-section" style={{borderLeft: '4px solid #4A3B80', overflow:'visible'}}>
           <div className="laudo-section-body" style={{padding:'8px 12px'}}>
-              
-              {/* GRID DE 2 COLUNAS: SUBTIPO | BOTÕES GÊMEOS */}
               <div style={{display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', gap: '20px'}}>
-                  
-                  {/* Coluna 1: Select de Subtipo (Ocupa o espaço que sobrar) */}
                   <div>
                       <SecaoSubtipo {...commonProps} />
                   </div>
-
-                  {/* Coluna 2: Botões de Gêmeos (Fixo à direita) */}
                   <div className="flex flex-col gap-1">
                       <span className="text-xs font-bold text-gray-600 flex items-center gap-1">
                           <FaLayerGroup /> TIPO DE GESTAÇÃO:
@@ -80,41 +86,31 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                           ))}
                       </div>
                   </div>
-
               </div>
           </div>
       </div>
 
-      {/* 2. ABAS DE NAVEGAÇÃO ENTRE FETOS (Visual Pasta Física) */}
+      {/* 2. ABAS (Só aparecem se for gêmeos) */}
       {qtdFetos > 1 && (
           <div className="gemelar-tabs-container">
-              <div 
-                  className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`}
-                  onClick={() => handleTabChange(1)}
-              >
+              <div className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`} onClick={() => handleTabChange(1)}>
                   <FaBaby style={{marginRight:4}}/> Feto I (A)
               </div>
-              <div 
-                  className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`}
-                  onClick={() => handleTabChange(2)}
-              >
+              <div className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`} onClick={() => handleTabChange(2)}>
                   <FaBaby style={{marginRight:4}}/> Feto II (B)
               </div>
               {qtdFetos === 3 && (
-                  <div 
-                      className={`gemelar-tab ${fetoAtivo === 3 ? 'active' : ''}`}
-                      onClick={() => handleTabChange(3)}
-                  >
+                  <div className={`gemelar-tab ${fetoAtivo === 3 ? 'active' : ''}`} onClick={() => handleTabChange(3)}>
                       <FaBaby style={{marginRight:4}}/> Feto III (C)
                   </div>
               )}
           </div>
       )}
 
-      {/* 3. CONTEÚDO DO FORMULÁRIO */}
+      {/* 3. CONTEÚDO DINÂMICO BASEADO NO SUBTIPO */}
       <div className={qtdFetos > 1 ? "tab-content-wrapper" : ""}>
         
-        {/* Aviso visual discreto */}
+        {/* Aviso de Gêmeos */}
         {qtdFetos > 1 && (
             <div className="mb-3 p-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
                 <MdChildCare size={14}/>
@@ -122,34 +118,71 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
             </div>
         )}
 
-        {/* --- SEÇÕES LÓGICAS --- */}
-        <SecaoDatacao {...commonProps} />
-        <SecaoDadosGerais {...commonProps} />
-        {/* <--- 2. INSERIR AQUI: AVALIAÇÃO DO COLO */}
-        {/* É útil em todas as fases, mas principalmente Inicial/1Tri/Morfológico */}
-        <SecaoColoDados {...commonProps} />
-
-        {/* Lógica Condicional Ajustada */}        
-        {/* Saco Gestacional: Geralmente apenas no Inicial ou se for muito precoce */}
-        {(formState.subtipo === "OBSTETRICO_INICIAL" || formState.subtipo === "OBSTETRICO_1_TRI") && (
-            <SecaoSacoGestacional {...commonProps} />
-        )}
-        {/* Demais seções: Para 1º Tri (Morfológico), 2º Tri, Doppler, etc. */}
-        {!isTransvaginalOnly && (
+        {/* -----------------------------------------------------------
+            ROTEIRO 1: OBSTÉTRICO INICIAL (< 11 SEMANAS)
+            Foco: Onde está o saco? Tem embrião? Como estão os ovários?
+           ----------------------------------------------------------- */}
+        {isInicial && (
             <>
-                {/* CORREÇÃO 1: Passando qtdFetos */}
-                <SecaoPlacentaLiquido {...commonProps} qtdFetos={qtdFetos} />
+                <SecaoDatacao {...commonProps} />
+                <SecaoSacoGestacional {...commonProps} />
+                <SecaoDadosGerais {...commonProps} /> {/* Para Vitalidade/BCF */}
                 
+                {/* Aqui entra a avaliação de Útero/Ovários/Corpo Lúteo */}
+                <SecaoDadosMaternos1Tri {...commonProps} />
+                
+                {/* Biometria simplificada (CCN) */}
+                <SecaoBiometria {...commonProps} /> 
+            </>
+        )}
+
+        {/* -----------------------------------------------------------
+            ROTEIRO 2: MORFOLÓGICO 1º TRIMESTRE (11 - 14 SEMANAS)
+            Foco: TN, Osso Nasal, Ducto, Anatomia Precoce
+           ----------------------------------------------------------- */}
+        {is1Tri && (
+            <>
+                <SecaoDatacao {...commonProps} />
+                <SecaoDadosGerais {...commonProps} />
+                
+                {/* No 1º Tri, avaliamos o Colo/Útero de forma diferente (Via TV ou Abd) */}
+                <SecaoDadosMaternos1Tri {...commonProps} />
+                
+                {/* Medidas (CCN, TN) */}
                 <SecaoBiometria {...commonProps} />
                 
-                {/* CORREÇÃO 2: Morfologia agora aparece no 1º TRI também */}
+                {/* Anatomia (Osso Nasal, Tricúspide removida, Ducto) */}
                 <SecaoMorfologia {...commonProps} />
                 
+                {/* Doppler (Opcional nesta fase, mas Ducto e Uterinas são comuns) */}
                 <SecaoDoppler {...commonProps} />
             </>
         )}
 
+        {/* -----------------------------------------------------------
+            ROTEIRO 3: OBSTÉTRICO TARDIO / MORFOLÓGICO 2º TRI / DOPPLER
+            Foco: Anatomia completa, Placenta, Líquido, Crescimento
+           ----------------------------------------------------------- */}
+        {isTardio && (
+            <>
+                <SecaoDatacao {...commonProps} />
+                <SecaoDadosGerais {...commonProps} />
+                
+                {/* Avaliação do Colo (Sludge, Funneling) */}
+                <SecaoColoDados {...commonProps} />
+                
+                {/* Placenta e Líquido (Grannum, ILA) */}
+                <SecaoPlacentaLiquido {...commonProps} />
+                
+                <SecaoBiometria {...commonProps} />
+                <SecaoMorfologia {...commonProps} />
+                <SecaoDoppler {...commonProps} />
+            </>
+        )}
+
+        {/* MÓDULOS UNIVERSAIS (Sempre disponíveis no final) */}
         <Secao3D {...commonProps} />
+        <SecaoIndicesGraficos {...commonProps} />
         <SecaoConclusao {...commonProps} />
 
       </div>

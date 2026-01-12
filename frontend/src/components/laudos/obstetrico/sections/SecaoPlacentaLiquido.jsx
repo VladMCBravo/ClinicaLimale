@@ -2,17 +2,15 @@ import React from 'react';
 
 const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
 
-  // Se houver mais de 1 feto, usamos MBV (Maior Bolsão Vertical)
-  // Se for único, usamos ILA (Índice de Líquido Amniótico)
   const isMultipla = qtdFetos > 1;
 
   return (
     <div className="laudo-section">
-        <div className="header-base header-blue">Placenta e Líquido Amniótico</div>
+        <div className="header-base header-blue">Anexos Fetais (Placenta, Líquido e Cordão)</div>
         <div className="laudo-section-body">
             
             {/* 1. PLACENTA */}
-            <div style={{marginBottom: '15px'}}>
+            <div style={{marginBottom: '10px'}}>
                 <div style={{fontWeight: 'bold', color: '#444', marginBottom: '5px', fontSize:'13px'}}>
                     Placenta
                 </div>
@@ -56,13 +54,12 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
             <hr style={{margin: '10px 0', border: 0, borderTop: '1px solid #eee'}}/>
 
             {/* 2. LÍQUIDO AMNIÓTICO */}
-            <div>
+            <div style={{marginBottom: '10px'}}>
                 <div style={{fontWeight: 'bold', color: '#444', marginBottom: '5px', fontSize:'13px'}}>
                     Líquido Amniótico
                 </div>
                 
                 <div className="laudo-row">
-                    {/* Classificação Qualitativa */}
                     <select name="liquidoAmniotico" value={data.liquidoAmniotico} onChange={handleChange} className="laudo-select" style={{width: '140px'}}>
                         <option value="Normal">Normal</option>
                         <option value="Aumentado">Aumentado</option>
@@ -71,43 +68,47 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                         <option value="Polidrâmnio">Polidrâmnio</option>
                     </select>
                     
-                    {/* Lógica Condicional: ILA vs MBV */}
                     {isMultipla ? (
-                        // MODO GÊMEOS: MBV
                         <div style={{display:'flex', alignItems:'center', background:'#E3F2FD', padding:'2px 8px', borderRadius:'4px', marginLeft:'10px'}}>
-                            <span style={{fontWeight:'bold', color:'#0D47A1', marginRight:'5px'}}>MBV (Maior Bolsão):</span>
-                            <input 
-                                type="number" 
-                                name="mbv" 
-                                value={data.mbv} 
-                                onChange={handleChange} 
-                                className="laudo-input" 
-                                style={{width: '60px'}} 
-                                placeholder="mm"
-                            />
+                            <span style={{fontWeight:'bold', color:'#0D47A1', marginRight:'5px'}}>MBV:</span>
+                            <input type="number" name="mbv" value={data.mbv} onChange={handleChange} className="laudo-input" style={{width: '60px'}} placeholder="mm"/>
                             <span style={{marginLeft:'3px', fontSize:'11px'}}>mm</span>
                         </div>
                     ) : (
-                        // MODO ÚNICO: ILA
                         <>
                             <span style={{marginLeft: '15px', fontWeight:'bold'}}>ILA:</span>
-                            <input 
-                                type="number" 
-                                name="ila" 
-                                value={data.ila} 
-                                onChange={handleChange} 
-                                className="laudo-input" 
-                                style={{width: '50px'}} 
-                                placeholder="mm"
-                            />
+                            <input type="number" name="ila" value={data.ila} onChange={handleChange} className="laudo-input" style={{width: '50px'}} placeholder="mm"/>
                             <span>mm</span>
-
                             <span style={{marginLeft: '15px', color: '#666', fontSize: '12px'}}>Ref:</span>
                             <input type="number" name="ilaRefMin" value={data.ilaRefMin} onChange={handleChange} className="laudo-input-small" placeholder="80" />
                             <span>-</span>
                             <input type="number" name="ilaRefMax" value={data.ilaRefMax} onChange={handleChange} className="laudo-input-small" placeholder="180" />
                         </>
                     )}
+                </div>
+            </div>
+
+            <hr style={{margin: '10px 0', border: 0, borderTop: '1px solid #eee'}}/>
+
+            {/* 3. CORDÃO UMBILICAL (Resgatado do SecaoAnexos) */}
+            <div>
+                <div style={{fontWeight: 'bold', color: '#444', marginBottom: '5px', fontSize:'13px'}}>
+                    Cordão Umbilical
+                </div>
+                <div className="laudo-row" style={{justifyContent: 'space-between'}}>
+                    <label className="laudo-checkbox-label">
+                        <input type="checkbox" name="cordaoNormal" checked={data.cordaoNormal} onChange={handleChange} /> 
+                        citar 3 vasos (2 artérias e 1 veia)
+                    </label>
+                    <div className="laudo-row">
+                        <span>Circular cervical:</span>
+                        <select name="cordaoCircular" value={data.cordaoCircular} onChange={handleChange} className="laudo-select">
+                            <option value="">Ausente / Não citar</option>
+                            <option value="ausente">Ausente (Negativo)</option>
+                            <option value="1 volta">Presente (1 volta)</option>
+                            <option value="2 voltas">Presente (2 voltas)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
