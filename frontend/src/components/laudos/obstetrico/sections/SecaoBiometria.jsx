@@ -169,8 +169,36 @@ const SecaoBiometria = ({ data, handleChange }) => {
                     </div>
                 )}
             </div>
-
         </div>
+        {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (Inserir antes de fechar a laudo-section) */}
+                     <div style={{
+                         borderTop: '1px solid #eee', 
+                         padding: '10px 12px', // Espaçamento interno para não colar na borda
+                         background: '#FAFAFA', 
+                         borderBottomLeftRadius: '4px',
+                         borderBottomRightRadius: '4px'
+                     }}>
+                        <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
+                            <FaCommentMedical color="#555"/>
+                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
+                        </div>
+                        <textarea 
+                            name="obsBiometria" 
+                            value={data.obsBiometria || ''} 
+                            onChange={handleChange} 
+                            className="laudo-textarea"
+                            rows="2"
+                            style={{
+                                width:'100%', 
+                                fontSize:'11px', 
+                                border:'1px solid #ccc', 
+                                borderRadius: '4px', // Bordas arredondadas no campo
+                                padding: '8px', // Espaço interno do texto
+                                boxSizing: 'border-box' // Garante que não vaze a largura
+                            }}
+                            placeholder="Digite aqui observações específicas sobre a biometria..."
+                        />
+                    </div>
     </div>
   );
 };

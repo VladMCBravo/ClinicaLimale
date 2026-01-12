@@ -103,6 +103,10 @@ export const gerarRelatorioFeto = (d) => {
          texto += `Idade Gestacional pela biometria atual: ${d.igBiometria || '...'}.\n`;
          texto += `DPP (Biometria atual): ${d.dppBiometriaCalculada}.\n`;
     }
+    // INJEÇÃO DA OBSERVAÇÃO MANUAL
+            if (d.obsDatacao) {
+                texto += `Nota: ${d.obsDatacao}\n`;
+            }
     
     texto += '\n';
 
@@ -205,6 +209,10 @@ export const gerarRelatorioFeto = (d) => {
         }
         texto += `\n`;
     }
+    // INJEÇÃO DA OBSERVAÇÃO MANUAL
+            if (d.obsPlacenta) {
+                texto += `Nota: ${d.obsPlacenta}\n`;
+            }
     texto += '\n';
 
     // ADICIONE ESTE BLOCO NOVO PARA O CORDÃO:
@@ -480,6 +488,10 @@ export const gerarRelatorioFeto = (d) => {
             // Outros índices se o médico quiser que saia no papel:
             // if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`; 
         }
+        // INJEÇÃO DA OBSERVAÇÃO MANUAL
+            if (d.obsBiometria) {
+                texto += `Nota: ${d.obsBiometria}\n`;
+            }
         
         texto += '\n';
     }
@@ -584,6 +596,10 @@ export const gerarRelatorioFeto = (d) => {
              if (d.dvIP) texto += `, IP ${d.dvIP}`;
              texto += `.\n`;
         }
+        // INJEÇÃO DA OBSERVAÇÃO MANUAL
+            if (d.obsDoppler) {
+                texto += `Nota: ${d.obsDoppler}\n`;
+            }
         
         texto += `\n`;
     }
