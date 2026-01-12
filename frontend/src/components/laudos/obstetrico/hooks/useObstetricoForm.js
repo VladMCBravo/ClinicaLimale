@@ -151,8 +151,11 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
     }, [
         data.dum, data.usarDum, data.dataExameAnterior, fetoAtivo, 
         data.ccn, data.dbp, data.dof, data.cc, data.ca, data.femur, 
-        data.sg1, data.sg2, data.sg3
-    ]);
+        data.sg1, data.sg2, data.sg3,
+        // ADICIONE ESTAS DUAS LINHAS NOVAS:
+        data.igAnteriorSemanas, 
+        data.igAnteriorDias
+]);
 
     // --- 2. GERAÇÃO DE TEXTO E SINCRONIZAÇÃO ---
     useEffect(() => {

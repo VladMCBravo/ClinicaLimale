@@ -121,9 +121,32 @@ const SecaoDatacao = ({ data, handleChange }) => {
                     
                     <div className="laudo-row" style={{gap:'5px', opacity: data.usarExameAnterior ? 1 : 0.6}}>
                         <input type="date" name="dataExameAnterior" value={data.dataExameAnterior || ''} onChange={handleChange} disabled={!data.usarExameAnterior} className="laudo-input" style={{width:'85px', fontSize:'10px'}}/>
-                        <div style={{display:'flex', alignItems:'center', gap:'2px'}}>
-                            <input type="number" name="igAnteriorSemanas" value={data.igAnteriorSemanas || ''} onChange={handleChange} disabled={!data.usarExameAnterior} className="laudo-input laudo-input-small" style={{width:'25px', height:'22px'}}/>s
-                            <input type="number" name="igAnteriorDias" value={data.igAnteriorDias || ''} onChange={handleChange} disabled={!data.usarExameAnterior} className="laudo-input laudo-input-small" style={{width:'25px', height:'22px'}}/>d
+                        
+                        {/* AQUI ESTÁ A CORREÇÃO VISUAL DOS INPUTS */}
+                        <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+                            <input 
+                                type="number" 
+                                name="igAnteriorSemanas" 
+                                value={data.igAnteriorSemanas || ''} 
+                                onChange={handleChange} 
+                                disabled={!data.usarExameAnterior} 
+                                className="laudo-input laudo-input-small" 
+                                style={{width:'45px', height:'26px', textAlign:'center'}} 
+                                placeholder="sem"
+                            />
+                            <span style={{fontSize:'10px'}}>s</span>
+
+                            <input 
+                                type="number" 
+                                name="igAnteriorDias" 
+                                value={data.igAnteriorDias || ''} 
+                                onChange={handleChange} 
+                                disabled={!data.usarExameAnterior} 
+                                className="laudo-input laudo-input-small" 
+                                style={{width:'45px', height:'26px', textAlign:'center'}} 
+                                placeholder="d"
+                            />
+                            <span style={{fontSize:'10px'}}>d</span>
                         </div>
                     </div>
                     {data.usarExameAnterior && data.igIgCorrigidaCalculada && (
@@ -136,7 +159,7 @@ const SecaoDatacao = ({ data, handleChange }) => {
             </div>
         </div>
     </div>
-  );
+);
 };
 
 export default SecaoDatacao;
