@@ -35,7 +35,7 @@ export const gerarRelatorioFeto = (d) => {
     const tituloExame = mapTitulos[d.subtipo] || 'ULTRASSONOGRAFIA OBSTÉTRICA';
     
     // -------------------------------------------------------------------------
-    // 1. DATAÇÃO (Corrigido: Variáveis exatas do SecaoDatacao.jsx)
+    // 1. DATAÇÃO (Corrigido: Nomes exatos do SecaoDatacao.jsx)
     // -------------------------------------------------------------------------
     if (d.usarDum) {
         if (d.exibirDataDum && d.dum) texto += `Data da última menstruação: ${formatData(d.dum)}\n`;
@@ -58,7 +58,9 @@ export const gerarRelatorioFeto = (d) => {
             igAnt = `${d.igAnteriorSemanas || 0} semanas e ${d.igAnteriorDias || 0} dias`;
         }
         texto += `Idade gestacional datada pelo ultrassom de ${dataAnt}: ${igAnt || '...'}.\n`;
-    } 
+    } else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
+         texto += `DPP (Biometria atual): ${d.dppBiometriaCalculada}.\n`;
+    }
     
     texto += '\n';
 
