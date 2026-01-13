@@ -102,6 +102,11 @@ export const gerarRelatorioFeto = (d) => {
          // Opcional: Calcular DPP do CCN aqui se quiser, ou deixar só a IG
     }
     
+    // --- CORREÇÃO: INJEÇÃO DA OBSERVAÇÃO DE DATAÇÃO ---
+    if (d.obsDatacao) {
+        texto += `Nota: ${d.obsDatacao}\n`;
+    }
+    
     texto += '\n';
 
     // -------------------------------------------------------------------------
@@ -240,8 +245,12 @@ export const gerarRelatorioFeto = (d) => {
         texto += `.\n`;
     }
 
-    // Estômag e Bexiga Materna
-    // Seção onde aparecem os checkboxes 'estomagoVisualizado' e 'bexigaVisualizada'
+    // --- CORREÇÃO: BEXIGA MATERNA (Restaurada) ---
+    if (d.bexigaMaterna && d.bexigaMaterna !== 'não citar' && d.bexigaMaterna !== 'não visualizada') {
+        texto += `Bexiga materna ${d.bexigaMaterna}.\n`;
+    }
+
+    // Vísceras Fetais (Estômago e Bexiga do feto)
     const viscerasGerais = [];
     if (d.estomagoVisualizado) viscerasGerais.push("Estômago");
     if (d.bexigaVisualizada) viscerasGerais.push("Bexiga");
@@ -472,23 +481,23 @@ export const gerarRelatorioFeto = (d) => {
 
         // Adiciona os Índices calculados logo abaixo das medidas, se existirem
         if (d.resIc || d.resCcCa || d.resCfCa || d.pesoEstimado) {
-            texto += `\nÍNDICES E ESTIMATIVAS:\n`;
-            if (d.pesoEstimado || d.pesoFetal) {
-                 texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g`;
-                 if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
-                 texto += `.\n`;
+                texto += `\nÍNDICES E ESTIMATIVAS:\n`;
+                if (d.pesoEstimado || d.pesoFetal) {
+                     texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g`;
+                     if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
+                     texto += `.\n`;
+                }
+                if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
             }
-            if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
-            // Outros índices se o médico quiser que saia no papel:
-            // if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`; 
         }
-        // INJEÇÃO DA OBSERVAÇÃO MANUAL
-            if (d.obsBiometria) {
-                texto += `Nota: ${d.obsBiometria}\n`;
-            }
+
+        // --- CORREÇÃO: OBSERVAÇÃO AGORA FORA DO BLOCO DE MEDIDAS ---
+        // Assim, se o médico não medir nada mas escrever uma nota, ela aparece.
+        if (d.obsBiometria) {
+            texto += `Nota: ${d.obsBiometria}\n`;
+        }
         
-        texto += '\n';
-    }
+        texto += '\n';    
 
     // -------------------------------------------------------------------------
     // 8. RASTREAMENTO 1º TRI (Lógica Funcional + Texto Médica)
