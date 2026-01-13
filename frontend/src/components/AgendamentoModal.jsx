@@ -59,6 +59,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     // --- ESTADOS ---
     const [formData, setFormData] = useState(getInitialFormData());
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // ESTADOS VISUAIS (Faltavam no seu código anterior)
+    const [dataInicioVisual, setDataInicioVisual] = useState('');
+    const [dataFimVisual, setDataFimVisual] = useState('');
     
     // Dados brutos
     const [pacientes, setPacientes] = useState([]);
@@ -94,6 +98,70 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
         }
     }, [open, showSnackbar]);
+
+    // Efeito para preencher o formulário
+    useEffect(() => {
+        if (!open) {
+            setFormData(getInitialFormData());
+            setTipoAgendamento('Consulta');
+            setPacienteDetalhes(null);
+            setDataInicioVisual('');
+            setDataFimVisual('');
+            return;
+        }
+
+        if (editingEvent) {
+            const isFullCalendarEvent = !!editingEvent.extendedProps;
+            const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
+            const tipo = dados.tipo_agendamento || 'Consulta';
+            
+            const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
+            const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
+
+            setTipoAgendamento(tipo);
+            const procEncontrado = procedimentos.find(p => p.id === dados.procedimento) || null;
+            
+            // Popula form
+            setFormData({
+                paciente: pacientes.find(p => p.id === dados.paciente) || null,
+                data_hora_inicio: dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio),
+                data_hora_fim: dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim),
+                status: dados.status,
+                tipo_atendimento: dados.tipo_atendimento,
+                plano_utilizado: dados.plano_utilizado,
+                observacoes: dados.observacoes || '',
+                tipo_visita: dados.tipo_visita || 'Primeira Consulta',
+                modalidade: dados.modalidade || 'Presencial',
+                especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
+                sala: salas.find(s => s.id === dados.sala) || null,
+                medico: medicos.find(m => m.id === dados.medico) || null,
+                procedimento: procEncontrado, 
+                // Se for procedimento, inicializamos o array com ele para o Autocomplete não vir vazio
+                procedimentos: procEncontrado ? [procEncontrado] : [], 
+        });
+
+        // Popula VISUAL (String formatada)
+            setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
+            setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
+
+        } else if (initialData) {
+            const startTime = dayjs(initialData.start);
+            const endTime = startTime.add(50, 'minute');
+            
+            setFormData(prev => ({ 
+                ...prev, 
+                data_hora_inicio: startTime,
+                data_hora_fim: endTime, 
+                sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
+                medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
+                especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
+            }));
+
+            // Popula VISUAL
+            setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
+            setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
+        }
+    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
 
     // Filtro Inteligente de Salas (CORRIGIDO PARA MÚLTIPLOS)
     useEffect(() => {
@@ -190,79 +258,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         setFormData(prev => {
             const novoState = { ...prev, procedimentos: values };
             
-            // Recalcula FIM se tiver INÍCIO
+            /// Recalcula FIM se tiver INÍCIO
             if (prev.data_hora_inicio && prev.data_hora_inicio.isValid()) {
                 const minutosTotais = values.length * 15;
                 const novoFim = prev.data_hora_inicio.add(minutosTotais || 30, 'minute');
                 novoState.data_hora_fim = novoFim;
-                
-                // Atualiza o visual do Fim
                 setDataFimVisual(novoFim.format('DD/MM/YYYY HH:mm'));
             }
             return novoState;
         });
     };
-
-    // Efeito para preencher o formulário
-    useEffect(() => {
-        if (!open) {
-            setFormData(getInitialFormData());
-            setTipoAgendamento('Consulta');
-            setPacienteDetalhes(null);
-            return;
-        }
-
-        if (editingEvent) {
-        const isFullCalendarEvent = !!editingEvent.extendedProps;
-        const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
-        const tipo = dados.tipo_agendamento || 'Consulta';
-
-        setTipoAgendamento(tipo);
-        
-        // Encontra o procedimento único (se houver)
-        const procEncontrado = procedimentos.find(p => p.id === dados.procedimento) || null;
-            
-            setFormData({
-                paciente: pacientes.find(p => p.id === dados.paciente) || null,
-                data_hora_inicio: dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio),
-                data_hora_fim: dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim),
-                status: dados.status,
-                tipo_atendimento: dados.tipo_atendimento,
-                plano_utilizado: dados.plano_utilizado,
-                observacoes: dados.observacoes || '',
-                tipo_visita: dados.tipo_visita || 'Primeira Consulta',
-                modalidade: dados.modalidade || 'Presencial',
-                especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
-                sala: salas.find(s => s.id === dados.sala) || null,
-                medico: medicos.find(m => m.id === dados.medico) || null,
-                procedimento: procEncontrado, 
-                // Se for procedimento, inicializamos o array com ele para o Autocomplete não vir vazio
-                procedimentos: procEncontrado ? [procEncontrado] : [], 
-                sala: salas.find(s => s.id === dados.sala) || null,
-        });
-
-        // Popula VISUAL (String formatada)
-            setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
-            setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
-
-        } else if (initialData) {
-            const startTime = dayjs(initialData.start);
-            const endTime = startTime.add(50, 'minute');
-            
-            setFormData(prev => ({ 
-                ...prev, 
-                data_hora_inicio: startTime,
-                data_hora_fim: endTime, 
-                sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
-                medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
-                especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
-            }));
-
-            // Popula VISUAL
-            setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
-            setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
-        }
-    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
     
     // --- LÓGICA DE CAPACIDADE ATUALIZADA (COM BLINDAGEM) ---
     useEffect(() => {
@@ -273,37 +278,30 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (open && inicioValido && fimValido) {
             setCapacidade(prev => ({ ...prev, loading: true }));
             
-            // Agora é seguro chamar toISOString()
             const inicioISO = formData.data_hora_inicio.toISOString();
             const fimISO = formData.data_hora_fim.toISOString();
-            
-            // Adicionei verificação se a sala existe, pois verificarCapacidade pode precisar dela
             const salaId = formData.sala ? formData.sala.id : null;
-
+            
             // Nota: Se sua API aceitar salaId, passe aqui. Se não, mantenha como estava.
             // Vou manter conforme seu código original que passava inicio e fim:
             agendamentoService.verificarCapacidade(inicioISO, fimISO, salaId)
                 .then(response => {
-                    const ocupadasConsultas = response.data.consultas_agendadas;
-                    const ocupadosProcedimentos = response.data.procedimentos_agendados;
-                    
                     setCapacidade({ 
-                        consultas: ocupadasConsultas, 
-                        procedimentos: ocupadosProcedimentos, 
+                        consultas: response.data.consultas_agendadas, 
+                        procedimentos: response.data.procedimentos_agendados, 
                         loading: false 
                     });
                 })
                 .catch(err => { 
-                    console.error("Erro capacidade", err); 
                     setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); 
                 });
         }
-    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]); // Adicionei formData.sala nas dependências se a capacidade depender da sala
+    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]);
 
     // Calcula se deve bloquear baseado no Tipo selecionado
     useEffect(() => {
-        const CAPACIDADE_MAX_CONSULTAS = 3;
-        const CAPACIDADE_MAX_PROCEDIMENTOS = 1;
+        const MAX_CONS = 3;
+        const MAX_PROC = 1;
         
         if (!open) return;
 
@@ -342,7 +340,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, []);
 
-    // --- NOVA LÓGICA: Validação do Formulário ---
+    // --- VALIDAÇÃO CORRIGIDA ---
     const validarFormulario = () => {
         if (!formData.paciente) return "Selecione um paciente.";
         if (!formData.data_hora_inicio || !formData.data_hora_fim) return "Defina o horário de início e fim.";
@@ -361,8 +359,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (!formData.especialidade) return "Selecione a especialidade.";
             if (!formData.medico) return "Selecione o médico.";
         } else {
-            // --- CORREÇÃO AQUI ---
-            // Verifica se tem UM procedimento (modo antigo/edição) OU se tem VÁRIOS (novo modo)
+            // VERIFICAÇÃO HÍBRIDA: Aceita Singular OU Plural
             const temProcedimento = formData.procedimento || (formData.procedimentos && formData.procedimentos.length > 0);
             
             if (!temProcedimento) return "Selecione pelo menos um procedimento.";
