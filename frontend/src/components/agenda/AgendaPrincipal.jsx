@@ -1,9 +1,12 @@
 // src/components/agenda/AgendaPrincipal.jsx
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Paper, Box } from '@mui/material';
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
-
+import { useNavigate } from 'react-router-dom'; // Adicionado useNavigate
+// Ícones para o Menu
+import { FaEdit, FaFileMedical, FaStethoscope, FaExclamationTriangle } from 'react-icons/fa';
+// Plugins
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -72,6 +75,13 @@ const getColorForSala = (salaId) => {
     return SALA_COLORS[numericId % SALA_COLORS.length];
 };
 
+// Simulação de verificação de permissão (ajuste conforme seu Context de Autenticação)
+const isMedico = () => {
+    // Exemplo: return user.cargo === 'MEDICO';
+    // Por enquanto vou deixar true para você testar, mas mude para sua lógica real
+    return true; 
+};
+
 export default function AgendaPrincipal({
     medicoFiltro, 
     especialidadeFiltro, 
@@ -81,6 +91,12 @@ export default function AgendaPrincipal({
     refreshTrigger 
 }) {
     const calendarRef = useRef(null);
+    const navigate = useNavigate();
+
+    // --- ESTADOS DO MENU DE OPÇÕES ---
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const openMenu = Boolean(anchorEl);
 
     const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
@@ -93,7 +109,13 @@ export default function AgendaPrincipal({
                         title: ag.paciente_nome, 
                         start: ag.data_hora_inicio,
                         end: ag.data_hora_fim,
-                        extendedProps: { ...ag },
+                        extendedProps: { 
+                            ...ag,
+                            tipo_procedimento: ag.tipo_exame || 'CONSULTA', // Exemplo
+                            paciente_id: ag.paciente, // ID do paciente é crucial
+                            medico_nome: ag.medico_nome,
+                            medico_crm: ag.medico_crm
+                        },
                         resourceId: String(ag.sala),
                         backgroundColor: getColorForSala(ag.sala),
                         textColor: '#fff'
@@ -109,78 +131,149 @@ export default function AgendaPrincipal({
         }
     }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
 
+    // --- HANDLERS DO MENU ---
+
+    // 1. Ao clicar no evento no calendário
+    const handleCalendarEventClick = (clickInfo) => {
+        // Impede o comportamento padrão e abre nosso menu
+        clickInfo.jsEvent.preventDefault(); 
+        setAnchorEl(clickInfo.el);
+        setSelectedEvent(clickInfo.event);
+    };
+
+    const handleCloseMenu = () => {
+        setAnchorEl(null);
+        setSelectedEvent(null);
+    };
+
+    // 2. Ação: Editar (chama a função antiga)
+    const handleActionEditar = () => {
+        if (selectedEvent) {
+            // Passa o objeto original (extendedProps contém os dados puros do backend)
+            onEventClick({ 
+                event: { 
+                    id: selectedEvent.id, 
+                    ...selectedEvent.extendedProps 
+                } 
+            }); 
+        }
+        handleCloseMenu();
+    };
+
+    // 3. Ação: Ir para Laudos
+    const handleActionLaudo = () => {
+        const dados = selectedEvent?.extendedProps;
+        if (!dados || !dados.paciente_id) {
+            alert("Erro: Este agendamento não tem um paciente vinculado.");
+            return;
+        }
+
+        // PREPARA O AMBIENTE PARA A PÁGINA DE LAUDOS LER
+        // Como sua página Laudos lê do localStorage na inicialização:
+        const draftLaudo = {
+            paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title }, // Ajuste conforme objeto esperado
+            medicoNome: dados.medico_nome,
+            medicoCrm: dados.medico_crm,
+            tipoExame: dados.tipo_procedimento !== 'CONSULTA' ? dados.tipo_procedimento : 'OBSTETRICO', // Default ou real
+            textoFinal: '', // Novo laudo
+            dadosEstruturados: {}
+        };
+
+        // Salva no storage que a página Laudos escuta
+        localStorage.setItem('laudos_rascunho_auto_save', JSON.stringify(draftLaudo));
+
+        handleCloseMenu();
+        navigate('/laudos'); // Redireciona
+    };
+
+    // 4. Ação: Ir para Painel Médico
+    const handleActionConsulta = () => {
+        const dados = selectedEvent?.extendedProps;
+        
+        // SEGURANÇA: Só deixa ir se for médico (lógica de frontend, o backend deve barrar dados também)
+        if (!dados?.paciente_id) {
+             alert("Erro: Paciente não identificado.");
+             return;
+        }
+
+        navigate('/painel-medico', { 
+            state: { 
+                agendamentoId: selectedEvent.id, 
+                pacienteId: dados.paciente_id 
+            } 
+        });
+        
+        handleCloseMenu();
+    };
+
     return (
         <Paper variant="outlined" sx={{ p: 0, height: '100%', overflow: 'hidden', border: '1px solid #ddd' }}>
             <StyledCalendarWrapper>
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
                     initialView="resourceTimeGridDay"
-                    
-                    headerToolbar={{
-                        left: 'prev,next today', 
-                        center: 'title', 
-                        right: 'resourceTimeGridDay,dayGridMonth'
-                    }}
-                    buttonText={{ 
-                        resourceTimeGridDay: 'Salas', 
-                        month: 'Mês', 
-                        today: 'Hoje' 
-                    }}
-
-                    // --- AJUSTES DE TAMANHO ---
-                    slotLabelFormat={{
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        omitZeroMinute: false,
-                        meridiem: false,
-                        hour12: false
-                    }}
-                    slotDuration="00:15:00" 
-                    slotLabelInterval="01:00" 
-                    
-                    // Altura do evento igual a altura do slot (30px)
-                    // Isso garante que ele ocupe 100% da célula sem vazar nem encavalar
-                    eventMinHeight={28} 
-                    
-                    // --- RENDERIZAÇÃO DO CONTEÚDO (Compacto) ---
-                    eventContent={(arg) => (
-                        <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '5px', 
-                            overflow: 'hidden', 
-                            whiteSpace: 'nowrap',
-                            width: '100%' 
-                        }}>
-                            {/* Hora pequena e bold */}
-                            <span style={{ fontWeight: 'bold', fontSize: '0.9em', opacity: 0.9 }}>
-                                {arg.timeText}
-                            </span>
-                            {/* Nome do paciente */}
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                {arg.event.title}
-                            </span>
-                        </Box>
-                    )}
-
                     locale="pt-br"
                     height="100%"
-                    contentHeight="auto" // Ajusta ao conteúdo disponível
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     
                     dateClick={onDateClick}
-                    eventClick={onEventClick}
+                    eventClick={handleCalendarEventClick} // <--- Alterado aqui
                     
                     slotMinTime="07:00:00" 
                     slotMaxTime="20:00:00"
                     allDaySlot={false}
                     nowIndicator={true}
-                    stickyHeaderDates={true}
+                    // ... (Seus outros configs de headerToolbar, etc)
+                    slotDuration="00:15:00"
+                    eventMinHeight={28}
+                    eventContent={(arg) => (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden', width: '100%' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.9em', opacity: 0.9 }}>{arg.timeText}</span>
+                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{arg.event.title}</span>
+                        </Box>
+                    )}
                 />
             </StyledCalendarWrapper>
+
+            {/* --- MENU DE OPÇÕES (FLUTUANTE) --- */}
+            <Menu
+                anchorEl={anchorEl}
+                open={openMenu}
+                onClose={handleCloseMenu}
+                PaperProps={{ elevation: 3, sx: { minWidth: 200 } }}
+            >
+                <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
+                    <div style={{fontWeight: 'bold', fontSize: '14px', color:'#1C2E4A'}}>
+                        {selectedEvent?.title || 'Agendamento'}
+                    </div>
+                    <div style={{fontSize: '11px', color:'#666'}}>Selecione uma ação:</div>
+                </Box>
+
+                <MenuItem onClick={handleActionEditar}>
+                    <ListItemIcon><FaEdit fontSize="small" /></ListItemIcon>
+                    <ListItemText>Editar Agendamento</ListItemText>
+                </MenuItem>
+
+                <Divider />
+
+                <MenuItem 
+                    onClick={handleActionLaudo} 
+                    disabled={!selectedEvent?.extendedProps?.paciente_id}
+                >
+                    <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32"/></ListItemIcon>
+                    <ListItemText>Realizar Laudo</ListItemText>
+                </MenuItem>
+
+                <MenuItem 
+                    onClick={handleActionConsulta}
+                    disabled={!selectedEvent?.extendedProps?.paciente_id} 
+                >
+                    <ListItemIcon><FaStethoscope fontSize="small" color="#1976d2"/></ListItemIcon>
+                    <ListItemText>Iniciar Atendimento</ListItemText>
+                </MenuItem>
+            </Menu>
         </Paper>
     );
 }

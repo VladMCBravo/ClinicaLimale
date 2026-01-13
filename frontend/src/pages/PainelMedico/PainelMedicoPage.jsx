@@ -1,7 +1,8 @@
 // src/pages/PainelMedico/PainelMedicoPage.jsx - VERSÃO FINAL ATUALIZADA
 
-import React, { useState, Suspense, lazy } from 'react'; // 1. Importe Suspense e lazy
+import React, { useState, useEffect,Suspense, lazy } from 'react'; // 1. Importe Suspense e lazy
 import { Box, Typography, CircularProgress } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import FilaDeAtendimento from './FilaDeAtendimento';
 import HistoricoConsultas from '../../components/prontuario/HistoricoConsultas'; // 2. Verifique este caminho
 
@@ -9,10 +10,24 @@ import HistoricoConsultas from '../../components/prontuario/HistoricoConsultas';
 const ProntuarioCompleto = lazy(() => import('../../components/prontuario/ProntuarioCompleto'));
 
 export default function PainelMedicoPage() {
+  const location = useLocation(); // Hook para ler os dados vindos da Agenda
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null);
-  
   // A lógica de controle do modal (que você já tinha) é perfeita.
   const [modalHistoricoId, setModalHistoricoId] = useState(null);
+
+// Efeito para detectar redirecionamento vindo da Agenda
+  useEffect(() => {
+      if (location.state && location.state.pacienteId) {
+          setAgendamentoSelecionado({
+              id: location.state.agendamentoId, // Pode ser null se for acesso direto, tratar no Prontuario
+              paciente: location.state.pacienteId
+          });
+          
+          // Limpa o state do histórico do navegador para evitar loop ao dar F5
+          window.history.replaceState({}, document.title);
+      }
+  }, [location]);
+
   const handleOpenHistoricoModal = (evolucaoId) => setModalHistoricoId(evolucaoId);
   const handleCloseHistoricoModal = () => setModalHistoricoId(null);
 
@@ -20,38 +35,33 @@ export default function PainelMedicoPage() {
     setModalHistoricoId(null); // Fecha modal ao trocar de paciente
     setAgendamentoSelecionado(agendamento);
   };
+  
 
   return (
     <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 2, gap: 2, backgroundColor: '#f4f6f8' }}>
       
-      {/* --- COLUNA DA ESQUERDA (Sem alteração estrutural) --- */}
+      {/* Coluna da Fila e Histórico */}
       <Box sx={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Box sx={{ flex: 1, minHeight: '200px' }}>
               <FilaDeAtendimento onPacienteSelect={handleSelecionarAgendamento} />
           </Box>
           {agendamentoSelecionado && (
               <Box sx={{ flex: 1, minHeight: '200px' }}>
-                  {/* 4. Renderiza o HistoricoConsultas atualizado */}
                   <HistoricoConsultas 
                       key={`hist-${agendamentoSelecionado.paciente}`}
                       pacienteId={agendamentoSelecionado.paciente} 
-                      // 5. Passa a função para abrir o modal
                       onConsultaClick={handleOpenHistoricoModal}
                   />
               </Box>
           )}
       </Box>
 
-      {/* --- COLUNA DA DIREITA (ÁREA DE ATENDIMENTO) --- */}
+      {/* Coluna do Prontuário */}
       <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-        {/* 6. Renderiza o NOVO ProntuarioCompleto (com as abas) */}
-        <Suspense fallback={<CircularProgress />}>
+        <Suspense fallback={<Box sx={{display:'flex', justifyContent:'center', mt:4}}><CircularProgress /></Box>}>
           <ProntuarioCompleto 
-            // A 'key' garante que o componente resete ao trocar de paciente
-            key={agendamentoSelecionado ? agendamentoSelecionado.id : 'sem-paciente'} 
+            key={agendamentoSelecionado ? agendamentoSelecionado.id : 'default'} 
             agendamento={agendamentoSelecionado} 
-            
-            // 7. Passa o estado e a função de fechar para o Prontuário
             modalHistoricoId={modalHistoricoId}
             onCloseHistoricoModal={handleCloseHistoricoModal}
           />
