@@ -481,25 +481,47 @@ export const gerarRelatorioFeto = (d) => {
         
         texto += bios.join('\n') + '\n';
 
-        // Adiciona os Índices calculados logo abaixo das medidas, se existirem
-        if (d.resIc || d.resCcCa || d.resCfCa || d.pesoEstimado) {
+            // --- CORREÇÃO: IMPRESSÃO DOS ÍNDICES ---
+            // Verifica se pelo menos um índice foi calculado
+            if (d.resIc || d.resCcCa || d.resCfCa || d.resCfCc || d.pesoEstimado) {
                 texto += `\nÍNDICES E ESTIMATIVAS:\n`;
+                
+                // Peso Fetal (Hadlock)
                 if (d.pesoEstimado || d.pesoFetal) {
                      texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g`;
                      if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
                      texto += `.\n`;
                 }
-                if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
+
+                // Índice Cefálico (DBP / DOF) -> Normal entre 70-86 (Mesocefalia)
+                if (d.resIc) {
+                    texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
+                }
+
+                // Relação CC / CA (Simetria Cabeça/Corpo)
+                if (d.resCcCa) {
+                    texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
+                }
+
+                // Relação Fêmur / CA
+                if (d.resCfCa) {
+                    texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
+                }
+                
+                // Relação Fêmur / CC (Opcional, mas alguns médicos usam)
+                if (d.resCfCc) {
+                    texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
+                }
             }
         }
 
-        // --- CORREÇÃO: OBSERVAÇÃO AGORA FORA DO BLOCO DE MEDIDAS ---
-        // Assim, se o médico não medir nada mas escrever uma nota, ela aparece.
+        // Observação manual fora do bloco de medidas
         if (d.obsBiometria) {
             texto += `Nota: ${d.obsBiometria}\n`;
         }
         
-        texto += '\n';    
+        texto += '\n';
+        
 
     // -------------------------------------------------------------------------
     // 8. RASTREAMENTO 1º TRI (Lógica Funcional + Texto Médica)

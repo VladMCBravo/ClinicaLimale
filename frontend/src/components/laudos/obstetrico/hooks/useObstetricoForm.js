@@ -114,16 +114,18 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             }
             // =========================================================
 
-            // C. Índices Biométricos (Existente)
+            // C. Índices Biométricos e Peso (AGORA COM NOMES CORRETOS)
             const indices = calcularIndicesBiometricos(prev);
-            if (prev.resIc !== indices.ic) { newState.resIc = indices.ic; mudou = true; }
-            if (prev.resCcCa !== indices.ccCa) { newState.resCcCa = indices.ccCa; mudou = true; }
-            if (prev.resCfCa !== indices.cfCa) { newState.resCfCa = indices.cfCa; mudou = true; }
-            if (prev.resCfDbp !== indices.cfDbp) { newState.resCfDbp = indices.cfDbp; mudou = true; }
-            if (prev.resCfCc !== indices.cfCc) { newState.resCfCc = indices.cfCc; mudou = true; }
+            
+            // Atualiza apenas se mudou, usando as chaves corretas
+            if (prev.resIc !== indices.resIc) { newState.resIc = indices.resIc; mudou = true; }
+            if (prev.resCcCa !== indices.resCcCa) { newState.resCcCa = indices.resCcCa; mudou = true; }
+            if (prev.resCfCa !== indices.resCfCa) { newState.resCfCa = indices.resCfCa; mudou = true; }
+            if (prev.resCfCc !== indices.resCfCc) { newState.resCfCc = indices.resCfCc; mudou = true; }
+            if (prev.pesoEstimado !== indices.pesoEstimado) { newState.pesoEstimado = indices.pesoEstimado; mudou = true; }
 
-            // D. Checkboxes Automáticos
-            if (indices.ic && !prev.checkIndiceCefalico) { newState.checkIndiceCefalico = true; mudou = true; }
+            // D. Checkboxes Automáticos (Feedback visual)
+            if (indices.resIc && !prev.checkIndiceCefalico) { newState.checkIndiceCefalico = true; mudou = true; }
 
             // C. DMSG
             const novoDmsg = calcularDMSG(prev.sg1, prev.sg2, prev.sg3);
