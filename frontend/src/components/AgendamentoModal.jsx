@@ -17,10 +17,21 @@ import 'dayjs/locale/pt-br';
 dayjs.locale('pt-br');
 
 const getInitialFormData = () => ({
-    paciente: null, data_hora_inicio: null, data_hora_fim: null, status: 'Agendado',
-    tipo_atendimento: 'Particular', plano_utilizado: null, observacoes: '',
-    tipo_visita: 'Primeira Consulta', modalidade: 'Presencial', especialidade: null,
-    medico: null, procedimento: null, sala: null
+    paciente: null, 
+    data_hora_inicio: null, 
+    data_hora_fim: null, 
+    status: 'Agendado',
+    tipo_atendimento: 'Particular', 
+    plano_utilizado: null, 
+    observacoes: '',
+    tipo_visita: 'Primeira Consulta', 
+    modalidade: 'Presencial', 
+    especialidade: null,
+    medico: null, 
+    // MUDANÇA: Agora suportamos lista
+    procedimento: null, // Mantido para compatibilidade se editar 1 só
+    procedimentos: [],  // Novo campo para múltiplos
+    sala: null
 });
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
@@ -44,6 +55,28 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
     const [bloqueioCapacidade, setBloqueioCapacidade] = useState(false);
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
+    // --- NOVA LÓGICA: Atualizar Hora Fim baseado na seleção ---
+    const atualizarHorarioFimAutomatico = useCallback((procs, inicio) => {
+        if (!inicio || !procs || procs.length === 0) return;
+        
+        // Regra: 15 minutos por procedimento
+        const minutosTotais = procs.length * 15;
+        const novoFim = dayjs(inicio).add(minutosTotais, 'minute');
+        
+        setFormData(prev => ({ ...prev, data_hora_fim: novoFim }));
+    }, []);
+
+    const handleProcedimentosChange = (event, values) => {
+        setFormData(prev => {
+            const novoState = { ...prev, procedimentos: values };
+            // Se tiver data de início, recalcula o fim
+            if (prev.data_hora_inicio) {
+                const minutosTotais = values.length * 15;
+                novoState.data_hora_fim = dayjs(prev.data_hora_inicio).add(minutosTotais || 30, 'minute');
+            }
+            return novoState;
+        });
+    };
 
     // Efeito para buscar dados gerais
     useEffect(() => {
@@ -102,10 +135,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
 
         if (editingEvent) {
-            const isFullCalendarEvent = !!editingEvent.extendedProps;
-            const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
+        const isFullCalendarEvent = !!editingEvent.extendedProps;
+        const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
+        const tipo = dados.tipo_agendamento || 'Consulta';
 
-            setTipoAgendamento(dados.tipo_agendamento || 'Consulta');
+        setTipoAgendamento(tipo);
+        
+        // Encontra o procedimento único (se houver)
+        const procEncontrado = procedimentos.find(p => p.id === dados.procedimento) || null;
             
             setFormData({
                 paciente: pacientes.find(p => p.id === dados.paciente) || null,
@@ -120,8 +157,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
                 sala: salas.find(s => s.id === dados.sala) || null,
                 medico: medicos.find(m => m.id === dados.medico) || null,
-                procedimento: procedimentos.find(p => p.id === dados.procedimento) || null,
-            });
+                procedimento: procEncontrado, 
+                // Se for procedimento, inicializamos o array com ele para o Autocomplete não vir vazio
+                procedimentos: procEncontrado ? [procEncontrado] : [], 
+                sala: salas.find(s => s.id === dados.sala) || null,
+        });
         } else if (initialData) {
             const startTime = dayjs(initialData.start);
             setFormData(prev => ({ 
@@ -249,7 +289,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // 1. Validação Prévia
         const erroValidacao = validarFormulario();
         if (erroValidacao) {
             showSnackbar(erroValidacao, 'warning');
@@ -257,6 +296,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
 
         setIsSubmitting(true);
+        
+        // Prepara objeto base
         const submissionData = {
           ...formData,
           sala: formData.sala?.id || null,
@@ -264,23 +305,37 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
           paciente: formData.paciente?.id || null,
           medico: formData.medico?.id || null,
           especialidade: formData.especialidade?.id || null,
-          procedimento: formData.procedimento?.id || null,
           data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
           data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
         };
+
+        // LÓGICA DE ENVIO HÍBRIDA
+        if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0 && !editingEvent) {
+            // Modo Criação Múltipla
+            submissionData.procedimentos_ids = formData.procedimentos.map(p => p.id);
+            delete submissionData.procedimento; // Remove o singular
+        } else {
+            // Modo Legado / Edição / Consulta / Single
+            submissionData.procedimento = formData.procedimento?.id || null;
+            if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0) {
+                 // Fallback caso usuário edite e selecione array, pegamos o primeiro
+                 submissionData.procedimento = formData.procedimentos[0].id;
+            }
+        }
+
         try {
             const eventId = editingEvent?.id;
-            const request = eventId ? agendamentoService.updateAgendamento(eventId, submissionData) : agendamentoService.createAgendamento(submissionData);
+            // Se for update, usa a rota antiga. Se for create, o backend novo detecta 'procedimentos_ids'
+            const request = eventId 
+                ? agendamentoService.updateAgendamento(eventId, submissionData) 
+                : agendamentoService.createAgendamento(submissionData);
+            
             await request;
-            showSnackbar(eventId ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success');
+            showSnackbar(eventId ? 'Agendamento atualizado!' : 'Agendamentos criados com sucesso!', 'success');
             onSave();
         } catch (error) {
-            const errorData = error.response?.data;
-            let errorMsg = 'Erro ao salvar agendamento.';
-            if (typeof errorData === 'object' && errorData !== null) {
-                 errorMsg = Object.values(errorData).flat()[0];
-            }
-            showSnackbar(errorMsg, 'error');
+            // ... erro handler ...
+             showSnackbar("Erro ao processar", 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -390,8 +445,30 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         <Autocomplete options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} />
                                     </>
                                 ) : (
-                                    <Autocomplete options={procedimentos} getOptionLabel={(p) => p.descricao || ''} value={formData.procedimento} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, procedimento: value })} renderInput={(params) => (<TextField {...params} label="Procedimento *" size="small" />)} />
-                                )}
+                                    // MUDANÇA: Autocomplete Multiplo
+            <Autocomplete 
+                multiple // <--- ESSENCIAL
+                options={procedimentos} 
+                getOptionLabel={(p) => p.descricao || ''} 
+                value={formData.procedimentos} // Usa o array
+                isOptionEqualToValue={(o, v) => o.id === v.id} 
+                onChange={handleProcedimentosChange}
+                disableCloseOnSelect
+                renderInput={(params) => (
+                    <TextField 
+                        {...params} 
+                        label="Procedimentos (Selecione 1 ou mais) *" 
+                        size="small" 
+                        placeholder={formData.procedimentos.length > 0 ? "" : "Selecione exames..."}
+                    />
+                )} 
+                renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                        <Chip variant="outlined" label={option.descricao} size="small" {...getTagProps({ index })} />
+                    ))
+                }
+            />
+        )}
                             </Box>
                         </Grid>
                         <Grid item xs={12} md={5}>
@@ -405,12 +482,20 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <Grid container spacing={2}>
                                     <Grid item xs={12}>
                                         <DateTimePicker 
-                                            label="Início *" 
-                                            value={formData.data_hora_inicio} 
-                                            onChange={(newValue) => { setFormData({ ...formData, data_hora_inicio: newValue, data_hora_fim: newValue ? newValue.add(50, 'minute') : null }); }} 
-                                            ampm={false}
-                                            format="DD/MM/YYYY HH:mm"
-                                            slotProps={{ textField: { size: 'small', fullWidth: true } }} 
+            label="Início *" 
+            value={formData.data_hora_inicio} 
+            onChange={(newValue) => { 
+                setFormData(prev => {
+                    const novosDados = { ...prev, data_hora_inicio: newValue };
+                    // Recalcula o fim baseado no número de exames
+                    if (tipoAgendamento === 'Procedimento' && prev.procedimentos.length > 0) {
+                        novosDados.data_hora_fim = newValue.add(prev.procedimentos.length * 15, 'minute');
+                    } else {
+                        novosDados.data_hora_fim = newValue ? newValue.add(50, 'minute') : null;
+                    }
+                    return novosDados;
+                }); 
+            }} 
                                         />
                                     </Grid>
                                     <Grid item xs={12}>

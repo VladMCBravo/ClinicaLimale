@@ -12,6 +12,8 @@ from .serializers import AgendamentoSerializer, AgendamentoWriteSerializer, Sala
 from django.utils import timezone
 from django.core.mail import send_mail
 from faturamento.models import Pagamento, Procedimento
+from django.db import transaction # <--- IMPORTANTE
+from datetime import timedelta
 import datetime
 import requests
 import os
@@ -51,12 +53,73 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
             return AgendamentoWriteSerializer
         return AgendamentoSerializer
     
+    def create(self, request, *args, **kwargs):
+        # Verifica se é um agendamento de múltiplos procedimentos
+        if 'procedimentos_ids' in request.data and isinstance(request.data['procedimentos_ids'], list):
+            return self.create_multi_procedimentos(request)
+            
+        return super().create(request, *args, **kwargs)
+
+    def create_multi_procedimentos(self, request):
+        procedimentos_ids = request.data.pop('procedimentos_ids', [])
+        data_inicio_base = parse_datetime(request.data.get('data_hora_inicio'))
+        
+        if len(procedimentos_ids) > 4: # Exemplo de limite de segurança
+            return Response({"detail": "Máximo de 4 procedimentos por vez."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not procedimentos_ids or not data_inicio_base:
+            return Response({"detail": "Dados inválidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agendamentos_criados = []
+        errors = []
+
+        # Usamos atomic para garantir que ou agendam todos, ou nenhum (evita agendar 3 e falhar o 4º)
+        with transaction.atomic():
+            tempo_acumulado = data_inicio_base
+
+            for proc_id in procedimentos_ids:
+                try:
+                    # Busca detalhes do procedimento para saber a duração
+                    # Se não tiver config, assume 15 min como solicitado
+                    procedimento = Procedimento.objects.get(id=proc_id)
+                    duracao = timedelta(minutes=15) 
+                    
+                    if hasattr(procedimento, 'configuracao_clinica') and procedimento.configuracao_clinica.duracao_padrao:
+                        duracao = procedimento.configuracao_clinica.duracao_padrao
+
+                    tempo_fim = tempo_acumulado + duracao
+
+                    # Prepara os dados para este "slot"
+                    dados_item = request.data.copy()
+                    dados_item['procedimento'] = proc_id
+                    dados_item['tipo_agendamento'] = 'Procedimento'
+                    dados_item['data_hora_inicio'] = tempo_acumulado.isoformat()
+                    dados_item['data_hora_fim'] = tempo_fim.isoformat()
+                    
+                    # Remove campos que podem dar conflito se passados duplicados
+                    if 'especialidade' in dados_item: del dados_item['especialidade']
+                    if 'medico' in dados_item: del dados_item['medico']
+
+                    # Serializa e Valida (Isso vai checar colisão de sala para CADA slot)
+                    serializer = self.get_serializer(data=dados_item)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_create(serializer)
+                    
+                    agendamentos_criados.append(serializer.data)
+
+                    # Atualiza o início do próximo para o fim deste
+                    tempo_acumulado = tempo_fim
+
+                except Exception as e:
+                    # Se der erro em qualquer um, o transaction.atomic desfaz tudo
+                    raise ValidationError(f"Não foi possível agendar o procedimento ID {proc_id} no horário {tempo_acumulado}. Motivo: {str(e)}")
+
+        return Response(agendamentos_criados, status=status.HTTP_201_CREATED)
+
     def perform_create(self, serializer):
+        # Mantém sua lógica original de pagamentos
         agendamento = serializer.save()
         
-        # --- MUDANÇA 1: DESCRIÇÃO LIMPA ---
-        # Antes: "Ref. Agendamento 196 - Obstétrico..."
-        # Agora: "Obstétrico com Doppler" (ou "Consulta")
         valor_inicial = 0
         descricao_texto = "Consulta"
 
