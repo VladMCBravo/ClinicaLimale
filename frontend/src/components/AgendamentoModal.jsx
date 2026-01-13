@@ -98,14 +98,19 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [open, showSnackbar]);
 
-    // Filtro Inteligente de Salas
+    // Filtro Inteligente de Salas (CORRIGIDO PARA MÚLTIPLOS)
     useEffect(() => {
-        if (!formData.procedimento || tipoAgendamento === 'Consulta') {
+        // 1. Descobrir qual procedimento considerar para o filtro
+        // Se tiver um selecionado no modo singular, usa ele. 
+        // Se não, pega o primeiro da lista de múltiplos.
+        const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
+
+        if (!procParaFiltro || tipoAgendamento === 'Consulta') {
             setSalasFiltradas(salas);
             return;
         }
 
-        const equipamentoNecessario = formData.procedimento.equipamento_obrigatorio;
+        const equipamentoNecessario = procParaFiltro.equipamento_obrigatorio;
 
         if (equipamentoNecessario) {
             const compativeis = salas.filter(sala => 
@@ -113,17 +118,19 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             );
             setSalasFiltradas(compativeis);
 
+            // Verifica se a sala atual (se houver) é compatível
             if (formData.sala) {
                 const salaTemEquipamento = formData.sala.equipamentos && formData.sala.equipamentos.includes(equipamentoNecessario);
                 if (!salaTemEquipamento) {
                     setFormData(prev => ({ ...prev, sala: null }));
-                    showSnackbar(`A sala anterior não possui ${equipamentoNecessario}. Por favor, selecione uma sala compatível.`, 'warning');
+                    showSnackbar(`A sala anterior não possui ${equipamentoNecessario}. Selecione uma compatível.`, 'warning');
                 }
             }
         } else {
             setSalasFiltradas(salas);
         }
-    }, [formData.procedimento, tipoAgendamento, salas, formData.sala, showSnackbar]);
+        // Adicionamos formData.procedimentos nas dependências
+    }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas, formData.sala, showSnackbar]);
 
     // Efeito para preencher o formulário
     useEffect(() => {
@@ -258,7 +265,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (!formData.paciente) return "Selecione um paciente.";
         if (!formData.data_hora_inicio || !formData.data_hora_fim) return "Defina o horário de início e fim.";
         
-        // Validação de Data Antiga (Opcional: permitir editar antigo se for admin, mas aqui bloqueamos criaçao)
         if (!editingEvent && formData.data_hora_inicio.isBefore(dayjs())) {
             return "Não é possível criar agendamentos no passado.";
         }
@@ -273,14 +279,18 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (!formData.especialidade) return "Selecione a especialidade.";
             if (!formData.medico) return "Selecione o médico.";
         } else {
-            if (!formData.procedimento) return "Selecione o procedimento.";
+            // --- CORREÇÃO AQUI ---
+            // Verifica se tem UM procedimento (modo antigo/edição) OU se tem VÁRIOS (novo modo)
+            const temProcedimento = formData.procedimento || (formData.procedimentos && formData.procedimentos.length > 0);
+            
+            if (!temProcedimento) return "Selecione pelo menos um procedimento.";
         }
 
         if (!isSlotAvailable) return "Não há capacidade disponível para este horário.";
 
         if (bloqueioCapacidade) {
-            if (tipoAgendamento === 'Consulta') return "Limite de consultas simultâneas (3) atingido neste horário.";
-            if (tipoAgendamento === 'Procedimento') return "A sala de procedimentos já está ocupada neste horário.";
+            if (tipoAgendamento === 'Consulta') return "Limite de consultas simultâneas atingido.";
+            if (tipoAgendamento === 'Procedimento') return "A sala de procedimentos já está ocupada.";
         }
         
         return null;
