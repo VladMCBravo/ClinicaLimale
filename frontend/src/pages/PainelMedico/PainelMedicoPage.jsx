@@ -1,7 +1,7 @@
 // src/pages/PainelMedico/PainelMedicoPage.jsx - VERSÃO FINAL ATUALIZADA
 
 import React, { useState, useEffect,Suspense, lazy } from 'react'; // 1. Importe Suspense e lazy
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, CircularProgress } from '@mui/material';
 import { useLocation } from 'react-router-dom';
 import FilaDeAtendimento from './FilaDeAtendimento';
 import HistoricoConsultas from '../../components/prontuario/HistoricoConsultas'; // 2. Verifique este caminho
