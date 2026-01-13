@@ -52,29 +52,23 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 1. DATAÇÃO (Lógica Blindada)
+    // 1. DATAÇÃO (Lógica Blindada com Fallback para CCN)
     // -------------------------------------------------------------------------
     
     // --- A. DUM (Data da Última Menstruação) ---
     if (d.usarDum) {
-        // Se tem DUM preenchida
         if (d.dum) {
-            if (d.exibirDataDum) {
-                texto += `Data da última menstruação: ${formatData(d.dum)}.\n`;
-            }
-            // Se pede para citar a DPP baseada na DUM
+            if (d.exibirDataDum) texto += `Data da última menstruação: ${formatData(d.dum)}.\n`;
+            
             if (d.citarDppDum && d.dppDum) {
                 texto += `DPP (DUM): ${d.dppDum}`;
-                // Só mostra a IG se ela foi calculada
                 if (d.igDum) texto += `, compatível com ${d.igDum}`;
                 texto += `.\n`;
             } 
-            // Se não citar DPP, mas quiser dizer a IG pela DUM
             else if (d.igDum) {
                 texto += `Idade gestacional cronológica (DUM): ${d.igDum}.\n`;
             }
         } else {
-            // Checkbox marcado mas sem data
             texto += `Data da última menstruação referida, porém não informada.\n`;
         }
     } 
@@ -86,27 +80,27 @@ export const gerarRelatorioFeto = (d) => {
     // --- C. USG Anterior (Para datação principal) ---
     if (d.usarExameAnterior && d.dataExameAnterior) {
         const dataAnt = formatData(d.dataExameAnterior);
-        // O IMPORTANTE: Usar a IG Corrigida (Projetada para hoje) e não a antiga
         const igHojePeloAnterior = d.igIgCorrigidaCalculada;
         
         if (igHojePeloAnterior) {
             texto += `Idade gestacional datada pelo ultrassom de ${dataAnt}: ${igHojePeloAnterior}.\n`;
         } else {
-            // Fallback de segurança caso o cálculo falhe, mas avisando que é a IG da época
             texto += `Exame anterior realizado em ${dataAnt} (IG na época: ${d.igAnteriorSemanas || 0}s ${d.igAnteriorDias || 0}d).\n`;
         }
     } 
     
-    // --- D. Biometria Atual (Se escolhida como Datador Principal) ---
-    // Usado quando a DUM não é confiável e não tem exame anterior
+    // --- D. Biometria Atual / CCN (O "Pulo do Gato") ---
+    // Se o médico marcou explicitamente "Usar esta data"
     else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
          texto += `Idade Gestacional pela biometria atual: ${d.igBiometria || '...'}.\n`;
          texto += `DPP (Biometria atual): ${d.dppBiometriaCalculada}.\n`;
     }
-    // INJEÇÃO DA OBSERVAÇÃO MANUAL
-            if (d.obsDatacao) {
-                texto += `Nota: ${d.obsDatacao}\n`;
-            }
+    // --- E. FALLBACK AUTOMÁTICO PARA CCN (1º Trimestre) ---
+    // Se não marcou nada acima, mas tem CCN preenchido, usamos ele para datar.
+    else if (d.subtipo === 'OBSTETRICO_1_TRI' && d.resIgCcn) {
+         texto += `Idade Gestacional definida pelo Comprimento Cabeça-Nádegas (CCN): ${d.resIgCcn}.\n`;
+         // Opcional: Calcular DPP do CCN aqui se quiser, ou deixar só a IG
+    }
     
     texto += '\n';
 

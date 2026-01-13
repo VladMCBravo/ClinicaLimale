@@ -182,21 +182,28 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
             </>
         )}
 
+        {/* --- ROTEIRO 2: MORFOLÓGICO 1º TRI --- */}
         {is1Tri && (
             <>
                 <SectionWrapper id="anexos1tri" title="3. Útero e Anexos" colorHex="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                     <SecaoDadosMaternos1Tri {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="biometria" title="4. Biometria (CCN/TN)" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
+                {/* --- NOVO: INCLUÍDO A PEDIDO DA MÉDICA --- */}
+                <SectionWrapper id="placenta" title="4. Placenta, Líquido e Cordão" colorHex="#D81B60" isOpen={isAberto('placenta')} onToggle={toggleSecao}>
+                    <SecaoPlacentaLiquido {...commonProps} />
+                </SectionWrapper>
+
+                {/* Reajuste da numeração: 4 virou 5, etc. */}
+                <SectionWrapper id="biometria" title="5. Biometria (CCN/TN)" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} />
                 </SectionWrapper>
                 
-                <SectionWrapper id="morfo" title="5. Morfologia e Riscos" colorHex="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
+                <SectionWrapper id="morfo" title="6. Morfologia e Riscos" colorHex="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
                     <SecaoMorfologia {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="doppler" title="6. Dopplerfluxometria" colorHex="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
+                <SectionWrapper id="doppler" title="7. Dopplerfluxometria" colorHex="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
                     <SecaoDoppler {...commonProps} />
                 </SectionWrapper>
             </>
