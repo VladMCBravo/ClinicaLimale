@@ -9,11 +9,13 @@ import DeleteIcon from '@mui/icons-material/Delete'; // Importando ícone
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { IMaskInput } from 'react-imask'; // Necessário para a máscara
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import 'dayjs/locale/pt-br';
 
-// Configura o locale para português
+// Configurações do Dayjs
+dayjs.extend(customParseFormat);
 dayjs.locale('pt-br');
 
 const getInitialFormData = () => ({
@@ -32,6 +34,23 @@ const getInitialFormData = () => ({
     procedimento: null, // Mantido para compatibilidade se editar 1 só
     procedimentos: [],  // Novo campo para múltiplos
     sala: null
+});
+
+// --- COMPONENTE DE MÁSCARA (DATA + HORA) ---
+const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) {
+  const { onChange, ...other } = props;
+  return (
+    <IMaskInput
+      {...other}
+      mask="00/00/0000 00:00" // Máscara DD/MM/AAAA HH:MM
+      definitions={{
+        '0': /[0-9]/,
+      }}
+      inputRef={ref}
+      onAccept={(value) => onChange({ target: { name: props.name, value } })}
+      overwrite
+    />
+  );
 });
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
@@ -55,29 +74,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
     const [bloqueioCapacidade, setBloqueioCapacidade] = useState(false);
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
-    // --- NOVA LÓGICA: Atualizar Hora Fim baseado na seleção ---
-    const atualizarHorarioFimAutomatico = useCallback((procs, inicio) => {
-        if (!inicio || !procs || procs.length === 0) return;
-        
-        // Regra: 15 minutos por procedimento
-        const minutosTotais = procs.length * 15;
-        const novoFim = dayjs(inicio).add(minutosTotais, 'minute');
-        
-        setFormData(prev => ({ ...prev, data_hora_fim: novoFim }));
-    }, []);
-
-    const handleProcedimentosChange = (event, values) => {
-        setFormData(prev => {
-            const novoState = { ...prev, procedimentos: values };
-            // Se tiver data de início, recalcula o fim
-            if (prev.data_hora_inicio) {
-                const minutosTotais = values.length * 15;
-                novoState.data_hora_fim = dayjs(prev.data_hora_inicio).add(minutosTotais || 30, 'minute');
-            }
-            return novoState;
-        });
-    };
-
+    
     // Efeito para buscar dados gerais
     useEffect(() => {
         if (open) {
@@ -132,6 +129,80 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         // Adicionamos formData.procedimentos nas dependências
     }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas, formData.sala, showSnackbar]);
 
+    // --- HANDLERS DE DATA (DIGITAÇÃO FLUENTE) ---
+    
+    // Mudança de INÍCIO
+    const handleDataInicioChange = (e) => {
+        const valorVisual = e.target.value;
+        setDataInicioVisual(valorVisual); // Atualiza visual na hora
+
+        // Tenta converter para Dayjs
+        if (valorVisual.length === 16) { // DD/MM/AAAA HH:mm tem 16 chars
+            const novaDataInicio = dayjs(valorVisual, 'DD/MM/YYYY HH:mm', true);
+            
+            if (novaDataInicio.isValid()) {
+                setFormData(prev => {
+                    const novosDados = { ...prev, data_hora_inicio: novaDataInicio };
+                    
+                    // Recalcula o FIM automaticamente
+                    let novaDataFim;
+                    if (tipoAgendamento === 'Procedimento' && prev.procedimentos.length > 0) {
+                        const minutosTotais = prev.procedimentos.length * 15;
+                        novaDataFim = novaDataInicio.add(minutosTotais, 'minute');
+                    } else {
+                        novaDataFim = novaDataInicio.add(50, 'minute'); // Padrão consulta
+                    }
+                    
+                    novosDados.data_hora_fim = novaDataFim;
+                    // Atualiza também o visual do Fim
+                    setDataFimVisual(novaDataFim.format('DD/MM/YYYY HH:mm'));
+                    
+                    return novosDados;
+                });
+            }
+        } else {
+            // Se apagou ou está incompleto, invalida o form data para evitar envio errado
+            if (formData.data_hora_inicio) {
+                setFormData(prev => ({...prev, data_hora_inicio: null}));
+            }
+        }
+    };
+
+    // Mudança de FIM (Manual)
+    const handleDataFimChange = (e) => {
+        const valorVisual = e.target.value;
+        setDataFimVisual(valorVisual);
+
+        if (valorVisual.length === 16) {
+            const novaDataFim = dayjs(valorVisual, 'DD/MM/YYYY HH:mm', true);
+            if (novaDataFim.isValid()) {
+                setFormData(prev => ({ ...prev, data_hora_fim: novaDataFim }));
+            }
+        } else {
+            if (formData.data_hora_fim) {
+                setFormData(prev => ({...prev, data_hora_fim: null}));
+            }
+        }
+    };
+
+    // Mudança de PROCEDIMENTOS (Atualiza o tempo final)
+    const handleProcedimentosChange = (event, values) => {
+        setFormData(prev => {
+            const novoState = { ...prev, procedimentos: values };
+            
+            // Recalcula FIM se tiver INÍCIO
+            if (prev.data_hora_inicio && prev.data_hora_inicio.isValid()) {
+                const minutosTotais = values.length * 15;
+                const novoFim = prev.data_hora_inicio.add(minutosTotais || 30, 'minute');
+                novoState.data_hora_fim = novoFim;
+                
+                // Atualiza o visual do Fim
+                setDataFimVisual(novoFim.format('DD/MM/YYYY HH:mm'));
+            }
+            return novoState;
+        });
+    };
+
     // Efeito para preencher o formulário
     useEffect(() => {
         if (!open) {
@@ -169,16 +240,27 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 procedimentos: procEncontrado ? [procEncontrado] : [], 
                 sala: salas.find(s => s.id === dados.sala) || null,
         });
+
+        // Popula VISUAL (String formatada)
+            setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
+            setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
+
         } else if (initialData) {
             const startTime = dayjs(initialData.start);
+            const endTime = startTime.add(50, 'minute');
+            
             setFormData(prev => ({ 
                 ...prev, 
                 data_hora_inicio: startTime,
-                data_hora_fim: startTime.add(50, 'minute'), 
+                data_hora_fim: endTime, 
                 sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
                 medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
                 especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
             }));
+
+            // Popula VISUAL
+            setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
+            setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
     
@@ -488,68 +570,43 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 {valorExibido && (<Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}><Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>{valorExibido}</Typography></Box>)}
                                 <Divider sx={{ my: 1 }}><Chip label="Horário" size="small" /></Divider>
                                 
-                                {/* MUDANÇA AQUI: DateTimePicker com formato explícito */}
+                                {/* --- MUDANÇA AQUI: INPUTS COM MÁSCARA PARA DIGITAÇÃO FLUENTE --- */}
                                 <Grid container spacing={2}>
                                     <Grid item xs={12}>
-                                        <DateTimePicker 
-            label="Início *" 
-            value={formData.data_hora_inicio} 
-            onChange={(newValue) => { 
-                setFormData(prev => {
-                    const novosDados = { ...prev, data_hora_inicio: newValue };
-                    // Recalcula o fim baseado no número de exames
-                    if (tipoAgendamento === 'Procedimento' && prev.procedimentos.length > 0) {
-                        novosDados.data_hora_fim = newValue.add(prev.procedimentos.length * 15, 'minute');
-                    } else {
-                        novosDados.data_hora_fim = newValue ? newValue.add(50, 'minute') : null;
-                    }
-                    return novosDados;
-                }); 
-            }} 
+                                        <TextField
+                                            label="Início *"
+                                            value={dataInicioVisual} // Usa o valor visual da string
+                                            onChange={handleDataInicioChange} // Processa digitação
+                                            fullWidth
+                                            size="small"
+                                            placeholder="DD/MM/AAAA HH:MM"
+                                            InputProps={{ inputComponent: TextMaskDateTime }} // Componente de máscara
+                                            helperText="Ex: 13/01/2026 14:00"
                                         />
                                     </Grid>
                                     <Grid item xs={12}>
-                                        <DateTimePicker 
-                                            label="Fim *" 
-                                            value={formData.data_hora_fim} 
-                                            onChange={(newValue) => setFormData({ ...formData, data_hora_fim: newValue })} 
-                                            ampm={false}
-                                            format="DD/MM/YYYY HH:mm"
-                                            slotProps={{ textField: { size: 'small', fullWidth: true } }} 
+                                        <TextField
+                                            label="Fim *"
+                                            value={dataFimVisual}
+                                            onChange={handleDataFimChange}
+                                            fullWidth
+                                            size="small"
+                                            placeholder="DD/MM/AAAA HH:MM"
+                                            InputProps={{ inputComponent: TextMaskDateTime }}
                                         />
                                     </Grid>
                                 </Grid>
                                 
-                                <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado (Aguardando Pagamento)</MenuItem><MenuItem value="Confirmado">Confirmado (Pago)</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Não Compareceu</MenuItem></Select></FormControl>
+                                <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado</MenuItem><MenuItem value="Confirmado">Confirmado</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Não Compareceu</MenuItem></Select></FormControl>
                             </Box>
                         </Grid>
                     </Grid>
                 </DialogContent>
                 <DialogActions sx={{ p: '16px 24px', justifyContent: 'space-between' }}>
-                    
-                    {/* Botão de Excluir (Só aparece se estiver editando) */}
-                    <Box>
-                        {editingEvent && (
-                            <Button 
-                                onClick={handleDelete} 
-                                color="error" 
-                                startIcon={<DeleteIcon />}
-                                disabled={isSubmitting}
-                            >
-                                Excluir
-                            </Button>
-                        )}
-                    </Box>
-
+                    <Box>{editingEvent && (<Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />} disabled={isSubmitting}>Excluir</Button>)}</Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
-                        <Button 
-                            type="submit" 
-                            variant="contained" 
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
-                        </Button>
+                        <Button type="submit" variant="contained" disabled={isSubmitting}>{isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}</Button>
                     </Box>
                 </DialogActions>
             </form>

@@ -66,19 +66,19 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       handleTabChange
   } = useObstetricoForm(onUpdate, initialValues);
 
-  // --- NOVA LÓGICA DE ESTADO ---
-  // Em vez de guardar qual está aberta, guardamos quais estão FECHADAS.
-  // Começa vazio {}, ou seja, nenhuma está fechada (todas abertas).
+  // --- NOVA LÓGICA DE ESTADO (CORRIGIDA) ---
+  // Guardamos quais seções estão FECHADAS. O padrão é vazio (todas abertas).
   const [secoesFechadas, setSecoesFechadas] = useState({});
 
   const toggleSecao = (id) => {
       setSecoesFechadas(prev => ({
           ...prev,
-          [id]: !prev[id] // Inverte o estado: se estava aberta (false), vira fechada (true)
+          [id]: !prev[id] // Inverte: se undefined/false (aberto) -> true (fechado)
       }));
   };
 
-  // Helper para saber se desenha a seção
+  // Helper para o JSX saber se deve desenhar
+  // Se não estiver na lista de fechadas, é true (aberto)
   const isAberto = (id) => !secoesFechadas[id];
 
   if (!formState) return <div className="p-4">Carregando formulário...</div>;
