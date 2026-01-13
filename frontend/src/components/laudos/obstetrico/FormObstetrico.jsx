@@ -157,85 +157,80 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
             </div>
         )}
 
-        {/* --- DATAÇÃO (Sempre presente) - COR ROXA --- */}
-        <SectionWrapper id="datacao" title="1. Datação e Cronologia" colorHex="#7B1FA2" isOpen={secaoAberta === 'datacao'} onToggle={toggleSecao}>
+        {/* --- CORRIGIDO: USANDO isAberto() EM VEZ DE secaoAberta --- */}
+        <SectionWrapper id="datacao" title="1. Datação e Cronologia" colorHex="#7B1FA2" isOpen={isAberto('datacao')} onToggle={toggleSecao}>
             <SecaoDatacao {...commonProps} />
         </SectionWrapper>
 
-        {/* --- DADOS GERAIS (Sempre presente) - COR AZUL MARINHO --- */}
-        <SectionWrapper id="dadosGerais" title="2. Dados Gerais e Estática" colorHex="#0D47A1" isOpen={secaoAberta === 'dadosGerais'} onToggle={toggleSecao}>
+        <SectionWrapper id="dadosGerais" title="2. Dados Gerais e Estática" colorHex="#0D47A1" isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
             <SecaoDadosGerais {...commonProps} />
         </SectionWrapper>
 
-        {/* --- ROTEIRO 1: INICIAL (< 11 SEMANAS) --- */}
         {isInicial && (
             <>
-                <SectionWrapper id="saco" title="3. Saco Gestacional" colorHex="#00897B" isOpen={secaoAberta === 'saco'} onToggle={toggleSecao}>
+                <SectionWrapper id="saco" title="3. Saco Gestacional" colorHex="#00897B" isOpen={isAberto('saco')} onToggle={toggleSecao}>
                     <SecaoSacoGestacional {...commonProps} />
                 </SectionWrapper>
                 
-                <SectionWrapper id="anexos1tri" title="4. Útero e Anexos (1º Tri)" colorHex="#039BE5" isOpen={secaoAberta === 'anexos1tri'} onToggle={toggleSecao}>
+                <SectionWrapper id="anexos1tri" title="4. Útero e Anexos (1º Tri)" colorHex="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                     <SecaoDadosMaternos1Tri {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="biometria" title="5. Biometria (CCN)" colorHex="#2E7D32" isOpen={secaoAberta === 'biometria'} onToggle={toggleSecao}>
+                <SectionWrapper id="biometria" title="5. Biometria (CCN)" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} /> 
                 </SectionWrapper>
             </>
         )}
 
-        {/* --- ROTEIRO 2: MORFOLÓGICO 1º TRI --- */}
         {is1Tri && (
             <>
-                <SectionWrapper id="anexos1tri" title="3. Útero e Anexos" colorHex="#039BE5" isOpen={secaoAberta === 'anexos1tri'} onToggle={toggleSecao}>
+                <SectionWrapper id="anexos1tri" title="3. Útero e Anexos" colorHex="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                     <SecaoDadosMaternos1Tri {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="biometria" title="4. Biometria (CCN/TN)" colorHex="#2E7D32" isOpen={secaoAberta === 'biometria'} onToggle={toggleSecao}>
+                <SectionWrapper id="biometria" title="4. Biometria (CCN/TN)" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} />
                 </SectionWrapper>
                 
-                <SectionWrapper id="morfo" title="5. Morfologia e Riscos" colorHex="#EF6C00" isOpen={secaoAberta === 'morfo'} onToggle={toggleSecao}>
+                <SectionWrapper id="morfo" title="5. Morfologia e Riscos" colorHex="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
                     <SecaoMorfologia {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="doppler" title="6. Dopplerfluxometria" colorHex="#1565C0" isOpen={secaoAberta === 'doppler'} onToggle={toggleSecao}>
+                <SectionWrapper id="doppler" title="6. Dopplerfluxometria" colorHex="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
                     <SecaoDoppler {...commonProps} />
                 </SectionWrapper>
             </>
         )}
 
-        {/* --- ROTEIRO 3: TARDIO (2º/3º TRI) --- */}
         {isTardio && (
             <>
-                <SectionWrapper id="placenta" title="3. Placenta e Líquido" colorHex="#D81B60" isOpen={secaoAberta === 'placenta'} onToggle={toggleSecao}>
+                <SectionWrapper id="placenta" title="3. Placenta e Líquido" colorHex="#D81B60" isOpen={isAberto('placenta')} onToggle={toggleSecao}>
                     <SecaoPlacentaLiquido {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="colo" title="4. Colo Uterino" colorHex="#AD1457" isOpen={secaoAberta === 'colo'} onToggle={toggleSecao}>
+                <SectionWrapper id="colo" title="4. Colo Uterino" colorHex="#AD1457" isOpen={isAberto('colo')} onToggle={toggleSecao}>
                     <SecaoColoDados {...commonProps} />
                 </SectionWrapper>
                 
-                <SectionWrapper id="biometria" title="5. Biometria e Índices" colorHex="#2E7D32" isOpen={secaoAberta === 'biometria'} onToggle={toggleSecao}>
+                <SectionWrapper id="biometria" title="5. Biometria e Índices" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} />
                 </SectionWrapper>
                 
-                <SectionWrapper id="morfo" title="6. Análise Morfológica" colorHex="#EF6C00" isOpen={secaoAberta === 'morfo'} onToggle={toggleSecao}>
+                <SectionWrapper id="morfo" title="6. Análise Morfológica" colorHex="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
                     <SecaoMorfologia {...commonProps} />
                 </SectionWrapper>
 
-                <SectionWrapper id="doppler" title="7. Dopplerfluxometria" colorHex="#1565C0" isOpen={secaoAberta === 'doppler'} onToggle={toggleSecao}>
+                <SectionWrapper id="doppler" title="7. Dopplerfluxometria" colorHex="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
                     <SecaoDoppler {...commonProps} />
                 </SectionWrapper>
             </>
         )}
 
-        {/* --- UNIVERSAIS --- */}
-        <SectionWrapper id="3d" title="3D / 4D" colorHex="#FBC02D" isOpen={secaoAberta === '3d'} onToggle={toggleSecao}>
+        <SectionWrapper id="3d" title="3D / 4D" colorHex="#FBC02D" isOpen={isAberto('3d')} onToggle={toggleSecao}>
             <Secao3D {...commonProps} />
         </SectionWrapper>
 
-        <SectionWrapper id="graficos" title="Opções de Gráficos" colorHex="#8E24AA" isOpen={secaoAberta === 'graficos'} onToggle={toggleSecao}>
+        <SectionWrapper id="graficos" title="Opções de Gráficos" colorHex="#8E24AA" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
             <SecaoIndicesGraficos {...commonProps} />
         </SectionWrapper>
 

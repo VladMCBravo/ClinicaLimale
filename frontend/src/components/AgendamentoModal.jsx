@@ -55,6 +55,10 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
     const { showSnackbar } = useSnackbar();
+
+    // --- CONSTANTES DE CAPACIDADE (Definidas no escopo do componente) ---
+    const MAX_CONS = 3;
+    const MAX_PROC = 1;
     
     // --- ESTADOS ---
     const [formData, setFormData] = useState(getInitialFormData());
@@ -298,11 +302,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]);
 
-    // Calcula se deve bloquear baseado no Tipo selecionado
+    // Lógica de Bloqueio (CORRIGIDA)
     useEffect(() => {
-        const MAX_CONS = 3;
-        const MAX_PROC = 1;
-        
         if (!open) return;
 
         let ocupacaoConsultas = capacidade.consultas;
@@ -316,11 +317,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
 
         let bloqueado = false;
-        if (tipoAgendamento === 'Consulta') {
-            bloqueado = ocupacaoConsultas >= CAPACIDADE_MAX_CONSULTAS;
-        } else if (tipoAgendamento === 'Procedimento') {
-            bloqueado = ocupacaoProcedimentos >= CAPACIDADE_MAX_PROCEDIMENTOS;
-        }
+        if (tipoAgendamento === 'Consulta') bloqueado = ocupacaoConsultas >= MAX_CONS;
+        else if (tipoAgendamento === 'Procedimento') bloqueado = ocupacaoProcedimentos >= MAX_PROC;
 
         setBloqueioCapacidade(bloqueado);
 
@@ -461,36 +459,18 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.tipo_atendimento]);
 
     const renderCapacidadeInfo = () => {
-        const MAX_CONS = 3;
-        const MAX_PROC = 1;
-        
-        // Ajuste visual para considerar o próprio agendamento na contagem se estiver editando
         let visualConsultas = capacidade.consultas;
         let visualProc = capacidade.procedimentos;
-        
-        // Cores e Labels
         const corConsultas = visualConsultas >= MAX_CONS ? "error" : "success";
         const corProc = visualProc >= MAX_PROC ? "error" : "success";
 
         return (
             <Box sx={{ p: 1, bgcolor: '#f5f5f5', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#666' }}>OCUPAÇÃO DO HORÁRIO:</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#666' }}>OCUPAÇÃO:</Typography>
                 {capacidade.loading ? <CircularProgress size={16} /> : (
                     <>
-                        <Chip 
-                            label={`Consultas: ${visualConsultas}/${MAX_CONS}`} 
-                            color={corConsultas} 
-                            size="small" 
-                            variant={tipoAgendamento === 'Consulta' ? "filled" : "outlined"} // Destaca o atual
-                            sx={{ fontWeight: 'bold' }}
-                        />
-                        <Chip 
-                            label={`Procedimentos: ${visualProc}/${MAX_PROC}`} 
-                            color={corProc} 
-                            size="small" 
-                            variant={tipoAgendamento === 'Procedimento' ? "filled" : "outlined"} // Destaca o atual
-                            sx={{ fontWeight: 'bold' }}
-                        />
+                        <Chip label={`Consultas: ${visualConsultas}/${MAX_CONS}`} color={corConsultas} size="small" variant={tipoAgendamento === 'Consulta' ? "filled" : "outlined"} />
+                        <Chip label={`Procedimentos: ${visualProc}/${MAX_PROC}`} color={corProc} size="small" variant={tipoAgendamento === 'Procedimento' ? "filled" : "outlined"} />
                     </>
                 )}
             </Box>
@@ -500,9 +480,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
             <DialogTitle sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6">{editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}</Typography>
-                    {/* Renderiza o contador no topo */}
                     {formData.data_hora_inicio && renderCapacidadeInfo()}
                 </Box>
             </DialogTitle>
@@ -518,46 +497,43 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         value={formData.sala} 
                                         isOptionEqualToValue={(o, v) => o.id === v.id} 
                                         onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))} 
-                                        renderInput={(params) => (<TextField {...params} label="Sala *" size="small" error={!formData.sala} helperText={!formData.sala ? "Obrigatório" : ""} />)} 
-                                        noOptionsText="Nenhuma sala compatível encontrada"
+                                        renderInput={(params) => (<TextField {...params} label="Sala *" size="small" error={!formData.sala} />)} 
+                                        noOptionsText="Nenhuma sala compatível"
                                     />
                                 </FormControl>
-
                                 <FormControl fullWidth><Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''} value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handlePacienteChange} renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" error={!formData.paciente} />)} /></FormControl>
-                                {pacienteDetalhes?.plano_convenio_detalhes && (<Box sx={{ p: 1.5, backgroundColor: '#f5f5f5', borderRadius: 1 }}><Typography variant="body2" color="text.secondary">Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome} - {pacienteDetalhes.plano_convenio_detalhes.nome}</strong></Typography></Box>)}
-                                <Divider sx={{ my: 1 }}><Chip label="Detalhes do Agendamento" size="small" /></Divider>
-                                <FormControl fullWidth size="small"><InputLabel>Tipo de Agendamento</InputLabel><Select value={tipoAgendamento} label="Tipo de Agendamento" onChange={(e) => setTipoAgendamento(e.target.value)}><MenuItem value="Consulta">Consulta</MenuItem><MenuItem value="Procedimento">Procedimento</MenuItem></Select></FormControl>
-                                
+                                {pacienteDetalhes?.plano_convenio_detalhes && (<Box sx={{ p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1 }}><Typography variant="body2" color="text.secondary">Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome}</strong></Typography></Box>)}
+                                <Divider sx={{ my: 1 }}><Chip label="Detalhes" size="small" /></Divider>
+                                <FormControl fullWidth size="small"><InputLabel>Tipo</InputLabel><Select value={tipoAgendamento} label="Tipo" onChange={(e) => setTipoAgendamento(e.target.value)}><MenuItem value="Consulta">Consulta</MenuItem><MenuItem value="Procedimento">Procedimento</MenuItem></Select></FormControl>
                                 {tipoAgendamento === 'Consulta' ? (
                                     <>
                                         <Autocomplete options={especialidades} getOptionLabel={(e) => e.nome || ''} value={formData.especialidade} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, especialidade: value, medico: null })} renderInput={(params) => <TextField {...params} label="Especialidade *" size="small" />} />
                                         <Autocomplete options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} />
                                     </>
                                 ) : (
-                                    // MUDANÇA: Autocomplete Multiplo
-            <Autocomplete 
-                multiple // <--- ESSENCIAL
-                options={procedimentos} 
-                getOptionLabel={(p) => p.descricao || ''} 
-                value={formData.procedimentos} // Usa o array
-                isOptionEqualToValue={(o, v) => o.id === v.id} 
-                onChange={handleProcedimentosChange}
-                disableCloseOnSelect
-                renderInput={(params) => (
-                    <TextField 
-                        {...params} 
-                        label="Procedimentos (Selecione 1 ou mais) *" 
-                        size="small" 
-                        placeholder={formData.procedimentos.length > 0 ? "" : "Selecione exames..."}
-                    />
-                )} 
-                renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                        <Chip variant="outlined" label={option.descricao} size="small" {...getTagProps({ index })} />
-                    ))
-                }
-            />
-        )}
+                                    <Autocomplete 
+                                        multiple 
+                                        options={procedimentos} 
+                                        getOptionLabel={(p) => p.descricao || ''} 
+                                        value={formData.procedimentos} 
+                                        isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                        onChange={handleProcedimentosChange}
+                                        disableCloseOnSelect
+                                        renderInput={(params) => (
+                                            <TextField 
+                                                {...params} 
+                                                label="Procedimentos (Selecione 1 ou mais) *" 
+                                                size="small" 
+                                                placeholder={formData.procedimentos.length > 0 ? "" : "Selecione..."}
+                                            />
+                                        )} 
+                                        renderTags={(value, getTagProps) =>
+                                            value.map((option, index) => (
+                                                <Chip variant="outlined" label={option.descricao} size="small" {...getTagProps({ index })} />
+                                            ))
+                                        }
+                                    />
+                                )}
                             </Box>
                         </Grid>
                         <Grid item xs={12} md={5}>
@@ -566,18 +542,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem></Select></FormControl>
                                 {valorExibido && (<Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}><Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>{valorExibido}</Typography></Box>)}
                                 <Divider sx={{ my: 1 }}><Chip label="Horário" size="small" /></Divider>
-                                
-                                {/* --- MUDANÇA AQUI: INPUTS COM MÁSCARA PARA DIGITAÇÃO FLUENTE --- */}
                                 <Grid container spacing={2}>
                                     <Grid item xs={12}>
                                         <TextField
                                             label="Início *"
-                                            value={dataInicioVisual} // Usa o valor visual da string
-                                            onChange={handleDataInicioChange} // Processa digitação
+                                            value={dataInicioVisual} 
+                                            onChange={handleDataInicioChange} 
                                             fullWidth
                                             size="small"
                                             placeholder="DD/MM/AAAA HH:MM"
-                                            InputProps={{ inputComponent: TextMaskDateTime }} // Componente de máscara
+                                            InputProps={{ inputComponent: TextMaskDateTime }} 
                                             helperText="Ex: 13/01/2026 14:00"
                                         />
                                     </Grid>
@@ -593,7 +567,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         />
                                     </Grid>
                                 </Grid>
-                                
                                 <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado</MenuItem><MenuItem value="Confirmado">Confirmado</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Não Compareceu</MenuItem></Select></FormControl>
                             </Box>
                         </Grid>
