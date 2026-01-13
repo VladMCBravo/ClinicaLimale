@@ -3,8 +3,10 @@ import { GiFetus, GiWaterDrop } from 'react-icons/gi';
 import { FaHeartbeat, FaChild, FaLayerGroup } from 'react-icons/fa';
 
 const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
+  // CORREÇÃO: Removi '1_TRI' da verificação. 
+  // Agora ele só esconde os dados se for "OBSTETRICO_INICIAL" (aquele de 6-9 semanas)
+  const isInicial = data.subtipo === 'OBSTETRICO_INICIAL';
   
-  const isInicial = data.subtipo && (data.subtipo.includes('INICIAL') || data.subtipo.includes('1_TRI'));
   const isMultipla = qtdFetos > 1;
 
   return (

@@ -54,7 +54,13 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         {/* Marcadores Principais (REMOVIDO TRICÚSPIDE) */}
                         <div style={{marginBottom:'10px', display:'flex', gap:'15px', flexWrap:'wrap'}}>
                             <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
-                            {/* Tricúspide removido daqui conforme solicitado */}
+                            {/* NOVO CHECKBOX AQUI */}
+                            <CheckItem 
+                                label="Translucência Intracraniana Visível" 
+                                name="morf1Cerebro" 
+                                checked={data.morf1Cerebro} 
+                                onChange={handleChange} 
+                            />
                         </div>
 
                         {/* Ducto Venoso */}

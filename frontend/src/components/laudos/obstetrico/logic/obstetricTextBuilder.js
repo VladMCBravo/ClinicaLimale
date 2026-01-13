@@ -234,11 +234,13 @@ export const gerarRelatorioFeto = (d) => {
     // 4. ESTÁTICA E DADOS GERAIS (Compatível com SecaoDadosGerais.jsx)
     // -------------------------------------------------------------------------
     
-    // Gêmeos
-    if (d.corionicidade) texto += `Gestação ${d.corionicidade} / ${d.amnionicidade}.\n`;
-    if (d.localizacaoFeto) texto += `Feto localizado: ${d.localizacaoFeto}.\n`;
+    // CORREÇÃO: Só mostra corionicidade se for GEMELAR (qtdFetos > 1)
+    if (d.qtdFetos > 1) {
+        if (d.corionicidade) texto += `Gestação ${d.corionicidade} / ${d.amnionicidade}.\n`;
+        if (d.localizacaoFeto) texto += `Feto localizado: ${d.localizacaoFeto}.\n`;
+    }
     
-    // Estática
+    // Estática (Agora aparece no 1º Tri também)
     if (d.situacao && d.apresentacao) {
         texto += `Situação ${d.situacao}, apresentação ${d.apresentacao}`;
         if (d.dorso) texto += ` e com dorso ${d.dorso}`;
@@ -309,7 +311,7 @@ export const gerarRelatorioFeto = (d) => {
 
     // --> 1º TRIMESTRE (11 - 14 SEMANAS) - AGORA COM LÓGICA INDEPENDENTE
     if (d.subtipo === 'OBSTETRICO_1_TRI') {
-        texto += `ANÁLISE MORFOLÓGICA (11 - 14 SEMANAS)\n`;
+        texto += `ANÁLISE MORFOLÓGICA\n`;
         
         // 1. POLO CEFÁLICO (Crânio e Encéfalo)
         // Frase conjunta se ambos marcados
@@ -356,8 +358,8 @@ export const gerarRelatorioFeto = (d) => {
         // 6. MEMBROS
         if (d.morfMembros) texto += `- Membros: Superiores e inferiores visibilizados (presença de 3 segmentos).\n`;
         
-        // Vitalidade (Integrado ao bloco se preferir, ou deixar no bloco geral)
-        if (d.bcf) texto += `- Vitalidade: BCF ${d.bcf} bpm.\n`;
+        // CORREÇÃO: Vitalidade mais direta
+        if (d.bcf) texto += `- BCF: ${d.bcf} bpm (Batimentos rítmicos).\n`;
 
         texto += `\n`;
     }
@@ -522,13 +524,33 @@ export const gerarRelatorioFeto = (d) => {
              texto += `Dopplervelocimetria do Ducto Venoso: onda A ${ondaTexto}. IP: ${d.dvIP || '-'}\n`;
         }
         
-        if (d.morfCerebro) texto += `Translucência intracraniana: visível.\n`;
+        // CORREÇÃO: Translucência Intracraniana (Só se marcada)
+        // Antes aparecia sempre. Agora depende do checkbox 'morf1Cerebro' (vamos ajustar o checkbox no próximo passo)
+        if (d.morf1Cerebro) texto += `- Translucência intracraniana: Visível.\n`;
 
-        if (d.riscoT21Basal) {
-            texto += `\nCÁLCULO DE RISCO (1:X)\n`;
-            texto += `T21: Basal 1/${d.riscoT21Basal} | Corrigido 1/${d.riscoT21Corrigido}\n`;
-            texto += `T18: Basal 1/${d.riscoT18Basal} | Corrigido 1/${d.riscoT18Corrigido}\n`;
-            texto += `T13: Basal 1/${d.riscoT13Basal} | Corrigido 1/${d.riscoT13Corrigido}\n\n`;
+        // CORREÇÃO: Lógica de Risco "If exists"
+        if (d.riscoT21Basal || d.riscoT21Corrigido) {
+            texto += `CÁLCULO DE RISCO (1:X)\n`;
+            
+            // T21
+            let t21 = [];
+            if(d.riscoT21Basal) t21.push(`Basal 1/${d.riscoT21Basal}`);
+            if(d.riscoT21Corrigido) t21.push(`Corrigido 1/${d.riscoT21Corrigido}`);
+            if(t21.length > 0) texto += `Trissomia 21: ${t21.join('  |  ')}\n`;
+
+            // T18
+            let t18 = [];
+            if(d.riscoT18Basal) t18.push(`Basal 1/${d.riscoT18Basal}`);
+            if(d.riscoT18Corrigido) t18.push(`Corrigido 1/${d.riscoT18Corrigido}`);
+            if(t18.length > 0) texto += `Trissomia 18: ${t18.join('  |  ')}\n`;
+
+            // T13
+            let t13 = [];
+            if(d.riscoT13Basal) t13.push(`Basal 1/${d.riscoT13Basal}`);
+            if(d.riscoT13Corrigido) t13.push(`Corrigido 1/${d.riscoT13Corrigido}`);
+            if(t13.length > 0) texto += `Trissomia 13: ${t13.join('  |  ')}\n`;
+            
+            texto += `\n`;
         }
     }
 

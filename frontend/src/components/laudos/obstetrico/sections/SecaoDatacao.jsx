@@ -168,7 +168,7 @@ const SecaoDatacao = ({ data, handleChange }) => {
                      }}>
                         <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
                             <FaCommentMedical color="#555"/>
-                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
+                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Datação e Cronologia):</span>
                         </div>
                         <textarea 
                             name="obsDatacao" 
