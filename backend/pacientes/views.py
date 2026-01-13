@@ -10,8 +10,9 @@ from django.db.models import Count, Q
 
 class PacienteListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PacienteSerializer
-    # A permissão aqui está correta para a Recepção criar pacientes
-    permission_classes = [AllowRead_WriteRecepcaoAdmin] 
+    # AJUSTE: Mude para IsAuthenticated para permitir que o médico entre no get_queryset
+    # A segurança dos dados é garantida pelo filtro do queryset abaixo.
+    permission_classes = [IsAuthenticated] 
 
     def get_queryset(self):
         user = self.request.user

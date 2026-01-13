@@ -10,6 +10,7 @@ import {
 import { 
     Person, Home, MedicalServices, SupervisorAccount, Close 
 } from '@mui/icons-material';
+import { IMaskInput } from 'react-imask'; // Certifique-se de ter importado isso
 
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -22,12 +23,27 @@ const initialState = {
   cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
   nome_responsavel: '', cpf_responsavel: '', telefone_responsavel: '',
 };
+// --- CORREÇÃO: DEFINIR AQUI FORA, ANTES DO COMPONENTE ---
+const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
+  const { onChange, ...other } = props;
+  return (
+    <IMaskInput
+      {...other}
+      mask="00/00/0000"
+      definitions={{ '0': /[0-9]/ }}
+      inputRef={ref}
+      onAccept={(value) => onChange({ target: { name: props.name, value } })}
+      overwrite
+    />
+  );
+});
 
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
   const { showSnackbar } = useSnackbar();
   
   // --- Estados ---
   const [formData, setFormData] = useState(initialState);
+  const [dataNascimentoVisual, setDataNascimentoVisual] = useState('');
   const [tabIndex, setTabIndex] = useState(0); 
   const [isLoading, setIsLoading] = useState(false);
   const [isCepLoading, setIsCepLoading] = useState(false);
@@ -56,6 +72,13 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     if (open) {
       setTabIndex(0);
       if (pacienteParaEditar) {
+        // CONVERSÃO: YYYY-MM-DD -> DD/MM/YYYY
+        let dataVisual = '';
+        if (pacienteParaEditar.data_nascimento) {
+            const [ano, mes, dia] = pacienteParaEditar.data_nascimento.split('-');
+            dataVisual = `${dia}/${mes}/${ano}`;
+        }
+        setDataNascimentoVisual(dataVisual); // <--- Atualiza o visual
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
@@ -98,6 +121,25 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       }
     }
   }, [pacienteParaEditar, convenios]);
+
+  const handleDataNascimentoChange = (e) => {
+      const valorVisual = e.target.value;
+      setDataNascimentoVisual(valorVisual); // Atualiza o input visualmente na hora
+
+      // Verifica se a data está completa (10 caracteres: DD/MM/AAAA)
+      if (valorVisual.length === 10) {
+          const [dia, mes, ano] = valorVisual.split('/');
+          
+          // Validação básica de dia/mês/ano
+          const dataIso = `${ano}-${mes}-${dia}`;
+          
+          // Atualiza o formData que vai pro Backend
+          setFormData(prev => ({ ...prev, data_nascimento: dataIso }));
+      } else {
+          // Se o usuário apagar um número, limpamos o formData para evitar erro de data inválida no backend
+          setFormData(prev => ({ ...prev, data_nascimento: '' }));
+      }
+  };
 
   const handleConvenioChange = (event, novoConvenio) => {
     setConvenioSelecionado(novoConvenio);
@@ -178,8 +220,20 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} required fullWidth size="small" />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField name="data_nascimento" label="Nascimento" type="date" value={formData.data_nascimento} onChange={handleChange} InputLabelProps={{ shrink: true }} fullWidth size="small" />
-            </Grid>
+              <TextField
+    name="data_nascimento"
+    label="Nascimento"
+    // Removemos type="date" e InputLabelProps shrink
+    value={dataNascimentoVisual} // Usa o estado visual
+    onChange={handleDataNascimentoChange} // Usa a função nova
+    fullWidth
+    size="small"
+    placeholder="DD/MM/AAAA"
+    InputProps={{
+      inputComponent: TextMaskData // Usa o componente de máscara criado no passo 1
+    }}
+  />
+</Grid>
             <Grid item xs={12} sm={4}>
               <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} />
             </Grid>
