@@ -779,7 +779,20 @@ export const gerarRelatorioFeto = (d) => {
 
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
-    return { texto, tituloExame };
+    if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
+
+    // --- FAXINA AUTOMÁTICA DE ESPAÇOS (O SEGREDO DO LAUDO BONITO) ---
+    // 1. Remove espaços em branco no início/fim de cada linha
+    texto = texto.replace(/^[ \t]+/gm, ''); 
+    
+    // 2. Substitui 3 ou mais quebras de linha (buracos) por apenas 2 (um parágrafo)
+    // Isso garante que nunca haja um buraco gigante entre seções
+    texto = texto.replace(/\n{3,}/g, '\n\n'); 
+    
+    // 3. Remove quebras de linha excessivas no início e fim do documento
+    texto = texto.trim();
+
+    return { texto, tituloExame }; 
 };
 
 // =============================================================================

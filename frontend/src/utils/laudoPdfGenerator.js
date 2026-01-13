@@ -310,9 +310,11 @@ export const gerarPDFLaudo = async ({
           mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },
           sectionHeader: { fontSize: 11, bold: true, color: '#2E7D32', uppercase: true },
           tableHeader: { fontSize: 9, bold: true, color: '#555' },
-          footerText: { fontSize: 9, color: '#555', lineHeight: 1.3 }
+          // AJUSTE AQUI: O padrão é 1.2 ou 1.5. Tente reduzir para 1.15 ou 1.2
+          footerText: { fontSize: 9, color: '#555', lineHeight: 1.1 } 
         },
-        defaultStyle: { font: 'Roboto' }
+        // Adicione lineHeight aqui para o texto geral do corpo
+        defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.2 } 
     };
     
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
