@@ -17,7 +17,8 @@ export const gerarPDFLaudo = async ({
     dadosEstruturados, 
     imagensBase64,
     comTimbre = true,
-    usaAssinaturaDigital = false 
+    usaAssinaturaDigital = false,
+    retornarBlob = false // <--- NOVO PARÂMETRO
 }) => {
 
     // --- CONVERSÃO AUTOMÁTICA DO LOGO ---
@@ -315,6 +316,15 @@ export const gerarPDFLaudo = async ({
     };
     
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+
+    // Se pedimos para retornar o Blob (para salvar no banco), não abrimos janela
+    if (retornarBlob) {
+        return new Promise((resolve, reject) => {
+            pdfDocGenerator.getBlob((blob) => {
+                resolve(blob);
+            });
+        });
+    }
 
     if (usaAssinaturaDigital) {
         pdfDocGenerator.getBlob(async (blob) => {

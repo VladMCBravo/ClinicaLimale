@@ -69,6 +69,14 @@ class Laudo(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
 
+    # ADICIONE ESTE CAMPO:
+    arquivo_pdf = models.FileField(
+        upload_to='laudos_assinados/%Y/%m/', 
+        null=True, 
+        blank=True,
+        verbose_name="Arquivo PDF Assinado"
+    )
+
     def save(self, *args, **kwargs):
         # Gera credenciais automáticas se não existirem
         if not self.codigo_acesso:

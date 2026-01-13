@@ -27,7 +27,8 @@ class LaudoSerializer(serializers.ModelSerializer):
             'status', 
             'data_criacao', 'data_atualizacao',
             'crm_medico', # Adicionei pois vi no seu Front que ele envia o CRM
-            'credenciais' # <--- IMPORTANTE: Adicionei aqui para sair na resposta
+            'credenciais', # <--- IMPORTANTE: Adicionei aqui para sair na resposta
+            'arquivo_pdf'  # Adicionado o campo arquivo_pdf
         ]
         read_only_fields = ['medico', 'data_criacao', 'data_atualizacao', 'credenciais']
 

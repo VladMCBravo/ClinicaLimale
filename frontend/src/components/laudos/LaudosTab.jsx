@@ -6,7 +6,7 @@ import {
     Button, CircularProgress, Alert, Dialog, DialogTitle, 
     DialogContent, DialogActions, Grid
 } from '@mui/material';
-import { FaPrint, FaEye, FaPlus, FaTimes } from 'react-icons/fa';
+import { FaPrint, FaEye, FaPlus, FaTimes, FaFilePdf } from 'react-icons/fa';
 import apiClient from '../../api/axiosConfig';
 import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator'; // Importando o gerador
 
@@ -135,13 +135,36 @@ const LaudosTab = ({ pacienteId }) => {
                                     <Chip label={laudo.status} size="small" color={laudo.status === 'FINALIZADO' ? 'success' : 'warning'} />
                                 </TableCell>
                                 <TableCell align="center">
-                                    <IconButton size="small" color="primary" onClick={() => handleImprimir(laudo)} disabled={loadingImagens}>
-                                        {loadingImagens ? <CircularProgress size={20} /> : <FaPrint />}
-                                    </IconButton>
-                                    <IconButton size="small" onClick={() => handleVisualizar(laudo)}>
-                                        <FaEye />
-                                    </IconButton>
-                                </TableCell>
+    {/* 1. Botão do PDF Assinado (Prioridade) */}
+    {laudo.arquivo_pdf ? (
+        <IconButton 
+            size="small" 
+            color="error" // Vermelho para destacar PDF
+            title="Baixar PDF Assinado Original"
+            onClick={() => window.open(laudo.arquivo_pdf, '_blank')}
+            sx={{ mr: 1 }}
+        >
+            <FaFilePdf />
+        </IconButton>
+    ) : (
+        /* Se não tiver PDF salvo (legado), mostra o botão de Gerar na Hora */
+        <IconButton 
+            size="small" 
+            color="primary" 
+            title="Gerar PDF Agora"
+            onClick={() => handleImprimir(laudo)} 
+            disabled={loadingImagens}
+            sx={{ mr: 1 }}
+        >
+            {loadingImagens ? <CircularProgress size={20} /> : <FaPrint />}
+        </IconButton>
+    )}
+
+    {/* 2. Botão de Visualizar Texto Rápido */}
+    <IconButton size="small" onClick={() => handleVisualizar(laudo)} title="Ver Detalhes">
+        <FaEye />
+    </IconButton>
+</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

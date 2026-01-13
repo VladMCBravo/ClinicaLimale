@@ -13,8 +13,13 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LinkIcon from '@mui/icons-material/Link';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'; // Opcional: ícone visual
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'; // --- NOVO: Ícone para os laudos
+
 import { useSnackbar } from '../contexts/SnackbarContext';
 import ModalVincularExame from '../components/prontuario/ModalVincularExame';
+// --- NOVO: Import do Modal de Histórico de Laudos ---
+// Certifique-se que o caminho está correto conforme onde você criou o arquivo
+import HistoricoLaudosModal from '../components/laudos/HistoricoLaudosModal';
 
 // Função auxiliar para formatar data (YYYY-MM-DD -> DD/MM/YYYY)
 const formatData = (dataString) => {
@@ -34,15 +39,31 @@ export default function PacientesPage() {
   const [pacientes, setPacientes] = useState([]);
   const [filteredPacientes, setFilteredPacientes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estados Modal Edição/Criação
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pacienteParaEditar, setPacienteParaEditar] = useState(null);
+  
+  // Estados Busca
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Estados Modal Vincular Exame
   const [modalVincularOpen, setModalVincularOpen] = useState(false);
   const [pacienteParaVincular, setPacienteParaVincular] = useState(null);
 
+  // --- NOVO: Estados Modal Histórico de Laudos (Recepção) ---
+  const [modalHistoricoOpen, setModalHistoricoOpen] = useState(false);
+  const [pacienteParaHistorico, setPacienteParaHistorico] = useState(null);
+
+  // --- HANDLERS ---
   const handleOpenVincular = (paciente) => {
       setPacienteParaVincular(paciente);
       setModalVincularOpen(true);
+  };
+  // --- NOVO: Abre o modal de laudos ---
+  const handleOpenHistorico = (paciente) => {
+      setPacienteParaHistorico(paciente);
+      setModalHistoricoOpen(true);
   };
 
   const fetchPacientes = useCallback(async () => {
@@ -163,6 +184,13 @@ export default function PacientesPage() {
                   <TableCell>{paciente.email || '-'}</TableCell>
                   
                   <TableCell align="right">
+                    {/* --- NOVO: Botão de Ver Laudos (Recepção) --- */}
+                    <IconButton 
+                        onClick={() => handleOpenHistorico(paciente)} 
+                        title="Ver Laudos e Resultados"
+                    >
+                        <PictureAsPdfIcon color="error" /> {/* Ícone Vermelho para destacar PDF */}
+                    </IconButton>
                     <IconButton onClick={() => handleOpenVincular(paciente)} title="Vincular Exame Solto"><LinkIcon color="primary" /></IconButton>
                     <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
                     <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
@@ -196,6 +224,14 @@ export default function PacientesPage() {
         paciente={pacienteParaVincular}
         onSuccess={() => showSnackbar('Exame vinculado com sucesso!', 'success')}
       />
+      {/* --- NOVO: Modal de Histórico de Laudos --- */}
+      <HistoricoLaudosModal 
+          open={modalHistoricoOpen}
+          onClose={() => setModalHistoricoOpen(false)}
+          pacienteId={pacienteParaHistorico?.id}
+          pacienteNome={pacienteParaHistorico?.nome_completo}
+      />
+
     </Paper>
   );
 }

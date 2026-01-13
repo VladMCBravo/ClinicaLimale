@@ -425,59 +425,88 @@ const adicionarImagemDaNuvem = async (url) => {
   };
 
   const handleSave = async () => {
-      if (!paciente) return alert("Erro: Selecione um paciente antes de salvar.");
-      if (!paciente.id) return alert("Erro: ID do paciente inválido.");
-      if (!medicoNome) return alert("Erro: Preencha o nome do médico.");
+    // 1. Validações Básicas
+    if (!paciente) return alert("Erro: Selecione um paciente antes de salvar.");
+    if (!paciente.id) return alert("Erro: ID do paciente inválido.");
+    if (!medicoNome) return alert("Erro: Preencha o nome do médico.");
 
-      setSaving(true);
-      try {
-          const payload = {
-              paciente: paciente.id,
-              tipo_exame: tipoExame, 
-              titulo: tituloExame || `Laudo de ${tipoExame}`, 
-              dados_estruturados: dadosEstruturados,
-              texto_laudo: textoFinal,
-              imagens_anexas: imagens,
-              medico_responsavel: medicoNome,
-              crm_medico: medicoCrm, 
-              status: "FINALIZADO"
-          };
-          
-          let response;
+    setSaving(true);
 
-          // LÓGICA DE UPSERT (CRIAR OU ATUALIZAR)
-          if (laudoId) {
-              // --- MODO EDIÇÃO (PUT) ---
-              // Se já temos ID, atualizamos o existente.
-              // O backend deve manter as mesmas credenciais neste endpoint.
-              response = await apiClient.put(`/prontuario/laudos/${laudoId}/`, payload);
-              console.log("Laudo atualizado:", response.data);
-          } else {
-              // --- MODO CRIAÇÃO (POST) ---
-              // Se não temos ID, criamos um novo.
-              response = await apiClient.post('/prontuario/laudos/', payload);
-              
-              // SALVAMOS O ID RETORNADO PARA OS PRÓXIMOS CLIQUES
-              if (response.data && response.data.id) {
-                  setLaudoId(response.data.id);
-              }
-          }
+    try {
+        // 2. GERAR O PDF EM SILÊNCIO (Sem abrir janela)
+        // A chave aqui é o parâmetro 'retornarBlob: true'
+        const blobPdf = await gerarPDFLaudo({
+            pacienteNome: paciente.nome_completo,
+            medicoNome,
+            medicoCrm,
+            tituloExame,
+            textoLaudo: textoFinal,
+            dadosEstruturados,
+            imagensBase64: imagens,
+            comTimbre: true, // Salvar no banco sempre COM timbre
+            usaAssinaturaDigital: usuarioTemCertificado,
+            retornarBlob: true 
+        });
 
-        // Verifica credenciais (O backend deve retornar credenciais tanto no POST quanto no PUT)
+        // 3. PREPARAR O PACOTE DE DADOS (FormData)
+        // FormData é obrigatório quando enviamos arquivos (blobs) junto com texto
+        const formData = new FormData();
+        
+        // -- Campos Simples --
+        formData.append('paciente', paciente.id);
+        formData.append('tipo_exame', tipoExame);
+        formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
+        formData.append('texto_laudo', textoFinal);
+        formData.append('medico_responsavel', medicoNome);
+        formData.append('crm_medico', medicoCrm);
+        formData.append('status', "FINALIZADO");
+
+        // -- Campos Complexos (JSON convertidos para String) --
+        formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
+        formData.append('imagens_anexas', JSON.stringify(imagens)); // Salva as strings base64 também (backup)
+
+        // -- O ARQUIVO PDF --
+        // 'arquivo_pdf' deve ser o mesmo nome criado no models.py do Django
+        const nomeArquivo = `Laudo_${paciente.nome_completo.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+        formData.append('arquivo_pdf', blobPdf, nomeArquivo);
+
+        // 4. CONFIGURAÇÃO DO ENVIO (Header Multipart)
+        const config = {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        };
+
+        let response;
+
+        // 5. ENVIA PARA A API (PUT se edita, POST se cria)
+        if (laudoId) {
+            response = await apiClient.put(`/prontuario/laudos/${laudoId}/`, formData, config);
+            console.log("Laudo atualizado com sucesso");
+        } else {
+            response = await apiClient.post('/prontuario/laudos/', formData, config);
+            // Salva o ID retornado para evitar duplicação se clicar de novo
+            if (response.data && response.data.id) {
+                setLaudoId(response.data.id);
+            }
+        }
+
+        // 6. SUCESSO E CREDENCIAIS
         if (response.data && response.data.credenciais) {
             setCredenciais(response.data.credenciais);
-        } else if (credenciais) {
-            // Se o PUT não retornou credenciais novas, mantemos as antigas que já estão no estado
-            // (Não fazemos nada, mantemos o estado atual)
-        } else {
-            setCredenciais({ codigo: 'Consulte a recepção', senha: '---', link: 'limale.com.br' });
+        } else if (!credenciais) {
+            // Fallback visual caso não venha
+            setCredenciais({ codigo: 'Verifique na Recepção', senha: '---', link: 'limale.com.br' });
         }
 
         setModalSucessoOpen(true);
 
     } catch (e) { 
         console.error("Erro ao salvar laudo:", e);
-        alert("Erro ao salvar o laudo. Verifique os dados.");
+        if (e.response) {
+            console.error("Erro Backend:", e.response.data);
+            alert(`Erro ao salvar: ${JSON.stringify(e.response.data)}`);
+        } else {
+            alert("Erro ao salvar o laudo. Verifique o console.");
+        }
     } finally { 
         setSaving(false); 
     }
