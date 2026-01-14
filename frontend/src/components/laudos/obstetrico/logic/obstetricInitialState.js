@@ -2,7 +2,7 @@ export const initialState = {
     subtipo: 'OBSTETRICO_2_3_TRI', 
     
     // --- DATAÇÃO ---
-    dum: '', usarDum: true, exibirDataDum: false, citarDppDum: false,
+    dum: '', usarDum: false, exibirDataDum: false, citarDppDum: false,
     dumDesconhecida: false, naoUsarDum: false,
     
     igDum: '', dppDum: '',
@@ -15,19 +15,19 @@ export const initialState = {
 
     // --- DADOS GERAIS ---
     localizacaoFeto: '', 
-    corionicidade: 'dicoriônica', 
-    amnionicidade: 'diamniótica', 
+    corionicidade: '', 
+    amnionicidade: '', 
 
-    bexigaMaterna: 'não visualizada',
-    situacao: 'longitudinal', apresentacao: 'cefálica', dorso: 'à direita',
-    bcf: '140', movFetal: true, 
+    bexigaMaterna: '',
+    situacao: '', apresentacao: '', dorso: '',
+    bcf: '', movFetal: false, 
     degluticao: false, 
-    estomagoVisualizado: true, bexigaVisualizada: true,
+    estomagoVisualizado: false, bexigaVisualizada: false,
 
     // --- PLACENTA E LÍQUIDO ---
-    placentaLocalizacao: 'corporal posterior', placentaGrau: '0', placentaEspessura: '',
-    liquidoAmniotico: 'Normal',
-    ila: '', mbv: '', 
+    placentaLocalizacao: '', placentaGrau: '', placentaEspessura: '',
+    liquidoAmniotico: '',
+    ila: '', mbv: '',
 
     // --- BIOMETRIA ---
     dbp: '', dof: '', cc: '', ca: '', femur: '', umero: '',
@@ -51,28 +51,28 @@ export const initialState = {
     ipMedioUterinas: '',
     
     checkUmb: false, umbIP: '', umbIR: '', umbSD: '', 
-    umbTraçadoNormal: true, umbDiastoleBaixa: false, umbDiastoleZero: false, umbDiastoleReversa: false,
+    umbTraçadoNormal: false, umbDiastoleBaixa: false, umbDiastoleZero: false, umbDiastoleReversa: false,
     
     checkAcm: false, acmPVS: '', acmSD: '', acmIR: '', acmIP: '', 
-    acmTraçadoNormal: true, acmDiastoleAlta: false,
+    acmTraçadoNormal: false, acmDiastoleAlta: false,
     relacaoCerebroUmbilical: '',
 
-    checkDv: false, dvIP: '', dvTraçadoNormal: true, dvOndaAZero: false, dvOndaAReversa: false,
+    checkDv: false, dvIP: '', dvTraçadoNormal: false, dvOndaAZero: false, dvOndaAReversa: false,
 
     // --- INICIAL / 1º TRI ---
     sg1: '', sg2: '', sg3: '', resDmsg: '', resIgSg: '',
     ccn: '', resIgCcn: '',
     embriaoNaoVisualizado: false,
-    vesiculaVitelina: true, citarVv: true,
-    trofoblasto: 'normal',
-    sgComDescolamento: false, sgSemDescolamento: true, desc1: '', desc2: '',
+    vesiculaVitelina: false, citarVv: false,
+    trofoblasto: '',
+    sgComDescolamento: false, sgSemDescolamento: false, desc1: '', desc2: '',
     sgAbortoIncompleto: false,
     comprimentoColo: '', 
     
-    coloEge: 'presente', 
-    coloSludge: 'ausente', 
-    coloAfunilamento: true, 
-    coloConclusao: 'Colo uterino ecograficamente preservado', 
+    coloEge: '', 
+    coloSludge: '', 
+    coloAfunilamento: false, 
+    coloConclusao: '', 
 
     // --- MORFOLÓGICO 1º TRI (RISCOS) ---
     // ATUALIZADO CONFORME FOTO DA TABELA
@@ -80,23 +80,23 @@ export const initialState = {
     riscoT18Basal: '', riscoT18Corrigido: '',
     riscoT13Basal: '', riscoT13Corrigido: '',
     
-    ossoNasalPresente: true,
+    ossoNasalPresente: false,
 
     // --- MORFOLOGIA (Checkboxes) ---
-    morfCranio: true, morfFace: true, morfColuna: true, morfCoracao: true,
-    morfTorax: true, morfParedeAbd: true, morfEstomago: true, morfRins: true,
-    morfBexiga: true, morfMembros: true,
-    morfCerebro: true, morfVasosBase: true, morfFigado: true, morfGenitalia: true,
+    morfCranio: false, morfFace: false, morfColuna: false, morfCoracao: false,
+    morfTorax: false, morfParedeAbd: false, morfEstomago: false, morfRins: false,
+    morfBexiga: false, morfMembros: false,
+    morfCerebro: false, morfVasosBase: false, morfFigado: false, morfGenitalia: false,
 
     // 1º Tri Específicos
-    morf1Cerebro: true, morf1Globos: true, morf1Face: true, 
-    morf1Estomago: true, morf1Rins: false, morf1Membros: true,
-    morf1Cordao: true, morf1OssoNasal: '', citarTn: true,
+    morf1Cerebro: false, morf1Globos: false, morf1Face: false, 
+    morf1Estomago: false, morf1Rins: false, morf1Membros: false,
+    morf1Cordao: false, morf1OssoNasal: '', citarTn: false,
 
     // --- 3D / 4D ---
     usar3D: false,
-    modoSurface: true, modoMultiplanar: true, qualidade3D: 'boa', fatorLimitante: '',
-    face3D: 'visualizada', labios3D: true, nariz3D: true, olhos3D: true, orelhas3D: false,
+    modoSurface: false, modoMultiplanar: false, qualidade3D: '', fatorLimitante: '',
+    face3D: '', labios3D: false, nariz3D: false, olhos3D: false, orelhas3D: false,
     maoDir3D: false, maoEsq3D: false, peDir3D: false, peEsq3D: false, coluna3D: false,
     movBocejo: false, movSorriso: false, movLingua: false, movPiscar: false, movBoca: false,
     movMaoFace: false, movMaoBoca: false, movSuccao: false, movDegluticao3D: false,
@@ -104,7 +104,7 @@ export const initialState = {
 
     // --- CONCLUSÃO ---
     pesoEstimado: '', pesoP10: '', pesoP90: '', percentil: '',
-    sexoFetal: 'MASCULINO', 
+    sexoFetal: '', 
     obsAdicionais: '',
 
     // --- FRASES PRONTAS ---
