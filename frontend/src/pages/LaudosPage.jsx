@@ -11,10 +11,12 @@ import {
   Typography, 
   Grid, 
   Button, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions 
+  Dialog,
+  DialogActions,
+  Stack,      // <--- NOVO
+  Tooltip,    // <--- NOVO
+  IconButton, // <--- NOVO
+  Divider     // <--- NOVO
 } from '@mui/material';
 import { FaCloudDownloadAlt } from 'react-icons/fa';
 import '../components/laudos/Laudos.css';
@@ -518,50 +520,99 @@ const LaudosPage = () => {
       <div style={styles.rightCol}>
          <div style={{ background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
-             {/* BARRA DE AÇÕES LIMPA */}
-             <div style={{ padding: '8px 12px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', zIndex: 10 }}>
-                 <div style={{fontWeight: 'bold', color: '#1C2E4A', fontSize: '12px', display:'flex', alignItems:'center', gap:'6px'}}>
-                     <FaFileAlt /> PRÉVIA
-                 </div>
+             {/* ================= BARRA DE AÇÕES (MODERNIZADA) ================= */}
+             <Box sx={{ 
+                 padding: '12px 16px', 
+                 background: '#fff', 
+                 borderBottom: '1px solid #e0e0e0', 
+                 display: 'flex', 
+                 justifyContent: 'space-between', 
+                 alignItems: 'center', 
+                 boxShadow: '0 2px 8px rgba(0,0,0,0.05)', 
+                 zIndex: 10,
+                 height: '60px' // Altura fixa para garantir alinhamento
+             }}>
                  
-                 <div style={{display: 'flex', gap: '6px', alignItems: 'center'}}>
-                     {/* 1. LIMPAR */}
-                     <button onClick={handleLimpar} title="Limpar Tudo" style={{background: '#EF5350', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
-                        <FaEraser /> 
-                     </button>
+                 {/* TÍTULO DA SEÇÃO */}
+                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                     <FaFileAlt color="#1C2E4A" size={16} />
+                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1C2E4A', letterSpacing: '0.5px' }}>
+                         PRÉVIA DO LAUDO
+                     </Typography>
+                 </Box>
+                 
+                 {/* GRUPO DE BOTÕES */}
+                 <Stack direction="row" spacing={1} alignItems="center">
                      
-                     {/* 2. TERMO */}
-                     <button onClick={handleImprimirTermo} title="Termo de Consentimento" style={{background: '#78909C', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
-                        <FaFileSignature /> Termo
-                     </button>
-                    
-                    {/* 3. DECLARAÇÃO */}
-                    <button onClick={() => setModalDeclaracaoOpen(true)} title="Declaração de Comparecimento" style={{background: '#7E57C2', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'5px'}}>
-                        <FaFileSignature /> Declaração
-                    </button>
+                     {/* 1. LIMPAR (Discreto) */}
+                     <Tooltip title="Limpar tudo (Rascunho)">
+                        <IconButton 
+                            onClick={handleLimpar} 
+                            size="small" 
+                            sx={{ color: '#EF5350', border: '1px solid #FFEBEE', '&:hover': { background: '#FFEBEE' } }}
+                        >
+                            <FaEraser size={14} />
+                        </IconButton>
+                     </Tooltip>
 
-                    {/* 4. VISUALIZAR E FINALIZAR (NOVO) */}
-                    <button 
-                        onClick={() => setModalRevisaoOpen(true)} 
-                        title="Finalizar Exame" 
-                        style={{
-                            background: '#1C2E4A', 
-                            color: 'white', 
-                            border: 'none', 
-                            padding: '8px 15px', 
-                            borderRadius: '4px', 
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            marginLeft: '10px'
+                     <Divider orientation="vertical" flexItem variant="middle" sx={{ mx: 1 }} />
+                     
+                     {/* 2. DOCUMENTOS (Botões contornados suaves) */}
+                     <Button 
+                        variant="outlined"
+                        onClick={handleImprimirTermo}
+                        startIcon={<FaFileSignature size={14}/>}
+                        sx={{ 
+                            color: '#546E7A', 
+                            borderColor: '#CFD8DC', 
+                            textTransform: 'none',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            height: '32px',
+                            '&:hover': { borderColor: '#546E7A', background: '#F5F7FA' }
+                        }}
+                     >
+                        Termo
+                     </Button>
+                    
+                    <Button 
+                        variant="outlined"
+                        onClick={() => setModalDeclaracaoOpen(true)}
+                        startIcon={<FaFileSignature size={14}/>}
+                        sx={{ 
+                            color: '#7E57C2', 
+                            borderColor: '#D1C4E9', 
+                            textTransform: 'none',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            height: '32px',
+                            '&:hover': { borderColor: '#7E57C2', background: '#EDE7F6' }
                         }}
                     >
-                        VISUALIZAR E FINALIZAR <FaSave />
-                    </button>
-                 </div>
-             </div>
+                        Declaração
+                    </Button>
+
+                    {/* 3. BOTÃO MESTRE (Destaque total) */}
+                    <Button 
+                        variant="contained"
+                        onClick={() => setModalRevisaoOpen(true)}
+                        endIcon={<FaSave size={14}/>}
+                        sx={{
+                            background: '#1C2E4A', 
+                            textTransform: 'none',
+                            fontWeight: 'bold',
+                            fontSize: '12px',
+                            padding: '6px 20px',
+                            height: '36px', // Levemente maior
+                            boxShadow: '0 4px 6px rgba(28, 46, 74, 0.2)',
+                            marginLeft: '8px !important', // Força separação extra
+                            '&:hover': { background: '#2C3E50', boxShadow: '0 6px 8px rgba(28, 46, 74, 0.3)' }
+                        }}
+                    >
+                        VISUALIZAR E FINALIZAR
+                    </Button>
+                 </Stack>
+             </Box>
              
              {/* TEXTAREA (FOLHA DE PAPEL) */}
              <div style={{flex: 1, padding: '0', overflow: 'hidden', background: '#EEEEEE', position: 'relative'}}>
