@@ -520,96 +520,91 @@ const LaudosPage = () => {
       <div style={styles.rightCol}>
          <div style={{ background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
-             {/* ================= BARRA DE AÇÕES (MODERNIZADA) ================= */}
+             {/* ================= BARRA DE AÇÕES (COMPACTA) ================= */}
              <Box sx={{ 
-                 padding: '12px 16px', 
+                 px: 1.5, // Padding horizontal reduzido
                  background: '#fff', 
                  borderBottom: '1px solid #e0e0e0', 
                  display: 'flex', 
                  justifyContent: 'space-between', 
                  alignItems: 'center', 
-                 boxShadow: '0 2px 8px rgba(0,0,0,0.05)', 
-                 zIndex: 10,
-                 height: '60px' // Altura fixa para garantir alinhamento
+                 height: '45px', // Altura fina
+                 zIndex: 10
              }}>
                  
-                 {/* TÍTULO DA SEÇÃO */}
-                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                     <FaFileAlt color="#1C2E4A" size={16} />
-                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1C2E4A', letterSpacing: '0.5px' }}>
-                         PRÉVIA DO LAUDO
+                 {/* TÍTULO PEQUENO */}
+                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                     <FaFileAlt color="#1C2E4A" size={12} />
+                     <Typography variant="caption" sx={{ fontWeight: 800, color: '#1C2E4A', fontSize: '11px' }}>
+                         PRÉVIA
                      </Typography>
                  </Box>
                  
-                 {/* GRUPO DE BOTÕES */}
-                 <Stack direction="row" spacing={1} alignItems="center">
+                 {/* AÇÕES */}
+                 <Stack direction="row" spacing={0.5} alignItems="center">
                      
-                     {/* 1. LIMPAR (Discreto) */}
-                     <Tooltip title="Limpar tudo (Rascunho)">
+                     {/* 1. LIMPAR (Ícone puro) */}
+                     <Tooltip title="Limpar">
                         <IconButton 
                             onClick={handleLimpar} 
                             size="small" 
-                            sx={{ color: '#EF5350', border: '1px solid #FFEBEE', '&:hover': { background: '#FFEBEE' } }}
+                            sx={{ color: '#EF5350', padding: '4px' }}
                         >
-                            <FaEraser size={14} />
+                            <FaEraser size={12} />
                         </IconButton>
                      </Tooltip>
 
-                     <Divider orientation="vertical" flexItem variant="middle" sx={{ mx: 1 }} />
+                     <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
                      
-                     {/* 2. DOCUMENTOS (Botões contornados suaves) */}
+                     {/* 2. DOCS (Botões de Texto - Sem borda para caber) */}
                      <Button 
-                        variant="outlined"
+                        size="small"
                         onClick={handleImprimirTermo}
-                        startIcon={<FaFileSignature size={14}/>}
                         sx={{ 
                             color: '#546E7A', 
-                            borderColor: '#CFD8DC', 
                             textTransform: 'none',
-                            fontSize: '11px',
+                            fontSize: '10px',
                             fontWeight: 600,
-                            height: '32px',
-                            '&:hover': { borderColor: '#546E7A', background: '#F5F7FA' }
+                            minWidth: 'auto',
+                            padding: '4px 8px'
                         }}
                      >
                         Termo
                      </Button>
                     
                     <Button 
-                        variant="outlined"
+                        size="small"
                         onClick={() => setModalDeclaracaoOpen(true)}
-                        startIcon={<FaFileSignature size={14}/>}
                         sx={{ 
                             color: '#7E57C2', 
-                            borderColor: '#D1C4E9', 
                             textTransform: 'none',
-                            fontSize: '11px',
+                            fontSize: '10px',
                             fontWeight: 600,
-                            height: '32px',
-                            '&:hover': { borderColor: '#7E57C2', background: '#EDE7F6' }
+                            minWidth: 'auto',
+                            padding: '4px 8px'
                         }}
-                    >
+                     >
                         Declaração
-                    </Button>
+                     </Button>
 
-                    {/* 3. BOTÃO MESTRE (Destaque total) */}
+                    {/* 3. BOTÃO MESTRE (Compacto) */}
                     <Button 
                         variant="contained"
+                        size="small"
                         onClick={() => setModalRevisaoOpen(true)}
-                        endIcon={<FaSave size={14}/>}
+                        endIcon={<FaSave size={12}/>}
                         sx={{
                             background: '#1C2E4A', 
                             textTransform: 'none',
                             fontWeight: 'bold',
-                            fontSize: '12px',
-                            padding: '6px 20px',
-                            height: '36px', // Levemente maior
-                            boxShadow: '0 4px 6px rgba(28, 46, 74, 0.2)',
-                            marginLeft: '8px !important', // Força separação extra
-                            '&:hover': { background: '#2C3E50', boxShadow: '0 6px 8px rgba(28, 46, 74, 0.3)' }
+                            fontSize: '11px',
+                            padding: '4px 12px', // Compacto
+                            minWidth: 'auto',
+                            marginLeft: '4px !important',
+                            '&:hover': { background: '#2C3E50' }
                         }}
                     >
-                        VISUALIZAR E FINALIZAR
+                        Finalizar
                     </Button>
                  </Stack>
              </Box>
