@@ -229,18 +229,53 @@ export const gerarPDFLaudo = async ({
         content.push(criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria, 'BIOMETRIA FETAL - FETO 2'));
     }
 
-    // E. Imagens
+    // E. Imagens (Layout 6 por página -> Grade 2x3)
     if (imagensBase64 && imagensBase64.length > 0) {
+        // Quebra de página antes das fotos
         content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
+        
+        // Define tamanho fixo para caber 3 linhas numa A4
+        // A4 altura útil ~700px. 3 linhas x 200px = 600px. Margens ok.
+        const IMG_WIDTH = 230; 
+        const IMG_HEIGHT = 170; 
+
         for (let i = 0; i < imagensBase64.length; i += 2) {
-            const row = {
-                columns: [
-                    { image: imagensBase64[i], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' }, 
-                    imagensBase64[i + 1] ? { image: imagensBase64[i + 1], width: 230, height: 160, fit: [230, 160], margin: [0, 5], alignment: 'center' } : null 
-                ],
-                columnGap: 10, margin: [0, 5]
-            };
-            content.push(row);
+            const img1 = imagensBase64[i];
+            const img2 = imagensBase64[i + 1];
+
+            const columns = [];
+            
+            // Coluna 1
+            columns.push({
+                image: img1,
+                width: IMG_WIDTH,
+                height: IMG_HEIGHT,
+                fit: [IMG_WIDTH, IMG_HEIGHT],
+                alignment: 'center',
+                margin: [0, 0, 0, 10] // Margem inferior entre linhas
+            });
+
+            // Coluna 2 (se existir)
+            if (img2) {
+                columns.push({
+                    image: img2,
+                    width: IMG_WIDTH,
+                    height: IMG_HEIGHT,
+                    fit: [IMG_WIDTH, IMG_HEIGHT],
+                    alignment: 'center',
+                    margin: [0, 0, 0, 10]
+                });
+            } else {
+                // Coluna vazia para manter alinhamento se for impar
+                columns.push({ text: '', width: IMG_WIDTH });
+            }
+
+            // Adiciona a linha (row) ao content
+            content.push({
+                columns: columns,
+                columnGap: 10,
+                unbreakable: false // Permite quebrar página se passar de 3 linhas (6 fotos)
+            });
         }
     }
 
