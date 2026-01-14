@@ -209,6 +209,7 @@ else:
     }
     
 # --- Configurações de Upload ---
-# Limite aumentado para 20MB (20 * 1024 * 1024 = 20971520 bytes)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520
-FILE_UPLOAD_MAX_MEMORY_SIZE = 20971520
+# Aumentando para 100MB para garantir que laudos com muitas imagens passem
+# 100 * 1024 * 1024 = 104857600 bytes
+DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
+FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
