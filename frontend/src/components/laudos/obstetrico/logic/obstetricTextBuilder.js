@@ -162,14 +162,16 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 4. LÓGICA DE ORDEM DAS SEÇÕES (O Pulo do Gato)
+    // 4. LÓGICA DE ORDEM DAS SEÇÕES (ATUALIZADO)
     // -------------------------------------------------------------------------
 
     // === CASO A: OBSTÉTRICO PADRÃO / DOPPLER ===
-    // Ordem: Placenta/Líquido -> Biometria -> Índices
     if (isStandard) {
         
-        // 1. Placenta e Líquido (Vem ANTES da biometria no padrão)
+        // 1. Análise Fetal (Se houver checkboxes marcados) - CORREÇÃO APLICADA
+        texto += montarAnaliseMorfologica(d);
+
+        // 2. Placenta e Líquido
         if (d.placentaLocalizacao) {
             texto += `Placenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
@@ -184,10 +186,11 @@ export const gerarRelatorioFeto = (d) => {
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
         texto += `\n`;
 
-        // 2. Biometria + Índices
+        // 3. Biometria + Índices
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
 
+        // Índices
         if (d.resIc || d.resCcCa || d.resCfCa || d.resCfCc || d.pesoEstimado) {
             texto += `\nÍNDICES E ESTIMATIVAS:\n`;
             if (d.pesoEstimado || d.pesoFetal) {
@@ -200,18 +203,20 @@ export const gerarRelatorioFeto = (d) => {
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
         }
+        // OBSERVAÇÃO BIOMETRIA - CORREÇÃO APLICADA
+        if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
     } 
     
     // === CASO B: MORFOLÓGICO 1º TRIMESTRE ===
-    // Ordem: Anatomia -> Biometria -> Placenta -> Ducto
     else if (isMorfo1) {
         
         texto += `Análise fetal:\n\n`;
         
-        // Anatomia 1º Tri
         texto += `Segmento cefálico\n`;
         if(d.morfCranio) texto += `Crânio de contornos regulares e dimensões normais.\n`;
         if(d.morfCerebro) texto += `Estruturas da linha média presentes e plexo coróide visualizado.\n`;
+        // Checkbox Translucência Intracraniana (Novo)
+        if(d.morf1Cerebro) texto += `Translucência Intracraniana (TI) visibilizada.\n`;
         texto += `Osso nasal ${d.ossoNasalPresente ? 'presente' : 'ausente/não visualizado'}.\n\n`;
 
         texto += `Tórax\n`;
@@ -233,11 +238,12 @@ export const gerarRelatorioFeto = (d) => {
         // Biometria
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
-        // (Sem índices complexos no 1º tri geralmente, mas se quiser pode adicionar aqui igual ao padrão)
+        // OBSERVAÇÃO BIOMETRIA - CORREÇÃO APLICADA
+        if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
         // Placenta e Líquido (Vem DEPOIS no Morfo 1)
         if (d.placentaLocalizacao) {
-            texto += `Placenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
+            texto += `\nPlacenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
             texto += `.\n\n`;
         }
@@ -252,63 +258,15 @@ export const gerarRelatorioFeto = (d) => {
     }
     
     // === CASO C: MORFOLÓGICO 2º TRI / OUTROS ===
-    // Ordem: Anatomia (Sistemas) -> Biometria -> Índices -> Placenta
     else {
-        // Verifica se exibe título de Análise Fetal
-        const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.morfColuna || 
-                         d.morfTorax || d.morfCoracao || d.morfVasosBase || 
-                         d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga || 
-                         d.morfMembros || d.morfGenitalia;
-
-        if (temMorfo) {
-            texto += `ANÁLISE FETAL\n`; 
-            
-            if (d.morfCranio || d.morfCerebro) {
-                texto += `Sistema Nervoso Central\n`;
-                if(d.morfCranio) texto += `- Crânio: Contornos regulares, dimensões normais e tábua óssea íntegra.\n`;
-                if(d.morfCerebro) texto += `- Encéfalo: Parênquima, cavum do septo pelúcido, tálamos, ventrículos e cerebelo de aspecto preservado.\n`;
-                texto += `\n`;
-            }
-            if (d.morfFace) {
-                texto += `Face\n`;
-                texto += `- Perfil facial, órbitas, nariz e lábios com conformação habitual.\n\n`;
-            }
-            if (d.morfColuna) {
-                texto += `Coluna vertebral\n`;
-                texto += `- Corpos vertebrais íntegros e alinhados em toda sua extensão (cortes sagitais, coronais e transversais).\n\n`;
-            }
-            if (d.morfTorax || d.morfCoracao || d.morfVasosBase) {
-                texto += `Tórax\n`;
-                if (d.morfTorax) texto += `- Forma e ecotextura pulmonar habituais.\n`;
-                if (d.morfCoracao) texto += `- Coração: Situs solitus, quatro câmaras cardíacas simétricas e rítmicas.\n`;
-                if (d.morfVasosBase) texto += `- Vasos da base: Vias de saída (VE/VD) e cruzamento arterial visibilizados.\n`;
-                texto += `\n`;
-            }
-            if (d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga) {
-                texto += `Abdome\n`;
-                if(d.morfParedeAbd) texto += `- Parede abdominal íntegra (inserção do cordão normal).\n`;
-                if(d.morfFigado) texto += `- Fígado e vesícula biliar de aspecto habitual.\n`;
-                if(d.morfEstomago) texto += `- Estômago repleto e visualizado em sua topografia habitual.\n`;
-                if(d.morfRins) texto += `- Rins tópicos, de dimensões normais e ecotextura preservada.\n`;
-                if(d.morfBexiga) texto += `- Bexiga repleta, de dimensões e aspectos preservados.\n`;
-                texto += `\n`;
-            }
-            if (d.morfMembros || d.morfGenitalia) {
-                texto += `Extremidades\n`;
-                if(d.morfMembros) texto += `- Membros superiores e inferiores: Segmentos ósseos presentes e móveis.\n`;
-                if(d.morfGenitalia) texto += `- Genitália externa compatível com o sexo fetal.\n`;
-                texto += `\n`;
-            }
-            
-            // Nota da Morfologia
-            if (d.obsMorfologia) texto += `Nota: ${d.obsMorfologia}\n\n`;
-        }
+        // 1. Análise Fetal (Usa a nova função para garantir que tudo apareça)
+        texto += montarAnaliseMorfologica(d);
         
-        // Biometria
+        // 2. Biometria
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
 
-        // Índices (Adicionado aqui também)
+        // Índices
         if (d.resIc || d.resCcCa || d.resCfCa || d.resCfCc || d.pesoEstimado) {
             texto += `\nÍNDICES E ESTIMATIVAS:\n`;
             if (d.pesoEstimado || d.pesoFetal) {
@@ -321,8 +279,10 @@ export const gerarRelatorioFeto = (d) => {
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
         }
+        // OBSERVAÇÃO BIOMETRIA - CORREÇÃO APLICADA
+        if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
-        // Placenta (Vem DEPOIS da biometria no Morfo 2)
+        // 3. Placenta (Vem DEPOIS da biometria no Morfo 2)
         if (d.placentaLocalizacao) {
             texto += `\nPlacenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
@@ -500,6 +460,72 @@ const renderBiometria = (d) => {
     ].filter(Boolean);
 
     t += bios.join('\n') + '\n\n';
+    return t;
+};
+
+// =============================================================================
+// NOVO HELPER: GERA O TEXTO DE MORFOLOGIA (PARA TODOS OS TIPOS DE EXAME)
+// =============================================================================
+const montarAnaliseMorfologica = (d) => {
+    // Verifica se há pelo menos um item marcado
+    const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.morfColuna || 
+                     d.morfTorax || d.morfCoracao || d.morfVasosBase || 
+                     d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga || 
+                     d.morfMembros || d.morfGenitalia;
+
+    if (!temMorfo) return '';
+
+    let t = `ANÁLISE FETAL\n`; 
+    
+    // 1. SISTEMA NERVOSO CENTRAL
+    if (d.morfCranio || d.morfCerebro) {
+        t += `Sistema Nervoso Central\n`;
+        if(d.morfCranio) t += `- Crânio: Contornos regulares, dimensões normais e tábua óssea íntegra.\n`;
+        if(d.morfCerebro) t += `- Encéfalo: Parênquima, cavum do septo pelúcido, tálamos, ventrículos e cerebelo de aspecto preservado.\n`;
+        t += `\n`;
+    }
+
+    // 2. FACE
+    if (d.morfFace) {
+        t += `Face\n- Perfil facial, órbitas, nariz e lábios com conformação habitual.\n\n`;
+    }
+
+    // 3. COLUNA
+    if (d.morfColuna) {
+        t += `Coluna vertebral\n- Corpos vertebrais íntegros e alinhados em toda sua extensão (cortes sagitais, coronais e transversais).\n\n`;
+    }
+
+    // 4. TÓRAX E CORAÇÃO
+    if (d.morfTorax || d.morfCoracao || d.morfVasosBase) {
+        t += `Tórax\n`;
+        if (d.morfTorax) t += `- Forma e ecotextura pulmonar habituais.\n`;
+        if (d.morfCoracao) t += `- Coração: Situs solitus, quatro câmaras cardíacas simétricas e rítmicas.\n`;
+        if (d.morfVasosBase) t += `- Vasos da base: Vias de saída (VE/VD) e cruzamento arterial visibilizados.\n`;
+        t += `\n`;
+    }
+
+    // 5. ABDOME
+    if (d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga) {
+        t += `Abdome\n`;
+        if(d.morfParedeAbd) t += `- Parede abdominal íntegra (inserção do cordão normal).\n`;
+        if(d.morfFigado) t += `- Fígado e vesícula biliar de aspecto habitual.\n`;
+        if(d.morfEstomago) t += `- Estômago repleto e visualizado em sua topografia habitual.\n`;
+        if(d.morfRins) t += `- Rins tópicos, de dimensões normais e ecotextura preservada.\n`;
+        if(d.morfBexiga) t += `- Bexiga repleta, de dimensões e aspectos preservados.\n`;
+        t += `\n`;
+    }
+
+    // 6. MEMBROS E GENITÁLIA
+    if (d.morfMembros || d.morfGenitalia) {
+        t += `Extremidades\n`;
+        if(d.morfMembros) t += `- Membros superiores e inferiores: Segmentos ósseos presentes e móveis.\n`;
+        if(d.morfGenitalia) t += `- Genitália externa compatível com o sexo fetal.\n`;
+        t += `\n`;
+    }
+    
+    // Observação manual da Morfologia
+    if (d.obsMorfologia) t += `Nota: ${d.obsMorfologia}\n\n`;
+
     return t;
 };
 
