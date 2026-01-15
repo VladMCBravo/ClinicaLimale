@@ -72,38 +72,41 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                 )}
             </div>
 
-            {/* BLOCO 3: DADOS ESPECÍFICOS DO FETO (CARD CINZA) */}
-            {!isInicial && (
-                <div style={{marginTop:'10px', background:'#FAFAFA', padding:'8px', borderRadius:'4px', border:'1px solid #EEE'}}>
-                    <div className="laudo-grid-3" style={{marginBottom: '10px'}}>
-                        <div>
-                            <span className="label-pequeno">Situação</span>
-                            <select name="situacao" value={data.situacao} onChange={handleChange} className="laudo-select full-width">
-                                <option value="longitudinal">Longitudinal</option>
-                                <option value="transversa">Transversa</option>
-                                <option value="oblíqua">Oblíqua</option>
-                                <option value="variável">Variável</option>
-                            </select>
-                        </div>
-                        <div>
-                            <span className="label-pequeno">Apresentação</span>
-                            <select name="apresentacao" value={data.apresentacao} onChange={handleChange} className="laudo-select full-width">
-                                <option value="cefálica">Cefálica</option>
-                                <option value="pélvica">Pélvica</option>
-                                <option value="córmica">Córmica</option>
-                                <option value="variável">Variável</option>
-                            </select>
-                        </div>
-                        <div>
-                            <span className="label-pequeno">Dorso</span>
-                            <select name="dorso" value={data.dorso} onChange={handleChange} className="laudo-select full-width">
-                                <option value="à direita">à Direita</option>
-                                <option value="à esquerda">à Esquerda</option>
-                                <option value="anterior">Anterior</option>
-                                <option value="posterior">Posterior</option>
-                            </select>
-                        </div>
-                    </div>
+            {/* BLOCO 3: DADOS ESPECÍFICOS DO FETO */}
+{!isInicial && (
+    <div style={{marginTop:'10px', background:'#FAFAFA', padding:'8px', borderRadius:'4px', border:'1px solid #EEE'}}>
+        <div className="laudo-grid-3" style={{marginBottom: '10px'}}>
+            <div>
+                <span className="label-pequeno">Situação</span>
+                <select name="situacao" value={data.situacao} onChange={handleChange} className="laudo-select full-width">
+                    <option value="">Selecione...</option> {/* ADICIONADO */}
+                    <option value="longitudinal">Longitudinal</option>
+                    <option value="transversa">Transversa</option>
+                    <option value="oblíqua">Oblíqua</option>
+                    <option value="variável">Variável</option>
+                </select>
+            </div>
+            <div>
+                <span className="label-pequeno">Apresentação</span>
+                <select name="apresentacao" value={data.apresentacao} onChange={handleChange} className="laudo-select full-width">
+                    <option value="">Selecione...</option> {/* ADICIONADO */}
+                    <option value="cefálica">Cefálica</option>
+                    <option value="pélvica">Pélvica</option>
+                    <option value="córmica">Córmica</option>
+                    <option value="variável">Variável</option>
+                </select>
+            </div>
+            <div>
+                <span className="label-pequeno">Dorso</span>
+                <select name="dorso" value={data.dorso} onChange={handleChange} className="laudo-select full-width">
+                    <option value="">Selecione...</option> {/* ADICIONADO */}
+                    <option value="à direita">à Direita</option>
+                    <option value="à esquerda">à Esquerda</option>
+                    <option value="anterior">Anterior</option>
+                    <option value="posterior">Posterior</option>
+                </select>
+            </div>
+        </div>
 
                     {/* VITALIDADE (Verde) */}
                     <div className="laudo-row" style={{background: '#E8F5E9', padding: '6px 10px', borderRadius: '4px', border:'1px solid #C8E6C9', justifyContent:'space-between'}}>

@@ -62,8 +62,9 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                 
                 <div className="laudo-row">
                     <select name="liquidoAmniotico" value={data.liquidoAmniotico} onChange={handleChange} className="laudo-select" style={{width: '140px'}}>
-                        <option value="Normal">Normal</option>
-                        <option value="Aumentado">Aumentado</option>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="Normal">Normal</option>
+    <option value="Aumentado">Aumentado</option>
                         <option value="Reduzido">Reduzido</option>
                         <option value="Oligoâmnio">Oligoâmnio</option>
                         <option value="Polidrâmnio">Polidrâmnio</option>

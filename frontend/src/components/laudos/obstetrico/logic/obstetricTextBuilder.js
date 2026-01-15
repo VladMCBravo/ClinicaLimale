@@ -177,15 +177,19 @@ export const gerarRelatorioFeto = (d) => {
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
             texto += `.\n`;
         }
+        
         if (d.liquidoAmniotico) {
             texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
-            if (d.ila) texto += ` (ILA = ${d.ila} mm)`;
+            if (d.ila) {
+                texto += ` (ILA = ${d.ila} mm)`;
+                // CORREÇÃO REF ILA:
+                if (d.ilaRefMin && d.ilaRefMax) texto += ` (Ref: ${d.ilaRefMin} - ${d.ilaRefMax})`;
+            }
             if (d.mbv) texto += ` (MBV = ${d.mbv} mm)`;
-            // Se tiver referências, pode adicionar aqui, ex: (Ref: X - Y)
             texto += `.\n`;
         }
+        
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
-        texto += `\n`;
 
         // 3. Biometria + Índices
         texto += `BIOMETRIA FETAL\n`;
@@ -245,11 +249,21 @@ export const gerarRelatorioFeto = (d) => {
 
         // Placenta e Líquido (No final no 1º Tri)
         if (d.placentaLocalizacao) {
-            texto += `\nPlacenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
+            texto += `Placenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
-            texto += `.\n\n`;
+            texto += `.\n`;
         }
-        if (d.liquidoAmniotico) texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}.\n\n`;
+        
+        if (d.liquidoAmniotico) {
+            texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
+            if (d.ila) {
+                texto += ` (ILA = ${d.ila} mm)`;
+                // CORREÇÃO REF ILA:
+                if (d.ilaRefMin && d.ilaRefMax) texto += ` (Ref: ${d.ilaRefMin} - ${d.ilaRefMax})`;
+            }
+            if (d.mbv) texto += ` (MBV = ${d.mbv} mm)`;
+            texto += `.\n`;
+        }
 
         // Ducto Venoso
         if(d.checkDv || d.dvIP) {
@@ -284,18 +298,32 @@ export const gerarRelatorioFeto = (d) => {
 
         // 3. Placenta (Vem DEPOIS da biometria no Morfo 2)
         if (d.placentaLocalizacao) {
-            texto += `\nPlacenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
+            texto += `Placenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
             texto += `.\n`;
         }
+        
         if (d.liquidoAmniotico) {
             texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
-            if (d.ila) texto += ` (ILA = ${d.ila} mm)`;
+            if (d.ila) {
+                texto += ` (ILA = ${d.ila} mm)`;
+                // CORREÇÃO REF ILA:
+                if (d.ilaRefMin && d.ilaRefMax) texto += ` (Ref: ${d.ilaRefMin} - ${d.ilaRefMax})`;
+            }
+            if (d.mbv) texto += ` (MBV = ${d.mbv} mm)`;
             texto += `.\n`;
         }
-        if (d.cordaoNormal) {
-            texto += `Cordão umbilical de aspecto característico, com inserção habitual, visualizando-se duas artérias e uma veia de calibres preservados.\n`;
+
+       // CORREÇÃO CORDÃO: Agora verifica e imprime corretamente
+        if (d.cordaoNormal || (d.cordaoCircular && d.cordaoCircular !== '')) {
+            texto += `Cordão umbilical: `;
+            const cordaoParts = [];
+            if (d.cordaoNormal) cordaoParts.push("Visualizados 3 vasos (2 artérias e 1 veia)");
+            if (d.cordaoCircular && d.cordaoCircular !== 'ausente') cordaoParts.push(`Circular cervical: ${d.cordaoCircular}`);
+            texto += cordaoParts.join('. ') + `.\n`;
         }
+        texto += `\n`;
+
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
         texto += `\n`;
     }
@@ -312,25 +340,37 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\n`;
     }
 
-    // --- 6. DOPPLER (Se houver) ---
     if (d.usarDoppler) {
-        // Layout da médica: Colunas "ESTUDO DOPPLER" | "ÍNDICES DE PULSATILIDADE"
-        texto += `ESTUDO DOPPLER\t\t\tÍNDICES DE PULSATILIDADE\n`;
-        
+        texto += `ESTUDO DOPPLERFLUXOMÉTRICO\n\t\t\tÍNDICES DE PULSATILIDADE\n`;
         // Fetal
-        if (d.checkAcm || d.acmIP) texto += `Artéria cerebral\t\t\t${d.acmIP || '-'}\n`;
-        if (d.checkUmb || d.umbIP) texto += `Artéria umbilical\t\t\t${d.umbIP || '-'}\n`;
-        if (d.relacaoCerebroUmbilical) texto += `Relação cerebro/umbilical\t\t${d.relacaoCerebroUmbilical} (n/l maior / igual à 1,0)\n`;
-        
-        texto += `\n`;
-
-        // Materno
-        if (d.checkUtDir || d.checkUtEsq) {
-            texto += `Artéria uterina direita\t\t\t${d.utDirIP || '-'}\n`;
-            texto += `Artéria uterina esquerda\t\t${d.utEsqIP || '-'}\n`;
-            if (d.ipMedioUterinas) texto += `IP médio:\t\t\t\t${d.ipMedioUterinas}\n`;
+        if (d.checkAcm || d.acmIP) {
+            texto += `Artéria cerebral\t\t\t${d.acmIP || '-'}`;
+            if(d.acmPVS) texto += ` (PVS: ${d.acmPVS} cm/s)`;
+            if(d.acmDiastoleAlta) texto += ` (Centralização)`;
+            texto += `\n`;
         }
-
+        if (d.checkUmb || d.umbIP) {
+            texto += `Artéria umbilical\t\t\t${d.umbIP || '-'}`;
+            if(d.umbDiastoleZero) texto += ` (Diástole Zero)`;
+            if(d.umbDiastoleReversa) texto += ` (Diástole Reversa)`;
+            texto += `\n`;
+        }
+        if (d.relacaoCerebroUmbilical) texto += `Relação cerebro/umbilical\t\t${d.relacaoCerebroUmbilical}\n`;
+        texto += `\n`;
+        
+        // Materno
+        if (d.checkUtDir || d.utDirIP) {
+            texto += `Artéria uterina direita\t\t\t${d.utDirIP || '-'}`;
+            if(d.utDirIncisura) texto += ` (Incisura presente)`;
+            texto += `\n`;
+        }
+        if (d.checkUtEsq || d.utEsqIP) {
+            texto += `Artéria uterina esquerda\t\t${d.utEsqIP || '-'}`;
+            if(d.utEsqIncisura) texto += ` (Incisura presente)`;
+            texto += `\n`;
+        }
+        if (d.ipMedioUterinas) texto += `IP médio:\t\t\t\t${d.ipMedioUterinas}\n`;
+        
         if (d.obsDoppler) texto += `\nNota: ${d.obsDoppler}\n`;
         texto += `\n`;
     }
@@ -351,15 +391,23 @@ export const gerarRelatorioFeto = (d) => {
             texto += `.\n`;
         }
 
-        // Morfologia da Face 3D
+        // Face 3D
         if (d.face3D) {
-            texto += `Face fetal: ${d.face3D === 'visualizada' ? 'Bem visualizada, nítida' : d.face3D}.\n`;
-            const faceParts = [];
-            if (d.labios3D) faceParts.push('lábios');
-            if (d.nariz3D) faceParts.push('nariz');
-            if (d.olhos3D) faceParts.push('olhos');
-            if (faceParts.length > 0) texto += `Estruturas identificadas: ${faceParts.join(', ')}.\n`;
+            texto += `Face fetal: ${d.face3D === 'visualizada' ? 'Bem visualizada' : d.face3D}.\n`;
         }
+        
+        // Estruturas da Face e Extremidades (Checkboxes)
+        const parts3D = [];
+        if (d.labios3D) parts3D.push('lábios');
+        if (d.nariz3D) parts3D.push('nariz');
+        if (d.olhos3D) parts3D.push('olhos');
+        if (d.orelhas3D) parts3D.push('orelhas');
+        if (d.maoDir3D) parts3D.push('mão direita');
+        if (d.maoEsq3D) parts3D.push('mão esquerda');
+        if (d.peDir3D) parts3D.push('pé direito');
+        if (d.peEsq3D) parts3D.push('pé esquerdo');
+        
+        if (parts3D.length > 0) texto += `Estruturas identificadas em 3D: ${parts3D.join(', ')}.\n`;
 
         // Comportamento 4D
         const comp = [];
@@ -368,13 +416,16 @@ export const gerarRelatorioFeto = (d) => {
         if (d.movPiscar) comp.push('piscar de olhos');
         if (d.movMaoFace) comp.push('mão na face');
         if (d.movSuccao) comp.push('sucção');
-        if (comp.length > 0) texto += `Comportamento fetal observado: ${comp.join(', ')}.\n`;
+        if (d.movLingua) comp.push('protusão da língua');
+        if (d.movDegluticao3D) comp.push('deglutição');
+        
+        if (comp.length > 0) texto += `Comportamento fetal observado (4D): ${comp.join(', ')}.\n`;
 
         if (d.obs3D) texto += `Nota 3D: ${d.obs3D}\n`;
         texto += `\n`;
     }
 
-    // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO) ---
+    // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO COMPLETA) ---
     texto += `Impressão diagnóstica:\n`;
 
     if (d.sgAbortoIncompleto) {
@@ -384,8 +435,8 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Gestação tópica de aproximadamente ${d.resIgCcn || d.igBiometria || '...'} semanas.\n`;
     }
     else {
-        // Frases padrão da médica
-        if (!isMorfo1 && !isMorfo2) texto += `- Feto único vivo.\n`; // Só no Obstétrico padrão ela põe isso na conclusão
+        // Frase feto único (exceto 1º tri/morfo que já tem intro detalhada)
+        if (!isMorfo1 && !isMorfo2) texto += `- Feto único vivo.\n`; 
 
         let igFinal = d.igBiometria || d.igDum || "---";
         if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
@@ -393,7 +444,7 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Biometria fetal compatível com aproximadamente ${igFinal} +/- ${isMorfo1 ? '7' : '14'} dias.\n`;
         
         if (d.liquidoAmniotico) {
-            texto += `- Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()} para idade gestacional`;
+            texto += `- Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
             if (d.ila) texto += ` (ILA = ${d.ila} mm)`;
             if (d.mbv) texto += ` (MBV = ${d.mbv} mm)`;
             texto += `.\n`;
@@ -401,24 +452,35 @@ export const gerarRelatorioFeto = (d) => {
 
         if (d.pesoEstimado) {
              texto += `- Peso Fetal ${d.pesoEstimado} gr (+/- 10%)`;
-             if (d.percentil) texto += ` (Percentil ${d.percentil}).`;
-             texto += `\n`;
+             if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
+             texto += `.\n`;
         }
         
+        // CORREÇÃO SEXO:
         if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
-             let sexo = d.sexoFetal === 'MASCULINO' ? 'Masculino' : 'Feminino';
-             texto += `- Sexo: Genitália compatível com ${sexo}.\n`;
+             if (d.sexoFetal === 'NAO_VISUALIZADO') {
+                 texto += `- Sexo: Não visualizado neste exame.\n`;
+             } else {
+                 let sexo = d.sexoFetal === 'MASCULINO' ? 'Masculino' : 'Feminino';
+                 texto += `- Sexo: Genitália compatível com ${sexo}.\n`;
+             }
         }
 
         if (d.usarDoppler) texto += `- Dopplerfluxometria sem anormalidades no presente estudo.\n`;
         
-        // Risco 1º Tri na Conclusão
+        // 1º Tri Riscos
         if (isMorfo1 && (d.riscoT21Basal || d.riscoT21Corrigido)) {
-            texto += `- CÁLCULO DE RISCO PARA AS TRISSOMIAS:\n`;
-            if(d.riscoT21Basal) texto += `  SEGUNDO A IDADE MATERNA: T21 (1/${d.riscoT21Basal}) \n`;
-            if(d.riscoT21Corrigido) texto += `  SEGUNDO O EXAME: T21 (1/${d.riscoT21Corrigido}) \n`;
+            texto += `- CÁLCULO DE RISCO PARA AS TRISSOMIAS (Ver tabela).\n`;
         }
     }
+
+    // CORREÇÃO CHECKBOXES DE SUGESTÃO:
+    if (d.semDadosPercentil) texto += `- Obs: Idade gestacional não permite cálculo de percentil.\n`;
+    if (d.morfoPrejudicado45mm) texto += `- Análise morfológica prejudicada (CCN < 45mm).\n`;
+    if (d.sugereNipt) texto += `- Sugere-se avaliação genética (NIPT) devido ao risco aumentado.\n`;
+    if (d.sugereGolfBall) texto += `- Nota-se foco ecogênico intracardíaco (Golf Ball). Isoladamente não aumenta risco de aneuploidias.\n`;
+    if (d.sugerePieloectasia) texto += `- Nota-se pieloectasia renal. Sugere-se controle evolutivo.\n`;
+    if (d.sugereDopplerRciu || d.sugereRciu) texto += `- Sugere-se acompanhamento do crescimento e vitalidade com Doppler (Risco de RCIU).\n`;
 
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
