@@ -150,11 +150,16 @@ export const gerarRelatorioFeto = (d) => {
             texto += `.\n`;
         }
 
-        // Vitalidade
-        if (d.bcf) texto += `Batimentos cardíacos e movimentos fetais presentes (${d.bcf} bpm).\n`;
-        if (d.degluticao) texto += `Movimentos de deglutição visualizados.\n`;
+        // --- VITALIDADE FETAL (CORRIGIDO) ---
+        const textoVitalidade = [];
+        if (d.bcf) textoVitalidade.push(`Batimentos cardíacos fetais presentes e rítmicos (${d.bcf} bpm)`);
         
-        // Vísceras (Estilo da médica)
+        // CORREÇÃO MOV. FETAIS
+        if (d.movFetal) textoVitalidade.push(`movimentação fetal ativa presente`);
+        if (d.degluticao) textoVitalidade.push(`movimentos de deglutição observados`);
+        
+        if (textoVitalidade.length > 0) texto += textoVitalidade.join(', ') + `.\n`;
+
         if (d.estomagoVisualizado) texto += `Estômago fetal repleto e de conteúdo anecóide.\n`;
         if (d.bexigaVisualizada) texto += `Bexiga fetal repleta e de conteúdo anecóide.\n`;
         
@@ -340,37 +345,60 @@ export const gerarRelatorioFeto = (d) => {
         texto += `\n`;
     }
 
+    // --- 6. DOPPLER (CORRIGIDO: IR, PVS E DUCTO) ---
     if (d.usarDoppler) {
         texto += `ESTUDO DOPPLERFLUXOMÉTRICO\n\t\t\tÍNDICES DE PULSATILIDADE\n`;
-        // Fetal
+        
+        // Fetal: Artéria Cerebral Média
         if (d.checkAcm || d.acmIP) {
-            texto += `Artéria cerebral\t\t\t${d.acmIP || '-'}`;
-            if(d.acmPVS) texto += ` (PVS: ${d.acmPVS} cm/s)`;
+            texto += `Artéria cerebral\t\t\tIP: ${d.acmIP || '-'}`;
+            if(d.acmIR) texto += ` | IR: ${d.acmIR}`;  // ADD IR
+            if(d.acmPVS) texto += ` | PVS: ${d.acmPVS} cm/s`; // ADD PVS
             if(d.acmDiastoleAlta) texto += ` (Centralização)`;
             texto += `\n`;
         }
+        // Fetal: Artéria Umbilical
         if (d.checkUmb || d.umbIP) {
-            texto += `Artéria umbilical\t\t\t${d.umbIP || '-'}`;
+            texto += `Artéria umbilical\t\t\tIP: ${d.umbIP || '-'}`;
+            if(d.umbIR) texto += ` | IR: ${d.umbIR}`; // ADD IR
+            if(d.umbSD) texto += ` | S/D: ${d.umbSD}`; 
             if(d.umbDiastoleZero) texto += ` (Diástole Zero)`;
             if(d.umbDiastoleReversa) texto += ` (Diástole Reversa)`;
             texto += `\n`;
         }
-        if (d.relacaoCerebroUmbilical) texto += `Relação cerebro/umbilical\t\t${d.relacaoCerebroUmbilical}\n`;
-        texto += `\n`;
+        // Relação C/U
+        if (d.relacaoCerebroUmbilical) {
+            texto += `Relação cerebro/umbilical\t\t${d.relacaoCerebroUmbilical} (n/l maior / igual à 1,0)\n`;
+        }
         
-        // Materno
+        texto += `\n`;
+
+        // Materno: Artérias Uterinas
         if (d.checkUtDir || d.utDirIP) {
-            texto += `Artéria uterina direita\t\t\t${d.utDirIP || '-'}`;
+            texto += `Artéria uterina direita\t\t\tIP: ${d.utDirIP || '-'}`;
+            if(d.utDirIR) texto += ` | IR: ${d.utDirIR}`; // ADD IR
             if(d.utDirIncisura) texto += ` (Incisura presente)`;
             texto += `\n`;
         }
         if (d.checkUtEsq || d.utEsqIP) {
-            texto += `Artéria uterina esquerda\t\t${d.utEsqIP || '-'}`;
+            texto += `Artéria uterina esquerda\t\tIP: ${d.utEsqIP || '-'}`;
+            if(d.utEsqIR) texto += ` | IR: ${d.utEsqIR}`; // ADD IR
             if(d.utEsqIncisura) texto += ` (Incisura presente)`;
             texto += `\n`;
         }
         if (d.ipMedioUterinas) texto += `IP médio:\t\t\t\t${d.ipMedioUterinas}\n`;
         
+        texto += `\n`;
+
+        // Ducto Venoso (Adicionado ao Bloco Doppler se selecionado aqui)
+        if (d.checkDv || d.dvIP || d.dvOndaAZero || d.dvOndaAReversa) {
+             let onda = 'Positiva';
+             if (d.dvOndaAZero) onda = 'Zero';
+             if (d.dvOndaAReversa) onda = 'Reversa';
+             
+             texto += `Ducto Venoso\t\t\t\tIP: ${d.dvIP || '-'} | Onda A: ${onda}\n`;
+        }
+
         if (d.obsDoppler) texto += `\nNota: ${d.obsDoppler}\n`;
         texto += `\n`;
     }
