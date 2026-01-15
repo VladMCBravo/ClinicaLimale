@@ -34,7 +34,12 @@ urlpatterns = [
     path('relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
     path('relatorios/criar/', views.RelatorioSalvoCreateView.as_view(), name='relatorio-salvo-create'),
     path('gerar-preview-relatorio/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
+    # --- LAUDOS (CORREÇÃO AQUI) ---
+    # Rota para Listar (GET) e Criar (POST)
     path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
+    
+    # ★★★ ROTA NOVA: Para Editar (PUT), Deletar (DELETE) e Ler um laudo específico (GET) ★★★
+    path('laudos/<int:pk>/', views.LaudoRetrieveUpdateDestroyView.as_view(), name='detalhe-laudo'),
 
     path('', include(router.urls)),
 ]

@@ -482,8 +482,9 @@ export const gerarRelatorioFeto = (d) => {
         texto += `- Gestação tópica de aproximadamente ${d.resIgCcn || d.igBiometria || '...'} semanas.\n`;
     }
     else {
-        // Frase feto único (exceto 1º tri/morfo que já tem intro detalhada)
-        if (!isMorfo1 && !isMorfo2) texto += `- Feto único vivo.\n`; 
+        // CORREÇÃO: "Feto único vivo" agora aparece para Morfológico 2º Tri também
+        // Apenas excluímos no 1º Tri (que tem layout de risco específico)
+        if (!isMorfo1) texto += `- Feto único vivo.\n`; 
 
         let igFinal = d.igBiometria || d.igDum || "---";
         if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
@@ -497,14 +498,12 @@ export const gerarRelatorioFeto = (d) => {
             texto += `.\n`;
         }
 
-        if (d.pesoEstimado || d.pesoFetal) {
-                 texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g (+/- 10%)`;
-                 // ALTERADO AQUI:
-                 if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil} - Hadlock)`;
-                 texto += `.\n`;
-            }
+        if (d.pesoEstimado) {
+             texto += `- Peso Fetal ${d.pesoEstimado} gr (+/- 10%)`;
+             if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil} - Hadlock)`;
+             texto += `.\n`;
+        }
         
-        // CORREÇÃO SEXO:
         if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
              if (d.sexoFetal === 'NAO_VISUALIZADO') {
                  texto += `- Sexo: Não visualizado neste exame.\n`;
@@ -516,7 +515,7 @@ export const gerarRelatorioFeto = (d) => {
 
         if (d.usarDoppler) texto += `- Dopplerfluxometria sem anormalidades no presente estudo.\n`;
         
-        // 1º Tri Riscos
+        // Risco 1º Tri na Conclusão
         if (isMorfo1 && (d.riscoT21Basal || d.riscoT21Corrigido)) {
             texto += `- CÁLCULO DE RISCO PARA AS TRISSOMIAS (Ver tabela).\n`;
         }
