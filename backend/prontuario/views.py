@@ -894,3 +894,13 @@ class AssinarArquivoPDFView(APIView):
         except Exception as e:
             print(f"Erro ao assinar upload: {e}")
             return Response({"error": "Falha técnica ao assinar o PDF."}, status=500)
+
+# --- ADICIONE ESTA CLASSE NO FINAL DO ARQUIVO ---
+class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Permite Ler (GET), Atualizar (PUT/PATCH) e Deletar (DELETE) um laudo específico.
+    Necessário para o botão 'Salvar' funcionar na edição.
+    """
+    queryset = Laudo.objects.all()
+    serializer_class = LaudoSerializer
+    permission_classes = [IsAuthenticated] # Ou CanViewProntuario dependendo da sua regra
