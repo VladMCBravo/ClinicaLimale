@@ -1,117 +1,142 @@
-# backend/prontuario/admin.py - VERSÃO CORRIGIDA E MODERNIZADA
-
 from django.contrib import admin
 from django.db import models
 from django.forms import Textarea
+from django.utils.html import format_html
+
+# Importação Centralizada dos Models
 from .models import (
     Evolucao, 
     Prescricao, 
     ItemPrescricao, 
     Anamnese, 
     Atestado,
-    DocumentoPaciente,  # <-- Modelo importado
+    DocumentoPaciente,
     OpcaoClinica,
-    # --- ADIÇÕES DE IMPORTAÇÃO ---
     AnamnesePediatria,
-    AnamneseGinecologica,
-    AnamneseOrtopedia,
+    # AnamneseGinecologica, # Descomente se existirem
+    # AnamneseOrtopedia,
     AnamneseCardiologia,
-    AnamneseNeonatologia,
+    # AnamneseNeonatologia,
     MarcoDNPM,
     VacinaPaciente,
-    TemplateRelatorio, RelatorioSalvo
-    # --- FIM DAS ADIÇÕES ---
+    TemplateRelatorio, 
+    RelatorioSalvo
 )
 
-# --- Configurações Específicas ---
+# --- Inlines (Mostra itens dentro do pai) ---
 
-# Permite ver os itens de medicamento dentro da própria prescrição (mantido)
 class ItemPrescricaoInline(admin.TabularInline):
     model = ItemPrescricao
-    extra = 1 # Quantos campos de item extra mostrar
+    extra = 0
+    fields = ('medicamento', 'dosagem', 'frequencia', 'duracao')
 
-# --- Registros dos Modelos usando @admin.register (prática moderna) ---
+class MarcoDNPMInline(admin.TabularInline):
+    model = MarcoDNPM
+    extra = 0
+    can_delete = False
+    readonly_fields = ('marco_descricao', 'idade_marco', 'alcançado')
+    # Ideal para ver o desenvolvimento dentro do Paciente, se fizer a relação inversa no futuro
+
+# --- Admin Classes ---
 
 @admin.register(Evolucao)
 class EvolucaoAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 'medico', 'data_atendimento')
+    list_display = ('id', 'paciente_link', 'medico', 'data_atendimento', 'resumo_texto')
     list_filter = ('medico', 'data_atendimento')
-    search_fields = ('paciente__nome_completo',)
+    search_fields = ('paciente__nome_completo', 'texto')
+    
+    def paciente_link(self, obj):
+        if obj.paciente:
+            return format_html('<a href="/admin/pacientes/paciente/{}/change/">{}</a>', obj.paciente.id, obj.paciente.nome_completo)
+        return "-"
+    paciente_link.short_description = "Paciente"
+
+    def resumo_texto(self, obj):
+        return obj.texto[:50] + "..." if obj.texto else "-"
+    resumo_texto.short_description = "Início da Evolução"
 
 @admin.register(Prescricao)
 class PrescricaoAdmin(admin.ModelAdmin):
     inlines = [ItemPrescricaoInline]
-    list_display = ('paciente', 'medico', 'data_prescricao')
+    list_display = ('id', 'paciente', 'medico', 'data_prescricao', 'qtd_itens')
     list_filter = ('medico', 'data_prescricao')
     search_fields = ('paciente__nome_completo',)
 
+    def qtd_itens(self, obj):
+        return obj.itens_prescricao.count() # Ajuste 'itens_prescricao' para o related_name correto se der erro
+    qtd_itens.short_description = "Qtd. Medicamentos"
+
 @admin.register(Anamnese)
 class AnamneseAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 'medico', 'data_criacao')
-    search_fields = ('paciente__nome_completo',)
+    list_display = ('paciente', 'medico', 'tipo_anamnese', 'data_criacao')
+    list_filter = ('medico', 'data_criacao')
+    search_fields = ('paciente__nome_completo', 'queixa_principal')
+    
+    def tipo_anamnese(self, obj):
+        # Tenta identificar se tem especialidade atrelada
+        if hasattr(obj, 'pediatria'): return "Pediatria"
+        if hasattr(obj, 'cardiologia'): return "Cardiologia"
+        return "Geral"
 
 @admin.register(Atestado)
 class AtestadoAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 'medico', 'data_emissao', 'tipo_atestado')
-    list_filter = ('tipo_atestado', 'medico')
+    list_display = ('paciente', 'medico', 'tipo_atestado', 'dias_afastamento', 'data_emissao')
+    list_filter = ('tipo_atestado', 'medico', 'data_emissao')
     search_fields = ('paciente__nome_completo',)
 
-# <<-- NOVO: REGISTRO DO MODELO DE DOCUMENTOS -->>
 @admin.register(DocumentoPaciente)
 class DocumentoPacienteAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 'titulo', 'enviado_por', 'data_upload')
+    list_display = ('paciente', 'titulo', 'enviado_por', 'arquivo_link', 'data_upload')
     list_filter = ('enviado_por', 'data_upload')
     search_fields = ('paciente__nome_completo', 'titulo')
 
-# <<-- NOVO: REGISTRO DO MODELO DE OPÇÕES CLÍNICAS -->>
+    def arquivo_link(self, obj):
+        if obj.arquivo:
+            return format_html('<a href="{}" target="_blank">Abrir</a>', obj.arquivo.url)
+        return "-"
+    arquivo_link.short_description = "Arquivo"
+
 @admin.register(OpcaoClinica)
 class OpcaoClinicaAdmin(admin.ModelAdmin):
-    list_display = ('descricao', 'especialidade', 'area_clinica')
-    list_filter = ('especialidade', 'area_clinica')
+    list_display = ('descricao', 'area_clinica', 'especialidade')
+    list_filter = ('area_clinica', 'especialidade')
     search_fields = ('descricao',)
+    ordering = ('area_clinica', 'descricao')
 
-# --- INÍCIO DAS NOVAS ADIÇÕES ---
+# --- Especialidades e Vacinas ---
 
-# Registrando os novos modelos longitudinais
 @admin.register(MarcoDNPM)
 class MarcoDNPMAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 'marco_descricao', 'alcançado', 'data_registro')
+    list_display = ('paciente', 'marco_descricao', 'idade_marco', 'alcançado', 'data_registro')
     list_filter = ('alcançado', 'idade_marco')
     search_fields = ('paciente__nome_completo', 'marco_descricao')
 
 @admin.register(VacinaPaciente)
 class VacinaPacienteAdmin(admin.ModelAdmin):
-    list_display = ('paciente', 
-                    'vacina_id', # ★★★ ADICIONE ESTA LINHA ★★★
-                    'nome_vacina', 'dose', 'status', 'data_aplicacao')
+    # vacina_id mostra o ID numérico, nome_vacina mostra o texto
+    list_display = ('paciente', 'vacina_id', 'nome_vacina', 'dose', 'status', 'data_aplicacao')
     list_filter = ('status', 'nome_vacina')
     search_fields = ('paciente__nome_completo',)
 
-# Registrando as anamneses de especialidade (opcional, mas recomendado)
 @admin.register(AnamnesePediatria)
 class AnamnesePediatriaAdmin(admin.ModelAdmin):
-     list_display = ('anamnese',)
+     list_display = ('anamnese', 'parto_tipo', 'idade_gestacional')
      search_fields = ('anamnese__paciente__nome_completo',)
 
-# (Você pode descomentar o @admin.register acima e adicionar para as outras especialidades)
+# --- Relatórios e Templates ---
 
-# --- FIM DAS NOVAS ADIÇÕES ---
-# --- Opcional, mas RECOMENDADO ---
-# Isso cria um painel de admin melhor para os Templates,
-# com uma caixa de texto GRANDE para o conteúdo.
+@admin.register(TemplateRelatorio)
 class TemplateRelatorioAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'especialidade')
-    list_filter = ('especialidade',)
+    list_display = ('titulo', 'especialidade', 'ativo')
+    list_filter = ('especialidade', 'ativo')
     search_fields = ('titulo', 'conteudo')
-
-    # Isso faz a mágica de aumentar a caixa de texto
+    
+    # Campo de texto grande para facilitar edição
     formfield_overrides = {
         models.TextField: {'widget': Textarea(attrs={'rows': 30, 'cols': 90})},
     }
 
-# --- REGISTRO ---
-# Registra o Template (com o painel melhorado)
-admin.site.register(TemplateRelatorio, TemplateRelatorioAdmin)
-
-# Registra os Relatórios Salvos (só para podermos vê-los)
-admin.site.register(RelatorioSalvo)
+@admin.register(RelatorioSalvo)
+class RelatorioSalvoAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'paciente', 'medico', 'data_criacao')
+    readonly_fields = ('conteudo_final',)
