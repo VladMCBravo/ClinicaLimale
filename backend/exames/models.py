@@ -2,13 +2,16 @@
 from django.db import models
 from pacientes.models import Paciente
 import uuid
+from datetime import datetime # <--- IMPORTANTE: Faltava isso para o fallback
 
-# --- CORREÇÃO 1: Função para forçar o caminho correto no Bucket ---
+# --- CORREÇÃO: Função segura para diretório ---
 def diretorio_laudos(instance, filename):
-    # Salva em: laudos_imagens/2026/01/arquivo.jpg
+    # Se instance.criado_em for None (upload rápido ou re-salvamento), usa agora.
+    data_ref = instance.criado_em if instance.criado_em else datetime.now()
+    
     return 'laudos_imagens/{0}/{1}/{2}'.format(
-        instance.criado_em.strftime('%Y'),
-        instance.criado_em.strftime('%m'),
+        data_ref.strftime('%Y'),
+        data_ref.strftime('%m'),
         filename
     )
 
