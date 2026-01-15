@@ -47,27 +47,50 @@ export const gerarRelatorioFeto = (d) => {
         texto += `Exame realizado por via ${d.viaExame}.\n\n`;
     }
 
-    // --- 2. DATAÇÃO (Igual ao modelo: DPP e IG) ---
-    // A. DUM
-    if (d.usarDum && d.dum) {
+    // -------------------------------------------------------------------------
+    // 2. DATAÇÃO E CRONOLOGIA (HIERARQUIA: Biometria > Anterior > DUM)
+    // -------------------------------------------------------------------------
+    
+    // CASO 1: Biometria Atual (O médico marcou "Usar esta data no laudo")
+    // Manda em tudo. Usado para corrigir DUM errada ou datação inicial por CCN.
+    if (d.citarDppBiometria && d.dppBiometriaCalculada) {
+         texto += `DPP: ${d.dppBiometriaCalculada} (Calculada pela biometria atual).\n`;
+         texto += `Idade Gestacional: ${d.igBiometria || '...'}.\n`;
+         
+         // Opcional: Citar a DUM apenas como histórico se ela existir
+         if (d.usarDum && d.dum && d.exibirDataDum) {
+             texto += `(DUM referida: ${formatData(d.dum)}).\n`;
+         }
+    }
+    
+    // CASO 2: USG Anterior (Padrão Ouro para datar se DUM incerta)
+    else if (d.usarExameAnterior && d.dataExameAnterior) {
+        // Frase exata da médica para USG anterior
+        texto += `DPP: --- (calculada pelo primeiro ultrassom), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
+    }
+
+    // CASO 3: DUM (Padrão Menstrual)
+    else if (d.usarDum && d.dum) {
+        // Lógica dos checkboxes "Exibir Data" e "Citar DPP"
         if (d.citarDppDum && d.dppDum) {
-             texto += `DPP: ${d.dppDum} (DUM)`;
+             texto += `DPP: ${d.dppDum}`;
+             if (d.exibirDataDum) texto += ` (DUM: ${formatData(d.dum)})`;
         } else {
-             texto += `DUM: ${formatData(d.dum)}`;
+             if (d.exibirDataDum) texto += `DUM: ${formatData(d.dum)}`;
         }
+        
         if (d.igDum) texto += `, compatível com ${d.igDum}`;
         texto += `.\n`;
     } 
-    // B. USG Anterior (Prioritário no modelo dela "Calculada pelo primeiro ultrassom")
-    else if (d.usarExameAnterior && d.dataExameAnterior) {
-        texto += `DPP: --- (calculada pelo primeiro ultrassom), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
+    
+    // CASO 4: DUM Desconhecida / Não usar
+    else if (d.dumDesconhecida) {
+        texto += `Data da última menstruação: Desconhecida / Não referida.\n`;
+        // Tenta salvar usando a biometria se nada mais estiver marcado
+        if (d.igBiometria) texto += `Idade Gestacional pela biometria: ${d.igBiometria}.\n`;
     }
-    // C. Biometria Atual
-    else if (d.citarDppBiometria && d.dppBiometriaCalculada) {
-         texto += `DPP: ${d.dppBiometriaCalculada} (Biometria atual), compatível com ${d.igBiometria}.\n`;
-    }
-    // D. 1º Tri (CCN)
-    else if (isMorfo1 && d.resIgCcn) {
+    else if (d.subtipo === 'OBSTETRICO_1_TRI' && d.resIgCcn) {
+         // Fallback específico para 1º tri se nada for marcado
          texto += `Idade Gestacional definida pelo CCN: ${d.resIgCcn}.\n`;
     }
 

@@ -6,6 +6,7 @@ const SecaoDatacao = ({ data, handleChange }) => {
 
   // --- LÓGICA DO ALERTA (MANTIDA) ---
   const alertaDivergencia = useMemo(() => {
+      // ... (Mantenha seu código de alerta existente aqui) ...
       if (!data.dppDum || !data.dppBiometriaCalculada || !data.usarDum) return null;
       try {
           const parseBR = (str) => {
@@ -31,13 +32,26 @@ const SecaoDatacao = ({ data, handleChange }) => {
       return null;
   }, [data.dppDum, data.dppBiometriaCalculada, data.usarDum]);
 
+  // Função para garantir que os Radios limpem os estados conflitantes
   const handleModeChange = (modo) => {
-      const updates = [
-          { name: 'usarDum', value: modo === 'USAR_DUM' },
-          { name: 'dumDesconhecida', value: modo === 'DUM_DESCONHECIDA' },
-          { name: 'naoUsarDum', value: modo === 'NAO_USAR' }
-      ];
-      updates.forEach(up => handleChange({ target: { name: up.name, value: up.value, type: 'checkbox', checked: up.value } }));
+      // Se selecionou um modo de DUM, atualiza os flags
+      const updates = {
+          usarDum: modo === 'USAR_DUM',
+          dumDesconhecida: modo === 'DUM_DESCONHECIDA',
+          naoUsarDum: modo === 'NAO_USAR'
+      };
+      
+      // Itera e dispara o handleChange para cada um
+      Object.keys(updates).forEach(key => {
+          handleChange({ target: { name: key, value: updates[key], type: 'checkbox', checked: updates[key] } });
+      });
+  };
+
+  // Função para o Checkbox Prioritário da Biometria
+  const handleBiometriaPrioridade = (e) => {
+      handleChange(e);
+      // Se marcou para usar biometria, não precisamos desmarcar os outros (o textBuilder já resolve a prioridade),
+      // mas podemos dar um feedback visual se quiser. Por enquanto, a lógica do textBuilder é suficiente.
   };
 
   return (
@@ -48,36 +62,54 @@ const SecaoDatacao = ({ data, handleChange }) => {
         
         <div className="laudo-section-body">
             
-            {/* BLOCO 1: DUM PRINCIPAL (Card Azul) */}
-            <div style={{background:'#E3F2FD', padding:'8px', borderRadius:'4px', border:'1px solid #BBDEFB'}}>
+            {/* BLOCO 1: DUM (OPÇÃO PADRÃO) */}
+            <div style={{
+                background: data.usarDum ? '#E3F2FD' : '#F5F5F5', // Fica azul se ativo
+                padding:'8px', borderRadius:'4px', border:'1px solid #BBDEFB',
+                opacity: (data.citarDppBiometria || data.usarExameAnterior) ? 0.6 : 1 // Fica meio apagado se Biometria ou Anterior estiverem dominando
+            }}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'5px'}}>
                     <div style={{display:'flex', gap:'15px'}}>
-                        <label className="laudo-checkbox-label" style={{fontWeight:'bold', color:'#0D47A1'}}>
+                        <label className="laudo-checkbox-label" style={{fontWeight:'bold', color: data.usarDum ? '#0D47A1' : '#555', cursor:'pointer'}}>
                             <input type="radio" name="modoDatacao" checked={!!data.usarDum} onChange={() => handleModeChange('USAR_DUM')} />
                             Usar DUM
                         </label>
-                        <label className="laudo-checkbox-label">
+                        <label className="laudo-checkbox-label" style={{cursor:'pointer'}}>
                             <input type="radio" name="modoDatacao" checked={!!data.dumDesconhecida} onChange={() => handleModeChange('DUM_DESCONHECIDA')} />
                             Desconhecida
                         </label>
-                        <label className="laudo-checkbox-label">
+                        <label className="laudo-checkbox-label" style={{cursor:'pointer'}}>
                             <input type="radio" name="modoDatacao" checked={!!data.naoUsarDum} onChange={() => handleModeChange('NAO_USAR')} />
                             Não usar
                         </label>
                     </div>
                     
-                    {/* Opções de Exibição */}
+                    {/* Checkboxes auxiliares da DUM */}
                     <div style={{display:'flex', gap:'10px', fontSize:'10px'}}>
-                        <label className="laudo-checkbox-label"><input type="checkbox" name="exibirDataDum" checked={!!data.exibirDataDum} onChange={handleChange} disabled={!data.usarDum} /> exibir data</label>
-                        <label className="laudo-checkbox-label"><input type="checkbox" name="citarDppDum" checked={!!data.citarDppDum} onChange={handleChange} disabled={!data.usarDum} /> citar DPP</label>
+                        <label className="laudo-checkbox-label" title="Mostra a data (ex: 10/10/2024) no texto">
+                            <input type="checkbox" name="exibirDataDum" checked={!!data.exibirDataDum} onChange={handleChange} disabled={!data.usarDum} /> 
+                            exibir data
+                        </label>
+                        <label className="laudo-checkbox-label" title="Mostra 'DPP: 20/07/2025' no texto">
+                            <input type="checkbox" name="citarDppDum" checked={!!data.citarDppDum} onChange={handleChange} disabled={!data.usarDum} /> 
+                            citar DPP
+                        </label>
                     </div>
                 </div>
 
-                {/* Linha de Inputs DUM */}
-                <div className="laudo-row" style={{opacity: data.usarDum ? 1 : 0.5}}>
-                    <div style={{display:'flex', alignItems:'center', gap:'5px', background:'#fff', padding:'2px 5px', borderRadius:'3px', border:'1px solid #90CAF9'}}>
+                {/* Input da Data */}
+                <div className="laudo-row">
+                    <div style={{display:'flex', alignItems:'center', gap:'5px', background:'#fff', padding:'2px 5px', borderRadius:'3px', border:'1px solid #ccc'}}>
                         <FaCalendarAlt color="#1565C0" />
-                        <input type="date" name="dum" value={data.dum || ''} onChange={handleChange} disabled={!data.usarDum} className="laudo-input" style={{border:'none', height:'20px'}}/>
+                        <input 
+                            type="date" 
+                            name="dum" 
+                            value={data.dum || ''} 
+                            onChange={handleChange} 
+                            disabled={!data.usarDum} 
+                            className="laudo-input" 
+                            style={{border:'none', height:'20px', color: data.usarDum ? '#333' : '#aaa'}}
+                        />
                     </div>
 
                     {data.usarDum && data.igDum && (
@@ -87,34 +119,43 @@ const SecaoDatacao = ({ data, handleChange }) => {
                         </div>
                     )}
                 </div>
-                
-                {/* Alerta integrado aqui */}
                 {alertaDivergencia}
             </div>
 
-            {/* BLOCO 2: COMPARATIVO E ANTERIOR (Lado a Lado) */}
+            {/* BLOCO 2: AS PRIORIDADES (Lado a Lado) */}
             <div className="laudo-grid-2" style={{marginTop:'10px', alignItems:'start'}}>
                 
-                {/* Coluna Esquerda: Biometria Atual */}
-                <div style={{background:'#F5F5F5', padding:'6px', borderRadius:'4px', border:'1px solid #ddd'}}>
-                    <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'4px', color:'#555', fontWeight:'bold', fontSize:'10px'}}>
+                {/* 1. BIOMETRIA ATUAL (Se marcado, domina o laudo) */}
+                <div style={{
+                    background: data.citarDppBiometria ? '#E8F5E9' : '#F5F5F5', // Fica verde se ativo
+                    padding:'6px', borderRadius:'4px', border: data.citarDppBiometria ? '1px solid #4CAF50' : '1px solid #ddd'
+                }}>
+                    <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'4px', color: data.citarDppBiometria ? '#2E7D32' : '#555', fontWeight:'bold', fontSize:'10px'}}>
                         <FaCalculator /> BIOMETRIA ATUAL
                     </div>
                     <div className="laudo-row" style={{justifyContent:'space-between', fontSize:'11px'}}>
                         <span>IG: <strong>{data.igBiometria || '--'}</strong></span>
                         <span>DPP: <strong>{data.dppBiometriaCalculada || '--'}</strong></span>
                     </div>
-                    <div style={{marginTop:'4px', borderTop:'1px solid #e0e0e0', paddingTop:'2px'}}>
-                        <label className="laudo-checkbox-label" style={{fontWeight:'bold', color:'#2E7D32', fontSize:'10px'}}>
-                            <input type="checkbox" name="citarDppBiometria" checked={!!data.citarDppBiometria} onChange={handleChange} />
-                            Usar esta data no laudo
+                    <div style={{marginTop:'4px', borderTop:'1px solid #e0e0e0', paddingTop:'4px'}}>
+                        <label className="laudo-checkbox-label" style={{fontWeight:'bold', color: data.citarDppBiometria ? '#1B5E20' : '#555', fontSize:'10px', cursor:'pointer'}}>
+                            <input 
+                                type="checkbox" 
+                                name="citarDppBiometria" 
+                                checked={!!data.citarDppBiometria} 
+                                onChange={handleBiometriaPrioridade} 
+                            />
+                            Usar esta data no laudo (Prioridade)
                         </label>
                     </div>
                 </div>
 
-                {/* Coluna Direita: Exame Anterior */}
-                <div style={{background:'#F3E5F5', padding:'6px', borderRadius:'4px', border:'1px solid #E1BEE7'}}>
-                    <label className="laudo-checkbox-label" style={{fontWeight:'bold', color:'#4A148C', fontSize:'10px', marginBottom:'4px'}}>
+                {/* 2. USG ANTERIOR (Prioridade 2) */}
+                <div style={{
+                    background: data.usarExameAnterior ? '#F3E5F5' : '#F5F5F5', // Fica roxo se ativo
+                    padding:'6px', borderRadius:'4px', border: data.usarExameAnterior ? '1px solid #AB47BC' : '1px solid #ddd'
+                }}>
+                    <label className="laudo-checkbox-label" style={{fontWeight:'bold', color: data.usarExameAnterior ? '#4A148C' : '#555', fontSize:'10px', marginBottom:'4px', cursor:'pointer'}}>
                         <input type="checkbox" name="usarExameAnterior" checked={!!data.usarExameAnterior} onChange={handleChange} />
                         <FaHistory style={{marginRight:'4px'}}/> USG ANTERIOR
                     </label>
@@ -122,35 +163,21 @@ const SecaoDatacao = ({ data, handleChange }) => {
                     <div className="laudo-row" style={{gap:'5px', opacity: data.usarExameAnterior ? 1 : 0.6}}>
                         <input type="date" name="dataExameAnterior" value={data.dataExameAnterior || ''} onChange={handleChange} disabled={!data.usarExameAnterior} className="laudo-input" style={{width:'85px', fontSize:'10px'}}/>
                         
-                        {/* AQUI ESTÁ A CORREÇÃO VISUAL DOS INPUTS */}
                         <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
                             <input 
-                                type="number" 
-                                name="igAnteriorSemanas" 
-                                value={data.igAnteriorSemanas || ''} 
-                                onChange={handleChange} 
-                                disabled={!data.usarExameAnterior} 
-                                className="laudo-input laudo-input-small" 
-                                style={{width:'45px', height:'26px', textAlign:'center'}} 
-                                placeholder="sem"
+                                type="number" name="igAnteriorSemanas" value={data.igAnteriorSemanas || ''} onChange={handleChange} 
+                                disabled={!data.usarExameAnterior} className="laudo-input laudo-input-small" style={{width:'40px', textAlign:'center'}} placeholder="sem"
                             />
                             <span style={{fontSize:'10px'}}>s</span>
-
                             <input 
-                                type="number" 
-                                name="igAnteriorDias" 
-                                value={data.igAnteriorDias || ''} 
-                                onChange={handleChange} 
-                                disabled={!data.usarExameAnterior} 
-                                className="laudo-input laudo-input-small" 
-                                style={{width:'45px', height:'26px', textAlign:'center'}} 
-                                placeholder="d"
+                                type="number" name="igAnteriorDias" value={data.igAnteriorDias || ''} onChange={handleChange} 
+                                disabled={!data.usarExameAnterior} className="laudo-input laudo-input-small" style={{width:'40px', textAlign:'center'}} placeholder="d"
                             />
                             <span style={{fontSize:'10px'}}>d</span>
                         </div>
                     </div>
                     {data.usarExameAnterior && data.igIgCorrigidaCalculada && (
-                        <div style={{marginTop:'2px', textAlign:'right', fontSize:'10px', color:'#4A148C', fontWeight:'bold'}}>
+                        <div style={{marginTop:'4px', textAlign:'right', fontSize:'10px', color:'#4A148C', fontWeight:'bold'}}>
                             IG Corrigida: {data.igIgCorrigidaCalculada}
                         </div>
                     )}
@@ -158,35 +185,18 @@ const SecaoDatacao = ({ data, handleChange }) => {
 
             </div>
         </div>
-        {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (Inserir antes de fechar a laudo-section) */}
-                     <div style={{
-                         borderTop: '1px solid #eee', 
-                         padding: '10px 12px', // Espaçamento interno para não colar na borda
-                         background: '#FAFAFA', 
-                         borderBottomLeftRadius: '4px',
-                         borderBottomRightRadius: '4px'
-                     }}>
-                        <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
-                            <FaCommentMedical color="#555"/>
-                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Datação e Cronologia):</span>
-                        </div>
-                        <textarea 
-                            name="obsDatacao" 
-                            value={data.obsDatacao || ''} 
-                            onChange={handleChange} 
-                            className="laudo-textarea"
-                            rows="2"
-                            style={{
-                                width:'100%', 
-                                fontSize:'11px', 
-                                border:'1px solid #ccc', 
-                                borderRadius: '4px', // Bordas arredondadas no campo
-                                padding: '8px', // Espaço interno do texto
-                                boxSizing: 'border-box' // Garante que não vaze a largura
-                            }}
-                            placeholder="Digite aqui observações específicas sobre a datação e cronologia..."
-                        />
-                    </div>
+        {/* Obs Datacao */}
+        <div style={{
+             borderTop: '1px solid #eee', padding: '8px', 
+             background: '#FAFAFA', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px'
+         }}>
+            <textarea 
+                name="obsDatacao" value={data.obsDatacao || ''} onChange={handleChange} 
+                className="laudo-textarea" rows="2"
+                style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius: '4px', padding: '5px'}}
+                placeholder="Observações sobre a datação..."
+            />
+        </div>
     </div>
 );
 };
