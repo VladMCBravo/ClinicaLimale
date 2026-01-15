@@ -321,25 +321,33 @@ export const gerarRelatorioFeto = (d) => {
 
        // --- CORREÇÃO CORDÃO UMBILICAL ---
         // Verifica se o checkbox '3 vasos' está marcado OU se o select de circular tem algum valor (mesmo que 'ausente')
-        if (d.cordaoNormal || (d.cordaoCircular && d.cordaoCircular !== '')) {
-            texto += `Cordão umbilical: `;
+        // CORREÇÃO: Frase completa da médica para Cordão 3 vasos
+        if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
+            // Nota: Se quiser o título "Cordão umbilical:" antes, mantenha. 
+            // Se a frase já começa com "Cordão...", não precisa repetir.
+            // Vou montar para ficar fluído:
+            
             const cordaoParts = [];
             
-            if (d.cordaoNormal) {
-                cordaoParts.push("Visualizados 3 vasos (2 artérias e 1 veia)");
+            if (d.cordaoNormal === true) {
+                // FRASE NOVA SOLICITADA:
+                cordaoParts.push("Cordão umbilical de aspecto característico, com inserção habitual, visualizando-se duas artérias e uma veia de calibres preservados");
+            } else {
+                // Caso não tenha marcado o normal, mas tenha circular, iniciamos a frase
+                cordaoParts.push("Cordão umbilical");
             }
             
             if (d.cordaoCircular === 'ausente') {
-                cordaoParts.push("Ausência de circular cervical");
+                cordaoParts.push("ausência de circular cervical");
             } else if (d.cordaoCircular) {
-                cordaoParts.push(`Circular cervical: ${d.cordaoCircular}`); // Ex: Presente (1 volta)
+                cordaoParts.push(`circular cervical: ${d.cordaoCircular}`);
             }
             
+            // Junta tudo com ". "
             if (cordaoParts.length > 0) {
                 texto += cordaoParts.join('. ') + `.\n`;
             }
         }
-
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
         texto += `\n`;
     }
@@ -489,11 +497,12 @@ export const gerarRelatorioFeto = (d) => {
             texto += `.\n`;
         }
 
-        if (d.pesoEstimado) {
-             texto += `- Peso Fetal ${d.pesoEstimado} gr (+/- 10%)`;
-             if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
-             texto += `.\n`;
-        }
+        if (d.pesoEstimado || d.pesoFetal) {
+                 texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g (+/- 10%)`;
+                 // ALTERADO AQUI:
+                 if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil} - Hadlock)`;
+                 texto += `.\n`;
+            }
         
         // CORREÇÃO SEXO:
         if (d.sexoFetal && d.sexoFetal !== 'NAO_CITAR') {
