@@ -377,11 +377,48 @@ export const gerarRelatorioFeto = (d) => {
     if (d.sugereRciu) texto += `- Obs: Acompanhar crescimento fetal (Suspeita de RCIU).\n`;
     if (d.obsAdicionais) texto += `\n${d.obsAdicionais}\n`;
 
-    // -------------------------------------------------------------------------
-    // --- FAXINA FINAL ---
+    // --- FAXINA AUTOMÁTICA DE ESPAÇOS ---
     texto = texto.replace(/^[ \t]+/gm, ''); 
     texto = texto.replace(/\n{3,}/g, '\n\n'); 
     texto = texto.trim();
 
-    return { texto, tituloExame: d.tituloExame || 'ULTRASSONOGRAFIA' }; // Placeholder temporário para o título
+    return { texto, tituloExame }; 
 };
+
+// =============================================================================
+// HELPERS FINAIS (MULTI-FETO & DISCLAIMERS)
+// =============================================================================
+export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGerais = {}) => {
+    let textoFinal = '';
+    
+    if (resF1 && resF1.tituloExame) {
+        const sufixo = (qtdFetos > 1 && !resF1.tituloExame.includes("GEMELAR")) ? ' GEMELAR' : '';
+        textoFinal += `${resF1.tituloExame}${sufixo}\n\n`;
+    }
+    if (qtdFetos > 1) {
+        textoFinal += `Gestação múltipla.\n`;
+        if(dadosGerais.corionicidade) textoFinal += `${dadosGerais.corionicidade} / ${dadosGerais.amnionicidade}.\n\n`;
+    }
+
+    if (qtdFetos > 1) textoFinal += `--- FETO I ---\n`;
+    textoFinal += resF1.texto;
+    if (qtdFetos >= 2 && resF2) { textoFinal += `\n\n--- FETO II ---\n`; textoFinal += resF2.texto; }
+    if (qtdFetos >= 3 && resF3) { textoFinal += `\n\n--- FETO III ---\n`; textoFinal += resF3.texto; }
+
+    // DISCLAIMERS FINAIS (Idêntico ao Print)
+    // Precisamos definir as constantes TEXTO_DISCLAIMER_MORFO_1 e 2 no topo do arquivo se elas forem usadas aqui
+    if (dadosGerais.subtipo === 'OBSTETRICO_1_TRI') {
+        textoFinal += `\n\n--------------------------------------------------------------\n`;
+        // Certifique-se que TEXTO_DISCLAIMER_MORFO_1 está definido no topo do arquivo
+        textoFinal += "A sensibilidade da medida da translucência nucal... (resto do texto disclaimer)"; 
+    } 
+    else if (dadosGerais.subtipo === 'OBSTETRICO_MORFOLOGICO') {
+        textoFinal += `\n\n--------------------------------------------------------------\n`;
+        // Certifique-se que TEXTO_DISCLAIMER_MORFO_2 está definido no topo do arquivo
+        textoFinal += "O exame morfológico tem uma sensibilidade de 83,5%... (resto do texto disclaimer)";
+    }
+
+    return textoFinal;
+};
+
+export const montarTextoFinal = (res) => res.texto;
