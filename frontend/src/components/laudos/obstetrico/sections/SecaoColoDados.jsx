@@ -46,16 +46,12 @@ const SecaoColoDados = ({ data, handleChange }) => {
                         <div className="laudo-col">
                             <label className="label-pequeno" style={{fontWeight:'bold', color:'#1B5E20'}}>Eco Glandular (EGE):</label>
                             <div style={{position:'relative'}}>
-                                <select 
-                                    name="coloEge" 
-                                    value={data.coloEge} 
-                                    onChange={handleChange} 
-                                    className="laudo-select full-width"
-                                >
-                                    <option value="presente">Presente</option>
-                                    <option value="ausente">Ausente</option>
-                                    <option value="nao_visualizado">Não visualizado</option>
-                                </select>
+                                <select name="coloEge" value={data.coloEge} onChange={handleChange} className="laudo-select full-width">
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="presente">Presente</option>
+    <option value="ausente">Ausente</option>
+    <option value="nao_visualizado">Não visualizado</option>
+</select>
                             </div>
                         </div>
                     </div>
@@ -73,16 +69,11 @@ const SecaoColoDados = ({ data, handleChange }) => {
                             <label className="label-pequeno" style={{fontWeight:'bold', color:'#E65100'}}>Sinal do Sludge:</label>
                             <div className="input-icon-group">
                                 <FaFilter style={{position:'absolute', left:'8px', color:'#F57F17', zIndex:1, fontSize:'10px'}}/>
-                                <select 
-                                    name="coloSludge" 
-                                    value={data.coloSludge} 
-                                    onChange={handleChange} 
-                                    className="laudo-select full-width"
-                                    style={{paddingLeft:'25px', fontWeight: data.coloSludge === 'presente' ? 'bold' : 'normal'}}
-                                >
-                                    <option value="ausente">Ausente</option>
-                                    <option value="presente">Presente</option>
-                                </select>
+                                <select name="coloSludge" value={data.coloSludge} onChange={handleChange} className="laudo-select full-width" style={{paddingLeft:'25px', fontWeight: data.coloSludge === 'presente' ? 'bold' : 'normal'}}>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="ausente">Ausente</option>
+    <option value="presente">Presente</option>
+</select>
                             </div>
                         </div>
                         
@@ -139,41 +130,6 @@ const SecaoColoDados = ({ data, handleChange }) => {
                     </select>
                 </div>
 
-            </div>
-        </div>
-
-        {/* =========================================================
-            BLOCO 2: DADOS INICIAIS (Mantendo o padrão do SecaoDadosGerais)
-            Este bloco pode ser redundante se você já usa o SecaoDadosGerais,
-            mas mantive conforme seu arquivo original, porém padronizado.
-           ========================================================= */}
-        <div className="laudo-section">
-            <div className="header-base header-blue">
-                <GiResize size={16} style={{marginRight:'5px'}}/> Estática Fetal (Dados Iniciais)
-            </div>
-            <div className="laudo-section-body">
-                <div style={{background:'#F5F5F5', padding:'10px', borderRadius:'4px', border:'1px solid #E0E0E0'}}>
-                    <div className="laudo-grid-3">
-                        <div className="laudo-col">
-                            <span className="label-pequeno">Situação</span>
-                            <select name="situacao" value={data.situacao} onChange={handleChange} className="laudo-select full-width">
-                                <option>longitudinal</option><option>transversa</option><option>oblíqua</option>
-                            </select>
-                        </div>
-                        <div className="laudo-col">
-                            <span className="label-pequeno">Apresentação</span>
-                            <select name="apresentacao" value={data.apresentacao} onChange={handleChange} className="laudo-select full-width">
-                                <option>cefálica</option><option>pélvica</option><option>córmica</option>
-                            </select>
-                        </div>
-                        <div className="laudo-col">
-                            <span className="label-pequeno">Dorso</span>
-                            <select name="dorso" value={data.dorso} onChange={handleChange} className="laudo-select full-width">
-                                <option>à esquerda</option><option>à direita</option><option>anterior</option><option>posterior</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </>

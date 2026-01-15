@@ -319,15 +319,27 @@ export const gerarRelatorioFeto = (d) => {
             texto += `.\n`;
         }
 
-       // CORREÇÃO CORDÃO: Agora verifica e imprime corretamente
-        if (d.cordaoNormal || (d.cordaoCircular && d.cordaoCircular !== '')) {
+       // CORREÇÃO: Verifica explicitamente se é true OU se tem circular preenchida
+        if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
             texto += `Cordão umbilical: `;
             const cordaoParts = [];
-            if (d.cordaoNormal) cordaoParts.push("Visualizados 3 vasos (2 artérias e 1 veia)");
-            if (d.cordaoCircular && d.cordaoCircular !== 'ausente') cordaoParts.push(`Circular cervical: ${d.cordaoCircular}`);
-            texto += cordaoParts.join('. ') + `.\n`;
+            
+            // Texto do Checkbox "Cordão 3 Vasos"
+            if (d.cordaoNormal === true) {
+                cordaoParts.push("Visualizados 3 vasos (2 artérias e 1 veia)");
+            }
+            
+            // Texto da Circular (Select)
+            if (d.cordaoCircular && d.cordaoCircular !== 'ausente') {
+                cordaoParts.push(`Circular cervical: ${d.cordaoCircular}`);
+            } else if (d.cordaoCircular === 'ausente') {
+                cordaoParts.push(`Ausência de circular cervical`);
+            }
+            
+            if (cordaoParts.length > 0) {
+                texto += cordaoParts.join('. ') + `.\n`;
+            }
         }
-        texto += `\n`;
 
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
         texto += `\n`;

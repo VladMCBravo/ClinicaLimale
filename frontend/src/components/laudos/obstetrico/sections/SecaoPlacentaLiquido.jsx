@@ -19,24 +19,26 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                     <div>
                         <span className="label-pequeno">Inserção</span>
                         <select name="placentaLocalizacao" value={data.placentaLocalizacao} onChange={handleChange} className="laudo-select full-width">
-                            <option value="corporal anterior">Corporal Anterior</option>
-                            <option value="corporal posterior">Corporal Posterior</option>
-                            <option value="corporal">Corporal (Sem especificar)</option>
-                            <option value="fúndica">Fúndica</option>
-                            <option value="prévia marginal">Prévia Marginal</option>
-                            <option value="prévia total">Prévia Total</option>
-                            <option value="lateral direita">Lateral Direita</option>
-                            <option value="lateral esquerda">Lateral Esquerda</option>
-                        </select>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="corporal anterior">Corporal Anterior</option>
+    <option value="corporal posterior">Corporal Posterior</option>
+    <option value="corporal">Corporal (Sem especificar)</option>
+    <option value="fúndica">Fúndica</option>
+    <option value="prévia marginal">Prévia Marginal</option>
+    <option value="prévia total">Prévia Total</option>
+    <option value="lateral direita">Lateral Direita</option>
+    <option value="lateral esquerda">Lateral Esquerda</option>
+</select>
                     </div>
                     <div>
                         <span className="label-pequeno">Grau (Grannum)</span>
                         <select name="placentaGrau" value={data.placentaGrau} onChange={handleChange} className="laudo-select full-width">
-                            <option value="0">Grau 0</option>
-                            <option value="I">Grau I</option>
-                            <option value="II">Grau II</option>
-                            <option value="III">Grau III</option>
-                        </select>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="0">Grau 0</option>
+    <option value="I">Grau I</option>
+    <option value="II">Grau II</option>
+    <option value="III">Grau III</option>
+</select>
                     </div>
                     <div>
                         <span className="label-pequeno">Espessura (mm)</span>
@@ -105,11 +107,11 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                     <div className="laudo-row">
                         <span>Circular cervical:</span>
                         <select name="cordaoCircular" value={data.cordaoCircular} onChange={handleChange} className="laudo-select">
-                            <option value="">Ausente / Não citar</option>
-                            <option value="ausente">Ausente (Negativo)</option>
-                            <option value="1 volta">Presente (1 volta)</option>
-                            <option value="2 voltas">Presente (2 voltas)</option>
-                        </select>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="ausente">Ausente (Negativo)</option>
+    <option value="1 volta">Presente (1 volta)</option>
+    <option value="2 voltas">Presente (2 voltas)</option>
+</select>
                     </div>
                 </div>
             </div>

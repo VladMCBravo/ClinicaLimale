@@ -37,11 +37,12 @@ const Secao3D = ({ data, handleChange }) => {
                                 <MdHighQuality /> Qualidade:
                             </span>
                             <select name="qualidade3D" value={data.qualidade3D} onChange={handleChange} className="laudo-select" style={{flex:1}}>
-                                <option value="otima">Ótima / Fotogênica</option>
-                                <option value="boa">Boa</option>
-                                <option value="regular">Regular</option>
-                                <option value="ruim">Ruim / Prejudicada</option>
-                            </select>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="otima">Ótima / Fotogênica</option>
+    <option value="boa">Boa</option>
+    <option value="regular">Regular</option>
+    <option value="ruim">Ruim / Prejudicada</option>
+</select>
                             
                             {/* Mostra se qualidade for regular ou ruim */}
                             {(data.qualidade3D === 'regular' || data.qualidade3D === 'ruim') && (
@@ -70,10 +71,11 @@ const Secao3D = ({ data, handleChange }) => {
                             <div className="laudo-row" style={{marginBottom:'8px'}}>
                                 <span className="label-pequeno">Face:</span>
                                 <select name="face3D" value={data.face3D} onChange={handleChange} className="laudo-select full-width">
-                                    <option value="visualizada">Visualizada (Nítida)</option>
-                                    <option value="parcial">Parcialmente Visualizada</option>
-                                    <option value="encoberta">Encoberta / Não visualizada</option>
-                                </select>
+    <option value="">Selecione...</option> {/* ADICIONADO */}
+    <option value="visualizada">Visualizada (Nítida)</option>
+    <option value="parcial">Parcialmente Visualizada</option>
+    <option value="encoberta">Encoberta / Não visualizada</option>
+</select>
                             </div>
 
                             <div className="laudo-grid-2" style={{gap:'5px', marginBottom:'8px'}}>

@@ -48,14 +48,15 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                 
                 {/* Coluna Esquerda: Bexiga Materna */}
                 <div className="laudo-row" style={{background:'#F5F5F5', padding:'5px', borderRadius:'4px'}}>
-                    <span style={{fontWeight:'bold', fontSize:'11px', minWidth:'80px'}}>Bexiga Materna:</span>
-                    <select name="bexigaMaterna" value={data.bexigaMaterna} onChange={handleChange} className="laudo-select full-width">
-                        <option value="não visualizada">não visualizada</option>
-                        <option value="repleta">repleta</option>
-                        <option value="vazia">vazia</option>
-                        <option value="parcialmente repleta">parcialmente repleta</option>
-                    </select>
-                </div>
+    <span style={{fontWeight:'bold', fontSize:'11px', minWidth:'80px'}}>Bexiga Materna:</span>
+    <select name="bexigaMaterna" value={data.bexigaMaterna} onChange={handleChange} className="laudo-select full-width">
+        <option value="">Selecione...</option> {/* ADICIONADO */}
+        <option value="não visualizada">não visualizada</option>
+        <option value="repleta">repleta</option>
+        <option value="vazia">vazia</option>
+        <option value="parcialmente repleta">parcialmente repleta</option>
+    </select>
+</div>
 
                 {/* Coluna Direita: Vísceras (Se não inicial) */}
                 {!isInicial && (
