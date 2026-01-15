@@ -162,13 +162,12 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 4. LÓGICA DE ORDEM DAS SEÇÕES (ATUALIZADO)
+    // 4. LÓGICA DE ORDEM DAS SEÇÕES (CORRIGIDO PARA TODOS OS TIPOS)
     // -------------------------------------------------------------------------
 
     // === CASO A: OBSTÉTRICO PADRÃO / DOPPLER ===
     if (isStandard) {
-        
-        // 1. Análise Fetal (Se houver checkboxes marcados) - CORREÇÃO APLICADA
+        // 1. Análise Fetal (Baseada nos Checkboxes)
         texto += montarAnaliseMorfologica(d);
 
         // 2. Placenta e Líquido
@@ -190,76 +189,58 @@ export const gerarRelatorioFeto = (d) => {
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
 
-        // Índices
+        // Índices e Obs Biometria
         if (d.resIc || d.resCcCa || d.resCfCa || d.resCfCc || d.pesoEstimado) {
             texto += `\nÍNDICES E ESTIMATIVAS:\n`;
-            if (d.pesoEstimado || d.pesoFetal) {
-                 texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g`;
-                 if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
-                 texto += `.\n`;
-            }
+            if (d.pesoEstimado || d.pesoFetal) texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g (Percentil: ${d.percentil || '---'}).\n`;
             if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
             if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
         }
-        // OBSERVAÇÃO BIOMETRIA - CORREÇÃO APLICADA
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
     } 
     
-    // === CASO B: MORFOLÓGICO 1º TRIMESTRE ===
+    // === CASO B: MORFOLÓGICO 1º TRIMESTRE (Correção: Agora usa Checkboxes) ===
     else if (isMorfo1) {
+        // Título Específico
+        texto += `ANÁLISE MORFOLÓGICA (11-14 SEMANAS)\n\n`;
         
-        texto += `Análise fetal:\n\n`;
-        
-        texto += `Segmento cefálico\n`;
-        if(d.morfCranio) texto += `Crânio de contornos regulares e dimensões normais.\n`;
-        if(d.morfCerebro) texto += `Estruturas da linha média presentes e plexo coróide visualizado.\n`;
-        // Checkbox Translucência Intracraniana (Novo)
-        if(d.morf1Cerebro) texto += `Translucência Intracraniana (TI) visibilizada.\n`;
-        texto += `Osso nasal ${d.ossoNasalPresente ? 'presente' : 'ausente/não visualizado'}.\n\n`;
+        // 1. Rastreamento Específico (Fixo do 1º Tri)
+        if(d.morf1Cerebro) texto += `- Translucência Intracraniana (TI) visibilizada.\n`;
+        texto += `- Osso nasal ${d.ossoNasalPresente ? 'presente' : 'ausente/não visualizado'}.\n`;
+        if(d.checkDv || d.dvIP) {
+             let onda = d.dvOndaAZero ? 'Zero' : (d.dvOndaAReversa ? 'Reversa' : 'Positiva');
+             texto += `- Ducto Venoso: Onda A ${onda}. IP: ${d.dvIP || '-'}\n`;
+        }
+        texto += `\n`;
 
-        texto += `Tórax\n`;
-        texto += `Forma e características ecográficas habituais.\n`;
-        texto += `Área cardíaca de dimensões e relação com o diâmetro torácico preservados.\n`;
-        if(d.bcf) texto += `Batimentos cardíacos presentes e rítmicos (F.C.F = ${d.bcf} bpm).\n\n`;
+        // 2. Anatomia Geral (AGORA DINÂMICA: OBEDECE OS CHECKBOXES)
+        // Removemos o texto hardcoded "Tórax... Abdome..." e usamos a função
+        const textoAnatomia = montarAnaliseMorfologica(d);
+        // Remove o título "ANÁLISE FETAL" da função auxiliar para não duplicar, mantendo só o conteúdo
+        texto += textoAnatomia.replace("ANÁLISE FETAL\n", "");
 
-        texto += `Abdomem\n`;
-        texto += `Forma preservada.\n`;
-        if(d.morfEstomago) texto += `Estômago repleto e visualizado em sua topografia habitual.\n`;
-        if(d.morfBexiga) texto += `Bexiga repleta, de dimensões e aspectos preservados.\n\n`;
-
-        texto += `Membros\n`;
-        if(d.morfMembros) texto += `Membros inferiores e superiores visibilizados, sem anormalidades grosseiras.\n`;
-        texto += `Movimentação fetal ativa e tônus adequado.\n\n`;
-        
-        if(d.obsMorfologia) texto += `Nota: ${d.obsMorfologia}\n\n`;
-
-        // Biometria
+        // 3. Biometria
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
-        // OBSERVAÇÃO BIOMETRIA - CORREÇÃO APLICADA
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
-        // Placenta e Líquido (Vem DEPOIS no Morfo 1)
+        // 4. Placenta e Líquido (Ficam no final no 1º Tri)
         if (d.placentaLocalizacao) {
             texto += `\nPlacenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
-            texto += `.\n\n`;
+            texto += `.\n`;
         }
-        if (d.liquidoAmniotico) texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}.\n\n`;
-
-        // Ducto Venoso
-        if(d.checkDv || d.dvIP) {
-             let onda = d.dvOndaAZero ? 'Zero' : (d.dvOndaAReversa ? 'Reversa' : 'positiva');
-             texto += `Ducto Venoso com Onda A ${onda}.\n`;
-        }
+        if (d.liquidoAmniotico) texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}.\n`;
+        if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
+        
         texto += `\n`;
     }
     
     // === CASO C: MORFOLÓGICO 2º TRI / OUTROS ===
     else {
-        // 1. Análise Fetal (Usa a nova função para garantir que tudo apareça)
+        // 1. Análise Fetal (Usa a função para garantir que tudo apareça)
         texto += montarAnaliseMorfologica(d);
         
         // 2. Biometria
@@ -269,17 +250,12 @@ export const gerarRelatorioFeto = (d) => {
         // Índices
         if (d.resIc || d.resCcCa || d.resCfCa || d.resCfCc || d.pesoEstimado) {
             texto += `\nÍNDICES E ESTIMATIVAS:\n`;
-            if (d.pesoEstimado || d.pesoFetal) {
-                 texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g`;
-                 if (d.percentil && !d.semDadosPercentil) texto += ` (Percentil: ${d.percentil})`;
-                 texto += `.\n`;
-            }
+            if (d.pesoEstimado || d.pesoFetal) texto += `- Peso Fetal Estimado: ${d.pesoEstimado || d.pesoFetal} g (Percentil: ${d.percentil || '---'}).\n`;
             if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
             if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
         }
-        // OBSERVAÇÃO BIOMETRIA - CORREÇÃO APLICADA
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
         // 3. Placenta (Vem DEPOIS da biometria no Morfo 2)
