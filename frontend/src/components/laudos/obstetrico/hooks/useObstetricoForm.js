@@ -171,9 +171,10 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         const resF2 = qtdFetos >= 2 ? gerarRelatorioFeto(dadosFeto2.current) : null;
         const resF3 = qtdFetos >= 3 ? gerarRelatorioFeto(dadosFeto3.current) : null;
 
-        // Monta texto final combinado
-        // IMPORTANTE: Passamos 'data' como 5º argumento para passar os Dados Gerais (Corionicidade, etc)
-        const textoFinal = montarTextoFinalMultiplo(resF1, resF2, resF3, qtdFetos, data);
+        // MUDANÇA AQUI: Passamos um array com os dados brutos de todos os fetos
+        const listaFetos = [dadosFeto1.current, dadosFeto2.current, dadosFeto3.current];
+        
+        const textoFinal = montarTextoFinalMultiplo(resF1, resF2, resF3, qtdFetos, listaFetos);
 
         const mapTitulo = {
             'OBSTETRICO_MORFOLOGICO': 'ULTRASSONOGRAFIA MORFOLÓGICA FETAL',

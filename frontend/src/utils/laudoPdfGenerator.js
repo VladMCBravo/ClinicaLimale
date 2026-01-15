@@ -206,28 +206,40 @@ export const gerarPDFLaudo = async ({
 
     content.push(...paragrafosTexto);
 
-    // D. Tabelas Especiais (Inseridas ANTES da assinatura)
+    // D. Tabelas Especiais
     
-    // 1. Tabela de Riscos (PDF Formatado)
-    const dadosRisco = dadosEstruturados?.riscoT21Basal ? dadosEstruturados : (dadosEstruturados?.feto1?.riscoT21Basal ? dadosEstruturados.feto1 : null);
-    
-    if (dadosRisco) {
-        content.push(criarTabelaRiscos(dadosRisco));
-        content.push({ text: ' ', margin: [0, 10] }); 
-    }
+    // 1. Tabelas de Risco (1º Tri) - Itera por todos os fetos possíveis
+    const fetos = [
+        { dados: dadosEstruturados.feto1 || dadosEstruturados, label: 'FETO 1' },
+        { dados: dadosEstruturados.feto2, label: 'FETO 2' },
+        { dados: dadosEstruturados.feto3, label: 'FETO 3' }
+    ];
 
-    // Linha divisória fina
-    content.push({ canvas: [{ type: 'line', x1: 0, y1: 15, x2: 515, y2: 15, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 10, 0, 10] });
+    fetos.forEach(feto => {
+        if (feto.dados && feto.dados.riscoT21Basal) {
+            // Se for gemelar, adiciona título indicando qual feto é
+            if(dadosEstruturados.qtdFetos > 1) {
+                content.push({ text: `AVALIAÇÃO DE RISCO - ${feto.label}`, style: 'sectionHeader', margin: [0, 10, 0, 2] });
+            }
+            content.push(criarTabelaRiscos(feto.dados));
+            content.push({ text: ' ', margin: [0, 5] });
+        }
+    });
+
+    // Linha divisória se houve tabelas de risco
+    if (dadosEstruturados?.feto1?.riscoT21Basal) {
+        content.push({ canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515, y2: 10, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 5, 0, 15] });
+    }
     
-    // 2. Tabelas de Biometria (Se houver array preparado)
-    // NOTA: Certifique-se que o frontend cria 'tabelaBiometria' dentro de dadosEstruturados
-    if (dadosEstruturados?.feto1?.tabelaBiometria?.length > 0) {
-        const titulo = dadosEstruturados.isGemelar ? 'BIOMETRIA FETAL - FETO 1' : 'TABELA BIOMÉTRICA';
-        content.push(criarTabelaBiometria(dadosEstruturados.feto1.tabelaBiometria, titulo));
-    }
-    if (dadosEstruturados?.isGemelar && dadosEstruturados?.feto2?.tabelaBiometria?.length > 0) {
-        content.push(criarTabelaBiometria(dadosEstruturados.feto2.tabelaBiometria, 'BIOMETRIA FETAL - FETO 2'));
-    }
+    // 2. Tabelas de Biometria
+    fetos.forEach(feto => {
+        if (feto.dados && feto.dados.tabelaBiometria && feto.dados.tabelaBiometria.length > 0) {
+            const titulo = dadosEstruturados.qtdFetos > 1 
+                ? `BIOMETRIA FETAL - ${feto.label}` 
+                : 'TABELA BIOMÉTRICA';
+            content.push(criarTabelaBiometria(feto.dados.tabelaBiometria, titulo));
+        }
+    });
 
     // E. Imagens (Layout 6 por página -> Grade 2x3)
     if (imagensBase64 && imagensBase64.length > 0) {

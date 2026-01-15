@@ -319,21 +319,20 @@ export const gerarRelatorioFeto = (d) => {
             texto += `.\n`;
         }
 
-       // CORREÇÃO: Verifica explicitamente se é true OU se tem circular preenchida
-        if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
+       // --- CORREÇÃO CORDÃO UMBILICAL ---
+        // Verifica se o checkbox '3 vasos' está marcado OU se o select de circular tem algum valor (mesmo que 'ausente')
+        if (d.cordaoNormal || (d.cordaoCircular && d.cordaoCircular !== '')) {
             texto += `Cordão umbilical: `;
             const cordaoParts = [];
             
-            // Texto do Checkbox "Cordão 3 Vasos"
-            if (d.cordaoNormal === true) {
+            if (d.cordaoNormal) {
                 cordaoParts.push("Visualizados 3 vasos (2 artérias e 1 veia)");
             }
             
-            // Texto da Circular (Select)
-            if (d.cordaoCircular && d.cordaoCircular !== 'ausente') {
-                cordaoParts.push(`Circular cervical: ${d.cordaoCircular}`);
-            } else if (d.cordaoCircular === 'ausente') {
-                cordaoParts.push(`Ausência de circular cervical`);
+            if (d.cordaoCircular === 'ausente') {
+                cordaoParts.push("Ausência de circular cervical");
+            } else if (d.cordaoCircular) {
+                cordaoParts.push(`Circular cervical: ${d.cordaoCircular}`); // Ex: Presente (1 volta)
             }
             
             if (cordaoParts.length > 0) {
@@ -634,30 +633,37 @@ const montarAnaliseMorfologica = (d) => {
 // =============================================================================
 // HELPERS FINAIS (MULTI-FETO & DISCLAIMERS)
 // =============================================================================
-export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGerais = {}) => {
+export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, listaFetos = []) => {
     let textoFinal = '';
+    const f1Data = listaFetos[0] || {};
     
-    // Header Geral
+    // 1. Título do Exame (Baseado no Feto 1)
     if (resF1 && resF1.tituloExame) {
         const sufixo = (qtdFetos > 1 && !resF1.tituloExame.includes("GEMELAR")) ? ' GEMELAR' : '';
         textoFinal += `${resF1.tituloExame}${sufixo}\n\n`;
     }
     
-    // Datação Geral (Puxa do Feto 1, pois DUM é a mesma)
-    // A médica coloca DPP logo no topo
-    // Vamos extrair a linha de DPP do texto do Feto 1 para não repetir
+    // 2. Datação Geral (Extrai do texto do Feto 1 para não repetir)
     const linhasF1 = resF1.texto.split('\n');
     const linhaDPP = linhasF1.find(l => l.startsWith('DPP:') || l.startsWith('DUM:'));
     if(linhaDPP) textoFinal += `${linhaDPP}\n\n`;
 
+    // 3. Cabeçalho Gemelar (Posições)
     if (qtdFetos > 1) {
-        textoFinal += `Gestação múltipla, ${dadosGerais.corionicidade || 'dicoriônica'} e ${dadosGerais.amnionicidade || 'diamniótica'}.\n`;
-        if(dadosGerais.localizacaoFeto) textoFinal += `Feto I: ${dadosGerais.localizacaoFeto}.\n`;
-        // Para simplificar, assumimos Feto II oposto ou não citamos posição específica no header se não tiver
+        textoFinal += `Gestação múltipla, ${f1Data.corionicidade || 'dicoriônica'} e ${f1Data.amnionicidade || 'diamniótica'}.\n`;
+        
+        // Lista as posições de cada feto
+        const pos1 = f1Data.localizacaoFeto ? `Feto I: ${f1Data.localizacaoFeto}` : '';
+        const pos2 = (listaFetos[1] && listaFetos[1].localizacaoFeto) ? `Feto II: ${listaFetos[1].localizacaoFeto}` : '';
+        const pos3 = (qtdFetos > 2 && listaFetos[2] && listaFetos[2].localizacaoFeto) ? `Feto III: ${listaFetos[2].localizacaoFeto}` : '';
+        
+        if(pos1) textoFinal += `${pos1}.\n`;
+        if(pos2) textoFinal += `${pos2}.\n`;
+        if(pos3) textoFinal += `${pos3}.\n`;
         textoFinal += `\n`;
     }
 
-    // Corpos dos Fetus (Removemos a linha de DPP do corpo individual pois já está no topo)
+    // 4. Corpos dos Textos
     const limparCabecalho = (txt) => txt.replace(/^DPP:.*\n/, '').replace(/^DUM:.*\n/, '').trim();
 
     if (qtdFetos > 1) textoFinal += `FETO I:\n`;
@@ -674,27 +680,16 @@ export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, dadosGer
         textoFinal += limparCabecalho(resF3.texto); 
     }
 
-    // DISCLAIMERS FINAIS (Conforme modelo)
+    // 5. Rodapés e Disclaimers
     textoFinal += `\n\n`;
-    if (dadosGerais.subtipo === 'OBSTETRICO_1_TRI') {
+    if (f1Data.subtipo === 'OBSTETRICO_1_TRI') {
         textoFinal += TEXTO_OBS_MORFO_1;
     } 
-    else if (dadosGerais.subtipo === 'OBSTETRICO_MORFOLOGICO') {
+    else if (f1Data.subtipo === 'OBSTETRICO_MORFOLOGICO') {
         textoFinal += TEXTO_OBS_MORFO_2;
     }
     
     textoFinal += `\n\n${TEXTO_RODAPE_PADRAO}`;
 
     return textoFinal;
-};
-
-export const montarTextoFinal = (res) => {
-    // Para feto único, adicionamos o rodapé padrão se não for morfológico (que já tem obs específica)
-    // Mas o helper montarTextoFinalMultiplo já cuida disso se usarmos ele sempre.
-    // Vamos manter a compatibilidade simples aqui:
-    let t = res.texto;
-    if (!t.includes("Favor trazer este exame")) {
-        t += `\n\n${TEXTO_RODAPE_PADRAO}`;
-    }
-    return t;
 };
