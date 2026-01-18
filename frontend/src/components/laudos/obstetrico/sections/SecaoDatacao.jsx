@@ -70,10 +70,10 @@ const SecaoDatacao = ({ data, handleChange }) => {
                         className="laudo-select full-width" 
                         style={{marginLeft:'5px', fontWeight:'bold', color:'#4A148C'}}
                     >
+                        <option value="não citar">Não citar</option>
                         <option value="abdominal">Abdominal</option>
                         <option value="transvaginal">Transvaginal</option>
                         <option value="transvaginal e abdominal">Transvaginal e Abdominal</option>
-                        <option value="não citar">Não citar</option>
                     </select>
                 </div>
             </div>
