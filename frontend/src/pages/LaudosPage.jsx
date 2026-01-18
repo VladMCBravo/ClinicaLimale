@@ -65,54 +65,55 @@ const styles = {
       flexDirection: 'column', 
       background: theme.bg 
   },
-  // NOVO: Barra Superior compacta (substitui o antigo 'card' do topo)
+  // --- BARRA SUPERIOR (Toolbar) AJUSTADA ---
   toolbar: {
       background: '#fff',
-      borderBottom: `1px solid ${theme.border}`, // Borda só embaixo para separar
+      borderBottom: `1px solid ${theme.border}`,
       padding: '8px 12px',
       display: 'grid',
-      // Grid: Paciente (40%) | Tipo (20%) | Médico (30%) | CRM (10%)
-      gridTemplateColumns: 'minmax(250px, 4fr) minmax(140px, 2fr) minmax(200px, 3fr) 80px',
-      gap: '12px',
+      // MUDANÇA AQUI:
+      // 1. Reduzi ligeiramente os minmax de Paciente e Médico
+      // 2. Aumentei o CRM de 80px para 100px
+      gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
+      gap: '8px', // MUDANÇA AQUI: Reduzi de 12px para 8px (compactar)
       alignItems: 'center',
       boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-      flexShrink: 0, // Garante que não vai encolher se faltar espaço vertical
-      zIndex: 20 // Fica acima do conteúdo rolavel
+      flexShrink: 0, 
+      zIndex: 20 
   },
   
-  // NOVO: Grupo de input para colocar ícone dentro
   inputGroup: {
       position: 'relative',
       display: 'flex',
       alignItems: 'center',
-      height: '32px', // Altura fixa compacta
+      height: '30px', // MUDANÇA AQUI: Reduzi altura de 32px para 30px (mais slim)
       background: '#F0F2F5',
       borderRadius: '4px',
       border: '1px solid #ced4da',
   },
 
-  // Ícone dentro do input
   inputIcon: {
       padding: '0 8px',
       color: '#666',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRight: '1px solid #e0e0e0', // separadorzinho visual
-      height: '100%'
+      borderRight: '1px solid #e0e0e0',
+      height: '100%',
+      fontSize: '12px' // Ícone um pouco menor também
   },
 
-  // O Input em si (sem borda pois o pai já tem)
   inputCompact: {
       border: 'none',
       background: 'transparent',
       width: '100%',
       height: '100%',
-      padding: '0 8px',
-      fontSize: '12px', // Fonte legível
+      padding: '0 6px', // Padding interno reduzido
+      fontSize: '11px', // MUDANÇA AQUI: Fonte reduzida para caber nomes longos
       fontWeight: '600',
       color: '#2C3E50',
-      outline: 'none'
+      outline: 'none',
+      textOverflow: 'ellipsis' // Garante que se estourar, mostra "..."
   },
   dropdownList: {
       position: 'absolute',
