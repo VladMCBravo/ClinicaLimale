@@ -22,6 +22,21 @@
   --c-bg-neutral: #F9FAFB; /* Cor padrão para áreas internas */
 }
 
+/* --- LAYOUT PRINCIPAL (O QUE FALTOU) --- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Divide em 2 colunas iguais */
+  gap: 15px;
+  align-items: start; /* Impede que uma coluna estique a altura da outra */
+}
+
+/* Responsividade: Vira 1 coluna em telas menores */
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- ESTRUTURA DOS PAINÉIS PRINCIPAIS (ACORDEÃO) --- */
 .dashboard-panel {
   background: #fff;
