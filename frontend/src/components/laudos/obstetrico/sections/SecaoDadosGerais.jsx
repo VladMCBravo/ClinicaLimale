@@ -7,13 +7,7 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
   const isMultipla = qtdFetos > 1;
 
   return (
-    <div className="laudo-section">
-        <div className="header-base header-blue">
-            <GiFetus size={16} style={{marginRight:'5px'}}/> Dados Gerais e Estática Fetal
-        </div>
-        
-        <div className="laudo-section-body">
-            
+    <div>    
             {/* BLOCO 1: GESTAÇÃO MÚLTIPLA (SÓ APARECE SE GEMELAR) */}
             {isMultipla && (
                 <div style={{background: '#E3F2FD', padding: '8px', borderRadius: '4px', marginBottom: '10px', border: '1px solid #90CAF9'}}>
@@ -126,9 +120,6 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                     </div>
                 )}
             </div>
-
-            
-        </div>
     </div>
   );
 };

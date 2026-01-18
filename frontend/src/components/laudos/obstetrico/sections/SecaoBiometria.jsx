@@ -49,13 +49,7 @@ const SecaoBiometria = ({ data, handleChange }) => {
     };
 
   return (
-    <div className="laudo-section">
-        <div className="header-base header-green">
-            <FaRulerCombined size={14} style={{marginRight:'5px'}}/> Biometria e Anatomia
-        </div>
-        
-        <div className="laudo-section-body">
-            
+    <div>
             {/* NOVO: CCN (Aparece em destaque se for exame precoce) */}
             <div style={{marginBottom:'15px', padding:'10px', background:'#E1F5FE', borderRadius:'4px', border:'1px solid #81D4FA'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
@@ -169,7 +163,6 @@ const SecaoBiometria = ({ data, handleChange }) => {
                     </div>
                 )}
             </div>
-        </div>
         {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (Inserir antes de fechar a laudo-section) */}
                      <div style={{
                          borderTop: '1px solid #eee', 

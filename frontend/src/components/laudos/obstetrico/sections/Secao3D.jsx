@@ -4,16 +4,12 @@ import { MdHighQuality, MdFace } from 'react-icons/md';
 
 const Secao3D = ({ data, handleChange }) => {
   return (
-    <div className="laudo-section" style={{ borderLeft: '4px solid #FBC02D' }}>
-        <div className="header-base" style={{ background: 'linear-gradient(135deg, #FBC02D, #F57F17)', color: 'white' }}>
-            <label className="laudo-checkbox-label" style={{ width: '100%', fontWeight: 'bold', cursor:'pointer' }}>
-                <input 
-                    type="checkbox" 
-                    name="usar3D" 
-                    checked={data.usar3D} 
-                    onChange={handleChange} 
-                />
-                <FaCube style={{marginRight:'5px'}}/> Estudo Tridimensional (3D) e Dinâmico (4D)
+    <div>
+        {/* CHECKBOX DE ATIVAÇÃO NO TOPO (Dentro do card agora) */}
+        <div style={{marginBottom:'10px', paddingBottom:'5px', borderBottom:'1px dashed #ccc'}}>
+            <label className="laudo-checkbox-label" style={{width: '100%', fontWeight: 'bold', cursor:'pointer', color: data.usar3D ? '#F57F17' : '#777'}}>
+                <input type="checkbox" name="usar3D" checked={data.usar3D} onChange={handleChange} />
+                <FaCube style={{marginRight:'5px'}}/> Habilitar Descrição 3D/4D no Laudo
             </label>
         </div>
 

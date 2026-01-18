@@ -33,15 +33,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
   };
 
   return (
-    <>
-        {/* BLOCO 1: ANÁLISE MORFOLÓGICA */}
-        <div className="laudo-section">
-            <div className="header-base header-green">
-                <FaCheckSquare size={12} style={{marginRight:'5px'}}/> 
-                Análise Morfológica {isMorfo1Tri ? '(1º Trimestre)' : '(2º Trimestre)'}
-            </div>
-            
-            <div className="laudo-section-body">
+            <div>
 
                 {/* --- EXCLUSIVO: RASTREAMENTO 1º TRIMESTRE --- */}
                 {isMorfo1Tri && (
@@ -202,8 +194,6 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         <CheckItem label="Membros (sup/inf)" name="morfMembros" checked={data.morfMembros} onChange={handleChange} />
                     </div>
                 </div>
-            </div>
-        </div>
 
         {/* BLOCO 2: VITALIDADE FETAL */}
         <div className="laudo-section">
@@ -273,7 +263,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
             </div>
 
         </div> {/* Fecha laudo-section */}
-    </>
+    </div>
   );
 };
 

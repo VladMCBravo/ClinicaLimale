@@ -6,10 +6,7 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
   const isMultipla = qtdFetos > 1;
 
   return (
-    <div className="laudo-section">
-        <div className="header-base header-blue">Anexos Fetais (Placenta, Líquido e Cordão)</div>
-        <div className="laudo-section-body">
-            
+    <div>   
             {/* 1. PLACENTA */}
             <div style={{marginBottom: '10px'}}>
                 <div style={{fontWeight: 'bold', color: '#444', marginBottom: '5px', fontSize:'13px'}}>
@@ -115,7 +112,6 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                     </div>
                 </div>
             </div>
-        </div>
         {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (Inserir antes de fechar a laudo-section) */}
                      <div style={{
                          borderTop: '1px solid #eee', 
