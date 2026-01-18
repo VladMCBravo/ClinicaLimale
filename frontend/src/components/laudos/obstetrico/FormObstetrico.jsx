@@ -82,9 +82,8 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       handleTabChange
   } = useObstetricoForm(onUpdate, initialValues);
 
-  // Controle de Seções (Default: Todas abertas = true)
-  // Usamos um objeto onde a chave é o ID e true/false é o estado de fechado
-  const [secoesFechadas, setSecoesFechadas] = useState({});
+  // MUDANÇA AQUI: Inicializa 'graficos' como true (fechado)
+  const [secoesFechadas, setSecoesFechadas] = useState({ graficos: true });
 
   const toggleSecao = (id) => {
       setSecoesFechadas(prev => ({ ...prev, [id]: !prev[id] }));
@@ -239,7 +238,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
 
-                 {/* F. GRÁFICOS (Fica bem no final da esquerda) */}
+                 {/* Gráficos agora começam colapsados pelo useState */}
                  <DashboardPanel id="graficos" title="Gráficos" color="#8E24AA" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
                     <SecaoIndicesGraficos {...commonProps} />
                 </DashboardPanel>
@@ -261,8 +260,8 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
 
-                {/* C. ÚTERO / ANEXOS */}
-                {(isInicial || is1Tri) && (
+                {/* MUDANÇA AQUI: Trazendo Útero e Anexos de volta para o Tardio também */}
+                {(isInicial || is1Tri || isTardio) && (
                     <DashboardPanel id="anexos1tri" title="Útero e Anexos" color="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                         <SecaoDadosMaternos1Tri {...commonProps} />
                     </DashboardPanel>

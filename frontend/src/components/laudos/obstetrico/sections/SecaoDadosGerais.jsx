@@ -1,12 +1,9 @@
 import React from 'react';
-import { GiFetus, GiWaterDrop } from 'react-icons/gi';
-import { FaHeartbeat, FaChild, FaLayerGroup } from 'react-icons/fa';
+import { GiFetus } from 'react-icons/gi';
+import { FaHeartbeat, FaLayerGroup } from 'react-icons/fa';
 
 const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
-  // CORREÇÃO: Removi '1_TRI' da verificação. 
-  // Agora ele só esconde os dados se for "OBSTETRICO_INICIAL" (aquele de 6-9 semanas)
   const isInicial = data.subtipo === 'OBSTETRICO_INICIAL';
-  
   const isMultipla = qtdFetos > 1;
 
   return (
@@ -42,38 +39,7 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                     </div>
                 </div>
             )}
-
-            {/* BLOCO 2: BEXIGA E ESTÁTICA (Lado a Lado) */}
-            <div className="laudo-grid-2" style={{alignItems:'start', gap:'15px'}}>
-                
-                {/* Coluna Esquerda: Bexiga Materna */}
-                <div className="laudo-row" style={{background:'#F5F5F5', padding:'5px', borderRadius:'4px'}}>
-    <span style={{fontWeight:'bold', fontSize:'11px', minWidth:'80px'}}>Bexiga Materna:</span>
-    <select name="bexigaMaterna" value={data.bexigaMaterna} onChange={handleChange} className="laudo-select full-width">
-        <option value="">Selecione...</option> {/* ADICIONADO */}
-        <option value="não visualizada">não visualizada</option>
-        <option value="repleta">repleta</option>
-        <option value="vazia">vazia</option>
-        <option value="parcialmente repleta">parcialmente repleta</option>
-    </select>
-</div>
-
-                {/* Coluna Direita: Vísceras (Se não inicial) */}
-                {!isInicial && (
-                    <div className="laudo-row" style={{justifyContent:'flex-end', fontSize:'11px'}}>
-                        <label className="laudo-checkbox-label" style={{marginRight:'10px'}}>
-                            <input type="checkbox" name="estomagoVisualizado" checked={!!data.estomagoVisualizado} onChange={handleChange} /> 
-                            Estômago
-                        </label>
-                        <label className="laudo-checkbox-label">
-                            <input type="checkbox" name="bexigaVisualizada" checked={!!data.bexigaVisualizada} onChange={handleChange} /> 
-                            Bexiga
-                        </label>
-                    </div>
-                )}
-            </div>
-
-            {/* BLOCO 3: DADOS ESPECÍFICOS DO FETO */}
+            {/* BLOCO 2: DADOS ESPECÍFICOS DO FETO */}
 {!isInicial && (
     <div style={{marginTop:'10px', background:'#FAFAFA', padding:'8px', borderRadius:'4px', border:'1px solid #EEE'}}>
         <div className="laudo-grid-3" style={{marginBottom: '10px'}}>
@@ -130,6 +96,38 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                     </div>
                 </div>
             )}
+
+            {/* BLOCO 3: BEXIGA E ESTÁTICA (Lado a Lado) */}
+            <div className="laudo-grid-2" style={{alignItems:'start', gap:'15px'}}>
+                
+                {/* Coluna Esquerda: Bexiga Materna */}
+                <div className="laudo-row" style={{background:'#F5F5F5', padding:'5px', borderRadius:'4px'}}>
+    <span style={{fontWeight:'bold', fontSize:'11px', minWidth:'80px'}}>Bexiga Materna:</span>
+    <select name="bexigaMaterna" value={data.bexigaMaterna} onChange={handleChange} className="laudo-select full-width">
+        <option value="">Selecione...</option> {/* ADICIONADO */}
+        <option value="não visualizada">não visualizada</option>
+        <option value="repleta">repleta</option>
+        <option value="vazia">vazia</option>
+        <option value="parcialmente repleta">parcialmente repleta</option>
+    </select>
+</div>
+
+                {/* Coluna Direita: Vísceras (Se não inicial) */}
+                {!isInicial && (
+                    <div className="laudo-row" style={{justifyContent:'flex-end', fontSize:'11px'}}>
+                        <label className="laudo-checkbox-label" style={{marginRight:'10px'}}>
+                            <input type="checkbox" name="estomagoVisualizado" checked={!!data.estomagoVisualizado} onChange={handleChange} /> 
+                            Estômago
+                        </label>
+                        <label className="laudo-checkbox-label">
+                            <input type="checkbox" name="bexigaVisualizada" checked={!!data.bexigaVisualizada} onChange={handleChange} /> 
+                            Bexiga
+                        </label>
+                    </div>
+                )}
+            </div>
+
+            
         </div>
     </div>
   );

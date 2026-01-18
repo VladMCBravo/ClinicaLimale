@@ -2,24 +2,8 @@ import React from 'react';
 
 const SecaoDadosMaternos1Tri = ({ data, handleChange }) => {
   return (
-    <>
-        {/* CAIXA 1: VIA DE AVALIAÇÃO */}
-        <div className="laudo-section">
-            <div className="header-base header-purple">Via de avaliação</div>
-            <div className="laudo-section-body">
-                <div className="laudo-row">
-                    <span>exame realizado por via:</span>
-                    <select name="viaExame" value={data.viaExame} onChange={handleChange} className="laudo-select" style={{marginLeft:'10px'}}>
-                        <option>não citar</option>
-                        <option>transvaginal</option>
-                        <option>abdominal</option>
-                        <option>transvaginal e abdominal</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        {/* CAIXA 2: ÚTERO */}
+    <>       
+        {/* CAIXA 1: ÚTERO */}
         <div className="laudo-section">
             <div className="header-base header-purple">Útero</div>
             <div className="laudo-section-body">
@@ -64,7 +48,7 @@ const SecaoDadosMaternos1Tri = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* CAIXA 3: COLO UTERINO (Versão Simplificada 1º TRI) */}
+        {/* CAIXA 2: COLO UTERINO (Versão Simplificada 1º TRI) */}
         <div className="laudo-section">
             <div className="header-base header-purple">Colo uterino</div>
             <div className="laudo-section-body">
@@ -82,7 +66,7 @@ const SecaoDadosMaternos1Tri = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* CAIXA 4: ANEXOS */}
+        {/* CAIXA 3: ANEXOS */}
         <div className="laudo-section">
             <div className="header-base header-purple">Anexos</div>
             <div className="laudo-section-body">

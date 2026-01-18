@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { MdDateRange, MdWarning } from 'react-icons/md';
-import { FaCalendarAlt, FaCalculator, FaHistory, FaCommentMedical} from 'react-icons/fa';
+import { FaCalendarAlt, FaCalculator, FaHistory, FaMicroscope} from 'react-icons/fa';
 
 const SecaoDatacao = ({ data, handleChange }) => {
 
@@ -61,6 +61,26 @@ const SecaoDatacao = ({ data, handleChange }) => {
         </div>
         
         <div className="laudo-section-body">
+            {/* --- NOVO: VIA DE AVALIAÇÃO (Movido para cá) --- */}
+            <div style={{marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px dashed #ddd'}}>
+                <div className="laudo-row">
+                    <span style={{fontWeight:'bold', display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', color:'#555'}}>
+                        <FaMicroscope /> Via de Avaliação:
+                    </span>
+                    <select 
+                        name="viaExame" 
+                        value={data.viaExame} 
+                        onChange={handleChange} 
+                        className="laudo-select full-width" 
+                        style={{marginLeft:'5px', fontWeight:'bold', color:'#4A148C'}}
+                    >
+                        <option value="abdominal">Abdominal</option>
+                        <option value="transvaginal">Transvaginal</option>
+                        <option value="transvaginal e abdominal">Transvaginal e Abdominal</option>
+                        <option value="não citar">Não citar</option>
+                    </select>
+                </div>
+            </div>
             
             {/* BLOCO 1: DUM (OPÇÃO PADRÃO) */}
             <div style={{
