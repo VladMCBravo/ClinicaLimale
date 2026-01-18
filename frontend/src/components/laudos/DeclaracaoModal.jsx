@@ -12,7 +12,7 @@ import pdfFonts from "pdfmake/build/vfs_fonts";
 import logoImagemPath from '../../assets/Logo-pdf.png';
 import { getBase64FromUrl } from "../../utils/imageHelper";
 
-// Configura as fontes (igual ao seu laudoPdfGenerator)
+// Configura as fontes
 if (pdfFonts && pdfFonts.pdfMake) {
     pdfMake.vfs = pdfFonts.pdfMake.vfs;
 } else if (pdfFonts && pdfFonts.vfs) {
@@ -21,13 +21,18 @@ if (pdfFonts && pdfFonts.pdfMake) {
 
 export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
     const [tipo, setTipo] = useState('PACIENTE'); 
-    const [periodo, setPeriodo] = useState(''); // Deixe vazio para o usuário digitar livre se quiser
     const [acompanhanteNome, setAcompanhanteNome] = useState('');
     const [horarioInicio, setHorarioInicio] = useState('');
     const [horarioFim, setHorarioFim] = useState('');
 
+    // Função auxiliar para trocar 14:00 por 14h00
+    const formatHour = (timeStr) => {
+        if (!timeStr) return "___";
+        return timeStr.replace(':', 'h');
+    };
+
     const handleImprimir = async () => {
-        // 1. Busca o Logo (se disponível)
+        // 1. Busca o Logo
         let logoBase64 = null;
         try {
             logoBase64 = await getBase64FromUrl(logoImagemPath);
@@ -35,13 +40,16 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
             console.error("Erro logo:", error);
         }
 
-        // 2. Prepara os Textos
-        const dataHoje = new Date().toLocaleDateString('pt-BR');
-        const nomePaciente = paciente?.nome_completo || paciente?.nome || "Paciente";
+        // 2. Prepara os Dados
+        const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+        const hoje = new Date();
+        const dataExtenso = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
         
+        const nomePaciente = paciente?.nome_completo || paciente?.nome || "PACIENTE";
+        
+        // Dados do Médico
         let nomeMedico = "Médico Responsável";
         let crmMedico = "";
-
         if (typeof medico === 'string') {
             nomeMedico = medico;
         } else if (medico) {
@@ -49,22 +57,22 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
             crmMedico = medico.crm || "";
         }
 
+        // Montagem do Texto Principal
         let textoPrincipal = "";
-        const periodoTexto = periodo ? ` no período: ${periodo}` : "";
-        const horarioTexto = (horarioInicio && horarioFim) ? ` (das ${horarioInicio} às ${horarioFim})` : "";
+        const periodoTexto = `no período das ${formatHour(horarioInicio)} às ${formatHour(horarioFim)}`;
 
         if (tipo === 'PACIENTE') {
-            textoPrincipal = `Declaro para os devidos fins que o(a) Sr(a). ${nomePaciente.toUpperCase()} esteve em atendimento nesta clínica no dia ${dataHoje}${periodoTexto}${horarioTexto}.`;
+            textoPrincipal = `Declaramos, para os devidos fins, que a Sr(a). ${nomePaciente.toUpperCase()} esteve em atendimento nesta clínica na data de ${dataExtenso}, ${periodoTexto}.`;
         } else {
-            textoPrincipal = `Declaro para os devidos fins que o(a) Sr(a). ${acompanhanteNome.toUpperCase()} esteve nesta clínica acompanhando o paciente ${nomePaciente.toUpperCase()} no dia ${dataHoje}${periodoTexto}${horarioTexto}.`;
+            textoPrincipal = `Declaramos, para os devidos fins, que a Sr(a). ${acompanhanteNome.toUpperCase()} esteve nesta clínica acompanhando o paciente ${nomePaciente.toUpperCase()}, na data de ${dataExtenso}, ${periodoTexto}.`;
         }
 
-        // 3. Define o Documento (Mesmo padrão visual do Laudo)
+        // 3. Define o Documento PDF
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [40, 130, 40, 80], // Margens para caber o cabeçalho
+            pageMargins: [60, 140, 60, 80], // Margens ajustadas para ficar elegante
             
-            // CABEÇALHO (Igual ao do Laudo)
+            // CABEÇALHO
             header: {
                 margin: [40, 20, 40, 0], 
                 stack: [
@@ -78,7 +86,7 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
                 ]
             },
 
-            // RODAPÉ (Igual ao do Laudo)
+            // RODAPÉ
             footer: (currentPage, pageCount) => {
                 return {
                     margin: [40, 10, 40, 0],
@@ -91,10 +99,8 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
                             fontSize: 9, color: '#555', alignment: 'center'
                         },
                         { 
-                            text: [
-                                'contato@limale.com.br', '  |  ', { text: '@clinicalimale', bold: true }
-                            ], 
-                            fontSize: 9, color: '#555', alignment: 'center', margin: [0, 2]
+                            text: 'Rua Manoel da Nóbrega, 595 - Centro, Diadema - SP', 
+                            fontSize: 8, color: '#777', alignment: 'center', margin: [0, 2]
                         }
                     ]
                 };
@@ -102,16 +108,27 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
 
             // CONTEÚDO
             content: [
-                { text: 'DECLARAÇÃO DE COMPARECIMENTO', fontSize: 14, bold: true, color: '#1C2E4A', alignment: 'center', margin: [0, 0, 0, 40] },
+                { text: 'DECLARAÇÃO DE COMPARECIMENTO', fontSize: 16, bold: true, color: '#1C2E4A', alignment: 'center', margin: [0, 0, 0, 50] },
                 
-                { text: textoPrincipal, fontSize: 12, alignment: 'justify', lineHeight: 1.5, margin: [20, 0, 20, 60] },
+                // Texto Principal (Justificado e com espaçamento de linha)
+                { text: textoPrincipal, fontSize: 12, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 20] },
+
+                // Segundo Parágrafo
+                { text: 'Esta declaração é emitida a pedido da interessada, para fins de comprovação de comparecimento.', fontSize: 12, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 60] },
 
                 // ASSINATURA
-                { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
-                { text: nomeMedico, alignment: 'center', bold: true, fontSize: 10 },
-                { text: crmMedico ? `CRM: ${crmMedico}` : '', alignment: 'center', fontSize: 9, color: '#555' },
+                {
+                    stack: [
+                        { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
+                        { text: nomeMedico, alignment: 'center', bold: true, fontSize: 12 },
+                        { text: crmMedico ? `CRM: ${crmMedico}` : '', alignment: 'center', fontSize: 10, color: '#555', margin: [0, 0, 0, 2] },
+                        { text: 'Clínica Limalé – Especialidades Médicas e Imagem', alignment: 'center', fontSize: 10, color: '#1C2E4A', bold: true }
+                    ],
+                    unbreakable: true
+                },
                 
-                { text: `Diadema, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}.`, alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10, color: '#666' }
+                // Data no final
+                { text: `Diadema, ${dataExtenso}.`, alignment: 'center', margin: [0, 40, 0, 0], fontSize: 11, color: '#666' }
             ],
             
             defaultStyle: { font: 'Roboto' }
@@ -123,14 +140,14 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Emitir Declaração</DialogTitle>
+            <DialogTitle sx={{color: '#1C2E4A', fontWeight:'bold'}}>Emitir Declaração</DialogTitle>
             <DialogContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
                     
                     <FormControl>
-                        <Typography variant="subtitle2">Tipo de Declaração:</Typography>
+                        <Typography variant="subtitle2" sx={{mb:1, fontWeight:'bold'}}>Quem esteve na clínica?</Typography>
                         <RadioGroup row value={tipo} onChange={(e) => setTipo(e.target.value)}>
-                            <FormControlLabel value="PACIENTE" control={<Radio />} label="Paciente" />
+                            <FormControlLabel value="PACIENTE" control={<Radio />} label="Apenas o Paciente" />
                             <FormControlLabel value="ACOMPANHANTE" control={<Radio />} label="Acompanhante" />
                         </RadioGroup>
                     </FormControl>
@@ -139,35 +156,39 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
                         <TextField 
                             label="Nome do Acompanhante" 
                             fullWidth 
+                            variant="outlined"
                             value={acompanhanteNome}
                             onChange={(e) => setAcompanhanteNome(e.target.value)}
+                            placeholder="Digite o nome completo"
                         />
                     )}
 
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <TextField 
-                            label="Chegada" 
+                            label="Horário Chegada" 
                             type="time" 
                             value={horarioInicio} 
                             onChange={(e) => setHorarioInicio(e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             fullWidth
+                            helperText="Ex: 14:10"
                         />
                         <TextField 
-                            label="Saída" 
+                            label="Horário Saída" 
                             type="time" 
                             value={horarioFim} 
                             onChange={(e) => setHorarioFim(e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             fullWidth
+                            helperText="Ex: 15:05"
                         />
                     </Box>
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancelar</Button>
-                <Button onClick={handleImprimir} variant="contained" color="primary">
-                    Gerar PDF (Padronizado)
+            <DialogActions sx={{padding: '20px'}}>
+                <Button onClick={onClose} sx={{color:'#666'}}>Cancelar</Button>
+                <Button onClick={handleImprimir} variant="contained" sx={{background:'#1C2E4A'}}>
+                    Gerar PDF
                 </Button>
             </DialogActions>
         </Dialog>
