@@ -55,13 +55,9 @@ const SecaoDatacao = ({ data, handleChange }) => {
   };
 
   return (
-    <div className="laudo-section">
-        <div className="header-base header-purple">
-            <MdDateRange size={14} style={{marginRight:'5px'}}/> Datação e Cronologia
-        </div>
-        
-        <div className="laudo-section-body">
-            {/* --- NOVO: VIA DE AVALIAÇÃO (Movido para cá) --- */}
+    <div> {/* Removeu .laudo-section e .header-base */}
+    
+          {/* --- NOVO: VIA DE AVALIAÇÃO (Movido para cá) --- */}
             <div style={{marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px dashed #ddd'}}>
                 <div className="laudo-row">
                     <span style={{fontWeight:'bold', display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', color:'#555'}}>
@@ -202,9 +198,7 @@ const SecaoDatacao = ({ data, handleChange }) => {
                         </div>
                     )}
                 </div>
-
             </div>
-        </div>
         {/* Obs Datacao */}
         <div style={{
              borderTop: '1px solid #eee', padding: '8px', 

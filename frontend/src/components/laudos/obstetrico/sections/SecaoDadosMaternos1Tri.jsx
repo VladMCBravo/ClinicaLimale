@@ -1,5 +1,15 @@
 import React from 'react';
 
+const SubHeader = ({ children }) => (
+    <div style={{
+        fontSize: '11px', fontWeight: 'bold', color: '#2C3E50', 
+        borderBottom: '1px solid #eee', paddingBottom: '4px', marginBottom: '8px',
+        textTransform: 'uppercase'
+    }}>
+        {children}
+    </div>
+);
+
 const SecaoDadosMaternos1Tri = ({ data, handleChange }) => {
   return (
     <>       

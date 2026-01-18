@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
 // Ícones
-import { FaBaby, FaLayerGroup, FaChevronDown, FaChevronUp, FaNotesMedical, FaCheck } from 'react-icons/fa'; // Adicionei FaNotesMedical e FaCheck
-import { MdChildCare } from 'react-icons/md';
+import { 
+    FaBaby, FaLayerGroup, FaChevronDown, FaChevronUp, FaNotesMedical, FaCheck,
+    FaCalendarAlt, FaRulerCombined, FaWaveSquare, FaCube, FaCheckSquare 
+} from 'react-icons/fa';
+import { MdChildCare, MdLinearScale } from 'react-icons/md';
+import { GiFetus, GiEmbryo } from 'react-icons/gi';
 
 // Seções (Removi SecaoSubtipo pois vamos fazer direto aqui para ficar bonito)
 import SecaoDatacao from './sections/SecaoDatacao';
@@ -19,71 +23,79 @@ import SecaoColoDados from './sections/SecaoColoDados';
 import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
 import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos';
 
-// --- ESTILOS INLINE (Mimetizando LaudosPage) ---
+// --- ESTILOS INLINE (Barra de Controle) ---
 const styles = {
-    // A caixa cinza com borda arredondada
     inputGroup: {
-        display: 'flex',
-        alignItems: 'center',
-        height: '30px', 
-        background: '#F0F2F5',
-        borderRadius: '4px',
-        border: '1px solid #ced4da',
-        overflow: 'hidden', // garante que o filho não vaze o radius
-        width: '100%'
+        display: 'flex', alignItems: 'center', height: '30px', 
+        background: '#F0F2F5', borderRadius: '4px', border: '1px solid #ced4da',
+        overflow: 'hidden', width: '100%'
     },
-    // O quadrado do ícone na esquerda
     inputIcon: {
-        padding: '0 8px',
-        color: '#555',
-        borderRight: '1px solid #dcdcdc',
-        display: 'flex', 
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        background: '#e9ecef',
-        fontSize: '12px'
+        padding: '0 8px', color: '#555', borderRight: '1px solid #dcdcdc',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100%', background: '#e9ecef', fontSize: '12px'
     },
-    // O select transparente dentro da caixa
     selectClean: {
-        border: 'none',
-        background: 'transparent',
-        width: '100%',
-        height: '100%',
-        padding: '0 8px',
-        fontSize: '11px',
-        fontWeight: '700', // Negrito para destacar
-        color: '#2C3E50',
-        outline: 'none',
-        cursor: 'pointer'
+        border: 'none', background: 'transparent', width: '100%', height: '100%',
+        padding: '0 8px', fontSize: '11px', fontWeight: '700', color: '#2C3E50',
+        outline: 'none', cursor: 'pointer'
     }
 };
 
-const DashboardPanel = ({ id, title, color, children, isOpen, onToggle }) => {
+// --- NOVO COMPONENTE DE PAINEL (COM CABEÇALHO COLORIDO) ---
+const DashboardPanel = ({ id, title, color, icon: Icon, children, isOpen, onToggle }) => {
     return (
-        <div className="dashboard-panel" style={{ borderLeft: `4px solid ${color}` }}>
-            <div className="dashboard-panel-header" onClick={() => onToggle(id)}>
-                <span>{title}</span>
-                {isOpen ? <FaChevronUp size={10}/> : <FaChevronDown size={10}/>}
+        <div className="dashboard-panel" style={{ 
+            border: `1px solid ${color}`, 
+            borderLeft: `4px solid ${color}`, // Mantive a borda grossa na esquerda
+            borderRadius: '6px',
+            overflow: 'hidden',
+            marginBottom: '10px',
+            background: '#fff'
+        }}>
+            <div 
+                className="dashboard-panel-header" 
+                onClick={() => onToggle(id)}
+                style={{
+                    // Gradiente sutil baseado na cor passada
+                    background: `linear-gradient(135deg, ${color}, ${adjustColor(color, -20)})`,
+                    color: '#fff',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                }}
+            >
+                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                    {Icon && <Icon size={14} style={{opacity: 0.95}}/>}
+                    <span>{title}</span>
+                </div>
+                {isOpen ? <FaChevronUp size={12}/> : <FaChevronDown size={12}/>}
             </div>
-            {isOpen && <div className="dashboard-panel-body">{children}</div>}
+            {isOpen && <div className="dashboard-panel-body" style={{padding: '10px'}}>{children}</div>}
         </div>
     );
 };
 
+// Helper simples para escurecer cor no gradiente (apenas visual)
+const adjustColor = (color, amount) => color; 
+
 const FormObstetrico = ({ onUpdate, initialValues }) => {
 
   const { 
-      formState, 
-      handleInputChange, 
-      qtdFetos, 
-      handleChangeQtdFetos,
-      fetoAtivo,
-      handleTabChange
+      formState, handleInputChange, qtdFetos, handleChangeQtdFetos, fetoAtivo, handleTabChange
   } = useObstetricoForm(onUpdate, initialValues);
 
-  // MUDANÇA AQUI: Inicializa 'graficos' como true (fechado)
-  const [secoesFechadas, setSecoesFechadas] = useState({ graficos: true });
+  // MUDANÇA: 'anexos1tri' começa fechado também
+  const [secoesFechadas, setSecoesFechadas] = useState({ 
+      graficos: true, 
+      anexos1tri: true 
+  });
 
   const toggleSecao = (id) => {
       setSecoesFechadas(prev => ({ ...prev, [id]: !prev[id] }));
@@ -93,10 +105,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   if (!formState) return <div className="p-4">Carregando...</div>;
 
   const commonProps = {
-      data: formState,
-      handleChange: handleInputChange,
-      onChange: handleInputChange,
-      qtdFetos 
+      data: formState, handleChange: handleInputChange, onChange: handleInputChange, qtdFetos 
   };
 
   const subtipo = formState.subtipo;
@@ -107,24 +116,14 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   return (
     <div className="flex flex-col gap-3 pb-8">
       
-      {/* 1. BARRA DE CONTROLE SUPERIOR (NOVO VISUAL) */}
-      <div className="dashboard-panel" style={{borderLeft: '4px solid #333', marginBottom: '5px'}}>
+      {/* 1. BARRA DE CONTROLE SUPERIOR */}
+      <div className="dashboard-panel" style={{borderLeft: '4px solid #333', marginBottom: '5px', background:'#fff', border: '1px solid #ddd', borderRadius:'6px'}}>
           <div className="dashboard-panel-body" style={{padding:'8px 10px'}}>
-              
-              {/* GRID: SUBTIPO (70%) | GESTAÇÃO (30%) */}
               <div style={{display: 'grid', gridTemplateColumns: 'minmax(300px, 2fr) minmax(220px, 1fr)', gap: '15px', alignItems: 'center'}}>
-                  
-                  {/* CAMPO 1: SUBTIPO DE EXAME */}
+                  {/* SUBTIPO */}
                   <div style={styles.inputGroup} title="Selecione o Subtipo do Exame">
-                      <div style={styles.inputIcon}>
-                          <FaNotesMedical />
-                      </div>
-                      <select 
-                          name="subtipo" 
-                          value={formState.subtipo} 
-                          onChange={handleInputChange}
-                          style={styles.selectClean}
-                      >
+                      <div style={styles.inputIcon}><FaNotesMedical /></div>
+                      <select name="subtipo" value={formState.subtipo} onChange={handleInputChange} style={styles.selectClean}>
                           <option value="OBSTETRICO_INICIAL">Obstétrico Inicial (Transvaginal)</option>
                           <option value="OBSTETRICO_1_TRI">Morfológico 1º Trimestre</option>
                           <option value="OBSTETRICO_2_3_TRI">Obstétrico (2º/3º Tri)</option>
@@ -260,7 +259,6 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
 
-                {/* MUDANÇA AQUI: Trazendo Útero e Anexos de volta para o Tardio também */}
                 {(isInicial || is1Tri || isTardio) && (
                     <DashboardPanel id="anexos1tri" title="Útero e Anexos" color="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                         <SecaoDadosMaternos1Tri {...commonProps} />

@@ -67,16 +67,12 @@ const SecaoDoppler = ({ data, handleChange }) => {
 
 
   return (
-    <div className="laudo-section" style={{ borderLeft: data.usarDoppler ? '4px solid #1565C0' : '1px solid #ccc' }}>
-        {/* CABEÇALHO ATIVÁVEL */}
-        <div className={`header-base ${data.usarDoppler ? 'header-blue' : 'header-gray'}`} style={{ transition: '0.3s' }}>
-            <label className="laudo-checkbox-label" style={{ width: '100%', cursor: 'pointer', fontWeight:'bold' }}>
-                <input 
-                    type="checkbox" 
-                    checked={!!data.usarDoppler} 
-                    onChange={(e) => handleChange({target: {name: 'usarDoppler', value: e.target.checked}})} 
-                />
-                <FaWaveSquare style={{marginRight:'5px'}}/> Estudo Dopplerfluxométrico
+    <div>
+        {/* CONTROLE DE ATIVAÇÃO (Substitui o Header Antigo) */}
+        <div style={{marginBottom:'10px', paddingBottom:'5px', borderBottom:'1px dashed #ccc'}}>
+            <label className="laudo-checkbox-label" style={{fontWeight:'bold', color: data.usarDoppler ? '#1565C0' : '#777'}}>
+                <input type="checkbox" name="usarDoppler" checked={!!data.usarDoppler} onChange={(e) => handleChange({target: {name: 'usarDoppler', value: e.target.checked}})} />
+                Habilitar Texto do Doppler no Laudo
             </label>
         </div>
 
