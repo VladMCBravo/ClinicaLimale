@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { useObstetricoForm } from './hooks/useObstetricoForm';
 
 // Ícones
-import { FaBaby, FaLayerGroup, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaBaby, FaLayerGroup, FaChevronDown, FaChevronUp, FaNotesMedical, FaCheck } from 'react-icons/fa'; // Adicionei FaNotesMedical e FaCheck
 import { MdChildCare } from 'react-icons/md';
 
-// Seções
-import SecaoSubtipo from './sections/SecaoSubtipo';
+// Seções (Removi SecaoSubtipo pois vamos fazer direto aqui para ficar bonito)
 import SecaoDatacao from './sections/SecaoDatacao';
 import SecaoDadosGerais from './sections/SecaoDadosGerais';
 import SecaoSacoGestacional from './sections/SecaoSacoGestacional';
@@ -20,7 +19,46 @@ import SecaoColoDados from './sections/SecaoColoDados';
 import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
 import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos';
 
-// --- NOVO COMPONENTE DE PAINEL (VISUAL LIMPO) ---
+// --- ESTILOS INLINE (Mimetizando LaudosPage) ---
+const styles = {
+    // A caixa cinza com borda arredondada
+    inputGroup: {
+        display: 'flex',
+        alignItems: 'center',
+        height: '30px', 
+        background: '#F0F2F5',
+        borderRadius: '4px',
+        border: '1px solid #ced4da',
+        overflow: 'hidden', // garante que o filho não vaze o radius
+        width: '100%'
+    },
+    // O quadrado do ícone na esquerda
+    inputIcon: {
+        padding: '0 8px',
+        color: '#555',
+        borderRight: '1px solid #dcdcdc',
+        display: 'flex', 
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        background: '#e9ecef',
+        fontSize: '12px'
+    },
+    // O select transparente dentro da caixa
+    selectClean: {
+        border: 'none',
+        background: 'transparent',
+        width: '100%',
+        height: '100%',
+        padding: '0 8px',
+        fontSize: '11px',
+        fontWeight: '700', // Negrito para destacar
+        color: '#2C3E50',
+        outline: 'none',
+        cursor: 'pointer'
+    }
+};
+
 const DashboardPanel = ({ id, title, color, children, isOpen, onToggle }) => {
     return (
         <div className="dashboard-panel" style={{ borderLeft: `4px solid ${color}` }}>
@@ -70,34 +108,71 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   return (
     <div className="flex flex-col gap-3 pb-8">
       
-      {/* 1. BARRA DE CONTROLE SUPERIOR (FIXA) */}
+      {/* 1. BARRA DE CONTROLE SUPERIOR (NOVO VISUAL) */}
       <div className="dashboard-panel" style={{borderLeft: '4px solid #333', marginBottom: '5px'}}>
-          <div className="dashboard-panel-body" style={{padding:'6px 10px'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <div style={{flex: 1, marginRight: '20px'}}>
-                      <SecaoSubtipo {...commonProps} />
-                  </div>
+          <div className="dashboard-panel-body" style={{padding:'8px 10px'}}>
+              
+              {/* GRID: SUBTIPO (70%) | GESTAÇÃO (30%) */}
+              <div style={{display: 'grid', gridTemplateColumns: 'minmax(300px, 2fr) minmax(220px, 1fr)', gap: '15px', alignItems: 'center'}}>
                   
-                  <div className="flex flex-col items-end">
-                      <span className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
-                           <FaLayerGroup /> GESTAÇÃO:
-                      </span>
-                      <div className="flex gap-1 bg-gray-100 p-1 rounded border border-gray-200">
-                          {[1, 2, 3].map(qtd => (
-                              <button 
-                                key={qtd}
-                                onClick={() => handleChangeQtdFetos(qtd)}
-                                className={`px-2 py-1 rounded text-xs font-bold transition-all border ${
-                                    qtdFetos === qtd 
-                                    ? 'bg-purple-600 text-white border-purple-800' 
-                                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                                }`}
-                              >
-                                  {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Tri'}
-                              </button>
-                          ))}
+                  {/* CAMPO 1: SUBTIPO DE EXAME */}
+                  <div style={styles.inputGroup} title="Selecione o Subtipo do Exame">
+                      <div style={styles.inputIcon}>
+                          <FaNotesMedical />
                       </div>
+                      <select 
+                          name="subtipo" 
+                          value={formState.subtipo} 
+                          onChange={handleInputChange}
+                          style={styles.selectClean}
+                      >
+                          <option value="OBSTETRICO_INICIAL">Obstétrico Inicial (Transvaginal)</option>
+                          <option value="OBSTETRICO_1_TRI">Morfológico 1º Trimestre</option>
+                          <option value="OBSTETRICO_2_3_TRI">Obstétrico (2º/3º Tri)</option>
+                          <option value="OBSTETRICO_DOPPLER">Obstétrico com Doppler</option>
+                          <option value="OBSTETRICO_MORFOLOGICO">Morfológico 2º Trimestre</option>
+                          <option value="OBSTETRICO_3D">Obstétrico 3D / 4D</option>
+                      </select>
                   </div>
+
+                  {/* CAMPO 2: TIPO DE GESTAÇÃO (Botões integrados) */}
+                  <div style={{...styles.inputGroup, justifyContent: 'space-between', paddingRight: '2px'}}>
+                        <div style={styles.inputIcon} title="Quantidade de Fetos">
+                            <FaLayerGroup />
+                        </div>
+                        {/* Botões Internos */}
+                        <div style={{display: 'flex', flex: 1, gap: '2px', padding: '2px'}}>
+                            {[1, 2, 3].map(qtd => {
+                                const isSelected = qtdFetos === qtd;
+                                return (
+                                    <button 
+                                        key={qtd}
+                                        onClick={() => handleChangeQtdFetos(qtd)}
+                                        style={{
+                                            flex: 1,
+                                            border: 'none',
+                                            borderRadius: '2px',
+                                            background: isSelected ? '#333' : 'transparent',
+                                            color: isSelected ? '#fff' : '#555',
+                                            fontSize: '10px',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            transition: '0.2s',
+                                            height: '24px', // Altura interna
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Tri'}
+                                        {isSelected && <FaCheck size={8}/>}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                  </div>
+
               </div>
           </div>
       </div>
