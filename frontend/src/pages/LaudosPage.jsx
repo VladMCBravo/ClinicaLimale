@@ -65,35 +65,54 @@ const styles = {
       flexDirection: 'column', 
       background: theme.bg 
   },
-  card: { 
-      background: '#fff', 
-      borderRadius: '6px', 
-      border: `1px solid ${theme.border}`, 
-      padding: '10px', 
-      boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-      marginBottom: '5px'
+  // NOVO: Barra Superior compacta (substitui o antigo 'card' do topo)
+  toolbar: {
+      background: '#fff',
+      borderBottom: `1px solid ${theme.border}`, // Borda só embaixo para separar
+      padding: '8px 12px',
+      display: 'grid',
+      // Grid: Paciente (40%) | Tipo (20%) | Médico (30%) | CRM (10%)
+      gridTemplateColumns: 'minmax(250px, 4fr) minmax(140px, 2fr) minmax(200px, 3fr) 80px',
+      gap: '12px',
+      alignItems: 'center',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+      flexShrink: 0, // Garante que não vai encolher se faltar espaço vertical
+      zIndex: 20 // Fica acima do conteúdo rolavel
   },
-  label: {
+  
+  // NOVO: Grupo de input para colocar ícone dentro
+  inputGroup: {
+      position: 'relative',
       display: 'flex',
       alignItems: 'center',
-      gap: '5px',
-      fontSize: '10px',
-      fontWeight: 'bold',
-      color: '#555',
-      marginBottom: '4px',
-      textTransform: 'uppercase'
+      height: '32px', // Altura fixa compacta
+      background: '#F0F2F5',
+      borderRadius: '4px',
+      border: '1px solid #ced4da',
   },
-  input: { 
-      width: '100%', 
-      padding: '6px 8px', 
-      fontSize: '12px', 
-      borderRadius: '4px', 
-      border: '1px solid #ccc', 
-      height: '30px', 
-      color: '#333', 
-      outline: 'none',
-      boxSizing: 'border-box',
-      transition: 'border 0.2s'
+
+  // Ícone dentro do input
+  inputIcon: {
+      padding: '0 8px',
+      color: '#666',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRight: '1px solid #e0e0e0', // separadorzinho visual
+      height: '100%'
+  },
+
+  // O Input em si (sem borda pois o pai já tem)
+  inputCompact: {
+      border: 'none',
+      background: 'transparent',
+      width: '100%',
+      height: '100%',
+      padding: '0 8px',
+      fontSize: '12px', // Fonte legível
+      fontWeight: '600',
+      color: '#2C3E50',
+      outline: 'none'
   },
   dropdownList: {
       position: 'absolute',
@@ -431,32 +450,36 @@ const LaudosPage = () => {
   return (
     <div style={styles.container}>
       
-      {/* ================= COLUNA ESQUERDA (INPUTS) ================= */}
+      {/* ================= COLUNA ESQUERDA (WRAPPER) ================= */}
+      {/* Você tinha esquecido de abrir esta div, que segura o Toolbar e o Form juntos */}
       <div style={styles.leftCol}>
         
-        {/* CARD DE IDENTIFICAÇÃO */}
-        <div style={styles.card}>
-            {/* LINHA 1: PACIENTE */}
-            <div style={{marginBottom: '10px'}}>
-                <div style={styles.label}><FaUserInjured color="#1C2E4A"/> PACIENTE</div>
-                <div style={{position:'relative', display:'flex', alignItems:'center'}}>
+        {/* 1. BARRA DE FERRAMENTAS (HEADER) */}
+        <div style={styles.toolbar}>
+
+            {/* A. PACIENTE */}
+            <div style={{position: 'relative'}}> 
+                <div style={styles.inputGroup}>
+                    <div style={styles.inputIcon} title="Paciente">
+                        <FaUserInjured size={14} />
+                    </div>
                     <input 
-                        placeholder="Digite o nome para buscar..." 
-                        value={paciente ? paciente.nome_completo : termoBusca} 
-                        onChange={(e) => { if (paciente) setPaciente(null); handleBuscaPacienteChange(e); }}
-                        disabled={!!paciente} 
-                        style={{
-                            ...styles.input, paddingRight: '30px',
-                            background: paciente ? '#E8F5E9' : '#fff',
-                            borderColor: paciente ? '#2E7D32' : '#ccc',
-                            fontWeight: paciente ? 'bold' : 'normal',
-                            color: paciente ? '#1B5E20' : '#333'
-                        }} 
+                        style={styles.inputCompact}
+                        placeholder="Buscar Paciente..."
+                        value={paciente ? paciente.nome_completo : termoBusca}
+                        onChange={(e) => { 
+                            if (paciente) setPaciente(null); 
+                            handleBuscaPacienteChange(e); 
+                        }}
                     />
-                    <div style={{position:'absolute', right:'8px', top:'6px', cursor:'pointer'}}>
-                        {loadingBusca ? <FaSpinner className="spin" color="#999"/> : (paciente || termoBusca.length > 0) ? <FaTimes color={paciente ? "#C62828" : "#999"} onClick={() => { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); }}/> : null}
+                    <div style={{position:'absolute', right:'8px', cursor:'pointer'}}>
+                        {loadingBusca ? <FaSpinner className="spin" color="#999"/> : 
+                        (paciente || termoBusca.length > 0) ? 
+                            <FaTimes color="#C62828" onClick={() => { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); }}/> 
+                            : null}
                     </div>
                 </div>
+
                 {!paciente && pacientesEncontrados.length > 0 && (
                     <div style={styles.dropdownList}>
                         {pacientesEncontrados.map(p => (
@@ -465,186 +488,128 @@ const LaudosPage = () => {
                                 try {
                                     const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`);
                                     if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null);
-                                } catch (e) { console.log("Sem credencial prévia."); }
+                                } catch (e) { console.log("Sem credencial."); }
                             }}>
                                 <span style={{fontWeight:'bold', display:'block'}}>{p.nome_completo}</span>
-                                <span style={{color:'#777', fontSize:'10px'}}>CPF: {p.cpf || '---'} | Nasc: {p.data_nascimento || '--/--/----'}</span>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* LINHA 2: TIPO, MÉDICO E CRM */}
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '10px'}}>
-                <div>
-                    <div style={styles.label}><FaNotesMedical color="#1C2E4A"/> TIPO DE EXAME</div>
-                    <select value={tipoExame} onChange={(e) => setTipoExame(e.target.value)} style={{...styles.input, fontWeight:'bold', color:'#1C2E4A'}}>
-                        <option value="OBSTETRICO">Obstétrico</option>
-                        <option value="TRANSVAGINAL">Transvaginal</option>
-                        <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
-                        <option value="ABDOME">Abdome Total</option>
-                        <option value="DOPPLER_CAROTIDAS">Doppler Carótidas</option> 
-                    </select>
+            {/* B. TIPO DE EXAME */}
+            <div style={styles.inputGroup}>
+                <div style={styles.inputIcon} title="Tipo de Exame">
+                    <FaNotesMedical size={14} />
                 </div>
-                <div style={{position: 'relative'}}>
-                    <div style={styles.label}><FaUserMd color="#1C2E4A"/> MÉDICO RESPONSÁVEL</div>
-                    <input placeholder="Busque o médico..." value={medicoNome} onChange={(e) => handleInputMedicoChange(e.target.value)} onFocus={() => { setMostrarListaMedicos(true); if(!medicoNome) setMedicosFiltrados(todosMedicos); }} onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)} style={styles.input} />
-                    {mostrarListaMedicos && medicosFiltrados.length > 0 && (
-                        <div style={styles.dropdownList}>
-                            {medicosFiltrados.map(med => (
-                                <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}>
-                                    <span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                <select 
+                    value={tipoExame} 
+                    onChange={(e) => setTipoExame(e.target.value)} 
+                    style={{...styles.inputCompact, cursor: 'pointer'}}
+                >
+                    <option value="OBSTETRICO">Obstétrico</option>
+                    <option value="TRANSVAGINAL">Transvaginal</option>
+                    <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
+                    <option value="ABDOME">Abdome Total</option>
+                    <option value="DOPPLER_CAROTIDAS">Carótidas</option> 
+                </select>
+            </div>
+
+            {/* C. MÉDICO */}
+            <div style={{position: 'relative'}}>
+                <div style={styles.inputGroup}>
+                    <div style={styles.inputIcon} title="Médico Responsável">
+                        <FaUserMd size={14} />
+                    </div>
+                    <input 
+                        style={styles.inputCompact}
+                        placeholder="Médico..."
+                        value={medicoNome} 
+                        onChange={(e) => handleInputMedicoChange(e.target.value)} 
+                        onFocus={() => { setMostrarListaMedicos(true); if(!medicoNome) setMedicosFiltrados(todosMedicos); }} 
+                        onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
+                    />
                 </div>
-                <div>
-                    <div style={styles.label}><FaIdCard color="#1C2E4A"/> CRM</div>
-                    <input placeholder="00000" value={medicoCrm} onChange={(e) => setMedicoCrm(maskCRM(e.target.value))} style={{...styles.input, textAlign:'center', background: '#f9f9f9'}}/>
+                {mostrarListaMedicos && medicosFiltrados.length > 0 && (
+                    <div style={styles.dropdownList}>
+                        {medicosFiltrados.map(med => (
+                            <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}>
+                                <span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* D. CRM */}
+            <div style={styles.inputGroup}>
+                <div style={styles.inputIcon} title="CRM">
+                    <FaIdCard size={14} />
                 </div>
+                <input 
+                    style={{...styles.inputCompact, textAlign: 'center'}}
+                    placeholder="CRM"
+                    value={medicoCrm}
+                    onChange={(e) => setMedicoCrm(maskCRM(e.target.value))}
+                />
             </div>
         </div>
 
-        {/* ÁREA DO FORMULÁRIO DINÂMICO */}
+        {/* 2. ÁREA DO FORMULÁRIO DINÂMICO */}
         <div style={{flex: 1, overflowY: 'auto', paddingRight: '5px'}}> 
             {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'DOPPLER_CAROTIDAS' && <FormDopplerCarotidas onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
         </div>
-      </div>
+
+      </div> 
+      {/* ^^^ AQUI FECHA O LEFTCOL QUE FALTAVA */}
 
       {/* ================= COLUNA DIREITA (PREVIEW E AÇÕES) ================= */}
       <div style={styles.rightCol}>
          <div style={{ background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
-             {/* ================= BARRA DE AÇÕES (COMPACTA) ================= */}
-             <Box sx={{ 
-                 px: 1.5, // Padding horizontal reduzido
-                 background: '#fff', 
-                 borderBottom: '1px solid #e0e0e0', 
-                 display: 'flex', 
-                 justifyContent: 'space-between', 
-                 alignItems: 'center', 
-                 height: '45px', // Altura fina
-                 zIndex: 10
-             }}>
-                 
-                 {/* TÍTULO PEQUENO */}
+             {/* BARRA DE AÇÕES */}
+             <Box sx={{ px: 1.5, background: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', zIndex: 10 }}>
                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                      <FaFileAlt color="#1C2E4A" size={12} />
                      <Typography variant="caption" sx={{ fontWeight: 800, color: '#1C2E4A', fontSize: '11px' }}>
                          PRÉVIA
                      </Typography>
                  </Box>
-                 
-                 {/* AÇÕES */}
                  <Stack direction="row" spacing={0.5} alignItems="center">
-                     
-                     {/* 1. LIMPAR (Ícone puro) */}
                      <Tooltip title="Limpar">
-                        <IconButton 
-                            onClick={handleLimpar} 
-                            size="small" 
-                            sx={{ color: '#EF5350', padding: '4px' }}
-                        >
+                        <IconButton onClick={handleLimpar} size="small" sx={{ color: '#EF5350', padding: '4px' }}>
                             <FaEraser size={12} />
                         </IconButton>
                      </Tooltip>
-
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
-                     
-                     {/* 2. DOCS (Botões de Texto - Sem borda para caber) */}
-                     <Button 
-                        size="small"
-                        onClick={handleImprimirTermo}
-                        sx={{ 
-                            color: '#546E7A', 
-                            textTransform: 'none',
-                            fontSize: '10px',
-                            fontWeight: 600,
-                            minWidth: 'auto',
-                            padding: '4px 8px'
-                        }}
-                     >
-                        Termo
-                     </Button>
-                    
-                    <Button 
-                        size="small"
-                        onClick={() => setModalDeclaracaoOpen(true)}
-                        sx={{ 
-                            color: '#7E57C2', 
-                            textTransform: 'none',
-                            fontSize: '10px',
-                            fontWeight: 600,
-                            minWidth: 'auto',
-                            padding: '4px 8px'
-                        }}
-                     >
-                        Declaração
-                     </Button>
-
-                    {/* 3. BOTÃO MESTRE (Compacto) */}
-                    <Button 
-                        variant="contained"
-                        size="small"
-                        onClick={() => setModalRevisaoOpen(true)}
-                        endIcon={<FaSave size={12}/>}
-                        sx={{
-                            background: '#1C2E4A', 
-                            textTransform: 'none',
-                            fontWeight: 'bold',
-                            fontSize: '11px',
-                            padding: '4px 12px', // Compacto
-                            minWidth: 'auto',
-                            marginLeft: '4px !important',
-                            '&:hover': { background: '#2C3E50' }
-                        }}
-                    >
-                        Finalizar
-                    </Button>
+                     <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Termo</Button>
+                    <Button size="small" onClick={() => setModalDeclaracaoOpen(true)} sx={{ color: '#7E57C2', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Declaração</Button>
+                    <Button variant="contained" size="small" onClick={() => setModalRevisaoOpen(true)} endIcon={<FaSave size={12}/>} sx={{ background: '#1C2E4A', textTransform: 'none', fontWeight: 'bold', fontSize: '11px', padding: '4px 12px', minWidth: 'auto', marginLeft: '4px !important', '&:hover': { background: '#2C3E50' } }}>Finalizar</Button>
                  </Stack>
              </Box>
              
-             {/* TEXTAREA (FOLHA DE PAPEL) */}
+             {/* TEXTAREA */}
              <div style={{flex: 1, padding: '0', overflow: 'hidden', background: '#EEEEEE', position: 'relative'}}>
                 <textarea 
                     value={textoFinal} 
                     readOnly={true} 
-                    style={{ 
-                        width: '100%', height: '100%', border: 'none', padding: '25px', 
-                        resize: 'none', outline: 'none', 
-                        fontFamily: '"Times New Roman", serif', fontSize: '14px', lineHeight: '1.5', 
-                        color: '#000', background: '#FAFAFA', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)', 
-                        cursor: 'default', overflowY: 'auto' 
-                    }}
+                    style={{ width: '100%', height: '100%', border: 'none', padding: '25px', resize: 'none', outline: 'none', fontFamily: '"Times New Roman", serif', fontSize: '14px', lineHeight: '1.5', color: '#000', background: '#FAFAFA', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)', cursor: 'default', overflowY: 'auto' }}
                 />
              </div>
-             {/* Footer com imagens removido pois foi movido para o Modal */}
          </div>
       </div>
 
-      {/* --- MODAIS DE SISTEMA --- */}
+      {/* --- MODAIS --- */}
+      <LaudosPreviewModal open={modalRevisaoOpen} onClose={() => setModalRevisaoOpen(false)} textoInicial={textoFinal} imagensIniciais={imagens} onFinalizar={handleFinalizacaoCompleta} />
       
-      {/* 1. Modal UNIFICADO de Revisão, Fotos e Finalização */}
-      <LaudosPreviewModal 
-        open={modalRevisaoOpen}
-        onClose={() => setModalRevisaoOpen(false)}
-        textoInicial={textoFinal}
-        imagensIniciais={imagens}
-        onFinalizar={handleFinalizacaoCompleta}
-      />
-
-      {/* 2. Modal de Sucesso e Envio */}
       <Dialog open={modalSucessoOpen} onClose={() => setModalSucessoOpen(false)} maxWidth="sm" fullWidth>
         <div style={{padding: '30px', textAlign: 'center'}}>
             <FaCheckCircle size={60} color="#4CAF50" style={{marginBottom: 15}} />
             <Typography variant="h5" style={{fontWeight: 'bold', color: '#2C3E50', marginBottom: 10}}>Laudo Salvo com Sucesso!</Typography>
             <Typography variant="body1" style={{color: '#555', marginBottom: 30}}>O exame foi registrado no prontuário.</Typography>
-
             <div style={{background: '#F0F4F8', border: '1px dashed #B0BEC5', borderRadius: 8, padding: '15px', marginBottom: 30, textAlign: 'left'}}>
                 <Typography variant="subtitle2" style={{color: '#1C2E4A', fontWeight: 'bold', marginBottom: 5}}>DADOS DE ACESSO GERADOS:</Typography>
                 <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
@@ -652,20 +617,14 @@ const LaudosPage = () => {
                     <span>Senha: <strong>{credenciais?.senha || '---'}</strong></span>
                 </div>
             </div>
-
             <Grid container spacing={2}>
-                <Grid item xs={6}>
-                    <Button fullWidth variant="contained" onClick={handleEnviarWhatsApp} style={{background: '#25D366', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}><FaWhatsapp size={20} /> Enviar WhatsApp</Button>
-                </Grid>
-                <Grid item xs={6}>
-                    <Button fullWidth variant="contained" onClick={handleEnviarEmail} style={{background: '#1C2E4A', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}><FaEnvelope size={20} /> Enviar E-mail</Button>
-                </Grid>
+                <Grid item xs={6}><Button fullWidth variant="contained" onClick={handleEnviarWhatsApp} style={{background: '#25D366', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}><FaWhatsapp size={20} /> Enviar WhatsApp</Button></Grid>
+                <Grid item xs={6}><Button fullWidth variant="contained" onClick={handleEnviarEmail} style={{background: '#1C2E4A', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}><FaEnvelope size={20} /> Enviar E-mail</Button></Grid>
             </Grid>
         </div>
         <DialogActions><Button onClick={() => setModalSucessoOpen(false)} style={{color: '#888'}}>Fechar Janela</Button></DialogActions>
       </Dialog>
 
-      {/* 3. Modal de Declaração */}
       <DeclaracaoModal open={modalDeclaracaoOpen} onClose={() => setModalDeclaracaoOpen(false)} paciente={paciente} medico={medicoNome} />
 
     </div>
