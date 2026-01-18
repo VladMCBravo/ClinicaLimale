@@ -8,12 +8,12 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
 
   return (
     <div>    
-            {/* BLOCO 1: GESTAÇÃO MÚLTIPLA (SÓ APARECE SE GEMELAR) */}
-            {isMultipla && (
-                <div style={{background: '#E3F2FD', padding: '8px', borderRadius: '4px', marginBottom: '10px', border: '1px solid #90CAF9'}}>
-                    <div style={{fontWeight:'bold', color:'#0D47A1', fontSize:'11px', display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
-                        <FaLayerGroup /> CONFIGURAÇÃO GEMELAR
-                    </div>
+            {/* BLOCO 1: GEMELAR - Usa classe padrão em vez de cor hardcoded */}
+        {isMultipla && (
+            <div className="laudo-card-internal">
+                <div className="laudo-sub-header">
+                    <FaLayerGroup /> CONFIGURAÇÃO GEMELAR
+                </div>
                     <div className="laudo-grid-3">
                         <select name="corionicidade" value={data.corionicidade} onChange={handleChange} className="laudo-select full-width">
                             <option value="dicoriônica">Dicoriônica</option>
@@ -34,10 +34,10 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                 </div>
             )}
             {/* BLOCO 2: DADOS ESPECÍFICOS DO FETO */}
-{!isInicial && (
-    <div style={{marginTop:'10px', background:'#FAFAFA', padding:'8px', borderRadius:'4px', border:'1px solid #EEE'}}>
-        <div className="laudo-grid-3" style={{marginBottom: '10px'}}>
-            <div>
+            {!isInicial && (
+            <div className="laudo-card-internal">
+                <div className="laudo-grid-3" style={{marginBottom: '10px'}}>
+                    <div>
                 <span className="label-pequeno">Situação</span>
                 <select name="situacao" value={data.situacao} onChange={handleChange} className="laudo-select full-width">
                     <option value="">Selecione...</option> {/* ADICIONADO */}
@@ -69,13 +69,13 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
             </div>
         </div>
 
-                    {/* VITALIDADE (Verde) */}
-                    <div className="laudo-row" style={{background: '#E8F5E9', padding: '6px 10px', borderRadius: '4px', border:'1px solid #C8E6C9', justifyContent:'space-between'}}>
-                        <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
-                            <FaHeartbeat color="#2E7D32" />
-                            <span style={{fontWeight: 'bold', color:'#2E7D32'}}>BCF:</span>
-                            <input type="number" name="bcf" value={data.bcf} onChange={handleChange} className="laudo-input" style={{width: '60px', fontWeight: 'bold', color:'#2E7D32'}} placeholder="bpm"/> 
-                        </div>
+                    {/* VITALIDADE - Aqui usamos um estilo inline sutil ou criamos uma classe .bg-success-light se quiser destacar */}
+                <div className="laudo-row" style={{justifyContent:'space-between', borderTop:'1px dashed #eee', paddingTop:'8px'}}>
+                    <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+                        <FaHeartbeat color="#00BFA5" /> {/* Verde tema */}
+                        <span style={{fontWeight: 'bold', color:'#444'}}>BCF:</span>
+                        <input type="number" name="bcf" value={data.bcf} onChange={handleChange} className="laudo-input" style={{width: '60px', fontWeight: 'bold'}} placeholder="bpm"/> 
+                    </div>
 
                         <div style={{display:'flex', gap:'15px'}}>
                             <label className="laudo-checkbox-label" style={{fontWeight: 'bold', color: '#1B5E20', fontSize:'11px'}}>
@@ -91,12 +91,10 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                 </div>
             )}
 
-            {/* BLOCO 3: BEXIGA E ESTÁTICA (Lado a Lado) */}
-            <div className="laudo-grid-2" style={{alignItems:'start', gap:'15px'}}>
-                
-                {/* Coluna Esquerda: Bexiga Materna */}
-                <div className="laudo-row" style={{background:'#F5F5F5', padding:'5px', borderRadius:'4px'}}>
-    <span style={{fontWeight:'bold', fontSize:'11px', minWidth:'80px'}}>Bexiga Materna:</span>
+            {/* BLOCO 3: MATERNA */}
+        <div className="laudo-grid-2" style={{alignItems:'start', gap:'10px'}}>
+            <div className="laudo-card-internal">
+                <span className="label-pequeno">Bexiga Materna:</span>
     <select name="bexigaMaterna" value={data.bexigaMaterna} onChange={handleChange} className="laudo-select full-width">
         <option value="">Selecione...</option> {/* ADICIONADO */}
         <option value="não visualizada">não visualizada</option>
@@ -108,18 +106,18 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
 
                 {/* Coluna Direita: Vísceras (Se não inicial) */}
                 {!isInicial && (
-                    <div className="laudo-row" style={{justifyContent:'flex-end', fontSize:'11px'}}>
-                        <label className="laudo-checkbox-label" style={{marginRight:'10px'}}>
-                            <input type="checkbox" name="estomagoVisualizado" checked={!!data.estomagoVisualizado} onChange={handleChange} /> 
-                            Estômago
-                        </label>
-                        <label className="laudo-checkbox-label">
-                            <input type="checkbox" name="bexigaVisualizada" checked={!!data.bexigaVisualizada} onChange={handleChange} /> 
-                            Bexiga
-                        </label>
-                    </div>
-                )}
-            </div>
+                <div className="laudo-card-internal" style={{display:'flex', justifyContent:'center', flexDirection:'column'}}>
+                    <label className="laudo-checkbox-label">
+                        <input type="checkbox" name="estomagoVisualizado" checked={!!data.estomagoVisualizado} onChange={handleChange} /> 
+                        Estômago Visualizado
+                    </label>
+                    <label className="laudo-checkbox-label">
+                        <input type="checkbox" name="bexigaVisualizada" checked={!!data.bexigaVisualizada} onChange={handleChange} /> 
+                        Bexiga Visualizada
+                    </label>
+                </div>
+            )}
+        </div>
     </div>
   );
 };

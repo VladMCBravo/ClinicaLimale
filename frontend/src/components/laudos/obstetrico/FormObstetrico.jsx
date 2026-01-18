@@ -42,42 +42,18 @@ const styles = {
     }
 };
 
-// --- NOVO COMPONENTE DE PAINEL (COM CABEÇALHO COLORIDO) ---
-const DashboardPanel = ({ id, title, color, icon: Icon, children, isOpen, onToggle }) => {
+// COMPONENTE WRAPPER ATUALIZADO (Limpo e baseado em CSS)
+const DashboardPanel = ({ id, title, theme, icon: Icon, children, isOpen, onToggle }) => {
     return (
-        <div className="dashboard-panel" style={{ 
-            border: `1px solid ${color}`, 
-            borderLeft: `4px solid ${color}`, // Mantive a borda grossa na esquerda
-            borderRadius: '6px',
-            overflow: 'hidden',
-            marginBottom: '10px',
-            background: '#fff'
-        }}>
-            <div 
-                className="dashboard-panel-header" 
-                onClick={() => onToggle(id)}
-                style={{
-                    // Gradiente sutil baseado na cor passada
-                    background: `linear-gradient(135deg, ${color}, ${adjustColor(color, -20)})`,
-                    color: '#fff',
-                    padding: '8px 12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                }}
-            >
-                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                    {Icon && <Icon size={14} style={{opacity: 0.95}}/>}
+        <div className={`dashboard-panel theme-${theme}`}>
+            <div className={`dashboard-panel-header ${isOpen ? 'open' : ''}`} onClick={() => onToggle(id)}>
+                <div className="dashboard-panel-title">
+                    {Icon && <Icon size={14} style={{ opacity: 0.8 }} />}
                     <span>{title}</span>
                 </div>
-                {isOpen ? <FaChevronUp size={12}/> : <FaChevronDown size={12}/>}
+                {isOpen ? <FaChevronUp size={12} color="#999"/> : <FaChevronDown size={12} color="#999"/>}
             </div>
-            {isOpen && <div className="dashboard-panel-body" style={{padding: '10px'}}>{children}</div>}
+            {isOpen && <div className="p-2">{children}</div>}
         </div>
     );
 };
@@ -173,7 +149,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
 
               </div>
           </div>
-      </div>
+        </div>
 
       {/* 2. ABAS GÊMEOS */}
       {qtdFetos > 1 && (
@@ -207,86 +183,84 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
             <div className="col-left">
                 
                 {/* A. DATAÇÃO (Sempre Primeiro) */}
-                <DashboardPanel id="datacao" title="1. Datação e Cronologia" color="#7B1FA2" isOpen={isAberto('datacao')} onToggle={toggleSecao}>
+                <DashboardPanel id="datacao" title="1. Datação e Cronologia" theme="purple" icon={FaCalendarAlt} isOpen={isAberto('datacao')} onToggle={toggleSecao}>
                     <SecaoDatacao {...commonProps} />
                 </DashboardPanel>
 
                 {/* B. SACO GESTACIONAL (Apenas Inicial) */}
                 {isInicial && (
-                    <DashboardPanel id="saco" title="Saco Gestacional" color="#00897B" isOpen={isAberto('saco')} onToggle={toggleSecao}>
+                    <DashboardPanel id="saco" title="Saco Gestacional" theme="blue" icon={GiEmbryo} isOpen={isAberto('saco')} onToggle={toggleSecao}>
                         <SecaoSacoGestacional {...commonProps} />
                     </DashboardPanel>
                 )}
 
                 {/* C. BIOMETRIA (O Coração do exame) */}
-                <DashboardPanel id="biometria" title="Biometria Fetal" color="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
+                <DashboardPanel id="biometria" title="Biometria Fetal" theme="green" icon={FaRulerCombined} isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} />
                 </DashboardPanel>
 
                 {/* D. DOPPLER (Numérico) */}
                 {(is1Tri || isTardio) && (
-                     <DashboardPanel id="doppler" title="Dopplerfluxometria" color="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
+                     <DashboardPanel id="doppler" title="Dopplerfluxometria" theme="blue" icon={FaWaveSquare} isOpen={isAberto('doppler')} onToggle={toggleSecao}>
                         <SecaoDoppler {...commonProps} />
                     </DashboardPanel>
                 )}
                 
                 {/* E. COLO UTERINO (Tardio) */}
                 {isTardio && (
-                    <DashboardPanel id="colo" title="Colo Uterino" color="#AD1457" isOpen={isAberto('colo')} onToggle={toggleSecao}>
+                    <DashboardPanel id="colo" title="Colo Uterino" theme="purple" icon={MdLinearScale} isOpen={isAberto('colo')} onToggle={toggleSecao}>
                         <SecaoColoDados {...commonProps} />
                     </DashboardPanel>
                 )}
 
                  {/* Gráficos agora começam colapsados pelo useState */}
-                 <DashboardPanel id="graficos" title="Gráficos" color="#8E24AA" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
+                 <DashboardPanel id="graficos" title="Gráficos" theme="purple" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
                     <SecaoIndicesGraficos {...commonProps} />
                 </DashboardPanel>
-
             </div>
 
             {/* ================= COLUNA DIREITA (DESCRITIVA & CHECKLISTS) ================= */}
-            <div className="col-right">
+            
 
                 {/* A. DADOS GERAIS (Rápido Check) */}
-                <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" color="#0D47A1" isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
+                <div className="col-right">
+                <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" theme="blue" icon={GiFetus} isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
                     <SecaoDadosGerais {...commonProps} />
                 </DashboardPanel>
 
                 {/* B. PLACENTA E LÍQUIDO (Alinha bem com Biometria visualmente) */}
                 {(is1Tri || isTardio) && (
-                    <DashboardPanel id="placenta" title="Placenta e Líquido" color="#D81B60" isOpen={isAberto('placenta')} onToggle={toggleSecao}>
+                    <DashboardPanel id="placenta" title="Placenta e Líquido" theme="red" icon={FaLayerGroup} isOpen={isAberto('placenta')} onToggle={toggleSecao}>
                         <SecaoPlacentaLiquido {...commonProps} />
                     </DashboardPanel>
                 )}
 
                 {(isInicial || is1Tri || isTardio) && (
-                    <DashboardPanel id="anexos1tri" title="Útero e Anexos" color="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
+                    <DashboardPanel id="anexos1tri" title="Útero e Anexos" theme="blue" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                         <SecaoDadosMaternos1Tri {...commonProps} />
                     </DashboardPanel>
                 )}
 
                 {/* D. MORFOLOGIA (Lista Longa - Fica ótima na direita) */}
                 {(is1Tri || isTardio) && (
-                    <DashboardPanel id="morfo" title="Análise Morfológica" color="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
+                    <DashboardPanel id="morfo" title="Análise Morfológica" theme="orange" icon={FaCheckSquare} isOpen={isAberto('morfo')} onToggle={toggleSecao}>
                         <SecaoMorfologia {...commonProps} />
                     </DashboardPanel>
                 )}
 
                 {/* E. 3D / 4D */}
-                <DashboardPanel id="3d" title="3D / 4D" color="#FBC02D" isOpen={isAberto('3d')} onToggle={toggleSecao}>
+                <DashboardPanel id="3d" title="3D / 4D" theme="orange" icon={FaCube} isOpen={isAberto('3d')} onToggle={toggleSecao}>
                     <Secao3D {...commonProps} />
                 </DashboardPanel>
-
             </div>
         </div>
         
         {/* 4. CONCLUSÃO (LARGURA TOTAL - Fora do Grid) */}
         <div style={{marginTop: '12px'}}>
-             <DashboardPanel id="conclusao" title="Conclusão e Diagnóstico" color="#D32F2F" isOpen={true} onToggle={() => {}}>
+             <DashboardPanel id="conclusao" title="Conclusão e Diagnóstico" theme="red" isOpen={true} onToggle={() => {}}>
                 <SecaoConclusao {...commonProps} />
             </DashboardPanel>
         </div>
-
       </div>
     </div>
   );
