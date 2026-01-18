@@ -170,3 +170,52 @@
     white-space: nowrap; /* Evita que labels quebrem linha */
     min-width: 60px; /* Garante alinhamento vertical básico */
 }
+
+/* --- LAYOUT DE DASHBOARD (DUAS COLUNAS) --- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 50% para cada */
+  gap: 12px;
+  align-items: start; /* Impede que uma coluna estique a outra */
+}
+
+/* Em telas menores (notebooks pequenos), vira 1 coluna automaticamente */
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- NOVO ESTILO DE PAINEL (LIMPO) --- */
+.dashboard-panel {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Sombra suave */
+  border: 1px solid #e0e0e0;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.dashboard-panel-header {
+  padding: 8px 12px;
+  background: #fdfdfd;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dashboard-panel-header:hover {
+  background: #f5f5f5;
+}
+
+.dashboard-panel-body {
+  padding: 10px;
+}

@@ -20,37 +20,15 @@ import SecaoColoDados from './sections/SecaoColoDados';
 import SecaoPlacentaLiquido from './sections/SecaoPlacentaLiquido';
 import SecaoIndicesGraficos from './sections/SecaoIndicesGraficos';
 
-// COMPONENTE WRAPPER PARA COLAPSO E COR
-const SectionWrapper = ({ id, title, colorHex, children, isOpen, onToggle }) => {
+// --- NOVO COMPONENTE DE PAINEL (VISUAL LIMPO) ---
+const DashboardPanel = ({ id, title, color, children, isOpen, onToggle }) => {
     return (
-        <div className="laudo-section" style={{ 
-            borderLeft: `4px solid ${colorHex}`, 
-            marginBottom: '8px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            overflow: 'hidden',
-            borderRadius: '4px'
-        }}>
-            <div 
-                onClick={() => onToggle(id)}
-                style={{
-                    background: `linear-gradient(90deg, ${colorHex} 0%, #fff 100%)`, 
-                    padding: '8px 12px', 
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}
-            >
-                <span style={{fontWeight: 'bold', color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>
-                    {title}
-                </span>
-                {isOpen ? <FaChevronUp color="#555"/> : <FaChevronDown color="#555"/>}
+        <div className="dashboard-panel" style={{ borderLeft: `4px solid ${color}` }}>
+            <div className="dashboard-panel-header" onClick={() => onToggle(id)}>
+                <span>{title}</span>
+                {isOpen ? <FaChevronUp size={10}/> : <FaChevronDown size={10}/>}
             </div>
-            
-            {/* Animação simples de display */}
-            <div style={{ display: isOpen ? 'block' : 'none', padding: '0' }}>
-                {children}
-            </div>
+            {isOpen && <div className="dashboard-panel-body">{children}</div>}
         </div>
     );
 };
@@ -66,22 +44,16 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       handleTabChange
   } = useObstetricoForm(onUpdate, initialValues);
 
-  // --- NOVA LÓGICA DE ESTADO (CORRIGIDA) ---
-  // Guardamos quais seções estão FECHADAS. O padrão é vazio (todas abertas).
+  // Controle de Seções (Default: Todas abertas = true)
+  // Usamos um objeto onde a chave é o ID e true/false é o estado de fechado
   const [secoesFechadas, setSecoesFechadas] = useState({});
 
   const toggleSecao = (id) => {
-      setSecoesFechadas(prev => ({
-          ...prev,
-          [id]: !prev[id] // Inverte: se undefined/false (aberto) -> true (fechado)
-      }));
+      setSecoesFechadas(prev => ({ ...prev, [id]: !prev[id] }));
   };
-
-  // Helper para o JSX saber se deve desenhar
-  // Se não estiver na lista de fechadas, é true (aberto)
   const isAberto = (id) => !secoesFechadas[id];
 
-  if (!formState) return <div className="p-4">Carregando formulário...</div>;
+  if (!formState) return <div className="p-4">Carregando...</div>;
 
   const commonProps = {
       data: formState,
@@ -98,30 +70,30 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
   return (
     <div className="flex flex-col gap-3 pb-8">
       
-      {/* 1. CABEÇALHO FIXO (Sempre visível) */}
-      <div className="laudo-section" style={{borderLeft: '4px solid #333', overflow:'visible'}}>
-          <div className="laudo-section-body" style={{padding:'8px 12px'}}>
-              <div style={{display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'end', gap: '20px'}}>
-                  <div>
+      {/* 1. BARRA DE CONTROLE SUPERIOR (FIXA) */}
+      <div className="dashboard-panel" style={{borderLeft: '4px solid #333', marginBottom: '5px'}}>
+          <div className="dashboard-panel-body" style={{padding:'6px 10px'}}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div style={{flex: 1, marginRight: '20px'}}>
                       <SecaoSubtipo {...commonProps} />
                   </div>
-                  <div className="flex flex-col gap-1">
-                      <span className="text-xs font-bold text-gray-600 flex items-center gap-1">
-                          <FaLayerGroup /> TIPO DE GESTAÇÃO:
+                  
+                  <div className="flex flex-col items-end">
+                      <span className="text-xs font-bold text-gray-500 mb-1 flex items-center gap-1">
+                           <FaLayerGroup /> GESTAÇÃO:
                       </span>
                       <div className="flex gap-1 bg-gray-100 p-1 rounded border border-gray-200">
                           {[1, 2, 3].map(qtd => (
                               <button 
                                 key={qtd}
                                 onClick={() => handleChangeQtdFetos(qtd)}
-                                className={`px-3 py-1 rounded text-xs font-bold transition-all border ${
+                                className={`px-2 py-1 rounded text-xs font-bold transition-all border ${
                                     qtdFetos === qtd 
-                                    ? 'bg-purple-600 text-white border-purple-800 shadow-sm' 
-                                    : 'bg-white text-gray-500 border-transparent hover:bg-gray-50'
+                                    ? 'bg-purple-600 text-white border-purple-800' 
+                                    : 'bg-white text-gray-500 hover:bg-gray-50'
                                 }`}
-                                style={{minWidth:'80px'}}
                               >
-                                  {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Trigemelar'}
+                                  {qtd === 1 ? 'Única' : qtd === 2 ? 'Gemelar' : 'Tri'}
                               </button>
                           ))}
                       </div>
@@ -133,117 +105,115 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
       {/* 2. ABAS GÊMEOS */}
       {qtdFetos > 1 && (
           <div className="gemelar-tabs-container">
-              <div className={`gemelar-tab ${fetoAtivo === 1 ? 'active' : ''}`} onClick={() => handleTabChange(1)}>
-                  <FaBaby style={{marginRight:4}}/> Feto I (A)
-              </div>
-              <div className={`gemelar-tab ${fetoAtivo === 2 ? 'active' : ''}`} onClick={() => handleTabChange(2)}>
-                  <FaBaby style={{marginRight:4}}/> Feto II (B)
-              </div>
-              {qtdFetos === 3 && (
-                  <div className={`gemelar-tab ${fetoAtivo === 3 ? 'active' : ''}`} onClick={() => handleTabChange(3)}>
-                      <FaBaby style={{marginRight:4}}/> Feto III (C)
+              {[1, 2, 3].slice(0, qtdFetos).map(num => (
+                  <div 
+                    key={num}
+                    className={`gemelar-tab ${fetoAtivo === num ? 'active' : ''}`} 
+                    onClick={() => handleTabChange(num)}
+                  >
+                      <FaBaby style={{marginRight:4}}/> Feto {num === 1 ? 'I' : num === 2 ? 'II' : 'III'}
                   </div>
-              )}
+              ))}
           </div>
       )}
 
-      {/* 3. CONTEÚDO ACORDEÃO */}
+      {/* 3. CONTEÚDO PRINCIPAL (GRID) */}
       <div className={qtdFetos > 1 ? "tab-content-wrapper" : ""}>
         
+        {/* Aviso visual de qual feto está editando */}
         {qtdFetos > 1 && (
-            <div className="mb-3 p-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
+            <div className="mb-2 p-1 px-2 bg-blue-50 text-blue-800 text-xs font-bold rounded flex items-center gap-2 border border-blue-100">
                 <MdChildCare size={14}/>
-                EDITANDO DADOS DO FETO {fetoAtivo === 1 ? 'I' : fetoAtivo === 2 ? 'II' : 'III'}
+                EDITANDO: FETO {fetoAtivo === 1 ? 'I (A)' : fetoAtivo === 2 ? 'II (B)' : 'III (C)'}
             </div>
         )}
 
-        {/* --- CORRIGIDO: USANDO isAberto() EM VEZ DE secaoAberta --- */}
-        <SectionWrapper id="datacao" title="1. Datação e Cronologia" colorHex="#7B1FA2" isOpen={isAberto('datacao')} onToggle={toggleSecao}>
-            <SecaoDatacao {...commonProps} />
-        </SectionWrapper>
-
-        <SectionWrapper id="dadosGerais" title="2. Dados Gerais e Estática" colorHex="#0D47A1" isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
-            <SecaoDadosGerais {...commonProps} />
-        </SectionWrapper>
-
-        {isInicial && (
-            <>
-                <SectionWrapper id="saco" title="3. Saco Gestacional" colorHex="#00897B" isOpen={isAberto('saco')} onToggle={toggleSecao}>
-                    <SecaoSacoGestacional {...commonProps} />
-                </SectionWrapper>
+        <div className="dashboard-grid">
+            
+            {/* ================= COLUNA ESQUERDA (MÉTRICAS & CÁLCULOS) ================= */}
+            <div className="col-left">
                 
-                <SectionWrapper id="anexos1tri" title="4. Útero e Anexos (1º Tri)" colorHex="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
-                    <SecaoDadosMaternos1Tri {...commonProps} />
-                </SectionWrapper>
+                {/* A. DATAÇÃO (Sempre Primeiro) */}
+                <DashboardPanel id="datacao" title="1. Datação e Cronologia" color="#7B1FA2" isOpen={isAberto('datacao')} onToggle={toggleSecao}>
+                    <SecaoDatacao {...commonProps} />
+                </DashboardPanel>
 
-                <SectionWrapper id="biometria" title="5. Biometria (CCN)" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
-                    <SecaoBiometria {...commonProps} /> 
-                </SectionWrapper>
-            </>
-        )}
+                {/* B. SACO GESTACIONAL (Apenas Inicial) */}
+                {isInicial && (
+                    <DashboardPanel id="saco" title="Saco Gestacional" color="#00897B" isOpen={isAberto('saco')} onToggle={toggleSecao}>
+                        <SecaoSacoGestacional {...commonProps} />
+                    </DashboardPanel>
+                )}
 
-        {/* --- ROTEIRO 2: MORFOLÓGICO 1º TRI --- */}
-        {is1Tri && (
-            <>
-                <SectionWrapper id="anexos1tri" title="3. Útero e Anexos" colorHex="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
-                    <SecaoDadosMaternos1Tri {...commonProps} />
-                </SectionWrapper>
-
-                {/* --- NOVO: INCLUÍDO A PEDIDO DA MÉDICA --- */}
-                <SectionWrapper id="placenta" title="4. Placenta, Líquido e Cordão" colorHex="#D81B60" isOpen={isAberto('placenta')} onToggle={toggleSecao}>
-                    <SecaoPlacentaLiquido {...commonProps} />
-                </SectionWrapper>
-
-                {/* Reajuste da numeração: 4 virou 5, etc. */}
-                <SectionWrapper id="biometria" title="5. Biometria (CCN/TN)" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
+                {/* C. BIOMETRIA (O Coração do exame) */}
+                <DashboardPanel id="biometria" title="Biometria Fetal" color="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} />
-                </SectionWrapper>
+                </DashboardPanel>
+
+                {/* D. DOPPLER (Numérico) */}
+                {(is1Tri || isTardio) && (
+                     <DashboardPanel id="doppler" title="Dopplerfluxometria" color="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
+                        <SecaoDoppler {...commonProps} />
+                    </DashboardPanel>
+                )}
                 
-                <SectionWrapper id="morfo" title="6. Morfologia e Riscos" colorHex="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
-                    <SecaoMorfologia {...commonProps} />
-                </SectionWrapper>
+                {/* E. COLO UTERINO (Tardio) */}
+                {isTardio && (
+                    <DashboardPanel id="colo" title="Colo Uterino" color="#AD1457" isOpen={isAberto('colo')} onToggle={toggleSecao}>
+                        <SecaoColoDados {...commonProps} />
+                    </DashboardPanel>
+                )}
 
-                <SectionWrapper id="doppler" title="7. Dopplerfluxometria" colorHex="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
-                    <SecaoDoppler {...commonProps} />
-                </SectionWrapper>
-            </>
-        )}
+                 {/* F. GRÁFICOS (Fica bem no final da esquerda) */}
+                 <DashboardPanel id="graficos" title="Gráficos" color="#8E24AA" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
+                    <SecaoIndicesGraficos {...commonProps} />
+                </DashboardPanel>
 
-        {isTardio && (
-            <>
-                <SectionWrapper id="placenta" title="3. Placenta e Líquido" colorHex="#D81B60" isOpen={isAberto('placenta')} onToggle={toggleSecao}>
-                    <SecaoPlacentaLiquido {...commonProps} />
-                </SectionWrapper>
+            </div>
 
-                <SectionWrapper id="colo" title="4. Colo Uterino" colorHex="#AD1457" isOpen={isAberto('colo')} onToggle={toggleSecao}>
-                    <SecaoColoDados {...commonProps} />
-                </SectionWrapper>
-                
-                <SectionWrapper id="biometria" title="5. Biometria e Índices" colorHex="#2E7D32" isOpen={isAberto('biometria')} onToggle={toggleSecao}>
-                    <SecaoBiometria {...commonProps} />
-                </SectionWrapper>
-                
-                <SectionWrapper id="morfo" title="6. Análise Morfológica" colorHex="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
-                    <SecaoMorfologia {...commonProps} />
-                </SectionWrapper>
+            {/* ================= COLUNA DIREITA (DESCRITIVA & CHECKLISTS) ================= */}
+            <div className="col-right">
 
-                <SectionWrapper id="doppler" title="7. Dopplerfluxometria" colorHex="#1565C0" isOpen={isAberto('doppler')} onToggle={toggleSecao}>
-                    <SecaoDoppler {...commonProps} />
-                </SectionWrapper>
-            </>
-        )}
+                {/* A. DADOS GERAIS (Rápido Check) */}
+                <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" color="#0D47A1" isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
+                    <SecaoDadosGerais {...commonProps} />
+                </DashboardPanel>
 
-        <SectionWrapper id="3d" title="3D / 4D" colorHex="#FBC02D" isOpen={isAberto('3d')} onToggle={toggleSecao}>
-            <Secao3D {...commonProps} />
-        </SectionWrapper>
+                {/* B. PLACENTA E LÍQUIDO (Alinha bem com Biometria visualmente) */}
+                {(is1Tri || isTardio) && (
+                    <DashboardPanel id="placenta" title="Placenta e Líquido" color="#D81B60" isOpen={isAberto('placenta')} onToggle={toggleSecao}>
+                        <SecaoPlacentaLiquido {...commonProps} />
+                    </DashboardPanel>
+                )}
 
-        <SectionWrapper id="graficos" title="Opções de Gráficos" colorHex="#8E24AA" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
-            <SecaoIndicesGraficos {...commonProps} />
-        </SectionWrapper>
+                {/* C. ÚTERO / ANEXOS */}
+                {(isInicial || is1Tri) && (
+                    <DashboardPanel id="anexos1tri" title="Útero e Anexos" color="#039BE5" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
+                        <SecaoDadosMaternos1Tri {...commonProps} />
+                    </DashboardPanel>
+                )}
 
-        <SectionWrapper id="conclusao" title="Conclusão e Laudo" colorHex="#D32F2F" isOpen={true} onToggle={() => {}}>
-            <SecaoConclusao {...commonProps} />
-        </SectionWrapper>
+                {/* D. MORFOLOGIA (Lista Longa - Fica ótima na direita) */}
+                {(is1Tri || isTardio) && (
+                    <DashboardPanel id="morfo" title="Análise Morfológica" color="#EF6C00" isOpen={isAberto('morfo')} onToggle={toggleSecao}>
+                        <SecaoMorfologia {...commonProps} />
+                    </DashboardPanel>
+                )}
+
+                {/* E. 3D / 4D */}
+                <DashboardPanel id="3d" title="3D / 4D" color="#FBC02D" isOpen={isAberto('3d')} onToggle={toggleSecao}>
+                    <Secao3D {...commonProps} />
+                </DashboardPanel>
+
+            </div>
+        </div>
+        
+        {/* 4. CONCLUSÃO (LARGURA TOTAL - Fora do Grid) */}
+        <div style={{marginTop: '12px'}}>
+             <DashboardPanel id="conclusao" title="Conclusão e Diagnóstico" color="#D32F2F" isOpen={true} onToggle={() => {}}>
+                <SecaoConclusao {...commonProps} />
+            </DashboardPanel>
+        </div>
 
       </div>
     </div>
