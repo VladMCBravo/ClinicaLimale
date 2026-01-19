@@ -24,11 +24,16 @@ const SecaoConclusao = ({ data, handleChange }) => {
       // Função para adicionar frase
   const addFrase = (frase) => {
       const textoAtual = data.obsAdicionais || '';
-      // Adiciona espaço se já tiver texto e não terminar com espaço
-      const separador = textoAtual.length > 0 && !textoAtual.endsWith(' ') ? ' ' : '';
+      // Se o campo não estiver vazio e não terminar em quebra de linha, adiciona a quebra
+      if (textoAtual.length > 0 && !textoAtual.endsWith('\n')) {
+          textoAtual += '\n';
+      }
+      
+      // Adiciona a frase formatada como item de lista (com hífen)
+      const novaFrase = `- ${frase}`;
       
       handleChange({
-          target: { name: 'obsAdicionais', value: textoAtual + separador + frase }
+          target: { name: 'obsAdicionais', value: textoAtual + novaFrase }
       });
   };
 

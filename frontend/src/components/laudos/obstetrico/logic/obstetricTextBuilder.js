@@ -232,7 +232,7 @@ if (d.situacao || d.apresentacao || d.dorso) {
     // === CASO B: MORFOLÓGICO 1º TRIMESTRE (FRASES ESPECÍFICAS DA MÁSCARA 1º TRI) ===
     else if (isMorfo1) {
         
-        texto += `Análise fetal:\n\n`;
+        texto += `ANÁLISE FETAL:\n\n`;
         
         // Segmento Cefálico
         texto += `Segmento cefálico\n`;
@@ -487,7 +487,7 @@ if (d.situacao || d.apresentacao || d.dorso) {
     }
 
     // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO COMPLETA) ---
-    texto += `Impressão diagnóstica:\n`;
+    texto += `IMPRESSÃO DIAGNÓSTICA:\n`;
 
     if (d.sgAbortoIncompleto) {
         texto += `- Quadro compatível com Abortamento Incompleto.\n`;
