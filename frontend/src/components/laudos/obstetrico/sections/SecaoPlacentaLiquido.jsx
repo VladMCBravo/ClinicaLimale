@@ -122,7 +122,7 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                      }}>
                         <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
                             <FaCommentMedical color="#555"/>
-                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
+                            <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Placenta e Líquido Amniótico):</span>
                         </div>
                         <textarea 
                             name="obsPlacenta" 
