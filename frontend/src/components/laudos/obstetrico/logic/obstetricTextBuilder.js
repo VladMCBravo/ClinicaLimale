@@ -488,6 +488,57 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `\n`;
     }
 
+    // =========================================================================
+    // NOVA SEÇÃO: AVALIAÇÃO COMPLEMENTAR (Solicitado: Osso Nasal, TN e Ducto)
+    // =========================================================================
+    
+    let textoComp = "";
+    let temDadosComp = false;
+
+    // 1. Osso Nasal
+    if (d.ossoNasal) {
+        textoComp += `- Osso Nasal: Presente, medindo ${d.ossoNasal} mm.\n`;
+        temDadosComp = true;
+    } else if (d.ossoNasalPresente) {
+        // Fallback caso tenha marcado apenas o checkbox de presença sem medida
+        textoComp += `- Osso Nasal: Visualizado.\n`;
+        temDadosComp = true;
+    }
+
+    // 2. Translucência Nucal
+    if (d.tnMedida) {
+        textoComp += `- Translucência Nucal: ${d.tnMedida} mm.\n`;
+        temDadosComp = true;
+    }
+
+    // 3. Ducto Venoso
+    // Verifica se algum dado do ducto foi preenchido
+    if (d.checkDv || d.dvIP || d.dvOndaAPositiva || d.dvOndaAZero || d.dvOndaAReversa) {
+        textoComp += `- Ducto Venoso: `;
+        const dvDetalhes = [];
+
+        // Classificação da Onda
+        if (d.dvOndaAPositiva) dvDetalhes.push("Onda A Positiva (Normal)");
+        if (d.dvOndaAZero) dvDetalhes.push("Onda A Zero (Anormal)");
+        if (d.dvOndaAReversa) dvDetalhes.push("Onda A Reversa (Anormal)");
+
+        // IP
+        if (d.dvIP) dvDetalhes.push(`IP: ${d.dvIP}`);
+
+        if (dvDetalhes.length > 0) {
+            textoComp += dvDetalhes.join(" | ");
+        } else {
+            textoComp += "Avaliado";
+        }
+        textoComp += `.\n`;
+        temDadosComp = true;
+    }
+
+    // Se houver algum dado, adiciona ao texto principal com o título
+    if (temDadosComp) {
+        texto += `AVALIAÇÃO COMPLEMENTAR\n${textoComp}\n`;
+    }
+
     // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO COMPLETA) ---
     texto += `IMPRESSÃO DIAGNÓSTICA:\n`;
 
