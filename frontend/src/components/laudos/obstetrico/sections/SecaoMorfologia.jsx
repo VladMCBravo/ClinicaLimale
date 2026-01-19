@@ -106,52 +106,47 @@ const SecaoMorfologia = ({ data, handleChange }) => {
     </div>
 </div>
 
-                        {/* TABELA DE RISCOS (Fetal Medicine Foundation) */}
-<div style={{background:'#fff', border:'1px solid #ddd', padding:'5px', borderRadius:'4px'}}>
-    
-    {/* CABEÇALHO COM BOTÃO DA CALCULADORA */}
-    <div style={{
-        display:'flex', justifyContent:'space-between', alignItems:'center', 
-        borderBottom:'1px solid #eee', paddingBottom:'5px', marginBottom:'5px'
-    }}>
-        <div style={{fontWeight:'bold', fontSize:'11px', color:'#555'}}>
-            CÁLCULO DE RISCO (1:X)
-        </div>
-        <button 
-            onClick={() => window.open('https://www.fetalmedicine.org/research/assess/trisomies', 'CalculadoraFMF', 'width=1000,height=800,scrollbars=yes')}
-            style={{
-                background: '#1565C0', color: 'white', border: 'none', borderRadius: '4px',
-                padding: '4px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
-            }}
-            title="Abrir Calculadora Oficial da FMF"
-        >
-            <FaExternalLinkAlt /> Abrir FMF
-        </button>
-    </div>
-                            <table style={{width:'100%', fontSize:'11px', borderCollapse:'collapse'}}>
-                                <thead>
-                                    <tr style={{background:'#f0f0f0'}}>
-                                        <th style={{padding:'2px'}}></th>
-                                        <th style={{padding:'2px'}}>T21</th>
-                                        <th style={{padding:'2px'}}>T18</th>
-                                        <th style={{padding:'2px'}}>T13</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td style={{fontWeight:'bold'}}>Basal</td>
-                                        <td><input type="text" name="riscoT21Basal" value={data.riscoT21Basal} onChange={handleChange} className="laudo-input" style={{width:'100%'}} placeholder="Ex: 1500"/></td>
-                                        <td><input type="text" name="riscoT18Basal" value={data.riscoT18Basal} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
-                                        <td><input type="text" name="riscoT13Basal" value={data.riscoT13Basal} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{fontWeight:'bold'}}>Corrigido</td>
-                                        <td><input type="text" name="riscoT21Corrigido" value={data.riscoT21Corrigido} onChange={handleChange} className="laudo-input" style={{width:'100%'}} placeholder="Ex: 8500"/></td>
-                                        <td><input type="text" name="riscoT18Corrigido" value={data.riscoT18Corrigido} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
-                                        <td><input type="text" name="riscoT13Corrigido" value={data.riscoT13Corrigido} onChange={handleChange} className="laudo-input" style={{width:'100%'}}/></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        {/* CÁLCULO DE RISCO (Fetal Medicine Foundation - COPY/PASTE) */}
+                        <div style={{background:'#fff', border:'1px solid #ddd', padding:'8px', borderRadius:'4px', marginTop:'10px'}}>
+                            
+                            {/* CABEÇALHO COM BOTÃO DA CALCULADORA */}
+                            <div style={{
+                                display:'flex', justifyContent:'space-between', alignItems:'center', 
+                                borderBottom:'1px solid #eee', paddingBottom:'5px', marginBottom:'5px'
+                            }}>
+                                <div style={{fontWeight:'bold', fontSize:'11px', color:'#555'}}>
+                                    CÁLCULO DE RISCO (Colar do site FMF)
+                                </div>
+                                <button 
+                                    onClick={() => window.open('https://www.fetalmedicine.org/research/assess/trisomies', 'CalculadoraFMF', 'width=1000,height=800,scrollbars=yes')}
+                                    style={{
+                                        background: '#1565C0', color: 'white', border: 'none', borderRadius: '4px',
+                                        padding: '4px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+                                    }}
+                                    title="Abrir Calculadora Oficial da FMF"
+                                >
+                                    <FaExternalLinkAlt /> Abrir FMF
+                                </button>
+                            </div>
+
+                            {/* TEXTAREA PARA COLAR O RESULTADO */}
+                            <textarea 
+                                name="textoRiscosFMF" 
+                                value={data.textoRiscosFMF || ''} 
+                                onChange={handleChange} 
+                                className="laudo-textarea"
+                                rows="6" // Altura suficiente para o bloco de texto da FMF
+                                style={{
+                                    width:'100%', 
+                                    fontSize:'11px', 
+                                    fontFamily: 'monospace', // Ajuda a alinhar números se vierem formatados
+                                    border:'1px solid #ccc', 
+                                    borderRadius:'4px', 
+                                    padding:'8px',
+                                    background: '#FAFAFA'
+                                }}
+                                placeholder={"Cole aqui o resultado (Ex:\nRisks from History\nTrisomy 21: 1 in 780...)"}
+                            />
                         </div>
                     </div>
                 )}

@@ -269,12 +269,18 @@ if (d.situacao || d.apresentacao || d.dorso) {
              texto += `.\n`;
         }
         
-        // Tabela de Riscos (FMF)
-        if (d.riscoT21Basal || d.riscoT21Corrigido) {
-            texto += `\nRASTREAMENTO DE ANEUPLOIDIAS (Cálculo de Risco 1:X):\n`;
-            if(d.riscoT21Basal) texto += `- T21 (Basal): 1:${d.riscoT21Basal}  |  (Corrigido): 1:${d.riscoT21Corrigido || '--'}\n`;
-            if(d.riscoT18Basal) texto += `- T18 (Basal): 1:${d.riscoT18Basal}  |  (Corrigido): 1:${d.riscoT18Corrigido || '--'}\n`;
-            if(d.riscoT13Basal) texto += `- T13 (Basal): 1:${d.riscoT13Basal}  |  (Corrigido): 1:${d.riscoT13Corrigido || '--'}\n`;
+        // Tabela de Riscos (FMF) - MODO TEXTO (COPY/PASTE)
+        if (d.textoRiscosFMF) {
+            texto += `RASTREAMENTO DE ANEUPLOIDIAS (Cálculo de Risco - FMF):\n`;
+            texto += `${d.textoRiscosFMF}\n`;
+        } else {
+            // Mantém compatibilidade caso tenha dados antigos salvos nos campos individuais
+            if (d.riscoT21Basal || d.riscoT21Corrigido) {
+                texto += `RASTREAMENTO DE ANEUPLOIDIAS (Cálculo de Risco 1:X):\n`;
+                if(d.riscoT21Basal) texto += `- T21 (Basal): 1:${d.riscoT21Basal}  |  (Corrigido): 1:${d.riscoT21Corrigido || '--'}\n`;
+                if(d.riscoT18Basal) texto += `- T18 (Basal): 1:${d.riscoT18Basal}  |  (Corrigido): 1:${d.riscoT18Corrigido || '--'}\n`;
+                if(d.riscoT13Basal) texto += `- T13 (Basal): 1:${d.riscoT13Basal}  |  (Corrigido): 1:${d.riscoT13Corrigido || '--'}\n`;
+            }
         }
 
         texto += `\n`;
