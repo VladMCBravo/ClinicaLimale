@@ -16,7 +16,11 @@ class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        nome_pasta = request.data.get('nome_paciente') # Ex: SEIXAS_AMANDA
+        # --- ALTERAÇÃO AQUI ---
+        # Tenta pegar o nome original da pasta (enviado pelo novo script), 
+        # se não vier, usa o nome do paciente como fallback.
+        nome_pasta = request.data.get('nome_pasta_original') or request.data.get('nome_paciente')
+        
         data_str = request.data.get('data_exame') 
         files = request.FILES.getlist('arquivos') 
 

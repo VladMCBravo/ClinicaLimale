@@ -2,16 +2,25 @@
 from django.db import models
 from pacientes.models import Paciente
 import uuid
+import re
 from datetime import datetime # <--- IMPORTANTE: Faltava isso para o fallback
 
 # --- CORREÇÃO: Função segura para diretório ---
 def diretorio_laudos(instance, filename):
-    # Se instance.criado_em for None (upload rápido ou re-salvamento), usa agora.
+    # Se instance.criado_em for None, usa agora.
     data_ref = instance.criado_em if instance.criado_em else datetime.now()
     
-    return 'laudos_imagens/{0}/{1}/{2}'.format(
+    # Pega o nome da pasta do exame vinculado
+    pasta_nome = "indefinido"
+    if instance.exame and instance.exame.nome_paciente_pasta:
+        # Remove caracteres perigosos para URL/Sistema de arquivos por segurança
+        pasta_nome = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', instance.exame.nome_paciente_pasta)
+    
+    # Retorna o caminho: laudos_imagens / ANO / MES / NOME_PASTA_ORIGINAL / ARQUIVO
+    return 'laudos_imagens/{0}/{1}/{2}/{3}'.format(
         data_ref.strftime('%Y'),
         data_ref.strftime('%m'),
+        pasta_nome,
         filename
     )
 
