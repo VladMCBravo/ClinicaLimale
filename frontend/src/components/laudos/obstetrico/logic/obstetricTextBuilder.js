@@ -229,44 +229,19 @@ if (d.situacao || d.apresentacao || d.dorso) {
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
     } 
     
-    // === CASO B: MORFOLÓGICO 1º TRIMESTRE (FRASES ESPECÍFICAS DA MÁSCARA 1º TRI) ===
+    // === CASO B: MORFOLÓGICO 1º TRIMESTRE (Limpo e Unificado) ===
     else if (isMorfo1) {
         
-        texto += `ANÁLISE FETAL:\n\n`;
-        
-        // Segmento Cefálico
-        texto += `Segmento cefálico\n`;
-        if(d.morfCranio) texto += `Crânio de contornos regulares e dimensões normais.\n`;
-        if(d.morfCerebro) texto += `Estruturas da linha média presentes e plexo coróide visualizado.\n`;
-        // Translucência Intracraniana (Novo Checkbox)
-        if(d.morf1Cerebro) texto += `Translucência Intracraniana (TI) visibilizada.\n`;
-        texto += `Osso nasal ${d.ossoNasalPresente ? 'presente' : 'ausente/não visualizado'}.\n\n`;
+        // 1. Análise Fetal (Agora chama o HELPER unificado, evitando duplicação)
+        // Só vai escrever se você tiver marcado os checkboxes
+        texto += montarAnaliseMorfologica(d);
 
-        // Tórax
-        texto += `Tórax\n`;
-        texto += `Forma e características ecográficas habituais.\n`;
-        texto += `Área cardíaca de dimensões e relação com o diâmetro torácico preservados.\n`;
-        if(d.bcf) texto += `Batimentos cardíacos presentes e rítmicos (F.C.F = ${d.bcf} bpm).\n\n`;
-
-        // Abdome
-        texto += `Abdomem\n`;
-        texto += `Forma preservada.\n`;
-        if(d.morfEstomago) texto += `Estômago repleto e visualizado em sua topografia habitual.\n`;
-        if(d.morfBexiga) texto += `Bexiga repleta, de dimensões e aspectos preservados.\n\n`;
-
-        // Membros
-        texto += `Membros\n`;
-        if(d.morfMembros) texto += `Membros inferiores e superiores visibilizados, sem anormalidades grosseiras.\n`;
-        texto += `Movimentação fetal ativa e tônus adequado.\n\n`;
-        
-        if(d.obsMorfologia) texto += `Nota: ${d.obsMorfologia}\n\n`;
-
-        // Biometria
+        // 2. Biometria
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
-        // Placenta e Líquido (No final no 1º Tri)
+        // 3. Placenta e Líquido (No final no 1º Tri)
         if (d.placentaLocalizacao) {
             texto += `Placenta de inserção ${d.placentaLocalizacao}, homogênea, grau ${d.placentaGrau || '0'}, na escala de Grannum`;
             if (d.placentaEspessura) texto += ` e de espessura normal, medindo ${d.placentaEspessura} mm`;
@@ -277,18 +252,31 @@ if (d.situacao || d.apresentacao || d.dorso) {
             texto += `Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
             if (d.ila) {
                 texto += ` (ILA = ${d.ila} mm)`;
-                // CORREÇÃO REF ILA:
                 if (d.ilaRefMin && d.ilaRefMax) texto += ` (Ref: ${d.ilaRefMin} - ${d.ilaRefMax})`;
             }
             if (d.mbv) texto += ` (MBV = ${d.mbv} mm)`;
             texto += `.\n`;
         }
 
-        // Ducto Venoso
-        if(d.checkDv || d.dvIP) {
-             let onda = d.dvOndaAZero ? 'Zero' : (d.dvOndaAReversa ? 'Reversa' : 'positiva');
-             texto += `Ducto Venoso com Onda A ${onda}.\n`;
+        // 4. Ducto Venoso (Específico do 1º Tri)
+        if(d.checkDv || d.dvIP || d.dvOndaAZero || d.dvOndaAReversa || (d.dvStatus !== undefined)) {
+             let onda = 'positiva (normal)';
+             if (d.dvOndaAZero) onda = 'ZERO (anormal)';
+             if (d.dvOndaAReversa) onda = 'REVERSA (anormal)';
+             
+             texto += `Ducto Venoso com Onda A ${onda}`;
+             if (d.dvIP) texto += ` (IP: ${d.dvIP})`;
+             texto += `.\n`;
         }
+        
+        // Tabela de Riscos (FMF)
+        if (d.riscoT21Basal || d.riscoT21Corrigido) {
+            texto += `\nRASTREAMENTO DE ANEUPLOIDIAS (Cálculo de Risco 1:X):\n`;
+            if(d.riscoT21Basal) texto += `- T21 (Basal): 1:${d.riscoT21Basal}  |  (Corrigido): 1:${d.riscoT21Corrigido || '--'}\n`;
+            if(d.riscoT18Basal) texto += `- T18 (Basal): 1:${d.riscoT18Basal}  |  (Corrigido): 1:${d.riscoT18Corrigido || '--'}\n`;
+            if(d.riscoT13Basal) texto += `- T13 (Basal): 1:${d.riscoT13Basal}  |  (Corrigido): 1:${d.riscoT13Corrigido || '--'}\n`;
+        }
+
         texto += `\n`;
     }
     
@@ -586,19 +574,19 @@ const renderBiometria = (d) => {
     return t;
 };
 
-/// =============================================================================
+// =============================================================================
 // NOVO HELPER: GERA O TEXTO DE MORFOLOGIA (PARA TODOS OS TIPOS DE EXAME)
 // =============================================================================
 const montarAnaliseMorfologica = (d) => {
     // Verifica se há pelo menos um item marcado
-    const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.morfColuna || 
+    const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.ossoNasalPresente || d.morfColuna || 
                      d.morfTorax || d.morfCoracao || d.morfVasosBase || 
                      d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga || 
                      d.morfMembros || d.morfGenitalia;
 
     if (!temMorfo) return '';
 
-    let t = `Análise fetal:\n\n`; 
+    let t = `ANÁLISE FETAL:\n\n`; 
     
     // 1. SISTEMA NERVOSO CENTRAL
     if (d.morfCranio || d.morfCerebro) {
@@ -608,9 +596,13 @@ const montarAnaliseMorfologica = (d) => {
         t += `\n`;
     }
 
-    // 2. FACE
-    if (d.morfFace) {
-        t += `Face\nÓrbitas de características preservadas. Perfil facial característico.\nNariz, lábio superior e inferior de conformação habitual.\n\n`;
+    // 2. FACE & OSSO NASAL (Atualizado)
+    if (d.morfFace || d.ossoNasalPresente) {
+        t += `Face\n`;
+        if (d.morfFace) t += `Órbitas de características preservadas. Perfil facial característico. Nariz, lábio superior e inferior de conformação habitual.\n`;
+        // Adicionado para cobrir o 1º Trimestre
+        if (d.ossoNasalPresente) t += `Osso nasal presente e visualizado.\n`; 
+        t += `\n`;
     }
 
     // 3. COLUNA
@@ -619,11 +611,13 @@ const montarAnaliseMorfologica = (d) => {
     }
 
     // 4. TÓRAX E CORAÇÃO
-    if (d.morfTorax || d.morfCoracao || d.morfVasosBase) {
+    if (d.morfTorax || d.morfCoracao || d.morfVasosBase || d.bcf) {
         t += `Tórax\n`;
         if (d.morfTorax) t += `Forma e características ecográficas habituais. Área cardíaca de dimensões e relação com o diâmetro torácico normais.\n`;
-        if (d.morfCoracao) t += `Batimentos cardíacos presentes e rítmicos. Quatro câmaras cardíacas evidentes e simétricas.\n`;
+        if (d.morfCoracao) t += `Quatro câmaras cardíacas evidentes e simétricas.\n`;
         if (d.morfVasosBase) t += `Vias de saída dos ventrículos e cruzamento dos grandes vasos visibilizados.\n`;
+        // Opcional: Incluir BCF aqui se preferir não deixar em dados gerais
+        if (d.bcf) t += `Batimentos cardíacos presentes e rítmicos (${d.bcf} bpm).\n`;
         t += `\n`;
     }
 
@@ -651,7 +645,6 @@ const montarAnaliseMorfologica = (d) => {
 
     return t;
 };
-
 // =============================================================================
 // HELPERS FINAIS (MULTI-FETO & DISCLAIMERS)
 // =============================================================================

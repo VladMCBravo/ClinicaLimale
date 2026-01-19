@@ -21,19 +21,21 @@ const SecaoConclusao = ({ data, handleChange }) => {
       ? { width:'60px', background: '#FFEBEE', color: '#D32F2F', borderColor: '#D32F2F', fontWeight: 'bold', textAlign: 'center' }
       : { width:'60px', textAlign: 'center' };
 
-      // Função para adicionar frase
+      // --- FUNÇÃO CORRIGIDA (Adiciona Lista Corretamente) ---
   const addFrase = (frase) => {
+      // Pega o valor direto do objeto data, garantindo que não é undefined
       const textoAtual = data.obsAdicionais || '';
-      // Se o campo não estiver vazio e não terminar em quebra de linha, adiciona a quebra
-      if (textoAtual.length > 0 && !textoAtual.endsWith('\n')) {
-          textoAtual += '\n';
-      }
       
-      // Adiciona a frase formatada como item de lista (com hífen)
-      const novaFrase = `- ${frase}`;
+      // Define o prefixo: Se já tem texto, pula linha. Se está vazio, não pula.
+      // O "- " cria o bullet point.
+      const prefixo = textoAtual.length > 0 ? '\n- ' : '- ';
       
+      // Constrói o novo texto
+      const novoTexto = textoAtual + prefixo + frase;
+      
+      // Dispara a mudança
       handleChange({
-          target: { name: 'obsAdicionais', value: textoAtual + novaFrase }
+          target: { name: 'obsAdicionais', value: novoTexto }
       });
   };
 
