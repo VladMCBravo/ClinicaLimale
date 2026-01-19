@@ -28,6 +28,7 @@ import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardi
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import DeclaracaoModal from '../components/laudos/DeclaracaoModal';
 import LaudosPreviewModal from '../components/laudos/LaudosPreviewModal'; // Novo Modal
+import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; // <--- ADICIONE ISSO
 
 import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 
@@ -190,6 +191,7 @@ const LaudosPage = () => {
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
   const [modalDeclaracaoOpen, setModalDeclaracaoOpen] = useState(false);
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); // NOVO: Controle do Modal de Revisão
+  const [modalNuvemOpen, setModalNuvemOpen] = useState(false); // <--- ADICIONE ISSO
 
   const searchTimeoutRef = useRef(null);
 
@@ -448,6 +450,11 @@ const LaudosPage = () => {
       termoWindow.document.close();
   };
 
+  const handleImportarDaNuvem = (novasImagensBase64) => {
+      setImagens(prev => [...prev, ...novasImagensBase64]);
+      // Não fecha o modal de revisão, apenas atualiza as imagens nele
+  };
+
   return (
     <div style={styles.container}>
       
@@ -604,8 +611,22 @@ const LaudosPage = () => {
       </div>
 
       {/* --- MODAIS --- */}
-      <LaudosPreviewModal open={modalRevisaoOpen} onClose={() => setModalRevisaoOpen(false)} textoInicial={textoFinal} imagensIniciais={imagens} onFinalizar={handleFinalizacaoCompleta} />
-      
+      {/* ATUALIZE ESTE COMPONENTE: Adicione a prop onAbrirNuvem */}
+      <LaudosPreviewModal 
+          open={modalRevisaoOpen} 
+          onClose={() => setModalRevisaoOpen(false)} 
+          textoInicial={textoFinal} 
+          imagensIniciais={imagens} 
+          onFinalizar={handleFinalizacaoCompleta}
+          onAbrirNuvem={() => setModalNuvemOpen(true)} // <--- Conecta o botão azul
+      />
+      {/* ADICIONE ESTE COMPONENTE NOVO */}
+      <ImagensNuvemModal
+          open={modalNuvemOpen}
+          onClose={() => setModalNuvemOpen(false)}
+          paciente={paciente} // Passa o paciente selecionado para buscar as fotos certas
+          onConfirmar={handleImportarDaNuvem}
+      />
       <Dialog open={modalSucessoOpen} onClose={() => setModalSucessoOpen(false)} maxWidth="sm" fullWidth>
         <div style={{padding: '30px', textAlign: 'center'}}>
             <FaCheckCircle size={60} color="#4CAF50" style={{marginBottom: 15}} />
