@@ -258,14 +258,22 @@ if (d.situacao || d.apresentacao || d.dorso) {
             texto += `.\n`;
         }
 
-        // 4. Ducto Venoso (Específico do 1º Tri)
-        if(d.checkDv || d.dvIP || d.dvOndaAZero || d.dvOndaAReversa || (d.dvStatus !== undefined)) {
-             let onda = 'positiva (normal)';
-             if (d.dvOndaAZero) onda = 'ZERO (anormal)';
-             if (d.dvOndaAReversa) onda = 'REVERSA (anormal)';
+        // 4. Ducto Venoso (Totalmente Independente)
+        // Verifica se qualquer dado do ducto foi preenchido
+        if (d.dvOndaAPositiva || d.dvOndaAZero || d.dvOndaAReversa || d.dvIP) {
              
-             texto += `Ducto Venoso com Onda A ${onda}`;
-             if (d.dvIP) texto += ` (IP: ${d.dvIP})`;
+             texto += `Ducto Venoso`;
+             
+             // Parte da Onda A
+             if (d.dvOndaAPositiva) texto += ` com Onda A positiva (normal)`;
+             if (d.dvOndaAZero) texto += ` com Onda A ZERO (anormal)`;
+             if (d.dvOndaAReversa) texto += ` com Onda A REVERSA (anormal)`;
+             
+             // Parte do IP
+             if (d.dvIP) {
+                 texto += ` (IP: ${d.dvIP})`;
+             }
+             
              texto += `.\n`;
         }
         

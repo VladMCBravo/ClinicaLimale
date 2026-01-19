@@ -47,62 +47,66 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                     <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
                 </div>
 
-                        {/* Ducto Venoso */}
-                        <div style={{background:'rgba(255,255,255,0.5)', padding:'5px', borderRadius:'4px', marginBottom:'10px'}}>
-    <span className="label-pequeno">Ducto Venoso (Onda A):</span>
-    <div style={{display:'flex', gap:'10px', marginTop:'3px'}}>
-        {/* OPÇÃO POSITIVA: Zera os riscos */}
-        <label style={{fontSize:'12px', cursor:'pointer'}}>
+                        {/* Ducto Venoso (Independente) */}
+<div style={{background:'rgba(255,255,255,0.6)', padding:'6px', borderRadius:'4px', border:'1px solid #FFE0B2'}}>
+    <span className="label-pequeno" style={{color:'#E65100'}}>Ducto Venoso (Onda A):</span>
+    <div style={{display:'flex', gap:'15px', marginTop:'4px', fontSize:'11px'}}>
+        
+        {/* OPÇÃO 1: POSITIVA */}
+        <label style={{cursor:'pointer', display:'flex', alignItems:'center', gap:'4px'}}>
             <input 
                 type="radio" 
                 name="dvStatus" 
-                checked={!data.dvOndaAZero && !data.dvOndaAReversa} 
-                onChange={() => handleChange({
-                    target: { 
-                        name: 'dvOndaAZero', value: false, 
-                        // Truque: Passamos um objeto fake para atualizar 2 estados de uma vez se seu hook permitir, 
-                        // mas vamos simplificar: O ideal é atualizar um por um ou usar um handler customizado.
-                        // Como seu handleChange é simples, vamos garantir via UX:
-                    } 
-                }, 
-                // Forçamos a limpeza manual dos outros estados chamando handleChange multiplas vezes ou
-                // (Melhor solução para React simples):
-                handleChange({target: {name: 'dvOndaAZero', value: false, type:'checkbox', checked: false}}),
-                handleChange({target: {name: 'dvOndaAReversa', value: false, type:'checkbox', checked: false}})
-                )} 
+                checked={!!data.dvOndaAPositiva} 
+                onChange={() => {
+                    handleChange({target: {name: 'dvOndaAPositiva', value: true}});
+                    handleChange({target: {name: 'dvOndaAZero', value: false}});
+                    handleChange({target: {name: 'dvOndaAReversa', value: false}});
+                }} 
             /> Positiva (Normal)
         </label>
 
-        {/* OPÇÃO ZERO */}
-        <label style={{fontSize:'12px', cursor:'pointer'}}>
+        {/* OPÇÃO 2: ZERO */}
+        <label style={{cursor:'pointer', display:'flex', alignItems:'center', gap:'4px'}}>
             <input 
                 type="radio" 
                 name="dvStatus" 
                 checked={!!data.dvOndaAZero} 
                 onChange={() => {
-                    handleChange({target: {name: 'dvOndaAZero', value: true, type:'checkbox', checked: true}});
-                    handleChange({target: {name: 'dvOndaAReversa', value: false, type:'checkbox', checked: false}});
+                    handleChange({target: {name: 'dvOndaAPositiva', value: false}});
+                    handleChange({target: {name: 'dvOndaAZero', value: true}});
+                    handleChange({target: {name: 'dvOndaAReversa', value: false}});
                 }} 
             /> Zero
         </label>
 
-        {/* OPÇÃO REVERSA */}
-        <label style={{fontSize:'12px', cursor:'pointer'}}>
+        {/* OPÇÃO 3: REVERSA */}
+        <label style={{cursor:'pointer', display:'flex', alignItems:'center', gap:'4px'}}>
             <input 
                 type="radio" 
                 name="dvStatus" 
                 checked={!!data.dvOndaAReversa} 
                 onChange={() => {
-                    handleChange({target: {name: 'dvOndaAZero', value: false, type:'checkbox', checked: false}});
-                    handleChange({target: {name: 'dvOndaAReversa', value: true, type:'checkbox', checked: true}});
+                    handleChange({target: {name: 'dvOndaAPositiva', value: false}});
+                    handleChange({target: {name: 'dvOndaAZero', value: false}});
+                    handleChange({target: {name: 'dvOndaAReversa', value: true}});
                 }} 
             /> Reversa
         </label>
     </div>
     
     <div style={{marginTop:'5px', display:'flex', alignItems:'center'}}>
-        <span className="label-pequeno" style={{marginRight:'5px'}}>IP Ducto:</span>
-        <input type="number" step="0.01" name="dvIP" value={data.dvIP} onChange={handleChange} className="laudo-input-small" style={{width:'50px'}} />
+        <span style={{fontSize:'10px', marginRight:'5px'}}>IP Ducto:</span>
+        <input 
+            type="number" 
+            step="0.01" 
+            name="dvIP" 
+            value={data.dvIP} 
+            onChange={handleChange} 
+            className="laudo-input" 
+            style={{width:'60px', height:'22px'}} 
+            placeholder="-"
+        />
     </div>
 </div>
 
