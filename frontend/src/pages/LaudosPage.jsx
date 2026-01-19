@@ -272,7 +272,7 @@ const LaudosPage = () => {
               setPacientesEncontrados(dados);
           } catch (e) { console.error(e); } 
           finally { setLoadingBusca(false); }
-      }, 500);
+      }, 300);
   };
 
   // Auto-Save

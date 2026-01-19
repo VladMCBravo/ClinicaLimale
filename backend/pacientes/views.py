@@ -1,6 +1,6 @@
 # backend/pacientes/views.py - VERSÃO CORRIGIDA (LÓGICA DO MÉDICO)
 
-from rest_framework import generics
+from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated
 from usuarios.permissions import IsMedicoResponsavelOrAdmin, AllowRead_WriteRecepcaoAdmin
 from .models import Paciente
@@ -13,6 +13,11 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
     # AJUSTE: Mude para IsAuthenticated para permitir que o médico entre no get_queryset
     # A segurança dos dados é garantida pelo filtro do queryset abaixo.
     permission_classes = [IsAuthenticated] 
+
+    # --- 2. ADICIONE ESTAS DUAS LINHAS AQUI ---
+    # Isso diz ao Django: "Aceite o parâmetro ?search= e procure nestes campos"
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome_completo', 'cpf', 'telefone_celular', 'email']
 
     def get_queryset(self):
         user = self.request.user
