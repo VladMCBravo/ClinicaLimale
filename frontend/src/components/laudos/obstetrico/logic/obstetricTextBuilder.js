@@ -692,8 +692,9 @@ export const montarTextoFinalMultiplo = (resF1, resF2, resF3, qtdFetos, listaFet
         textoFinal += `\n`;
     }
 
-    // 4. Corpos dos Textos
-    const limparCabecalho = (txt) => txt.replace(/^DPP:.*\n/, '').replace(/^DUM:.*\n/, '').trim();
+    // CÓDIGO CORRIGIDO
+// Adicionamos as flags 'gm' para pegar o início da linha mesmo se houver texto antes
+const limparCabecalho = (txt) => txt.replace(/^DPP:.*\n/gm, '').replace(/^DUM:.*\n/gm, '').trim();
 
     if (qtdFetos > 1) textoFinal += `FETO I:\n`;
     textoFinal += limparCabecalho(resF1.texto);
