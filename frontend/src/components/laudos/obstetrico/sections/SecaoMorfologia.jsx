@@ -1,18 +1,17 @@
 import React from 'react';
-import { FaHeartbeat, FaCheckSquare, FaExclamationTriangle, FaCommentMedical } from 'react-icons/fa'; 
-import { FaExternalLinkAlt } from 'react-icons/fa';
+import { FaCheckSquare, FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt } from 'react-icons/fa'; 
 
-// Componente auxiliar para Checkbox simples
+// Componente auxiliar para Checkbox (Garante que o clique funcione)
 const CheckItem = ({ label, name, checked, onChange }) => (
-    <label className="laudo-checkbox-label" style={{display:'flex', alignItems:'center', marginBottom:'3px', cursor:'pointer'}}>
+    <label className="laudo-checkbox-label" style={{display:'flex', alignItems:'center', marginBottom:'4px', cursor:'pointer', padding:'2px 0'}}>
         <input 
             type="checkbox" 
             name={name} 
             checked={!!checked} 
             onChange={onChange} 
-            style={{cursor:'pointer'}}
+            style={{cursor:'pointer', width:'14px', height:'14px', accentColor:'#EF6C00'}}
         /> 
-        <span style={{marginLeft:'6px', fontSize:'13px'}}>{label}</span>
+        <span style={{marginLeft:'6px', fontSize:'11px', color:'#333'}}>{label}</span>
     </label>
 );
 
@@ -43,17 +42,10 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                             Rastreamento de Cromossomopatias (11 - 14 semanas)
                         </div>
                         
-                        {/* Marcadores Principais (REMOVIDO TRICÚSPIDE) */}
-                        <div style={{marginBottom:'10px', display:'flex', gap:'15px', flexWrap:'wrap'}}>
-                            <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
-                            {/* NOVO CHECKBOX AQUI */}
-                            <CheckItem 
-                                label="Translucência Intracraniana Visível" 
-                                name="morf1Cerebro" 
-                                checked={data.morf1Cerebro} 
-                                onChange={handleChange} 
-                            />
-                        </div>
+                        {/* REMOVIDO: Translucência Intracraniana Visível */}
+                <div style={{marginBottom:'10px'}}>
+                    <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
+                </div>
 
                         {/* Ducto Venoso */}
                         <div style={{background:'rgba(255,255,255,0.5)', padding:'5px', borderRadius:'4px', marginBottom:'10px'}}>
@@ -194,33 +186,6 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         <CheckItem label="Membros (sup/inf)" name="morfMembros" checked={data.morfMembros} onChange={handleChange} />
                     </div>
                 </div>
-
-        {/* BLOCO 2: VITALIDADE FETAL */}
-        <div className="laudo-section">
-             <div className="header-base header-green">
-                <FaHeartbeat size={12} style={{marginRight:'5px'}}/> 
-                Vitalidade Fetal
-            </div>
-             <div className="laudo-section-body">
-                 <div className="laudo-row" style={{alignItems:'center', background:'#f9f9f9', padding:'8px', borderRadius:'4px'}}>
-                     <span style={{fontWeight:'bold'}}>BCF:</span>
-                     <input 
-                        name="bcf" 
-                        value={data.bcf} 
-                        onChange={handleChange} 
-                        className="laudo-input" 
-                        style={{width:'60px', marginLeft:'5px', marginRight:'5px', fontWeight:'bold', color:'#2E7D32'}}
-                        placeholder="bpm"
-                    /> 
-                     <span style={{marginRight:'20px'}}>bpm</span>
-
-                     <div style={{borderLeft:'1px solid #ccc', height:'20px', marginRight:'15px'}}></div>
-
-                     <CheckItem label="Movimentação Ativa" name="movFetal" checked={data.movFetal} onChange={handleChange} />
-                     <span style={{margin: '0 10px', color:'#ccc'}}>|</span>
-                     <CheckItem label="Deglutição" name="degluticao" checked={data.degluticao} onChange={handleChange} />
-                 </div>
-             </div>
              {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (No final do return) */}
              <div style={{
                  borderTop: '1px solid #eee', 
@@ -261,8 +226,6 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                     placeholder="Digite observações..."
                 />
             </div>
-
-        </div> {/* Fecha laudo-section */}
     </div>
   );
 };

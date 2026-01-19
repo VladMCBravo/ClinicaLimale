@@ -144,11 +144,25 @@ export const gerarRelatorioFeto = (d) => {
         
         texto += `Gestação tópica, feto único.\n`; 
         
-        if (d.situacao && d.apresentacao) {
-            texto += `Situação ${d.situacao}, apresentação ${d.apresentacao}`;
-            if (d.dorso) texto += ` e com dorso ${d.dorso}`;
-            texto += `.\n`;
-        }
+        // 1. Situação
+if (d.situacao) {
+    texto += `Situação fetal ${d.situacao}. `;
+}
+
+// 2. Apresentação
+if (d.apresentacao) {
+    texto += `Apresentação ${d.apresentacao}. `;
+}
+
+// 3. Dorso
+if (d.dorso) {
+    texto += `Dorso à ${d.dorso}. `; // Ajustei para "Dorso à direita/esquerda" ficar mais natural
+}
+
+// Adiciona quebra de linha se algum dado fetal foi inserido
+if (d.situacao || d.apresentacao || d.dorso) {
+    texto += `\n`;
+}
 
         // --- VITALIDADE FETAL (CORRIGIDO) ---
         const textoVitalidade = [];
