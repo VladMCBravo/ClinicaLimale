@@ -156,7 +156,7 @@ if (d.apresentacao) {
 
 // 3. Dorso
 if (d.dorso) {
-    texto += `Dorso à ${d.dorso}. `; // Ajustei para "Dorso à direita/esquerda" ficar mais natural
+    texto += `Dorso ${d.dorso}. `; // Ajustei para "Dorso à direita/esquerda" ficar mais natural
 }
 
 // Adiciona quebra de linha se algum dado fetal foi inserido

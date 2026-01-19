@@ -90,35 +90,7 @@ const SecaoDadosGerais = ({ data, handleChange, qtdFetos }) => {
                     </div>
                 </div>
             )}
-
-            {/* BLOCO 3: MATERNA */}
-        <div className="laudo-grid-2" style={{alignItems:'start', gap:'10px'}}>
-            <div className="laudo-card-internal">
-                <span className="label-pequeno">Bexiga Materna:</span>
-    <select name="bexigaMaterna" value={data.bexigaMaterna} onChange={handleChange} className="laudo-select full-width">
-        <option value="">Selecione...</option> {/* ADICIONADO */}
-        <option value="não visualizada">não visualizada</option>
-        <option value="repleta">repleta</option>
-        <option value="vazia">vazia</option>
-        <option value="parcialmente repleta">parcialmente repleta</option>
-    </select>
-</div>
-
-                {/* Coluna Direita: Vísceras (Se não inicial) */}
-                {!isInicial && (
-                <div className="laudo-card-internal" style={{display:'flex', justifyContent:'center', flexDirection:'column'}}>
-                    <label className="laudo-checkbox-label">
-                        <input type="checkbox" name="estomagoVisualizado" checked={!!data.estomagoVisualizado} onChange={handleChange} /> 
-                        Estômago Visualizado
-                    </label>
-                    <label className="laudo-checkbox-label">
-                        <input type="checkbox" name="bexigaVisualizada" checked={!!data.bexigaVisualizada} onChange={handleChange} /> 
-                        Bexiga Visualizada
-                    </label>
-                </div>
-            )}
         </div>
-    </div>
   );
 };
 
