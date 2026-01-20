@@ -85,12 +85,17 @@ export const gerarRelatorioFeto = (d) => {
         } else {
              texto += `Idade Gestacional (DUM)`;
         }
-        if (d.igDum) texto += `, compatível com ${d.igDum}`;
-        texto += `.\n`; // <--- PONTO E QUEBRA DE LINHA OBRIGATÓRIA
+        if (d.igDum) linhaDum += `, compatível com ${d.igDum}`;
+        linhaDum += `.`; // Ponto final da primeira frase
+        
+        texto += `${linhaDum}\n`; // Quebra de linha forçada
 
-        // Linha 2: DPP (SEMPRE EMBAIXO)
-        if (d.citarDppDum && d.dppDum) {
-             texto += `DPP: ${d.dppDum}.\n`;
+        // Linha 2: DPP (Verificação simplificada para garantir que apareça)
+        if (d.citarDppDum === true) {
+             // Usa a DPP calculada se existir
+             if (d.dppDum) {
+                 texto += `DPP: ${d.dppDum}.\n`;
+             }
         }
     }
     

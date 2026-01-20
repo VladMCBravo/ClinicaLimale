@@ -179,34 +179,41 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
 
         <div className="dashboard-grid">
             
-            {/* ================= COLUNA ESQUERDA (MÉTRICAS & CÁLCULOS) ================= */}
+            {/* ================= COLUNA ESQUERDA ================= */}
             <div className="col-left">
                 
-                {/* A. DATAÇÃO (Sempre Primeiro) */}
+                {/* A. DATAÇÃO */}
                 <DashboardPanel id="datacao" title="1. Datação e Cronologia" theme="purple" icon={FaCalendarAlt} isOpen={isAberto('datacao')} onToggle={toggleSecao}>
                     <SecaoDatacao {...commonProps} />
                 </DashboardPanel>
 
-                {/* B. SACO GESTACIONAL (Apenas Inicial) */}
+                {/* B. SACO GESTACIONAL (Inicial) */}
                 {isInicial && (
                     <DashboardPanel id="saco" title="Saco Gestacional" theme="blue" icon={GiEmbryo} isOpen={isAberto('saco')} onToggle={toggleSecao}>
                         <SecaoSacoGestacional {...commonProps} />
                     </DashboardPanel>
                 )}
 
-                {/* C. BIOMETRIA (O Coração do exame) */}
+                {/* C. BIOMETRIA */}
                 <DashboardPanel id="biometria" title="Biometria Fetal" theme="green" icon={FaRulerCombined} isOpen={isAberto('biometria')} onToggle={toggleSecao}>
                     <SecaoBiometria {...commonProps} />
                 </DashboardPanel>
 
-                {/* D. DOPPLER (Numérico) */}
+                {/* === MUDANÇA: PLACENTA VEM PARA A ESQUERDA PARA EQUILIBRAR A ALTURA === */}
+                {(is1Tri || isTardio) && (
+                    <DashboardPanel id="placenta" title="Placenta e Líquido" theme="red" icon={FaLayerGroup} isOpen={isAberto('placenta')} onToggle={toggleSecao}>
+                        <SecaoPlacentaLiquido {...commonProps} />
+                    </DashboardPanel>
+                )}
+
+                {/* D. DOPPLER */}
                 {(is1Tri || isTardio) && (
                      <DashboardPanel id="doppler" title="Dopplerfluxometria" theme="blue" icon={FaWaveSquare} isOpen={isAberto('doppler')} onToggle={toggleSecao}>
                         <SecaoDoppler {...commonProps} />
                     </DashboardPanel>
                 )}
-                              
-                 {/* Gráficos (Apenas se não for Inicial) */}
+
+                 {/* Gráficos */}
                  {!isInicial && (
                     <DashboardPanel id="graficos" title="Gráficos" theme="purple" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
                         <SecaoIndicesGraficos {...commonProps} />
@@ -214,48 +221,38 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                  )}
             </div>
 
-            {/* ================= COLUNA DIREITA (DESCRITIVA & CHECKLISTS) ================= */}
-            
-
-                {/* COLUNA DIREITA */}
+            {/* ================= COLUNA DIREITA ================= */}
             <div className="col-right">
                 
-                {/* Dados Gerais: DESAPARECE SE FOR INICIAL */}
+                {/* Dados Gerais */}
                 {!isInicial && (
                     <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" theme="blue" icon={GiFetus} isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
                         <SecaoDadosGerais {...commonProps} />
                     </DashboardPanel>
                 )}
 
-                {/* B. PLACENTA E LÍQUIDO (Alinha bem com Biometria visualmente) */}
-                {(is1Tri || isTardio) && (
-                    <DashboardPanel id="placenta" title="Placenta e Líquido" theme="red" icon={FaLayerGroup} isOpen={isAberto('placenta')} onToggle={toggleSecao}>
-                        <SecaoPlacentaLiquido {...commonProps} />
-                    </DashboardPanel>
-                )}
-                
-                {/* E. COLO UTERINO (Tardio) */}
-                {isTardio && (
-                    <DashboardPanel id="colo" title="Colo Uterino" theme="purple" icon={MdLinearScale} isOpen={isAberto('colo')} onToggle={toggleSecao}>
-                        <SecaoColoDados {...commonProps} />
-                    </DashboardPanel>
-                )}
-
-                {/* Útero e Anexos (Aparece em Inicial e 1 Tri) */}
+                {/* Útero e Anexos */}
                 {(isInicial || is1Tri || isTardio) && (
                     <DashboardPanel id="anexos1tri" title="Útero e Anexos" theme="blue" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                         <SecaoDadosMaternos1Tri {...commonProps} />
                     </DashboardPanel>
                 )}
 
-                {/* D. MORFOLOGIA (Lista Longa - Fica ótima na direita) */}
+                {/* COLO UTERINO (Fica na direita pois é pequeno) */}
+                {isTardio && (
+                    <DashboardPanel id="colo" title="Colo Uterino" theme="purple" icon={MdLinearScale} isOpen={isAberto('colo')} onToggle={toggleSecao}>
+                        <SecaoColoDados {...commonProps} />
+                    </DashboardPanel>
+                )}
+
+                {/* D. MORFOLOGIA (Grande - Fica na direita) */}
                 {(is1Tri || isTardio) && (
                     <DashboardPanel id="morfo" title="Análise Morfológica" theme="orange" icon={FaCheckSquare} isOpen={isAberto('morfo')} onToggle={toggleSecao}>
                         <SecaoMorfologia {...commonProps} />
                     </DashboardPanel>
                 )}
 
-                {/* 3D: DESAPARECE SE FOR INICIAL */}
+                {/* 3D */}
                 {!isInicial && (
                     <DashboardPanel id="3d" title="3D / 4D" theme="orange" icon={FaCube} isOpen={isAberto('3d')} onToggle={toggleSecao}>
                         <Secao3D {...commonProps} />
