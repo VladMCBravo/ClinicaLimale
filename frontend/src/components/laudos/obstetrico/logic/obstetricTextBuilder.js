@@ -19,6 +19,10 @@ const TEXTO_OBS_MORFO_1 = "Obs.: A medida da translucência nucal consiste apena
 
 const TEXTO_OBS_MORFO_2 = "Obs.: Nem todas as alterações que um feto possa vir apresentar após o nascimento, podem ser identificadas pelo exame ultra-sonográfico, devendo-se levar em consideração as limitações técnicas inerentes ao método, posição assumida pelo feto e a idade gestacional. Ressaltamos que a eficácia do exame quando realizado entre 20 e 24 semanas é de 83%, fora deste período existem maiores restrições de diagnóstico. Este exame não substitui a ecocardiografia fetal.";
 
+// FRASES DE CCN (Extraídas da imagem)
+const FRASE_CCN_MENOR_45 = "Morfológico 1 trimestre: Não foi possível calcular o risco para trissomia do 21 por meio da medida da translucência nucal pois o feto com CCN abaixo de 45 mm.";
+const FRASE_CCN_MAIOR_84 = "Morfológico 2 trimestre: Não foi possível calcular o risco para trissomia do 21 por meio da medida da translucência nucal pois o feto com CCN acima de 84 mm. Para essa fase de gestação, podem ser usados outros marcadores como medida da prega nucal e a presença e osso nasal, que no presente estudo encontram-se normais."
+
 // =============================================================================
 // GERADOR DE RELATÓRIO (FUSÃO TOTAL: FUNCIONALIDADES + ESTILO MÉDICA)
 // =============================================================================
@@ -589,13 +593,19 @@ if (d.situacao || d.apresentacao || d.dorso) {
     // REGRAS AUTOMÁTICAS (INTELIGÊNCIA DO SISTEMA)
     // =========================================================================
     
-    // Regra 1: CCN > 84mm (Translucência Prejudicada)
+    // Regra 1: CCN (Automatização Estrita por Subtipo)
     const ccnValor = parseFloat(d.ccn);
-    if (!isNaN(ccnValor) && ccnValor > 84) {
-        texto += `- Análise morfológica de 1º Tri prejudicada para cálculo de risco (CCN > 84mm). TN não se aplica.\n`;
+    
+    if (!isNaN(ccnValor)) {
+        // CASO 1: Morfológico 1º Trimestre E CCN < 45
+        if (isMorfo1 && ccnValor < 45) {
+            texto += `- ${FRASE_CCN_MENOR_45}\n`;
+        }
+        // CASO 2: Morfológico 2º Trimestre E CCN > 84
+        else if (isMorfo2 && ccnValor > 84) {
+             texto += `- ${FRASE_CCN_MAIOR_84}\n`;
+        }
     }
-    // (Opcional: Se quiser manter o checkbox manual 'morfoPrejudicado45mm' também, deixe-o aqui)
-    if (d.morfoPrejudicado45mm) texto += `- Análise morfológica prejudicada (CCN < 45mm).\n`;
 
     // Regra 2: Oligoâmnio -> Sugerir Doppler
     if (d.liquidoAmniotico === 'Oligoâmnio') {
@@ -612,14 +622,7 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `- Sugere-se acompanhamento do crescimento e vitalidade com Doppler (Suspeita de RCIU).\n`;
     }
 
-    // Regra 4: Sugestão NIPT Manual (Independente do percentil)
     if (d.sugereNipt) texto += `- Sugere-se avaliação genética (NIPT) devido ao risco aumentado.\n`;
-
-    // As frases de Morfologia (Golf Ball / Pieloectasia) continuam sendo inseridas 
-    // manualmente no campo de OBSERVAÇÃO ou MORFOLOGIA, então não precisam estar aqui 
-    // a menos que você queira duplicá-las na conclusão. 
-    // Se quiser na conclusão, teria que ter um boolean 'sugereGolfBall' no state.
-    // Como implementamos botões que inserem TEXTO no textarea, elas já aparecerão no corpo do laudo.
 
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
@@ -661,12 +664,33 @@ const renderBiometria = (d) => {
     ].filter(Boolean);
 
     t += bios.join('\n') + '\n\n';
+
+    // --- NOTA AUTOMÁTICA DE CCN (BIOMETRIA) ---
+    // Segue a mesma lógica estrita da conclusão
+    const ccnVal = parseFloat(d.ccn);
+    const isMorfo1 = d.subtipo === 'OBSTETRICO_1_TRI';
+    const isMorfo2 = d.subtipo === 'OBSTETRICO_MORFOLOGICO';
+
+    if (!isNaN(ccnVal)) {
+        if (isMorfo1 && ccnVal < 45) {
+            t += `NOTA: Medida de CCN abaixo de 45 mm limita a avaliação de risco para trissomias pela TN.\n\n`;
+        }
+        else if (isMorfo2 && ccnVal > 84) {
+            t += `NOTA: Medida de CCN acima de 84 mm. Avaliação de risco pela TN não aplicável nesta fase.\n\n`;
+        }
+    }
+
     return t;
 };
 
 // =============================================================================
 // NOVO HELPER: GERA O TEXTO DE MORFOLOGIA (PARA TODOS OS TIPOS DE EXAME)
 // =============================================================================
+
+// TEXTOS COMPLETOS (Definidos no topo do arquivo builder ou dentro da função)
+const TXT_GOLFBALL_LAUDO = "Nota-se a presença de foco ecogênico com ventrículo esquerdo (Golf Ball). O Golf Ball não é considerado malformação cardíaca e quando encontrado isoladamente não eleva o risco fetal para aneuploidias. Sugere-se a critério clínico, ampliação da propedêutica com ecocardiograma fetal.";
+const TXT_PIELO_LAUDO = "Nota-se leve dilatação pielo-calicial (Pieloectasia). Quando isolada não eleva o risco fetal para aneuploidias e geralmente tem caráter benigno quando estável. Sugere-se acompanhamento evolutivo.";
+
 const montarAnaliseMorfologica = (d) => {
     // Verifica se há pelo menos um item marcado
     const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.ossoNasalPresente || d.morfColuna || 
@@ -704,7 +728,13 @@ const montarAnaliseMorfologica = (d) => {
     if (d.morfTorax || d.morfCoracao || d.morfVasosBase || d.bcf) {
         t += `Tórax\n`;
         if (d.morfTorax) t += `Forma e características ecográficas habituais. Área cardíaca de dimensões e relação com o diâmetro torácico preservados.\n`;
-        if (d.morfCoracao) t += `Quatro câmaras cardíacas evidentes e simétricas.\n`;
+        if (d.morfCoracao) {
+            t += `Quatro câmaras cardíacas evidentes e simétricas.\n`;
+            // --- INSERÇÃO AUTOMÁTICA GOLF BALL ---
+            if (d.sugereGolfBall) {
+                t += `OBSERVAÇÃO CARDÍACA: ${TXT_GOLFBALL_LAUDO}\n`;
+            }
+        }
         if (d.morfVasosBase) t += `Vias de saída dos ventrículos e cruzamento dos grandes vasos visibilizados.\n`;
         // Opcional: Incluir BCF aqui se preferir não deixar em dados gerais
         if (d.bcf) t += `Batimentos cardíacos presentes e rítmicos (F.C.F. = ${d.bcf} bpm).\n`;
@@ -717,7 +747,16 @@ const montarAnaliseMorfologica = (d) => {
         if(d.morfParedeAbd) t += `Diafragma visibilizado e aparentemente sem anormalidades no presente estudo. Parede abdominal íntegra.\n`;
         if(d.morfFigado) t += `Fígado de ecotextura preservada.\n`;
         if(d.morfEstomago) t += `Estômago repleto e visualizado em sua topografia habitual.\n`;
-        if(d.morfRins) t += `Rins tópicos, de dimensões normais, não se observando dilatações ou alterações texturais.\n`;
+        if(d.morfRins) {
+            t += `Rins tópicos, de dimensões normais.\n`;
+            
+            // --- INSERÇÃO AUTOMÁTICA PIELOECTASIA ---
+            if (d.sugerePieloectasia) {
+                t += `OBSERVAÇÃO RENAL: ${TXT_PIELO_LAUDO}\n`;
+            } else {
+                t += `Não se observando dilatações ou alterações texturais.\n`;
+            }
+        }
         if(d.morfBexiga) t += `Bexiga repleta, de dimensões e aspectos preservados.\n`;
         t += `\n`;
     }

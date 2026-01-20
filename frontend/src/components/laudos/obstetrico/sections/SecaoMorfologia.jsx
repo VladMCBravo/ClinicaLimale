@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt, FaHeartbeat, FaSyringe } from 'react-icons/fa'; // Ícones novos para os botões
+import { FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt, FaHeartbeat, FaCheck } from 'react-icons/fa'; // FaCheck para indicar ativo
 
 // Componente auxiliar para Checkbox (Mantido igual)
 const CheckItem = ({ label, name, checked, onChange, children }) => (
@@ -33,13 +33,13 @@ const TXT_PIELO = "PIELOECTASIA - A dilatação pielo-calicial quando isolada n�
 const SecaoMorfologia = ({ data, handleChange }) => {
 
   const isMorfo1Tri = data.subtipo === 'OBSTETRICO_1_TRI';
-  // VERIFICAÇÃO PARA MOSTRAR APENAS NO MORFOLÓGICO DE 2º TRI
   const isMorfo2Tri = data.subtipo === 'OBSTETRICO_MORFOLOGICO';
 
-  const addFraseMorfo = (frase) => {
-      const textoAtual = data.obsMorfologia || '';
-      const separador = textoAtual.length > 0 && !textoAtual.endsWith(' ') ? ' ' : '';
-      handleChange({ target: { name: 'obsMorfologia', value: textoAtual + separador + frase } });
+  // NOVA LÓGICA: Alternar Booleanos (Ligado/Desligado)
+  const toggleMarcador = (campo) => {
+      handleChange({
+          target: { name: campo, value: !data[campo] } // Inverte o valor atual
+      });
   };
 
   return (
@@ -183,15 +183,22 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                 <CheckItem label="Coração (4 Câmaras)" name="morfCoracao" checked={data.morfCoracao} onChange={handleChange}>
                     {isMorfo2Tri && (
                         <button 
-                            onClick={() => addFraseMorfo(TXT_GOLFBALL)}
+                            onClick={() => toggleMarcador('sugereGolfBall')}
                             style={{
                                 display:'flex', alignItems:'center', gap:'4px',
-                                background: '#E3F2FD', border: '1px solid #90CAF9', borderRadius: '3px',
-                                padding: '1px 6px', fontSize: '9px', color: '#1565C0', cursor: 'pointer', fontWeight:'bold'
+                                // SE ESTIVER ATIVO (data.sugereGolfBall === true), FICA VERDE/ESCURO. SE NÃO, AZUL CLARO.
+                                background: data.sugereGolfBall ? '#E8F5E9' : '#E3F2FD', 
+                                border: data.sugereGolfBall ? '1px solid #4CAF50' : '1px solid #90CAF9', 
+                                borderRadius: '3px',
+                                padding: '2px 8px', fontSize: '9px', 
+                                color: data.sugereGolfBall ? '#2E7D32' : '#1565C0', 
+                                cursor: 'pointer', fontWeight:'bold',
+                                transition: '0.2s'
                             }}
-                            title="Inserir nota sobre Golf Ball"
+                            title="Ativar nota de Golf Ball no laudo"
                         >
-                            <FaHeartbeat size={9}/> + Golf Ball
+                            {data.sugereGolfBall ? <FaCheck size={9}/> : <FaHeartbeat size={9}/>} 
+                            {data.sugereGolfBall ? 'Golf Ball (Ativado)' : '+ Golf Ball'}
                         </button>
                     )}
                 </CheckItem>
@@ -209,15 +216,21 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                 <CheckItem label="Rins" name="morfRins" checked={data.morfRins} onChange={handleChange}>
                     {isMorfo2Tri && (
                         <button 
-                            onClick={() => addFraseMorfo(TXT_PIELO)}
+                            onClick={() => toggleMarcador('sugerePieloectasia')}
                             style={{
                                 display:'flex', alignItems:'center', gap:'4px',
-                                background: '#FFF3E0', border: '1px solid #FFCC80', borderRadius: '3px',
-                                padding: '1px 6px', fontSize: '9px', color: '#E65100', cursor: 'pointer', fontWeight:'bold'
+                                background: data.sugerePieloectasia ? '#FFF3E0' : '#FFF8E1', 
+                                border: data.sugerePieloectasia ? '1px solid #FF9800' : '1px solid #FFE0B2', 
+                                borderRadius: '3px',
+                                padding: '2px 8px', fontSize: '9px', 
+                                color: data.sugerePieloectasia ? '#E65100' : '#F57F17', 
+                                cursor: 'pointer', fontWeight:'bold',
+                                transition: '0.2s'
                             }}
-                            title="Inserir nota sobre Pieloectasia"
+                            title="Ativar nota de Pieloectasia no laudo"
                         >
-                             + Pieloectasia
+                             {data.sugerePieloectasia ? <FaCheck size={9}/> : '+ Pieloectasia'}
+                             {data.sugerePieloectasia ? ' (Ativado)' : ''}
                         </button>
                     )}
                 </CheckItem>
@@ -229,34 +242,24 @@ const SecaoMorfologia = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* --- NOTA MÉDICA & FRASES PADRÃO (RODAPÉ) --- */}
+        {/* RODAPÉ LIMPO: APENAS O CAMPO DE NOTAS LIVRES */}
         <div style={{
-            marginTop: '15px',
-            borderTop: '1px solid #eee', 
-            padding: '10px 12px', 
-            background: '#FAFAFA', 
-            borderBottomLeftRadius: '4px',
-            borderBottomRightRadius: '4px'
+            marginTop: '15px', borderTop: '1px solid #eee', padding: '10px 12px', 
+            background: '#FAFAFA', borderRadius: '4px'
         }}>
             <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
                 <FaCommentMedical color="#555"/>
-                <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
+                <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Outras Observações (Texto Livre):</span>
             </div>
-
-            {/* BOTÕES DE FRASES PADRÃO (Golf Ball e Pieloectasia já saíram daqui) */}
+            
+            {/* Frases padrão opcionais ainda podem existir para coisas genéricas como "Sombra acústica" */}
             <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
-                {FRASES_MORFO.map((frase, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => addFraseMorfo(frase)}
-                        style={{
-                            background: '#FFF', border: '1px solid #CCC', borderRadius: '12px',
-                            padding: '2px 8px', fontSize: '9px', color: '#666', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '3px'
-                        }}
-                    >
-                        + {frase}
-                    </button>
+                 {FRASES_MORFO.map((frase, idx) => (
+                    <button key={idx} onClick={() => {
+                        /* Mantém a lógica antiga só para frases genéricas de dificuldade técnica */
+                        const txt = data.obsMorfologia || '';
+                        handleChange({ target: { name: 'obsMorfologia', value: txt + (txt ? ' ' : '') + frase } });
+                    }} style={{background:'#FFF', border:'1px solid #CCC', borderRadius:'12px', padding:'2px 8px', fontSize:'9px', cursor:'pointer'}}>+ {frase}</button>
                 ))}
             </div>
 
@@ -267,7 +270,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                 className="laudo-textarea"
                 rows="2"
                 style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius:'4px', padding:'8px'}}
-                placeholder="Digite observações..."
+                placeholder="Use este campo apenas para observações atípicas..."
             />
         </div>
     </div>
