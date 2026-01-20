@@ -61,14 +61,16 @@ export const gerarRelatorioFeto = (d) => {
     
     // CASO 1: Biometria Atual (O médico marcou "Usar esta data no laudo")
     // Manda em tudo. Usado para corrigir DUM errada ou datação inicial por CCN.
+    // Opcional: Citar a DUM apenas como histórico se ela existir
+         if (d.usarDum && d.dum && d.exibirDataDum) {
+             texto += `(DUM referida: ${formatData(d.dum)}).\n`;
+         }
+
     if (d.citarDppBiometria && d.dppBiometriaCalculada) {
          texto += `DPP: ${d.dppBiometriaCalculada} (Calculada pela biometria atual).\n`;
          texto += `Idade Gestacional: ${d.igBiometria || '...'}.\n`;
          
-         // Opcional: Citar a DUM apenas como histórico se ela existir
-         if (d.usarDum && d.dum && d.exibirDataDum) {
-             texto += `(DUM referida: ${formatData(d.dum)}).\n`;
-         }
+         
     }
     
     // CASO 2: USG Anterior (Padrão Ouro para datar se DUM incerta)
@@ -80,16 +82,19 @@ export const gerarRelatorioFeto = (d) => {
     // CASO 3: DUM (Padrão Menstrual)
     else if (d.usarDum && d.dum) {
         // Lógica dos checkboxes "Exibir Data" e "Citar DPP"
-        if (d.citarDppDum && d.dppDum) {
-             texto += `DPP: ${d.dppDum}`;
-             if (d.exibirDataDum) texto += ` (DUM: ${formatData(d.dum)})`;
+        if (d.exibirDataDum) {
+             texto += `DUM: ${formatData(d.dum)}`;
+             if (d.citarDppDum && d.dppDum) {
+                 texto += ` (DPP: ${d.dppDum})`;
+             }
         } else {
-             if (d.exibirDataDum) texto += `DUM: ${formatData(d.dum)}`;
+             // Se ocultou DUM mas quer DPP
+             if (d.citarDppDum && d.dppDum) texto += `DPP: ${d.dppDum}`;
         }
         
         if (d.igDum) texto += `, compatível com ${d.igDum}`;
         texto += `.\n`;
-    } 
+    }
     
     // CASO 4: DUM Desconhecida / Não usar
     else if (d.dumDesconhecida) {
@@ -243,6 +248,27 @@ if (d.situacao || d.apresentacao || d.dorso) {
         }
         
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
+
+        // --- CORREÇÃO CORDÃO UMBILICAL (ADICIONADO AO STANDARD) ---
+        if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
+            const cordaoParts = [];
+            
+            if (d.cordaoNormal === true) {
+                cordaoParts.push("Cordão umbilical de aspecto característico, com inserção habitual, visualizando-se duas artérias e uma veia de calibres preservados");
+            } else {
+                cordaoParts.push("Cordão umbilical");
+            }
+            
+            if (d.cordaoCircular === 'ausente') {
+                cordaoParts.push("ausência de circular cervical");
+            } else if (d.cordaoCircular) {
+                cordaoParts.push(`circular cervical: ${d.cordaoCircular}`);
+            }
+            
+            if (cordaoParts.length > 0) {
+                texto += cordaoParts.join('. ') + `.\n`;
+            }
+        }
 
         // 3. Biometria + Índices
         texto += `BIOMETRIA FETAL\n`;
