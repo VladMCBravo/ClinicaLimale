@@ -11,6 +11,9 @@ const FRASES_COMUNS = [
     "Imagens obtidas limitadas por interposição gasosa."
 ];
 
+// FRASE NOVA (DA IMAGEM)
+const TXT_RCIU_NIPT = "RCIU: Sob julgamento clínico seria conveniente o acompanhamento da vitalidade fetal com USG Obstétrico doppler. Sob julgamento clínico seria conveniente um estudo genético (NIPT), devido ao risco menor de 1/300.";
+
 const SecaoConclusao = ({ data, handleChange }) => {
     
   // Lógica Visual: Percentil < 10 fica vermelho (Alerta de RCIU)
@@ -146,8 +149,8 @@ const SecaoConclusao = ({ data, handleChange }) => {
                     </div>
                 </div>
             </div>
-
-            {/* --- ÁREA DE OBSERVAÇÕES COM SNIPPETS --- */}
+            
+                {/* --- ÁREA DE OBSERVAÇÕES COM SNIPPETS --- */}
             <div style={{marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'8px'}}>
                     <FaCommentMedical color="#555"/>
@@ -156,6 +159,20 @@ const SecaoConclusao = ({ data, handleChange }) => {
 
                 {/* BOTÕES DE FRASES RÁPIDAS */}
                 <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
+                    {/* BOTÃO ESPECIAL DE RCIU (DA IMAGEM) */}
+                    <button
+                        onClick={() => addFrase(TXT_RCIU_NIPT)}
+                        title="Inserir texto completo sobre RCIU/NIPT"
+                        style={{
+                            background: '#FFEBEE', border: '1px solid #EF9A9A', borderRadius: '15px',
+                            padding: '4px 10px', fontSize: '10px', color: '#B71C1C', cursor: 'pointer', fontWeight: 'bold',
+                            display: 'flex', alignItems: 'center', gap: '4px'
+                        }}
+                    >
+                        <FaExclamationTriangle size={9}/> Nota RCIU / NIPT (Texto Longo)
+                    </button>
+
+                    {/* Frases Comuns */}
                     {FRASES_COMUNS.map((frase, idx) => (
                         <button
                             key={idx}
@@ -179,12 +196,11 @@ const SecaoConclusao = ({ data, handleChange }) => {
                     value={data.obsAdicionais} 
                     onChange={handleChange} 
                     className="laudo-textarea"
-                    rows="3"
+                    rows="4"
                     style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius:'4px', padding:'8px'}}
                     placeholder="Digite aqui ou selecione as frases acima..."
                 />
             </div>
-
         </div>
     </div>
   );

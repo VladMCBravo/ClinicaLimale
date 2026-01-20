@@ -28,6 +28,8 @@ export const initialState = {
     placentaLocalizacao: '', placentaGrau: '', placentaEspessura: '',
     liquidoAmniotico: '',
     ila: '', mbv: '',
+    // NOVOS CAMPOS (ILA REF)
+    ilaRefMin: '', ilaRefMax: '',
 
     // --- BIOMETRIA ---
     dbp: '', dof: '', cc: '', ca: '', femur: '', umero: '',
@@ -57,7 +59,11 @@ export const initialState = {
     acmTraçadoNormal: false, acmDiastoleAlta: false,
     relacaoCerebroUmbilical: '',
 
-    checkDv: false, dvIP: '', dvTraçadoNormal: false, dvOndaAZero: false, dvOndaAReversa: false,
+    // DUCTO VENOSO (ATUALIZADO PARA NOVA INTERFACE)
+    checkDv: false, dvIP: '', 
+    dvOndaAPositiva: false, // Novo
+    dvOndaAZero: false, 
+    dvOndaAReversa: false,
 
     // --- INICIAL / 1º TRI ---
     sg1: '', sg2: '', sg3: '', resDmsg: '', resIgSg: '',
@@ -75,10 +81,10 @@ export const initialState = {
     coloConclusao: '', 
 
     // --- MORFOLÓGICO 1º TRI (RISCOS) ---
-    // ATUALIZADO CONFORME FOTO DA TABELA
     riscoT21Basal: '', riscoT21Corrigido: '',
     riscoT18Basal: '', riscoT18Corrigido: '',
     riscoT13Basal: '', riscoT13Corrigido: '',
+    textoRiscosFMF: '', // Novo campo para colar o texto da FMF
     
     ossoNasalPresente: false,
 
