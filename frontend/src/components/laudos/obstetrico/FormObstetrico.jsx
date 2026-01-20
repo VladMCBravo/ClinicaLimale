@@ -100,7 +100,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                   <div style={styles.inputGroup} title="Selecione o Subtipo do Exame">
                       <div style={styles.inputIcon}><FaNotesMedical /></div>
                       <select name="subtipo" value={formState.subtipo} onChange={handleInputChange} style={styles.selectClean}>
-                          <option value="OBSTETRICO_INICIAL">Obstétrico Inicial (Transvaginal)</option>
+                          <option value="OBSTETRICO_INICIAL">Obstétrico Inicial</option>
                           <option value="OBSTETRICO_1_TRI">Morfológico 1º Trimestre</option>
                           <option value="OBSTETRICO_2_3_TRI">Obstétrico (2º/3º Tri)</option>
                           <option value="OBSTETRICO_DOPPLER">Obstétrico com Doppler</option>
@@ -213,20 +213,26 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
 
-                 {/* Gráficos agora começam colapsados pelo useState */}
-                 <DashboardPanel id="graficos" title="Gráficos" theme="purple" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
-                    <SecaoIndicesGraficos {...commonProps} />
-                </DashboardPanel>
+                 {/* Gráficos (Apenas se não for Inicial) */}
+                 {!isInicial && (
+                    <DashboardPanel id="graficos" title="Gráficos" theme="purple" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
+                        <SecaoIndicesGraficos {...commonProps} />
+                    </DashboardPanel>
+                 )}
             </div>
 
             {/* ================= COLUNA DIREITA (DESCRITIVA & CHECKLISTS) ================= */}
             
 
-                {/* A. DADOS GERAIS (Rápido Check) */}
-                <div className="col-right">
-                <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" theme="blue" icon={GiFetus} isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
-                    <SecaoDadosGerais {...commonProps} />
-                </DashboardPanel>
+                {/* COLUNA DIREITA */}
+            <div className="col-right">
+                
+                {/* Dados Gerais: DESAPARECE SE FOR INICIAL */}
+                {!isInicial && (
+                    <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" theme="blue" icon={GiFetus} isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
+                        <SecaoDadosGerais {...commonProps} />
+                    </DashboardPanel>
+                )}
 
                 {/* B. PLACENTA E LÍQUIDO (Alinha bem com Biometria visualmente) */}
                 {(is1Tri || isTardio) && (
@@ -235,6 +241,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
 
+                {/* Útero e Anexos (Aparece em Inicial e 1 Tri) */}
                 {(isInicial || is1Tri || isTardio) && (
                     <DashboardPanel id="anexos1tri" title="Útero e Anexos" theme="blue" isOpen={isAberto('anexos1tri')} onToggle={toggleSecao}>
                         <SecaoDadosMaternos1Tri {...commonProps} />
@@ -248,10 +255,12 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
 
-                {/* E. 3D / 4D */}
-                <DashboardPanel id="3d" title="3D / 4D" theme="orange" icon={FaCube} isOpen={isAberto('3d')} onToggle={toggleSecao}>
-                    <Secao3D {...commonProps} />
-                </DashboardPanel>
+                {/* 3D: DESAPARECE SE FOR INICIAL */}
+                {!isInicial && (
+                    <DashboardPanel id="3d" title="3D / 4D" theme="orange" icon={FaCube} isOpen={isAberto('3d')} onToggle={toggleSecao}>
+                        <Secao3D {...commonProps} />
+                    </DashboardPanel>
+                )}
             </div>
         </div>
         

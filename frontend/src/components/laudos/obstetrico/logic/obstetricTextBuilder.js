@@ -105,35 +105,60 @@ export const gerarRelatorioFeto = (d) => {
     if (d.obsDatacao) texto += `Nota: ${d.obsDatacao}\n`;
     texto += '\n';
 
-    // --- 3. ESTÁTICA E DADOS GERAIS ---
+    // --- 3. CORPO DO LAUDO INICIAL (REFORMULADO) ---
     if (isInicial) {
         texto += `Bexiga vazia.\n`;
-        // Útero no Inicial
+        
+        // Útero
         if (d.utero) texto += `Útero ${d.utero === 'globoso' ? 'globoso, aumentado de volume, de contornos regulares e miométrio homogêneo' : d.utero}.\n`;
         else texto += `Útero globoso, aumentado de volume, de contornos regulares e miométrio homogêneo.\n`;
         
         if (d.citarNodulo && d.nod1) texto += `Nota-se nódulo miometrial (${d.nodTipo}) medindo ${d.nod1} x ${d.nod2} mm.\n`;
 
-        // Saco Gestacional
-        if (d.citarSg || d.subtipo.includes("INICIAL")) {
+        // === SACO GESTACIONAL (SÓ APARECE SE CHECKBOX ATIVO) ===
+        if (d.citarSg) {
             texto += `Observa-se na cavidade uterina, saco gestacional de contornos regulares`;
-            if(d.sgLocalizacao) texto += ` (${d.sgLocalizacao})`;
-            if(d.sg1) texto += ` medindo ${d.sg1} x ${d.sg2} x ${d.sg3} mm (DMSG: ${d.resDmsg} mm)`;
             
-            if (d.embriaoNaoVisualizado) {
-                 texto += `, vesícula vitelina ${d.citarVv ? 'visualizada' : 'não visualizada'}. Embrião não caracterizado.\n`;
-            } else {
-                 texto += `, contendo no seu interior embrião, com batimentos cardíacos presentes`;
+            // Localização (Se selecionado)
+            if(d.sgLocalizacao) texto += ` (${d.sgLocalizacao})`;
+            
+            // Medidas e DMSG (Se preenchido)
+            if(d.sg1 && d.sg2 && d.sg3) {
+                texto += ` medindo ${d.sg1} x ${d.sg2} x ${d.sg3} mm`;
+                if(d.resDmsg) texto += ` (DMSG: ${d.resDmsg} mm)`;
+            }
+            
+            // IG Pelo DMSG (Nova Solicitação)
+            if(d.resIgSg) texto += ` (IG estimada: ${d.resIgSg})`;
+            
+            texto += `.\n`; // Fecha frase do SG
+
+            // === EMBRIÃO E CONTEÚDO (Baseado no Select) ===
+            if (d.embriaoStatus === 'presente') {
+                 texto += `Visualiza-se embrião único, com batimentos cardíacos presentes`;
                  if(d.bcf) texto += ` (${d.bcf} BPM)`;
                  if(d.ccn) texto += `, medindo ${d.ccn} mm de CCN`;
                  texto += `.\n`;
+            } 
+            else if (d.embriaoStatus === 'ausente') {
+                 // Vesícula Vitelina
+                 texto += `Vesícula vitelina visualizada. Embrião não caracterizado no momento.\n`;
+            }
+            else if (d.embriaoStatus === 'anembrionada') {
+                 texto += `Ausência de embrião ou vesícula vitelina (Gestação anembrionada).\n`;
+            }
+            else if (d.embriaoNaoVisualizado) { // Fallback antigo
+                 texto += `Embrião não caracterizado.\n`;
             }
 
-            if(d.trofoblasto) texto += `As vilosidades placentárias tem inserção ${d.trofoblasto}.\n`;
+            // === TROFOBLASTO (Só aparece se selecionado) ===
+            if(d.trofoblasto && d.trofoblasto !== '') {
+                texto += `As vilosidades placentárias tem inserção ${d.trofoblasto}.\n`;
+            }
             
             // Hematomas / Descolamentos
             if(d.sgComDescolamento) texto += `OBS: Hematoma subcoriônico medindo ${d.desc1} x ${d.desc2} mm.\n`;
-            else texto += `Não se observa coágulo intra uterino.\n`;
+            else if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
         }
 
         // Anexos (Corpo Lúteo)
@@ -142,7 +167,8 @@ export const gerarRelatorioFeto = (d) => {
              if(d.citarMedidasAnexo && d.anx1) texto += `Medindo ${d.anx1} x ${d.anx2} x ${d.anx3} mm.`;
              texto += `\n`;
         }
-        texto += `\n`;
+        
+        texto += `\n`; // Espaço final
 
     } else {
         // Exames de 2º/3º Tri e Morfológicos
@@ -554,7 +580,15 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `- Quadro compatível com Abortamento Incompleto.\n`;
     } 
     else if (isInicial) {
-        texto += `- Gestação tópica de aproximadamente ${d.resIgCcn || d.igBiometria || '...'} semanas.\n`;
+        // Se tiver CCN, usa CCN. Se não, usa DMSG.
+        const igFinal = d.resIgCcn || d.resIgSg || d.igBiometria || '...';
+        texto += `- Gestação tópica de aproximadamente ${igFinal}.\n`;
+        
+        if (d.embriaoStatus === 'presente' && d.bcf) {
+            texto += `- Vitalidade embrionária comprovada.\n`;
+        } else if (d.embriaoStatus === 'anembrionada') {
+            texto += `- Saco gestacional anembrionado.\n`;
+        }
     }
     else {
         if (!isMorfo1) texto += `- Feto único vivo.\n`; 

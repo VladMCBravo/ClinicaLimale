@@ -66,12 +66,20 @@ export const initialState = {
     dvOndaAReversa: false,
 
     // --- INICIAL / 1º TRI ---
+    citarSg: false, // Checkbox principal
+    sgLocalizacao: '',
     sg1: '', sg2: '', sg3: '', resDmsg: '', resIgSg: '',
+    // TROFOBLASTO AGORA VAZIO
+    trofoblasto: '', 
+    
+    // NOVO CONTROLE DE EMBRIÃO
+    embriaoStatus: '', // 'presente', 'ausente', 'demarcado'
+    
     ccn: '', resIgCcn: '',
     embriaoNaoVisualizado: false,
     vesiculaVitelina: false, citarVv: false,
     trofoblasto: '',
-    sgComDescolamento: false, sgSemDescolamento: false, desc1: '', desc2: '',
+    sgComDescolamento: false, sgSemDescolamento: false, desc1: '', desc2:'',
     sgAbortoIncompleto: false,
     comprimentoColo: '', 
     
