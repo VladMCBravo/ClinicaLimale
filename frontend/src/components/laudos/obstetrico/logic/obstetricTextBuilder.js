@@ -79,17 +79,21 @@ export const gerarRelatorioFeto = (d) => {
 
     // CASO 3: DUM (Padrão Menstrual)
     else if (d.usarDum && d.dum) {
-        // Lógica dos checkboxes "Exibir Data" e "Citar DPP"
-        if (d.citarDppDum && d.dppDum) {
-             texto += `DPP: ${d.dppDum}`;
-             if (d.exibirDataDum) texto += ` (DUM: ${formatData(d.dum)})`;
+        // Linha 1: DUM e a compatibilidade
+        if (d.exibirDataDum) {
+             texto += `DUM: ${formatData(d.dum)}`;
         } else {
-             if (d.exibirDataDum) texto += `DUM: ${formatData(d.dum)}`;
+             texto += `Idade Gestacional (DUM)`; // Texto alternativo caso oculte a data exata
         }
         
         if (d.igDum) texto += `, compatível com ${d.igDum}`;
         texto += `.\n`;
-    } 
+
+        // Linha 2: DPP (Embaixo)
+        if (d.citarDppDum && d.dppDum) {
+             texto += `DPP: ${d.dppDum}.\n`;
+        }
+    }
     
     // CASO 4: DUM Desconhecida / Não usar
     else if (d.dumDesconhecida) {
@@ -368,38 +372,36 @@ if (d.situacao || d.apresentacao || d.dorso) {
             if (d.mbv) texto += ` (MBV = ${d.mbv} mm)`;
             texto += `.\n`;
         }
-
-       // --- CORREÇÃO CORDÃO UMBILICAL ---
-        // Verifica se o checkbox '3 vasos' está marcado OU se o select de circular tem algum valor (mesmo que 'ausente')
-        // CORREÇÃO: Frase completa da médica para Cordão 3 vasos
-        if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
-            // Nota: Se quiser o título "Cordão umbilical:" antes, mantenha. 
-            // Se a frase já começa com "Cordão...", não precisa repetir.
-            // Vou montar para ficar fluído:
-            
-            const cordaoParts = [];
-            
-            if (d.cordaoNormal === true) {
-                // FRASE NOVA SOLICITADA:
-                cordaoParts.push("Cordão umbilical de aspecto característico, com inserção habitual, visualizando-se duas artérias e uma veia de calibres preservados");
-            } else {
-                // Caso não tenha marcado o normal, mas tenha circular, iniciamos a frase
-                cordaoParts.push("Cordão umbilical");
-            }
-            
-            if (d.cordaoCircular === 'ausente') {
-                cordaoParts.push("ausência de circular cervical");
-            } else if (d.cordaoCircular) {
-                cordaoParts.push(`circular cervical: ${d.cordaoCircular}`);
-            }
-            
-            // Junta tudo com ". "
-            if (cordaoParts.length > 0) {
-                texto += cordaoParts.join('. ') + `.\n`;
-            }
-        }
+       
         if(d.obsPlacenta) texto += `Nota: ${d.obsPlacenta}\n`;
         texto += `\n`;
+    }
+
+    // =========================================================================
+    // CORREÇÃO: CORDÃO UMBILICAL (MOVIDO PARA FORA DO IF/ELSE)
+    // Agora aparece para Standard, Doppler, 1º Tri e 2º Tri (Exceto Inicial)
+    // =========================================================================
+    if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
+        const cordaoParts = [];
+        
+        if (d.cordaoNormal === true) {
+            cordaoParts.push("Cordão umbilical de aspecto característico, com inserção habitual, visualizando-se duas artérias e uma veia de calibres preservados");
+        } else {
+            // Caso não tenha marcado o normal, mas tenha circular, iniciamos a frase
+            cordaoParts.push("Cordão umbilical");
+        }
+        
+        if (d.cordaoCircular === 'ausente') {
+            cordaoParts.push("ausência de circular cervical");
+        } else if (d.cordaoCircular) {
+            cordaoParts.push(`circular cervical: ${d.cordaoCircular}`);
+        }
+        
+        // Junta tudo com ". "
+        if (cordaoParts.length > 0) {
+            texto += cordaoParts.join('. ') + `.\n`;
+        }
+        texto += `\n`; // Garante espaçamento
     }
 
     // --- 5. COLO UTERINO (Recuperado) ---
