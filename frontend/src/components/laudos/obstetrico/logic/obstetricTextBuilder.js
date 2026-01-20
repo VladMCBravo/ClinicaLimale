@@ -23,6 +23,10 @@ const TEXTO_OBS_MORFO_2 = "Obs.: Nem todas as alterações que um feto possa vir
 const FRASE_CCN_MENOR_45 = "Morfológico 1 trimestre: Não foi possível calcular o risco para trissomia do 21 por meio da medida da translucência nucal pois o feto com CCN abaixo de 45 mm.";
 const FRASE_CCN_MAIOR_84 = "Morfológico 2 trimestre: Não foi possível calcular o risco para trissomia do 21 por meio da medida da translucência nucal pois o feto com CCN acima de 84 mm. Para essa fase de gestação, podem ser usados outros marcadores como medida da prega nucal e a presença e osso nasal, que no presente estudo encontram-se normais."
 
+// FRASES DE MARCADORES
+const TXT_GOLFBALL_LAUDO = "Nota-se a presença de foco ecogênico com ventrículo esquerdo (Golf Ball). O Golf Ball não é considerado malformação cardíaca e quando encontrado isoladamente não eleva o risco fetal para aneuploidias. Sugere-se a critério clínico, ampliação da propedêutica com ecocardiograma fetal.";
+const TXT_PIELO_LAUDO = "Nota-se leve dilatação pielo-calicial (Pieloectasia). Quando isolada não eleva o risco fetal para aneuploidias e geralmente tem caráter benigno quando estável. Sugere-se acompanhamento evolutivo."
+
 // =============================================================================
 // GERADOR DE RELATÓRIO (FUSÃO TOTAL: FUNCIONALIDADES + ESTILO MÉDICA)
 // =============================================================================
@@ -37,7 +41,7 @@ export const gerarRelatorioFeto = (d) => {
 
     // --- 1. TÍTULO DO EXAME ---
     const mapTitulos = {
-        'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA TRANSVAGINAL (INICIAL)',
+        'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA INICIAL',
         'OBSTETRICO_1_TRI': 'ULTRASSONOGRAFIA MORFOLÓGICA FETAL DE PRIMEIRO TRIMESTRE',
         'OBSTETRICO_2_3_TRI': 'ULTRASSONOGRAFIA OBSTÉTRICA',
         'OBSTETRICO_DOPPLER': 'ULTRASSONOGRAFIA OBSTÉTRICA COM COLOR DOPPLER',
@@ -687,10 +691,6 @@ const renderBiometria = (d) => {
 // NOVO HELPER: GERA O TEXTO DE MORFOLOGIA (PARA TODOS OS TIPOS DE EXAME)
 // =============================================================================
 
-// TEXTOS COMPLETOS (Definidos no topo do arquivo builder ou dentro da função)
-const TXT_GOLFBALL_LAUDO = "Nota-se a presença de foco ecogênico com ventrículo esquerdo (Golf Ball). O Golf Ball não é considerado malformação cardíaca e quando encontrado isoladamente não eleva o risco fetal para aneuploidias. Sugere-se a critério clínico, ampliação da propedêutica com ecocardiograma fetal.";
-const TXT_PIELO_LAUDO = "Nota-se leve dilatação pielo-calicial (Pieloectasia). Quando isolada não eleva o risco fetal para aneuploidias e geralmente tem caráter benigno quando estável. Sugere-se acompanhamento evolutivo.";
-
 const montarAnaliseMorfologica = (d) => {
     // Verifica se há pelo menos um item marcado
     const temMorfo = d.morfCranio || d.morfCerebro || d.morfFace || d.ossoNasalPresente || d.morfColuna || 
@@ -725,15 +725,16 @@ const montarAnaliseMorfologica = (d) => {
     }
 
     // 4. TÓRAX E CORAÇÃO
-    if (d.morfTorax || d.morfCoracao || d.morfVasosBase || d.bcf) {
+    if (d.morfTorax || d.morfCoracao || d.sugereGolfBall || d.morfVasosBase || d.bcf) {
         t += `Tórax\n`;
         if (d.morfTorax) t += `Forma e características ecográficas habituais. Área cardíaca de dimensões e relação com o diâmetro torácico preservados.\n`;
-        if (d.morfCoracao) {
+        // Verifica GOLF BALL ou CORAÇÃO NORMAL
+        if (d.sugereGolfBall) {
+            // Se tem Golf Ball, usa texto neutro + OBS
+            t += `Quatro câmaras cardíacas visibilizadas. OBSERVAÇÃO CARDÍACA: ${TXT_GOLFBALL_LAUDO}\n`;
+        } else if (d.morfCoracao) {
+            // Se NÃO tem Golf Ball e está marcado normal
             t += `Quatro câmaras cardíacas evidentes e simétricas.\n`;
-            // --- INSERÇÃO AUTOMÁTICA GOLF BALL ---
-            if (d.sugereGolfBall) {
-                t += `OBSERVAÇÃO CARDÍACA: ${TXT_GOLFBALL_LAUDO}\n`;
-            }
         }
         if (d.morfVasosBase) t += `Vias de saída dos ventrículos e cruzamento dos grandes vasos visibilizados.\n`;
         // Opcional: Incluir BCF aqui se preferir não deixar em dados gerais
@@ -742,20 +743,19 @@ const montarAnaliseMorfologica = (d) => {
     }
 
     // 5. ABDÔMEM
-    if (d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.morfBexiga) {
+    // --- CORREÇÃO 2: RINS INTELIGENTES ---
+    if (d.morfParedeAbd || d.morfEstomago || d.morfFigado || d.morfRins || d.sugerePieloectasia || d.morfBexiga) {
         t += `Abdômem\n`;
         if(d.morfParedeAbd) t += `Diafragma visibilizado e aparentemente sem anormalidades no presente estudo. Parede abdominal íntegra.\n`;
         if(d.morfFigado) t += `Fígado de ecotextura preservada.\n`;
         if(d.morfEstomago) t += `Estômago repleto e visualizado em sua topografia habitual.\n`;
-        if(d.morfRins) {
-            t += `Rins tópicos, de dimensões normais.\n`;
-            
-            // --- INSERÇÃO AUTOMÁTICA PIELOECTASIA ---
-            if (d.sugerePieloectasia) {
-                t += `OBSERVAÇÃO RENAL: ${TXT_PIELO_LAUDO}\n`;
-            } else {
-                t += `Não se observando dilatações ou alterações texturais.\n`;
-            }
+        // Verifica PIELOECTASIA ou RINS NORMAIS
+        if (d.sugerePieloectasia) {
+             // Se tem Pieloectasia, remove o texto de "dimensões normais"
+             t += `Rins tópicos. OBSERVAÇÃO RENAL: ${TXT_PIELO_LAUDO}\n`;
+        } else if (d.morfRins) {
+             // Se é normal
+             t += `Rins tópicos, de dimensões normais. Não se observando dilatações ou alterações texturais.\n`;
         }
         if(d.morfBexiga) t += `Bexiga repleta, de dimensões e aspectos preservados.\n`;
         t += `\n`;

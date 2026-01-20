@@ -20,7 +20,7 @@ const SecaoSubtipo = ({ data, handleChange }) => {
                 color: '#4A3B80'
             }}
         >
-            <option value="OBSTETRICO_INICIAL">Obstétrico Inicial (Transvaginal)</option>
+            <option value="OBSTETRICO_INICIAL">Obstétrico Inicial</option>
             <option value="OBSTETRICO_1_TRI">Morfológico 1º Trimestre</option>
             <option value="OBSTETRICO_2_3_TRI">Obstétrico (2º/3º Tri)</option>
             <option value="OBSTETRICO_DOPPLER">Obstétrico com Doppler</option>
