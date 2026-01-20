@@ -539,7 +539,7 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `AVALIAÇÃO COMPLEMENTAR\n${textoComp}\n`;
     }
 
-    // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO COMPLETA) ---
+    // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO COMPLETA E AUTOMATIZADA) ---
     texto += `IMPRESSÃO DIAGNÓSTICA:\n`;
 
     if (d.sgAbortoIncompleto) {
@@ -549,8 +549,6 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `- Gestação tópica de aproximadamente ${d.resIgCcn || d.igBiometria || '...'} semanas.\n`;
     }
     else {
-        // CORREÇÃO: "Feto único vivo" agora aparece para Morfológico 2º Tri também
-        // Apenas excluímos no 1º Tri (que tem layout de risco específico)
         if (!isMorfo1) texto += `- Feto único vivo.\n`; 
 
         let igFinal = d.igBiometria || d.igDum || "---";
@@ -582,19 +580,46 @@ if (d.situacao || d.apresentacao || d.dorso) {
 
         if (d.usarDoppler) texto += `- Dopplerfluxometria sem anormalidades no presente estudo.\n`;
         
-        // Risco 1º Tri na Conclusão
         if (isMorfo1 && (d.riscoT21Basal || d.riscoT21Corrigido)) {
             texto += `- CÁLCULO DE RISCO PARA AS TRISSOMIAS (Ver tabela).\n`;
         }
     }
 
-    // CORREÇÃO CHECKBOXES DE SUGESTÃO:
-    if (d.semDadosPercentil) texto += `- Obs: Idade gestacional não permite cálculo de percentil.\n`;
+    // =========================================================================
+    // REGRAS AUTOMÁTICAS (INTELIGÊNCIA DO SISTEMA)
+    // =========================================================================
+    
+    // Regra 1: CCN > 84mm (Translucência Prejudicada)
+    const ccnValor = parseFloat(d.ccn);
+    if (!isNaN(ccnValor) && ccnValor > 84) {
+        texto += `- Análise morfológica de 1º Tri prejudicada para cálculo de risco (CCN > 84mm). TN não se aplica.\n`;
+    }
+    // (Opcional: Se quiser manter o checkbox manual 'morfoPrejudicado45mm' também, deixe-o aqui)
     if (d.morfoPrejudicado45mm) texto += `- Análise morfológica prejudicada (CCN < 45mm).\n`;
+
+    // Regra 2: Oligoâmnio -> Sugerir Doppler
+    if (d.liquidoAmniotico === 'Oligoâmnio') {
+        texto += `- Sugere-se acompanhamento da vitalidade fetal com USG Obstétrico Doppler devido ao Oligoâmnio (Sob julgamento clínico).\n`;
+    }
+
+    // Regra 3: RCIU (Percentil < 10) -> Sugerir Doppler/NIPT
+    const pValor = parseInt(d.percentil);
+    if (!isNaN(pValor) && pValor < 10) {
+        texto += `- RCIU: Sugere-se acompanhamento com Doppler e avaliação genética (NIPT) sob critério clínico (Risco < 1/300).\n`;
+    }
+    // (Mantém o manual caso o percentil não tenha sido calculado mas o médico queira forçar)
+    else if (d.sugereDopplerRciu || d.sugereRciu) {
+        texto += `- Sugere-se acompanhamento do crescimento e vitalidade com Doppler (Suspeita de RCIU).\n`;
+    }
+
+    // Regra 4: Sugestão NIPT Manual (Independente do percentil)
     if (d.sugereNipt) texto += `- Sugere-se avaliação genética (NIPT) devido ao risco aumentado.\n`;
-    if (d.sugereGolfBall) texto += `- Nota-se foco ecogênico intracardíaco (Golf Ball). Isoladamente não aumenta risco de aneuploidias.\n`;
-    if (d.sugerePieloectasia) texto += `- Nota-se pieloectasia renal. Sugere-se controle evolutivo.\n`;
-    if (d.sugereDopplerRciu || d.sugereRciu) texto += `- Sugere-se acompanhamento do crescimento e vitalidade com Doppler (Risco de RCIU).\n`;
+
+    // As frases de Morfologia (Golf Ball / Pieloectasia) continuam sendo inseridas 
+    // manualmente no campo de OBSERVAÇÃO ou MORFOLOGIA, então não precisam estar aqui 
+    // a menos que você queira duplicá-las na conclusão. 
+    // Se quiser na conclusão, teria que ter um boolean 'sugereGolfBall' no state.
+    // Como implementamos botões que inserem TEXTO no textarea, elas já aparecerão no corpo do laudo.
 
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 

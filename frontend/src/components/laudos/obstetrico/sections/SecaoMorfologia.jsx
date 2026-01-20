@@ -1,18 +1,22 @@
 import React from 'react';
-import { FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt, FaHeartbeat, FaSyringe } from 'react-icons/fa'; // Ícones novos para os botões
 
-// Componente auxiliar para Checkbox (Garante que o clique funcione)
-const CheckItem = ({ label, name, checked, onChange }) => (
-    <label className="laudo-checkbox-label" style={{display:'flex', alignItems:'center', marginBottom:'4px', cursor:'pointer', padding:'2px 0'}}>
-        <input 
-            type="checkbox" 
-            name={name} 
-            checked={!!checked} 
-            onChange={onChange} 
-            style={{cursor:'pointer', width:'14px', height:'14px', accentColor:'#EF6C00'}}
-        /> 
-        <span style={{marginLeft:'6px', fontSize:'11px', color:'#333'}}>{label}</span>
-    </label>
+// Componente auxiliar para Checkbox (Mantido igual)
+const CheckItem = ({ label, name, checked, onChange, children }) => (
+    <div style={{marginBottom:'4px', padding:'2px 0'}}>
+        <label className="laudo-checkbox-label" style={{display:'flex', alignItems:'center', cursor:'pointer'}}>
+            <input 
+                type="checkbox" 
+                name={name} 
+                checked={!!checked} 
+                onChange={onChange} 
+                style={{cursor:'pointer', width:'14px', height:'14px', accentColor:'#EF6C00'}}
+            /> 
+            <span style={{marginLeft:'6px', fontSize:'11px', color:'#333'}}>{label}</span>
+        </label>
+        {/* Renderiza botões extras (children) se existirem, logo abaixo ou ao lado */}
+        {children && <div style={{marginLeft:'24px', marginTop:'2px'}}>{children}</div>}
+    </div>
 );
 
 const FRASES_MORFO = [
@@ -22,10 +26,9 @@ const FRASES_MORFO = [
     "Feto em posição posterior."
 ];
 
-// NOVAS FRASES DA IMAGEM (TEXTO COMPLETO)
+// TEXTOS COMPLETOS (Mantidos)
 const TXT_GOLFBALL = "Sugere-se a critério clínico, ampliação da propedêutica morfológica fetal com ecocardiograma doppler fetal, devido à presença de foco ecogênico com ventrículo esquerdo (GOLF BALL). O GOLF BALL não é considerado malformação cardíaca e quando encontrado isoladamente não eleva o risco fetal para aneuploidias.";
 const TXT_PIELO = "PIELOECTASIA - A dilatação pielo-calicial quando isolada não eleva o risco fetal para aneuploidias. Quando se mantém estável durante a gestação tem caráter benigno, geralmente sempre é juízo da função renal.";
-
 
 const SecaoMorfologia = ({ data, handleChange }) => {
 
@@ -161,81 +164,72 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         </div>
                     </div>
                 )}
-                {/* --- NOVO: ACHADOS ESPECÍFICOS (APENAS 2º TRIMESTRE) --- */}
-        {isMorfo2Tri && (
-            <div style={{background:'#E3F2FD', padding:'10px', borderRadius:'4px', marginBottom:'15px', border:'1px solid #90CAF9'}}>
-                <div style={{fontWeight:'bold', color:'#1565C0', marginBottom:'8px', fontSize:'12px', display:'flex', alignItems:'center'}}>
-                    <FaExclamationTriangle size={12} style={{marginRight:'5px'}}/>
-                    Achados / Marcadores (2º Trimestre)
-                </div>
-
-                <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                    
-                    {/* BOTÃO GOLF BALL */}
-                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', padding:'6px', borderRadius:'4px'}}>
-                        <span style={{fontSize:'11px', fontWeight:'bold', color:'#555'}}>Foco Ecogênico (Golf Ball)</span>
+                {/* --- CHECKLIST ANATÔMICO (Comum) --- */}
+        <div style={{marginBottom:'5px', fontStyle:'italic', fontSize:'11px', color:'#666'}}>
+            * Marque os itens visualizados e normais.
+        </div>
+        <div className="laudo-grid-2" style={{gap: '15px'}}>
+            
+            {/* Coluna Esquerda */}
+            <div className="laudo-col" style={{gap: '2px'}}>
+                <div className="sub-header-mini">Cabeça e Tórax</div>
+                <CheckItem label="Crânio / Calota" name="morfCranio" checked={data.morfCranio} onChange={handleChange} />
+                <CheckItem label="Encéfalo / Ventrículos" name="morfCerebro" checked={data.morfCerebro} onChange={handleChange} />
+                <CheckItem label="Face / Perfil" name="morfFace" checked={data.morfFace} onChange={handleChange} />
+                <CheckItem label="Coluna Vertebral" name="morfColuna" checked={data.morfColuna} onChange={handleChange} />
+                <CheckItem label="Tórax / Pulmões" name="morfTorax" checked={data.morfTorax} onChange={handleChange} />
+                
+                {/* --- CORAÇÃO + BOTÃO GOLF BALL --- */}
+                <CheckItem label="Coração (4 Câmaras)" name="morfCoracao" checked={data.morfCoracao} onChange={handleChange}>
+                    {isMorfo2Tri && (
                         <button 
                             onClick={() => addFraseMorfo(TXT_GOLFBALL)}
                             style={{
-                                background: '#E8EAF6', border: '1px solid #C5CAE9', borderRadius: '4px',
-                                padding: '4px 8px', fontSize: '10px', color: '#3F51B5', cursor: 'pointer', fontWeight:'bold'
+                                display:'flex', alignItems:'center', gap:'4px',
+                                background: '#E3F2FD', border: '1px solid #90CAF9', borderRadius: '3px',
+                                padding: '1px 6px', fontSize: '9px', color: '#1565C0', cursor: 'pointer', fontWeight:'bold'
                             }}
-                            title="Inserir texto explicativo sobre Golf Ball"
+                            title="Inserir nota sobre Golf Ball"
                         >
-                            + Inserir Nota
+                            <FaHeartbeat size={9}/> + Golf Ball
                         </button>
-                    </div>
+                    )}
+                </CheckItem>
 
-                    {/* BOTÃO PIELOECTASIA */}
-                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', padding:'6px', borderRadius:'4px'}}>
-                        <span style={{fontSize:'11px', fontWeight:'bold', color:'#555'}}>Pieloectasia Renal</span>
+                <CheckItem label="Vasos da base" name="morfVasosBase" checked={data.morfVasosBase} onChange={handleChange} />
+            </div>
+
+            {/* Coluna Direita */}
+            <div className="laudo-col" style={{gap: '2px'}}>
+                <div className="sub-header-mini">Abdome e Membros</div>
+                <CheckItem label="Estômago" name="morfEstomago" checked={data.morfEstomago} onChange={handleChange} />
+                <CheckItem label="Fígado / Vesícula" name="morfFigado" checked={data.morfFigado} onChange={handleChange} />
+                
+                {/* --- RINS + BOTÃO PIELOECTASIA --- */}
+                <CheckItem label="Rins" name="morfRins" checked={data.morfRins} onChange={handleChange}>
+                    {isMorfo2Tri && (
                         <button 
                             onClick={() => addFraseMorfo(TXT_PIELO)}
                             style={{
-                                background: '#E8EAF6', border: '1px solid #C5CAE9', borderRadius: '4px',
-                                padding: '4px 8px', fontSize: '10px', color: '#3F51B5', cursor: 'pointer', fontWeight:'bold'
+                                display:'flex', alignItems:'center', gap:'4px',
+                                background: '#FFF3E0', border: '1px solid #FFCC80', borderRadius: '3px',
+                                padding: '1px 6px', fontSize: '9px', color: '#E65100', cursor: 'pointer', fontWeight:'bold'
                             }}
-                            title="Inserir texto explicativo sobre Pieloectasia"
+                            title="Inserir nota sobre Pieloectasia"
                         >
-                            + Inserir Nota
+                             + Pieloectasia
                         </button>
-                    </div>
+                    )}
+                </CheckItem>
 
-                </div>
+                <CheckItem label="Bexiga" name="morfBexiga" checked={data.morfBexiga} onChange={handleChange} />
+                <CheckItem label="Parede Abdominal" name="morfParedeAbd" checked={data.morfParedeAbd} onChange={handleChange} />
+                <CheckItem label="Genitália Externa" name="morfGenitalia" checked={data.morfGenitalia} onChange={handleChange} />
+                <CheckItem label="Membros (sup/inf)" name="morfMembros" checked={data.morfMembros} onChange={handleChange} />
             </div>
-        )}
+        </div>
 
-                {/* --- CHECKLIST ANATÔMICO (Comum) --- */}
-                <div style={{marginBottom:'5px', fontStyle:'italic', fontSize:'11px', color:'#666'}}>
-                    * Marque os itens visualizados e normais. Desmarque para omitir ou citar não visualização.
-                </div>
-                <div className="laudo-grid-2" style={{gap: '15px'}}>
-                    
-                    {/* Coluna Esquerda */}
-                    <div className="laudo-col" style={{gap: '2px'}}>
-                        <div className="sub-header-mini">Cabeça e Tórax</div>
-                        <CheckItem label="Crânio / Calota" name="morfCranio" checked={data.morfCranio} onChange={handleChange} />
-                        <CheckItem label="Encéfalo / Ventrículos" name="morfCerebro" checked={data.morfCerebro} onChange={handleChange} />
-                        <CheckItem label="Face / Perfil" name="morfFace" checked={data.morfFace} onChange={handleChange} />
-                        <CheckItem label="Coluna Vertebral" name="morfColuna" checked={data.morfColuna} onChange={handleChange} />
-                        <CheckItem label="Tórax / Pulmões" name="morfTorax" checked={data.morfTorax} onChange={handleChange} />
-                        <CheckItem label="Coração (4 Câmaras)" name="morfCoracao" checked={data.morfCoracao} onChange={handleChange} />
-                        <CheckItem label="Vasos da base" name="morfVasosBase" checked={data.morfVasosBase} onChange={handleChange} />
-                    </div>
-
-                    {/* Coluna Direita */}
-                    <div className="laudo-col" style={{gap: '2px'}}>
-                        <div className="sub-header-mini">Abdome e Membros</div>
-                        <CheckItem label="Estômago" name="morfEstomago" checked={data.morfEstomago} onChange={handleChange} />
-                        <CheckItem label="Fígado / Vesícula" name="morfFigado" checked={data.morfFigado} onChange={handleChange} />
-                        <CheckItem label="Rins" name="morfRins" checked={data.morfRins} onChange={handleChange} />
-                        <CheckItem label="Bexiga" name="morfBexiga" checked={data.morfBexiga} onChange={handleChange} />
-                        <CheckItem label="Parede Abdominal" name="morfParedeAbd" checked={data.morfParedeAbd} onChange={handleChange} />
-                        <CheckItem label="Genitália Externa" name="morfGenitalia" checked={data.morfGenitalia} onChange={handleChange} />
-                        <CheckItem label="Membros (sup/inf)" name="morfMembros" checked={data.morfMembros} onChange={handleChange} />
-                    </div>
-                </div>
-             {/* --- NOTA MÉDICA & BOTÕES RÁPIDOS (RODAPÉ) --- */}
+        {/* --- NOTA MÉDICA & FRASES PADRÃO (RODAPÉ) --- */}
         <div style={{
             marginTop: '15px',
             borderTop: '1px solid #eee', 
@@ -249,41 +243,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                 <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
             </div>
 
-            {/* AQUI: BOTÕES DE ACHADOS DO 2º TRIMESTRE (MOVIDOS PARA BAIXO E EM LINHA) */}
-            {isMorfo2Tri && (
-                <div style={{
-                    display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', 
-                    background: '#E3F2FD', padding: '4px 8px', borderRadius: '4px', border: '1px solid #BBDEFB'
-                }}>
-                    <span style={{fontSize:'10px', fontWeight:'bold', color:'#1565C0', whiteSpace:'nowrap'}}>
-                        Marcadores:
-                    </span>
-                    
-                    <button 
-                        onClick={() => addFraseMorfo(TXT_GOLFBALL)}
-                        style={{
-                            background: '#FFF', border: '1px solid #90CAF9', borderRadius: '3px',
-                            padding: '2px 8px', fontSize: '10px', color: '#1565C0', cursor: 'pointer', fontWeight:'bold'
-                        }}
-                        title="Inserir texto explicativo sobre Golf Ball"
-                    >
-                        + Golf Ball
-                    </button>
-
-                    <button 
-                        onClick={() => addFraseMorfo(TXT_PIELO)}
-                        style={{
-                            background: '#FFF', border: '1px solid #90CAF9', borderRadius: '3px',
-                            padding: '2px 8px', fontSize: '10px', color: '#1565C0', cursor: 'pointer', fontWeight:'bold'
-                        }}
-                        title="Inserir texto explicativo sobre Pieloectasia"
-                    >
-                        + Pieloectasia
-                    </button>
-                </div>
-            )}
-
-            {/* BOTÕES DE FRASES PADRÃO */}
+            {/* BOTÕES DE FRASES PADRÃO (Golf Ball e Pieloectasia já saíram daqui) */}
             <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
                 {FRASES_MORFO.map((frase, idx) => (
                     <button
