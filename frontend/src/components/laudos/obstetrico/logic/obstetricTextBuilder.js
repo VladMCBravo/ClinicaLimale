@@ -79,20 +79,23 @@ export const gerarRelatorioFeto = (d) => {
 
     // CASO 3: DUM (CORRIGIDO AQUI)
     else if (d.usarDum && d.dum) {
+        let linhaDum = ""; // <--- ESTA LINHA FALTAVA E CAUSOU O ERRO
+
         // Linha 1: DUM
         if (d.exibirDataDum) {
-             texto += `DUM: ${formatData(d.dum)}`;
+             linhaDum += `DUM: ${formatData(d.dum)}`;
         } else {
-             texto += `Idade Gestacional (DUM)`;
+             linhaDum += `Idade Gestacional (DUM)`;
         }
+        
         if (d.igDum) linhaDum += `, compatível com ${d.igDum}`;
         linhaDum += `.`; // Ponto final da primeira frase
         
         texto += `${linhaDum}\n`; // Quebra de linha forçada
 
-        // Linha 2: DPP (Verificação simplificada para garantir que apareça)
-        if (d.citarDppDum === true) {
-             // Usa a DPP calculada se existir
+        // Linha 2: DPP (SEMPRE EMBAIXO)
+        // Removi o "=== true" para garantir que funcione mesmo se o estado vier diferente
+        if (d.citarDppDum) { 
              if (d.dppDum) {
                  texto += `DPP: ${d.dppDum}.\n`;
              }
