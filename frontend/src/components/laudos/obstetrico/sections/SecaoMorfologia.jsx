@@ -235,46 +235,81 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         <CheckItem label="Membros (sup/inf)" name="morfMembros" checked={data.morfMembros} onChange={handleChange} />
                     </div>
                 </div>
-             {/* CAMPO DE OBSERVAÇÃO PADRONIZADO (No final do return) */}
-             <div style={{
-                 borderTop: '1px solid #eee', 
-                 padding: '10px 12px', 
-                 background: '#FAFAFA', 
-                 borderBottomLeftRadius: '4px',
-                 borderBottomRightRadius: '4px'
-             }}>
-                <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
-                    <FaCommentMedical color="#555"/>
-                    <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
-                </div>
-
-                {/* BOTÕES DE FRASES */}
-                <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
-                    {FRASES_MORFO.map((frase, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => addFraseMorfo(frase)}
-                            style={{
-                                background: '#FFF', border: '1px solid #CCC', borderRadius: '12px',
-                                padding: '2px 8px', fontSize: '9px', color: '#666', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: '3px'
-                            }}
-                        >
-                            + {frase}
-                        </button>
-                    ))}
-                </div>
-
-                <textarea 
-                    name="obsMorfologia" 
-                    value={data.obsMorfologia || ''} 
-                    onChange={handleChange} 
-                    className="laudo-textarea"
-                    rows="2"
-                    style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius:'4px', padding:'8px'}}
-                    placeholder="Digite observações..."
-                />
+             {/* --- NOTA MÉDICA & BOTÕES RÁPIDOS (RODAPÉ) --- */}
+        <div style={{
+            marginTop: '15px',
+            borderTop: '1px solid #eee', 
+            padding: '10px 12px', 
+            background: '#FAFAFA', 
+            borderBottomLeftRadius: '4px',
+            borderBottomRightRadius: '4px'
+        }}>
+            <div style={{display:'flex', alignItems:'center', gap:'5px', marginBottom:'5px'}}>
+                <FaCommentMedical color="#555"/>
+                <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Nota Médica (Morfologia):</span>
             </div>
+
+            {/* AQUI: BOTÕES DE ACHADOS DO 2º TRIMESTRE (MOVIDOS PARA BAIXO E EM LINHA) */}
+            {isMorfo2Tri && (
+                <div style={{
+                    display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', 
+                    background: '#E3F2FD', padding: '4px 8px', borderRadius: '4px', border: '1px solid #BBDEFB'
+                }}>
+                    <span style={{fontSize:'10px', fontWeight:'bold', color:'#1565C0', whiteSpace:'nowrap'}}>
+                        Marcadores:
+                    </span>
+                    
+                    <button 
+                        onClick={() => addFraseMorfo(TXT_GOLFBALL)}
+                        style={{
+                            background: '#FFF', border: '1px solid #90CAF9', borderRadius: '3px',
+                            padding: '2px 8px', fontSize: '10px', color: '#1565C0', cursor: 'pointer', fontWeight:'bold'
+                        }}
+                        title="Inserir texto explicativo sobre Golf Ball"
+                    >
+                        + Golf Ball
+                    </button>
+
+                    <button 
+                        onClick={() => addFraseMorfo(TXT_PIELO)}
+                        style={{
+                            background: '#FFF', border: '1px solid #90CAF9', borderRadius: '3px',
+                            padding: '2px 8px', fontSize: '10px', color: '#1565C0', cursor: 'pointer', fontWeight:'bold'
+                        }}
+                        title="Inserir texto explicativo sobre Pieloectasia"
+                    >
+                        + Pieloectasia
+                    </button>
+                </div>
+            )}
+
+            {/* BOTÕES DE FRASES PADRÃO */}
+            <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
+                {FRASES_MORFO.map((frase, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => addFraseMorfo(frase)}
+                        style={{
+                            background: '#FFF', border: '1px solid #CCC', borderRadius: '12px',
+                            padding: '2px 8px', fontSize: '9px', color: '#666', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '3px'
+                        }}
+                    >
+                        + {frase}
+                    </button>
+                ))}
+            </div>
+
+            <textarea 
+                name="obsMorfologia" 
+                value={data.obsMorfologia || ''} 
+                onChange={handleChange} 
+                className="laudo-textarea"
+                rows="2"
+                style={{width:'100%', fontSize:'11px', border:'1px solid #ccc', borderRadius:'4px', padding:'8px'}}
+                placeholder="Digite observações..."
+            />
+        </div>
     </div>
   );
 };
