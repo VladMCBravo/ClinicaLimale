@@ -77,28 +77,21 @@ export const gerarRelatorioFeto = (d) => {
         texto += `DPP: --- (calculada pelo primeiro ultrassom), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
     }
 
-    // CASO 3: DUM (CORRIGIDO AQUI)
+    // CASO 3: DUM (CORRIGIDO: LINHA 1 DUM, LINHA 2 DPP)
     else if (d.usarDum && d.dum) {
-        let linhaDum = ""; // <--- ESTA LINHA FALTAVA E CAUSOU O ERRO
-
         // Linha 1: DUM
         if (d.exibirDataDum) {
-             linhaDum += `DUM: ${formatData(d.dum)}`;
+             texto += `DUM: ${formatData(d.dum)}`;
         } else {
-             linhaDum += `Idade Gestacional (DUM)`;
+             texto += `Idade Gestacional (DUM)`;
         }
         
-        if (d.igDum) linhaDum += `, compatível com ${d.igDum}`;
-        linhaDum += `.`; // Ponto final da primeira frase
-        
-        texto += `${linhaDum}\n`; // Quebra de linha forçada
+        if (d.igDum) texto += `, compatível com ${d.igDum}`;
+        texto += `.\n`; // Ponto e quebra forçada
 
-        // Linha 2: DPP (SEMPRE EMBAIXO)
-        // Removi o "=== true" para garantir que funcione mesmo se o estado vier diferente
-        if (d.citarDppDum) { 
-             if (d.dppDum) {
-                 texto += `DPP: ${d.dppDum}.\n`;
-             }
+        // Linha 2: DPP (Se marcado para citar)
+        if (d.citarDppDum && d.dppDum) {
+             texto += `DPP: ${d.dppDum}.\n`;
         }
     }
     
