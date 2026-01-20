@@ -26,7 +26,8 @@ import base64
 from django.core.files.base import ContentFile
 from .models import Laudo, ImagemLaudo
 from exames.models import Exame
-from .serializers import LaudoSerializer, ExameSerializer
+from exames.serializers import ExameSerializer
+from .serializers import LaudoSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
