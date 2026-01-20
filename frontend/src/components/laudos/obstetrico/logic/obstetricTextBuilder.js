@@ -77,19 +77,18 @@ export const gerarRelatorioFeto = (d) => {
         texto += `DPP: --- (calculada pelo primeiro ultrassom), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
     }
 
-    // CASO 3: DUM (Padrão Menstrual)
+    // CASO 3: DUM (CORRIGIDO AQUI)
     else if (d.usarDum && d.dum) {
-        // Linha 1: DUM e a compatibilidade
+        // Linha 1: DUM
         if (d.exibirDataDum) {
              texto += `DUM: ${formatData(d.dum)}`;
         } else {
-             texto += `Idade Gestacional (DUM)`; // Texto alternativo caso oculte a data exata
+             texto += `Idade Gestacional (DUM)`;
         }
-        
         if (d.igDum) texto += `, compatível com ${d.igDum}`;
-        texto += `.\n`;
+        texto += `.\n`; // <--- PONTO E QUEBRA DE LINHA OBRIGATÓRIA
 
-        // Linha 2: DPP (Embaixo)
+        // Linha 2: DPP (SEMPRE EMBAIXO)
         if (d.citarDppDum && d.dppDum) {
              texto += `DPP: ${d.dppDum}.\n`;
         }
@@ -381,7 +380,8 @@ if (d.situacao || d.apresentacao || d.dorso) {
     // CORREÇÃO: CORDÃO UMBILICAL (MOVIDO PARA FORA DO IF/ELSE)
     // Agora aparece para Standard, Doppler, 1º Tri e 2º Tri (Exceto Inicial)
     // =========================================================================
-    if (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== '')) {
+    // MUDANÇA: Adicionei !isInicial para garantir que não apareça no obstétrico inicial
+    if (!isInicial && (d.cordaoNormal === true || (d.cordaoCircular && d.cordaoCircular !== ''))) {
         const cordaoParts = [];
         
         if (d.cordaoNormal === true) {

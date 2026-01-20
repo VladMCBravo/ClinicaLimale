@@ -205,14 +205,7 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                         <SecaoDoppler {...commonProps} />
                     </DashboardPanel>
                 )}
-                
-                {/* E. COLO UTERINO (Tardio) */}
-                {isTardio && (
-                    <DashboardPanel id="colo" title="Colo Uterino" theme="purple" icon={MdLinearScale} isOpen={isAberto('colo')} onToggle={toggleSecao}>
-                        <SecaoColoDados {...commonProps} />
-                    </DashboardPanel>
-                )}
-
+                              
                  {/* Gráficos (Apenas se não for Inicial) */}
                  {!isInicial && (
                     <DashboardPanel id="graficos" title="Gráficos" theme="purple" isOpen={isAberto('graficos')} onToggle={toggleSecao}>
@@ -238,6 +231,13 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                 {(is1Tri || isTardio) && (
                     <DashboardPanel id="placenta" title="Placenta e Líquido" theme="red" icon={FaLayerGroup} isOpen={isAberto('placenta')} onToggle={toggleSecao}>
                         <SecaoPlacentaLiquido {...commonProps} />
+                    </DashboardPanel>
+                )}
+                
+                {/* E. COLO UTERINO (Tardio) */}
+                {isTardio && (
+                    <DashboardPanel id="colo" title="Colo Uterino" theme="purple" icon={MdLinearScale} isOpen={isAberto('colo')} onToggle={toggleSecao}>
+                        <SecaoColoDados {...commonProps} />
                     </DashboardPanel>
                 )}
 
