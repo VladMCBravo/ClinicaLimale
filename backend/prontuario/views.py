@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.template.loader import get_template
 from rest_framework import generics, status, viewsets
 from xhtml2pdf import pisa
+from rest_framework.generics import ListAPIView # <--- Verifique se ListAPIView está importado
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -25,7 +26,7 @@ import base64
 from django.core.files.base import ContentFile
 from .models import Laudo, ImagemLaudo
 from exames.models import Exame
-from .serializers import LaudoSerializer
+from .serializers import LaudoSerializer, ExameSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
@@ -768,6 +769,21 @@ class GerarRelatorioPDFView(APIView):
             filename
         )
 
+class ListarExamesDoPacienteView(generics.ListAPIView):
+    """
+    Lista todos os exames (com credenciais) de um paciente específico.
+    Usado para preencher a tabela da aba 'Exames' e 'Credenciais'.
+    """
+    serializer_class = ExameSerializer
+    permission_classes = [IsAuthenticated] # Ou CanViewProntuario
+
+    def get_queryset(self):
+        # Pega o ID do paciente da URL ?paciente_id=92
+        paciente_id = self.request.query_params.get('paciente_id')
+        if paciente_id:
+            return Exame.objects.filter(paciente_id=paciente_id).order_by('-data_exame')
+        return Exame.objects.none()
+
 class LaudoListCreateView(generics.ListCreateAPIView):
     serializer_class = LaudoSerializer
     permission_classes = [IsAuthenticated]
@@ -904,3 +920,4 @@ class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Laudo.objects.all()
     serializer_class = LaudoSerializer
     permission_classes = [IsAuthenticated] # Ou CanViewProntuario dependendo da sua regra
+
