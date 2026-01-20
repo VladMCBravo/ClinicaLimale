@@ -34,12 +34,21 @@ urlpatterns = [
     path('relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
     path('relatorios/criar/', views.RelatorioSalvoCreateView.as_view(), name='relatorio-salvo-create'),
     path('gerar-preview-relatorio/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
-    # --- LAUDOS (CORREÇÃO AQUI) ---
-    # Rota para Listar (GET) e Criar (POST)
-    path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
     
-    # ★★★ ROTA NOVA: Para Editar (PUT), Deletar (DELETE) e Ler um laudo específico (GET) ★★★
+    # --- LAUDOS ---
+    path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
     path('laudos/<int:pk>/', views.LaudoRetrieveUpdateDestroyView.as_view(), name='detalhe-laudo'),
+
+    # =========================================================================
+    # ★★★ CORREÇÃO AQUI: ROTAS QUE ESTAVAM FALTANDO (ERRO 404) ★★★
+    # =========================================================================
+    
+    # 1. Rota para listar os exames dentro do prontuário (aba Exames)
+    path('exames-paciente/', views.ListarExamesDoPacienteView.as_view(), name='exames-paciente'),
+
+    # 2. Rota para listar as credenciais ativas (aba Credenciais/Impressão)
+    # Usamos a mesma view pois ela retorna a lista de exames com código/senha
+    path('credenciais-ativas/', views.ListarExamesDoPacienteView.as_view(), name='credenciais-ativas'),
 
     path('', include(router.urls)),
 ]
