@@ -655,7 +655,7 @@ const montarAnaliseMorfologica = (d) => {
     
     // 1. SISTEMA NERVOSO CENTRAL
     if (d.morfCranio || d.morfCerebro) {
-        t += `Sistema Nervoso Central\n`;
+        t += `Segmento Cefálico\n`;
         if(d.morfCranio) t += `Crânio de contornos regulares e dimensões normais. Tábua óssea aparentemente íntegra.\n`;
         if(d.morfCerebro) t += `Parênquima encefálico (corpo caloso e talamos) de aspecto preservado. Ventrículos cerebrais não se mostram dilatados. Cerebelo de aspecto preservado.\n`;
         t += `\n`;
@@ -678,11 +678,11 @@ const montarAnaliseMorfologica = (d) => {
     // 4. TÓRAX E CORAÇÃO
     if (d.morfTorax || d.morfCoracao || d.morfVasosBase || d.bcf) {
         t += `Tórax\n`;
-        if (d.morfTorax) t += `Forma e características ecográficas habituais. Área cardíaca de dimensões e relação com o diâmetro torácico normais.\n`;
+        if (d.morfTorax) t += `Forma e características ecográficas habituais. Área cardíaca de dimensões e relação com o diâmetro torácico preservados.\n`;
         if (d.morfCoracao) t += `Quatro câmaras cardíacas evidentes e simétricas.\n`;
         if (d.morfVasosBase) t += `Vias de saída dos ventrículos e cruzamento dos grandes vasos visibilizados.\n`;
         // Opcional: Incluir BCF aqui se preferir não deixar em dados gerais
-        if (d.bcf) t += `Batimentos cardíacos presentes e rítmicos (${d.bcf} bpm).\n`;
+        if (d.bcf) t += `Batimentos cardíacos presentes e rítmicos (F.C.F. = ${d.bcf} bpm).\n`;
         t += `\n`;
     }
 
@@ -700,7 +700,7 @@ const montarAnaliseMorfologica = (d) => {
     // 6. MEMBROS E GENITÁLIA
     if (d.morfMembros || d.morfGenitalia) {
         t += `Membros\n`;
-        if(d.morfMembros) t += `Aparentemente íntegros, identificando mãos e pés bilateralmente e em posição habitual.\nMovimentação fetal ativa e tonus adequado.\n`;
+        if(d.morfMembros) t += `Membros inferiores e superiores visibilizados, sem anormalidades grosseiras.\nMovimentação fetal ativa e tônus adequado.\n`;
         if(d.morfGenitalia) t += `Genitália externa compatível com o sexo fetal.\n`;
         t += `\n`;
     }

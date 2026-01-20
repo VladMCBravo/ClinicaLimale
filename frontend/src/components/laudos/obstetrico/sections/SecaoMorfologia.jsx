@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaCheckSquare, FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt } from 'react-icons/fa'; 
+import { FaExclamationTriangle, FaCommentMedical, FaExternalLinkAlt } from 'react-icons/fa';
 
 // Componente auxiliar para Checkbox (Garante que o clique funcione)
 const CheckItem = ({ label, name, checked, onChange }) => (
@@ -22,9 +22,17 @@ const FRASES_MORFO = [
     "Feto em posição posterior."
 ];
 
+// NOVAS FRASES DA IMAGEM (TEXTO COMPLETO)
+const TXT_GOLFBALL = "Sugere-se a critério clínico, ampliação da propedêutica morfológica fetal com ecocardiograma doppler fetal, devido à presença de foco ecogênico com ventrículo esquerdo (GOLF BALL). O GOLF BALL não é considerado malformação cardíaca e quando encontrado isoladamente não eleva o risco fetal para aneuploidias.";
+const TXT_PIELO = "PIELOECTASIA - A dilatação pielo-calicial quando isolada não eleva o risco fetal para aneuploidias. Quando se mantém estável durante a gestação tem caráter benigno, geralmente sempre é juízo da função renal.";
+
+
 const SecaoMorfologia = ({ data, handleChange }) => {
 
   const isMorfo1Tri = data.subtipo === 'OBSTETRICO_1_TRI';
+  // VERIFICAÇÃO PARA MOSTRAR APENAS NO MORFOLÓGICO DE 2º TRI
+  const isMorfo2Tri = data.subtipo === 'OBSTETRICO_MORFOLOGICO';
+
   const addFraseMorfo = (frase) => {
       const textoAtual = data.obsMorfologia || '';
       const separador = textoAtual.length > 0 && !textoAtual.endsWith(' ') ? ' ' : '';
@@ -42,7 +50,6 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                             Rastreamento de Cromossomopatias (11 - 14 semanas)
                         </div>
                         
-                        {/* REMOVIDO: Translucência Intracraniana Visível */}
                 <div style={{marginBottom:'10px'}}>
                     <CheckItem label="Osso Nasal Presente" name="ossoNasalPresente" checked={data.ossoNasalPresente} onChange={handleChange} />
                 </div>
@@ -154,6 +161,49 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                         </div>
                     </div>
                 )}
+                {/* --- NOVO: ACHADOS ESPECÍFICOS (APENAS 2º TRIMESTRE) --- */}
+        {isMorfo2Tri && (
+            <div style={{background:'#E3F2FD', padding:'10px', borderRadius:'4px', marginBottom:'15px', border:'1px solid #90CAF9'}}>
+                <div style={{fontWeight:'bold', color:'#1565C0', marginBottom:'8px', fontSize:'12px', display:'flex', alignItems:'center'}}>
+                    <FaExclamationTriangle size={12} style={{marginRight:'5px'}}/>
+                    Achados / Marcadores (2º Trimestre)
+                </div>
+
+                <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                    
+                    {/* BOTÃO GOLF BALL */}
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', padding:'6px', borderRadius:'4px'}}>
+                        <span style={{fontSize:'11px', fontWeight:'bold', color:'#555'}}>Foco Ecogênico (Golf Ball)</span>
+                        <button 
+                            onClick={() => addFraseMorfo(TXT_GOLFBALL)}
+                            style={{
+                                background: '#E8EAF6', border: '1px solid #C5CAE9', borderRadius: '4px',
+                                padding: '4px 8px', fontSize: '10px', color: '#3F51B5', cursor: 'pointer', fontWeight:'bold'
+                            }}
+                            title="Inserir texto explicativo sobre Golf Ball"
+                        >
+                            + Inserir Nota
+                        </button>
+                    </div>
+
+                    {/* BOTÃO PIELOECTASIA */}
+                    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fff', padding:'6px', borderRadius:'4px'}}>
+                        <span style={{fontSize:'11px', fontWeight:'bold', color:'#555'}}>Pieloectasia Renal</span>
+                        <button 
+                            onClick={() => addFraseMorfo(TXT_PIELO)}
+                            style={{
+                                background: '#E8EAF6', border: '1px solid #C5CAE9', borderRadius: '4px',
+                                padding: '4px 8px', fontSize: '10px', color: '#3F51B5', cursor: 'pointer', fontWeight:'bold'
+                            }}
+                            title="Inserir texto explicativo sobre Pieloectasia"
+                        >
+                            + Inserir Nota
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        )}
 
                 {/* --- CHECKLIST ANATÔMICO (Comum) --- */}
                 <div style={{marginBottom:'5px', fontStyle:'italic', fontSize:'11px', color:'#666'}}>

@@ -1,9 +1,21 @@
 import React from 'react';
-import { FaCommentMedical } from 'react-icons/fa';
+import { FaCommentMedical, FaPlusCircle } from 'react-icons/fa';
+
+// FRASE DA IMAGEM
+const TXT_OLIGO = "Sob julgamento clínico seria conveniente o acompanhamento da vitalidade fetal com USG Obstétrico doppler devido ao Oligoâmnio.";
 
 const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
 
   const isMultipla = qtdFetos > 1;
+  // CHECAGEM DO TIPO DE EXAME
+  const isMorfo2Tri = data.subtipo === 'OBSTETRICO_MORFOLOGICO';
+  
+  // Helper local para adicionar na obsPlacenta
+  const addNotaPlacenta = (frase) => {
+      const textoAtual = data.obsPlacenta || '';
+      const separador = textoAtual.length > 0 ? ' ' : '';
+      handleChange({ target: { name: 'obsPlacenta', value: textoAtual + separador + frase } });
+  };
 
   return (
     <div>   
@@ -87,7 +99,23 @@ const SecaoPlacentaLiquido = ({ data, handleChange, qtdFetos }) => {
                         </>
                     )}
                 </div>
-            </div>
+            {/* NOVO: BOTÃO DE SUGESTÃO PARA OLIGOÂMNIO (Apenas Morfo 2 Tri) */}
+            {isMorfo2Tri && (
+                <div style={{marginTop:'8px'}}>
+                    <button 
+                        onClick={() => addNotaPlacenta(TXT_OLIGO)}
+                        style={{
+                            background: '#FFEBEE', border: '1px solid #FFCDD2', borderRadius: '4px',
+                            padding: '4px 8px', fontSize: '10px', color: '#C62828', cursor: 'pointer', 
+                            display: 'flex', alignItems: 'center', gap: '5px', fontWeight:'bold'
+                        }}
+                        title="Adicionar nota sugerindo Doppler por Oligoâmnio"
+                    >
+                        <FaPlusCircle size={10}/> Inserir Nota: Sugerir Doppler (Oligoâmnio)
+                    </button>
+                </div>
+            )}
+        </div>
 
             <hr style={{margin: '10px 0', border: 0, borderTop: '1px solid #eee'}}/>
 

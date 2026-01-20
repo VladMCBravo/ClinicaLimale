@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
-import { FaRulerCombined, FaBrain, FaBone, FaShoePrints, FaBaby } from 'react-icons/fa';
-import { FaArrowUp, FaCommentMedical} from 'react-icons/fa'; // Ícone de "Enviar para cima"
+import { FaBrain, FaBone, FaShoePrints, FaBaby, FaArrowUp, FaCommentMedical, FaPlusCircle } from 'react-icons/fa';
+
+// FRASE DA IMAGEM
+const TXT_TN_LIMITADA = "Não foi possível calcular o risco para trissomia do 21 por meio da medida da translucência nucal pois o feto com CCN acima de 84 mm. Para essa fase de gestação, podem ser usados outros marcadores como medida da prega nucal e a presença e osso nasal, que no presente estudo encontram-se normais.";
 
 // Componente de Linha Compacta
 const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60px" }) => {
@@ -40,12 +42,21 @@ const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60
 };
 
 const SecaoBiometria = ({ data, handleChange }) => {
-    // Função para jogar o valor do CCN lá para a Datação
+    
+    const isMorfo2Tri = data.subtipo === 'OBSTETRICO_MORFOLOGICO';
+
     const aplicarIgCcn = () => {
        if(!data.resIgCcn) return;
        // Simula eventos de change para atualizar os campos de Datação
        handleChange({ target: { name: 'igBiometria', value: data.resIgCcn } });
        handleChange({ target: { name: 'citarDppBiometria', value: true, type:'checkbox', checked:true } });
+    };
+
+    // Helper para adicionar na obsBiometria
+    const addNotaBio = (frase) => {
+        const textoAtual = data.obsBiometria || '';
+        const separador = textoAtual.length > 0 ? ' ' : '';
+        handleChange({ target: { name: 'obsBiometria', value: textoAtual + separador + frase } });
     };
 
   return (
@@ -111,6 +122,23 @@ const SecaoBiometria = ({ data, handleChange }) => {
                             <BioItem label="Órbita Ext." name="orbitaExterna" value={data.orbitaExterna} onChange={handleChange} />
                             <BioItem label="Órbita Int." name="orbitaInterna" value={data.orbitaInterna} onChange={handleChange} />
                         </div>
+                    {/* NOVO: BOTÃO DE NOTA TN LIMITADA (Apenas Morfo 2 Tri) */}
+                        {isMorfo2Tri && (
+                            <div style={{marginTop:'8px', borderTop:'1px solid #eee', paddingTop:'5px'}}>
+                                <button 
+                                    onClick={() => addNotaBio(TXT_TN_LIMITADA)}
+                                    style={{
+                                        width: '100%',
+                                        background: '#FFF3E0', border: '1px solid #FFE0B2', borderRadius: '4px',
+                                        padding: '4px', fontSize: '9px', color: '#E65100', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontWeight:'bold'
+                                    }}
+                                    title="Inserir justificativa de que não se calcula risco pela TN nesta fase"
+                                >
+                                    <FaPlusCircle size={9}/> Nota: TN não se aplica (CCN &gt; 84mm)
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                 </div>
