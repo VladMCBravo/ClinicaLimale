@@ -27,6 +27,7 @@ import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import DeclaracaoModal from '../components/laudos/DeclaracaoModal';
+import AtestadoModal from '../components/laudos/AtestadoModal'; // Vamos criar este arquivo abaixo
 import LaudosPreviewModal from '../components/laudos/LaudosPreviewModal'; // Novo Modal
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; // <--- ADICIONE ISSO
 
@@ -190,6 +191,7 @@ const LaudosPage = () => {
   const [credenciais, setCredenciais] = useState(null);
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
   const [modalDeclaracaoOpen, setModalDeclaracaoOpen] = useState(false);
+  const [modalAtestadoOpen, setModalAtestadoOpen] = useState(false);
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); // NOVO: Controle do Modal de Revisão
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); // <--- ADICIONE ISSO
 
@@ -593,7 +595,20 @@ const LaudosPage = () => {
                         </IconButton>
                      </Tooltip>
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
-                     <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Termo</Button>
+                    <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Termo</Button>
+                    <Button 
+        size="small" 
+        onClick={() => {
+            if (!paciente || !medicoNome) {
+                alert("Selecione um Paciente e identifique o Médico antes de gerar o atestado.");
+                return;
+            }
+            setModalAtestadoOpen(true);
+        }} 
+        sx={{ color: '#00897B', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
+    >
+        Atestado
+    </Button>
                     <Button size="small" onClick={() => setModalDeclaracaoOpen(true)} sx={{ color: '#7E57C2', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Declaração</Button>
                     <Button variant="contained" size="small" onClick={() => setModalRevisaoOpen(true)} endIcon={<FaSave size={12}/>} sx={{ background: '#1C2E4A', textTransform: 'none', fontWeight: 'bold', fontSize: '11px', padding: '4px 12px', minWidth: 'auto', marginLeft: '4px !important', '&:hover': { background: '#2C3E50' } }}>Finalizar</Button>
                  </Stack>
@@ -648,6 +663,15 @@ const LaudosPage = () => {
       </Dialog>
 
       <DeclaracaoModal open={modalDeclaracaoOpen} onClose={() => setModalDeclaracaoOpen(false)} paciente={paciente} medico={medicoNome} />
+        {/* ADICIONE AQUI O MODAL DE ATESTADO */}
+<AtestadoModal 
+    open={modalAtestadoOpen} 
+    onClose={() => setModalAtestadoOpen(false)} 
+    paciente={paciente} 
+    medicoNome={medicoNome} 
+    medicoCrm={medicoCrm} 
+    usaAssinaturaDigital={usuarioTemCertificado}
+/>
 
     </div>
   );
