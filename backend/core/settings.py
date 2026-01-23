@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'integracao_dicom',
     'laudos',
     'exames',
+    'crm',
 ]
 
 # --- Configurações de Middleware ---
@@ -124,7 +125,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- Internacionalização ---
 LANGUAGE_CODE = 'pt-br'
-TIME_ZONE = 'Etc/UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 

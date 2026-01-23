@@ -70,4 +70,10 @@ urlpatterns = [
     # MANTIDAS para garantir compatibilidade com o restante do sistema
     path('api/laudos/', include('laudos.urls')), 
     path('api/exames/', include('exames.urls')),
+
+    # --- NOVO MODULO CRM ---
+    path('api/crm/', include('crm.urls')),
+
+    # --- DASHBOARD ---
+    path('api/dashboard/', include('dashboard.urls')), 
 ]

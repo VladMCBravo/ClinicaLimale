@@ -40,6 +40,16 @@ class Exame(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDENTE')
     criado_em = models.DateTimeField(auto_now_add=True)
 
+    # --- NOVO CAMPO CRM ---
+    # Vinculamos o exame ao Ciclo para saber quais exames compõem a jornada da gestante
+    ciclo = models.ForeignKey(
+        'crm.Ciclo', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='exames_realizados'
+    )
+
     def save(self, *args, **kwargs):
         if not self.codigo_acesso:
             self.codigo_acesso = 'EX-' + str(uuid.uuid4())[:4].upper()

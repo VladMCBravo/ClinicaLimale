@@ -94,6 +94,16 @@ class Agendamento(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
 
+    # --- NOVO CAMPO CRM ---
+    ciclo = models.ForeignKey(
+        'crm.Ciclo', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='agendamentos',
+        help_text="A qual ciclo de cuidado este agendamento pertence?"
+    )
+
     def save(self, *args, **kwargs):
         # LÓGICA AUTOMÁTICA DE DURAÇÃO
         is_new = self.pk is None

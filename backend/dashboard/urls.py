@@ -1,7 +1,7 @@
-# backend/dashboard/urls.py
 from django.urls import path
-from .views import DashboardDataAPIView # Mude o nome da view importada
+from .views import PainelExecutivoView, MetaMensalView
 
 urlpatterns = [
-    path('', DashboardDataAPIView.as_view(), name='dashboard-data'),
+    path('executivo/', PainelExecutivoView.as_view(), name='painel-executivo'),
+    path('metas/', MetaMensalView.as_view(), name='config-metas'),
 ]

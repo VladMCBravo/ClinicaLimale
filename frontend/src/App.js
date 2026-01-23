@@ -28,9 +28,11 @@ import LaudosPage from './pages/LaudosPage';
 import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
-
-// A NOVA PÁGINA DE CONFIGURAÇÕES
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
+
+// Páginas CRM
+import CRMKanbanPage from './pages/CRM/CRMKanbanPage';
+import DashboardExecutivoPage from './pages/CRM/DashboardExecutivoPage';
 
 function App() {
   return (
@@ -48,7 +50,7 @@ function App() {
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   
-                  {/* Acesso Geral (Médicos, Recepção, Admin) */}
+                  {/* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */}
                   <Route path="/" element={<PainelMedicoPage />} />
                   <Route path="/painel" element={<PainelRecepcaoPage />} /> 
                   
@@ -59,12 +61,17 @@ function App() {
                   <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
                   
                   <Route path="/telemedicina" element={<TelemedicinaPage />} />
+
+                  {/* CRM Operacional (Acesso Geral para ver o funil) */}
+                  <Route path="/crm/kanban" element={<CRMKanbanPage />} />
                   
                   {/* --- ÁREA RESTRITA (ADMINISTRADOR) --- */}
-                  {/* Envolvemos Financeiro e Configurações no AdminRoute */}
                   <Route element={<AdminRoute />}>
                       <Route path="/financeiro/*" element={<FinanceiroPage />} />
                       <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                      
+                      {/* CRM Estratégico (Painel Bilionário) */}
+                      <Route path="/crm/executivo" element={<DashboardExecutivoPage />} />
                   </Route>
 
                 </Route>
