@@ -22,9 +22,9 @@ export default function CRMKanbanPage() {
 
   const loadKanban = async () => {
     try {
-      const data = await crmService.getKanban();
-      // Garante que todas as colunas existam mesmo se vazias
-      setColumns({ F1: [], F2: [], F3: [], F4: [], ...data });
+      const response = await crmService.getKanban(); // <--- Alterado
+      // Adicionado .data na leitura
+      setColumns({ F1: [], F2: [], F3: [], F4: [], ...response.data }); 
     } catch (error) {
       console.error("Erro ao carregar Kanban", error);
     } finally {

@@ -20,8 +20,8 @@ export default function DashboardExecutivoPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const result = await crmService.getPainelExecutivo();
-      setData(result);
+      const response = await crmService.getPainelExecutivo(); // <--- Alterado
+      setData(response.data); // <--- Adicionado .data
     } catch (error) {
       console.error("Erro ao carregar dashboard", error);
     } finally {

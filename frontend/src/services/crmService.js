@@ -1,30 +1,25 @@
-import api from './api';
+// src/services/crmService.js - CORRIGIDO (Padrão do Projeto)
+import apiClient from '../api/axiosConfig';
 
-const crmService = {
+export const crmService = {
   // --- KANBAN ---
-  getKanban: async () => {
-    const response = await api.get('/crm/ciclos/kanban/');
-    return response.data;
+  getKanban: () => {
+    return apiClient.get('/crm/ciclos/kanban/');
   },
 
-  moverFase: async (cicloId, novaFase) => {
-    const response = await api.post(`/crm/ciclos/${cicloId}/mover_fase/`, {
+  moverFase: (cicloId, novaFase) => {
+    return apiClient.post(`/crm/ciclos/${cicloId}/mover_fase/`, {
       nova_fase: novaFase
     });
-    return response.data;
   },
 
   // --- DETALHES DO CICLO ---
-  getCicloDetalhe: async (id) => {
-    const response = await api.get(`/crm/ciclos/${id}/`);
-    return response.data;
+  getCicloDetalhe: (id) => {
+    return apiClient.get(`/crm/ciclos/${id}/`);
   },
 
   // --- DASHBOARD EXECUTIVO ---
-  getPainelExecutivo: async () => {
-    const response = await api.get('/dashboard/executivo/');
-    return response.data;
+  getPainelExecutivo: () => {
+    return apiClient.get('/dashboard/executivo/');
   }
 };
-
-export default crmService;
