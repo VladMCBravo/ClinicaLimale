@@ -26,9 +26,18 @@ class Ciclo(models.Model):
         ('ENCERRADO', 'Ciclo Encerrado'),
     ]
 
+    # --- ADICIONE ESTE BLOCO ---
+    STATUS_CICLO = [
+        ('ativo', 'Ativo'),
+        ('encerrado', 'Encerrado'),
+    ]
+    # ---------------------------
+
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='ciclos')
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='GESTACAO')
     fase_atual = models.CharField(max_length=20, choices=FASE_CHOICES, default='F1')
+    # --- ADICIONE ESTE CAMPO AQUI ---
+    status = models.CharField(max_length=20, choices=STATUS_CICLO, default='ativo')
     
     # Controle de Datas
     data_inicio = models.DateTimeField(auto_now_add=True)

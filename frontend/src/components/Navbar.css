@@ -1,79 +1,98 @@
-/* src/components/Navbar.css */
+/* src/components/Navbar.css - Versão Compacta (Uma Linha) */
+
 .main-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 30px; /* Diminuí um pouco o padding vertical para a imagem se ajustar melhor */
+    padding: 0 20px; /* Reduzi o padding vertical para 0 */
     background-color: #1a233b;
     border-bottom: 1px solid #c0a46f;
+    height: 55px; /* Altura fixa mais fina */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 /* Lado Esquerdo */
 .nav-left {
     display: flex;
     align-items: center;
+    gap: 15px; /* Espaço pequeno entre logo e menu */
+    flex: 1; /* Ocupa o espaço disponível */
 }
 
-/* REGRA ANTIGA .logo FOI REMOVIDA E SUBSTITUÍDA POR ESTA */
 .logo-image {
-    height: 50px; /* Defina a altura do seu logo. Ajuste este valor se necessário. */
-    width: auto; /* A largura se ajustará automaticamente */
+    height: 32px; /* Logo menor para caber na linha */
+    width: auto;
+    margin-right: 10px;
 }
 
 .main-nav {
-    margin-left: 60px;
+    display: flex;
+    align-items: center;
+    margin-left: 0; /* Removi a margem gigante de 60px */
 }
 
 .main-nav a {
-    display: inline-flex; /* Para alinhar ícone e texto */
+    display: inline-flex;
     align-items: center;
-    gap: 8px; /* Espaço entre o ícone e o texto */
-    margin: 0 20px;
+    gap: 6px;
+    margin: 0 5px; /* Margem lateral reduzida de 20px para 5px */
     text-decoration: none;
     color: #c9c8c8;
     font-weight: 500;
-    padding: 15px 5px;
-    border-bottom: 3px solid transparent;
+    font-size: 0.85rem; /* Fonte reduzida para caber tudo */
+    padding: 8px 12px;
+    border-radius: 4px;
+    border-bottom: none; /* Removi a borda inferior que ocupava espaço */
     transition: all 0.2s ease-in-out;
+    white-space: nowrap; /* Impede quebra de linha */
 }
 
 .main-nav a:hover {
     color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.1); /* Efeito hover mais suave */
 }
 
 .main-nav a.active {
-    color: #c0a46f;
-    border-bottom: 3px solid #c0a46f;
+    color: #1a233b;
+    background-color: #c0a46f; /* Destaque tipo botão */
+    font-weight: bold;
 }
 
 /* Lado Direito */
 .nav-right {
     display: flex;
     align-items: center;
-    gap: 20px; /* Espaço entre a saudação e os botões */
+    gap: 15px;
+    border-left: 1px solid rgba(255,255,255,0.15);
+    padding-left: 15px;
+    height: 30px; /* Altura do separador */
 }
 
 .user-greeting {
-    color: #c9c8c8;
-    font-size: 14px;
+    font-size: 0.8rem;
+    color: #e0e0e0;
+    white-space: nowrap;
 }
 
 .user-actions {
     display: flex;
-    align-items: center;
-    gap: 15px; /* Espaço entre os botões */
+    gap: 5px;
 }
 
 .icon-button {
-    background: none;
-    border: none;
-    color: #ffffff; /* Cor padrão agora é branca */
-    font-size: 20px; /* Tamanho dos ícones */
-    cursor: pointer;
-    transition: color 0.2s ease-in-out;
-    padding: 5px;
+    padding: 5px !important; /* Ícones menores */
 }
 
-.icon-button:hover {
-    color: #e0e0e0; /* Opcional: um cinza bem claro no hover para dar feedback */
+.icon-button svg {
+    font-size: 1.1rem;
+}
+
+/* Responsividade */
+@media (max-width: 1100px) {
+    .main-nav a span {
+        display: none; /* Esconde texto em telas médias, mantém ícones */
+    }
+    .user-greeting {
+        display: none;
+    }
 }

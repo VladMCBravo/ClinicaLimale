@@ -34,10 +34,11 @@ export default function ContasReceberView() {
         setLoading(true);
         try {
             // Aqui buscamos os dados (ajuste conforme seu service real)
-            const response = await faturamentoService.getExtrato({
-                data_inicio: filtroData.startOf('month').format('YYYY-MM-DD'),
-                data_fim: filtroData.endOf('month').format('YYYY-MM-DD')
-            });
+            const response = await faturamentoService.getPagamentos({
+    // A API espera 'data_inicio' e 'data_fim' ou filtra tudo se não mandar nada
+    data_inicio: filtroData.startOf('month').format('YYYY-MM-DD'),
+    data_fim: filtroData.endOf('month').format('YYYY-MM-DD')
+});
             // Assumindo que a API retorna lista mista ou filtrada
             setLancamentos(response.data || []);
         } catch (error) {
