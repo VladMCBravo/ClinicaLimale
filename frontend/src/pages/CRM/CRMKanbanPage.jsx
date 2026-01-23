@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress } from '@mui/material';
 import { FaWhatsapp, FaExclamationTriangle } from 'react-icons/fa';
-import crmService from '../../services/crmService';
+import { crmService } from '../../services/crmService';
 
 const COLUMNS = {
   'F1': { title: 'F1 - Entrada', color: '#90caf9' },

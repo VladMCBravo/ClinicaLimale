@@ -8,7 +8,7 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { FaSyncAlt } from 'react-icons/fa';
-import crmService from '../../services/crmService';
+import { crmService } from '../../services/crmService';
 
 // Cores do tema Limalé (Baseado nos prints)
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
