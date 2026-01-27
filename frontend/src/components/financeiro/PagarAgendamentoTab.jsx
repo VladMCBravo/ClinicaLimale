@@ -141,15 +141,18 @@ export default function PagarAgendamentoTab({ onClose }) {
                                     </TextField>
                                 </Grid>
                                 {formaPagamento === 'CartaoCredito' && (
-                                    <Grid item xs={6}>
-                                        <TextField 
-                                            select fullWidth size="small" label="Parcelas" 
-                                            value={parcelas} onChange={(e) => setParcelas(e.target.value)}
-                                        >
-                                            {[1, 2, 3, 4, 5, 6].map(n => <MenuItem key={n} value={n}>{n}x</MenuItem>)}
-                                        </TextField>
-                                    </Grid>
-                                )}
+    <Grid item xs={6}>
+        <TextField 
+            select fullWidth size="small" label="Parcelas" 
+            value={parcelas} onChange={(e) => setParcelas(e.target.value)}
+        >
+            {/* Ajustado de 6 para 10 */}
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                <MenuItem key={n} value={n}>{n}x</MenuItem>
+            ))}
+        </TextField>
+    </Grid>
+)}
                             </Grid>
                             
                             <Divider sx={{ my: 2 }} />

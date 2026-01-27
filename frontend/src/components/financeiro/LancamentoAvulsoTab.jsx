@@ -73,117 +73,130 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
         }
     };
 
+    const limiteParcelas = tipo === 'receita' ? 10 : 64;
+
     return (
-        <Box component="form" onSubmit={handleSubmit}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-                <ToggleButtonGroup value={tipo} exclusive onChange={handleTipoChange} size="small">
-                    <ToggleButton value="receita" color="success" sx={{ px: 4 }}>
-                        <AttachMoney sx={{ mr: 1 }} /> RECEITA AVULSA
-                    </ToggleButton>
-                    <ToggleButton value="despesa" color="error" sx={{ px: 4 }}>
-                        <MoneyOff sx={{ mr: 1 }} /> DESPESA
-                    </ToggleButton>
-                </ToggleButtonGroup>
-            </Box>
+    <Box component="form" onSubmit={handleSubmit}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <ToggleButtonGroup value={tipo} exclusive onChange={handleTipoChange} size="small">
+                <ToggleButton value="receita" color="success" sx={{ px: 4 }}>
+                    <AttachMoney sx={{ mr: 1 }} /> RECEITA AVULSA
+                </ToggleButton>
+                <ToggleButton value="despesa" color="error" sx={{ px: 4 }}>
+                    <MoneyOff sx={{ mr: 1 }} /> DESPESA
+                </ToggleButton>
+            </ToggleButtonGroup>
+        </Box>
 
-            <Grid container spacing={3}>
-                <Grid item xs={12} md={7}>
-                    <Paper sx={{ p: 2 }} variant="outlined">
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                            <Typography variant="subtitle2" fontWeight="bold">Dados do Lançamento</Typography>
-                            <FormControlLabel
-                                control={<Switch size="small" checked={jaLiquidado} onChange={(e) => setJaLiquidado(e.target.checked)} />}
-                                label={<Typography variant="caption" fontWeight="bold">{jaLiquidado ? 'LIQUIDADO' : 'AGENDADO'}</Typography>}
-                            />
-                        </Box>
-
-                        <TextField 
-                            name="descricao" label="Descrição (Ex: Aluguel de Sala, Material de Limpeza)" 
-                            fullWidth size="small" margin="dense" required
-                            value={formData.descricao} onChange={handleChange}
+        <Grid container spacing={3}>
+            {/* COLUNA 1: DADOS GERAIS */}
+            <Grid item xs={12} md={7}>
+                <Paper sx={{ p: 2 }} variant="outlined">
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                        <Typography variant="subtitle2" fontWeight="bold">Dados do Lançamento</Typography>
+                        <FormControlLabel
+                            control={<Switch size="small" checked={jaLiquidado} onChange={(e) => setJaLiquidado(e.target.checked)} />}
+                            label={<Typography variant="caption" fontWeight="bold">{jaLiquidado ? 'LIQUIDADO' : 'AGENDADO'}</Typography>}
                         />
+                    </Box>
 
-                        {tipo === 'despesa' && (
-                            <TextField 
-                                select name="categoria" label="Categoria" 
-                                fullWidth size="small" margin="dense" required
-                                value={formData.categoria} onChange={handleChange}
-                            >
-                                {categorias.map(cat => (
-                                    <MenuItem key={cat.id} value={cat.id}>{cat.nome} ({cat.tipo})</MenuItem>
-                                ))}
-                            </TextField>
-                        )}
+                    <TextField 
+                        name="descricao" label="Descrição" 
+                        fullWidth size="small" margin="dense" required
+                        value={formData.descricao} onChange={handleChange}
+                    />
 
-                        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                    {tipo === 'despesa' && (
+                        <TextField 
+                            select name="categoria" label="Categoria" 
+                            fullWidth size="small" margin="dense" required
+                            value={formData.categoria} onChange={handleChange}
+                        >
+                            {categorias.map(cat => (
+                                <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
+                            ))}
+                        </TextField>
+                    )}
+
+                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                        <Grid item xs={6}>
+                            <DatePicker
+                                label="Vencimento"
+                                value={dayjs(formData.data_vencimento)}
+                                onChange={(v) => setFormData({...formData, data_vencimento: v.format('YYYY-MM-DD')})}
+                                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                            />
+                        </Grid>
+                        {jaLiquidado && (
                             <Grid item xs={6}>
                                 <DatePicker
-                                    label="Vencimento"
-                                    value={dayjs(formData.data_vencimento)}
-                                    onChange={(v) => setFormData({...formData, data_vencimento: v.format('YYYY-MM-DD')})}
-                                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                                    label="Data do Caixa"
+                                    value={dayjs(formData.data_pagamento)}
+                                    onChange={(v) => setFormData({...formData, data_pagamento: v.format('YYYY-MM-DD')})}
+                                    slotProps={{ textField: { size: 'small', fullWidth: true, color: 'success' } }}
                                 />
                             </Grid>
-                            {jaLiquidado && (
-                                <Grid item xs={6}>
-                                    <DatePicker
-                                        label="Data do Caixa"
-                                        value={dayjs(formData.data_pagamento)}
-                                        onChange={(v) => setFormData({...formData, data_pagamento: v.format('YYYY-MM-DD')})}
-                                        slotProps={{ textField: { size: 'small', fullWidth: true, color: 'success' } }}
-                                    />
-                                </Grid>
-                            )}
-                        </Grid>
-                    </Paper>
-                </Grid>
-
-                <Grid item xs={12} md={5}>
-                    <Paper sx={{ p: 2, bgcolor: '#fcfcfc', height: '100%' }} variant="outlined">
-                        <TextField 
-                            name="valor" label="Valor Total" type="number" fullWidth required
-                            value={formData.valor} onChange={handleChange}
-                            InputProps={{ 
-                                startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                                sx: { fontWeight: 'bold', fontSize: '1.2rem' }
-                            }}
-                        />
-
-                        <Box sx={{ mt: 3 }}>
-                            <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                                {tipo === 'receita' ? 'FORMA DE RECEBIMENTO' : 'CONDIÇÃO'}
-                            </Typography>
-                            <TextField 
-                                select fullWidth size="small" name="forma_pagamento"
-                                value={formData.forma_pagamento} onChange={handleChange}
-                                sx={{ mt: 1 }}
-                            >
-                                <MenuItem value="Dinheiro">Dinheiro</MenuItem>
-                                <MenuItem value="PIX">PIX / Transferência</MenuItem>
-                                <MenuItem value="Cartao">Cartão</MenuItem>
-                            </TextField>
-
-                            {tipo === 'despesa' && (
-                                <TextField 
-                                    label="Parcelas (Recorrência)" type="number" 
-                                    fullWidth size="small" name="qtd_parcelas"
-                                    value={formData.qtd_parcelas} onChange={handleChange}
-                                    sx={{ mt: 2 }}
-                                    helperText="Gera lançamentos mensais automáticos"
-                                />
-                            )}
-                        </Box>
-
-                        <Button 
-                            type="submit" variant="contained" fullWidth 
-                            disabled={isSubmitting}
-                            sx={{ mt: 'auto', py: 1.5, fontWeight: 'bold', bgcolor: '#1a233b' }}
-                        >
-                            {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'CONFIRMAR LANÇAMENTO'}
-                        </Button>
-                    </Paper>
-                </Grid>
+                        )}
+                    </Grid>
+                </Paper>
             </Grid>
-        </Box>
-    );
+
+            {/* COLUNA 2: VALORES E PAGAMENTO */}
+            <Grid item xs={12} md={5}>
+                <Paper sx={{ p: 2, bgcolor: '#fcfcfc', height: '100%' }} variant="outlined">
+                    <TextField 
+                        name="valor" label="Valor Total" type="number" fullWidth required
+                        value={formData.valor} onChange={handleChange}
+                        InputProps={{ 
+                            startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                            sx: { fontWeight: 'bold', fontSize: '1.2rem' }
+                        }}
+                    />
+
+                    <Box sx={{ mt: 3 }}>
+                        <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                            {tipo === 'receita' ? 'FORMA DE RECEBIMENTO' : 'CONDIÇÃO'}
+                        </Typography>
+                        <TextField 
+                            select fullWidth size="small" name="forma_pagamento"
+                            value={formData.forma_pagamento} onChange={handleChange}
+                            sx={{ mt: 1 }}
+                        >
+                            <MenuItem value="Dinheiro">Dinheiro</MenuItem>
+                            <MenuItem value="PIX">PIX / Transferência</MenuItem>
+                            <MenuItem value="Cartao">Cartão</MenuItem>
+                        </TextField>
+
+                        {/* ÚNICO CAMPO DE PARCELAS: Inteligente para os dois tipos */}
+                        <TextField 
+                            select 
+                            label={tipo === 'receita' ? "Parcelas" : "Parcelas (Recorrência)"}
+                            fullWidth 
+                            size="small" 
+                            name="qtd_parcelas"
+                            value={formData.qtd_parcelas || 1} 
+                            onChange={handleChange}
+                            sx={{ mt: 2 }}
+                            helperText={tipo === 'despesa' ? "Gera lançamentos mensais automáticos" : ""}
+                        >
+                            {[...Array(limiteParcelas)].map((_, i) => (
+                                <MenuItem key={i + 1} value={i + 1}>
+                                    {i + 1}x {formData.valor ? `de R$ ${(formData.valor / (i + 1)).toFixed(2)}` : ''}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </Box>
+
+                    <Button 
+                        type="submit" variant="contained" fullWidth 
+                        disabled={isSubmitting}
+                        sx={{ mt: 4, py: 1.5, fontWeight: 'bold', bgcolor: '#1a233b' }}
+                    >
+                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'CONFIRMAR LANÇAMENTO'}
+                    </Button>
+                </Paper>
+            </Grid>
+        </Grid>
+    </Box>
+);
 }
