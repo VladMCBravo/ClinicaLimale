@@ -1,107 +1,169 @@
 // src/components/financeiro/PagarAgendamentoTab.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box, Autocomplete, TextField, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Typography, Button, CircularProgress
+    TableContainer, TableHead, TableRow, Typography, Button, 
+    CircularProgress, Checkbox, Paper, Divider, MenuItem, InputAdornment
 } from '@mui/material';
 import { pacienteService } from '../../services/pacienteService';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import dayjs from 'dayjs';
 
 export default function PagarAgendamentoTab({ onClose }) {
     const [pacientes, setPacientes] = useState([]);
     const [pacienteSelecionado, setPacienteSelecionado] = useState(null);
     const [cobrancas, setCobrancas] = useState([]);
+    const [selecionados, setSelecionados] = useState([]); // IDs das cobranças
     const [isLoadingCobrancas, setIsLoadingCobrancas] = useState(false);
+    
+    // Estados de Pagamento
+    const [formaPagamento, setFormaPagamento] = useState('PIX');
+    const [parcelas, setParcelas] = useState(1);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const { showSnackbar } = useSnackbar();
 
-    // Efeito para buscar a lista de todos os pacientes para o Autocomplete
     useEffect(() => {
         pacienteService.getPacientes()
             .then(response => setPacientes(response.data))
             .catch(() => showSnackbar('Erro ao carregar lista de pacientes.', 'error'));
     }, [showSnackbar]);
 
-    // Efeito para buscar as cobranças do paciente selecionado
     useEffect(() => {
         if (pacienteSelecionado) {
             setIsLoadingCobrancas(true);
             faturamentoService.getCobrancasPendentes(pacienteSelecionado.id)
-                .then(response => setCobrancas(response.data))
-                .catch(() => showSnackbar('Erro ao buscar cobranças do paciente.', 'error'))
+                .then(response => {
+                    setCobrancas(response.data);
+                    setSelecionados([]); // Reseta seleção ao mudar paciente
+                })
                 .finally(() => setIsLoadingCobrancas(false));
-        } else {
-            setCobrancas([]); // Limpa a lista se nenhum paciente for selecionado
         }
-    }, [pacienteSelecionado, showSnackbar]);
+    }, [pacienteSelecionado]);
 
-    const handleRegistrarPagamento = async (pagamentoId) => {
+    const totalSelecionado = useMemo(() => {
+        return cobrancas
+            .filter(c => selecionados.includes(c.id))
+            .reduce((acc, curr) => acc + parseFloat(curr.valor || 0), 0);
+    }, [cobrancas, selecionados]);
+
+    const handleToggleCobranca = (id) => {
+        setSelecionados(prev => 
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleConfirmarBaixa = async () => {
+        if (selecionados.length === 0) return showSnackbar('Selecione ao menos um item.', 'warning');
+        
+        setIsSubmitting(true);
         try {
-            // Por enquanto, vamos marcar como 'Pago' e 'Dinheiro'.
-            // No futuro, podemos abrir outro modal para perguntar a forma de pagamento.
-            await faturamentoService.updatePagamento(pagamentoId, {
-                status: 'Pago',
-                forma_pagamento: 'Dinheiro' 
-            });
-            showSnackbar('Pagamento registrado com sucesso!', 'success');
-            // Atualiza a lista de cobranças para remover a que foi paga
-            setCobrancas(prev => prev.filter(c => c.id !== pagamentoId));
+            // Itera sobre os selecionados para dar baixa
+            await Promise.all(selecionados.map(id => 
+                faturamentoService.updatePagamento(id, {
+                    status: 'Pago',
+                    forma_pagamento: formaPagamento,
+                    qtd_parcelas: formaPagamento === 'CartaoCredito' ? parcelas : 1,
+                    data_pagamento: dayjs().format('YYYY-MM-DD')
+                })
+            ));
+            
+            showSnackbar('Recebimento registrado com sucesso!', 'success');
+            onClose(); 
         } catch (error) {
-            showSnackbar('Erro ao registrar pagamento.', 'error');
+            showSnackbar('Erro ao processar baixa.', 'error');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     return (
-        <Box>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-                Busque por um paciente para ver seus agendamentos com pagamento pendente.
-            </Typography>
+        <Box sx={{ minHeight: '400px' }}>
             <Autocomplete
                 options={pacientes}
                 getOptionLabel={(option) => option.nome_completo}
                 value={pacienteSelecionado}
-                onChange={(event, newValue) => setPacienteSelecionado(newValue)}
-                renderInput={(params) => <TextField {...params} label="Buscar Paciente" />}
-                sx={{ mb: 3 }}
+                onChange={(e, nv) => setPacienteSelecionado(nv)}
+                renderInput={(params) => <TextField {...params} label="Buscar Paciente" size="small" />}
+                sx={{ mb: 2 }}
             />
 
-            {isLoadingCobrancas ? <CircularProgress /> : (
-                <TableContainer>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Data</TableCell>
-                                <TableCell>Tipo</TableCell>
-                                <TableCell>Valor (R$)</TableCell>
-                                <TableCell align="right">Ação</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {cobrancas.length > 0 ? cobrancas.map(cobranca => (
-                                <TableRow key={cobranca.id}>
-                                    <TableCell>{new Date(cobranca.data_agendamento).toLocaleDateString('pt-BR')}</TableCell>
-                                    <TableCell>{cobranca.tipo_agendamento}</TableCell>
-                                    <TableCell>{cobranca.valor}</TableCell>
-                                    <TableCell align="right">
-                                        <Button 
-                                            variant="contained" 
-                                            size="small"
-                                            onClick={() => handleRegistrarPagamento(cobranca.id)}
-                                        >
-                                            Registrar Pagamento
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
+            {isLoadingCobrancas ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box> : (
+                <Box>
+                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 2, maxHeight: '250px' }}>
+                        <Table size="small" stickyHeader>
+                            <TableHead>
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">
-                                        {pacienteSelecionado ? "Nenhuma cobrança pendente." : "Selecione um paciente para começar."}
-                                    </TableCell>
+                                    <TableCell padding="checkbox"></TableCell>
+                                    <TableCell sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Data</TableCell>
+                                    <TableCell sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Procedimento</TableCell>
+                                    <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Valor</TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                            </TableHead>
+                            <TableBody>
+                                {cobrancas.map(c => (
+                                    <TableRow key={c.id} hover onClick={() => handleToggleCobranca(c.id)} sx={{ cursor: 'pointer' }}>
+                                        <TableCell padding="checkbox">
+                                            <Checkbox size="small" checked={selecionados.includes(c.id)} />
+                                        </TableCell>
+                                        <TableCell sx={{ fontSize: '0.8rem' }}>{dayjs(c.data_agendamento).format('DD/MM/YYYY')}</TableCell>
+                                        <TableCell sx={{ fontSize: '0.8rem' }}>{c.procedimento_nome || c.tipo_agendamento}</TableCell>
+                                        <TableCell align="right" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.valor)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+
+                    {selecionados.length > 0 && (
+                        <Box sx={{ p: 2, bgcolor: '#f0f4fa', borderRadius: 2, border: '1px solid #d1d9e6' }}>
+                            <Typography variant="subtitle2" gutterBottom fontWeight="bold" color="primary">
+                                Detalhes do Recebimento
+                            </Typography>
+                            <Grid container spacing={2} sx={{ mt: 1 }}>
+                                <Grid item xs={6}>
+                                    <TextField 
+                                        select fullWidth size="small" label="Forma de Pagamento" 
+                                        value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}
+                                    >
+                                        {['Dinheiro', 'PIX', 'CartaoDebito', 'CartaoCredito', 'Transferencia'].map(f => (
+                                            <MenuItem key={f} value={f}>{f}</MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                                {formaPagamento === 'CartaoCredito' && (
+                                    <Grid item xs={6}>
+                                        <TextField 
+                                            select fullWidth size="small" label="Parcelas" 
+                                            value={parcelas} onChange={(e) => setParcelas(e.target.value)}
+                                        >
+                                            {[1, 2, 3, 4, 5, 6].map(n => <MenuItem key={n} value={n}>{n}x</MenuItem>)}
+                                        </TextField>
+                                    </Grid>
+                                )}
+                            </Grid>
+                            
+                            <Divider sx={{ my: 2 }} />
+                            
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="h6" color="primary" fontWeight="bold">
+                                    Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalSelecionado)}
+                                </Typography>
+                                <Button 
+                                    variant="contained" color="success" 
+                                    disabled={isSubmitting}
+                                    onClick={handleConfirmarBaixa}
+                                    sx={{ fontWeight: 'bold' }}
+                                >
+                                    {isSubmitting ? <CircularProgress size={20} /> : 'CONFIRMAR RECEBIMENTO'}
+                                </Button>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
             )}
         </Box>
     );
