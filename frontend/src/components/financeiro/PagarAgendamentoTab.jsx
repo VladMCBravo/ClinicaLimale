@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box, Autocomplete, TextField, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Typography, Button, 
-    CircularProgress, Checkbox, Paper, Divider, MenuItem, InputAdornment
+    CircularProgress, Checkbox, Paper, Divider, MenuItem, InputAdornment, Grid
 } from '@mui/material';
 import { pacienteService } from '../../services/pacienteService';
 import { faturamentoService } from '../../services/faturamentoService';
