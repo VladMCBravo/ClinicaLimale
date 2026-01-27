@@ -88,6 +88,28 @@ export const initialState = {
     coloAfunilamento: false, 
     coloConclusao: '', 
 
+    // === COLE O CÓDIGO NOVO AQUI (EMBAIXO DE coloConclusao) ===
+    
+    // --- ANEXOS (Atualizado para OD e OE separados) ---
+    citarAnexos: false, // Checkbox mestre para ativar a seção
+    
+    // Ovário Direito
+    odVisualizado: false,
+    od1: '', od2: '', od3: '', 
+    odVol: '', 
+    odAspecto: 'normal', // normal, cisto, policístico, etc.
+    
+    // Ovário Esquerdo
+    oeVisualizado: false,
+    oe1: '', oe2: '', oe3: '', 
+    oeVol: '',
+    oeAspecto: 'normal',
+
+    // Mantemos o corpo lúteo para indicar onde está
+    corpoLuteo: '', // 'direito', 'esquerdo', 'nao_visualizado'
+
+    // ==========================================================
+
     // --- MORFOLÓGICO 1º TRI (RISCOS) ---
     riscoT21Basal: '', riscoT21Corrigido: '',
     riscoT18Basal: '', riscoT18Corrigido: '',
