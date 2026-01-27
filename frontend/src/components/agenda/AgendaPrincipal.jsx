@@ -65,6 +65,35 @@ const StyledCalendarWrapper = styled('div')(({ theme }) => ({
     '.fc-timegrid-now-indicator-line': {
         borderColor: '#f50057',
         borderWidth: '2px'
+    },
+
+    // 7. Estilo dos Botões da Toolbar
+    '.fc-button-primary': {
+        backgroundColor: '#1C2E4A !important',
+        borderColor: '#1C2E4A !important',
+        fontSize: '0.85rem !important',
+        textTransform: 'capitalize !important',
+        '&:hover': {
+            backgroundColor: '#2c3e50 !important',
+        },
+        '&:disabled': {
+            backgroundColor: '#ccc !important',
+            borderColor: '#ccc !important'
+        }
+    },
+
+    // 8. Ajuste do Título (Data)
+    '.fc-toolbar-title': {
+        fontSize: '1.1rem !important',
+        fontWeight: 'bold',
+        color: '#1C2E4A'
+    },
+
+    // 9. Correção para o botão 'Hoje' não sumir em telas menores
+    '.fc-toolbar': {
+        gap: '8px',
+        flexWrap: 'wrap',
+        padding: '8px !important'
     }
 }));
 
@@ -210,11 +239,24 @@ export default function AgendaPrincipal({
         <Paper variant="outlined" sx={{ p: 0, height: '100%', overflow: 'hidden', border: '1px solid #ddd' }}>
             <StyledCalendarWrapper>
                 <FullCalendar
-                    ref={calendarRef}
-                    plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="resourceTimeGridDay"
-                    locale="pt-br"
-                    height="100%"
+    ref={calendarRef}
+    plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
+    initialView="resourceTimeGridDay"
+    locale="pt-br"
+    // --- ADICIONE/AJUSTE ESTAS LINHAS ---
+    buttonText={{
+        today: 'Hoje',
+        month: 'Mês',
+        week: 'Semana',
+        day: 'Dia'
+    }}
+    headerToolbar={{
+        left: 'prev,next today',
+        center: 'title',
+        right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth'
+    }}
+    // ------------------------------------
+    height="100%"
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     
