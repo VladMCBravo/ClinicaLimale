@@ -76,40 +76,102 @@ const SecaoDadosMaternos1Tri = ({ data, handleChange }) => {
             </div>
         </div>
 
-        {/* CAIXA 3: ANEXOS */}
+        {/* CAIXA 3: ANEXOS (OVÁRIOS) */}
         <div className="laudo-section">
-            <div className="header-base header-purple">Anexos</div>
+            <div className="header-base header-purple">
+                Avaliação dos Anexos (Ovários)
+            </div>
             <div className="laudo-section-body">
-                <div className="laudo-row">
-                    <span style={{fontWeight:'bold'}}>corpo lúteo gestacional no ovário:</span>
-                    <select name="corpoLuteo" value={data.corpoLuteo} onChange={handleChange} className="laudo-select" style={{marginLeft:'5px'}}>
-                        <option>não citar</option>
-                        <option>direito</option>
-                        <option>esquerdo</option>
-                    </select>
+                
+                {/* Checkbox Principal */}
+                <div className="laudo-row" style={{marginBottom: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px'}}>
+                    <label className="laudo-checkbox-label" style={{fontWeight: 'bold'}}>
+                        <input type="checkbox" name="citarAnexos" checked={data.citarAnexos} onChange={handleChange} />
+                        Descrever medidas dos ovários no laudo
+                    </label>
+                    
+                    <span style={{marginLeft: 'auto', fontSize: '11px', fontWeight: 'bold', color: '#555'}}>
+                        Corpo Lúteo em:
+                        <select name="corpoLuteo" value={data.corpoLuteo} onChange={handleChange} className="laudo-select" style={{marginLeft:'5px'}}>
+                            <option value="">Selecione...</option>
+                            <option value="direito">Ovário Direito</option>
+                            <option value="esquerdo">Ovário Esquerdo</option>
+                            <option value="nao_visualizado">Não visualizado</option>
+                        </select>
+                    </span>
                 </div>
 
-                <div className="laudo-row" style={{marginTop:'5px', paddingLeft: '20px'}}>
-                     <label className="laudo-checkbox-label" style={{marginRight: '15px'}}>
-                        <input type="checkbox" name="citarMedidasAnexo" checked={data.citarMedidasAnexo} onChange={handleChange} />
-                        citar medidas:
-                     </label>
-                     <label className="laudo-checkbox-label" style={{color:'#888'}}>
-                        <input type="checkbox" name="calcVolAnexo" checked={data.calcVolAnexo} onChange={handleChange} disabled={!data.citarMedidasAnexo} />
-                        calcular volume
-                     </label>
-                </div>
+                {/* GRID DE 2 COLUNAS: OD e OE */}
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                    
+                    {/* COLUNA ESQUERDA: OVÁRIO DIREITO */}
+                    <div style={{background: '#f9f9f9', padding: '8px', borderRadius: '4px', border: '1px solid #eee'}}>
+                        <div style={{fontWeight: 'bold', color: '#303F9F', marginBottom: '5px', fontSize: '11px'}}>
+                            OVÁRIO DIREITO (OD)
+                        </div>
+                        
+                        <label className="laudo-checkbox-label" style={{marginBottom: '5px'}}>
+                            <input type="checkbox" name="odVisualizado" checked={data.odVisualizado} onChange={handleChange} disabled={!data.citarAnexos} />
+                            Visualizado
+                        </label>
 
-                <div className="laudo-row" style={{marginTop:'5px', paddingLeft: '20px'}}>
-                     <input type="number" name="anx1" value={data.anx1} onChange={handleChange} disabled={!data.citarMedidasAnexo} className="laudo-input" style={{width:'45px'}} /> x
-                     <input type="number" name="anx2" value={data.anx2} onChange={handleChange} disabled={!data.citarMedidasAnexo} className="laudo-input" style={{width:'45px'}} /> x
-                     <input type="number" name="anx3" value={data.anx3} onChange={handleChange} disabled={!data.citarMedidasAnexo} className="laudo-input" style={{width:'45px'}} /> mm
-                     
-                     {data.calcVolAnexo && data.resVolAnexo && (
-                         <span style={{fontWeight:'bold', color:'#1565C0', marginLeft:'15px'}}>
-                             Vol: {data.resVolAnexo} cm³
-                         </span>
-                     )}
+                        <div className="laudo-row" style={{marginTop: '5px'}}>
+                            <input type="number" placeholder="L" name="od1" value={data.od1} onChange={handleChange} disabled={!data.odVisualizado} className="laudo-input" style={{width:'40px'}} /> x
+                            <input type="number" placeholder="AP" name="od2" value={data.od2} onChange={handleChange} disabled={!data.odVisualizado} className="laudo-input" style={{width:'40px'}} /> x
+                            <input type="number" placeholder="T" name="od3" value={data.od3} onChange={handleChange} disabled={!data.odVisualizado} className="laudo-input" style={{width:'40px'}} /> mm
+                        </div>
+                        
+                        {data.odVol && (
+                            <div style={{marginTop: '4px', fontSize: '11px', color: '#1565C0', fontWeight: 'bold'}}>
+                                Vol: {data.odVol} cm³
+                            </div>
+                        )}
+
+                        <div style={{marginTop: '8px'}}>
+                            <span style={{fontSize: '10px', color: '#666'}}>Aspecto:</span>
+                            <select name="odAspecto" value={data.odAspecto} onChange={handleChange} disabled={!data.odVisualizado} className="laudo-select full-width">
+                                <option value="normal">Normal / Homogêneo</option>
+                                <option value="folicular">Aspecto Folicular</option>
+                                <option value="micropolicistico">Micropolicístico</option>
+                                <option value="cisto">Presença de Cisto</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* COLUNA DIREITA: OVÁRIO ESQUERDO */}
+                    <div style={{background: '#f9f9f9', padding: '8px', borderRadius: '4px', border: '1px solid #eee'}}>
+                        <div style={{fontWeight: 'bold', color: '#303F9F', marginBottom: '5px', fontSize: '11px'}}>
+                            OVÁRIO ESQUERDO (OE)
+                        </div>
+                        
+                        <label className="laudo-checkbox-label" style={{marginBottom: '5px'}}>
+                            <input type="checkbox" name="oeVisualizado" checked={data.oeVisualizado} onChange={handleChange} disabled={!data.citarAnexos} />
+                            Visualizado
+                        </label>
+
+                        <div className="laudo-row" style={{marginTop: '5px'}}>
+                            <input type="number" placeholder="L" name="oe1" value={data.oe1} onChange={handleChange} disabled={!data.oeVisualizado} className="laudo-input" style={{width:'40px'}} /> x
+                            <input type="number" placeholder="AP" name="oe2" value={data.oe2} onChange={handleChange} disabled={!data.oeVisualizado} className="laudo-input" style={{width:'40px'}} /> x
+                            <input type="number" placeholder="T" name="oe3" value={data.oe3} onChange={handleChange} disabled={!data.oeVisualizado} className="laudo-input" style={{width:'40px'}} /> mm
+                        </div>
+                        
+                        {data.oeVol && (
+                            <div style={{marginTop: '4px', fontSize: '11px', color: '#1565C0', fontWeight: 'bold'}}>
+                                Vol: {data.oeVol} cm³
+                            </div>
+                        )}
+
+                        <div style={{marginTop: '8px'}}>
+                            <span style={{fontSize: '10px', color: '#666'}}>Aspecto:</span>
+                            <select name="oeAspecto" value={data.oeAspecto} onChange={handleChange} disabled={!data.oeVisualizado} className="laudo-select full-width">
+                                <option value="normal">Normal / Homogêneo</option>
+                                <option value="folicular">Aspecto Folicular</option>
+                                <option value="micropolicistico">Micropolicístico</option>
+                                <option value="cisto">Presença de Cisto</option>
+                            </select>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

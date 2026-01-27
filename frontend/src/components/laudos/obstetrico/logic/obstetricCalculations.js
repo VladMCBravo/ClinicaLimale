@@ -211,3 +211,17 @@ export const calcularMediaBiometria = (dados) => {
         dpp: formatData(dppDate.toISOString().split('T')[0])
     };
 };
+
+// --- CÁLCULO DE VOLUME OVARIANO ---
+export const calcularVolumeOvario = (m1, m2, m3) => {
+    const v1 = parseFloat(m1);
+    const v2 = parseFloat(m2);
+    const v3 = parseFloat(m3);
+
+    if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3) && v1 > 0 && v2 > 0 && v3 > 0) {
+        // Medidas em mm, resultado em cm³ -> (m1 * m2 * m3) * 0.523 / 1000
+        const vol = (v1 * v2 * v3 * 0.523) / 1000;
+        return vol.toFixed(1).replace('.', ',');
+    }
+    return '';
+};

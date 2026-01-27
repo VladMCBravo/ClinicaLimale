@@ -191,11 +191,34 @@ export const gerarRelatorioFeto = (d) => {
             else if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
         }
 
-        // Anexos (Corpo Lúteo)
-        if(d.corpoLuteo && d.corpoLuteo !== 'não citar') {
-             texto += `Anexos: Visualizado corpo lúteo em ovário ${d.corpoLuteo}. `;
-             if(d.citarMedidasAnexo && d.anx1) texto += `Medindo ${d.anx1} x ${d.anx2} x ${d.anx3} mm.`;
-             texto += `\n`;
+        // --- ANEXOS (Atualizado para OD e OE) ---
+        if(d.citarAnexos) {
+            
+            // Texto Ovário Direito
+            if (d.odVisualizado) {
+                texto += `Ovário Direito: Visualizado, de aspecto ${d.odAspecto || 'normal'}`;
+                if (d.od1 && d.od2 && d.od3) {
+                    texto += `, medindo ${d.od1} x ${d.od2} x ${d.od3} mm`;
+                    if (d.odVol) texto += ` (Volume: ${d.odVol} cm³)`;
+                }
+                if (d.corpoLuteo === 'direito') texto += `. Presença de corpo lúteo neste anexo`;
+                texto += `.\n`;
+            } else {
+                texto += `Ovário Direito: Não visualizado ou não acessível neste exame.\n`;
+            }
+
+            // Texto Ovário Esquerdo
+            if (d.oeVisualizado) {
+                texto += `Ovário Esquerdo: Visualizado, de aspecto ${d.oeAspecto || 'normal'}`;
+                if (d.oe1 && d.oe2 && d.oe3) {
+                    texto += `, medindo ${d.oe1} x ${d.oe2} x ${d.oe3} mm`;
+                    if (d.oeVol) texto += ` (Volume: ${d.oeVol} cm³)`;
+                }
+                if (d.corpoLuteo === 'esquerdo') texto += `. Presença de corpo lúteo neste anexo`;
+                texto += `.\n`;
+            } else {
+                texto += `Ovário Esquerdo: Não visualizado ou não acessível neste exame.\n`;
+            }
         }
         
         texto += `\n`; // Espaço final

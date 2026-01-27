@@ -7,7 +7,8 @@ import {
     calcularDMSG,
     calcularIGDmsg,
     calcularIG_CCN,
-    calcularMediaBiometria // <--- 1. IMPORTAR AQUI
+    calcularMediaBiometria,
+    calcularVolumeOvario
 } from '../logic/obstetricCalculations';
 
 // --- CORREÇÃO AQUI ---
@@ -148,6 +149,14 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 mudou = true;
             }
 
+            // E. CÁLCULO DE VOLUMES OVARIANOS (Novo)
+            // Importe a função calcularVolumeOvario lá em cima no arquivo!
+            const volOD = calcularVolumeOvario(prev.od1, prev.od2, prev.od3);
+            if (prev.odVol !== volOD) { newState.odVol = volOD; mudou = true; }
+
+            const volOE = calcularVolumeOvario(prev.oe1, prev.oe2, prev.oe3);
+            if (prev.oeVol !== volOE) { newState.oeVol = volOE; mudou = true; }
+
             return mudou ? newState : prev;
         });
     }, [
@@ -156,7 +165,8 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         data.sg1, data.sg2, data.sg3,
         // ADICIONE ESTAS DUAS LINHAS NOVAS:
         data.igAnteriorSemanas, 
-        data.igAnteriorDias
+        data.igAnteriorDias,
+        data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3
 ]);
 
     // --- 2. GERAÇÃO DE TEXTO E SINCRONIZAÇÃO ---
