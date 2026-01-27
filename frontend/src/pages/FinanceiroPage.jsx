@@ -33,35 +33,22 @@ export default function FinanceiroPage() {
 
     // 1. CARREGAMENTO DE DADOS (Nível Superior)
     useEffect(() => {
-        const carregarDados = async () => {
-            try {
-                const [resPagamentos, resDespesas] = await Promise.all([
-                    faturamentoService.getPagamentos(),
-                    faturamentoService.getDespesas()
-                ]);
-                
-                const listaPagamentos = resPagamentos.data || [];
-                const listaDespesas = resDespesas.data || [];
-
-                setLancamentos(listaPagamentos);
-                setDespesas(listaDespesas);
-                
-                // Cálculo do resumo baseado nos dados carregados
-                const totalR = listaPagamentos
-                    .filter(l => l.status === 'Pendente')
-                    .reduce((acc, curr) => acc + parseFloat(curr.valor || 0), 0);
-                
-                const totalP = listaDespesas
-                    .filter(d => !d.pago)
-                    .reduce((acc, curr) => acc + parseFloat(curr.valor || 0), 0);
-
-                setResumo({ totalReceber: totalR, totalPagar: totalP });
-            } catch (err) {
-                console.error("Erro ao carregar dados da dashboard", err);
-            }
-        };
-        carregarDados();
-    }, []);
+    const carregarDados = async () => {
+        try {
+            const [resPagamentos, resDespesas] = await Promise.all([
+                faturamentoService.getPagamentos(),
+                faturamentoService.getDespesas() // Carrega tudo uma única vez aqui
+            ]);
+            
+            setLancamentos(resPagamentos.data || []);
+            setDespesas(resDespesas.data || []); // Cache centralizado
+            // ... cálculos de resumo
+        } catch (err) {
+            console.error("Erro estratégico", err);
+        }
+    };
+    carregarDados();
+}, []);
 
     // 2. MOTOR DE PROJEÇÃO (Processamento de Dados)
     const projectionData = useMemo(() => {
@@ -142,21 +129,19 @@ export default function FinanceiroPage() {
 
             <Box sx={{ p: 1 }}>
                 {activeTab === 0 && (
-                    <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#1a233b' }}>Projeção de Entradas e Saídas</Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Visualização baseada nos parcelamentos de longo prazo.</Typography>
-                            <Paper sx={{ p: 4, textAlign: 'center', border: '2px dashed #ddd', borderRadius: 3 }}>
-                                <EventNote sx={{ fontSize: 50, color: '#ccc', mb: 1 }} />
-                                <Typography color="text.secondary">
-                                    {projectionData.length > 0 
-                                        ? `Dados de projeção prontos (${projectionData.length} meses encontrados).` 
-                                        : "O motor de projeção está processando os lançamentos..."}
-                                </Typography>
-                            </Paper>
-                        </Grid>
-                    </Grid>
-                )}
+    <Box sx={{ height: 400, mt: 2 }}>
+        <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={projectionData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={(value) => `R$ ${value}`} />
+                <RechartsTooltip formatter={(val) => formatMoney(val)} />
+                <Bar dataKey="entradas" fill="#1976d2" name="Entradas" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="saidas" fill="#d32f2f" name="Saídas" radius={[4, 4, 0, 0]} />
+            </BarChart>
+        </ResponsiveContainer>
+    </Box>
+)}
 
                 {activeTab === 1 && <ContasReceberView />}
                 {activeTab === 2 && <DespesasView />}
