@@ -28,6 +28,28 @@ export default function FinanceiroPage() {
     // Estados para o resumo financeiro
     const [resumo, setResumo] = useState({ totalReceber: 0, totalPagar: 0, saldoProjetado: 0 });
 
+    const projectionData = useMemo(() => {
+    const months = {};
+    
+    // Processa Receitas Pendentes (Projeção de Entradas)
+    lancamentos.forEach(l => {
+        const monthYear = dayjs(l.data_vencimento).format('MMM/YY');
+        if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
+        months[monthYear].entradas += parseFloat(l.valor);
+    });
+
+    // Processa Despesas Pendentes (Projeção de Saídas)
+    despesas.forEach(d => {
+        if (!d.pago) {
+            const monthYear = dayjs(d.data_despesa).format('MMM/YY');
+            if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
+            months[monthYear].saidas += parseFloat(d.valor);
+        }
+    });
+
+    return Object.values(months).sort((a, b) => dayjs(a.name, 'MMM/YY').diff(dayjs(b.name, 'MMM/YY')));
+}, [lancamentos, despesas]);
+
     useEffect(() => {
         // Busca um resumo rápido para os cards (ex: próximos 30 dias)
         // Isso assume que seu backend tem uma rota de estatísticas ou 
@@ -64,11 +86,13 @@ export default function FinanceiroPage() {
                                 </CardContent>
                             </Card>
                             <Card sx={{ minWidth: 140, bgcolor: '#fff4e5', borderLeft: '4px solid #ed6c02' }}>
-                                <CardContent sx={{ p: '12px !important' }}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight="bold">A VENCER (MÊS)</Typography>
-                                    <Typography variant="subtitle1" color="#ed6c02" fontWeight="bold">Ref. Fluxo</Typography>
-                                </CardContent>
-                            </Card>
+    <CardContent sx={{ p: '12px !important' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight="bold">SAÍDAS PENDENTES</Typography>
+        <Typography variant="subtitle1" color="#ed6c02" fontWeight="bold">
+            {formatMoney(despesas.filter(d => !d.pago).reduce((acc, curr) => acc + parseFloat(curr.valor), 0))}
+        </Typography>
+    </CardContent>
+</Card>
                         </Stack>
                     </Grid>
                     

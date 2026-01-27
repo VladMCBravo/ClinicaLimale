@@ -130,6 +130,28 @@ export default function DespesasView() {
 
     useEffect(() => { fetchData(); }, []);
 
+    // Use um sinal de cancelamento para evitar que requisições antigas sobreponham as novas
+    useEffect(() => {
+        let isMounted = true;
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                const res = await faturamentoService.getDespesas();
+                if (isMounted) setDespesas(res.data);
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
+        };
+        load();
+        return () => { isMounted = false; };
+    }, []);
+
+    // Otimização do Memo: Só recalcula se a lista de despesas MUDAR de fato
+    const calculosMemo = useMemo(() => {
+        // ... sua lógica de filtragem ...
+        return { fixas, variaveis, resumoGeral };
+    }, [despesas, mesFiltro, anoFiltro, searchTerm]);
+
     const { fixas, variaveis, resumoGeral, chartData } = useMemo(() => {
         let lista = despesas;
         if (mesFiltro !== '') {
