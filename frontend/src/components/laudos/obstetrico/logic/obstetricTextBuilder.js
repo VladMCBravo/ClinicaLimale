@@ -35,6 +35,68 @@ const montarTextoCordao = (d) => {
     return '';
 };
 
+// HELPER NOVO: ÚTERO E MIOMAS (Mantém a lógica original + novos campos)
+const montarTextoUtero = (d) => {
+    let t = '';
+    const isInicial = d.subtipo === 'OBSTETRICO_INICIAL';
+
+    // Se o usuário marcou para citar medidas (Novo Painel)
+    if (d.citarUteroMedidas && d.ut1 && d.ut2 && d.ut3) {
+         t += `Útero em AVF, de contornos regulares e ecotextura homogênea, medindo ${d.ut1} x ${d.ut2} x ${d.ut3} mm.\n`;
+    } 
+    // Lógica Antiga (Select)
+    else if (d.utero) {
+         t += `Útero ${d.utero === 'globoso' ? 'globoso, aumentado de volume, de contornos regulares e miométrio homogêneo' : d.utero}.\n`;
+    } 
+    // Texto Padrão (Apenas para Inicial se nada for informado)
+    else if (isInicial) {
+         t += `Útero globoso, aumentado de volume, de contornos regulares e miométrio homogêneo.\n`;
+    }
+
+    // Miomas / Nódulos
+    if (d.citarNodulo && d.nod1) {
+        t += `Nota-se nódulo miometrial (${d.nodTipo || 'sugestivo de mioma'}) `;
+        if(d.nodLocal) t += `em parede ${d.nodLocal}, `;
+        t += `medindo ${d.nod1} x ${d.nod2} mm.\n`;
+    }
+
+    return t;
+};
+
+// HELPER NOVO: ANEXOS / OVÁRIOS (Lógica separada OD/OE)
+const montarTextoAnexos = (d) => {
+    let t = '';
+    
+    if(d.citarAnexos) {
+        // Ovário Direito
+        if (d.odVisualizado) {
+            t += `Ovário Direito: Visualizado, de aspecto ${d.odAspecto || 'normal'}`;
+            if (d.od1 && d.od2 && d.od3) {
+                t += `, medindo ${d.od1} x ${d.od2} x ${d.od3} mm`;
+                if (d.odVol) t += ` (Volume: ${d.odVol} cm³)`;
+            }
+            if (d.corpoLuteo === 'direito') t += `. Presença de corpo lúteo neste anexo`;
+            t += `.\n`;
+        } else {
+            t += `Ovário Direito: Não visualizado ou não acessível neste exame.\n`;
+        }
+
+        // Ovário Esquerdo
+        if (d.oeVisualizado) {
+            t += `Ovário Esquerdo: Visualizado, de aspecto ${d.oeAspecto || 'normal'}`;
+            if (d.oe1 && d.oe2 && d.oe3) {
+                t += `, medindo ${d.oe1} x ${d.oe2} x ${d.oe3} mm`;
+                if (d.oeVol) t += ` (Volume: ${d.oeVol} cm³)`;
+            }
+            if (d.corpoLuteo === 'esquerdo') t += `. Presença de corpo lúteo neste anexo`;
+            t += `.\n`;
+        } else {
+            t += `Ovário Esquerdo: Não visualizado ou não acessível neste exame.\n`;
+        }
+    }
+    return t;
+};
+
 // =============================================================================
 // TEXTOS FIXOS / RODAPÉS
 // =============================================================================
@@ -139,11 +201,8 @@ export const gerarRelatorioFeto = (d) => {
     if (isInicial) {
         texto += `Bexiga vazia.\n`;
         
-        // Útero
-        if (d.utero) texto += `Útero ${d.utero === 'globoso' ? 'globoso, aumentado de volume, de contornos regulares e miométrio homogêneo' : d.utero}.\n`;
-        else texto += `Útero globoso, aumentado de volume, de contornos regulares e miométrio homogêneo.\n`;
-        
-        if (d.citarNodulo && d.nod1) texto += `Nota-se nódulo miometrial (${d.nodTipo}) medindo ${d.nod1} x ${d.nod2} mm.\n`;
+        // --- ÚTERO (USANDO HELPER) ---
+        texto += montarTextoUtero(d);
 
         // === SACO GESTACIONAL (SÓ APARECE SE CHECKBOX ATIVO) ===
         if (d.citarSg) {
@@ -191,36 +250,9 @@ export const gerarRelatorioFeto = (d) => {
             else if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
         }
 
-        // --- ANEXOS (Atualizado para OD e OE) ---
-        if(d.citarAnexos) {
-            
-            // Texto Ovário Direito
-            if (d.odVisualizado) {
-                texto += `Ovário Direito: Visualizado, de aspecto ${d.odAspecto || 'normal'}`;
-                if (d.od1 && d.od2 && d.od3) {
-                    texto += `, medindo ${d.od1} x ${d.od2} x ${d.od3} mm`;
-                    if (d.odVol) texto += ` (Volume: ${d.odVol} cm³)`;
-                }
-                if (d.corpoLuteo === 'direito') texto += `. Presença de corpo lúteo neste anexo`;
-                texto += `.\n`;
-            } else {
-                texto += `Ovário Direito: Não visualizado ou não acessível neste exame.\n`;
-            }
-
-            // Texto Ovário Esquerdo
-            if (d.oeVisualizado) {
-                texto += `Ovário Esquerdo: Visualizado, de aspecto ${d.oeAspecto || 'normal'}`;
-                if (d.oe1 && d.oe2 && d.oe3) {
-                    texto += `, medindo ${d.oe1} x ${d.oe2} x ${d.oe3} mm`;
-                    if (d.oeVol) texto += ` (Volume: ${d.oeVol} cm³)`;
-                }
-                if (d.corpoLuteo === 'esquerdo') texto += `. Presença de corpo lúteo neste anexo`;
-                texto += `.\n`;
-            } else {
-                texto += `Ovário Esquerdo: Não visualizado ou não acessível neste exame.\n`;
-            }
-        }
-        
+        // --- ANEXOS (USANDO HELPER) ---
+        texto += montarTextoAnexos(d);
+                                
         texto += `\n`; // Espaço final
 
     } else {
@@ -265,6 +297,13 @@ if (d.situacao || d.apresentacao || d.dorso) {
         if (d.bexigaVisualizada) texto += `Bexiga fetal repleta e de conteúdo anecóide.\n`;
         
         texto += `\n`;
+        // >>> INSERÇÃO CIRÚRGICA: DADOS MATERNOS NO MORFOLÓGICO <<<
+        // Adicionamos aqui para que apareça antes da Análise Fetal
+        if (d.citarUteroMedidas || d.citarNodulo || d.citarAnexos) {
+            texto += montarTextoUtero(d);
+            texto += montarTextoAnexos(d);
+            texto += `\n`; // Espaçamento
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -439,6 +478,10 @@ if (d.situacao || d.apresentacao || d.dorso) {
     // Inserimos antes do Doppler ou Conclusão
     if (d.comprimentoColo || d.coloEge || d.coloSludge === 'presente' || d.citarColo1Tri) {
         texto += `AVALIAÇÃO DO COLO UTERINO (VIA ENDOVAGINAL)\n`;
+        // CORREÇÃO: ADICIONADA A FRASE DO CHECKBOX
+        if (d.citarColo1Tri) {
+            texto += `Colo uterino de aspecto ecográfico normal, fechado.\n`;
+        }
         if (d.comprimentoColo) texto += `Comprimento do canal cervical: ${d.comprimentoColo} mm.\n`;
         if (d.coloEge) texto += `Eco Glandular Endocervical: ${d.coloEge === 'presente' ? 'Preservado' : 'Ausente'}.\n`;
         if (d.coloSludge === 'presente') texto += `Sinal do Sludge presente.\n`;
