@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box, Autocomplete, TextField, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Typography, Button, 
-    CircularProgress, Checkbox, Paper, Divider, MenuItem, InputAdornment, Grid
+    CircularProgress, Checkbox, Paper, Divider, MenuItem, Grid
 } from '@mui/material';
 import { pacienteService } from '../../services/pacienteService';
 import { faturamentoService } from '../../services/faturamentoService';
@@ -26,7 +26,13 @@ export default function PagarAgendamentoTab({ onClose }) {
 
     useEffect(() => {
         pacienteService.getPacientes()
-            .then(response => setPacientes(response.data))
+            .then(response => {
+                // Ordenação Alfabética por nome_completo
+                const listaOrdenada = (response.data || []).sort((a, b) => 
+                    a.nome_completo.localeCompare(b.nome_completo)
+                );
+                setPacientes(listaOrdenada);
+            })
             .catch(() => showSnackbar('Erro ao carregar lista de pacientes.', 'error'));
     }, [showSnackbar]);
 
