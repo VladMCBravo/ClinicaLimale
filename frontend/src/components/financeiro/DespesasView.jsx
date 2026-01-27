@@ -4,7 +4,7 @@ import {
     Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     IconButton, Typography, Grid, Switch, InputAdornment, Chip, Box,
-    Dialog, DialogTitle, DialogContent, DialogActions, MenuItem
+    Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, Select
 } from '@mui/material';
 import { 
     Edit, Delete, AddCircleOutline, Search, 
@@ -177,7 +177,15 @@ export default function DespesasView() {
 
             <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
                 <TabelaDespesas dados={fixas} titulo="DESPESAS FIXAS" icone={<Domain />} corTema="#1565c0" onEdit={onEdit} onToggleStatus={handleToggleStatus} onDelete={onDelete} />
-                <TabelaDespesas dados={variaveis} titulo="DESPESAS VARIÁVEIS" icone={<LocalCafe />} corTema="#e65100" onEdit={onEdit} onToggleStatus={handleToggleStatus} onDelete={handleDelete} />
+                <TabelaDespesas 
+    dados={variaveis} 
+    titulo="DESPESAS VARIÁVEIS" 
+    icone={<LocalCafe />} 
+    corTema="#e65100" 
+    onEdit={onEdit} 
+    onToggleStatus={handleToggleStatus} 
+    onDelete={onDelete} // <--- Corrigido de handleDelete para onDelete
+/>
             </Box>
 
             {/* Modal de Edição (Simplificado) */}

@@ -4,7 +4,9 @@ import dayjs from 'dayjs';
 import { Paper, Box, Tabs, Tab, Button, Stack, Grid, Card, CardContent, Typography } from '@mui/material';
 import { FaFileInvoiceDollar, FaMoneyBillWave, FaHandHoldingUsd, FaListAlt, FaChartLine } from 'react-icons/fa';
 import { AccountBalanceWallet, ReceiptLong, EventNote } from '@mui/icons-material';
-
+import { 
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer 
+} from 'recharts';
 import ContasReceberView from '../components/financeiro/ContasReceberView';
 import DespesasView from '../components/financeiro/DespesasView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
