@@ -56,33 +56,43 @@ const SecaoDatacao = ({ data, handleChange }) => {
 
   // Helper para o Banner de Inteligência
   const renderBannerVeredito = () => {
-      if (!data.igVeredito) return null;
-      
-      const isRedatado = data.metodoDatacao === 'CCN_REDATADO';
-      const isDum = data.metodoDatacao === 'DUM';
-      
-      return (
-          <div style={{
-              marginBottom: '12px', padding: '10px', borderRadius: '6px',
-              background: isRedatado ? '#FFF3E0' : '#E8F5E9',
-              border: `1px solid ${isRedatado ? '#FFE0B2' : '#C8E6C9'}`,
-              display: 'flex', alignItems: 'center', gap: '10px'
-          }}>
-              <div style={{fontSize: '20px'}}>{isRedatado ? '💡' : '✅'}</div>
-              <div>
-                  <div style={{fontSize: '11px', fontWeight: 'bold', color: isRedatado ? '#E65100' : '#2E7D32'}}>
-                      {isRedatado ? 'DATAÇÃO REDATADA PELO CCN' : 'DATAÇÃO MANTIDA PELA DUM'}
-                  </div>
-                  <div style={{fontSize: '10px', color: '#444'}}>
-                      {isRedatado 
-                        ? `A diferença ultrapassou a margem de segurança. Usando CCN: ${data.igVeredito}.`
-                        : `Diferença dentro da margem técnica (${data.igVeredito}). A DUM foi confirmada pelo CCN.`}
-                  </div>
-              </div>
-          </div>
-      );
-  };
+    if (!data.igVeredito || !data.metodoDatacao) return null;
+    
+    const isRedatado = data.metodoDatacao === 'CCN_REDATADO';
+    const isDum = data.metodoDatacao === 'DUM';
+    const isCcnApenas = data.metodoDatacao === 'CCN';
 
+    // Cores e ícones baseados na decisão
+    const config = isRedatado 
+        ? { bg: '#FFF3E0', border: '#FFE0B2', color: '#E65100', icon: '💡', title: 'DATAÇÃO REDATADA PELO CCN' }
+        : isDum 
+            ? { bg: '#E8F5E9', border: '#C8E6C9', color: '#2E7D32', icon: '✅', title: 'DATAÇÃO MANTIDA PELA DUM' }
+            : { bg: '#E3F2FD', border: '#BBDEFB', color: '#0D47A1', icon: '📏', title: 'DATAÇÃO PELO CCN' };
+
+    return (
+        <div style={{
+            marginBottom: '12px', padding: '10px', borderRadius: '6px',
+            background: config.bg, border: `1px solid ${config.border}`,
+            display: 'flex', alignItems: 'center', gap: '10px', transition: '0.3s'
+        }}>
+            <div style={{fontSize: '20px'}}>{config.icon}</div>
+            <div style={{flex: 1}}>
+                <div style={{fontSize: '11px', fontWeight: 'bold', color: config.color}}>
+                    {config.title}
+                </div>
+                <div style={{fontSize: '10px', color: '#444', lineHeight: '1.2'}}>
+                    {isRedatado && "A diferença ultrapassou a margem de segurança (>5d ou >7d). O sistema assumiu a idade do feto."}
+                    {isDum && "A diferença entre DUM e CCN é pequena. A data da menstruação foi confirmada tecnicamente."}
+                    {isCcnApenas && "Sem DUM informada. Datação baseada exclusivamente na biometria do CCN."}
+                </div>
+            </div>
+            <div style={{fontWeight: 'bold', fontSize: '12px', color: config.color}}>
+                {data.igVeredito}
+            </div>
+        </div>
+    );
+};
+      
   return (
     <div>
         {renderBannerVeredito()}  
