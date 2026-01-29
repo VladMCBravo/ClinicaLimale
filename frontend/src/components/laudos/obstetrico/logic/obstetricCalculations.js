@@ -92,18 +92,64 @@ export const calcularIGDmsg = (dmsgValor) => {
     return `${semanas} semanas e ${dias} dias`;
 };
 
-// --- DATAÇÃO PELO CCN (1º TRI) ---
+// --- TABELA OFICIAL CCN (Robinson & Fleming 1975)  ---
+const CCN_TABLE = {
+    4: 42, 5: 44, 6: 46, 7: 48, 8: 49, 9: 51, 10: 53, 11: 55, 12: 56, 13: 58, 
+    14: 60, 15: 62, 16: 63, 18: 66, 20: 69, 22: 70, 24: 72, 26: 74, 28: 76, 
+    30: 77, 32: 79, 34: 81, 36: 83, 38: 84, 40: 85, 42: 86, 44: 87, 46: 88, 
+    48: 89, 50: 90, 52: 91, 54: 92, 56: 93, 58: 94, 60: 95, 62: 96, 64: 97
+};
+
 export const calcularIG_CCN = (ccnMm) => {
     if (!ccnMm) return '';
     const ccn = parseFloat(ccnMm);
-    if (isNaN(ccn) || ccn <= 0) return '';
+    if (isNaN(ccn) || ccn < 4) return ''; 
+    if (ccn > 84) return 'Superior a 13s6d'; // Limite máximo da técnica [cite: 3, 9]
 
-    // Fórmula Robinson: Dias = CCN(mm) + 42
-    const diasTotais = Math.round(ccn + 42);
+    let diasTotais;
+    if (CCN_TABLE[ccn]) {
+        diasTotais = CCN_TABLE[ccn];
+    } else {
+        // Interpolação para valores quebrados (ex: 17mm)
+        const keys = Object.keys(CCN_TABLE).map(Number).sort((a, b) => a - b);
+        let inf = keys[0], sup = keys[keys.length - 1];
+        for (let i = 0; i < keys.length; i++) {
+            if (keys[i] > ccn) { sup = keys[i]; inf = keys[i - 1]; break; }
+        }
+        const proporcao = (ccn - inf) / (sup - inf);
+        diasTotais = Math.round(CCN_TABLE[inf] + (CCN_TABLE[sup] - CCN_TABLE[inf]) * proporcao);
+    }
+
     const semanas = Math.floor(diasTotais / 7);
     const dias = diasTotais % 7;
-
     return `${semanas} semanas e ${dias} dias`;
+};
+
+// MOTOR DE DECISÃO: Aplica as regras de redatação 
+export const decidirVereditoDatacao = (dados) => {
+    const igCcnStr = calcularIG_CCN(dados.ccn);
+    const igDumRes = calcularIGeDPP_DUM(dados.dum);
+    
+    if (!dados.usarDum || !dados.dum) return { final: igCcnStr, motivo: 'CCN' };
+
+    const parseDias = (str) => {
+        const m = str.match(/(\d+) semanas e (\d+) dias/);
+        return m ? (parseInt(m[1]) * 7) + parseInt(m[2]) : null;
+    };
+
+    const dCcn = parseDias(igCcnStr);
+    const dDum = parseDias(igDumRes.ig);
+
+    if (dCcn && dDum) {
+        const diff = Math.abs(dCcn - dDum);
+        // Nota 7: Até 8s6d (62 dias), redatar se diferença > 5 dias [cite: 7]
+        if (dCcn <= 62 && diff > 5) return { final: igCcnStr, motivo: 'CCN_REDATADO' };
+        // Nota 8: De 9s0d a 13s6d, redatar se diferença > 7 dias [cite: 8]
+        if (dCcn > 62 && dCcn <= 97 && diff > 7) return { final: igCcnStr, motivo: 'CCN_REDATADO' };
+        
+        return { final: igDumRes.ig, motivo: 'DUM' };
+    }
+    return { final: igCcnStr || igDumRes.ig, motivo: 'INDEFINIDO' };
 };
 
 // --- CÁLCULO DE PESO FETAL (HADLOCK 4) ---

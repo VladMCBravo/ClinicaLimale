@@ -157,5 +157,9 @@ export const initialState = {
     obsBiometria: '',
     obsDoppler: '',
     obsPlacenta: '',
-    obsDatacao: ''
+    obsDatacao: '',
+
+    // --- CAMPOS DE CONTROLE DE DATAÇÃO (NOVOS) ---
+    igVeredito: '', 
+    metodoDatacao: '',
 }; // Fim do objeto

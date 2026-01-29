@@ -143,58 +143,47 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 2. DATAÇÃO E CRONOLOGIA (HIERARQUIA: Biometria > Anterior > DUM)
+    // 2. DATAÇÃO E CRONOLOGIA (HIERARQUIA BLINDADA: Veredito > Anterior > DUM)
     // -------------------------------------------------------------------------
     
-    // CASO 1: Biometria Atual (O médico marcou "Usar esta data no laudo")
-    // Manda em tudo. Usado para corrigir DUM errada ou datação inicial por CCN.
-    // Opcional: Citar a DUM apenas como histórico se ela existir
-         if (d.usarDum && d.dum && d.exibirDataDum) {
-             texto += `(DUM referida: ${formatData(d.dum)}).\n`;
-         }
+    // Verificamos se é um exame de 1º Trimestre onde o CCN/DUM mandam
+    const isPrimeiroTri = d.subtipo === 'OBSTETRICO_INICIAL' || d.subtipo === 'OBSTETRICO_1_TRI';
 
-    if (d.citarDppBiometria && d.dppBiometriaCalculada) {
-         texto += `DPP: ${d.dppBiometriaCalculada} (Calculada pela biometria atual).\n`;
-         texto += `Idade Gestacional: ${d.igBiometria || '...'}.\n`;
-         
-         
-    }
-    
-    // CASO 2: USG Anterior (Padrão Ouro para datar se DUM incerta)
-    else if (d.usarExameAnterior && d.dataExameAnterior) {
-        // Frase exata da médica para USG anterior
-        texto += `DPP: --- (calculada pelo primeiro ultrassom), compatível com ${d.igIgCorrigidaCalculada || '...'}.\n`;
-    }
-
-    // CASO 3: DUM (Padrão Menstrual)
-    else if (d.usarDum && d.dum) {
-        // Lógica dos checkboxes "Exibir Data" e "Citar DPP"
-        if (d.exibirDataDum) {
-             texto += `DUM: ${formatData(d.dum)}`;
-             if (d.citarDppDum && d.dppDum) {
-                 texto += ` (DPP: ${d.dppDum})`;
-             }
-        } else {
-             // Se ocultou DUM mas quer DPP
-             if (d.citarDppDum && d.dppDum) texto += `DPP: ${d.dppDum}`;
+    if (isPrimeiroTri && d.igVeredito) {
+        // CASO A: O sistema redatou pelo CCN (Discrepância > 5 ou 7 dias)
+        if (d.metodoDatacao === 'CCN_REDATADO') {
+            texto += `Idade Gestacional: ${d.igVeredito} (Redatada pelo CCN devido à discrepância com a DUM).\n`;
+            if (d.dppBiometriaCalculada) texto += `DPP: ${d.dppBiometriaCalculada}.\n`;
+        } 
+        // CASO B: A DUM foi mantida porque a diferença para o CCN é pequena (ou CCN não informado)
+        else if (d.metodoDatacao === 'DUM' && d.dum) {
+            texto += `Idade Gestacional: ${d.igVeredito} (Compatível com a DUM referida: ${formatData(d.dum)}).\n`;
+            if (d.dppDum) texto += `DPP: ${d.dppDum}.\n`;
         }
-        
-        if (d.igDum) texto += `, compatível com ${d.igDum}`;
-        texto += `.\n`;
-    }
+        // CASO C: Apenas CCN disponível (sem DUM)
+        else {
+            texto += `Idade Gestacional: ${d.igVeredito} (Baseada no Comprimento Cabeça-Nádega - CCN).\n`;
+        }
+    } 
     
-    // CASO 4: DUM Desconhecida / Não usar
-    else if (d.dumDesconhecida) {
-        texto += `Data da última menstruação: Desconhecida / Não referida.\n`;
-        // Tenta salvar usando a biometria se nada mais estiver marcado
-        if (d.igBiometria) texto += `Idade Gestacional pela biometria: ${d.igBiometria}.\n`;
-    }
-    else if (d.subtipo === 'OBSTETRICO_1_TRI' && d.resIgCcn) {
-         // Fallback específico para 1º tri se nada for marcado
-         texto += `Idade Gestacional definida pelo CCN: ${d.resIgCcn}.\n`;
+    // CASO 2: USG Anterior (Padrão Ouro para 2º e 3º Trimestre)
+    else if (d.usarExameAnterior && d.dataExameAnterior) {
+        texto += `Idade Gestacional: ${d.igIgCorrigidaCalculada || '...'} (Projetada a partir de USG anterior de ${formatData(d.dataExameAnterior)}).\n`;
+        if (d.dppIgCorrigidaCalculada) texto += `DPP: ${d.dppIgCorrigidaCalculada}.\n`;
     }
 
+    // CASO 3: Biometria Atual (Hadlock - Geralmente usado no 2º/3º Tri se não houver anterior/DUM)
+    else if (d.igBiometria) {
+        texto += `Idade Gestacional: ${d.igBiometria} (Baseada na biometria fetal atual - Hadlock).\n`;
+        if (d.dppBiometriaCalculada) texto += `DPP: ${d.dppBiometriaCalculada}.\n`;
+    }
+
+    // Notas Adicionais
+    if (d.dumDesconhecida) {
+        texto += `DUM: Desconhecida / Não referida.\n`;
+    }
     if (d.obsDatacao) texto += `Nota: ${d.obsDatacao}\n`;
+
     texto += '\n';
 
     // --- 3. CORPO DO LAUDO INICIAL (REFORMULADO) ---
@@ -657,7 +646,7 @@ if (d.situacao || d.apresentacao || d.dorso) {
     } 
     else if (isInicial) {
         // Se tiver CCN, usa CCN. Se não, usa DMSG.
-        const igFinal = d.resIgCcn || d.resIgSg || d.igBiometria || '...';
+        const igFinal = d.igVeredito || d.resIgSg || d.igBiometria || '...';
         texto += `- Gestação tópica de aproximadamente ${igFinal}.\n`;
         
         if (d.embriaoStatus === 'presente' && d.bcf) {

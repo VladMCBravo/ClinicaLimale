@@ -8,7 +8,8 @@ import {
     calcularIGDmsg,
     calcularIG_CCN,
     calcularMediaBiometria,
-    calcularVolumeOvario
+    calcularVolumeOvario,
+    decidirVereditoDatacao
 } from '../logic/obstetricCalculations';
 
 // --- CORREÇÃO AQUI ---
@@ -148,6 +149,13 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 newState.resIgCcn = '';
                 mudou = true;
             }
+            // --- NOVO: MOTOR DE DECISÃO DE DATAÇÃO ---
+            const veredito = decidirVereditoDatacao(newState); 
+            if (prev.igVeredito !== veredito.final) {
+                newState.igVeredito = veredito.final;
+                newState.metodoDatacao = veredito.motivo;
+                mudou = true;
+            }
 
             // E. CÁLCULO DE VOLUMES OVARIANOS (Novo)
             // Importe a função calcularVolumeOvario lá em cima no arquivo!
@@ -156,7 +164,7 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
 
             const volOE = calcularVolumeOvario(prev.oe1, prev.oe2, prev.oe3);
             if (prev.oeVol !== volOE) { newState.oeVol = volOE; mudou = true; }
-
+            
             return mudou ? newState : prev;
         });
     }, [
