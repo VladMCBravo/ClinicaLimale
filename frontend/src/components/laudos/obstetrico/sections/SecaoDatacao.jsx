@@ -54,9 +54,38 @@ const SecaoDatacao = ({ data, handleChange }) => {
       // mas podemos dar um feedback visual se quiser. Por enquanto, a lógica do textBuilder é suficiente.
   };
 
+  // Helper para o Banner de Inteligência
+  const renderBannerVeredito = () => {
+      if (!data.igVeredito) return null;
+      
+      const isRedatado = data.metodoDatacao === 'CCN_REDATADO';
+      const isDum = data.metodoDatacao === 'DUM';
+      
+      return (
+          <div style={{
+              marginBottom: '12px', padding: '10px', borderRadius: '6px',
+              background: isRedatado ? '#FFF3E0' : '#E8F5E9',
+              border: `1px solid ${isRedatado ? '#FFE0B2' : '#C8E6C9'}`,
+              display: 'flex', alignItems: 'center', gap: '10px'
+          }}>
+              <div style={{fontSize: '20px'}}>{isRedatado ? '💡' : '✅'}</div>
+              <div>
+                  <div style={{fontSize: '11px', fontWeight: 'bold', color: isRedatado ? '#E65100' : '#2E7D32'}}>
+                      {isRedatado ? 'DATAÇÃO REDATADA PELO CCN' : 'DATAÇÃO MANTIDA PELA DUM'}
+                  </div>
+                  <div style={{fontSize: '10px', color: '#444'}}>
+                      {isRedatado 
+                        ? `A diferença ultrapassou a margem de segurança. Usando CCN: ${data.igVeredito}.`
+                        : `Diferença dentro da margem técnica (${data.igVeredito}). A DUM foi confirmada pelo CCN.`}
+                  </div>
+              </div>
+          </div>
+      );
+  };
+
   return (
-    <div> {/* Removeu .laudo-section e .header-base */}
-    
+    <div>
+        {renderBannerVeredito()}  
           {/* --- NOVO: VIA DE AVALIAÇÃO (Movido para cá) --- */}
             <div style={{marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px dashed #ddd'}}>
                 <div className="laudo-row">
