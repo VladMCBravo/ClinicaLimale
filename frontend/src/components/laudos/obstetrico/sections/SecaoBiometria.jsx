@@ -8,15 +8,7 @@ const TXT_TN_LIMITADA = "Não foi possível calcular o risco para trissomia do 2
 const BioItem = ({ label, name, value, onChange, placeholder = "mm", width = "60px" }) => {
     // Lógica visual de IG aproximada ao digitar
     const igAprox = useMemo(() => {
-        if (!value || isNaN(value)) return null;
-        const v = parseFloat(value) / 10; // cm
-        let weeks = 0;
-        if (name === 'dbp') weeks = 9.54 + (1.48 * v) + (0.16 * v * v);
-        else if (name === 'femur') weeks = 10.35 + (2.46 * v) + (0.17 * v * v);
-        else if (name === 'ccn') weeks = (parseFloat(value) + 42) / 7; // Regra simples CCN dias
-        else return null; 
         
-        return weeks > 0 && weeks < 43 ? `~${Math.floor(weeks)}s` : null;
     }, [value, name]);
 
     return (
@@ -46,10 +38,7 @@ const SecaoBiometria = ({ data, handleChange }) => {
     const isMorfo2Tri = data.subtipo === 'OBSTETRICO_MORFOLOGICO';
 
     const aplicarIgCcn = () => {
-       if(!data.resIgCcn) return;
-       // Simula eventos de change para atualizar os campos de Datação
-       handleChange({ target: { name: 'igBiometria', value: data.resIgCcn } });
-       handleChange({ target: { name: 'citarDppBiometria', value: true, type:'checkbox', checked:true } });
+       
     };
 
     // Helper para adicionar na obsBiometria
@@ -70,21 +59,7 @@ const SecaoBiometria = ({ data, handleChange }) => {
                 </div>
                 <div style={{fontSize:'10px', color:'#666', marginTop:'4px'}}>
                     * Preencha para calcular IG em exames de 1º Trimestre.
-                </div>
-                {/* SE TIVER CÁLCULO, MOSTRA O BOTÃO DE APLICAR */}
-           {data.resIgCcn && (
-               <button 
-                   onClick={aplicarIgCcn}
-                   style={{
-                       fontSize:'10px', background:'#E3F2FD', border:'1px solid #2196F3', 
-                       color:'#1565C0', padding:'2px 6px', borderRadius:'4px', cursor:'pointer',
-                       display:'flex', alignItems:'center', gap:'4px'
-                   }}
-                   title="Usar esta IG como datação oficial do laudo"
-               >
-                   <FaArrowUp /> Usar IG: {data.resIgCcn}
-               </button>
-           )}
+                </div>           
             </div>
 
             <div className="laudo-grid-2" style={{alignItems:'start', gap:'20px'}}>
