@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { FaBrain, FaBone, FaShoePrints, FaBaby, FaCommentMedical, FaPlusCircle } from 'react-icons/fa';
 
-[cite_start]// FRASE DA IMAGEM E NOTA TÉCNICA [cite: 9]
+// FRASE DA IMAGEM E NOTA TÉCNICA
 const TXT_TN_LIMITADA = "Não foi possível calcular o risco para trissomia do 21 por meio da medida da translucência nucal pois o feto com CCN acima de 84 mm. Para essa fase de gestação, podem ser usados outros marcadores como medida da prega nucal e a presença e osso nasal, que no presente estudo encontram-se normais.";
 
 // Componente de Linha Compacta com Tooltip (Title)
@@ -37,8 +37,8 @@ const SecaoBiometria = ({ data, handleChange }) => {
         handleChange({ target: { name: 'obsBiometria', value: textoAtual + separador + frase } });
     };
 
-  return (
-    <div>
+    return (
+        <div>
             {/* CCN: DATAÇÃO DO 1º TRIMESTRE */}
             <div style={{marginBottom:'15px', padding:'10px', background:'#E1F5FE', borderRadius:'4px', border:'1px solid #81D4FA'}}>
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
@@ -59,10 +59,8 @@ const SecaoBiometria = ({ data, handleChange }) => {
             </div>
 
             <div className="laudo-grid-2" style={{alignItems:'start', gap:'20px'}}>
-                
                 {/* COLUNA 1: BIOMETRIA PRINCIPAL & NEURO */}
                 <div className="laudo-col" style={{gap:'10px'}}>
-                    
                     <div style={{background:'#E8F5E9', padding:'8px', borderRadius:'4px', border:'1px solid #C8E6C9'}}>
                         <div style={{fontSize:'11px', fontWeight:'bold', color:'#2E7D32', marginBottom:'5px', borderBottom:'1px solid #A5D6A7'}}>
                             MEDIDAS BÁSICAS (HADLOCK)
@@ -101,7 +99,7 @@ const SecaoBiometria = ({ data, handleChange }) => {
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontWeight:'bold'
                                     }}
                                 >
-                                    [cite_start]<FaPlusCircle size={9}/> Nota: TN não se aplica (CCN &gt; 84mm) [cite: 9]
+                                    <FaPlusCircle size={9}/> Nota: TN não se aplica (CCN &gt; 84mm)
                                 </button>
                             </div>
                         )}
@@ -159,8 +157,8 @@ const SecaoBiometria = ({ data, handleChange }) => {
                     placeholder="Notas sobre biometria..."
                 />
             </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default SecaoBiometria;
