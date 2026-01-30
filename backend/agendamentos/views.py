@@ -186,8 +186,8 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         # --- MUDANÇA 3: BLOQUEIO DE PASSADO ---
         # "Qualquer agendamento depois do horario da consulta nao será excluído"
         # (Interpretei como: se a consulta já passou, não pode excluir)
-        if instance.data_hora_inicio < agora:
-            raise ValidationError("Por segurança e histórico, não é permitido excluir agendamentos passados. Marque como 'Cancelado' ou 'Não Compareceu'.")
+        #if instance.data_hora_inicio < agora:
+        #    raise ValidationError("Por segurança e histórico, não é permitido excluir agendamentos passados. Marque como 'Cancelado' ou 'Não Compareceu'.")
 
         # --- MUDANÇA 4: APAGAR FINANCEIRO FUTURO ---
         # "Excluir até um tempo determinado antes... exclui também o financeiro"

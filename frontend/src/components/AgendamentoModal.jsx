@@ -343,9 +343,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (!formData.paciente) return "Selecione um paciente.";
         if (!formData.data_hora_inicio || !formData.data_hora_fim) return "Defina o horário de início e fim.";
         
-        if (!editingEvent && formData.data_hora_inicio.isBefore(dayjs())) {
-            return "Não é possível criar agendamentos no passado.";
-        }
+        //if (!editingEvent && formData.data_hora_inicio.isBefore(dayjs())) {    
+        //    return "Não é possível criar agendamentos no passado.";
+        //}
 
         if (formData.data_hora_inicio.isAfter(formData.data_hora_fim)) {
             return "A data de fim deve ser posterior à data de início.";
