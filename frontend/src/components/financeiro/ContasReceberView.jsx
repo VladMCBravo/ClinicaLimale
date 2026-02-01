@@ -6,7 +6,7 @@ import {
     IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText
 } from '@mui/material';
 import { 
-    Edit, CheckCircle, Search, Warning, Block, EventAvailable 
+    Edit, CheckCircle, Search, Warning, Block, EventAvailable, History 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -22,6 +22,7 @@ export default function ContasReceberView() {
     const [loading, setLoading] = useState(true);
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
+    const { showSnackbar } = useSnackbar();
     
     // Modais
     const [openCaixaModal, setOpenCaixaModal] = useState(false);
