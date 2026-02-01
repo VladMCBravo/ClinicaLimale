@@ -152,33 +152,24 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         instance = self.get_object()
         agendamento = serializer.save()
-        pagamento = getattr(agendamento, 'pagamento', None)
+    
+        # Busca direta no banco para evitar problemas de cache/relação
+        from faturamento.models import Pagamento
+        pagamento = Pagamento.objects.filter(agendamento=agendamento).first()
 
-        if not pagamento:
-            return
-
-        # CENÁRIO A: RECEPÇÃO MARCA "NÃO COMPARECEU"
-        if agendamento.status == 'Não Compareceu':
-            if pagamento and pagamento.status == 'Pendente':
-                pagamento.status = 'Cancelado' # O sistema "anula" a dívida para você
+        if pagamento:
+            if agendamento.status == 'Não Compareceu':
+                # Só cancelamos se ainda não foi pago
+                if pagamento.status == 'Pendente':
+                    pagamento.status = 'Cancelado'
+                    pagamento.save()
+                    print(f"DEBUG: Pagamento {pagamento.id} cancelado por falta.")
+        
+        elif agendamento.status in ['Agendado', 'Confirmado']:
+            # Se reativar a consulta, reativa o financeiro se este estiver cancelado
+            if pagamento.status == 'Cancelado':
+                pagamento.status = 'Pendente'
                 pagamento.save()
-            elif pagamento.status == 'Pago':
-                # Se já estava PAGO, mas não veio, mantemos como PAGO (crédito/multa)
-                # mas podemos adicionar uma observação automática
-                pagamento.descricao = f"{pagamento.descricao} (PACIENTE AUSENTE)"
-                pagamento.save()
-        return
-
-        # CENÁRIO B: AGENDAMENTO FOI "REALIZADO"
-        if agendamento.status == 'Realizado':
-            # Aqui você pode travar a edição do agendamento ou disparar nota fiscal
-            pass
-
-        # CENÁRIO C: ATUALIZAÇÃO DE VALORES (Se ainda pendente)
-        if pagamento.status == 'Pendente' and agendamento.status not in ['Cancelado', 'Não Compareceu']:
-            valor_novo = agendamento.procedimento.valor_particular if agendamento.procedimento else 0
-            pagamento.valor = valor_novo
-            pagamento.save()
 
     def perform_destroy(self, instance):
         """
