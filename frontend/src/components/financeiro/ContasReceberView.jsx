@@ -3,16 +3,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack
+    IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText
 } from '@mui/material';
 import { 
-    Edit, CheckCircle, Search, Warning, AddCircleOutline 
+    Edit, CheckCircle, Search, Warning, AddCircleOutline, Block, EventAvailable 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
-import PagamentoModal from './PagamentoModal';
+import { agendamentoService } from '../../services/agendamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -23,9 +23,13 @@ export default function ContasReceberView() {
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
     
-    const [openPagarModal, setOpenPagarModal] = useState(false);
-    const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
+    // Modais
+    const [openCaixaModal, setOpenCaixaModal] = useState(false);
     const [selectedPagamento, setSelectedPagamento] = useState(null);
+
+    // Menu de Status (Lápis)
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [statusTarget, setStatusTarget] = useState(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -42,9 +46,18 @@ export default function ContasReceberView() {
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, [filtroData]);
+    useEffect(() => { fetchData(); }, [filtroData]);
+
+    const handleUpdateStatus = async (novoStatus) => {
+        if (!statusTarget?.agendamento) return;
+        try {
+            await agendamentoService.updateAgendamento(statusTarget.agendamento, { status: novoStatus });
+            fetchData(); // Recarrega para refletir a anulação automática do backend
+        } catch (error) {
+            alert("Erro ao atualizar status na agenda.");
+        }
+        setAnchorEl(null);
+    };
 
     const kpis = useMemo(() => {
         const totalRecebido = lancamentos.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
@@ -59,32 +72,32 @@ export default function ContasReceberView() {
     );
 
     return (
-        <div>
+        <Box sx={{ p: 0.5 }}>
             {/* 1. KPI CARDS COMPACTOS */}
-            <Grid container spacing={1} sx={{ mb: 2 }}>
+            <Grid container spacing={1.5} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: '#e8f5e9', borderLeft: '4px solid #2e7d32' }}>
-                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                    <Card sx={{ bgcolor: '#f0f9f1', borderLeft: '4px solid #2e7d32' }}>
+                        <CardContent sx={{ py: 1.2, px: 2, '&:last-child': { pb: 1.2 } }}>
                             <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>RECEBIDO NO MÊS</Typography>
-                            <Typography variant="h6" fontWeight="bold" color="#2e7d32">{formatMoney(kpis.totalRecebido)}</Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32', lineHeight: 1.2 }}>{formatMoney(kpis.totalRecebido)}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: '#fff3e0', borderLeft: '4px solid #ef6c00' }}>
-                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                    <Card sx={{ bgcolor: '#fff9f0', borderLeft: '4px solid #ef6c00' }}>
+                        <CardContent sx={{ py: 1.2, px: 2, '&:last-child': { pb: 1.2 } }}>
                             <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>A RECEBER (PENDENTE)</Typography>
-                            <Typography variant="h6" fontWeight="bold" color="#ef6c00">{formatMoney(kpis.totalPendente)}</Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef6c00', lineHeight: 1.2 }}>{formatMoney(kpis.totalPendente)}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: '#ffebee', borderLeft: '4px solid #c62828' }}>
-                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                    <Card sx={{ bgcolor: '#fff5f5', borderLeft: '4px solid #c62828' }}>
+                        <CardContent sx={{ py: 1.2, px: 2, '&:last-child': { pb: 1.2 } }}>
                             <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>ATRASADOS</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Warning sx={{ color: '#c62828', fontSize: '1.2rem' }} />
-                                <Typography variant="h6" fontWeight="bold" color="#c62828">{kpis.atrasados}</Typography>
+                                <Warning sx={{ color: '#c62828', fontSize: '1rem' }} />
+                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#c62828', lineHeight: 1.2 }}>{kpis.atrasados}</Typography>
                             </Box>
                         </CardContent>
                     </Card>
@@ -93,44 +106,44 @@ export default function ContasReceberView() {
 
             {/* 2. FILTROS E AÇÃO ÚNICA */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
                     <DatePicker 
                         label="Referência"
                         views={['month', 'year']}
                         value={filtroData}
                         onChange={(newValue) => setFiltroData(newValue)}
-                        slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
                     />
                     <TextField
                         placeholder="Buscar..."
                         size="small"
                         value={termoBusca}
                         onChange={(e) => setTermoBusca(e.target.value)}
-                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1.1rem' }} /> }}
-                        sx={{ width: 220 }}
+                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1rem' }} /> }}
+                        sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
                     />
                 </Box>
                 <Button 
                     variant="contained" 
                     size="small"
                     startIcon={<AddCircleOutline />} 
-                    onClick={() => setOpenNovoLancamentoModal(true)}
-                    sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem' }}
+                    onClick={() => { setSelectedPagamento(null); setOpenCaixaModal(true); }}
+                    sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem', fontWeight: 'bold' }}
                 >
                     Receber
                 </Button>
             </Box>
 
-            {/* 3. TABELA COM DESTAQUE DE ATRASADOS */}
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 550 }}>
+            {/* 3. TABELA COM FONTES REDUZIDAS E DESTAQUE */}
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 500, borderRadius: 2 }}>
                 <Table stickyHeader size="small">
                     <TableHead>
-                        <TableRow sx={{ bgcolor: '#f8f9fa' }}>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Vencimento</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Paciente / Descrição</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Valor</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Status</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Ações</TableCell>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1.5 }}>Vencimento</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1.5 }}>Paciente / Descrição</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1.5 }}>Valor</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1.5 }}>Status</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 1.5 }}>Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -142,17 +155,14 @@ export default function ContasReceberView() {
                                 <TableRow 
                                     key={row.id} 
                                     hover 
-                                    sx={{ 
-                                        bgcolor: isAtrasado ? '#fff5f5' : 'inherit',
-                                        '& .MuiTableCell-root': { py: 0.8, fontSize: '0.8rem' } 
-                                    }}
+                                    sx={{ bgcolor: isAtrasado ? '#fffafa' : 'inherit' }}
                                 >
-                                    <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{row.paciente_nome || 'Avulso'}</Typography>
-                                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>{row.descricao_visual || row.descricao}</Typography>
+                                    <TableCell sx={{ fontSize: '0.8rem' }}>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
+                                    <TableCell sx={{ py: 1 }}>
+                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.paciente_nome || 'Lançamento Avulso'}</Typography>
+                                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', display: 'block' }}>{row.descricao}</Typography>
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>{formatMoney(row.valor)}</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', fontSize: '0.85rem' }}>{formatMoney(row.valor)}</TableCell>
                                     <TableCell>
                                         <Chip 
                                             label={row.status} 
@@ -163,10 +173,16 @@ export default function ContasReceberView() {
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                            <IconButton size="small" title="Baixar Pagamento" onClick={() => { setSelectedPagamento(row); setOpenPagarModal(true); }}>
+                                            {/* CHECK E LÁPIS ABREM O MESMO MODAL DE CAIXA */}
+                                            <IconButton size="small" title="Baixar/Detalhar" onClick={() => { setSelectedPagamento(row); setOpenCaixaModal(true); }}>
                                                 <CheckCircle fontSize="small" color="success" />
                                             </IconButton>
-                                            <IconButton size="small" title="Editar / Cancelar" onClick={() => { setSelectedPagamento(row); setOpenPagarModal(true); }}>
+                                            <IconButton 
+                                                size="small" 
+                                                title="Alterar Status na Agenda" 
+                                                onClick={(e) => { setAnchorEl(e.currentTarget); setStatusTarget(row); }}
+                                                disabled={!row.agendamento}
+                                            >
                                                 <Edit fontSize="small" color="action" />
                                             </IconButton>
                                         </Stack>
@@ -178,19 +194,23 @@ export default function ContasReceberView() {
                 </Table>
             </TableContainer>
 
-            {selectedPagamento && (
-                <PagamentoModal 
-                    open={openPagarModal} 
-                    onClose={() => setOpenPagarModal(false)} 
-                    onSave={() => { setOpenPagarModal(false); fetchData(); }} 
-                    pagamento={selectedPagamento} 
-                />
-            )}
-            
+            {/* MENU DE STATUS (REFLETE NA AGENDA) */}
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+                <MenuItem onClick={() => handleUpdateStatus('Não Compareceu')}>
+                    <ListItemIcon><Block fontSize="small" color="error"/></ListItemIcon>
+                    <ListItemText primaryTypographyProps={{fontSize: '0.85rem'}}>Não Compareceu (Anula Financeiro)</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={() => handleUpdateStatus('Agendado')}>
+                    <ListItemIcon><EventAvailable fontSize="small" color="primary"/></ListItemIcon>
+                    <ListItemText primaryTypographyProps={{fontSize: '0.85rem'}}>Reverter para Agendado</ListItemText>
+                </MenuItem>
+            </Menu>
+
             <LancamentoCaixaModal 
-                open={openNovoLancamentoModal} 
-                onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} 
+                open={openCaixaModal} 
+                initialData={selectedPagamento} 
+                onClose={() => { setOpenCaixaModal(false); fetchData(); }} 
             />
-        </div>
+        </Box>
     );
 }
