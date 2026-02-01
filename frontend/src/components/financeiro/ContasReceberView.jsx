@@ -51,28 +51,25 @@ export default function ContasReceberView() {
     const handleUpdateStatus = async (novoStatus) => {
     if (!statusTarget) return;
 
-    // Extrai o ID corretamente (seja objeto ou número)
     const rawId = statusTarget.agendamento;
     const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
 
     if (!agendamentoId) return;
 
     try {
-        // 1. Enviamos a atualização para o servidor
         await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
         
-        // 2. IMPORTANTE: Chamamos o fetchData para buscar a lista atualizada do banco
-        // O backend agora já terá mudado o financeiro para 'Cancelado' automaticamente
-        await fetchData(); 
-        
-        console.log("Status atualizado e financeiro sincronizado.");
+        // Adicionamos um pequeno delay antes de recarregar a lista
+        // Isso resolve problemas de "corrida" (race conditions) em servidores pesados
+        setTimeout(async () => {
+            await fetchData();
+            console.log("[LOG-UI] Lista financeira recarregada após sincronia.");
+        }, 800);
+
     } catch (error) {
-        console.error("Erro ao sincronizar:", error);
-        alert("O status mudou na agenda, mas houve um atraso na sincronia financeira.");
-    } finally {
-        setAnchorEl(null);
-        setStatusTarget(null);
+        console.error("Erro na atualização:", error);
     }
+    setAnchorEl(null);
 };
 
     const kpis = useMemo(() => {

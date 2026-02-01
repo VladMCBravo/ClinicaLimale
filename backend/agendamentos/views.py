@@ -152,24 +152,30 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         instance = self.get_object()
         agendamento = serializer.save()
-    
-        # Busca direta no banco para evitar problemas de cache/relação
+        
+        # DEBUG: Início do processo
+        print(f"[DEBUG-FIN] Agendamento {agendamento.id} atualizado para status: {agendamento.status}")
+
         from faturamento.models import Pagamento
         pagamento = Pagamento.objects.filter(agendamento=agendamento).first()
 
-        if pagamento:
-            if agendamento.status == 'Não Compareceu':
-                # Só cancelamos se ainda não foi pago
-                if pagamento.status == 'Pendente':
-                    pagamento.status = 'Cancelado'
-                    pagamento.save()
-                    print(f"DEBUG: Pagamento {pagamento.id} cancelado por falta.")
-        
+        if not pagamento:
+            print(f"[DEBUG-FIN] Nenhum pagamento encontrado para o Agendamento {agendamento.id}")
+            return
+
+        if agendamento.status == 'Não Compareceu':
+            if pagamento.status == 'Pendente':
+                pagamento.status = 'Cancelado'
+                pagamento.save()
+                print(f"[DEBUG-FIN] SUCESSO: Pagamento {pagamento.id} marcado como CANCELADO.")
+            else:
+                print(f"[DEBUG-FIN] AVISO: Pagamento {pagamento.id} ignorado (Status atual: {pagamento.status})")
+                
         elif agendamento.status in ['Agendado', 'Confirmado']:
-            # Se reativar a consulta, reativa o financeiro se este estiver cancelado
             if pagamento.status == 'Cancelado':
                 pagamento.status = 'Pendente'
                 pagamento.save()
+                print(f"[DEBUG-FIN] SUCESSO: Pagamento {pagamento.id} revertido para PENDENTE.")
 
     def perform_destroy(self, instance):
         """
