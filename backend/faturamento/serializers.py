@@ -48,11 +48,13 @@ class PagamentoSerializer(serializers.ModelSerializer):
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     agendamento = AgendamentoInfoSerializer(read_only=True)
+    # Criamos um campo extra apenas para leitura com os dados detalhados da agenda
+    agendamento_detalhes = AgendamentoInfoSerializer(source='agendamento', read_only=True)
 
     class Meta:
         model = Pagamento
         fields = [
-            'id', 'agendamento', 'paciente', 'paciente_nome', 'descricao',
+            'id', 'agendamento', 'agendamento_detalhes', 'paciente', 'paciente_nome', 'descricao',
             'descricao_visual', # <--- ADICIONADO AQUI
             'valor', 'status', 'status_display', 'forma_pagamento', 
             'forma_pagamento_display', 'data_pagamento', 'data_vencimento',

@@ -49,15 +49,27 @@ export default function ContasReceberView() {
     useEffect(() => { fetchData(); }, [filtroData]);
 
     const handleUpdateStatus = async (novoStatus) => {
-        if (!statusTarget?.agendamento) return;
-        try {
-            await agendamentoService.updateAgendamento(statusTarget.agendamento, { status: novoStatus });
-            fetchData(); // Recarrega para refletir a anulação automática do backend
-        } catch (error) {
-            alert("Erro ao atualizar status na agenda.");
-        }
-        setAnchorEl(null);
-    };
+    if (!statusTarget) return;
+
+    // Esta lógica limpa o ID: se for objeto, pega o .id, se for número, usa o número.
+    const rawId = statusTarget.agendamento;
+    const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
+
+    if (!agendamentoId) {
+        console.error("ERRO: O agendamentoId é inválido:", rawId);
+        alert("Não foi possível localizar o ID do agendamento.");
+        return;
+    }
+
+    try {
+        // Agora a URL será montada corretamente com o número
+        await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
+        fetchData();
+    } catch (error) {
+        console.error("Erro na atualização:", error);
+    }
+    setAnchorEl(null);
+};
 
     const kpis = useMemo(() => {
         const totalRecebido = lancamentos.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
