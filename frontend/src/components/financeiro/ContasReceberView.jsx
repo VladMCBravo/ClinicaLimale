@@ -49,27 +49,33 @@ export default function ContasReceberView() {
     useEffect(() => { fetchData(); }, [filtroData]);
 
     const handleUpdateStatus = async (novoStatus) => {
-        if (!statusTarget) return;
+    if (!statusTarget) return;
 
-        const rawId = statusTarget.agendamento;
-        const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
+    // CORREÇÃO: Extração segura do ID do agendamento
+    // Verificamos se 'agendamento_id' existe diretamente ou se está dentro do campo 'agendamento'
+    const rawId = statusTarget.agendamento_id || statusTarget.agendamento;
+    const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
 
-        if (!agendamentoId) return;
+    if (!agendamentoId) {
+        console.error("[ERRO] Agendamento ID não encontrado para este registro.");
+        return;
+    }
 
-        try {
-            await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
-            
-            // Delay de segurança para sincronização do banco de dados
-            setTimeout(async () => {
-                await fetchData();
-                console.log("[LOG-UI] Lista financeira recarregada após sincronia.");
-            }, 1200);
+    try {
+        // Dispara a atualização para a API da agenda
+        await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
+        
+        setAnchorEl(null); // Fecha o menu imediatamente
 
-        } catch (error) {
-            console.error("Erro na atualização:", error);
-        }
-        setAnchorEl(null);
-    };
+        // Sincronização da lista financeira
+        setTimeout(async () => {
+            await fetchData();
+        }, 1000);
+
+    } catch (error) {
+        console.error("Erro na atualização do agendamento:", error);
+    }
+};
 
     const kpis = useMemo(() => {
         const totalRecebido = lancamentos.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
@@ -188,16 +194,17 @@ export default function ContasReceberView() {
 
         {/* LÁPIS: Gestão de Status da Agenda */}
         <IconButton 
-            size="small" 
-            title="Status da Agenda" 
-            onClick={(e) => { 
-                setAnchorEl(e.currentTarget); 
-                setStatusTarget(row); 
-            }}
-            disabled={!row.agendamento_id} // Só habilita se houver agendamento
-        >
-            <Edit fontSize="small" color="action" />
-        </IconButton>
+    size="small" 
+    title="Alterar Status da Agenda" 
+    onClick={(e) => { 
+        setAnchorEl(e.currentTarget); // Define onde o menu vai "ancorar"
+        setStatusTarget(row);        // Define QUAL registro será alterado
+    }}
+    // Só habilita se o financeiro tiver um agendamento vinculado
+    disabled={!row.agendamento_id && !row.agendamento} 
+>
+    <Edit fontSize="small" color="action" />
+</IconButton>
     </Stack>
 </TableCell>
                                 </TableRow>
