@@ -49,10 +49,17 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDele
 
 <TableCell sx={{ py: 0.5 }}>
     <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.descricao}</Typography>
+    
+    {/* EXIBE NOME DA CATEGORIA E TIPO */}
+    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', display: 'block' }}>
+        {item.categoria_nome} • <span style={{ color: item.categoria_tipo === 'Fixa' ? '#1565c0' : '#e65100' }}>
+            {item.categoria_tipo}
+        </span>
+    </Typography>
+
     {item.pago && (
-        <Typography variant="caption" color="success.main" sx={{fontSize: '0.6rem', display: 'block'}}>
-            {/* CORREÇÃO: Pago em DD/MM */}
-            Pago em {item.data_pagamento ? dayjs(item.data_pagamento).format('DD/MM/YY') : 'Data não registrada'}
+        <Typography variant="caption" color="success.main" sx={{ fontSize: '0.6rem', display: 'block' }}>
+            Pago em {item.data_pagamento ? dayjs(item.data_pagamento).format('DD/MM/YY') : 'Data nula'}
         </Typography>
     )}
 </TableCell>

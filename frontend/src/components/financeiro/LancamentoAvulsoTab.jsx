@@ -38,9 +38,14 @@ export default function LancamentoAvulsoTab({ onClose, initialType, existingData
     
     const { showSnackbar } = useSnackbar();
 
+    // Sincroniza os dados ao editar
     useEffect(() => {
         if (existingData) {
-            setFormData(existingData);
+            setFormData({
+                ...existingData,
+                // Garante que o ID da categoria seja preservado para o seletor
+                categoria: existingData.categoria?.id || existingData.categoria 
+            });
             setJaLiquidado(existingData.pago);
         }
     }, [existingData]);
@@ -50,6 +55,16 @@ export default function LancamentoAvulsoTab({ onClose, initialType, existingData
         faturamentoService.getCategoriasDespesa()
             .then(res => setCategorias(res.data || []))
             .catch(err => console.error("Erro categorias", err));
+    }, []);
+
+    useEffect(() => {
+        // CARREGA AS CATEGORIAS DO BANCO
+        faturamentoService.getCategoriasDespesa()
+            .then(res => {
+                // Filtramos apenas as categorias que batem com o tipo selecionado (opcional)
+                setCategorias(res.data || []);
+            })
+            .catch(err => console.error("Erro ao carregar categorias", err));
     }, []);
 
     const handleTipoChange = (event, newTipo) => {
