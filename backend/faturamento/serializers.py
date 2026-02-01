@@ -38,25 +38,20 @@ class LancamentoAvulsoReceitaSerializer(serializers.ModelSerializer):
         fields = ['paciente', 'descricao', 'valor', 'forma_pagamento', 'data_vencimento', 'status']
 
 class PagamentoSerializer(serializers.ModelSerializer):
-    # Lógica para mostrar "Outros / Avulso" se não tiver paciente
     paciente_nome = serializers.SerializerMethodField()
-    
-    # NOVO CAMPO: Unifica a descrição para o Front (seja avulso ou consulta)
     descricao_visual = serializers.SerializerMethodField()
-    
     registrado_por = serializers.StringRelatedField(read_only=True)
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    agendamento = AgendamentoInfoSerializer(read_only=True)
-    # Mantemos o ID puro no campo 'agendamento' para as URLs do Front
+    
+    # Campo declarado que causou o erro
     agendamento_id = serializers.PrimaryKeyRelatedField(source='agendamento', read_only=True)
-    # Detalhes ficam em um campo separado para exibição visual
     agendamento_detalhes = AgendamentoInfoSerializer(source='agendamento', read_only=True)
 
     class Meta:
         model = Pagamento
         fields = [
-            'id', 'agendamento', 'agendamento_detalhes', 'paciente', 'paciente_nome', 'descricao',
+            'id', 'agendamento_id', 'agendamento_detalhes', 'paciente', 'paciente_nome', 'descricao',
             'descricao_visual', # <--- ADICIONADO AQUI
             'valor', 'status', 'status_display', 'forma_pagamento', 
             'forma_pagamento_display', 'data_pagamento', 'data_vencimento',
