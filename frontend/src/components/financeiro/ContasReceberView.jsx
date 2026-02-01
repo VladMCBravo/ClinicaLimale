@@ -51,22 +51,22 @@ export default function ContasReceberView() {
     const handleUpdateStatus = async (novoStatus) => {
     if (!statusTarget) return;
 
-    // Esta lógica limpa o ID: se for objeto, pega o .id, se for número, usa o número.
-    const rawId = statusTarget.agendamento;
-    const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
-
-    if (!agendamentoId) {
-        console.error("ERRO: O agendamentoId é inválido:", rawId);
-        alert("Não foi possível localizar o ID do agendamento.");
-        return;
-    }
+    const agendamentoId = typeof statusTarget.agendamento === 'object' 
+        ? statusTarget.agendamento.id 
+        : statusTarget.agendamento;
 
     try {
-        // Agora a URL será montada corretamente com o número
-        await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
+        // Tente mudar para .patch se o seu agendamentoService permitir.
+        // Se usar .put, o backend pode estar reclamando da falta de 'paciente', 'medico', etc.
+        await agendamentoService.updateAgendamento(agendamentoId, { 
+            status: novoStatus 
+            // Se o erro persistir, adicione aqui os campos que o backend exige
+        });
+        
         fetchData();
     } catch (error) {
         console.error("Erro na atualização:", error);
+        // Dica: olhe a aba "Response" no Network do navegador para ver qual campo o Django diz que falta.
     }
     setAnchorEl(null);
 };

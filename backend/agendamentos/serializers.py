@@ -1,4 +1,4 @@
-# backend/agendamentos/serializers.py - VERSÃO FINAL E CORRETA
+# backend/agendamentos/serializers.py
 
 from rest_framework import serializers
 from .models import Agendamento, Sala
@@ -37,7 +37,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             data_hora_inicio__lt=obj.data_hora_inicio
         ).exists()
 
-# --- Serializer para ESCRITA (POST, PUT) ---
+# --- Serializer para ESCRITA (POST, PUT, PATCH) ---
 class AgendamentoWriteSerializer(serializers.ModelSerializer):
     paciente = serializers.PrimaryKeyRelatedField(queryset=Paciente.objects.all())
     medico = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.filter(cargo='medico'), required=False, allow_null=True)
@@ -55,27 +55,39 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         ]
                   
     def validate(self, data):
-        # REGRAS DE CAPACIDADE
+        # 1. Regras de Capacidade
         LIMITE_GLOBAL_CONSULTAS = 3
         LIMITE_GLOBAL_PROCEDIMENTOS = 1
+        
+        # O PULO DO GATO: Se 'data' não tiver o campo, buscamos da instância do banco
+        instance = self.instance
 
-        tipo_agendamento = data.get('tipo_agendamento')
-        inicio = data.get('data_hora_inicio')
-        fim = data.get('data_hora_fim')
-        sala_selecionada = data.get('sala')
-        agendamento_id = self.instance.pk if self.instance else None
+        tipo_agendamento = data.get('tipo_agendamento') or (getattr(instance, 'tipo_agendamento', None))
+        inicio = data.get('data_hora_inicio') or (getattr(instance, 'data_hora_inicio', None))
+        fim = data.get('data_hora_fim') or (getattr(instance, 'data_hora_fim', None))
+        sala_selecionada = data.get('sala') or (getattr(instance, 'sala', None))
+        agendamento_id = instance.pk if instance else None
 
-        # 1. Validação Básica de Campos
+        if not inicio or not fim:
+            return data
+
+        # 2. Validação Básica de Campos (INDENTAÇÃO CORRIGIDA)
         if tipo_agendamento == 'Consulta':
-            if not data.get('medico'): raise serializers.ValidationError({"medico": "Selecione um médico."})
-            data['procedimento'] = None
-        elif tipo_agendamento == 'Procedimento':
-            if not data.get('procedimento'): raise serializers.ValidationError({"procedimento": "Selecione um procedimento."})
-            data['medico'] = None
-            data['especialidade'] = None
+            medico = data.get('medico', getattr(instance, 'medico', None))
+            if not medico: 
+                raise serializers.ValidationError({"medico": "Selecione um médico."})
+            if 'procedimento' in data: 
+                data['procedimento'] = None
             
-            # Tenta atribuir sala automaticamente para procedimentos se não informada
-            if not sala_selecionada:
+        elif tipo_agendamento == 'Procedimento':
+            procedimento = data.get('procedimento', getattr(instance, 'procedimento', None))
+            if not procedimento: 
+                raise serializers.ValidationError({"procedimento": "Selecione um procedimento."})
+            
+            if 'medico' in data: data['medico'] = None
+            if 'especialidade' in data: data['especialidade'] = None
+            
+            if not sala_selecionada and not instance:
                 sala_exame = Sala.objects.filter(e_sala_exame=True).first()
                 if sala_exame:
                     data['sala'] = sala_exame
@@ -83,7 +95,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                 else:
                     raise serializers.ValidationError({"sala": "Nenhuma sala de procedimentos encontrada."})
 
-        # 2. Validação de Conflito Físico (Sala Específica)
+        # 3. Validação de Conflito de Sala
         if sala_selecionada:
             conflito_sala = Agendamento.objects.filter(
                 sala=sala_selecionada,
@@ -91,34 +103,36 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                 data_hora_fim__gt=inicio
             ).exclude(status='Cancelado')
 
-            if agendamento_id: conflito_sala = conflito_sala.exclude(pk=agendamento_id)
+            if agendamento_id: 
+                conflito_sala = conflito_sala.exclude(pk=agendamento_id)
 
             if conflito_sala.exists():
-                raise serializers.ValidationError({"sala": f"A sala '{sala_selecionada.nome}' já está ocupada neste horário."})
+                raise serializers.ValidationError({"sala": f"A sala '{sala_selecionada.nome}' já está ocupada."})
 
-        # 3. Validação de Limite Global (Contador da Clínica)
+        # 4. Validação de Limite Global
         conflitos_globais = Agendamento.objects.filter(
             data_hora_inicio__lt=fim,
             data_hora_fim__gt=inicio,
             tipo_agendamento=tipo_agendamento
         ).exclude(status='Cancelado')
 
-        if agendamento_id: conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
-
+        if agendamento_id: 
+            conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
+        
         qtd_existente = conflitos_globais.count()
 
         if tipo_agendamento == 'Consulta' and qtd_existente >= LIMITE_GLOBAL_CONSULTAS:
             raise serializers.ValidationError({
-                "non_field_errors": f"Limite de consultas simultâneas atingido ({LIMITE_GLOBAL_CONSULTAS}). Não há salas disponíveis."
+                "non_field_errors": f"Limite de consultas atingido ({LIMITE_GLOBAL_CONSULTAS})."
             })
-        
+    
         elif tipo_agendamento == 'Procedimento' and qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS:
-             raise serializers.ValidationError({
-                "non_field_errors": f"A sala de procedimentos já está ocupada neste horário (Limite: {LIMITE_GLOBAL_PROCEDIMENTOS})."
+            raise serializers.ValidationError({
+                "non_field_errors": f"A sala de procedimentos já está ocupada ({LIMITE_GLOBAL_PROCEDIMENTOS})."
             })
 
         return data
-    
+
 class SalaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sala
