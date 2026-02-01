@@ -1,67 +1,64 @@
 // src/components/financeiro/DespesasView.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    CircularProgress, TextField, Paper,
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    IconButton, Typography, Grid, Chip, Box,
-    Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, Select, Button, Stack
+    CircularProgress, TextField, Paper, Table, TableBody, TableCell, 
+    TableContainer, TableHead, TableRow, IconButton, Typography, 
+    Grid, Chip, Box, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions,
+    MenuItem, Select
 } from '@mui/material';
-import { 
-    Edit, Delete, Search, CheckCircle, Domain, LocalCafe, Warning 
-} from '@mui/icons-material';
+import { Edit, Delete, CheckCircle, Domain, LocalCafe, Warning, Search } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import LancamentoCaixaModal from './LancamentoCaixaModal'; 
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onToggleStatus, onDelete }) => (
+// Componente de Tabela Interno Único e Reutilizável
+const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDelete }) => (
     <Paper elevation={0} sx={{ border: `1px solid ${corTema}40`, borderRadius: 2, overflow: 'hidden', flex: 1 }}>
         <Box sx={{ px: 1.5, py: 0.8, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1 }}>
             {React.cloneElement(icone, { sx: { fontSize: 16, color: corTema } })}
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: corTema, flexGrow: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: corTema, flexGrow: 1, textTransform: 'uppercase' }}>
                 {titulo}
             </Typography>
-            <Chip label={dados.length} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 'bold' }} />
+            <Chip label={dados.length} size="small" sx={{ height: 18, fontSize: '0.6rem' }} />
         </Box>
-        <TableContainer sx={{ maxHeight: 400 }}>
+        <TableContainer sx={{ maxHeight: 350 }}>
             <Table size="small" stickyHeader>
                 <TableHead>
                     <TableRow>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 'bold', py: 1 }}>Data</TableCell>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 'bold', py: 1 }}>Descrição</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.65rem', fontWeight: 'bold', py: 1 }}>Valor</TableCell>
-                        <TableCell align="center" sx={{ fontSize: '0.65rem', fontWeight: 'bold', py: 1 }}>Ações</TableCell>
+                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Vencimento</TableCell>
+                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Descrição</TableCell>
+                        <TableCell align="right" sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Valor</TableCell>
+                        <TableCell align="center" sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Ações</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
                     {dados.map((item) => {
-                        // Sinalização de conta vencida e não paga
-                        const isVencida = !item.pago && dayjs(item.data_vencimento || item.data_despesa).isBefore(dayjs(), 'day');
-                        
+                        // Sinalização visual de atraso
+                        const isVencida = !item.pago && dayjs(item.data_vencimento).isBefore(dayjs(), 'day');
                         return (
                             <TableRow key={item.id} hover sx={{ bgcolor: isVencida ? '#fff5f5' : 'inherit' }}>
-                                <TableCell sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                                    {dayjs(item.data_despesa).format('DD/MM/YY')}
-                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.7rem' }}>{dayjs(item.data_vencimento).format('DD/MM/YY')}</TableCell>
                                 <TableCell sx={{ py: 0.5 }}>
-                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, lineHeight: 1.2 }}>{item.descricao}</Typography>
-                                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.6rem' }}>{item.categoria_nome}</Typography>
+                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.descricao}</Typography>
+                                    {item.pago && <Typography variant="caption" color="success.main" sx={{fontSize: '0.6rem'}}>Pago em {dayjs(item.data_pagamento).format('DD/MM')}</Typography>}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                    {formatMoney(item.valor)}
-                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{formatMoney(item.valor)}</TableCell>
                                 <TableCell align="center">
                                     <Stack direction="row" spacing={0} justifyContent="center">
-                                        <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.5 }}>
+                                        {/* Lápis: Abre Modal Unificado para Editar/Reverter status de Pago */}
+                                        <IconButton size="small" onClick={() => onEdit(item)} color="primary">
                                             <Edit sx={{ fontSize: 14 }} />
                                         </IconButton>
+                                        {/* Check: Abre confirmação rápida de baixa */}
                                         {!item.pago && (
-                                            <IconButton size="small" color="success" onClick={() => onToggleStatus(item)} sx={{ p: 0.5 }}>
+                                            <IconButton size="small" onClick={() => onCheck(item)} color="success">
                                                 <CheckCircle sx={{ fontSize: 14 }} />
                                             </IconButton>
                                         )}
-                                        <IconButton size="small" color="error" onClick={() => onDelete(item.id)} sx={{ p: 0.5 }}>
+                                        <IconButton size="small" color="error" onClick={() => onDelete(item.id)}>
                                             <Delete sx={{ fontSize: 14 }} />
                                         </IconButton>
                                     </Stack>
@@ -82,19 +79,22 @@ export default function DespesasView() {
     const [searchTerm, setSearchTerm] = useState('');
     const [mesFiltro, setMesFiltro] = useState(dayjs().month()); 
     const [anoFiltro, setAnoFiltro] = useState(dayjs().year());
-    const [openEditModal, setOpenEditModal] = useState(false);
-    const [editFormData, setEditFormData] = useState({});
+    
+    const [openMestreModal, setOpenMestreModal] = useState(false);
+    const [openConfirmBaixa, setOpenConfirmBaixa] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [resD] = await Promise.all([faturamentoService.getDespesas()]);
-            setDespesas(resD.data || []);
+            const res = await faturamentoService.getDespesas();
+            setDespesas(res.data || []);
         } finally { setIsLoading(false); }
     };
 
     useEffect(() => { fetchData(); }, []);
 
+    // Motor de filtragem consolidado
     const processedData = useMemo(() => {
         const filtered = despesas.filter(d => {
             const dataRef = dayjs(d.data_despesa || d.data_vencimento);
@@ -116,31 +116,18 @@ export default function DespesasView() {
 
     const { fixas, variaveis, resumoGeral } = processedData;
 
-    const handleToggleStatus = async (item) => {
-        // Se já estiver pago, permite reverter com confirmação
-    if (item.pago) {
-        if (window.confirm(`Deseja reverter o pagamento de "${item.descricao}" para PENDENTE?`)) {
-            try {
-                await faturamentoService.updateDespesa(item.id, { ...item, pago: false, data_pagamento: null });
-                showSnackbar('Pagamento revertido para pendente.', 'info');
-                fetchData();
-            } catch (e) { showSnackbar('Erro ao reverter.', 'error'); }
-        }
-        return;
-    }
-
-    // Se NÃO estiver pago, abre o modal de Lançamento enviando os dados da despesa
-    // para evitar que o usuário tenha que digitar tudo de novo
-    setEditFormData({
-        ...item,
-        tipo: 'despesa',
-        jaExistente: true // Flag para o modal saber que deve dar baixa e não criar nova
-    });
-    setOpenEditModal(true); 
-};
+    const handleConfirmarBaixaRapida = async () => {
+        try {
+            // Usa o endpoint otimizado do views.py para baixa rápida
+            await faturamentoService.alternarPagamento(selectedItem.id, { pago: true });
+            showSnackbar('Baixa realizada!', 'success');
+            setOpenConfirmBaixa(false);
+            fetchData();
+        } catch (e) { showSnackbar('Erro ao processar.', 'error'); }
+    };
 
     const onDelete = async (id) => {
-        if (!window.confirm("Deseja excluir?")) return;
+        if (!window.confirm("Deseja realmente excluir esta despesa?")) return;
         await faturamentoService.deleteDespesa(id);
         fetchData();
     };
@@ -150,68 +137,73 @@ export default function DespesasView() {
     return (
         <Box>
             {/* KPIs COMPACTOS */}
-            <Grid container spacing={1.5} sx={{ mb: 2 }}>
+            <Grid container spacing={1} sx={{ mb: 2 }}>
                 <Grid item xs={4}>
-                    <Paper variant="outlined" sx={{ p: 1.2, borderLeft: '4px solid #1a233b', bgcolor: '#f8f9fa' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: 'text.secondary' }}>TOTAL DESPESAS</Typography>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', lineHeight: 1 }}>{formatMoney(resumoGeral.total)}</Typography>
+                    <Paper variant="outlined" sx={{ p: 1, borderLeft: '4px solid #1a233b', bgcolor: '#f8f9fa' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem' }}>TOTAL NO MÊS</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{formatMoney(resumoGeral.total)}</Typography>
                     </Paper>
                 </Grid>
                 <Grid item xs={4}>
-                    <Paper variant="outlined" sx={{ p: 1.2, borderLeft: '4px solid #2e7d32', bgcolor: '#f0f9f1' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: '#2e7d32' }}>PAGAS NO MÊS</Typography>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', lineHeight: 1, color: '#2e7d32' }}>{formatMoney(resumoGeral.pagas)}</Typography>
+                    <Paper variant="outlined" sx={{ p: 1, borderLeft: '4px solid #2e7d32', bgcolor: '#f0f9f1' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: '#2e7d32' }}>PAGAS</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(resumoGeral.pagas)}</Typography>
                     </Paper>
                 </Grid>
                 <Grid item xs={4}>
-                    <Paper variant="outlined" sx={{ p: 1.2, borderLeft: '4px solid #d32f2f', bgcolor: '#fff5f5' }}>
+                    <Paper variant="outlined" sx={{ p: 1, borderLeft: '4px solid #d32f2f', bgcolor: '#fff5f5' }}>
                         <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: '#d32f2f' }}>A PAGAR / VENCIDAS</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            {resumoGeral.atrasadasCount > 0 && <Warning sx={{ fontSize: 14, color: '#d32f2f' }} />}
-                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', lineHeight: 1, color: '#d32f2f' }}>{formatMoney(resumoGeral.aPagar)}</Typography>
-                        </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#d32f2f' }}>{formatMoney(resumoGeral.aPagar)}</Typography>
                     </Paper>
                 </Grid>
             </Grid>
 
-            {/* BARRA DE FERRAMENTAS REDUZIDA */}
+            {/* BARRA DE FERRAMENTAS */}
             <Box sx={{ mb: 1.5, display: 'flex', gap: 1 }}>
                 <TextField 
-                    size="small" placeholder="Filtrar descrição..." 
+                    size="small" placeholder="Filtrar..." 
                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    InputProps={{ 
-                        startAdornment: <Search sx={{ mr: 0.5, color: 'gray', fontSize: 18 }} />,
-                        sx: { fontSize: '0.8rem' }
-                    }}
-                    sx={{ width: 220 }}
+                    InputProps={{ startAdornment: <Search sx={{ mr: 0.5, color: 'gray', fontSize: 16 }} /> }}
+                    sx={{ width: 180, "& .MuiInputBase-input": { fontSize: '0.75rem' } }}
                 />
-                <Select size="small" value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.8rem', width: 130 }}>
+                <Select size="small" value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.75rem', height: 32 }}>
                     {Array.from({ length: 12 }, (_, i) => (
-                        <MenuItem key={i} value={i} sx={{ fontSize: '0.8rem' }}>{dayjs().month(i).format('MMMM')}</MenuItem>
+                        <MenuItem key={i} value={i} sx={{fontSize: '0.75rem'}}>{dayjs().month(i).format('MMMM')}</MenuItem>
                     ))}
                 </Select>
             </Box>
 
-            {/* TABELAS LADO A LADO COM FONTES MENORES */}
+            {/* TABELAS LADO A LADO */}
             <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', md: 'row' } }}>
-                <TabelaDespesas dados={fixas} titulo="FIXAS" icone={<Domain />} corTema="#1565c0" onEdit={(i) => {setEditFormData(i); setOpenEditModal(true);}} onToggleStatus={handleToggleStatus} onDelete={onDelete} />
-                <TabelaDespesas dados={variaveis} titulo="VARIÁVEIS" icone={<LocalCafe />} corTema="#e65100" onEdit={(i) => {setEditFormData(i); setOpenEditModal(true);}} onToggleStatus={handleToggleStatus} onDelete={onDelete} />
+                <TabelaDespesas 
+                    dados={fixas} titulo="FIXAS" icone={<Domain />} corTema="#1565c0" 
+                    onEdit={(item) => { setSelectedItem(item); setOpenMestreModal(true); }} 
+                    onCheck={(item) => { setSelectedItem(item); setOpenConfirmBaixa(true); }}
+                    onDelete={onDelete} 
+                />
+                <TabelaDespesas 
+                    dados={variaveis} titulo="VARIÁVEIS" icone={<LocalCafe />} corTema="#e65100" 
+                    onEdit={(item) => { setSelectedItem(item); setOpenMestreModal(true); }} 
+                    onCheck={(item) => { setSelectedItem(item); setOpenConfirmBaixa(true); }}
+                    onDelete={onDelete} 
+                />
             </Box>
 
-            {/* MODAL DE EDIÇÃO */}
-            <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} size="small">
-                <DialogTitle sx={{ fontSize: '1rem', fontWeight: 'bold' }}>Editar Despesa</DialogTitle>
+            {/* MODAIS DE SUPORTE */}
+            <LancamentoCaixaModal 
+                open={openMestreModal} 
+                initialData={selectedItem} 
+                onClose={() => { setOpenMestreModal(false); fetchData(); }} 
+            />
+
+            <Dialog open={openConfirmBaixa} onClose={() => setOpenConfirmBaixa(false)}>
+                <DialogTitle sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Confirmar Baixa</DialogTitle>
                 <DialogContent>
-                    <TextField fullWidth margin="dense" size="small" label="Descrição" value={editFormData.descricao || ''} onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})} />
-                    <TextField fullWidth margin="dense" size="small" label="Valor" type="number" value={editFormData.valor || ''} onChange={(e) => setEditFormData({...editFormData, valor: e.target.value})} />
+                    <Typography variant="body2">Deseja liquidar <strong>{selectedItem?.descricao}</strong>?</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenEditModal(false)} sx={{ fontSize: '0.75rem' }}>Cancelar</Button>
-                    <Button variant="contained" size="small" onClick={async () => {
-                        await faturamentoService.updateDespesa(editFormData.id, editFormData);
-                        setOpenEditModal(false);
-                        fetchData();
-                    }}>Salvar</Button>
+                    <Button onClick={() => setOpenConfirmBaixa(false)} size="small">Cancelar</Button>
+                    <Button onClick={handleConfirmarBaixaRapida} variant="contained" color="success" size="small">Confirmar</Button>
                 </DialogActions>
             </Dialog>
         </Box>

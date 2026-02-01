@@ -349,21 +349,36 @@ class DespesaViewSet(viewsets.ModelViewSet):
             return queryset.order_by('-data_vencimento')
 
     def perform_create(self, serializer):
-        serializer.save(registrado_por=self.request.user)
-    
+        # Ao criar, se já marcar como pago, garante a data
+        pago = self.request.data.get('pago')
+        data_pagamento = self.request.data.get('data_pagamento') or timezone.localdate()
+        
+        if pago:
+            serializer.save(registrado_por=self.request.user, data_pagamento=data_pagamento)
+        else:
+            serializer.save(registrado_por=self.request.user, data_pagamento=None)
+
+    def perform_update(self, serializer):
+        # ESSENCIAL PARA A REVERSÃO:
+        # Se o usuário enviar 'pago': false, limpamos a data de pagamento no banco.
+        pago = self.request.data.get('pago')
+        
+        if pago is False:
+            serializer.save(data_pagamento=None, pago=False)
+        elif pago is True:
+            # Se mudou para pago agora e não enviou data, usa hoje
+            data_pagamento = self.request.data.get('data_pagamento') or timezone.localdate()
+            serializer.save(data_pagamento=data_pagamento, pago=True)
+        else:
+            # Caso não tenha alterado o status de pagamento, salva normalmente
+            serializer.save()
+
+    # Seu alternar_pagamento pode continuar aqui como um atalho rápido
     @action(detail=True, methods=['post'])
     def alternar_pagamento(self, request, pk=None):
         despesa = self.get_object()
-        # Inverte o status atual
         despesa.pago = not despesa.pago
-        
-        if despesa.pago:
-            # Se marcou como pago agora, usa a data enviada ou hoje
-            despesa.data_pagamento = request.data.get('data_pagamento') or timezone.now().date()
-        else:
-            # Se desmarcou, limpa a data de pagamento
-            despesa.data_pagamento = None
-            
+        despesa.data_pagamento = timezone.localdate() if despesa.pago else None
         despesa.save()
         return Response({'status': 'atualizado', 'pago': despesa.pago})
 

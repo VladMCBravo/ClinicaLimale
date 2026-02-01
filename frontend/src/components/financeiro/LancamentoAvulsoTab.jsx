@@ -31,9 +31,22 @@ export default function LancamentoAvulsoTab({ onClose, initialType, existingData
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        // Carrega apenas categorias de despesa, já que receitas avulsas costumam ser diretas
-        faturamentoService.getCategoriasDespesa().then(res => setCategorias(res.data));
-    }, []);
+    if (existingData) {
+        setFormData(existingData);
+        setJaLiquidado(existingData.pago); // Se no banco está pago, o switch inicia ligado
+    }
+}, [existingData]);
+
+// No seu Switch de "Liquidado":
+<FormControlLabel
+    control={
+        <Switch 
+            checked={jaLiquidado} 
+            onChange={(e) => setJaLiquidado(e.target.checked)} 
+        />
+    }
+    label={jaLiquidado ? "LIQUIDADO" : "AGENDADO"}
+/>
 
     const handleTipoChange = (event, newTipo) => {
         if (newTipo !== null) {
