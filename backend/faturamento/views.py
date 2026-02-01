@@ -359,19 +359,22 @@ class DespesaViewSet(viewsets.ModelViewSet):
             serializer.save(registrado_por=self.request.user, data_pagamento=None)
 
     def perform_update(self, serializer):
-        # ESSENCIAL PARA A REVERSÃO:
-        # Se o usuário enviar 'pago': false, limpamos a data de pagamento no banco.
         pago = self.request.data.get('pago')
-        
+        # Recupera as datas enviadas
+        data_venc = self.request.data.get('data_vencimento')
+        data_desp = self.request.data.get('data_despesa')
+
+        # REGRA DE OURO: Garante que sempre haja um vencimento
+        vencimento_final = data_venc or data_desp or timezone.localdate()
+
         if pago is False:
-            serializer.save(data_pagamento=None, pago=False)
+            # Reversão: limpa data de pagamento mas mantém vencimento íntegro
+            serializer.save(data_pagamento=None, pago=False, data_vencimento=vencimento_final)
         elif pago is True:
-            # Se mudou para pago agora e não enviou data, usa hoje
-            data_pagamento = self.request.data.get('data_pagamento') or timezone.localdate()
-            serializer.save(data_pagamento=data_pagamento, pago=True)
+            data_pag = self.request.data.get('data_pagamento') or timezone.localdate()
+            serializer.save(data_pagamento=data_pag, pago=True, data_vencimento=vencimento_final)
         else:
-            # Caso não tenha alterado o status de pagamento, salva normalmente
-            serializer.save()
+            serializer.save(data_vencimento=vencimento_final)
 
     # Seu alternar_pagamento pode continuar aqui como um atalho rápido
     @action(detail=True, methods=['post'])

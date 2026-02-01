@@ -41,8 +41,10 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDele
                         return (
                             <TableRow key={item.id} hover sx={{ bgcolor: isVencida ? '#fff5f5' : 'inherit' }}>
                                 <TableCell sx={{ fontSize: '0.7rem' }}>
-    {/* Garante que se a data for nula ou inválida, não quebre a UI */}
-    {item.data_vencimento ? dayjs(item.data_vencimento).format('DD/MM/YY') : '--/--/--'}
+    {/* Tenta ler vencimento, se não tiver, tenta a data da despesa, se não, mostra vazio */}
+    {(item.data_vencimento || item.data_despesa) 
+        ? dayjs(item.data_vencimento || item.data_despesa).format('DD/MM/YY') 
+        : '--/--/--'}
 </TableCell>
 
 <TableCell sx={{ py: 0.5 }}>
