@@ -3,10 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     Button, CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    IconButton, Typography, Chip, Box, Grid, Card, CardContent
+    IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack
 } from '@mui/material';
 import { 
-    Edit, AddCircleOutline, Search, Warning 
+    Edit, CheckCircle, Search, Warning, AddCircleOutline 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -23,7 +23,6 @@ export default function ContasReceberView() {
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
     
-    // Estados do Modal
     const [openPagarModal, setOpenPagarModal] = useState(false);
     const [openNovoLancamentoModal, setOpenNovoLancamentoModal] = useState(false);
     const [selectedPagamento, setSelectedPagamento] = useState(null);
@@ -61,139 +60,120 @@ export default function ContasReceberView() {
 
     return (
         <div>
-            {/* 1. KPI CARDS */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            {/* 1. KPI CARDS COMPACTOS */}
+            <Grid container spacing={1} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: '#e8f5e9', borderLeft: '5px solid #2e7d32' }}>
-                        <CardContent sx={{ py: 2 }}>
-                            <Typography variant="subtitle2" color="textSecondary">Recebido no Mês</Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#2e7d32">{formatMoney(kpis.totalRecebido)}</Typography>
+                    <Card sx={{ bgcolor: '#e8f5e9', borderLeft: '4px solid #2e7d32' }}>
+                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>RECEBIDO NO MÊS</Typography>
+                            <Typography variant="h6" fontWeight="bold" color="#2e7d32">{formatMoney(kpis.totalRecebido)}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: '#fff3e0', borderLeft: '5px solid #ef6c00' }}>
-                        <CardContent sx={{ py: 2 }}>
-                            <Typography variant="subtitle2" color="textSecondary">A Receber (Pendente)</Typography>
-                            <Typography variant="h5" fontWeight="bold" color="#ef6c00">{formatMoney(kpis.totalPendente)}</Typography>
+                    <Card sx={{ bgcolor: '#fff3e0', borderLeft: '4px solid #ef6c00' }}>
+                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>A RECEBER (PENDENTE)</Typography>
+                            <Typography variant="h6" fontWeight="bold" color="#ef6c00">{formatMoney(kpis.totalPendente)}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: '#ffebee', borderLeft: '5px solid #c62828' }}>
-                        <CardContent sx={{ py: 2 }}>
-                            <Typography variant="subtitle2" color="textSecondary">Pagamentos Atrasados</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Warning sx={{ color: '#c62828', mr: 1 }} />
-                                <Typography variant="h5" fontWeight="bold" color="#c62828">{kpis.atrasados}</Typography>
+                    <Card sx={{ bgcolor: '#ffebee', borderLeft: '4px solid #c62828' }}>
+                        <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>ATRASADOS</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Warning sx={{ color: '#c62828', fontSize: '1.2rem' }} />
+                                <Typography variant="h6" fontWeight="bold" color="#c62828">{kpis.atrasados}</Typography>
                             </Box>
                         </CardContent>
                     </Card>
                 </Grid>
             </Grid>
 
-            {/* 2. FILTROS E AÇÃO PRINCIPAL */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {/* 2. FILTROS E AÇÃO ÚNICA */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <DatePicker 
-                        label="Mês de Referência"
+                        label="Referência"
                         views={['month', 'year']}
                         value={filtroData}
                         onChange={(newValue) => setFiltroData(newValue)}
-                        slotProps={{ textField: { size: 'small', sx: { width: 180 } } }}
+                        slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
                     />
                     <TextField
-                        placeholder="Buscar paciente ou descrição..."
+                        placeholder="Buscar..."
                         size="small"
                         value={termoBusca}
                         onChange={(e) => setTermoBusca(e.target.value)}
-                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 1 }} /> }}
+                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1.1rem' }} /> }}
+                        sx={{ width: 220 }}
                     />
                 </Box>
-                {/* O Botão agora chama o fluxo de Recebimento de Paciente por padrão */}
                 <Button 
                     variant="contained" 
+                    size="small"
                     startIcon={<AddCircleOutline />} 
                     onClick={() => setOpenNovoLancamentoModal(true)}
-                    sx={{ bgcolor: '#1a233b', '&:hover': { bgcolor: '#2c3a5b' } }}
+                    sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem' }}
                 >
-                    Receber de Paciente
+                    Receber
                 </Button>
             </Box>
-            {/* ALERTA DE CONFLITOS: Realizado mas não Pago */}
-{lancamentos.some(l => l.agendamento_status === 'Realizado' && l.status === 'Pendente') && (
-    <Box sx={{ mb: 2 }}>
-        <Card sx={{ bgcolor: '#fff5f5', border: '1px solid #feb2b2', borderRadius: 2 }}>
-            <CardContent sx={{ py: 1.5, px: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Warning sx={{ color: '#e53e3e' }} />
-                <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="subtitle2" sx={{ color: '#9b2c2c', fontWeight: 'bold' }}>
-                        Atenção: Existem atendimentos finalizados sem baixa financeira!
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#c53030' }}>
-                        Estes pacientes foram marcados como "Realizado" pelo médico, mas o pagamento continua "Pendente".
-                    </Typography>
-                </Box>
-                <Button 
-                    size="small" 
-                    variant="outlined" 
-                    color="error"
-                    onClick={() => setTermoBusca('Realizado')} // Filtra a tabela para mostrar apenas os conflitos
-                    sx={{ fontSize: '0.7rem', textTransform: 'none' }}
-                >
-                    Ver Conflitos
-                </Button>
-            </CardContent>
-        </Card>
-    </Box>
-)}
 
-            {/* 3. TABELA DE LANÇAMENTOS */}
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 600 }}>
+            {/* 3. TABELA COM DESTAQUE DE ATRASADOS */}
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 550 }}>
                 <Table stickyHeader size="small">
                     <TableHead>
-                        <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Vencimento</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Paciente / Descrição</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Origem</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Valor</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
+                        <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Vencimento</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Paciente / Descrição</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Valor</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Status</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={6} align="center" sx={{ py: 3 }}><CircularProgress size={24} /></TableCell></TableRow>
-                        ) : filteredList.map((row) => (
-                            <TableRow key={row.id} hover>
-                                <TableCell sx={{ fontSize: '0.85rem' }}>{dayjs(row.data_vencimento).format('DD/MM/YYYY')}</TableCell>
-                                <TableCell>
-                                    <Typography variant="body2" fontWeight="bold">{row.paciente_nome || 'Lançamento Avulso'}</Typography>
-                                    <Typography variant="caption" color="textSecondary">{row.descricao_visual || row.descricao}</Typography>
-                                </TableCell>
-                                <TableCell>
-                                    {row.paciente_nome ? (
-                                        <Chip label="Clínico" size="small" color="primary" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
-                                    ) : (
-                                        <Chip label="Administrativo" size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
-                                    )}
-                                </TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>{formatMoney(row.valor)}</TableCell>
-                                <TableCell>
-                                    <Chip 
-                                        label={row.status} 
-                                        size="small" 
-                                        color={row.status === 'Pago' ? 'success' : row.status === 'Pendente' ? 'warning' : 'error'} 
-                                        sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}
-                                    />
-                                </TableCell>
-                                <TableCell align="right">
-                                    <IconButton size="small" onClick={() => { setSelectedPagamento(row); setOpenPagarModal(true); }}>
-                                        <Edit fontSize="small" color="action" />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                            <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3 }}><CircularProgress size={20} /></TableCell></TableRow>
+                        ) : filteredList.map((row) => {
+                            const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
+                            return (
+                                <TableRow 
+                                    key={row.id} 
+                                    hover 
+                                    sx={{ 
+                                        bgcolor: isAtrasado ? '#fff5f5' : 'inherit',
+                                        '& .MuiTableCell-root': { py: 0.8, fontSize: '0.8rem' } 
+                                    }}
+                                >
+                                    <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{row.paciente_nome || 'Avulso'}</Typography>
+                                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>{row.descricao_visual || row.descricao}</Typography>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>{formatMoney(row.valor)}</TableCell>
+                                    <TableCell>
+                                        <Chip 
+                                            label={row.status} 
+                                            size="small" 
+                                            color={row.status === 'Pago' ? 'success' : row.status === 'Pendente' ? 'warning' : 'error'} 
+                                            sx={{ fontSize: '0.65rem', height: 18, fontWeight: 'bold' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                            <IconButton size="small" title="Baixar Pagamento" onClick={() => { setSelectedPagamento(row); setOpenPagarModal(true); }}>
+                                                <CheckCircle fontSize="small" color="success" />
+                                            </IconButton>
+                                            <IconButton size="small" title="Editar / Cancelar" onClick={() => { setSelectedPagamento(row); setOpenPagarModal(true); }}>
+                                                <Edit fontSize="small" color="action" />
+                                            </IconButton>
+                                        </Stack>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </TableContainer>
@@ -207,10 +187,8 @@ export default function ContasReceberView() {
                 />
             )}
             
-            {/* Modal de Lançamento centralizado: Abre na aba 0 (Pacientes) */}
             <LancamentoCaixaModal 
                 open={openNovoLancamentoModal} 
-                initialTab={0}
                 onClose={() => { setOpenNovoLancamentoModal(false); fetchData(); }} 
             />
         </div>
