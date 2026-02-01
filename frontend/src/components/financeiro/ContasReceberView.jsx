@@ -48,6 +48,28 @@ export default function ContasReceberView() {
 
     useEffect(() => { fetchData(); }, [filtroData]);
 
+    const handleReverterPagamento = async () => {
+    if (!statusTarget) return;
+
+    try {
+        // Chamada ao serviço para atualizar apenas o financeiro
+        await faturamentoService.updatePagamento(statusTarget.id, { 
+            status: 'Pendente',
+            pago: false, // Dispara a limpeza no backend
+            data_pagamento: null 
+        });
+
+        showSnackbar('Pagamento revertido para Pendente.', 'info');
+        setAnchorEl(null);
+        
+        // Atualiza a lista para refletir a mudança de cor (de verde para laranja)
+        fetchData(); 
+    } catch (error) {
+        console.error("Erro ao reverter pagamento:", error);
+        showSnackbar('Erro ao reverter pagamento.', 'error');
+    }
+};
+
     const handleUpdateStatus = async (novoStatus) => {
     if (!statusTarget) return;
 
@@ -195,17 +217,10 @@ export default function ContasReceberView() {
         {/* LÁPIS: Gestão de Status da Agenda */}
         <IconButton 
     size="small" 
-    title="Editar / Reverter Pagamento" 
+    title="Opções de Status e Pagamento" 
     onClick={(e) => { 
-        if (row.status === 'Pago') {
-            // Se já está pago, abre o modal de edição para permitir o "uncheck" do liquidado
-            setSelectedPagamento(row);
-            setOpenCaixaModal(true);
-        } else {
-            // Se ainda é pendente, mantém o menu de status da agenda (Não Compareceu)
-            setAnchorEl(e.currentTarget); 
-            setStatusTarget(row);
-        }
+        setAnchorEl(e.currentTarget); 
+        setStatusTarget(row); 
     }}
 >
     <Edit fontSize="small" color="action" />
@@ -219,17 +234,31 @@ export default function ContasReceberView() {
                 </Table>
             </TableContainer>
 
-            {/* MENU DE STATUS (REFLETE NA AGENDA) */}
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-                <MenuItem onClick={() => handleUpdateStatus('Não Compareceu')}>
-                    <ListItemIcon><Block fontSize="small" color="error"/></ListItemIcon>
-                    <ListItemText primaryTypographyProps={{fontSize: '0.85rem'}}>Não Compareceu (Anula Financeiro)</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => handleUpdateStatus('Agendado')}>
-                    <ListItemIcon><EventAvailable fontSize="small" color="primary"/></ListItemIcon>
-                    <ListItemText primaryTypographyProps={{fontSize: '0.85rem'}}>Reverter para Agendado</ListItemText>
-                </MenuItem>
-            </Menu>
+            {/* MENU DE STATUS (REFLETE NA AGENDA E FINANCEIRO) */}
+<Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+    
+    {/* Opção 1: Não Compareceu (Mantida) */}
+    <MenuItem onClick={() => handleUpdateStatus('Não Compareceu')}>
+        <ListItemIcon><Block fontSize="small" color="error"/></ListItemIcon>
+        <ListItemText primaryTypographyProps={{fontSize: '0.85rem'}}>Não Compareceu (Anula Financeiro)</ListItemText>
+    </MenuItem>
+
+    {/* Opção 2: Reverter para Agendado (Mantida) */}
+    <MenuItem onClick={() => handleUpdateStatus('Agendado')}>
+        <ListItemIcon><EventAvailable fontSize="small" color="primary"/></ListItemIcon>
+        <ListItemText primaryTypographyProps={{fontSize: '0.85rem'}}>Reverter para Agendado</ListItemText>
+    </MenuItem>
+
+    {/* NOVA Opção 3: Reverter Pagamento (Apenas se já estiver Pago) */}
+    {statusTarget?.status === 'Pago' && (
+        <MenuItem onClick={handleReverterPagamento}>
+            <ListItemIcon><History fontSize="small" color="warning"/></ListItemIcon>
+            <ListItemText primaryTypographyProps={{fontSize: '0.85rem', color: '#ed6c02', fontWeight: 'bold'}}>
+                Reverter Pagamento para Pendente
+            </ListItemText>
+        </MenuItem>
+    )}
+</Menu>
 
             <LancamentoCaixaModal 
                 open={openCaixaModal} 
