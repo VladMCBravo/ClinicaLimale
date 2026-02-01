@@ -28,27 +28,40 @@ export default function PagarAgendamentoTab({ onClose }) {
     console.log("[DEBUG-UI] Solicitando lista de pacientes devedores...");
     faturamentoService.getPagamentosPendentes()
         .then(response => {
-            console.log("[DEBUG-UI] Resposta da API recebida:", response.data);
-            const pendentes = response.data || [];
+            // A API envia uma lista de PAGAMENTOS
+            const pagamentos = response.data || [];
+            console.log("[DEBUG-UI] Pagamentos brutos recebidos:", pagamentos);
             
-            const listaPacientesUnicos = [];
-            const idsProcessados = new Set();
+            const pacientesMap = new Map();
 
-            pendentes.forEach(pag => {
-                if (pag.paciente && !idsProcessados.has(pag.paciente.id)) {
-                    listaPacientesUnicos.push(pag.paciente);
-                    idsProcessados.add(pag.paciente.id);
+            pagamentos.forEach(pag => {
+                // Verificamos se o objeto 'paciente' existe dentro do pagamento
+                // IMPORTANTE: Se o backend enviar apenas o ID no campo 'paciente', 
+                // usamos o 'paciente_nome' que criamos no serializer.
+                if (pag.paciente) {
+                    const idPaciente = typeof pag.paciente === 'object' ? pag.paciente.id : pag.paciente;
+                    
+                    if (!pacientesMap.has(idPaciente)) {
+                        pacientesMap.set(idPaciente, {
+                            id: idPaciente,
+                            nome_completo: pag.paciente_nome || "Paciente sem Nome"
+                        });
+                    }
                 }
             });
 
-            console.log("[DEBUG-UI] Pacientes processados para o Autocomplete:", listaPacientesUnicos);
-            setPacientes(listaPacientesUnicos.sort((a, b) => 
-                (a.nome_completo || "").localeCompare(b.nome_completo || "")
+            // Convertemos o Map de volta para uma lista de objetos
+            const listaFinal = Array.from(pacientesMap.values());
+            
+            console.log("[DEBUG-UI] Lista final para o Autocomplete:", listaFinal);
+            
+            setPacientes(listaFinal.sort((a, b) => 
+                a.nome_completo.localeCompare(b.nome_completo)
             ));
         })
         .catch(err => {
-            console.error("[DEBUG-UI] Erro ao carregar pacientes:", err);
-            showSnackbar('Erro ao carregar pacientes com débitos.', 'error');
+            console.error("[DEBUG-UI] Erro:", err);
+            showSnackbar('Erro ao carregar devedores.', 'error');
         });
 }, [showSnackbar]);
 
