@@ -82,23 +82,21 @@ export default function FinanceiroPage() {
             
             {/* LINHA DE TOPO: ABAS ALINHADAS COM BOTOES */}
             <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                borderBottom: 1, 
-                borderColor: 'divider', 
-                mb: 2,
-                px: 1 
-            }}>
-                <Tabs 
-                    value={activeTab} 
-                    onChange={handleChange} 
-                    variant="scrollable" 
-                    scrollButtons="auto" 
-                    textColor="primary" 
-                    indicatorColor="primary"
-                    sx={{ minHeight: '48px' }}
-                >
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    borderBottom: 1, 
+    borderColor: 'divider', 
+    mb: 1, // Reduzido de 2 para 1
+    px: 1,
+    minHeight: '40px' // Força uma altura menor para a barra de abas
+}}>
+    <Tabs 
+        value={activeTab} 
+        onChange={handleChange} 
+        variant="scrollable" 
+        sx={{ minHeight: '40px', '& .MuiTab-root': { minHeight: '40px', py: 0.5, fontSize: '0.75rem' } }}
+    >
                     <Tab icon={<FaChartLine />} iconPosition="start" label="Dashboard" {...a11yProps(0)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
                     <Tab icon={<FaHandHoldingUsd />} iconPosition="start" label="Recebimentos" {...a11yProps(1)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
                     <Tab icon={<FaMoneyBillWave />} iconPosition="start" label="Contas a Pagar" {...a11yProps(2)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />

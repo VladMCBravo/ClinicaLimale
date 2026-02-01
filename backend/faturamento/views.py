@@ -45,49 +45,59 @@ from .serializers import (
 
 class FinanceiroDashboardAPIView(APIView):
     permission_classes = [IsRecepcaoOrAdmin]
+
     def get(self, request):
         hoje = timezone.localdate()
-        receitas_hoje = Pagamento.objects.filter(status='Pago', data_pagamento__date=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
-        despesas_hoje = Despesa.objects.filter(pago=True, data_pagamento=hoje).aggregate(Sum('valor'))['valor__sum'] or 0
-        total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
-        total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
-        saldo_final = total_entradas - total_saidas
-
-        receitas_reais = Pagamento.objects.filter(status='Pago', data_pagamento__isnull=False).select_related('paciente').order_by('-data_pagamento')[:30]
-        despesas_reais = Despesa.objects.filter(pago=True, data_pagamento__isnull=False).order_by('-data_pagamento')[:30]
-
-        extrato = []
-        for r in receitas_reais:
-            nome = r.paciente.nome_completo if r.paciente else (r.descricao or "Receita Avulsa")
-            extrato.append({'id': f'rec-{r.id}', 'desc': nome, 'date': r.data_pagamento, 'amount': float(r.valor), 'type': 'income', 'forma': r.forma_pagamento})
-
-        for d in despesas_reais:
-            data_full = d.data_pagamento
-            if isinstance(data_full, date) and not isinstance(data_full, datetime):
-                data_naive = datetime.combine(data_full, time.min)
-                data_full = timezone.make_aware(data_naive)
-            extrato.append({'id': f'desp-{d.id}', 'desc': d.descricao, 'date': data_full, 'amount': float(d.valor), 'type': 'expense', 'forma': 'Despesa'})
-
-        extrato.sort(key=lambda x: x['date'] if x['date'] else timezone.now(), reverse=True)
-        extrato = extrato[:40]
-
-        pagar_futuro = Despesa.objects.filter(pago=False, data_vencimento__gte=hoje).order_by('data_vencimento')[:10]
-        receber_futuro = Pagamento.objects.filter(status='Pendente', data_vencimento__gte=hoje).select_related('paciente').order_by('data_vencimento')[:10]
-
-        alertas_list = []
-        for c in pagar_futuro:
-            alertas_list.append({'id': f'pg-{c.id}', 'desc': c.descricao, 'date': c.data_vencimento, 'valor': float(c.valor), 'tipo': 'saida'})
-        for r in receber_futuro:
-            nome = r.paciente.nome_completo if r.paciente else (r.descricao or "A Receber")
-            alertas_list.append({'id': f'rc-{r.id}', 'desc': nome, 'date': r.data_vencimento, 'valor': float(r.valor), 'tipo': 'entrada'})
         
-        alertas_list.sort(key=lambda x: x['date'] if x['date'] else date.max)
-        for item in alertas_list:
-            item['date'] = item['date'].strftime('%d/%m') if item['date'] else 'S/D'
+        # 1. INDICADORES DE TOPO (Agregados rápidos)
+        pagamentos_queryset = Pagamento.objects.all()
+        despesas_queryset = Despesa.objects.all()
+
+        total_recebido_mes = pagamentos_queryset.filter(
+            status='Pago', 
+            data_pagamento__month=hoje.month, 
+            data_pagamento__year=hoje.year
+        ).aggregate(Sum('valor'))['valor__sum'] or 0
+
+        total_pendente = pagamentos_queryset.filter(status='Pendente').aggregate(Sum('valor'))['valor__sum'] or 0
+        
+        atrasados_count = pagamentos_queryset.filter(
+            status='Pendente', 
+            data_vencimento__lt=hoje
+        ).count()
+
+        # 2. DADOS PARA OS MINI-GRÁFICOS
+        # Distribuição de Despesas
+        despesas_por_tipo = despesas_queryset.filter(
+            data_despesa__month=hoje.month
+        ).values('categoria__tipo').annotate(total=Sum('valor'))
+
+        # Taxa de Conversão (Pagos vs Pendentes)
+        total_tickets = pagamentos_queryset.filter(data_vencimento__month=hoje.month).count()
+        pagos_tickets = pagamentos_queryset.filter(data_vencimento__month=hoje.month, status='Pago').count()
+        taxa_conversao = round((pagos_tickets / total_tickets * 100), 0) if total_tickets > 0 else 0
+
+        # 3. EXTRATO RECENTE (Otimizado com select_related)
+        receitas_recentes = pagamentos_queryset.select_related('paciente').order_by('-id')[:5]
+        
+        extrato_simplificado = []
+        for r in receitas_recentes:
+            extrato_simplificado.append({
+                'id': r.id,
+                'paciente_nome': r.paciente.nome_completo if r.paciente else (r.descricao or "Receita Avulsa"),
+                'valor': float(r.valor),
+                'status': r.status
+            })
 
         return Response({
-            "saldo_em_conta": float(saldo_final), "faturamento_do_dia": float(receitas_hoje), "despesas_do_dia": float(despesas_hoje),
-            "extrato_real": extrato, "alertas_vencimento": alertas_list
+            "kpis": {
+                "recebido_mes": float(total_recebido_mes),
+                "total_pendente": float(total_pendente),
+                "atrasados_count": atrasados_count,
+                "taxa_conversao": taxa_conversao
+            },
+            "distribuicao_despesas": list(despesas_por_tipo),
+            "ultimos_lancamentos": extrato_simplificado
         })
 
 class ProjecaoFluxoCaixaAPIView(APIView):
