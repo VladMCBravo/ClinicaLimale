@@ -51,24 +51,28 @@ export default function ContasReceberView() {
     const handleUpdateStatus = async (novoStatus) => {
     if (!statusTarget) return;
 
-    const agendamentoId = typeof statusTarget.agendamento === 'object' 
-        ? statusTarget.agendamento.id 
-        : statusTarget.agendamento;
+    // Extrai o ID corretamente (seja objeto ou número)
+    const rawId = statusTarget.agendamento;
+    const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
+
+    if (!agendamentoId) return;
 
     try {
-        // Tente mudar para .patch se o seu agendamentoService permitir.
-        // Se usar .put, o backend pode estar reclamando da falta de 'paciente', 'medico', etc.
-        await agendamentoService.updateAgendamento(agendamentoId, { 
-            status: novoStatus 
-            // Se o erro persistir, adicione aqui os campos que o backend exige
-        });
+        // 1. Enviamos a atualização para o servidor
+        await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
         
-        fetchData();
+        // 2. IMPORTANTE: Chamamos o fetchData para buscar a lista atualizada do banco
+        // O backend agora já terá mudado o financeiro para 'Cancelado' automaticamente
+        await fetchData(); 
+        
+        console.log("Status atualizado e financeiro sincronizado.");
     } catch (error) {
-        console.error("Erro na atualização:", error);
-        // Dica: olhe a aba "Response" no Network do navegador para ver qual campo o Django diz que falta.
+        console.error("Erro ao sincronizar:", error);
+        alert("O status mudou na agenda, mas houve um atraso na sincronia financeira.");
+    } finally {
+        setAnchorEl(null);
+        setStatusTarget(null);
     }
-    setAnchorEl(null);
 };
 
     const kpis = useMemo(() => {
