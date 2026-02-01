@@ -295,12 +295,15 @@ class PagamentosPendentesListAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # MELHORIA: Retorna TODOS os pendentes de pacientes, ordenados pelos mais antigos primeiro
-        # independentemente do mês, para facilitar a cobrança de dívidas passadas.
-        return Pagamento.objects.filter(
+        print("[DEBUG-API] Iniciando busca de pagamentos pendentes...")
+        queryset = Pagamento.objects.filter(
             status='Pendente', 
             paciente__isnull=False
-        ).select_related('paciente', 'agendamento').order_by('data_vencimento')
+        ).select_related('paciente', 'agendamento')
+        
+        print(f"[DEBUG-API] Encontrados {queryset.count()} registros pendentes.")
+        return queryset.order_by('data_vencimento')
+    
 # ============================================================================
 #  VIEWS DE DESPESAS E RELATÓRIOS
 # ============================================================================

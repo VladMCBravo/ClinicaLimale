@@ -25,32 +25,32 @@ export default function PagarAgendamentoTab({ onClose }) {
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        // ALTERAÇÃO: Em vez de buscar todos os pacientes cadastrados, 
-        // buscamos apenas aqueles que têm pagamentos pendentes na clínica
-        faturamentoService.getPagamentosPendentes()
-            .then(response => {
-                const pendentes = response.data || [];
-                
-                // Mapeamos para obter uma lista única de objetos de pacientes
-                const listaPacientesUnicos = [];
-                const idsProcessados = new Set();
+    console.log("[DEBUG-UI] Solicitando lista de pacientes devedores...");
+    faturamentoService.getPagamentosPendentes()
+        .then(response => {
+            console.log("[DEBUG-UI] Resposta da API recebida:", response.data);
+            const pendentes = response.data || [];
+            
+            const listaPacientesUnicos = [];
+            const idsProcessados = new Set();
 
-                pendentes.forEach(pag => {
-                    if (pag.paciente && !idsProcessados.has(pag.paciente.id)) {
-                        listaPacientesUnicos.push(pag.paciente);
-                        idsProcessados.add(pag.paciente.id);
-                    }
-                });
+            pendentes.forEach(pag => {
+                if (pag.paciente && !idsProcessados.has(pag.paciente.id)) {
+                    listaPacientesUnicos.push(pag.paciente);
+                    idsProcessados.add(pag.paciente.id);
+                }
+            });
 
-                // Ordenação Alfabética
-                listaPacientesUnicos.sort((a, b) => 
-                    (a.nome_completo || "").localeCompare(b.nome_completo || "")
-                );
-                
-                setPacientes(listaPacientesUnicos);
-            })
-            .catch(() => showSnackbar('Erro ao carregar pacientes com débitos.', 'error'));
-    }, [showSnackbar]);
+            console.log("[DEBUG-UI] Pacientes processados para o Autocomplete:", listaPacientesUnicos);
+            setPacientes(listaPacientesUnicos.sort((a, b) => 
+                (a.nome_completo || "").localeCompare(b.nome_completo || "")
+            ));
+        })
+        .catch(err => {
+            console.error("[DEBUG-UI] Erro ao carregar pacientes:", err);
+            showSnackbar('Erro ao carregar pacientes com débitos.', 'error');
+        });
+}, [showSnackbar]);
 
     useEffect(() => {
         if (pacienteSelecionado) {
