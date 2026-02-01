@@ -117,12 +117,27 @@ export default function DespesasView() {
     const { fixas, variaveis, resumoGeral } = processedData;
 
     const handleToggleStatus = async (item) => {
-        try {
-            await faturamentoService.updateDespesa(item.id, { ...item, pago: !item.pago });
-            showSnackbar('Status atualizado', 'success');
-            fetchData();
-        } catch (e) { showSnackbar('Erro ao atualizar', 'error'); }
-    };
+        // Se já estiver pago, permite reverter com confirmação
+    if (item.pago) {
+        if (window.confirm(`Deseja reverter o pagamento de "${item.descricao}" para PENDENTE?`)) {
+            try {
+                await faturamentoService.updateDespesa(item.id, { ...item, pago: false, data_pagamento: null });
+                showSnackbar('Pagamento revertido para pendente.', 'info');
+                fetchData();
+            } catch (e) { showSnackbar('Erro ao reverter.', 'error'); }
+        }
+        return;
+    }
+
+    // Se NÃO estiver pago, abre o modal de Lançamento enviando os dados da despesa
+    // para evitar que o usuário tenha que digitar tudo de novo
+    setEditFormData({
+        ...item,
+        tipo: 'despesa',
+        jaExistente: true // Flag para o modal saber que deve dar baixa e não criar nova
+    });
+    setOpenEditModal(true); 
+};
 
     const onDelete = async (id) => {
         if (!window.confirm("Deseja excluir?")) return;

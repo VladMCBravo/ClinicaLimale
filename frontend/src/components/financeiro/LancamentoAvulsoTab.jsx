@@ -12,20 +12,20 @@ import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }) {
+export default function LancamentoAvulsoTab({ onClose, initialType, existingData = null }) {
     const [tipo, setTipo] = useState(initialType);
-    const [jaLiquidado, setJaLiquidado] = useState(true); 
+    const [jaLiquidado, setJaLiquidado] = useState(existingData?.pago || false);
     const [categorias, setCategorias] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [formData, setFormData] = useState({ 
-        descricao: '',
-        valor: '',
-        qtd_parcelas: 1,
-        categoria: '',
-        forma_pagamento: 'Dinheiro',
-        data_vencimento: dayjs().format('YYYY-MM-DD'),
-        data_pagamento: dayjs().format('YYYY-MM-DD') 
+    const [formData, setFormData] = useState({
+        id: existingData?.id || null, 
+        descricao: existingData?.descricao || '',
+        valor: existingData?.valor || '',
+        categoria: existingData?.categoria || '',
+        forma_pagamento: existingData?.forma_pagamento || 'Dinheiro',
+        data_vencimento: existingData?.data_vencimento || dayjs().format('YYYY-MM-DD'),
+        data_pagamento: existingData?.data_pagamento || dayjs().format('YYYY-MM-DD')
     });
     
     const { showSnackbar } = useSnackbar();
@@ -48,29 +48,18 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'receita' }
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        if (!formData.descricao || !formData.valor) {
-            return showSnackbar('Preencha descrição e valor.', 'warning');
-        }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const payload = { ...formData, pago: jaLiquidado };
 
-        setIsSubmitting(true);
-        const payload = {
-            ...formData,
-            tipo: tipo,
-            status: jaLiquidado ? 'Pago' : 'Pendente',
-            pago: jaLiquidado
-        };
-
-        try {
+        if (formData.id) {
+            // Se tem ID, apenas ATUALIZA (baixa/correção)
+            await faturamentoService.updateDespesa(formData.id, payload);
+        } else {
+            // Se não tem ID, CRIA um novo
             await faturamentoService.createLancamentoAvulso(payload);
-            showSnackbar(`Lançamento de ${tipo} salvo!`, 'success');
-            onClose(); 
-        } catch (error) {
-            showSnackbar(`Erro ao salvar lançamento.`, 'error');
-        } finally {
-            setIsSubmitting(false);
         }
+        onClose();
     };
 
     const limiteParcelas = tipo === 'receita' ? 10 : 64;

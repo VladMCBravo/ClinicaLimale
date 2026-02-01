@@ -350,6 +350,22 @@ class DespesaViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(registrado_por=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def alternar_pagamento(self, request, pk=None):
+        despesa = self.get_object()
+        # Inverte o status atual
+        despesa.pago = not despesa.pago
+        
+        if despesa.pago:
+            # Se marcou como pago agora, usa a data enviada ou hoje
+            despesa.data_pagamento = request.data.get('data_pagamento') or timezone.now().date()
+        else:
+            # Se desmarcou, limpa a data de pagamento
+            despesa.data_pagamento = None
+            
+        despesa.save()
+        return Response({'status': 'atualizado', 'pago': despesa.pago})
 
 class RelatorioFinanceiroAPIView(APIView):
     permission_classes = [IsAdminUser]
