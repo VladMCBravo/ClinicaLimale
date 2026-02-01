@@ -195,13 +195,18 @@ export default function ContasReceberView() {
         {/* LÁPIS: Gestão de Status da Agenda */}
         <IconButton 
     size="small" 
-    title="Alterar Status da Agenda" 
+    title="Editar / Reverter Pagamento" 
     onClick={(e) => { 
-        setAnchorEl(e.currentTarget); // Define onde o menu vai "ancorar"
-        setStatusTarget(row);        // Define QUAL registro será alterado
+        if (row.status === 'Pago') {
+            // Se já está pago, abre o modal de edição para permitir o "uncheck" do liquidado
+            setSelectedPagamento(row);
+            setOpenCaixaModal(true);
+        } else {
+            // Se ainda é pendente, mantém o menu de status da agenda (Não Compareceu)
+            setAnchorEl(e.currentTarget); 
+            setStatusTarget(row);
+        }
     }}
-    // Só habilita se o financeiro tiver um agendamento vinculado
-    disabled={!row.agendamento_id && !row.agendamento} 
 >
     <Edit fontSize="small" color="action" />
 </IconButton>
