@@ -310,7 +310,8 @@ class DespesaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
 
     def get_queryset(self):
-        queryset = Despesa.objects.all()
+        # MELHORIA: select_related reduz o tempo de carga drasticamente
+        queryset = Despesa.objects.select_related('categoria', 'registrado_por').all()
 
         status_param = self.request.query_params.get('status')
         if status_param == 'pago':

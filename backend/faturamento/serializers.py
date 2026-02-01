@@ -48,7 +48,9 @@ class PagamentoSerializer(serializers.ModelSerializer):
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     agendamento = AgendamentoInfoSerializer(read_only=True)
-    # Criamos um campo extra apenas para leitura com os dados detalhados da agenda
+    # Mantemos o ID puro no campo 'agendamento' para as URLs do Front
+    agendamento_id = serializers.PrimaryKeyRelatedField(source='agendamento', read_only=True)
+    # Detalhes ficam em um campo separado para exibição visual
     agendamento_detalhes = AgendamentoInfoSerializer(source='agendamento', read_only=True)
 
     class Meta:
