@@ -40,11 +40,20 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDele
                         const isVencida = !item.pago && dayjs(item.data_vencimento).isBefore(dayjs(), 'day');
                         return (
                             <TableRow key={item.id} hover sx={{ bgcolor: isVencida ? '#fff5f5' : 'inherit' }}>
-                                <TableCell sx={{ fontSize: '0.7rem' }}>{dayjs(item.data_vencimento).format('DD/MM/YY')}</TableCell>
-                                <TableCell sx={{ py: 0.5 }}>
-                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.descricao}</Typography>
-                                    {item.pago && <Typography variant="caption" color="success.main" sx={{fontSize: '0.6rem'}}>Pago em {dayjs(item.data_pagamento).format('DD/MM')}</Typography>}
-                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.7rem' }}>
+    {/* Garante que se a data for nula ou inválida, não quebre a UI */}
+    {item.data_vencimento ? dayjs(item.data_vencimento).format('DD/MM/YY') : '--/--/--'}
+</TableCell>
+
+<TableCell sx={{ py: 0.5 }}>
+    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.descricao}</Typography>
+    {item.pago && (
+        <Typography variant="caption" color="success.main" sx={{fontSize: '0.6rem', display: 'block'}}>
+            {/* CORREÇÃO: Pago em DD/MM */}
+            Pago em {item.data_pagamento ? dayjs(item.data_pagamento).format('DD/MM/YY') : 'Data não registrada'}
+        </Typography>
+    )}
+</TableCell>
                                 <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{formatMoney(item.valor)}</TableCell>
                                 <TableCell align="center">
                                     <Stack direction="row" spacing={0} justifyContent="center">
