@@ -1,12 +1,12 @@
 // src/components/financeiro/ContasReceberView.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    Button, CircularProgress, TextField, Paper,
+    CircularProgress, TextField, Paper,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText
 } from '@mui/material';
 import { 
-    Edit, CheckCircle, Search, Warning, AddCircleOutline, Block, EventAvailable 
+    Edit, CheckCircle, Search, Warning, Block, EventAvailable 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -49,28 +49,27 @@ export default function ContasReceberView() {
     useEffect(() => { fetchData(); }, [filtroData]);
 
     const handleUpdateStatus = async (novoStatus) => {
-    if (!statusTarget) return;
+        if (!statusTarget) return;
 
-    const rawId = statusTarget.agendamento;
-    const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
+        const rawId = statusTarget.agendamento;
+        const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
 
-    if (!agendamentoId) return;
+        if (!agendamentoId) return;
 
-    try {
-        await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
-        
-        // Adicionamos um pequeno delay antes de recarregar a lista
-        // Isso resolve problemas de "corrida" (race conditions) em servidores pesados
-        setTimeout(async () => {
-            await fetchData();
-            console.log("[LOG-UI] Lista financeira recarregada após sincronia.");
-        }, 800);
+        try {
+            await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
+            
+            // Delay de segurança para sincronização do banco de dados
+            setTimeout(async () => {
+                await fetchData();
+                console.log("[LOG-UI] Lista financeira recarregada após sincronia.");
+            }, 1200);
 
-    } catch (error) {
-        console.error("Erro na atualização:", error);
-    }
-    setAnchorEl(null);
-};
+        } catch (error) {
+            console.error("Erro na atualização:", error);
+        }
+        setAnchorEl(null);
+    };
 
     const kpis = useMemo(() => {
         const totalRecebido = lancamentos.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
@@ -117,38 +116,27 @@ export default function ContasReceberView() {
                 </Grid>
             </Grid>
 
-            {/* 2. FILTROS E AÇÃO ÚNICA */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <DatePicker 
-                        label="Referência"
-                        views={['month', 'year']}
-                        value={filtroData}
-                        onChange={(newValue) => setFiltroData(newValue)}
-                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
-                    />
-                    <TextField
-                        placeholder="Buscar..."
-                        size="small"
-                        value={termoBusca}
-                        onChange={(e) => setTermoBusca(e.target.value)}
-                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1rem' }} /> }}
-                        sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
-                    />
-                </Box>
-                <Button 
-                    variant="contained" 
+            {/* 2. FILTROS (BOTÃO RECEBER REMOVIDO DAQUI) */}
+            <Box sx={{ display: 'flex', mb: 2, gap: 1 }}>
+                <DatePicker 
+                    label="Referência"
+                    views={['month', 'year']}
+                    value={filtroData}
+                    onChange={(newValue) => setFiltroData(newValue)}
+                    slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
+                />
+                <TextField
+                    placeholder="Buscar paciente ou descrição..."
                     size="small"
-                    startIcon={<AddCircleOutline />} 
-                    onClick={() => { setSelectedPagamento(null); setOpenCaixaModal(true); }}
-                    sx={{ bgcolor: '#1a233b', px: 3, fontSize: '0.75rem', fontWeight: 'bold' }}
-                >
-                    Receber
-                </Button>
+                    value={termoBusca}
+                    onChange={(e) => setTermoBusca(e.target.value)}
+                    InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1rem' }} /> }}
+                    sx={{ width: 280, '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                />
             </Box>
 
-            {/* 3. TABELA COM FONTES REDUZIDAS E DESTAQUE */}
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 500, borderRadius: 2 }}>
+            {/* 3. TABELA COM DESTAQUE PARA ATRASADOS */}
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 600, borderRadius: 2 }}>
                 <Table stickyHeader size="small">
                     <TableHead>
                         <TableRow>
@@ -173,7 +161,7 @@ export default function ContasReceberView() {
                                     <TableCell sx={{ fontSize: '0.8rem' }}>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
                                     <TableCell sx={{ py: 1 }}>
                                         <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.paciente_nome || 'Lançamento Avulso'}</Typography>
-                                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', display: 'block' }}>{row.descricao}</Typography>
+                                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', display: 'block' }}>{row.descricao_visual}</Typography>
                                     </TableCell>
                                     <TableCell sx={{ fontWeight: 'bold', fontSize: '0.85rem' }}>{formatMoney(row.valor)}</TableCell>
                                     <TableCell>
@@ -186,7 +174,6 @@ export default function ContasReceberView() {
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                            {/* CHECK E LÁPIS ABREM O MESMO MODAL DE CAIXA */}
                                             <IconButton size="small" title="Baixar/Detalhar" onClick={() => { setSelectedPagamento(row); setOpenCaixaModal(true); }}>
                                                 <CheckCircle fontSize="small" color="success" />
                                             </IconButton>
