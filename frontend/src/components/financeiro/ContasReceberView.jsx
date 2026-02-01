@@ -173,20 +173,33 @@ export default function ContasReceberView() {
                                         />
                                     </TableCell>
                                     <TableCell align="right">
-                                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                            <IconButton size="small" title="Baixar/Detalhar" onClick={() => { setSelectedPagamento(row); setOpenCaixaModal(true); }}>
-                                                <CheckCircle fontSize="small" color="success" />
-                                            </IconButton>
-                                            <IconButton 
-                                                size="small" 
-                                                title="Alterar Status na Agenda" 
-                                                onClick={(e) => { setAnchorEl(e.currentTarget); setStatusTarget(row); }}
-                                                disabled={!row.agendamento}
-                                            >
-                                                <Edit fontSize="small" color="action" />
-                                            </IconButton>
-                                        </Stack>
-                                    </TableCell>
+    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+        {/* CHECK: Recebimento Inteligente */}
+        <IconButton 
+            size="small" 
+            title="Baixar Pagamento" 
+            onClick={() => { 
+                setSelectedPagamento(row); 
+                setOpenCaixaModal(true); 
+            }}
+        >
+            <CheckCircle fontSize="small" color="success" />
+        </IconButton>
+
+        {/* LÁPIS: Gestão de Status da Agenda */}
+        <IconButton 
+            size="small" 
+            title="Status da Agenda" 
+            onClick={(e) => { 
+                setAnchorEl(e.currentTarget); 
+                setStatusTarget(row); 
+            }}
+            disabled={!row.agendamento_id} // Só habilita se houver agendamento
+        >
+            <Edit fontSize="small" color="action" />
+        </IconButton>
+    </Stack>
+</TableCell>
                                 </TableRow>
                             );
                         })}

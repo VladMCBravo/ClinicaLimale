@@ -8,23 +8,17 @@ import CloseIcon from '@mui/icons-material/Close';
 import PagarAgendamentoTab from './PagarAgendamentoTab';
 import LancamentoAvulsoTab from './LancamentoAvulsoTab';
 
-export default function LancamentoCaixaModal({ 
-    open, 
-    onClose, 
-    initialTab = 0, 
-    initialType = 'receita',
-    initialData = null // Se este campo vier preenchido, o modal vira modo "Edição/Baixa"
-}) {
-    const [activeTab, setActiveTab] = useState(initialTab);
+export default function LancamentoCaixaModal({ open, onClose, initialData = null }) {
+    // 0: Receber de Paciente, 1: Entrada/Saída Avulsa
+    const [activeTab, setActiveTab] = useState(0);
 
-    // Sincroniza a aba ativa sempre que o modal for aberto por botões diferentes
     useEffect(() => {
         if (open) {
-            // Se clicou num "Check" de despesa (initialData existe), 
-            // força a aba 1 (Avulso) e o tipo 'despesa'
-            setActiveTab(initialData ? 1 : initialTab);
+            // Se houver initialData e NÃO tiver agendamento_id, é um lançamento AVULSO
+            const isAvulso = initialData && !initialData.agendamento_id;
+            setActiveTab(isAvulso ? 1 : 0);
         }
-    }, [open, initialData, initialTab]);
+    }, [open, initialData]);
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -35,16 +29,19 @@ export default function LancamentoCaixaModal({
                 </Tabs>
                 
                 <Box sx={{ p: 3 }}> 
-                    {activeTab === 0 && <PagarAgendamentoTab onClose={onClose} />}
-                    {activeTab === 1 && (
-                        <LancamentoAvulsoTab 
-                            onClose={onClose} 
-                            initialType={initialData ? 'despesa' : initialType} 
-                            existingData={initialData} // Passa os dados para a aba
-                            key={initialData?.id || 'novo'} 
-                        />
-                    )}
-                </Box>
+                {activeTab === 0 && (
+                    <PagarAgendamentoTab 
+                        onClose={onClose} 
+                        initialPaciente={initialData?.paciente} // Pré-seleciona o paciente se vier da linha
+                    />
+                )}
+                {activeTab === 1 && (
+                    <LancamentoAvulsoTab 
+                        onClose={onClose} 
+                        existingData={initialData} 
+                    />
+                )}
+            </Box>
             </DialogContent>
         </Dialog>
     );
