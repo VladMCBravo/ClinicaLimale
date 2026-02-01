@@ -11,6 +11,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import { agendamentoService } from '../../services/agendamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
@@ -23,7 +24,7 @@ export default function ContasReceberView() {
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
     const { showSnackbar } = useSnackbar();
-    
+
     // Modais
     const [openCaixaModal, setOpenCaixaModal] = useState(false);
     const [selectedPagamento, setSelectedPagamento] = useState(null);
