@@ -44,7 +44,7 @@ class PagamentoSerializer(serializers.ModelSerializer):
     forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_display', read_only=True, allow_null=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     
-    # Campo declarado que causou o erro
+    # Resolvido: agora explicitamente incluído no Meta fields
     agendamento_id = serializers.PrimaryKeyRelatedField(source='agendamento', read_only=True)
     agendamento_detalhes = AgendamentoInfoSerializer(source='agendamento', read_only=True)
 
@@ -52,38 +52,34 @@ class PagamentoSerializer(serializers.ModelSerializer):
         model = Pagamento
         fields = [
             'id', 'agendamento_id', 'agendamento_detalhes', 'paciente', 'paciente_nome', 'descricao',
-            'descricao_visual', # <--- ADICIONADO AQUI
-            'valor', 'status', 'status_display', 'forma_pagamento', 
+            'descricao_visual', 'valor', 'status', 'status_display', 'forma_pagamento', 
             'forma_pagamento_display', 'data_pagamento', 'data_vencimento',
-            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em','link_pagamento'
+            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em', 'link_pagamento'
         ]
         read_only_fields = ['registrado_por']
 
     def get_paciente_nome(self, obj):
-        if obj.paciente:
-            return obj.paciente.nome_completo
-        return "Cliente Avulso" # Texto mais amigável que "Outros"
+        return obj.paciente.nome_completo if obj.paciente else "Cliente Avulso"
 
     def get_descricao_visual(self, obj):
-        # CORREÇÃO: Invertemos a prioridade.
-        # 1. Primeiro verificamos se é um Agendamento (Fluxo Clínico)
+        # Prioridade 1: Agendamento Clínico
         if obj.agendamento:
-            # Tenta pegar o nome bonito do procedimento ou consulta
             try:
-                if obj.agendamento.procedimento:
+                # Se for um procedimento específico
+                if getattr(obj.agendamento, 'procedimento', None):
                     return obj.agendamento.procedimento.descricao
-                elif obj.agendamento.tipo_agendamento == 'Consulta':
+                # Se for uma consulta padrão
+                if obj.agendamento.tipo_agendamento == 'Consulta':
                     return "Consulta Médica"
-                else:
-                    return f"Atendimento (ID: {obj.agendamento.id})"
-            except AttributeError:
-                pass
+                return f"Atendimento ({obj.agendamento.get_tipo_agendamento_display()})"
+            except Exception:
+                return "Atendimento Clínico"
 
-        # 2. Se não for agendamento, mas tiver descrição manual (Avulso), usa ela
+        # Prioridade 2: Descrição manual do lançamento avulso
         if obj.descricao:
             return obj.descricao
 
-        # 3. Fallback final
+        # Fallback
         return "Receita Diversa"
 
 class PagamentoCreateSerializer(serializers.ModelSerializer):

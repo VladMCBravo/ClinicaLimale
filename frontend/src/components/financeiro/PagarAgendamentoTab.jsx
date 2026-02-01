@@ -25,15 +25,31 @@ export default function PagarAgendamentoTab({ onClose }) {
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        pacienteService.getPacientes()
+        // ALTERAÇÃO: Em vez de buscar todos os pacientes cadastrados, 
+        // buscamos apenas aqueles que têm pagamentos pendentes na clínica
+        faturamentoService.getPagamentosPendentes()
             .then(response => {
-                // Ordenação Alfabética por nome_completo
-                const listaOrdenada = (response.data || []).sort((a, b) => 
-                    a.nome_completo.localeCompare(b.nome_completo)
+                const pendentes = response.data || [];
+                
+                // Mapeamos para obter uma lista única de objetos de pacientes
+                const listaPacientesUnicos = [];
+                const idsProcessados = new Set();
+
+                pendentes.forEach(pag => {
+                    if (pag.paciente && !idsProcessados.has(pag.paciente.id)) {
+                        listaPacientesUnicos.push(pag.paciente);
+                        idsProcessados.add(pag.paciente.id);
+                    }
+                });
+
+                // Ordenação Alfabética
+                listaPacientesUnicos.sort((a, b) => 
+                    (a.nome_completo || "").localeCompare(b.nome_completo || "")
                 );
-                setPacientes(listaOrdenada);
+                
+                setPacientes(listaPacientesUnicos);
             })
-            .catch(() => showSnackbar('Erro ao carregar lista de pacientes.', 'error'));
+            .catch(() => showSnackbar('Erro ao carregar pacientes com débitos.', 'error'));
     }, [showSnackbar]);
 
     useEffect(() => {
