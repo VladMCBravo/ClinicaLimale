@@ -274,8 +274,15 @@ export default function AgendaPrincipal({
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden', width: '100%' }}>
                             <span style={{ fontWeight: 'bold', fontSize: '0.9em', opacity: 0.9 }}>{arg.timeText}</span>
                             <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{arg.event.title}</span>
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                            {arg.event.extendedProps.pagamento_status === 'Pendente' && (
+                                <FaExclamationTriangle style={{ color: 'yellow', marginRight: 4 }} title="Pagamento Pendente" />
+                            )}
+                            <span>{arg.event.title}</span>
+                        </Box>
                         </Box>
                     )}
+                        
                 />
             </StyledCalendarWrapper>
 

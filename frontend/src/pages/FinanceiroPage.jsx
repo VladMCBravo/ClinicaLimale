@@ -72,6 +72,11 @@ export default function FinanceiroPage() {
             }
         });
 
+        // Adicione este filtro no useMemo do projectionData ou em uma lista de alertas
+        const conflitos = lancamentos.filter(l => 
+            l.agendamento_status === 'Realizado' && l.status === 'Pendente'
+        );
+
         return Object.values(months).sort((a, b) => 
             dayjs(a.name, 'MMM/YY', 'pt-br').diff(dayjs(b.name, 'MMM/YY', 'pt-br'))
         );

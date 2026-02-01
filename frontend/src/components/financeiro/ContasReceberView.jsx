@@ -120,6 +120,33 @@ export default function ContasReceberView() {
                     Receber de Paciente
                 </Button>
             </Box>
+            {/* ALERTA DE CONFLITOS: Realizado mas não Pago */}
+{lancamentos.some(l => l.agendamento_status === 'Realizado' && l.status === 'Pendente') && (
+    <Box sx={{ mb: 2 }}>
+        <Card sx={{ bgcolor: '#fff5f5', border: '1px solid #feb2b2', borderRadius: 2 }}>
+            <CardContent sx={{ py: 1.5, px: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Warning sx={{ color: '#e53e3e' }} />
+                <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="subtitle2" sx={{ color: '#9b2c2c', fontWeight: 'bold' }}>
+                        Atenção: Existem atendimentos finalizados sem baixa financeira!
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#c53030' }}>
+                        Estes pacientes foram marcados como "Realizado" pelo médico, mas o pagamento continua "Pendente".
+                    </Typography>
+                </Box>
+                <Button 
+                    size="small" 
+                    variant="outlined" 
+                    color="error"
+                    onClick={() => setTermoBusca('Realizado')} // Filtra a tabela para mostrar apenas os conflitos
+                    sx={{ fontSize: '0.7rem', textTransform: 'none' }}
+                >
+                    Ver Conflitos
+                </Button>
+            </CardContent>
+        </Card>
+    </Box>
+)}
 
             {/* 3. TABELA DE LANÇAMENTOS */}
             <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 600 }}>

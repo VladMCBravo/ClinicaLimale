@@ -150,31 +150,34 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return AgendamentoSerializer
 
     def perform_update(self, serializer):
+        instance = self.get_object()
         agendamento = serializer.save()
         pagamento = getattr(agendamento, 'pagamento', None)
-        
-        # --- MUDANÇA 2: NÃO COMPARECEU ---
-        if agendamento.status == 'Não Compareceu':
-            # Se o paciente não foi, cancelamos a cobrança pendente.
-            # "Cancelado" faz sumir das listas de "A Receber", mas mantêm o registro auditável.
-            if pagamento and pagamento.status == 'Pendente':
-                pagamento.status = 'Cancelado'
-                pagamento.save()
-            return # Encerra aqui, não recalcula valor
 
-        # Atualização normal (se ainda for Pendente)
-        if pagamento and pagamento.status == 'Pendente':
-            valor_novo = 0
-            desc_nova = "Consulta"
-            
-            if agendamento.procedimento:
-                valor_novo = agendamento.procedimento.valor_particular
-                desc_nova = agendamento.procedimento.descricao # Descrição Limpa
-            
-            pagamento.paciente = agendamento.paciente
+        if not pagamento:
+            return
+
+        # CENÁRIO A: RECEPÇÃO MARCA "NÃO COMPARECEU"
+        if agendamento.status == 'Não Compareceu':
+            if pagamento and pagamento.status == 'Pendente':
+                pagamento.status = 'Cancelado' # O sistema "anula" a dívida para você
+                pagamento.save()
+            elif pagamento.status == 'Pago':
+                # Se já estava PAGO, mas não veio, mantemos como PAGO (crédito/multa)
+                # mas podemos adicionar uma observação automática
+                pagamento.descricao = f"{pagamento.descricao} (PACIENTE AUSENTE)"
+                pagamento.save()
+        return
+
+        # CENÁRIO B: AGENDAMENTO FOI "REALIZADO"
+        if agendamento.status == 'Realizado':
+            # Aqui você pode travar a edição do agendamento ou disparar nota fiscal
+            pass
+
+        # CENÁRIO C: ATUALIZAÇÃO DE VALORES (Se ainda pendente)
+        if pagamento.status == 'Pendente' and agendamento.status not in ['Cancelado', 'Não Compareceu']:
+            valor_novo = agendamento.procedimento.valor_particular if agendamento.procedimento else 0
             pagamento.valor = valor_novo
-            pagamento.descricao = desc_nova
-            pagamento.data_vencimento = agendamento.data_hora_inicio.date()
             pagamento.save()
 
     def perform_destroy(self, instance):
