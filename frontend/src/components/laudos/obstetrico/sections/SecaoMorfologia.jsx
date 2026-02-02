@@ -132,7 +132,7 @@ const SecaoMorfologia = ({ data, handleChange }) => {
                                     CÁLCULO DE RISCO (Colar do site FMF)
                                 </div>
                                 <button 
-                                    onClick={() => window.open('https://www.fetalmedicine.org/research/assess/trisomies', 'CalculadoraFMF', 'width=1000,height=800,scrollbars=yes')}
+                                    onClick={() => window.open('https://www.fetalmedicine.org/research/assess/trisomies', '_blank', 'noreferrer')}
                                     style={{
                                         background: '#1565C0', color: 'white', border: 'none', borderRadius: '4px',
                                         padding: '4px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
