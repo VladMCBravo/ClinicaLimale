@@ -40,7 +40,9 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
     const dadosFeto2 = useRef({ ...initialState });
     const dadosFeto3 = useRef({ ...initialState });
  
-    // --- 1. CÁLCULOS AUTOMÁTICOS ---
+    // =========================================================================
+    // 1. CÁLCULOS AUTOMÁTICOS (O CÉREBRO DO SISTEMA)
+    // =========================================================================
     useEffect(() => {
         setData(prev => {
             const newState = { ...prev };
@@ -75,58 +77,49 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 }
             } // <--- O FECHAMENTO DO IF DEVE SER AQUI, APÓS O BLOCO DE SINCRONIA
             
-            // =========================================================
-            // B. NOVO: CÁLCULO DA BIOMETRIA MÉDIA (IG/DPP pelo USG)
-            // =========================================================
-            // Só calcula se tiver pelo menos um dado biométrico preenchido
-            if (prev.dbp || prev.cc || prev.femur || prev.ca) {
-                const bio = calcularMediaBiometria(prev);
-                
-                if (prev.igBiometria !== bio.ig) {
-                    newState.igBiometria = bio.ig;
-                    mudou = true;
-                }
-                if (prev.dppBiometriaCalculada !== bio.dpp) {
-                    newState.dppBiometriaCalculada = bio.dpp;
-                    mudou = true;
-                }
-            } else if (prev.igBiometria !== '') {
-                // Se o usuário apagou as medidas, limpa os campos calculados
-                newState.igBiometria = '';
-                newState.dppBiometriaCalculada = '';
+            // --- B. BIOMETRIA MÉDIA (IG/DPP pelo USG) ---
+            // A função calcularMediaBiometria agora é RÍGIDA (exige >= 2 medidas)
+            // Se ela retornar vazio, limpamos o estado para não sobrar lixo.
+            const bio = calcularMediaBiometria(prev);
+            
+            if (prev.igBiometria !== bio.ig) {
+                newState.igBiometria = bio.ig; // Se bio.ig for '', limpa o campo
                 mudou = true;
             }
-            // =========================================================
+            if (prev.dppBiometriaCalculada !== bio.dpp) {
+                newState.dppBiometriaCalculada = bio.dpp;
+                mudou = true;
+            }
+
+            // --- C. EXAME ANTERIOR (Prioridade de Datacao 2) ---
             if (prev.usarExameAnterior && prev.dataExameAnterior) {
-                // Importante: Certifique-se que calcularIGeDPP_Anterior está importado corretamente
                 const { ig, dpp } = calcularIGeDPP_Anterior(
                     prev.dataExameAnterior, 
                     prev.igAnteriorSemanas, 
                     prev.igAnteriorDias
                 );
                 
-                if (prev.igIgCorrigidaCalculada !== ig) { 
-                    newState.igIgCorrigidaCalculada = ig; 
-                    mudou = true; 
-                }
-                if (prev.dppIgCorrigidaCalculada !== dpp) { 
-                    newState.dppIgCorrigidaCalculada = dpp; 
-                    mudou = true; 
-                }
+                if (prev.igIgCorrigidaCalculada !== ig) { newState.igIgCorrigidaCalculada = ig; mudou = true; }
+                if (prev.dppIgCorrigidaCalculada !== dpp) { newState.dppIgCorrigidaCalculada = dpp; mudou = true; }
             }
             // =========================================================
 
-            // C. Índices Biométricos e Peso (AGORA COM NOMES CORRETOS)
+            // --- D. ÍNDICES BIOMÉTRICOS E PESO (HADLOCK 4) ---
+            // A função calcularIndicesBiometricos agora só retorna peso se tiver as 4 medidas
             const indices = calcularIndicesBiometricos(prev);
             
-            // Atualiza apenas se mudou, usando as chaves corretas
             if (prev.resIc !== indices.resIc) { newState.resIc = indices.resIc; mudou = true; }
             if (prev.resCcCa !== indices.resCcCa) { newState.resCcCa = indices.resCcCa; mudou = true; }
             if (prev.resCfCa !== indices.resCfCa) { newState.resCfCa = indices.resCfCa; mudou = true; }
             if (prev.resCfCc !== indices.resCfCc) { newState.resCfCc = indices.resCfCc; mudou = true; }
-            if (prev.pesoEstimado !== indices.pesoEstimado) { newState.pesoEstimado = indices.pesoEstimado; mudou = true; }
+            
+            // Limpeza automática do peso se faltar medida
+            if (prev.pesoEstimado !== indices.pesoEstimado) { 
+                newState.pesoEstimado = indices.pesoEstimado; 
+                mudou = true; 
+            }
 
-            // D. Checkboxes Automáticos (Feedback visual)
+            // Checkboxes visuais automáticos
             if (indices.resIc && !prev.checkIndiceCefalico) { newState.checkIndiceCefalico = true; mudou = true; }
 
             // C. DMSG
@@ -149,15 +142,18 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 newState.resIgCcn = '';
                 mudou = true;
             }
-            // --- NOVO: MOTOR DE DECISÃO DE DATAÇÃO ---
+            // --- G. O GRANDE JUIZ: O VEREDITO DA DATAÇÃO ---
+            // Aqui unificamos a decisão. O Hook pergunta: "Quem manda na data?"
+            // O resultado (veredito.final) será usado pelo TextBuilder para o cabeçalho E conclusão.
             const veredito = decidirVereditoDatacao(newState); 
+            
             if (prev.igVeredito !== veredito.final) {
                 newState.igVeredito = veredito.final;
-                newState.metodoDatacao = veredito.motivo;
+                newState.metodoDatacao = veredito.motivo; // 'CCN', 'DUM', 'CCN_REDATADO', etc.
                 mudou = true;
             }
 
-            // E. CÁLCULO DE VOLUMES OVARIANOS (Novo)
+            // H. CÁLCULO DE VOLUMES OVARIANOS (Novo)
             // Importe a função calcularVolumeOvario lá em cima no arquivo!
             const volOD = calcularVolumeOvario(prev.od1, prev.od2, prev.od3);
             if (prev.odVol !== volOD) { newState.odVol = volOD; mudou = true; }
@@ -168,16 +164,20 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             return mudou ? newState : prev;
         });
     }, [
+        // Dependências que disparam o recálculo
         data.dum, data.usarDum, data.dataExameAnterior, fetoAtivo, 
         data.ccn, data.dbp, data.dof, data.cc, data.ca, data.femur, 
         data.sg1, data.sg2, data.sg3,
-        // ADICIONE ESTAS DUAS LINHAS NOVAS:
         data.igAnteriorSemanas, 
         data.igAnteriorDias,
-        data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3
-]);
+        data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3,
+        // Importante: Reagir se mudar o método de prioridade
+        data.metodoDatacao 
+    ]);
 
-    // --- 2. GERAÇÃO DE TEXTO E SINCRONIZAÇÃO ---
+    // =========================================================================
+    // 2. GERAÇÃO DE TEXTO E SINCRONIZAÇÃO ENTRE FETOS
+    // =========================================================================
     useEffect(() => {
         // Salva o estado atual no Ref correto antes de gerar relatório
         if (fetoAtivo === 1) dadosFeto1.current = data;
