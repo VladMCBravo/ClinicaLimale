@@ -517,7 +517,7 @@ const LaudosPage = () => {
                     onChange={(e) => setTipoExame(e.target.value)} 
                     style={{...styles.inputCompact, cursor: 'pointer'}}
                 >
-                    <option value="OBSTETRICO">Obstétrico</option>
+                    <option value="OBSTETRICO">Medicina Fetal</option>
                     <option value="TRANSVAGINAL">Transvaginal</option>
                     <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
                     <option value="ABDOME">Abdome Total</option>
