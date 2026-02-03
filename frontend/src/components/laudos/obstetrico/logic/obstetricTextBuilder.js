@@ -135,25 +135,42 @@ export const gerarRelatorioFeto = (d) => {
     let dppFinal = '';
     let metodoTexto = '';
 
-    if (d.igVeredito) {
-        // PRIORIDADE 1: Veredito do Motor de Decisão (1º Trimestre / CCN / DUM Validada)
+    // REGRA 0: OVERRIDE MANUAL (PRIORIDADE ABSOLUTA DA BIOMETRIA)
+    // Se o médico marcou "Usar esta data no laudo", ignoramos todo o resto.
+    if (d.citarDppBiometria && d.igBiometria) {
+        igFinal = d.igBiometria;
+        dppFinal = d.dppBiometriaCalculada;
+        metodoTexto = '(Calculada pela biometria fetal atual)';
+    }
+    // REGRA 1: Veredito Automático (1º Tri / CCN / DUM Validada)
+    else if (d.igVeredito) {
         igFinal = d.igVeredito;
-        // Se o método escolhido for DUM, usa a DPP da DUM. Se for CCN, usa a do CCN.
-        dppFinal = (d.metodoDatacao === 'DUM') ? d.dppDum : d.dppBiometriaCalculada;
+        // Se for DUM, verificamos se o usuário quer citar a DPP
+        if (d.metodoDatacao === 'DUM') {
+            dppFinal = d.citarDppDum ? d.dppDum : ''; // Respeita o checkbox
+        } else {
+            dppFinal = d.dppBiometriaCalculada;
+        }
         
-        // Texto explicativo para o laudo
-        metodoTexto = d.metodoDatacao === 'CCN_REDATADO' ? '(Redatada pelo CCN)' : 
-                      d.metodoDatacao === 'DUM' ? `(Compatível com a DUM: ${formatData(d.dum)})` : 
-                      '(Baseada no CCN)';
+        // Montagem do texto do método com RESPEITO AOS CHECKBOXES DA DUM
+        if (d.metodoDatacao === 'DUM') {
+            const trechoData = d.exibirDataDum ? `: ${formatData(d.dum)}` : '';
+            metodoTexto = `(Compatível com a DUM referida${trechoData})`;
+        } else if (d.metodoDatacao === 'CCN_REDATADO') {
+            metodoTexto = '(Redatada pelo CCN)';
+        } else {
+            metodoTexto = '(Baseada no CCN)';
+        }
                       
-    } else if (d.usarExameAnterior && d.igIgCorrigidaCalculada) {
-        // PRIORIDADE 2: USG Anterior (Padrão Ouro para 2º/3º Tri)
+    } 
+    // REGRA 2: USG Anterior
+    else if (d.usarExameAnterior && d.igIgCorrigidaCalculada) {
         igFinal = d.igIgCorrigidaCalculada;
         dppFinal = d.dppIgCorrigidaCalculada;
         metodoTexto = `(Projetada a partir de USG anterior de ${formatData(d.dataExameAnterior)})`;
-        
-    } else if (d.igBiometria) {
-        // PRIORIDADE 3: Biometria Atual (Fallback se não houver anterior)
+    } 
+    // REGRA 3: Fallback Biometria
+    else if (d.igBiometria) {
         igFinal = d.igBiometria;
         dppFinal = d.dppBiometriaCalculada;
         metodoTexto = '(Baseada na biometria fetal atual - Hadlock)';
@@ -180,7 +197,14 @@ export const gerarRelatorioFeto = (d) => {
     // -------------------------------------------------------------------------
     if (igFinal) {
         texto += `Idade Gestacional: ${igFinal} ${metodoTexto}.\n`;
-        if (dppFinal) texto += `DPP: ${dppFinal}.\n`;
+        
+        // Exibe a DPP se ela foi definida na lógica acima
+        if (dppFinal) {
+            texto += `DPP: ${dppFinal}.\n`;
+        } else if (d.metodoDatacao === 'DUM' && d.citarDppDum && d.dppDum) {
+             // Fallback para garantir visualização se a lógica anterior falhou
+             texto += `DPP: ${d.dppDum}.\n`;
+        }
     }
 
     if (d.dumDesconhecida) texto += `DUM: Desconhecida / Não referida.\n`;
