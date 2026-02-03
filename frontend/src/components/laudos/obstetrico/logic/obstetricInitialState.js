@@ -44,7 +44,15 @@ export const initialState = {
     compBexiga: '', 
 
     // Indices
-    resIc: '', resCcCa: '', resCfCa: '',
+    resIc: '', resCcCa: '', resCfCa: '', resCfCc: '', resCfDbp: '',
+
+    // --- GRÁFICOS (CHECKBOXES) ---
+    citarValoresNormais: false,
+    checkIndiceCefalico: false, checkRelacaoCcCa: false, 
+    checkRelacaoCfCa: false, checkRelacaoCfCc: false, checkRelacaoCfDbp: false,
+    checkPeso: false,
+    checkGraficoPeso: false, checkGraficoDbp: false, checkGraficoFemur: false,
+    checkGraficoUmero: false, checkGraficoCa: false, checkGraficoCc: false,
 
     // --- DOPPLER ---
     usarDoppler: false,

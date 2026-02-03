@@ -206,13 +206,15 @@ export const calcularIndicesBiometricos = (dados) => {
     const resCcCa = safeDiv(cc, ca, 1, 2);     
     const resCfCa = safeDiv(femur, ca, 100, 1); 
     const resCfCc = safeDiv(femur, cc, 100, 1); 
+    // NOVO: Relação Fêmur/DBP (em porcentagem ou simples, geralmente * 100)
+    const resCfDbp = safeDiv(femur, dbp, 100, 1);
 
     // O peso agora só será atribuído se a função rigorosa acima retornar um valor
     let pesoEstimado = '';
     const peso = calcularPesoHadlock4(dbp, cc, ca, femur);
     if (peso) pesoEstimado = peso.toString();
 
-    return { resIc, resCcCa, resCfCa, resCfCc, pesoEstimado };
+    return { resIc, resCcCa, resCfCa, resCfCc, resCfDbp, pesoEstimado };
 };
 
 // --- DATAÇÃO PELA BIOMETRIA (MÉDIA DE HADLOCK) ---

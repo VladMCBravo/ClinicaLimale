@@ -107,6 +107,8 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             if (prev.resCcCa !== indices.resCcCa) { newState.resCcCa = indices.resCcCa; mudou = true; }
             if (prev.resCfCa !== indices.resCfCa) { newState.resCfCa = indices.resCfCa; mudou = true; }
             if (prev.resCfCc !== indices.resCfCc) { newState.resCfCc = indices.resCfCc; mudou = true; }
+            // NOVO: Atualiza o CF/DBP
+            if (prev.resCfDbp !== indices.resCfDbp) { newState.resCfDbp = indices.resCfDbp; mudou = true; }
             
             // Limpeza automática do peso se faltar medida
             if (prev.pesoEstimado !== indices.pesoEstimado) { 

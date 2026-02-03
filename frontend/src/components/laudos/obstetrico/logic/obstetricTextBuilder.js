@@ -370,6 +370,8 @@ if (d.situacao || d.apresentacao || d.dorso) {
             if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
+            // NOVO
+            if (d.resCfDbp) texto += `- Relação Fêmur/DBP: ${d.resCfDbp}.\n`;
         }
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
     }
@@ -396,6 +398,8 @@ if (d.situacao || d.apresentacao || d.dorso) {
             if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
+            // NOVO
+            if (d.resCfDbp) texto += `- Relação Fêmur/DBP: ${d.resCfDbp}.\n`;
         }
         // ---------------------------------------------------------
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
@@ -476,6 +480,8 @@ if (d.situacao || d.apresentacao || d.dorso) {
             if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
             if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
+            // NOVO
+            if (d.resCfDbp) texto += `- Relação Fêmur/DBP: ${d.resCfDbp}.\n`;
         }
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
@@ -763,6 +769,20 @@ if (d.situacao || d.apresentacao || d.dorso) {
     if (d.sugereNipt) texto += `- Sugere-se avaliação genética (NIPT) devido ao risco aumentado.\n`;
 
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
+
+    /// === SOLUÇÃO PARA "CURVA NO LAUDO" (INSIRA AQUI) ===
+    const graficos = [];
+    if (d.checkGraficoPeso) graficos.push('Peso Fetal');
+    if (d.checkGraficoDbp) graficos.push('DBP');
+    if (d.checkGraficoFemur) graficos.push('Fêmur');
+    if (d.checkGraficoUmero) graficos.push('Úmero');
+    if (d.checkGraficoCa) graficos.push('Circunferência Abdominal');
+    if (d.checkGraficoCc) graficos.push('Circunferência Cefálica');
+
+    if (graficos.length > 0) {
+        texto += `\nANEXOS:\n- Seguem anexas as curvas de crescimento fetal (${graficos.join(', ')}).\n`;
+    }
+    // ====================================================
 
     // --- 9. FAXINA FINAL ---
     texto = texto.replace(/^[ \t]+/gm, ''); 

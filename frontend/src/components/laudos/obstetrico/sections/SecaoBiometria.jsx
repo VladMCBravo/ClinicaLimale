@@ -134,14 +134,16 @@ const SecaoBiometria = ({ data, handleChange }) => {
                 </div>
             </div>
 
-            {/* ÍNDICES AUTOMÁTICOS */}
+            {/* ÍNDICES AUTOMÁTICOS (ATUALIZADO) */}
             <div style={{marginTop:'10px', padding:'6px', background:'#E0F2F1', borderRadius:'4px', border:'1px solid #80CBC4', fontSize:'11px'}}>
                  <div style={{fontWeight:'bold', color:'#00695C', marginBottom:'3px'}}>Índices Calculados (Automático):</div>
-                 <div style={{display:'flex', justifyContent:'space-around'}}>
+                 <div style={{display:'flex', justifyContent:'space-around', flexWrap:'wrap', gap:'5px'}}>
                     <span title="Índice Cefálico (DBP/DOF)."><strong>I.Cefálico:</strong> {data.resIc || '--'}</span>
                     <span title="Relação CC/CA."><strong>CC/CA:</strong> {data.resCcCa || '--'}</span>
                     <span title="Relação CF/CA."><strong>CF/CA:</strong> {data.resCfCa || '--'}</span>
                     <span title="Relação CF/CC."><strong>CF/CC:</strong> {data.resCfCc || '--'}</span>
+                    {/* ADICIONADO AQUI: */}
+                    <span title="Relação CF/DBP."><strong>CF/DBP:</strong> {data.resCfDbp || '--'}</span>
                  </div>
             </div>
 
