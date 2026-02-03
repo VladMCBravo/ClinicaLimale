@@ -196,21 +196,21 @@ export const gerarRelatorioFeto = (d) => {
     // 2. EXIBIÇÃO DA DATAÇÃO NO CABEÇALHO (USANDO A FONTE ÚNICA)
     // -------------------------------------------------------------------------
     if (igFinal) {
-        texto += `Idade Gestacional: ${igFinal} ${metodoTexto}.\n`;
+        // MUDANÇA: Removi o \n do final desta linha para não quebrar
+        texto += `Idade Gestacional: ${igFinal} ${metodoTexto}.`; 
         
-        // Exibe a DPP se ela foi definida na lógica acima
+        // Exibe a DPP na MESMA LINHA (sem \n antes), apenas um espaço.
+        // Como a linha agora começa com "Idade...", o sistema não vai mais 
+        // arrancar a DPP para o topo, mantendo as duas juntas.
         if (dppFinal) {
-            texto += `DPP: ${dppFinal}.\n`;
+            texto += ` DPP: ${dppFinal}.`;
         } else if (d.metodoDatacao === 'DUM' && d.citarDppDum && d.dppDum) {
-             // Fallback para garantir visualização se a lógica anterior falhou
-             texto += `DPP: ${d.dppDum}.\n`;
+             texto += ` DPP: ${d.dppDum}.`;
         }
+        
+        // Agora sim damos a quebra de linha final
+        texto += `\n`;
     }
-
-    if (d.dumDesconhecida) texto += `DUM: Desconhecida / Não referida.\n`;
-    if (d.obsDatacao) texto += `Nota: ${d.obsDatacao}\n`;
-
-    texto += '\n';
 
     // --- 3. CORPO DO LAUDO INICIAL (REFORMULADO) ---
     if (isInicial) {
