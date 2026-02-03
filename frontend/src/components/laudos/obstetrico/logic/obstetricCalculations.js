@@ -130,6 +130,7 @@ export const decidirVereditoDatacao = (dados) => {
     const igCcnStr = calcularIG_CCN(dados.ccn);
     const igDumRes = calcularIGeDPP_DUM(dados.dum);
     
+    // 1. Se DUM estiver desligada ou vazia, usa o CCN (mesmo que vazio)
     if (!dados.usarDum || !dados.dum) return { final: igCcnStr, motivo: 'CCN' };
 
     const parseDias = (str) => {
@@ -140,6 +141,7 @@ export const decidirVereditoDatacao = (dados) => {
     const dCcn = parseDias(igCcnStr);
     const dDum = parseDias(igDumRes.ig);
 
+    // 2. Se temos AMBOS (DUM e CCN), fazemos a comparação técnica
     if (dCcn && dDum) {
         const diff = Math.abs(dCcn - dDum);
         // Nota 7: Até 8s6d (62 dias), redatar se diferença > 5 dias [cite: 7]
@@ -147,8 +149,16 @@ export const decidirVereditoDatacao = (dados) => {
         // Nota 8: De 9s0d a 13s6d, redatar se diferença > 7 dias [cite: 8]
         if (dCcn > 62 && dCcn <= 97 && diff > 7) return { final: igCcnStr, motivo: 'CCN_REDATADO' };
         
+        // Se a diferença for aceitável, Mantém a DUM
         return { final: igDumRes.ig, motivo: 'DUM' };
     }
+    // 3. CORREÇÃO CRÍTICA AQUI:
+    // Se temos DUM mas NÃO temos CCN (campo vazio), o motivo deve ser DUM, não 'INDEFINIDO'.
+    if (dDum && !dCcn) {
+        return { final: igDumRes.ig, motivo: 'DUM' };
+    }
+
+    // Fallback final
     return { final: igCcnStr || igDumRes.ig, motivo: 'INDEFINIDO' };
 };
 
