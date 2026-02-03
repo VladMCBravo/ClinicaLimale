@@ -12,7 +12,6 @@ import {
     decidirVereditoDatacao
 } from '../logic/obstetricCalculations';
 
-// --- CORREÇÃO AQUI ---
 // Adicionei montarTextoFinalMultiplo na importação abaixo:
 import { 
     gerarRelatorioFeto,  
@@ -54,11 +53,7 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
                 
                 if (prev.igDum !== ig) { newState.igDum = ig; mudou = true; }
                 if (prev.dppDum !== dpp) { newState.dppDum = dpp; mudou = true; }
-                
-                if (prev.citarDppBiometria && prev.dppBiometriaCalculada !== dpp) {
-                     newState.dppBiometriaCalculada = dpp; 
-                     mudou = true; 
-                }
+                               
 
             // === SINCRONIA DE GÊMEOS (TEM QUE ESTAR DENTRO DESTE IF) ===
                 if (fetoAtivo === 1) {
