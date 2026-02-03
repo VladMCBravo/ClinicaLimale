@@ -384,6 +384,20 @@ if (d.situacao || d.apresentacao || d.dorso) {
         // 2. Biometria
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
+        // --- ADICIONADO: ÍNDICES TAMBÉM NO MORFOLÓGICO 1º TRI ---
+        if (d.resIc || d.resCcCa || d.resCfCa || d.pesoEstimado) {
+            texto += `\nÍNDICES E ESTIMATIVAS:\n`;
+            if (d.pesoEstimado) {
+                 texto += `- Peso Fetal ${d.pesoEstimado} gr (+/- 10%)`;
+                 if (d.percentil && !d.semDadosPercentil) texto += ` (P=${d.percentil})`;
+                 texto += `.\n`;
+            }
+            if (d.resIc) texto += `- Índice Cefálico: ${d.resIc} (Ref: 70-86).\n`;
+            if (d.resCcCa) texto += `- Relação CC/CA: ${d.resCcCa}.\n`;
+            if (d.resCfCa) texto += `- Relação Fêmur/CA: ${d.resCfCa} (Ref: 20-24).\n`;
+            if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
+        }
+        // ---------------------------------------------------------
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
 
         // 3. Placenta e Líquido (No final no 1º Tri)
