@@ -157,22 +157,8 @@ const SecaoConclusao = ({ data, handleChange }) => {
                     <span style={{fontWeight:'bold', fontSize:'11px', color:'#333'}}>Observações Adicionais:</span>
                 </div>
 
-                {/* BOTÕES DE FRASES RÁPIDAS */}
+                {/* BOTÕES DE FRASES RÁPIDAS (REMOVIDO O BOTÃO RCIU REDUNDANTE) */}
                 <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px'}}>
-                    {/* BOTÃO ESPECIAL DE RCIU (DA IMAGEM) */}
-                    <button
-                        onClick={() => addFrase(TXT_RCIU_NIPT)}
-                        title="Inserir texto completo sobre RCIU/NIPT"
-                        style={{
-                            background: '#FFEBEE', border: '1px solid #EF9A9A', borderRadius: '15px',
-                            padding: '4px 10px', fontSize: '10px', color: '#B71C1C', cursor: 'pointer', fontWeight: 'bold',
-                            display: 'flex', alignItems: 'center', gap: '4px'
-                        }}
-                    >
-                        <FaExclamationTriangle size={9}/> Nota RCIU / NIPT (Texto Longo)
-                    </button>
-
-                    {/* Frases Comuns */}
                     {FRASES_COMUNS.map((frase, idx) => (
                         <button
                             key={idx}

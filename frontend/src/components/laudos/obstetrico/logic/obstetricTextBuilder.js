@@ -756,18 +756,25 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `- Sugere-se acompanhamento da vitalidade fetal com USG Obstétrico Doppler devido ao Oligoâmnio (Sob julgamento clínico).\n`;
     }
 
-    // Regra 3: RCIU (Percentil < 10) -> Sugerir Doppler/NIPT
+    // 3. RCIU / DOPPLER / NIPT (Unificação Inteligente)
+    // Se marcou "Sugerir Doppler (RCIU)" OU o percentil deu baixo (<10)
     const pValor = parseInt(d.percentil);
-    if (!isNaN(pValor) && pValor < 10) {
-        texto += `- RCIU: Sugere-se acompanhamento com Doppler e avaliação genética (NIPT) sob critério clínico (Risco < 1/300).\n`;
-    }
-    // (Mantém o manual caso o percentil não tenha sido calculado mas o médico queira forçar)
-    else if (d.sugereDopplerRciu || d.sugereRciu) {
-        texto += `- Sugere-se acompanhamento do crescimento e vitalidade com Doppler (Suspeita de RCIU).\n`;
+    if (d.sugereDopplerRciu || d.sugereRciu || (!isNaN(pValor) && pValor < 10)) {
+        // Texto técnico completo solicitado
+        texto += `- RCIU: Sob julgamento clínico seria conveniente o acompanhamento da vitalidade fetal com USG Obstétrico doppler.\n`;
     }
 
-    if (d.sugereNipt) texto += `- Sugere-se avaliação genética (NIPT) devido ao risco aumentado.\n`;
+    // Se marcou "Sugerir NIPT"
+    if (d.sugereNipt) {
+        texto += `- Sob julgamento clínico seria conveniente um estudo genético (NIPT), devido ao risco aumentado.\n`;
+    }
 
+    // 4. Outras Notas (Golf Ball, Pieloectasia, etc)
+    if (d.sugereGolfBall) texto += `- ${TXT_GOLFBALL_LAUDO}\n`;
+    if (d.sugerePieloectasia) texto += `- ${TXT_PIELO_LAUDO}\n`;
+    if (d.semDadosPercentil) texto += `- Idade gestacional/biometria não permite cálculo preciso do percentil de crescimento neste momento.\n`;
+
+    // 5. Observações Manuais Adicionais
     if (d.obsAdicionais) texto += `\nObs: ${d.obsAdicionais}\n`;
 
     /// === SOLUÇÃO PARA "CURVA NO LAUDO" (INSIRA AQUI) ===
