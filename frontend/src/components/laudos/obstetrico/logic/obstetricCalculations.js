@@ -153,30 +153,28 @@ export const decidirVereditoDatacao = (dados) => {
 };
 
 // --- CÁLCULO DE PESO FETAL (HADLOCK 4) ---
-// Usa: DBP, CC, CA, Fêmur (Entrada em mm -> Converte para cm)
+// Esta função agora é restrita: ou calcula com precisão total ou não calcula.
 const calcularPesoHadlock4 = (dbp, cc, ca, fl) => {
     const BPD = parseFloat(dbp) / 10;
     const HC = parseFloat(cc) / 10;
     const AC = parseFloat(ca) / 10;
     const FL = parseFloat(fl) / 10;
 
-    if (isNaN(BPD) || isNaN(HC) || isNaN(AC) || isNaN(FL) || 
-        BPD <= 0 || HC <= 0 || AC <= 0 || FL <= 0) return null;
+    // Se qualquer medida for zero, nula ou inválida, interrompe o cálculo imediatamente.
+    // Isso evita o erro de "informações desencontradas" no peso.
+    if (!BPD || !HC || !AC || !FL || BPD <= 0 || HC <= 0 || AC <= 0 || FL <= 0) {
+        return null;
+    }
 
     // Fórmula Hadlock 4 (Log10)
-    // Log10(BW) = 1.3596 - 0.00386(AC*FL) + 0.0064(HC) + 0.00061(BPD*AC) + 0.0424(AC) + 0.174(FL)
-    const termo1 = 1.3596;
-    const termo2 = 0.00386 * AC * FL;
-    const termo3 = 0.0064 * HC;
-    const termo4 = 0.00061 * BPD * AC;
-    const termo5 = 0.0424 * AC;
-    const termo6 = 0.174 * FL;
-
-    const logWeight = termo1 - termo2 + termo3 + termo4 + termo5 + termo6;
+    const logWeight = 1.3596 
+        - (0.00386 * AC * FL) 
+        + (0.0064 * HC) 
+        + (0.00061 * BPD * AC) 
+        + (0.0424 * AC) 
+        + (0.174 * FL);
     
-    // Converte Log10 para valor real
-    const peso = Math.pow(10, logWeight);
-    return Math.round(peso); // Retorna em gramas
+    return Math.round(Math.pow(10, logWeight)); 
 };
 
 // --- ÍNDICES BIOMÉTRICOS & MÉDIAS ---
@@ -187,33 +185,24 @@ export const calcularIndicesBiometricos = (dados) => {
     const ca = parseFloat(dados.ca);
     const femur = parseFloat(dados.femur);
 
-    // Helper para divisão segura com casas decimais
     const safeDiv = (num, den, scale = 1, fixed = 2) => {
         if (!num || !den || isNaN(num) || isNaN(den)) return '';
         const val = (num / den) * scale;
         return val.toFixed(fixed).replace('.', ',');
     };
 
-    // 1. Cálculo dos Índices (Nomes corrigidos para bater com o Estado)
-    const resIc = safeDiv(dbp, dof, 100, 0);   // Índice Cefálico
-    const resCcCa = safeDiv(cc, ca, 1, 2);     // Relação CC/CA
-    const resCfCa = safeDiv(femur, ca, 100, 1); // Relação Fêmur/CA
-    const resCfCc = safeDiv(femur, cc, 100, 1); // Relação Fêmur/CC
+    // Cálculos de índices (mantidos para análise de morfologia)
+    const resIc = safeDiv(dbp, dof, 100, 0);   
+    const resCcCa = safeDiv(cc, ca, 1, 2);     
+    const resCfCa = safeDiv(femur, ca, 100, 1); 
+    const resCfCc = safeDiv(femur, cc, 100, 1); 
 
-    // 2. Cálculo do Peso (Se tiver as 4 medidas principais)
+    // O peso agora só será atribuído se a função rigorosa acima retornar um valor
     let pesoEstimado = '';
-    if (dbp && cc && ca && femur) {
-        const peso = calcularPesoHadlock4(dbp, cc, ca, femur);
-        if (peso) pesoEstimado = peso.toString();
-    }
+    const peso = calcularPesoHadlock4(dbp, cc, ca, femur);
+    if (peso) pesoEstimado = peso.toString();
 
-    return {
-        resIc,      
-        resCcCa,    
-        resCfCa,    
-        resCfCc,    
-        pesoEstimado
-    };
+    return { resIc, resCcCa, resCfCa, resCfCc, pesoEstimado };
 };
 
 // --- DATAÇÃO PELA BIOMETRIA (MÉDIA DE HADLOCK) ---
@@ -239,17 +228,18 @@ export const calcularMediaBiometria = (dados) => {
 
     const validos = [dDbp, dCc, dCa, dFemur].filter(d => d !== null);
     
-    if (validos.length === 0) return { ig: '', dpp: '' };
+    // ALTERAÇÃO AQUI: Exigir pelo menos 2 medidas para dar um veredito de IG.
+    // Se tiver só o fêmur, ele não deve mudar a "Idade Gestacional" do laudo sozinho.
+    if (validos.length < 2) return { ig: '', dpp: '' };
 
-    // Média dos dias
-    const totalDias = validos.reduce((a, b) => a + b, 0) / validos.length;
+    const totalDays = validos.reduce((a, b) => a + b, 0) / validos.length;
     
-    const semanas = Math.floor(totalDias / 7);
-    const dias = Math.floor(totalDias % 7);
+    const semanas = Math.floor(totalDays / 7);
+    const dias = Math.floor(totalDays % 7);
 
     // Calcula DPP baseada nessa média
     const hoje = new Date();
-    const diasRestantes = 280 - totalDias;
+    const diasRestantes = 280 - totalDays;
     const dppDate = addDays(hoje, diasRestantes);
 
     return {

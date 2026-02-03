@@ -126,6 +126,39 @@ export const gerarRelatorioFeto = (d) => {
     const isInicial = d.subtipo === 'OBSTETRICO_INICIAL';
     const isStandard = !isMorfo1 && !isMorfo2 && !isInicial; // Obstétrico Padrão / Doppler / 3D
 
+    // =========================================================================
+    // 1. ESTABELECER A "FONTE DA VERDADE" (CRONOLOGIA ÚNICA)
+    // =========================================================================
+    // Aqui resolvemos o conflito: definimos a IG Final UMA ÚNICA VEZ.
+    // O resto do laudo vai apenas ler estas variáveis.
+    let igFinal = '';
+    let dppFinal = '';
+    let metodoTexto = '';
+
+    if (d.igVeredito) {
+        // PRIORIDADE 1: Veredito do Motor de Decisão (1º Trimestre / CCN / DUM Validada)
+        igFinal = d.igVeredito;
+        // Se o método escolhido for DUM, usa a DPP da DUM. Se for CCN, usa a do CCN.
+        dppFinal = (d.metodoDatacao === 'DUM') ? d.dppDum : d.dppBiometriaCalculada;
+        
+        // Texto explicativo para o laudo
+        metodoTexto = d.metodoDatacao === 'CCN_REDATADO' ? '(Redatada pelo CCN)' : 
+                      d.metodoDatacao === 'DUM' ? `(Compatível com a DUM: ${formatData(d.dum)})` : 
+                      '(Baseada no CCN)';
+                      
+    } else if (d.usarExameAnterior && d.igIgCorrigidaCalculada) {
+        // PRIORIDADE 2: USG Anterior (Padrão Ouro para 2º/3º Tri)
+        igFinal = d.igIgCorrigidaCalculada;
+        dppFinal = d.dppIgCorrigidaCalculada;
+        metodoTexto = `(Projetada a partir de USG anterior de ${formatData(d.dataExameAnterior)})`;
+        
+    } else if (d.igBiometria) {
+        // PRIORIDADE 3: Biometria Atual (Fallback se não houver anterior)
+        igFinal = d.igBiometria;
+        dppFinal = d.dppBiometriaCalculada;
+        metodoTexto = '(Baseada na biometria fetal atual - Hadlock)';
+    }
+
     // --- 1. TÍTULO DO EXAME ---
     const mapTitulos = {
         'OBSTETRICO_INICIAL': 'ULTRASSONOGRAFIA OBSTÉTRICA INICIAL',
@@ -143,45 +176,14 @@ export const gerarRelatorioFeto = (d) => {
     }
 
     // -------------------------------------------------------------------------
-    // 2. DATAÇÃO E CRONOLOGIA (HIERARQUIA BLINDADA: Veredito > Anterior > DUM)
+    // 2. EXIBIÇÃO DA DATAÇÃO NO CABEÇALHO (USANDO A FONTE ÚNICA)
     // -------------------------------------------------------------------------
-    
-    // Verificamos se é um exame de 1º Trimestre onde o CCN/DUM mandam
-    const isPrimeiroTri = d.subtipo === 'OBSTETRICO_INICIAL' || d.subtipo === 'OBSTETRICO_1_TRI';
-
-    if (isPrimeiroTri && d.igVeredito) {
-        // CASO A: O sistema redatou pelo CCN (Discrepância > 5 ou 7 dias)
-        if (d.metodoDatacao === 'CCN_REDATADO') {
-            texto += `Idade Gestacional: ${d.igVeredito} (Redatada pelo CCN devido à discrepância com a DUM).\n`;
-            if (d.dppBiometriaCalculada) texto += `DPP: ${d.dppBiometriaCalculada}.\n`;
-        } 
-        // CASO B: A DUM foi mantida porque a diferença para o CCN é pequena (ou CCN não informado)
-        else if (d.metodoDatacao === 'DUM' && d.dum) {
-            texto += `Idade Gestacional: ${d.igVeredito} (Compatível com a DUM referida: ${formatData(d.dum)}).\n`;
-            if (d.dppDum) texto += `DPP: ${d.dppDum}.\n`;
-        }
-        // CASO C: Apenas CCN disponível (sem DUM)
-        else {
-            texto += `Idade Gestacional: ${d.igVeredito} (Baseada no Comprimento Cabeça-Nádega - CCN).\n`;
-        }
-    } 
-    
-    // CASO 2: USG Anterior (Padrão Ouro para 2º e 3º Trimestre)
-    else if (d.usarExameAnterior && d.dataExameAnterior) {
-        texto += `Idade Gestacional: ${d.igIgCorrigidaCalculada || '...'} (Projetada a partir de USG anterior de ${formatData(d.dataExameAnterior)}).\n`;
-        if (d.dppIgCorrigidaCalculada) texto += `DPP: ${d.dppIgCorrigidaCalculada}.\n`;
+    if (igFinal) {
+        texto += `Idade Gestacional: ${igFinal} ${metodoTexto}.\n`;
+        if (dppFinal) texto += `DPP: ${dppFinal}.\n`;
     }
 
-    // CASO 3: Biometria Atual (Hadlock - Geralmente usado no 2º/3º Tri se não houver anterior/DUM)
-    else if (d.igBiometria) {
-        texto += `Idade Gestacional: ${d.igBiometria} (Baseada na biometria fetal atual - Hadlock).\n`;
-        if (d.dppBiometriaCalculada) texto += `DPP: ${d.dppBiometriaCalculada}.\n`;
-    }
-
-    // Notas Adicionais
-    if (d.dumDesconhecida) {
-        texto += `DUM: Desconhecida / Não referida.\n`;
-    }
+    if (d.dumDesconhecida) texto += `DUM: Desconhecida / Não referida.\n`;
     if (d.obsDatacao) texto += `Nota: ${d.obsDatacao}\n`;
 
     texto += '\n';
@@ -328,14 +330,15 @@ if (d.situacao || d.apresentacao || d.dorso) {
         // --- CORDÃO UMBILICAL (CORRIGIDO: CHAMADA NA FUNÇÃO HELPER) ---
         texto += montarTextoCordao(d);
 
-        // 3. Biometria + Índices
+        // AQUI ESTÁ A BIOMETRIA (Na posição correta do Standard)
         texto += `BIOMETRIA FETAL\n`;
         texto += renderBiometria(d);
 
-        if (d.resIc || d.resCcCa || d.resCfCa || d.resCfCc || d.pesoEstimado) {
+        // Índices (Peso somente se calculado)
+        if (d.resIc || d.resCcCa || d.resCfCa || d.pesoEstimado) {
             texto += `\nÍNDICES E ESTIMATIVAS:\n`;
-            if (d.pesoEstimado || d.pesoFetal) {
-                 texto += `- Peso Fetal ${d.pesoEstimado || d.pesoFetal} gr (+/- 10%)`;
+            if (d.pesoEstimado) {
+                 texto += `- Peso Fetal ${d.pesoEstimado} gr (+/- 10%)`;
                  if (d.percentil && !d.semDadosPercentil) texto += ` (P=${d.percentil})`;
                  texto += `.\n`;
             }
@@ -345,7 +348,7 @@ if (d.situacao || d.apresentacao || d.dorso) {
             if (d.resCfCc) texto += `- Relação Fêmur/CC: ${d.resCfCc}.\n`;
         }
         if (d.obsBiometria) texto += `Nota: ${d.obsBiometria}\n`;
-    } 
+    }
     
     // === CASO B: MORFOLÓGICO 1º TRIMESTRE (Limpo e Unificado) ===
     else if (isMorfo1) {
@@ -638,31 +641,25 @@ if (d.situacao || d.apresentacao || d.dorso) {
         texto += `AVALIAÇÃO COMPLEMENTAR\n${textoComp}\n`;
     }
 
-    // --- 8. IMPRESSÃO DIAGNÓSTICA (CONCLUSÃO COMPLETA E AUTOMATIZADA) ---
-    texto += `IMPRESSÃO DIAGNÓSTICA:\n`;
+    // -------------------------------------------------------------------------
+    // 8. IMPRESSÃO DIAGNÓSTICA (AGORA 100% SINCRONIZADA)
+    // -------------------------------------------------------------------------
+    texto += `\nIMPRESSÃO DIAGNÓSTICA:\n`;
 
     if (d.sgAbortoIncompleto) {
         texto += `- Quadro compatível com Abortamento Incompleto.\n`;
     } 
     else if (isInicial) {
-        // Se tiver CCN, usa CCN. Se não, usa DMSG.
-        const igFinal = d.igVeredito || d.resIgSg || d.igBiometria || '...';
-        texto += `- Gestação tópica de aproximadamente ${igFinal}.\n`;
-        
-        if (d.embriaoStatus === 'presente' && d.bcf) {
-            texto += `- Vitalidade embrionária comprovada.\n`;
-        } else if (d.embriaoStatus === 'anembrionada') {
-            texto += `- Saco gestacional anembrionado.\n`;
-        }
+        texto += `- Gestação tópica de aproximadamente ${igFinal || '...'}.\n`;
+        if (d.embriaoStatus === 'presente') texto += `- Vitalidade embrionária comprovada.\n`;
     }
     else {
         if (!isMorfo1) texto += `- Feto único vivo.\n`; 
+        
+        // AQUI ESTÁ A CORREÇÃO PRINCIPAL: 
+        // Em vez de "Biometria compatível com...", dizemos a IG Final de forma firme.
+        texto += `- Idade Gestacional atual: ${igFinal || '...'} ${metodoTexto}.\n`;
 
-        let igFinal = d.igBiometria || d.igDum || "---";
-        if (d.usarExameAnterior && d.igIgCorrigidaCalculada) igFinal = d.igIgCorrigidaCalculada;
-        
-        texto += `- Biometria fetal compatível com aproximadamente ${igFinal} +/- ${isMorfo1 ? '7' : '14'} dias.\n`;
-        
         if (d.liquidoAmniotico) {
             texto += `- Líquido amniótico em quantidade ${d.liquidoAmniotico.toLowerCase()}`;
             if (d.ila) texto += ` (ILA = ${d.ila} mm)`;
