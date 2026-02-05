@@ -15,7 +15,7 @@ from agendamentos.models import Agendamento
 from pacientes.models import Paciente
 
 # --- IMPORTAÇÃO DO SERVICE ---
-from .services import FaturamentoService
+from .regras_faturamento import FaturamentoService
 
 # --- MODELS E SERIALIZERS ---
 from .models import (
