@@ -13,29 +13,20 @@ from .serializers import (
     ProximaAcaoSerializer,
     AnaliseComportamentalSerializer
 )
+from .services import CRMService
 
 class CicloViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet Principal do CRM.
-    Gerencia os Cards, as Fases e o Histórico.
-    """
     queryset = Ciclo.objects.all().order_by('-data_inicio')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['fase_atual', 'tipo', 'status', 'responsavel']
     search_fields = ['paciente__nome_completo', 'paciente__telefone_celular']
 
     def get_serializer_class(self):
-        """
-        Inteligência de Serialização:
-        - Listagem (Kanban) -> Usa serializer leve (CicloKanbanSerializer).
-        - Detalhe (Clique no Card) -> Usa serializer completo (CicloDetalheSerializer).
-        """
         if self.action == 'retrieve':
             return CicloDetalheSerializer
         return CicloKanbanSerializer
 
     def perform_create(self, serializer):
-        # Define quem criou o ciclo (se não informado)
         if not serializer.validated_data.get('responsavel'):
             serializer.save(responsavel=self.request.user)
         else:
@@ -43,29 +34,15 @@ class CicloViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def mover_fase(self, request, pk=None):
-        """
-        Endpoint específico para o Drag-and-Drop do Kanban.
-        Recebe: { "nova_fase": "F2" }
-        """
-        ciclo = self.get_object()
         nova_fase = request.data.get('nova_fase')
-
         if nova_fase not in dict(Ciclo.FASE_CHOICES):
-            return Response(
-                {"erro": f"Fase '{nova_fase}' inválida."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"erro": "Fase inválida."}, status=400)
 
-        fase_anterior = ciclo.fase_atual
-        ciclo.fase_atual = nova_fase
-        ciclo.save()
-
-        # Opcional: Lógica de negócio ao mudar de fase
-        # Ex: Se moveu para "F4-Retenção", verificar se já existe próxima ação
+        # Delega ao Service
+        ciclo = CRMService.mover_fase(pk, nova_fase, request.user)
         
         return Response({
             "status": "sucesso", 
-            "mensagem": f"Ciclo movido de {fase_anterior} para {nova_fase}",
             "id": ciclo.id,
             "fase_atual": ciclo.fase_atual
         })
@@ -73,27 +50,25 @@ class CicloViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def kanban(self, request):
         """
-        Retorna os ciclos já agrupados por colunas para facilitar o React.
-        Estrutura: { "F1": [...], "F2": [...], ... }
+        Retorna os dados agrupados.
         """
-        ciclos = self.filter_queryset(self.get_queryset().filter(status='ativo'))
-        serializer = self.get_serializer(ciclos, many=True)
-        data = serializer.data
-
-        # Agrupamento manual para entregar "mastigado" pro front
-        kanban_data = {
-            "F1": [], "F2": [], "F3": [], "F4": []
-        }
+        # Filtra primeiro
+        queryset = self.filter_queryset(self.get_queryset().filter(status='ativo'))
         
-        for item in data:
-            fase = item.get('fase_atual')
+        # Serializa
+        serializer = self.get_serializer(queryset, many=True)
+        data_serializada = serializer.data
+
+        # Agrupa (Lógica visual movida para cá ou mantida aqui por ser puramente visual)
+        # Como é formatação de JSON para o front, pode ficar aqui ou num helper
+        kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "ENCERRADO": [] }
+        
+        for item in data_serializada:
+            fase = item.get('fase_atual', 'F1')
             if fase in kanban_data:
                 kanban_data[fase].append(item)
             else:
-                # Caso existam fases antigas ou 'ENCERRADO' que ainda queremos ver
-                if fase not in kanban_data:
-                    kanban_data[fase] = []
-                kanban_data[fase].append(item)
+                kanban_data.setdefault(fase, []).append(item)
 
         return Response(kanban_data)
 
