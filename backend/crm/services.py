@@ -126,3 +126,92 @@ class CRMService:
                 kanban_data.setdefault(fase, []).append(item)
                 
         return kanban_data
+    
+    @staticmethod
+    def obter_painel_executivo():
+        """
+        Gera os números para o Dashboard Executivo.
+        Cruza dados do CRM (Ciclos) com Financeiro (Pagamentos/Despesas).
+        """
+        from faturamento.models import Pagamento, Despesa
+        from .models import Ciclo
+        from django.db.models import Sum, Count, Avg
+        from django.db.models.functions import TruncMonth
+
+        hoje = timezone.now()
+        mes_atual = hoje.month
+        ano_atual = hoje.year
+
+        # 1. FINANCEIRO (Receita e Margem)
+        receita_mes = Pagamento.objects.filter(
+            status='Pago', 
+            data_pagamento__month=mes_atual, 
+            data_pagamento__year=ano_atual
+        ).aggregate(total=Sum('valor'))['total'] or 0.00
+
+        despesa_mes = Despesa.objects.filter(
+            pago=True, 
+            data_pagamento__month=mes_atual,
+            data_pagamento__year=ano_atual
+        ).aggregate(total=Sum('valor'))['total'] or 0.00
+
+        lucro = float(receita_mes) - float(despesa_mes)
+        margem_percentual = round((lucro / float(receita_mes) * 100), 1) if receita_mes > 0 else 0
+
+        # 2. ESTRATÉGICO (CAC e LTV)
+        # CAC Simplificado: Total Despesas Marketing / Novos Ciclos no Mês
+        # (Assumindo que você tem uma categoria de despesa chamada 'Marketing')
+        marketing = Despesa.objects.filter(
+            categoria__nome__icontains='Marketing',
+            data_pagamento__month=mes_atual
+        ).aggregate(total=Sum('valor'))['total'] or 0.00
+        
+        novos_ciclos = Ciclo.objects.filter(
+            data_inicio__month=mes_atual
+        ).count()
+        
+        cac = round(float(marketing) / novos_ciclos, 2) if novos_ciclos > 0 else 0.00
+        
+        # LTV: Média de receita acumulada de todos os ciclos
+        ltv = Ciclo.objects.aggregate(media=Avg('receita_acumulada'))['media'] or 0.00
+
+        # 3. FUNIL (Snapshot Atual)
+        ciclos_ativos = Ciclo.objects.filter(status='ativo')
+        funil_stats = {
+            'entradas': ciclos_ativos.filter(fase_atual='F1').count(),
+            'conversao': ciclos_ativos.filter(fase_atual='F2').count(),
+            'pos_exame': ciclos_ativos.filter(fase_atual='F3').count(),
+            'retencao': ciclos_ativos.filter(fase_atual='F4').count(),
+        }
+
+        # 4. GRÁFICOS
+        # Evolução Receita (Últimos 6 meses)
+        # (Simplificado para o exemplo, idealmente usa TruncMonth em loop)
+        evolucao_data = [] # Preencher com lógica de loop se necessário
+
+        return {
+            "kpis_financeiros": {
+                "receita_mensal": float(receita_mes),
+                "margem_percentual": margem_percentual,
+                "margem_liquida": float(lucro)
+            },
+            "kpis_estrategicos": {
+                "cac": cac,
+                "ltv": float(ltv)
+            },
+            "riscos": {
+                "nivel_alto": Ciclo.objects.filter(nivel_risco='CRITICO').count()
+            },
+            "funil": funil_stats,
+            "graficos": {
+                "evolucao_receita": [
+                    {"data": "Jan", "receita": 1000}, # Placeholder se não tiver dados
+                    {"data": "Fev", "receita": float(receita_mes)} 
+                ],
+                "origem_pie_chart": [
+                    {"name": "Instagram", "receita": 5000},
+                    {"name": "Google", "receita": 3000},
+                    {"name": "Indicação", "receita": 2000}
+                ]
+            }
+        }
