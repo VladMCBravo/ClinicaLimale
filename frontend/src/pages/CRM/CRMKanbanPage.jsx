@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress } from '@mui/material';
 import { FaWhatsapp, FaExclamationTriangle } from 'react-icons/fa';
+import CicloDetalhesModal from './CicloDetalhesModal'; // <--- Importe aqui
 import { crmService } from '../../services/crmService';
 
 const COLUMNS = {
@@ -14,6 +15,16 @@ const COLUMNS = {
 export default function CRMKanbanPage() {
   const [columns, setColumns] = useState({ F1: [], F2: [], F3: [], F4: [] });
   const [loading, setLoading] = useState(true);
+
+  // Adicione estes states:
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCicloId, setSelectedCicloId] = useState(null);
+
+  // Função ao clicar no card
+  const handleCardClick = (ciclo) => {
+    setSelectedCicloId(ciclo.id);
+    setModalOpen(true);
+  };
 
   // Carrega dados do Backend
   useEffect(() => {
@@ -104,13 +115,20 @@ export default function CRMKanbanPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
+                            // --- AQUI ESTÁ A MÁGICA ---
+                            onClick={() => handleCardClick(ciclo)} 
+                            sx={{ 
+                              mb: 2, cursor: 'pointer', // Cursor de mãozinha
+                              '&:hover': { boxShadow: 6 } // Efeito visual ao passar mouse
+                            }}
+                          >
+                            // ---------------------------
                             sx={{
                               mb: 1.5,
                               backgroundColor: snapshot.isDragging ? '#fff' : '#fff',
                               boxShadow: snapshot.isDragging ? 6 : 1,
                               borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '4px solid #f44336' : '4px solid transparent'
                             }}
-                          >
                             <CardContent sx={{ p: '12px !important' }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="subtitle2" fontWeight="bold">

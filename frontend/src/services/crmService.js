@@ -18,6 +18,20 @@ export const crmService = {
     return apiClient.get(`/crm/ciclos/${id}/`);
   },
 
+  // ADICIONE ISSO:
+  addAcao: (dados) => {
+    return apiClient.post('/crm/acoes/', dados);
+  },
+  
+  concluirAcao: (id) => {
+    return apiClient.post(`/crm/acoes/${id}/concluir/`);
+  },
+
+  // --- LISTA DE CICLOS ---
+  getCiclos: (params) => {
+    return apiClient.get('/crm/ciclos/', { params });
+  },
+
   // --- DASHBOARD EXECUTIVO ---
   getPainelExecutivo: () => {
     return apiClient.get('/dashboard/executivo/');
