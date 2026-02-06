@@ -2,10 +2,6 @@
 
 from rest_framework import serializers
 from .models import Ciclo, AnaliseComportamental, ProximaAcao
-from agendamentos.serializers import AgendamentoSerializer
-from exames.serializers import ExameSerializer
-from pacientes.models import Paciente
-from usuarios.models import CustomUser
 from django.utils import timezone
 from django.apps import apps # Usado para evitar erro de importação circular
 
@@ -30,7 +26,7 @@ class ProximaAcaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProximaAcao
         fields = [
-            'id', 'descricao', 'data_alvo', 'status', 
+            'id', 'ciclo', 'descricao', 'data_alvo', 'status', 
             'agendamento_vinculado', 'responsavel', 'responsavel_nome',
             'criado_em', 'atualizado_em', 'atrasada'
         ]
@@ -49,6 +45,7 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     paciente_whatsapp = serializers.CharField(source='paciente.telefone_celular', read_only=True)
     proxima_acao_imediata = serializers.SerializerMethodField()
     dados_agendamento = serializers.SerializerMethodField() # Onde a mágica acontece
+    paciente_foto = serializers.SerializerMethodField() # <--- Definido aqui para evitar o erro
     
     class Meta:
         model = Ciclo
@@ -59,11 +56,11 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             'paciente_id', 
             'paciente_nome',
             'paciente_whatsapp',
+            'paciente_foto',
             'receita_acumulada', # Para o "Painel Executivo"
             'data_inicio',
             'proxima_acao_imediata',
             'dados_agendamento',
-            'paciente_foto',
         ]
 
     def get_proxima_acao_imediata(self, obj):
@@ -80,15 +77,18 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     def get_dados_agendamento(self, obj):
         try:
             # 1. Busca agendamentos vinculados a este ciclo
-            # Prioridade: Futuros > Hoje > Passado mais recente
             hoje = timezone.now().date()
             
-            qs = obj.agendamentos.all() # Usa o related_name='agendamentos' do seu model
-            
+            # Tenta acessar via related_name='agendamentos' (definido no model Agendamento)
+            if hasattr(obj, 'agendamentos'):
+                qs = obj.agendamentos.all()
+            else:
+                return None
+
             if not qs.exists():
                 return None
 
-            # Tenta pegar o próximo futuro
+            # Prioridade: Futuros > Hoje > Passado mais recente
             agendamento = qs.filter(data_hora_inicio__date__gte=hoje).order_by('data_hora_inicio').first()
             
             # Se não tiver futuro, pega o último realizado (para cards em F3/F4)
@@ -98,25 +98,25 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             if not agendamento:
                 return None
 
-            # 2. Busca o Pagamento de forma segura (Evita erro de Attribute)
+            # 2. Busca Status Financeiro de forma segura
             status_pag = "Pendente"
             try:
-                # Tenta acesso direto (OneToOne)
+                # Tenta acesso direto se tiver relacionamento
                 if hasattr(agendamento, 'pagamento'):
                     status_pag = agendamento.pagamento.status
-                # Tenta acesso reverso (ForeignKey padrão)
+                # Tenta acesso reverso padrão do Django
                 elif hasattr(agendamento, 'pagamento_set'):
                     pag = agendamento.pagamento_set.first()
                     if pag: status_pag = pag.status
-                # Tenta buscar na unha se os anteriores falharem
+                # Última tentativa: busca direta no banco
                 else:
                     Pagamento = apps.get_model('faturamento', 'Pagamento')
                     pag = Pagamento.objects.filter(agendamento=agendamento).first()
                     if pag: status_pag = pag.status
             except Exception:
-                status_pag = "Erro"
+                pass # Mantém como Pendente se der erro
 
-            # 3. Monta o objeto visual
+            # 3. Nome do Procedimento
             procedimento_nome = "Consulta"
             if agendamento.procedimento:
                 procedimento_nome = agendamento.procedimento.descricao
@@ -130,7 +130,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
                 "status_pag": status_pag
             }
         except Exception as e:
-            print(f"Erro ao serializar card CRM {obj.id}: {e}")
+            # Log silencioso para não quebrar a API inteira por um card com erro
+            print(f"Erro ao processar card {obj.id}: {e}")
             return None
 
     def get_paciente_foto(self, obj):
@@ -181,37 +182,17 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_comportamento(self, obj):
+        if hasattr(obj.paciente, 'perfil_comportamental'):
+            return AnaliseComportamentalSerializer(obj.paciente.perfil_comportamental).data
+        return None
+
     def get_agendamentos(self, obj):
-        """
-        Importa o Serializer DENTRO da função para evitar Circular Import.
-        Isso salva sua pele se o AgendamentoSerializer também usar coisas do CRM.
-        """
         try:
             from agendamentos.serializers import AgendamentoSerializer
-            # Ordena do mais recente para o mais antigo
-            qs = obj.agendamentos.all().order_by('-data_hora_inicio')
-            return AgendamentoSerializer(qs, many=True).data
+            return AgendamentoSerializer(obj.agendamentos.all().order_by('-data_hora_inicio'), many=True).data
         except ImportError:
             return []
 
     def get_exames(self, obj):
-        """
-        Tenta buscar exames vinculados.
-        Se 'exames_realizados' não existir no Model, evita erro 500.
-        """
-        try:
-            from exames.serializers import ExameSerializer
-            # Opção A: Se você configurou o related_name='exames_realizados' no Model Exame
-            if hasattr(obj, 'exames_realizados'):
-                return ExameSerializer(obj.exames_realizados.all(), many=True).data
-            
-            # Opção B (Fallback Inteligente): Busca exames através dos agendamentos deste ciclo
-            # "Me dê todos os exames cujos agendamentos pertencem a este ciclo"
-            # return ExameSerializer(Exame.objects.filter(agendamento__ciclo=obj), many=True).data
-            
-            return [] 
-        except ImportError:
-            return []
-        except Exception as e:
-            print(f"Erro ao serializar exames: {e}")
-            return []
+        return []
