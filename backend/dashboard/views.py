@@ -21,12 +21,18 @@ class PainelExecutivoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        hoje = timezone.now().date()
-        inicio_mes = hoje.replace(day=1)
+        # Pega o momento exato agora com Fuso Horário correto
+        agora = timezone.now()
+        
+        # Define o inicio do mês respeitando o Fuso
+        inicio_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # Mas na hora de buscar MetaMensal, use a data date() se o campo for DateField:
+        meta_referencia = inicio_mes.date()
         
         # --- 1. BUSCAR METAS E INVESTIMENTO (DO MÊS ATUAL) ---
         try:
-            meta_obj = MetaMensal.objects.get(mes_referencia=inicio_mes)
+            meta_obj = MetaMensal.objects.get(mes_referencia=meta_referencia)
             investimento_mkt = meta_obj.investimento_marketing
             custo_fixo = meta_obj.custos_fixos_estimados
             meta_faturamento = meta_obj.meta_faturamento
