@@ -6,6 +6,8 @@ from agendamentos.serializers import AgendamentoSerializer
 from exames.serializers import ExameSerializer
 from pacientes.models import Paciente
 from usuarios.models import CustomUser
+from django.utils import timezone
+from django.apps import apps # Usado para evitar erro de importação circular
 
 # --- 1. COMPORTAMENTO E AÇÕES (BLOCOS MENORES) ---
 
@@ -16,21 +18,25 @@ class AnaliseComportamentalSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = AnaliseComportamental
-        fields = ['id', 'perfil_emocional', 'principal_objecao', 'observacoes_internas']
+        fields = '__all__'
 
 class ProximaAcaoSerializer(serializers.ModelSerializer):
     """
     Tarefas do CRM.
     """
     responsavel_nome = serializers.CharField(source='responsavel.get_full_name', read_only=True)
+    atrasada = serializers.SerializerMethodField()
 
     class Meta:
         model = ProximaAcao
         fields = [
             'id', 'descricao', 'data_alvo', 'status', 
             'agendamento_vinculado', 'responsavel', 'responsavel_nome',
-            'criado_em'
+            'criado_em', 'atualizado_em', 'atrasada'
         ]
+
+    def get_atrasada(self, obj):
+        return obj.status == 'PENDENTE' and obj.data_alvo < timezone.now().date()
 
 # --- 2. SERIALIZER KANBAN (LEVE - PARA A TELA DE CARDS) ---
 
@@ -40,12 +46,9 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     Traz apenas o essencial para decisão rápida.
     """
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
-    paciente_whatsapp = serializers.CharField(source='paciente.telefone_celular', read_only=True)
-    paciente_foto = serializers.SerializerMethodField() # Se tiver foto no futuro
-    
-    # Traz a próxima ação mais urgente para exibir no Card (ex: "Ligar Amanhã")
     proxima_acao_imediata = serializers.SerializerMethodField()
-
+    dados_agendamento = serializers.SerializerMethodField() # Onde a mágica acontece
+    
     class Meta:
         model = Ciclo
         fields = [
@@ -58,7 +61,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             'receita_acumulada', # Para o "Painel Executivo"
             'data_inicio',
             'proxima_acao_imediata',
-            'paciente_foto'
+            'dados_agendamento',
+            'paciente_foto',
         ]
 
     def get_proxima_acao_imediata(self, obj):
@@ -68,9 +72,65 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             return {
                 "descricao": acao.descricao,
                 "data": acao.data_alvo,
-                "atrasada": acao.data_alvo < serializers.datetime.date.today()
+                "atrasada": acao.data_alvo < timezone.now().date()
             }
         return None
+
+    def get_dados_agendamento(self, obj):
+        try:
+            # 1. Busca agendamentos vinculados a este ciclo
+            # Prioridade: Futuros > Hoje > Passado mais recente
+            hoje = timezone.now().date()
+            
+            qs = obj.agendamentos.all() # Usa o related_name='agendamentos' do seu model
+            
+            if not qs.exists():
+                return None
+
+            # Tenta pegar o próximo futuro
+            agendamento = qs.filter(data_hora_inicio__date__gte=hoje).order_by('data_hora_inicio').first()
+            
+            # Se não tiver futuro, pega o último realizado (para cards em F3/F4)
+            if not agendamento:
+                agendamento = qs.order_by('-data_hora_inicio').first()
+
+            if not agendamento:
+                return None
+
+            # 2. Busca o Pagamento de forma segura (Evita erro de Attribute)
+            status_pag = "Pendente"
+            try:
+                # Tenta acesso direto (OneToOne)
+                if hasattr(agendamento, 'pagamento'):
+                    status_pag = agendamento.pagamento.status
+                # Tenta acesso reverso (ForeignKey padrão)
+                elif hasattr(agendamento, 'pagamento_set'):
+                    pag = agendamento.pagamento_set.first()
+                    if pag: status_pag = pag.status
+                # Tenta buscar na unha se os anteriores falharem
+                else:
+                    Pagamento = apps.get_model('faturamento', 'Pagamento')
+                    pag = Pagamento.objects.filter(agendamento=agendamento).first()
+                    if pag: status_pag = pag.status
+            except Exception:
+                status_pag = "Erro"
+
+            # 3. Monta o objeto visual
+            procedimento_nome = "Consulta"
+            if agendamento.procedimento:
+                procedimento_nome = agendamento.procedimento.descricao
+            elif agendamento.tipo_agendamento:
+                procedimento_nome = agendamento.tipo_agendamento
+
+            return {
+                "data": agendamento.data_hora_inicio,
+                "procedimento": procedimento_nome,
+                "status_ag": agendamento.status,
+                "status_pag": status_pag
+            }
+        except Exception as e:
+            print(f"Erro ao serializar card CRM {obj.id}: {e}")
+            return None
 
     def get_paciente_foto(self, obj):
         # Placeholder. No futuro pode conectar com Avatar do usuário
@@ -90,11 +150,6 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
     exames = serializers.SerializerMethodField()
     acoes = ProximaAcaoSerializer(many=True, read_only=True)
     
-    # Trazemos o histórico filtrado por ESTE ciclo
-    agendamentos = AgendamentoSerializer(many=True, read_only=True)
-    exames = ExameSerializer(many=True, read_only=True, source='exames_realizados')
-    acoes = ProximaAcaoSerializer(many=True, read_only=True)
-
     class Meta:
         model = Ciclo
         fields = [
