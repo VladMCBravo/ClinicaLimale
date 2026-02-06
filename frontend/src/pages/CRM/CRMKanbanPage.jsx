@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress } from '@mui/material';
-import { FaWhatsapp, FaExclamationTriangle } from 'react-icons/fa';
+import { Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress, IconButton, Tooltip } from '@mui/material';
+import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
 
+// Cores das colunas
 const COLUMNS = {
   'F1': { title: 'F1 - Entrada', color: '#90caf9' },
   'F2': { title: 'F2 - Conversão', color: '#a5d6a7' },
@@ -27,17 +28,22 @@ export default function CRMKanbanPage() {
       const response = await crmService.getKanban();
       const rawData = response.data;
 
-      // --- LÓGICA DE ORDENAÇÃO (CRONOLÓGICA) ---
-      // Ordena cada coluna individualmente baseada na data do agendamento
-      const sortedColumns = {
-        F1: sortCiclos(rawData.F1 || []),
-        F2: sortCiclos(rawData.F2 || []), // Agendados: Próximos no topo
-        F3: sortCiclos(rawData.F3 || []), 
-        F4: sortCiclos(rawData.F4 || []),
-        ENCERRADO: rawData.ENCERRADO || []
+      // Ordenação: Data do Agendamento (Mais urgente no topo)
+      const sortCiclos = (lista) => {
+        return lista.sort((a, b) => {
+          const dateA = a.dados_agendamento ? new Date(a.dados_agendamento.data) : new Date(9999, 11, 31);
+          const dateB = b.dados_agendamento ? new Date(b.dados_agendamento.data) : new Date(9999, 11, 31);
+          return dateA - dateB;
+        });
       };
 
-      setColumns(sortedColumns); 
+      setColumns({
+        F1: sortCiclos(rawData.F1 || []),
+        F2: sortCiclos(rawData.F2 || []),
+        F3: sortCiclos(rawData.F3 || []),
+        F4: sortCiclos(rawData.F4 || []),
+        ENCERRADO: rawData.ENCERRADO || []
+      }); 
     } catch (error) {
       console.error("Erro ao carregar Kanban", error);
     } finally {
@@ -45,20 +51,22 @@ export default function CRMKanbanPage() {
     }
   };
 
-  // Função auxiliar para ordenar por data de agendamento
-  const sortCiclos = (lista) => {
-    return lista.sort((a, b) => {
-      // Se não tem agendamento, joga pro final
-      const dateA = a.dados_agendamento ? new Date(a.dados_agendamento.data) : new Date(9999, 11, 31);
-      const dateB = b.dados_agendamento ? new Date(b.dados_agendamento.data) : new Date(9999, 11, 31);
-      return dateA - dateB; // Crescente (Mais antigo/próximo primeiro)
-    });
+  // Abre Modal apenas para ver detalhes
+  const handleOpenDetalhes = (e, cicloId) => {
+    e.stopPropagation(); // Garante que não dispare outros eventos
+    setSelectedCicloId(cicloId);
+    setModalOpen(true);
   };
 
-  const handleCardClick = (ciclo) => {
-    console.log("Card clicado:", ciclo.id);
-    setSelectedCicloId(ciclo.id);
-    setModalOpen(true);
+  // Abre WhatsApp
+  const handleWhatsappClick = (e, numero, nome) => {
+    e.stopPropagation(); // IMPEDE QUE O MODAL ABRA
+    if (!numero) return alert("Paciente sem número cadastrado");
+    
+    // Limpa o número para formato internacional
+    const cleanNum = numero.replace(/\D/g, '');
+    const url = `https://wa.me/55${cleanNum}?text=Olá ${nome}, tudo bem? Falamos da Clínica Limalé.`;
+    window.open(url, '_blank');
   };
 
   const onDragEnd = async (result) => {
@@ -91,21 +99,22 @@ export default function CRMKanbanPage() {
 
   return (
     <Box sx={{ p: 2, height: 'calc(100vh - 80px)', overflowX: 'auto', backgroundColor: '#f4f5f7' }}>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#333' }}>
-        Funil de Ciclos Clínicos
+      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#444' }}>
+        Funil de Atendimentos
       </Typography>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 2, minWidth: '1000px', height: '100%' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, minWidth: '1000px', height: '100%' }}>
           {Object.entries(COLUMNS).map(([colId, colDef]) => (
-            <Box key={colId} sx={{ width: '300px', display: 'flex', flexDirection: 'column' }}>
+            <Box key={colId} sx={{ width: '280px', display: 'flex', flexDirection: 'column' }}>
+              {/* Header Compacto */}
               <Box sx={{ 
-                p: 1.5, mb: 1, borderRadius: 1, 
-                backgroundColor: colDef.color, fontWeight: 'bold', 
-                display: 'flex', justifyContent: 'space-between'
+                p: 1, mb: 1, borderRadius: 1, 
+                backgroundColor: colDef.color, fontWeight: 'bold', fontSize: '0.85rem',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
                 {colDef.title}
-                <Chip size="small" label={columns[colId]?.length || 0} sx={{ backgroundColor: 'rgba(255,255,255,0.5)' }} />
+                <Chip label={columns[colId]?.length || 0} size="small" sx={{ height: 20, fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.6)' }} />
               </Box>
 
               <Droppable droppableId={colId}>
@@ -116,7 +125,7 @@ export default function CRMKanbanPage() {
                     sx={{
                       flexGrow: 1,
                       backgroundColor: snapshot.isDraggingOver ? '#e3f2fd' : '#ebecf0',
-                      borderRadius: 2, p: 1, overflowY: 'auto'
+                      borderRadius: 2, p: 0.5, overflowY: 'auto'
                     }}
                   >
                     {columns[colId]?.map((ciclo, index) => (
@@ -126,120 +135,116 @@ export default function CRMKanbanPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            sx={{ mb: 2, ...provided.draggableProps.style }}
+                            sx={{ mb: 1, ...provided.draggableProps.style }}
                           >
                             <Card
-                              onClick={() => handleCardClick(ciclo)}
                               sx={{ 
-                                cursor: 'pointer',
                                 backgroundColor: 'white',
                                 transition: 'all 0.2s',
-                                boxShadow: snapshot.isDragging ? 6 : 1,
-                                borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '4px solid #f44336' : '4px solid transparent',
-                                '&:hover': { 
-                                  boxShadow: 6,
-                                  transform: 'translateY(-2px)' 
-                                }
+                                boxShadow: snapshot.isDragging ? 4 : 1,
+                                borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '3px solid #f44336' : '3px solid transparent',
+                                '&:hover': { boxShadow: 3 }
                               }}
                             >
-                              <CardContent sx={{ p: '8px 12px !important' }}> 
+                              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
   
-                                {/* 1. Cabeçalho: Nome e Tipo */}
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                                    <Avatar sx={{ bgcolor: colDef.color, width: 22, height: 22, fontSize: '0.75rem', mr: 1 }}>
+                                {/* LINHA 1: Avatar + Nome (Clicável) + WhatsApp */}
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                  <Box 
+                                    onClick={(e) => handleOpenDetalhes(e, ciclo.id)}
+                                    sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexGrow: 1 }}
+                                  >
+                                    <Avatar sx={{ bgcolor: colDef.color, width: 20, height: 20, fontSize: '0.65rem', mr: 0.8 }}>
                                       {ciclo.paciente_nome?.charAt(0)}
                                     </Avatar>
-                                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', fontSize: '0.85rem', maxWidth: '160px' }}>
+                                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', fontSize: '0.8rem', maxWidth: '180px', color: '#333' }}>
                                       {ciclo.paciente_nome}
                                     </Typography>
                                   </Box>
-                                  {ciclo.tipo && (
-                                    <Chip label={ciclo.tipo.substring(0, 3)} size="small" sx={{ fontSize: '0.6rem', height: 16 }} />
-                                  )}
+                                  
+                                  {/* Botão WhatsApp isolado */}
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ padding: 0.5, marginLeft: 0.5 }}
+                                    onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}
+                                  >
+                                    <FaWhatsapp color="#25D366" size={16} />
+                                  </IconButton>
                                 </Box>
 
-                                {/* 2. Dados do Agendamento */}
+                                {/* LINHA 2: Data + Status (A Pedido: Mesma linha) */}
                                 {ciclo.dados_agendamento ? (
-                                  <Box sx={{ 
-                                    backgroundColor: '#f5f7fa', 
-                                    borderRadius: 1, 
-                                    p: 1, 
-                                    mb: 1,
-                                    border: '1px solid #eee'
-                                  }}>
-                                    {/* Data e Hora */}
-                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#333', fontSize: '0.8rem', display: 'block', mb: 0.5 }}>
-                                      {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
-                                      {' - '}
-                                      {new Date(ciclo.dados_agendamento.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
-                                    </Typography>
-                                    
-                                    {/* Nome do Exame (Completo) */}
-                                    <Typography 
-                                      variant="caption" 
-                                      sx={{ 
-                                        display: 'block', 
-                                        color: '#555', 
-                                        fontSize: '0.75rem', 
-                                        lineHeight: 1.2, 
-                                        mb: 1 
-                                      }}
-                                    >
-                                      {ciclo.dados_agendamento.procedimento}
-                                    </Typography>
+                                  <>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'nowrap' }}>
+                                        {/* Data Compacta */}
+                                        <Box sx={{ display: 'flex', alignItems: 'center', color: '#555', fontSize: '0.7rem', minWidth: 'fit-content' }}>
+                                            <FaRegCalendarAlt style={{ marginRight: 3, fontSize: '0.65rem' }} />
+                                            {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+                                            {' '}
+                                            {new Date(ciclo.dados_agendamento.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
+                                        </Box>
 
-                                    {/* Linha de Status + Receita */}
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                            <Chip 
-                                                label={ciclo.dados_agendamento.status_ag} 
-                                                size="small" 
-                                                sx={{ 
-                                                height: 16, fontSize: '0.6rem', 
+                                        {/* Chips de Status (Mini) */}
+                                        <Chip 
+                                            label={ciclo.dados_agendamento.status_ag} 
+                                            size="small" 
+                                            sx={{ 
+                                                height: 14, fontSize: '0.55rem', px: 0,
                                                 bgcolor: ciclo.dados_agendamento.status_ag === 'Confirmado' ? '#e8f5e9' : '#fff3e0',
                                                 color: ciclo.dados_agendamento.status_ag === 'Confirmado' ? '#2e7d32' : '#ef6c00'
-                                                }} 
-                                            />
-                                            <Chip 
-                                                label={ciclo.dados_agendamento.status_pag} 
-                                                size="small" 
-                                                sx={{ 
-                                                height: 16, fontSize: '0.6rem',
+                                            }} 
+                                        />
+                                        <Chip 
+                                            label={ciclo.dados_agendamento.status_pag} 
+                                            size="small" 
+                                            sx={{ 
+                                                height: 14, fontSize: '0.55rem', px: 0,
                                                 bgcolor: ciclo.dados_agendamento.status_pag === 'Pago' ? '#e3f2fd' : '#ffebee',
                                                 color: ciclo.dados_agendamento.status_pag === 'Pago' ? '#1565c0' : '#c62828'
-                                                }} 
-                                            />
-                                        </Box>
-                                        
-                                        {/* Valor da Receita (Se > 0) */}
+                                            }} 
+                                        />
+                                    </Box>
+
+                                    {/* LINHA 3: Procedimento e Preço */}
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                        <Typography noWrap title={ciclo.dados_agendamento.procedimento} sx={{ fontSize: '0.7rem', color: '#666', maxWidth: '160px' }}>
+                                            {ciclo.dados_agendamento.procedimento}
+                                        </Typography>
                                         {parseFloat(ciclo.receita_acumulada) > 0 && (
-                                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'green', fontSize: '0.75rem' }}>
-                                                R$ {parseFloat(ciclo.receita_acumulada).toLocaleString('pt-BR')}
+                                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'green', fontSize: '0.7rem' }}>
+                                                R$ {parseInt(ciclo.receita_acumulada)}
                                             </Typography>
                                         )}
                                     </Box>
-                                  </Box>
+                                  </>
                                 ) : (
-                                  <Typography variant="caption" sx={{ display: 'block', mb: 1, color: 'gray', fontSize: '0.7rem', fontStyle: 'italic' }}>
-                                    Sem agendamento vinculado
-                                  </Typography>
+                                    <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: '#aaa', fontSize: '0.65rem', fontStyle: 'italic' }}>
+                                        Sem agendamento
+                                    </Typography>
                                 )}
 
-                                {/* 3. Rodapé: Próxima Ação */}
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  {ciclo.proxima_acao_imediata ? (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', maxWidth: '180px' }}>
-                                      {ciclo.proxima_acao_imediata.atrasada && <FaExclamationTriangle color="red" size={10} style={{ marginRight: 3 }} />}
-                                      <Typography variant="caption" noWrap sx={{ fontSize: '0.65rem', color: ciclo.proxima_acao_imediata.atrasada ? 'red' : 'text.secondary' }}>
-                                        {ciclo.proxima_acao_imediata.descricao}
-                                      </Typography>
-                                    </Box>
-                                  ) : (
-                                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'orange' }}>⚠️ Ação necessária</Typography>
-                                  )}
-
-                                  <FaWhatsapp color="#25D366" size={14} style={{ cursor: 'pointer' }} />
+                                {/* LINHA 4: Barra de Ação (Clicável) */}
+                                <Box 
+                                    onClick={(e) => handleOpenDetalhes(e, ciclo.id)}
+                                    sx={{ 
+                                        display: 'flex', alignItems: 'center', 
+                                        bgcolor: ciclo.proxima_acao_imediata?.atrasada ? '#ffebee' : '#f5f5f5', 
+                                        p: 0.5, borderRadius: 1, cursor: 'pointer',
+                                        '&:hover': { bgcolor: '#e0e0e0' }
+                                    }}
+                                >
+                                    {ciclo.proxima_acao_imediata ? (
+                                        <>
+                                            {ciclo.proxima_acao_imediata.atrasada && <FaExclamationTriangle color="red" size={10} style={{ marginRight: 4 }} />}
+                                            <Typography noWrap sx={{ fontSize: '0.65rem', color: '#444', fontWeight: '500' }}>
+                                                {ciclo.proxima_acao_imediata.descricao}
+                                            </Typography>
+                                        </>
+                                    ) : (
+                                        <Typography sx={{ fontSize: '0.65rem', color: '#ff9800', fontStyle: 'italic' }}>
+                                            ⚠️ Definir próxima ação...
+                                        </Typography>
+                                    )}
                                 </Box>
 
                               </CardContent>
