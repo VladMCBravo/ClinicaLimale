@@ -115,20 +115,26 @@ export default function CRMKanbanPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            // --- AQUI ESTÁ A MÁGICA ---
-                            onClick={() => handleCardClick(ciclo)} 
-                            sx={{ 
-                              mb: 2, cursor: 'pointer', // Cursor de mãozinha
-                              '&:hover': { boxShadow: 6 } // Efeito visual ao passar mouse
-                            }}
-                          >
-                            // ---------------------------
+                            onClick={() => handleCardClick(ciclo)}
+                            
+                            // --- ESTILOS UNIFICADOS AQUI ---
                             sx={{
                               mb: 1.5,
-                              backgroundColor: snapshot.isDragging ? '#fff' : '#fff',
+                              cursor: 'pointer',
+                              backgroundColor: 'white',
+                              transition: 'all 0.2s',
+                              
+                              // Lógica visual dinâmica (Arrastar/Hover/Alerta)
                               boxShadow: snapshot.isDragging ? 6 : 1,
-                              borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '4px solid #f44336' : '4px solid transparent'
+                              borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '4px solid #f44336' : '4px solid transparent',
+                              
+                              '&:hover': { 
+                                boxShadow: 6,
+                                transform: 'translateY(-2px)' // Efeito visual extra
+                              }
                             }}
+                            // -------------------------------
+                          >
                             <CardContent sx={{ p: '12px !important' }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="subtitle2" fontWeight="bold">
