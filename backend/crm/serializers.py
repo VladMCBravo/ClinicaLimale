@@ -84,10 +84,11 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
     Quando o médico clica no card, ele vê TUDO o que aconteceu nesta gestação.
     """
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
-    
-    # Dados Aninhados (Nested)
-    # Trazemos o comportamento (que está no Paciente, mas exibimos aqui no Ciclo)
+    # --- DADOS ANINHADOS (Carregados sob demanda) ---
     comportamento = serializers.SerializerMethodField()
+    agendamentos = serializers.SerializerMethodField()
+    exames = serializers.SerializerMethodField()
+    acoes = ProximaAcaoSerializer(many=True, read_only=True)
     
     # Trazemos o histórico filtrado por ESTE ciclo
     agendamentos = AgendamentoSerializer(many=True, read_only=True)
@@ -117,8 +118,44 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
     def get_comportamento(self, obj):
         """Busca o perfil comportamental do paciente vinculado"""
         try:
-            # Tenta acessar o OneToOne reverso
-            perfil = obj.paciente.perfil_comportamental
-            return AnaliseComportamentalSerializer(perfil).data
-        except AnaliseComportamental.DoesNotExist:
+            # Verifica se o paciente tem perfil (related_name='perfil_comportamental')
+            if hasattr(obj.paciente, 'perfil_comportamental'):
+                return AnaliseComportamentalSerializer(obj.paciente.perfil_comportamental).data
             return None
+        except Exception:
+            return None
+
+    def get_agendamentos(self, obj):
+        """
+        Importa o Serializer DENTRO da função para evitar Circular Import.
+        Isso salva sua pele se o AgendamentoSerializer também usar coisas do CRM.
+        """
+        try:
+            from agendamentos.serializers import AgendamentoSerializer
+            # Ordena do mais recente para o mais antigo
+            qs = obj.agendamentos.all().order_by('-data_hora_inicio')
+            return AgendamentoSerializer(qs, many=True).data
+        except ImportError:
+            return []
+
+    def get_exames(self, obj):
+        """
+        Tenta buscar exames vinculados.
+        Se 'exames_realizados' não existir no Model, evita erro 500.
+        """
+        try:
+            from exames.serializers import ExameSerializer
+            # Opção A: Se você configurou o related_name='exames_realizados' no Model Exame
+            if hasattr(obj, 'exames_realizados'):
+                return ExameSerializer(obj.exames_realizados.all(), many=True).data
+            
+            # Opção B (Fallback Inteligente): Busca exames através dos agendamentos deste ciclo
+            # "Me dê todos os exames cujos agendamentos pertencem a este ciclo"
+            # return ExameSerializer(Exame.objects.filter(agendamento__ciclo=obj), many=True).data
+            
+            return [] 
+        except ImportError:
+            return []
+        except Exception as e:
+            print(f"Erro ao serializar exames: {e}")
+            return []
