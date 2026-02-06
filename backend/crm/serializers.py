@@ -46,6 +46,7 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     Traz apenas o essencial para decisão rápida.
     """
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
+    paciente_whatsapp = serializers.CharField(source='paciente.telefone_celular', read_only=True)
     proxima_acao_imediata = serializers.SerializerMethodField()
     dados_agendamento = serializers.SerializerMethodField() # Onde a mágica acontece
     
