@@ -12,7 +12,7 @@ import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator';
 const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const [laudos, setLaudos] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [gerandoId, setGerandoId] = useState(null); // Para mostrar loading no botão específico
+    const [gerandoId, setGerandoId] = useState(null);
 
     useEffect(() => {
         if (open && pacienteId) {
@@ -23,7 +23,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const carregarLaudos = async () => {
         setLoading(true);
         try {
-            // Usa o mesmo endpoint que o médico usa
             const res = await apiClient.get('/prontuario/laudos/', {
                 params: { paciente: pacienteId }
             });
@@ -35,13 +34,30 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
         }
     };
 
+    // --- LÓGICA INTELIGENTE PARA ENCONTRAR O PDF ---
+    const getLinkPDF = (laudo) => {
+        // 1. Prioridade: Arquivo PDF assinado e salvo no campo novo
+        if (laudo.arquivo_pdf) return laudo.arquivo_pdf;
+
+        // 2. Prioridade: Procurar um PDF dentro da lista de arquivos do exame
+        // Isso evita abrir uma imagem JPG por engano
+        if (laudo.arquivos_exame && laudo.arquivos_exame.length > 0) {
+            const arquivoPdf = laudo.arquivos_exame.find(f => 
+                f.arquivo && f.arquivo.toLowerCase().endsWith('.pdf')
+            );
+            if (arquivoPdf) return arquivoPdf.arquivo;
+        }
+
+        // 3. Se não achou PDF, retorna null (para ativar o botão de Gerar 2ª Via)
+        return null;
+    };
+
     const handleEnviarZap = (linkPdf) => {
-        if (!linkPdf) return alert("Este laudo não tem PDF gerado.");
+        if (!linkPdf) return alert("Gere a 2ª via do PDF primeiro.");
         const texto = `Olá! Segue o link do seu laudo: ${linkPdf}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
     };
 
-    // --- A MÁGICA DA 2ª VIA ---
     const handleGerar2Via = async (laudo) => {
         setGerandoId(laudo.id);
         const pdfWindow = window.open('', '_blank');
@@ -69,8 +85,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
             }
 
-            // --- LÓGICA DO PDF (ASSINATURA) ---
-            // No papel, sai APENAS o médico responsável (Legal)
             const nomeMedicoParaPDF = laudo.medico_responsavel || laudo.medico_nome;
             const crmMedicoParaPDF = laudo.crm_medico || '';
 
@@ -78,7 +92,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 pacienteNome: pacienteNome || laudo.paciente_nome,
                 medicoNome: nomeMedicoParaPDF,
                 medicoCrm: crmMedicoParaPDF,
-                tituloExame: laudo.titulo,
+                tituloExame: laudo.titulo || laudo.tipo_exame,
                 textoLaudo: laudo.texto_laudo,
                 dadosEstruturados: dadosEstruturados,
                 imagensBase64: [], 
@@ -123,89 +137,104 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                 <TableRow>
                                     <TableCell><strong>Data</strong></TableCell>
                                     <TableCell><strong>Exame</strong></TableCell>
-                                    <TableCell><strong>Responsáveis</strong></TableCell> {/* Coluna Unificada */}
+                                    <TableCell><strong>Responsáveis</strong></TableCell>
                                     <TableCell align="center"><strong>Ações</strong></TableCell>
                                     <TableCell align="center"><strong>Envio</strong></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {laudos.map((laudo) => (
-                                    <TableRow key={laudo.id} hover>
-                                        <TableCell width="15%">{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
-                                        <TableCell width="25%">{laudo.titulo}</TableCell>
-                                        
-                                        {/* --- COLUNA DUPLA INFORMAÇÃO --- */}
-                                        <TableCell width="30%">
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                {/* 1. Médico (Assinatura) */}
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <FaUserMd color="#1976d2" size={12} title="Médico Responsável (Assinatura)"/>
-                                                    <div>
-                                                        <Typography variant="body2" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize:'11px' }}>
-                                                            {laudo.medico_responsavel || laudo.medico_nome}
-                                                        </Typography>
-                                                        <Typography variant="caption" sx={{ color: '#555', fontSize:'10px' }}>
-                                                            CRM: {laudo.crm_medico || "N/I"}
-                                                        </Typography>
-                                                    </div>
-                                                </Box>
+                                {laudos.map((laudo) => {
+                                    // Determina o link real do PDF
+                                    const linkPdfReal = getLinkPDF(laudo);
+                                    
+                                    // Determina os nomes
+                                    // Se 'medico_responsavel' existir, usa ele. Se não, tenta pegar do CRM ou usa o usuário como fallback visual (com aviso)
+                                    const nomeMedicoAssinatura = laudo.medico_responsavel || laudo.medico_nome;
+                                    const crmMedico = laudo.crm_medico || "N/I";
+                                    const usuarioGerador = laudo.medico_nome;
 
-                                                {/* 2. Usuário (Quem digitou) */}
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: '1px dashed #e0e0e0' }}>
-                                                    <FaKeyboard color="#9e9e9e" size={12} title="Digitado/Gerado por"/>
-                                                    <Typography variant="caption" sx={{ color: '#757575', fontSize:'10px' }}>
-                                                        Gerado por: {laudo.medico_nome} {/* Nome do login */}
-                                                    </Typography>
+                                    return (
+                                        <TableRow key={laudo.id} hover>
+                                            <TableCell width="15%">{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
+                                            <TableCell width="25%">
+                                                {laudo.titulo || laudo.tipo_exame}
+                                                <div style={{fontSize:'10px', color:'#999'}}>{laudo.tipo_exame}</div>
+                                            </TableCell>
+                                            
+                                            {/* COLUNA DE MÉDICOS CORRIGIDA */}
+                                            <TableCell width="30%">
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                    {/* 1. Quem Assina (Importante) */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <FaUserMd color="#1976d2" size={12} title="Médico Responsável (Assinatura)"/>
+                                                        <div>
+                                                            <Typography variant="body2" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize:'11px' }}>
+                                                                {nomeMedicoAssinatura}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: '#555', fontSize:'10px' }}>
+                                                                CRM: {crmMedico}
+                                                            </Typography>
+                                                        </div>
+                                                    </Box>
+
+                                                    {/* 2. Quem Digitou (Auditoria) */}
+                                                    {/* Só mostra se for diferente do médico ou se for relevante */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: '1px dashed #e0e0e0' }}>
+                                                        <FaKeyboard color="#9e9e9e" size={12} title="Digitado/Gerado por"/>
+                                                        <Typography variant="caption" sx={{ color: '#757575', fontSize:'10px' }}>
+                                                            Digitado por: {usuarioGerador}
+                                                        </Typography>
+                                                    </Box>
                                                 </Box>
-                                            </Box>
-                                        </TableCell>
-                                        {/* ------------------------------- */}
-                                        
-                                        <TableCell align="center">
-                                            {laudo.arquivos_exame && laudo.arquivos_exame.length > 0 ? (
-                                                <Button 
-                                                    size="small" 
-                                                    variant="contained" 
-                                                    color="error" 
-                                                    startIcon={<FaFilePdf />}
-                                                    onClick={() => window.open(laudo.arquivos_exame[0].arquivo, '_blank')}
-                                                    sx={{ textTransform: 'none', fontSize: '11px' }}
-                                                >
-                                                    Abrir PDF
-                                                </Button>
-                                            ) : (
-                                                <Tooltip title="Recria o PDF usando os dados salvos">
+                                            </TableCell>
+                                            
+                                            {/* COLUNA DE AÇÕES (PDF vs 2ª VIA) */}
+                                            <TableCell align="center">
+                                                {linkPdfReal ? (
                                                     <Button 
                                                         size="small" 
-                                                        variant="outlined" 
-                                                        color="warning"
-                                                        startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
-                                                        onClick={() => handleGerar2Via(laudo)}
-                                                        disabled={gerandoId === laudo.id}
-                                                        sx={{ textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
+                                                        variant="contained" 
+                                                        color="error" 
+                                                        startIcon={<FaFilePdf />}
+                                                        onClick={() => window.open(linkPdfReal, '_blank')}
+                                                        sx={{ textTransform: 'none', fontSize: '11px' }}
                                                     >
-                                                        {gerandoId === laudo.id ? "Gerando..." : "Gerar 2ª Via"}
+                                                        Abrir PDF
                                                     </Button>
-                                                </Tooltip>
-                                            )}
-                                        </TableCell>
+                                                ) : (
+                                                    <Tooltip title="Arquivo PDF não encontrado. Gere uma nova cópia baseada nos dados salvos.">
+                                                        <Button 
+                                                            size="small" 
+                                                            variant="outlined" 
+                                                            color="warning"
+                                                            startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
+                                                            onClick={() => handleGerar2Via(laudo)}
+                                                            disabled={gerandoId === laudo.id}
+                                                            sx={{ textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
+                                                        >
+                                                            {gerandoId === laudo.id ? "Gerando..." : "Gerar 2ª Via"}
+                                                        </Button>
+                                                    </Tooltip>
+                                                )}
+                                            </TableCell>
 
-                                        <TableCell align="center">
-                                            {laudo.arquivos_exame && laudo.arquivos_exame.length > 0 ? (
-                                                <IconButton 
-                                                    color="success" 
-                                                    size="small"
-                                                    title="Enviar Link no WhatsApp"
-                                                    onClick={() => handleEnviarZap(laudo.arquivos_exame[0].arquivo)}
-                                                >
-                                                    <FaWhatsapp />
-                                                </IconButton>
-                                            ) : (
-                                                <span style={{color:'#ccc', fontSize:'10px'}}>-</span>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                            <TableCell align="center">
+                                                {linkPdfReal ? (
+                                                    <IconButton 
+                                                        color="success" 
+                                                        size="small"
+                                                        title="Enviar Link no WhatsApp"
+                                                        onClick={() => handleEnviarZap(linkPdfReal)}
+                                                    >
+                                                        <FaWhatsapp />
+                                                    </IconButton>
+                                                ) : (
+                                                    <span style={{color:'#ccc', fontSize:'10px'}}>-</span>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </TableContainer>
