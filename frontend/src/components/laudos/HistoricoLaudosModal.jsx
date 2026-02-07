@@ -50,18 +50,22 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
             }
 
-            // Chama o gerador de PDF com os dados salvos no banco
-            await gerarPDFLaudo({
+            // --- CORREÇÃO AQUI ---
+            // Usa o nome do médico salvo no formulário, não o usuário logado
+            const nomeMedicoFinal = laudo.medico_responsavel || laudo.medico_nome;
+            const crmMedicoFinal = laudo.crm_medico || ''; 
+
+            const blob = await gerarPDFLaudo({
                 pacienteNome: pacienteNome || laudo.paciente_nome,
-                medicoNome: laudo.medico_nome,
-                medicoCrm: laudo.crm_medico || '', // O backend precisa mandar isso ou ficará em branco
+                medicoNome: nomeMedicoFinal, // <--- CORRIGIDO
+                medicoCrm: crmMedicoFinal,   // <--- CORRIGIDO
                 tituloExame: laudo.titulo,
                 textoLaudo: laudo.texto_laudo,
                 dadosEstruturados: dadosEstruturados,
-                imagensBase64: [], // Laudos antigos geralmente não salvam a imagem base64 no retorno da lista, apenas o texto
+                imagensBase64: [], 
                 comTimbre: true,
-                usaAssinaturaDigital: false, // 2ª via rápida sem assinatura digital nova
-                retornarBlob: false // false = abre direto na tela para imprimir/baixar
+                usaAssinaturaDigital: false,
+                retornarBlob: true
             });
 
         } catch (error) {
@@ -99,7 +103,20 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                     <TableRow key={laudo.id}>
                                         <TableCell>{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
                                         <TableCell>{laudo.titulo}</TableCell>
-                                        <TableCell>{laudo.medico_nome}</TableCell>
+                                        {/* --- CORREÇÃO VISUAL NA TABELA --- */}
+                                        <TableCell>
+                                            <div style={{display:'flex', flexDirection:'column'}}>
+                                                <span style={{fontWeight:'bold'}}>
+                                                    {laudo.medico_responsavel || laudo.medico_nome}
+                                                </span>
+                                                {laudo.crm_medico && (
+                                                    <span style={{fontSize:'10px', color:'#666'}}>
+                                                        CRM: {laudo.crm_medico}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        {/* ---------------------------------- */}
                                         {/* COLUNA DO ARQUIVO */}
                                         <TableCell align="center">
                                             {/* Se tem PDF salvo no servidor (novos) */}

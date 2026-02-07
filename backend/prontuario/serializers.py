@@ -292,8 +292,11 @@ class LaudoSerializer(serializers.ModelSerializer):
             'dados_estruturados', 'data_criacao', 'status', 
             'imagens',        # Imagens coladas no texto (Editor)
             'arquivos_exame', # PDFs/Imagens vindos da Recepção/Máquina
-            'credenciais'     # Login/Senha para o paciente
+            'credenciais',     # Login/Senha para o paciente
+            'medico_responsavel',  # Nome digitado/selecionado no formulário
+            'crm_medico'           # CRM digitado no formulário
         ]
+        
         read_only_fields = ['medico', 'data_criacao', 'imagens']
 
     def get_arquivos_exame(self, obj):
