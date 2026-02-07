@@ -323,6 +323,14 @@ const LaudosPage = () => {
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
+    // --- AUDITORIA DE DADOS (ADICIONE ISSO) ---
+    console.log("=== AUDITORIA DE SALVAMENTO ===");
+    console.log("PACIENTE ID:", paciente.id);
+    console.log("NOME:", paciente.nome_completo);
+    console.log("DADOS ESTRUTURADOS:", dadosEstruturados);
+    // Verifique se no console aparece: { feto1: { dum: '...', ... } }
+    // -------------------------------------------
+
     setModalRevisaoOpen(false); // Fecha o modal de revisão
     setSaving(true);
     
