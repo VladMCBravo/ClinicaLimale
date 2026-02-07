@@ -276,11 +276,10 @@ class ImagemLaudoSerializer(serializers.ModelSerializer):
 
 class LaudoSerializer(serializers.ModelSerializer):
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
+    
+    # Imagens do Editor (Mantive 'imagens' pois é o padrão do related_name)
     imagens = ImagemLaudoSerializer(many=True, read_only=True)
 
-    # Imagens coladas no editor de texto (já existia)
-    imagens_editor = ImagemLaudoSerializer(many=True, read_only=True, source='imagens')
-    
     # --- NOVO: Arquivos do Portal do Paciente (PDFs/DICOM/Vídeos) ---
     arquivos_exame = serializers.SerializerMethodField()
     credenciais = serializers.SerializerMethodField()
@@ -291,16 +290,21 @@ class LaudoSerializer(serializers.ModelSerializer):
             'id', 'paciente', 'medico', 'medico_nome',
             'tipo_exame', 'titulo', 'texto_laudo', 
             'dados_estruturados', 'data_criacao', 'status', 
-            'imagens_editor', # Renomeei para evitar confusão
-            'arquivos_exame', # <--- Campo Novo
-            'credenciais'     # <--- Campo Novo
+            'imagens',        # Imagens coladas no texto (Editor)
+            'arquivos_exame', # PDFs/Imagens vindos da Recepção/Máquina
+            'credenciais'     # Login/Senha para o paciente
         ]
-        read_only_fields = ['medico', 'data_criacao', 'imagens_editor']
+        read_only_fields = ['medico', 'data_criacao', 'imagens']
 
     def get_arquivos_exame(self, obj):
         """Retorna os PDFs e imagens vinculados ao Exame deste Laudo"""
-        if obj.exame:
-            return ArquivoExameSerializer(obj.exame.arquivos.all(), many=True).data
+        # BLINDAGEM CONTRA IMPORTAÇÃO CIRCULAR
+        try:
+            from exames.serializers import ArquivoExameSerializer
+            if obj.exame:
+                return ArquivoExameSerializer(obj.exame.arquivos.all(), many=True).data
+        except ImportError:
+            pass
         return []
 
     def get_credenciais(self, obj):
