@@ -18,6 +18,12 @@ export const crmService = {
     return apiClient.get(`/crm/ciclos/${id}/`);
   },
 
+  // --- ADICIONE ESTA FUNÇÃO ---
+  updateCiclo: (id, dados) => {
+    return apiClient.patch(`/crm/ciclos/${id}/`, dados);
+  },
+  // -----------------------------
+
   // ADICIONE ISSO:
   addAcao: (dados) => {
     return apiClient.post('/crm/acoes/', dados);

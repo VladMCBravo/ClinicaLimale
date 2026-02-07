@@ -171,6 +171,39 @@ export default function CRMKanbanPage() {
                                     <FaWhatsapp color="#25D366" size={16} />
                                   </IconButton>
                                 </Box>
+                                {/* --- NOVO: BARRA DE ALERTA GESTACIONAL (Lógica do PDF) --- */}
+                                {ciclo.alerta_clinico && (
+                                  <Box 
+                                      onClick={(e) => handleOpenDetalhes(e, ciclo.id)} // Clicar aqui também abre detalhes para ajustar DUM
+                                      sx={{ 
+                                          mt: 0.5, mb: 1, p: 0.5, borderRadius: 1, cursor: 'pointer',
+                                          backgroundColor: 
+                                          ciclo.alerta_clinico.prioridade === 'urgente' ? '#ffebee' : 
+                                          ciclo.alerta_clinico.prioridade === 'alta' ? '#fff8e1' : '#e3f2fd',
+                                          border: 
+                                          ciclo.alerta_clinico.prioridade === 'urgente' ? '1px solid #ef5350' : '1px solid transparent',
+                                          display: 'flex', alignItems: 'center', gap: 1
+                                      }}
+                                  >
+                                      <Chip 
+                                          label={`${ciclo.alerta_clinico.semanas} sem`} 
+                                          size="small" 
+                                          sx={{ 
+                                              height: 16, fontSize: '0.6rem', fontWeight: 'bold',
+                                              bgcolor: 'white', color: '#333'
+                                          }} 
+                                      />
+                                      <Typography variant="caption" noWrap sx={{ 
+                                          fontSize: '0.65rem', fontWeight: 'bold', 
+                                          color: 
+                                              ciclo.alerta_clinico.prioridade === 'urgente' ? '#c62828' : 
+                                              ciclo.alerta_clinico.prioridade === 'alta' ? '#f57f17' : '#1565c0'
+                                      }}>
+                                      {ciclo.alerta_clinico.texto}
+                                      </Typography>
+                                  </Box>
+                                )}
+                                {/* ----------------------------------------------------------- */}
 
                                 {/* LINHA 2: Data + Status (A Pedido: Mesma linha) */}
                                 {ciclo.dados_agendamento ? (

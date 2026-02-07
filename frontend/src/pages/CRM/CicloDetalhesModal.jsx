@@ -4,7 +4,7 @@ import {
   TextField, Box, Typography, List, ListItem, ListItemText, 
   Chip, Divider, IconButton, CircularProgress 
 } from '@mui/material';
-import { FaCheckCircle, FaTimes } from 'react-icons/fa';
+import { FaCheckCircle, FaTimes, FaSave } from 'react-icons/fa';
 import { crmService } from '../../services/crmService';
 
 export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate }) {
@@ -12,6 +12,9 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   const [detalhes, setDetalhes] = useState(null);
   const [novaAcaoDesc, setNovaAcaoDesc] = useState('');
   const [novaAcaoData, setNovaAcaoData] = useState(new Date().toISOString().split('T')[0]);
+
+  // State para DUM
+  const [dum, setDum] = useState('');
 
   // Carrega os dados completos quando abre o modal
   useEffect(() => {
@@ -25,10 +28,30 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
       setLoading(true);
       const res = await crmService.getCicloDetalhe(cicloId);
       setDetalhes(res.data);
+      // Carrega a DUM se existir (formato YYYY-MM-DD)
+      if (res.data.data_dum) {
+        // As vezes vem como DD/MM/YYYY do serializer, precisamos converter se for input date
+        // Se o serializer mandar YYYY-MM-DD direto, use res.data.data_dum
+        // Aqui assumo que o input type="date" espera YYYY-MM-DD
+        setDum(res.data.data_dum.split('/').reverse().join('-')); 
+      } else {
+        setDum('');
+      }
     } catch (error) {
       console.error("Erro ao carregar detalhes", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSalvarDum = async () => {
+    try {
+      await crmService.updateCiclo(cicloId, { data_dum: dum });
+      // Recarrega para atualizar cálculos
+      loadDetalhes(); 
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      alert("Erro ao salvar DUM");
     }
   };
 
@@ -73,14 +96,53 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>
         ) : detalhes ? (
           <>
-            {/* Cabeçalho do Paciente */}
+            {/* CABEÇALHO: Nome e DUM */}
             <Box sx={{ mb: 2 }}>
-              <Typography variant="h6">{detalhes.paciente_nome}</Typography>
-              <Chip label={detalhes.fase_atual} color="primary" size="small" sx={{ mr: 1 }} />
-              <Typography variant="caption" color="text.secondary">
-                Receita Acumulada: R$ {detalhes.receita_acumulada}
-              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{detalhes.paciente_nome}</Typography>
+              <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
+                <Chip label={detalhes.fase_atual} color="primary" size="small" />
+                {detalhes.receita_acumulada > 0 && (
+                    <Typography variant="caption" sx={{ color: 'green', fontWeight: 'bold' }}>
+                        R$ {detalhes.receita_acumulada}
+                    </Typography>
+                )}
+              </Box>
             </Box>
+
+            {/* BOX DE GESTÃO GESTACIONAL */}
+            {detalhes.tipo === 'GESTACAO' && (
+                <Box sx={{ backgroundColor: '#e3f2fd', p: 2, borderRadius: 2, mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 1 }}>
+                        🤰 Calculadora Gestacional
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <TextField 
+                            label="DUM (Data Última Menstruação)"
+                            type="date" 
+                            size="small"
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                            value={dum}
+                            onChange={(e) => setDum(e.target.value)}
+                            sx={{ bgcolor: 'white' }}
+                        />
+                        <Button 
+                            variant="contained" 
+                            size="medium"
+                            sx={{ minWidth: '40px', px: 2 }}
+                            onClick={handleSalvarDum}
+                        >
+                            <FaSave />
+                        </Button>
+                    </Box>
+                    {/* Se tiver idade gestacional calculada, mostra aqui */}
+                    {detalhes.idade_gestacional && (
+                        <Typography variant="body2" sx={{ mt: 1, color: '#0d47a1' }}>
+                            <strong>Idade Atual:</strong> {detalhes.idade_gestacional}
+                        </Typography>
+                    )}
+                </Box>
+            )}
 
             <Divider sx={{ my: 2 }} />
 
