@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, 
     Button, Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, Paper, IconButton, Chip, Alert, CircularProgress 
+    TableHead, TableRow, Paper, IconButton, Chip, Alert, CircularProgress, Tooltip 
 } from '@mui/material';
-import { FaFilePdf, FaTimes, FaWhatsapp, FaEnvelope } from 'react-icons/fa';
+import { FaFilePdf, FaTimes, FaWhatsapp, FaPrint, FaSpinner } from 'react-icons/fa';
 import apiClient from '../../api/axiosConfig';
+import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator'; // <--- IMPORTANTE: O gerador de PDF
 
 const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const [laudos, setLaudos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [gerandoId, setGerandoId] = useState(null); // Para mostrar loading no botão específico
 
     useEffect(() => {
         if (open && pacienteId) {
@@ -36,6 +38,38 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
         if (!linkPdf) return alert("Este laudo não tem PDF gerado.");
         const texto = `Olá! Segue o link do seu laudo: ${linkPdf}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    };
+
+    // --- A MÁGICA DA 2ª VIA ---
+    const handleGerar2Via = async (laudo) => {
+        setGerandoId(laudo.id);
+        try {
+            // Prepara os dados. O backend pode mandar string ou objeto no JSONField
+            let dadosEstruturados = laudo.dados_estruturados;
+            if (typeof dadosEstruturados === 'string') {
+                try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
+            }
+
+            // Chama o gerador de PDF com os dados salvos no banco
+            await gerarPDFLaudo({
+                pacienteNome: pacienteNome || laudo.paciente_nome,
+                medicoNome: laudo.medico_nome,
+                medicoCrm: laudo.crm_medico || '', // O backend precisa mandar isso ou ficará em branco
+                tituloExame: laudo.titulo,
+                textoLaudo: laudo.texto_laudo,
+                dadosEstruturados: dadosEstruturados,
+                imagensBase64: [], // Laudos antigos geralmente não salvam a imagem base64 no retorno da lista, apenas o texto
+                comTimbre: true,
+                usaAssinaturaDigital: false, // 2ª via rápida sem assinatura digital nova
+                retornarBlob: false // false = abre direto na tela para imprimir/baixar
+            });
+
+        } catch (error) {
+            console.error("Erro ao gerar 2ª via:", error);
+            alert("Erro ao recriar o PDF.");
+        } finally {
+            setGerandoId(null);
+        }
     };
 
     return (
@@ -66,30 +100,52 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                         <TableCell>{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
                                         <TableCell>{laudo.titulo}</TableCell>
                                         <TableCell>{laudo.medico_nome}</TableCell>
+                                        {/* COLUNA DO ARQUIVO */}
                                         <TableCell align="center">
-                                            {laudo.arquivo_pdf ? (
+                                            {/* Se tem PDF salvo no servidor (novos) */}
+                                            {laudo.arquivos_exame && laudo.arquivos_exame.length > 0 ? (
                                                 <Button 
                                                     size="small" 
-                                                    variant="outlined" 
+                                                    variant="contained" 
                                                     color="error" 
                                                     startIcon={<FaFilePdf />}
-                                                    onClick={() => window.open(laudo.arquivo_pdf, '_blank')}
+                                                    onClick={() => window.open(laudo.arquivos_exame[0].arquivo, '_blank')}
+                                                    sx={{ textTransform: 'none', fontSize: '11px' }}
                                                 >
-                                                    PDF
+                                                    Abrir PDF
                                                 </Button>
                                             ) : (
-                                                <span style={{color:'#999', fontSize:'11px'}}>Não gerado</span>
+                                                /* Se NÃO tem PDF (antigos), mostra botão de Gerar na Hora */
+                                                <Tooltip title="Recria o PDF usando os dados salvos">
+                                                    <Button 
+                                                        size="small" 
+                                                        variant="outlined" 
+                                                        color="warning"
+                                                        startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
+                                                        onClick={() => handleGerar2Via(laudo)}
+                                                        disabled={gerandoId === laudo.id}
+                                                        sx={{ textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
+                                                    >
+                                                        {gerandoId === laudo.id ? "Gerando..." : "Gerar 2ª Via"}
+                                                    </Button>
+                                                </Tooltip>
                                             )}
                                         </TableCell>
+
+                                        {/* COLUNA DE ENVIAR */}
                                         <TableCell align="center">
-                                            {laudo.arquivo_pdf && (
+                                            {/* Só permite enviar link se o arquivo existir no servidor */}
+                                            {laudo.arquivos_exame && laudo.arquivos_exame.length > 0 ? (
                                                 <IconButton 
                                                     color="success" 
+                                                    size="small"
                                                     title="Enviar Link no WhatsApp"
-                                                    onClick={() => handleEnviarZap(laudo.arquivo_pdf)}
+                                                    onClick={() => handleEnviarZap(laudo.arquivos_exame[0].arquivo)}
                                                 >
                                                     <FaWhatsapp />
                                                 </IconButton>
+                                            ) : (
+                                                <span style={{color:'#ccc', fontSize:'10px'}}>-</span>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -100,8 +156,8 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 )}
             </DialogContent>
             
-            <DialogActions>
-                <Button onClick={onClose}>Fechar</Button>
+            <DialogActions sx={{ bgcolor: '#f8f9fa' }}>
+                <Button onClick={onClose} color="inherit">Fechar</Button>
             </DialogActions>
         </Dialog>
     );
