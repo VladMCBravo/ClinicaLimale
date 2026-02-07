@@ -5,6 +5,7 @@ from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, An
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
 from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
+from exames.serializers import ArquivoExameSerializer
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
@@ -277,11 +278,36 @@ class LaudoSerializer(serializers.ModelSerializer):
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
     imagens = ImagemLaudoSerializer(many=True, read_only=True)
 
+    # Imagens coladas no editor de texto (já existia)
+    imagens_editor = ImagemLaudoSerializer(many=True, read_only=True, source='imagens')
+    
+    # --- NOVO: Arquivos do Portal do Paciente (PDFs/DICOM/Vídeos) ---
+    arquivos_exame = serializers.SerializerMethodField()
+    credenciais = serializers.SerializerMethodField()
+
     class Meta:
         model = Laudo
         fields = [
             'id', 'paciente', 'medico', 'medico_nome',
             'tipo_exame', 'titulo', 'texto_laudo', 
-            'dados_estruturados', 'data_criacao', 'status', 'imagens'
+            'dados_estruturados', 'data_criacao', 'status', 
+            'imagens_editor', # Renomeei para evitar confusão
+            'arquivos_exame', # <--- Campo Novo
+            'credenciais'     # <--- Campo Novo
         ]
-        read_only_fields = ['medico', 'data_criacao', 'imagens']
+        read_only_fields = ['medico', 'data_criacao', 'imagens_editor']
+
+    def get_arquivos_exame(self, obj):
+        """Retorna os PDFs e imagens vinculados ao Exame deste Laudo"""
+        if obj.exame:
+            return ArquivoExameSerializer(obj.exame.arquivos.all(), many=True).data
+        return []
+
+    def get_credenciais(self, obj):
+        """Retorna código/senha para o médico ver/informar"""
+        if obj.exame:
+            return {
+                'codigo': obj.exame.codigo_acesso,
+                'senha': obj.exame.senha_acesso
+            }
+        return None

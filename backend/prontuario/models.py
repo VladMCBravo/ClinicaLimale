@@ -522,6 +522,17 @@ class Laudo(models.Model):
     
     data_criacao = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='FINALIZADO')
+    
+    # --- ADICIONE ESTE CAMPO NOVO ---
+    exame = models.OneToOneField(
+        'exames.Exame', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='laudo_medico',
+        help_text="Vínculo com os arquivos/imagens e credenciais da paciente"
+    )
+    # --------------------------------
 
     def __str__(self):
         return f"Laudo {self.titulo} - {self.paciente.nome_completo}"

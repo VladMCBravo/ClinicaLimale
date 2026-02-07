@@ -4,6 +4,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from .models import Exame, ArquivoExame
 from pacientes.models import Paciente
+from crm.models import Ciclo # <--- IMPORTANTE
+from django.db.models import Q
 from datetime import datetime
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -13,8 +15,12 @@ import boto3
 from django.conf import settings
 
 class UploadExameView(APIView):
+    """
+    Recebe arquivos da máquina de USG ou Recepção.
+    Vincula automaticamente ao Paciente e ao Ciclo do CRM (Gestação).
+    """
     parser_classes = (MultiPartParser, FormParser)
-
+    
     def post(self, request, *args, **kwargs):
         # --- ALTERAÇÃO AQUI ---
         # Tenta pegar o nome original da pasta (enviado pelo novo script), 
@@ -27,44 +33,51 @@ class UploadExameView(APIView):
         if not nome_pasta or not data_str:
             return Response({'erro': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # --- CORREÇÃO DE BUSCA INTELIGENTE ---
+        # 1. BUSCA INTELIGENTE DA PACIENTE
         paciente_encontrado = None
-        
-        # 1. Limpa o nome: Troca underline por espaço
-        # Ex: "SEIXAS_AMANDA" vira "SEIXAS AMANDA"
         nome_limpo = nome_pasta.replace('_', ' ').strip()
         
-        # 2. Tenta busca exata primeiro (Melhor precisão)
+        # Tenta busca exata
         pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
         
         if not pacientes.exists():
-            # 3. Se não achar, tenta conter o nome (Ex: "Amanda Seixas" contém "Seixas Amanda"?)
-            # Aqui invertemos a lógica: Buscamos se partes do nome da pasta estão no banco
+            # Tenta busca por partes do nome (Primeiro e Último)
             termos = nome_limpo.split()
-            # Pega o primeiro e o último nome para tentar filtrar (Ex: SEIXAS e AMANDA)
             if len(termos) >= 1:
                 query = Paciente.objects.filter(nome_completo__icontains=termos[0])
                 if len(termos) > 1:
                     query = query.filter(nome_completo__icontains=termos[-1])
-                
                 pacientes = query
 
         if pacientes.exists():
             paciente_encontrado = pacientes.first()
 
-        # Cria o Exame
+        # 2. BUSCA DO CICLO ATIVO NO CRM (O Segredo do Pré-Natal)
+        ciclo_ativo = None
+        if paciente_encontrado:
+            # Pega o ciclo ativo mais recente (Ex: Gestação atual)
+            ciclo_ativo = Ciclo.objects.filter(
+                paciente=paciente_encontrado, 
+                status='ativo'
+            ).order_by('-data_inicio').first()
+
+        # 3. CRIAÇÃO DO EXAME
         exame = Exame.objects.create(
             paciente=paciente_encontrado,
             data_exame=data_str,
             nome_paciente_pasta=nome_pasta,
-            status='DISPONIVEL' if paciente_encontrado else 'PENDENTE'
+            status='DISPONIVEL' if paciente_encontrado else 'PENDENTE',
+            ciclo=ciclo_ativo # <--- AQUI ESTÁ A MÁGICA
         )
 
-        # Salva Arquivos
+        # 4. SALVAMENTO DOS ARQUIVOS
         count_imgs = 0
         for f in files:
-            tipo = 'VIDEO' if f.name.lower().endswith(('.mp4', '.avi', '.mov')) else 'IMAGEM'
-            if f.name.lower().endswith('.pdf'): tipo = 'LAUDO'
+            # Detecção simples de tipo
+            ext = f.name.lower().split('.')[-1]
+            tipo = 'IMAGEM'
+            if ext in ['mp4', 'avi', 'mov', 'mkv']: tipo = 'VIDEO'
+            elif ext in ['pdf']: tipo = 'LAUDO'
             
             ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
             count_imgs += 1
@@ -73,7 +86,8 @@ class UploadExameView(APIView):
             'status': 'sucesso',
             'exame_id': exame.id,
             'arquivos_salvos': count_imgs,
-            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO (Faça manual)"
+            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO",
+            'crm_vinculado': f"Ciclo {ciclo_ativo.tipo}" if ciclo_ativo else "Sem ciclo ativo"
         }, status=status.HTTP_201_CREATED)
 
 class AcessarResultadosView(APIView):

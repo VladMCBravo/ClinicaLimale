@@ -833,42 +833,53 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
     
-    # SOBRESCREVER O CREATE (ATUALIZADO)
     def create(self, request, *args, **kwargs):
-        # 1. Salva o Laudo primeiro (lógica padrão)
+        # 1. Salva o Laudo primeiro (lógica padrão do serializer)
         response = super().create(request, *args, **kwargs)
         
+        # Recupera o ID do laudo recém-criado
+        laudo_id = response.data.get('id')
+        laudo = Laudo.objects.get(id=laudo_id)
+
         try:
             paciente_id = request.data.get('paciente')
             paciente = Paciente.objects.get(id=paciente_id)
             hoje = date.today()
             
-            # 2. LÓGICA DE OURO: Get or Create
-            # Procura um exame deste paciente HOJE. 
-            # Se não existir (o script não rodou ainda), CRIA um agora.
+            # 2. Busca ou Cria o Exame (Imagens/Arquivos)
+            # Tenta achar um exame criado hoje para este paciente (upload feito pela recepcionista/máquina)
             exame, created = Exame.objects.get_or_create(
                 paciente=paciente,
                 data_exame=hoje,
                 defaults={
-                    'nome_paciente_pasta': paciente.nome_completo, # Nome provisório p/ identificar
-                    'status': 'PENDENTE' 
+                    'nome_paciente_pasta': paciente.nome_completo,
+                    'status': 'PENDENTE'
                 }
             )
             
-            # Nota: O seu models.py (Exame.save) já gera codigo e senha automaticamente
-            # quando um novo exame é criado.
-
-            # 3. Retorna as credenciais garantidas
+            # --- AQUI ESTÁ A CORREÇÃO (O PULO DO GATO) ---
+            # Vincula o Exame (Arquivos) ao Laudo (Texto)
+            laudo.exame = exame
+            laudo.save()
+            # ---------------------------------------------
+            
+            # 3. Retorna as credenciais para o Frontend (opcional, mas útil)
             response.data['credenciais'] = {
                 'codigo': exame.codigo_acesso,
                 'senha': exame.senha_acesso,
-                'link': 'https://clinica-limale.vercel.app/resultados' # Seu link
+                'link': 'https://clinica-limale.vercel.app/resultados', # Seu link
+                'exame_id': exame.id # Retornamos o ID também
             }
                 
+        # Retorna também os arquivos que já existirem nesse exame (caso o upload tenha sido feito antes)
+            from exames.serializers import ArquivoExameSerializer
+            arquivos = exame.arquivos.all()
+            if arquivos.exists():
+                response.data['arquivos_vinculados'] = ArquivoExameSerializer(arquivos, many=True).data
+                
         except Exception as e:
-            print(f"Erro ao gerar credenciais: {e}")
-            # Só cai aqui se der um erro muito grave no banco
-            response.data['credenciais'] = None
+            print(f"Erro ao vincular Laudo x Exame: {e}")
+            # Não quebramos o request principal, apenas logamos o erro de vínculo
 
         return response
 
