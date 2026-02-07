@@ -204,8 +204,10 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
     agendamentos = serializers.SerializerMethodField()
     exames = serializers.SerializerMethodField()
     acoes = ProximaAcaoSerializer(many=True, read_only=True)
-    # Campo DUM adicionado aos detalhes
+    # Campo DUM formatado para o Frontend
     data_dum = serializers.DateField(format="%d/%m/%Y", read_only=True)
+    # Novo campo: Idade Gestacional Calculada
+    idade_gestacional = serializers.SerializerMethodField()
     
     class Meta:
         model = Ciclo
@@ -220,6 +222,8 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
             'qtd_atendimentos',
             'data_inicio',
             'responsavel',
+            'data_dum',
+            'idade_gestacional', # <--- AQUI ESTAVA O ERRO (Adicionados)
             # Blocos de Dados
             'comportamento',
             'acoes',        # Lista de tarefas futuras e passadas
