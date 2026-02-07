@@ -26,7 +26,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             const res = await apiClient.get('/prontuario/laudos/', {
                 params: { paciente: pacienteId }
             });
-            console.log("🔥 LISTA COMPLETA DE LAUDOS DO BACKEND:", res.data); // Debug Geral
+            console.log("🔥 LAUDOS:", res.data); 
             setLaudos(res.data);
         } catch (error) {
             console.error("Erro ao buscar laudos", error);
@@ -35,18 +35,14 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
         }
     };
 
-    // --- FUNÇÃO DE EXCLUIR (LIXEIRA TEMPORÁRIA) ---
     const handleDelete = async (id) => {
         if (!window.confirm("⚠️ TEM CERTEZA? Isso apagará o laudo permanentemente.")) return;
-
         try {
             await apiClient.delete(`/prontuario/laudos/${id}/`);
-            // Remove da lista visualmente sem recarregar
             setLaudos(prev => prev.filter(l => l.id !== id));
-            alert("Laudo excluído com sucesso!");
+            alert("Laudo excluído!");
         } catch (error) {
-            console.error("Erro ao excluir:", error);
-            alert("Erro ao excluir. Verifique se você tem permissão.");
+            alert("Erro ao excluir. Verifique permissões.");
         }
     };
 
@@ -94,6 +90,9 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
             }
 
+            // Fallback inteligente para o PDF:
+            // Se não tiver médico responsável salvo (antigo), usa o nome do login,
+            // mas na TABELA (visualização) mostraremos separado.
             const nomeMedicoParaPDF = laudo.medico_responsavel || laudo.medico_nome;
             const crmMedicoParaPDF = laudo.crm_medico || '';
 
@@ -153,21 +152,16 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {laudos.map((laudo, index) => {
-                                    // --- ÁREA DE DEBUG (OLHE O CONSOLE F12) ---
-                                    console.log(`🔎 [Laudo #${laudo.id}] Check de Nomes:`, {
-                                        medico_responsavel: laudo.medico_responsavel,
-                                        medico_nome: laudo.medico_nome,
-                                        crm_medico: laudo.crm_medico
-                                    });
-                                    // -------------------------------------------
-
+                                {laudos.map((laudo) => {
                                     const linkPdfReal = getLinkPDF(laudo);
                                     
-                                    // Lógica de nomes atualizada
-                                    const nomeMedicoAssinatura = laudo.medico_responsavel || laudo.medico_nome || "Sem Assinatura";
-                                    const crmMedico = laudo.crm_medico || "N/I";
-                                    const usuarioGerador = laudo.medico_nome; // Nome do login
+                                    // --- LÓGICA DE NOMES CRISTALINA ---
+                                    // 1. Assinatura: Se null, mostra "---". Não inventa.
+                                    const medicoAssinatura = laudo.medico_responsavel ? laudo.medico_responsavel : "---";
+                                    const crm = laudo.crm_medico || "";
+                                    
+                                    // 2. Gerador: Sempre mostra o login.
+                                    const usuarioGerador = laudo.medico_nome; 
 
                                     return (
                                         <TableRow key={laudo.id} hover>
@@ -179,28 +173,28 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                             
                                             <TableCell width="30%">
                                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                    {/* Quem Assina */}
+                                                    {/* LINHA 1: MÉDICO (ASSINATURA) */}
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                         <FaUserMd color="#1976d2" size={12} title="Médico Responsável (Assinatura)"/>
                                                         <div>
-                                                            <Typography variant="body2" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize:'11px' }}>
-                                                                {nomeMedicoAssinatura}
+                                                            <Typography variant="body2" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize:'11px', color: medicoAssinatura === "---" ? '#999' : '#000' }}>
+                                                                {medicoAssinatura}
                                                             </Typography>
-                                                            <Typography variant="caption" sx={{ color: '#555', fontSize:'10px' }}>
-                                                                CRM: {crmMedico}
-                                                            </Typography>
+                                                            {crm && (
+                                                                <Typography variant="caption" sx={{ color: '#555', fontSize:'10px' }}>
+                                                                    CRM: {crm}
+                                                                </Typography>
+                                                            )}
                                                         </div>
                                                     </Box>
 
-                                                    {/* Quem Digitou (só mostra se o nome for diferente da assinatura) */}
-                                                    {usuarioGerador !== nomeMedicoAssinatura && (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: '1px dashed #e0e0e0' }}>
-                                                            <FaKeyboard color="#9e9e9e" size={12} title="Digitado/Gerado por"/>
-                                                            <Typography variant="caption" sx={{ color: '#757575', fontSize:'10px' }}>
-                                                                Login: {usuarioGerador}
-                                                            </Typography>
-                                                        </Box>
-                                                    )}
+                                                    {/* LINHA 2: GERADO POR (LOGIN) - SEMPRE VISÍVEL */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: '1px dashed #e0e0e0' }}>
+                                                        <FaKeyboard color="#9e9e9e" size={12} title="Digitado/Gerado por"/>
+                                                        <Typography variant="caption" sx={{ color: '#757575', fontSize:'10px' }}>
+                                                            Gerado por: {usuarioGerador}
+                                                        </Typography>
+                                                    </Box>
                                                 </Box>
                                             </TableCell>
                                             
@@ -245,7 +239,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                                 ) : <span style={{color:'#ccc'}}>-</span>}
                                             </TableCell>
 
-                                            {/* BOTÃO DE LIXEIRA */}
                                             <TableCell align="center">
                                                 <IconButton 
                                                     size="small" 
