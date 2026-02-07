@@ -5,6 +5,7 @@ import {
   Chip, Divider, IconButton, CircularProgress 
 } from '@mui/material';
 import { FaCheckCircle, FaTimes, FaSave } from 'react-icons/fa';
+import apiClient from '../../api/axiosConfig'; // <--- ADICIONE ISSO
 import { crmService } from '../../services/crmService';
 
 export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate }) {
@@ -53,24 +54,36 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   const handleSalvarDum = async () => {
     if (!dum) return alert("Selecione uma data para a DUM.");
     
-    setLoading(true); // Feedback visual
+    setLoading(true); 
     try {
-      console.log(`Salvando DUM para o ciclo ${cicloId}: ${dum}`);
+      console.log(`Salvando DUM: ${dum}`);
       
-      // Envia a DUM para o serviço do CRM
+      // 1. Tenta atualizar o CICLO (CRM)
+      // Enviamos nos dois formatos de chave para garantir
       await crmService.updateCiclo(cicloId, { dum: dum, data_dum: dum });
 
-      // Recarrega os dados para mostrar a nova IG calculada
+      // 2. Tenta atualizar o PACIENTE DIRETAMENTE (A Fonte da Verdade)
+      // Isso garante que se o CRM for apenas "leitura", o paciente seja atualizado
+      if (detalhes && detalhes.paciente) {
+          // O ID do paciente geralmente vem dentro de 'detalhes.paciente' (se for int) 
+          // ou 'detalhes.paciente.id' (se for objeto). Vamos testar ambos.
+          const pacienteId = typeof detalhes.paciente === 'object' ? detalhes.paciente.id : detalhes.paciente;
+          
+          if (pacienteId) {
+              await apiClient.patch(`/pacientes/${pacienteId}/`, { dum: dum });
+              console.log("Paciente atualizado diretamente via ID:", pacienteId);
+          }
+      }
+
+      // 3. Recarrega tudo
       await loadDetalhes(); 
+      if (onUpdate) onUpdate(); // Atualiza o Kanban (Card)
       
-      // Atualiza o Kanban pai
-      if (onUpdate) onUpdate();
-      
-      alert("✅ DUM atualizada e IG recalculada!");
+      alert("✅ DUM Salva com sucesso!");
 
     } catch (error) {
       console.error("Erro ao salvar DUM:", error);
-      alert("Erro ao salvar DUM. Verifique o console.");
+      alert("Erro ao salvar. Verifique se a data é válida.");
     } finally {
       setLoading(false);
     }
