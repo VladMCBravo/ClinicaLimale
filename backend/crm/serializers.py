@@ -4,6 +4,7 @@ from rest_framework import serializers
 from .models import Ciclo, AnaliseComportamental, ProximaAcao
 from django.utils import timezone
 from django.apps import apps # Usado para evitar erro de importação circular
+import logging
 
 # --- 1. COMPORTAMENTO E AÇÕES (BLOCOS MENORES) ---
 
@@ -72,6 +73,7 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         return None
 
     def get_idade_gestacional(self, obj):
+        # [LOG DEUS] Calculando IG para o Card
         ig = obj.calcular_idade_gestacional()
         if ig:
             return f"{ig[0]}s + {ig[1]}d"
@@ -231,6 +233,22 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
             'exames',       # Resultados e arquivos vinculados
         ]
 
+    # --- O MÉTODO QUE FALTAVA ---
+    def get_idade_gestacional(self, obj):
+        try:
+            print(f"[LOG DEUS] Calculando IG Detalhada para Ciclo {obj.id}...")
+            ig = obj.calcular_idade_gestacional()
+            if ig:
+                resultado = f"{ig[0]} semanas + {ig[1]} dias"
+                print(f"[LOG DEUS] Resultado IG: {resultado}")
+                return resultado
+            print("[LOG DEUS] Sem DUM cadastrada.")
+            return None
+        except Exception as e:
+            print(f"[ERRO SERIALIZER] Calculo IG: {e}")
+            return None
+    # ----------------------------
+    
     def get_comportamento(self, obj):
         """Busca o perfil comportamental do paciente vinculado"""
         try:
