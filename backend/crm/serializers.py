@@ -46,6 +46,9 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     proxima_acao_imediata = serializers.SerializerMethodField()
     dados_agendamento = serializers.SerializerMethodField() # Onde a mágica acontece
     paciente_foto = serializers.SerializerMethodField() # <--- Definido aqui para evitar o erro
+    # NOVOS CAMPOS PARA O ALERTA
+    idade_gestacional = serializers.SerializerMethodField()
+    alerta_clinico = serializers.SerializerMethodField()
     
     class Meta:
         model = Ciclo
@@ -61,15 +64,69 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             'data_inicio',
             'proxima_acao_imediata',
             'dados_agendamento',
+            'idade_gestacional',
+            'alerta_clinico'
         ]
 
+    def get_paciente_foto(self, obj):
+        return None
+
+    def get_idade_gestacional(self, obj):
+        ig = obj.calcular_idade_gestacional()
+        if ig:
+            return f"{ig[0]}s + {ig[1]}d"
+        return None
+
+    def get_alerta_clinico(self, obj):
+        """
+        LÓGICA DA TABELA MESTRA (PDF)
+        Define qual exame oferecer baseado na DUM.
+        """
+        if obj.tipo != 'GESTACAO':
+            return None
+
+        ig = obj.calcular_idade_gestacional()
+        if not ig:
+            return None
+
+        semanas = ig[0]
+        sugestao = ""
+        prioridade = "normal" # normal, alta, urgente
+
+        # Regras extraídas do PDF
+        if semanas < 6:
+            sugestao = "Fase Inicial: Orientação (Exame precoce)"
+        elif 6 <= semanas <= 10:
+            sugestao = "Ideal: Obstétrico Simples (Datação)"
+        elif 11 <= semanas < 14:
+            sugestao = "🚨 PRIORIDADE: Morfológico 1º Trimestre"
+            prioridade = "alta"
+        elif 14 <= semanas < 20:
+            sugestao = "Pós-Morfo: Obstétrico Simples"
+        elif 20 <= semanas <= 24:
+            sugestao = "🚨 URGENTE: Morfológico 2º Trimestre"
+            prioridade = "urgente"
+        elif 25 <= semanas <= 28:
+            sugestao = "Transição: Morfo 2T (se não fez) ou Eco Fetal"
+            prioridade = "alta"
+        elif 29 <= semanas < 34:
+            sugestao = "Seguimento: Obstétrico com Doppler"
+        elif 34 <= semanas:
+            sugestao = "Reta Final: Doppler Quinzenal/Semanal"
+            prioridade = "alta"
+
+        return {
+            "semanas": semanas,
+            "texto": sugestao,
+            "prioridade": prioridade
+        }
+
     def get_proxima_acao_imediata(self, obj):
-        """Retorna a tarefa pendente mais próxima (Regra de Ouro)"""
         acao = obj.acoes.filter(status='PENDENTE').order_by('data_alvo').first()
         if acao:
             return {
                 "descricao": acao.descricao,
-                "data": acao.data_alvo,
+                "data_alvo": acao.data_alvo,
                 "atrasada": acao.data_alvo < timezone.now().date()
             }
         return None
@@ -134,10 +191,6 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             print(f"Erro ao processar card {obj.id}: {e}")
             return None
 
-    def get_paciente_foto(self, obj):
-        # Placeholder. No futuro pode conectar com Avatar do usuário
-        return None
-
 # --- 3. SERIALIZER DETALHADO (PESADO - PARA A FICHA DO CICLO) ---
 
 class CicloDetalheSerializer(serializers.ModelSerializer):
@@ -151,6 +204,8 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
     agendamentos = serializers.SerializerMethodField()
     exames = serializers.SerializerMethodField()
     acoes = ProximaAcaoSerializer(many=True, read_only=True)
+    # Campo DUM adicionado aos detalhes
+    data_dum = serializers.DateField(format="%d/%m/%Y", read_only=True)
     
     class Meta:
         model = Ciclo
@@ -195,4 +250,10 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
             return []
 
     def get_exames(self, obj):
-        return []
+        try:
+            from exames.serializers import ExameSerializer
+            if hasattr(obj, 'exames_realizados'):
+                return ExameSerializer(obj.exames_realizados.all().order_by('-data_exame'), many=True).data
+            return []
+        except:
+            return []

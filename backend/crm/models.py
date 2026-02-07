@@ -36,7 +36,6 @@ class Ciclo(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='ciclos')
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='GESTACAO')
     fase_atual = models.CharField(max_length=20, choices=FASE_CHOICES, default='F1')
-    # --- ADICIONE ESTE CAMPO AQUI ---
     status = models.CharField(max_length=20, choices=STATUS_CICLO, default='ativo')
     
     # Controle de Datas
@@ -65,6 +64,25 @@ class Ciclo(models.Model):
     
     # Para saber a origem exata da receita (Google vs Insta) no gráfico de pizza
     origem = models.CharField(max_length=50, blank=True, null=True, help_text="Cópia da origem do paciente para facilitar filtros")
+
+    # --- NOVO CAMPO: DUM (O Coração da Obstetrícia) ---
+    data_dum = models.DateField(
+        null=True, blank=True, 
+        verbose_name="Data da Última Menstruação (DUM)",
+        help_text="Essencial para o cálculo automático de exames previstos"
+    )
+
+    def calcular_idade_gestacional(self):
+        """Retorna uma tupla (semanas, dias) ou None"""
+        if not self.data_dum:
+            return None
+        
+        dias_totais = (timezone.now().date() - self.data_dum).days
+        if dias_totais < 0: return (0, 0) # Data futura
+        
+        semanas = dias_totais // 7
+        dias = dias_totais % 7
+        return semanas, dias
 
     class Meta:
         ordering = ['-data_inicio']
