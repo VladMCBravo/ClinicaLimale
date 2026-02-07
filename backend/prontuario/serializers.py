@@ -5,7 +5,6 @@ from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, An
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
 from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
-from exames.serializers import ArquivoExameSerializer
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):

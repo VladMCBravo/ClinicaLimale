@@ -37,6 +37,17 @@ class Laudo(models.Model):
         null=True, blank=True
     )
 
+    # --- NOVO: Vínculo com a tabela de Exames (Arquivos/Portal) ---
+    # Essencial para conectar o texto do laudo aos PDFs/Imagens do portal
+    exame = models.OneToOneField(
+        'exames.Exame',
+        on_delete=models.SET_NULL,
+        related_name='laudo_medico',
+        null=True, blank=True,
+        help_text="Vínculo com os arquivos e credenciais do portal"
+    )
+    # -------------------------------------------------------------
+
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='laudos')
     
     # Médico que assinou
@@ -46,6 +57,16 @@ class Laudo(models.Model):
         related_name='laudos_assinados',
         null=True, blank=True
     )
+
+    # --- NOVO: Nome do Médico por extenso (Snapshot) ---
+    # Permite salvar "Dr. Vlad" mesmo que o usuário logado seja "Recepção"
+    medico_responsavel = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        help_text="Nome do médico exibido na assinatura/lista"
+    )
+    # --------------------------------------------------
     
     # --- CAMPOS QUE FALTAVAM ---
     titulo_exame = models.CharField(max_length=255)

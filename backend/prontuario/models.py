@@ -1,5 +1,7 @@
 # backend/prontuario/models.py
 
+import random
+import string
 from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
@@ -504,40 +506,110 @@ class RelatorioSalvo(models.Model):
         verbose_name = "Relatório Salvo"
         verbose_name_plural = "Relatórios Salvos"
 
+# --- INÍCIO DA SEÇÃO DE LAUDOS (DENTRO DO PRONTUÁRIO) ---
+
+class ModeloLaudo(models.Model):
+    """
+    Templates de Laudo. Fica aqui para que o prontuário possa consultar
+    os modelos disponíveis na hora de criar um laudo.
+    """
+    titulo = models.CharField(max_length=255, unique=True)
+    codigo_mnemonico = models.CharField(max_length=50, blank=True, null=True)
+    conteudo_padrao = models.JSONField(default=dict, blank=True) 
+    texto_padrao_html = models.TextField(blank=True)
+    ativo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.titulo
+
 class Laudo(models.Model):
+    """
+    A tabela oficial de Laudos vinculada ao Prontuário Médico.
+    Aqui ficam os textos finais e assinados.
+    """
     STATUS_CHOICES = [
         ('RASCUNHO', 'Rascunho'),
         ('FINALIZADO', 'Finalizado'),
     ]
 
-    # O 'related_name' corrigido para evitar o conflito anterior
+    # --- RELACIONAMENTOS ---
+    # Usamos related_names únicos ('_prontuario') para evitar conflito com o app 'laudos'
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='laudos_prontuario')
-    medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     
-    tipo_exame = models.CharField(max_length=50)
-    titulo = models.CharField(max_length=255)
-    
-    texto_laudo = models.TextField()
-    dados_estruturados = models.JSONField(default=dict, blank=True, null=True) 
-    
-    data_criacao = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='FINALIZADO')
-    
-    # --- ADICIONE ESTE CAMPO NOVO ---
-    exame = models.OneToOneField(
-        'exames.Exame', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        related_name='laudo_medico',
-        help_text="Vínculo com os arquivos/imagens e credenciais da paciente"
+    medico = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.PROTECT, 
+        related_name='laudos_assinados_prontuario', 
+        null=True, blank=True
     )
-    # --------------------------------
+
+    agendamento = models.OneToOneField(
+        'agendamentos.Agendamento', 
+        on_delete=models.SET_NULL, 
+        related_name='laudo_prontuario',
+        null=True, blank=True
+    )
+
+    # Vínculo com Exame (Pasta de Arquivos)
+    exame = models.OneToOneField(
+        'exames.Exame',
+        on_delete=models.SET_NULL,
+        related_name='laudo_prontuario_vinculo', 
+        null=True, blank=True,
+        help_text="Vínculo com os arquivos e credenciais do portal"
+    )
+
+    # --- CAMPOS DE DADOS ---
+    titulo_exame = models.CharField(max_length=255) # O Front chama de 'titulo', o Serializer mapeia.
+    tipo_exame = models.CharField(max_length=50, default='OBSTETRICO') 
+    
+    # Assinatura (Snapshot do momento)
+    medico_responsavel = models.CharField(max_length=255, blank=True, null=True)
+    crm_medico = models.CharField(max_length=20, blank=True, null=True)
+
+    # Conteúdo
+    dados_estruturados = models.JSONField(default=dict, blank=True)
+    texto_laudo = models.TextField(blank=True)
+    imagens_ids = models.JSONField(default=list, blank=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RASCUNHO')
+    
+    # --- CREDENCIAIS (Legado/Backup) ---
+    # Estes campos existem aqui caso o laudo seja criado SEM um exame (pasta) vinculado
+    codigo_acesso = models.CharField(max_length=20, blank=True, null=True, unique=True)
+    senha_acesso = models.CharField(max_length=20, blank=True, null=True)
+
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    # Arquivo PDF (Legado ou 2ª via estática)
+    arquivo_pdf = models.FileField(upload_to='laudos_assinados/%Y/%m/', null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        # Gera credenciais automáticas se não existirem
+        # Estes métodos PRECISAM existir nesta classe para o 'self' funcionar
+        if not self.codigo_acesso:
+            self.codigo_acesso = self.gerar_codigo_unico()
+        if not self.senha_acesso:
+            self.senha_acesso = self.gerar_senha_simples()
+        super().save(*args, **kwargs)
+
+    # Métodos auxiliares pertencentes a ESTE modelo
+    def gerar_codigo_unico(self):
+        prefixo = "PCT"
+        while True:
+            numero = ''.join(random.choices(string.digits, k=6))
+            codigo = f"{prefixo}-{numero}"
+            if not Laudo.objects.filter(codigo_acesso=codigo).exists():
+                return codigo
+
+    def gerar_senha_simples(self):
+        chars = string.ascii_uppercase + string.digits
+        return ''.join(random.choices(chars, k=6))
 
     def __str__(self):
-        return f"Laudo {self.titulo} - {self.paciente.nome_completo}"
+        return f"Laudo: {self.titulo_exame} - {self.paciente.nome_completo}"
 
-# --- CERTIFIQUE-SE DE QUE ESTA CLASSE ESTÁ AQUI EMBAIXO ---
 class ImagemLaudo(models.Model):
     laudo = models.ForeignKey(Laudo, on_delete=models.CASCADE, related_name='imagens')
     arquivo = models.ImageField(upload_to='laudos_imagens/%Y/%m/')
