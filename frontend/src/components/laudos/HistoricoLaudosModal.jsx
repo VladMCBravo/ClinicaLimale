@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, 
     Button, Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, Paper, IconButton, Chip, Alert, CircularProgress, Tooltip 
+    TableHead, TableRow, Paper, IconButton, Chip, Alert, CircularProgress, Tooltip,
+    Box, Typography
 } from '@mui/material';
-import { FaFilePdf, FaTimes, FaWhatsapp, FaPrint, FaSpinner } from 'react-icons/fa';
+import { FaFilePdf, FaTimes, FaWhatsapp, FaPrint, FaSpinner, FaUserMd, FaKeyboard } from 'react-icons/fa';
 import apiClient from '../../api/axiosConfig';
-import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator'; // <--- IMPORTANTE: O gerador de PDF
+import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator';
 
 const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const [laudos, setLaudos] = useState([]);
@@ -43,22 +44,40 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     // --- A MÁGICA DA 2ª VIA ---
     const handleGerar2Via = async (laudo) => {
         setGerandoId(laudo.id);
+        const pdfWindow = window.open('', '_blank');
+        
+        if (pdfWindow) {
+            pdfWindow.document.write(`
+                <html>
+                    <head><title>Gerando PDF...</title></head>
+                    <body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f5f5f5;">
+                        <div style="text-align:center;">
+                            <h3>Gerando 2ª via do Laudo...</h3>
+                            <p>Aguarde um instante.</p>
+                        </div>
+                    </body>
+                </html>
+            `);
+        } else {
+            setGerandoId(null);
+            return alert("O navegador bloqueou a janela. Permita pop-ups.");
+        }
+
         try {
-            // Prepara os dados. O backend pode mandar string ou objeto no JSONField
             let dadosEstruturados = laudo.dados_estruturados;
             if (typeof dadosEstruturados === 'string') {
                 try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
             }
 
-            // --- CORREÇÃO AQUI ---
-            // Usa o nome do médico salvo no formulário, não o usuário logado
-            const nomeMedicoFinal = laudo.medico_responsavel || laudo.medico_nome;
-            const crmMedicoFinal = laudo.crm_medico || ''; 
+            // --- LÓGICA DO PDF (ASSINATURA) ---
+            // No papel, sai APENAS o médico responsável (Legal)
+            const nomeMedicoParaPDF = laudo.medico_responsavel || laudo.medico_nome;
+            const crmMedicoParaPDF = laudo.crm_medico || '';
 
             const blob = await gerarPDFLaudo({
                 pacienteNome: pacienteNome || laudo.paciente_nome,
-                medicoNome: nomeMedicoFinal, // <--- CORRIGIDO
-                medicoCrm: crmMedicoFinal,   // <--- CORRIGIDO
+                medicoNome: nomeMedicoParaPDF,
+                medicoCrm: crmMedicoParaPDF,
                 tituloExame: laudo.titulo,
                 textoLaudo: laudo.texto_laudo,
                 dadosEstruturados: dadosEstruturados,
@@ -68,8 +87,12 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 retornarBlob: true
             });
 
+            const pdfUrl = URL.createObjectURL(blob);
+            if (pdfWindow) pdfWindow.location.href = pdfUrl;
+
         } catch (error) {
             console.error("Erro ao gerar 2ª via:", error);
+            if (pdfWindow) pdfWindow.close();
             alert("Erro ao recriar o PDF.");
         } finally {
             setGerandoId(null);
@@ -78,48 +101,67 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                Laudos de {pacienteNome}
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f8f9fa' }}>
+                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                    <span style={{fontWeight:'bold'}}>Histórico de Laudos</span>
+                    <Chip label={pacienteNome} size="small" color="primary" variant="outlined"/>
+                </div>
                 <IconButton onClick={onClose} size="small"><FaTimes /></IconButton>
             </DialogTitle>
             
-            <DialogContent dividers>
-                {loading ? <CircularProgress /> : laudos.length === 0 ? (
-                    <Alert severity="info">Nenhum laudo encontrado para este paciente.</Alert>
+            <DialogContent dividers sx={{ p: 0 }}>
+                {loading ? (
+                    <div style={{padding:'40px', textAlign:'center'}}><CircularProgress /></div>
+                ) : laudos.length === 0 ? (
+                    <div style={{padding:'20px'}}>
+                        <Alert severity="info">Nenhum laudo encontrado para este paciente.</Alert>
+                    </div>
                 ) : (
-                    <TableContainer component={Paper} variant="outlined">
+                    <TableContainer component={Paper} elevation={0}>
                         <Table size="small">
-                            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+                            <TableHead sx={{ bgcolor: '#eee' }}>
                                 <TableRow>
-                                    <TableCell>Data</TableCell>
-                                    <TableCell>Exame</TableCell>
-                                    <TableCell>Médico</TableCell>
-                                    <TableCell align="center">Arquivo</TableCell>
-                                    <TableCell align="center">Enviar</TableCell>
+                                    <TableCell><strong>Data</strong></TableCell>
+                                    <TableCell><strong>Exame</strong></TableCell>
+                                    <TableCell><strong>Responsáveis</strong></TableCell> {/* Coluna Unificada */}
+                                    <TableCell align="center"><strong>Ações</strong></TableCell>
+                                    <TableCell align="center"><strong>Envio</strong></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {laudos.map((laudo) => (
-                                    <TableRow key={laudo.id}>
-                                        <TableCell>{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
-                                        <TableCell>{laudo.titulo}</TableCell>
-                                        {/* --- CORREÇÃO VISUAL NA TABELA --- */}
-                                        <TableCell>
-                                            <div style={{display:'flex', flexDirection:'column'}}>
-                                                <span style={{fontWeight:'bold'}}>
-                                                    {laudo.medico_responsavel || laudo.medico_nome}
-                                                </span>
-                                                {laudo.crm_medico && (
-                                                    <span style={{fontSize:'10px', color:'#666'}}>
-                                                        CRM: {laudo.crm_medico}
-                                                    </span>
-                                                )}
-                                            </div>
+                                    <TableRow key={laudo.id} hover>
+                                        <TableCell width="15%">{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
+                                        <TableCell width="25%">{laudo.titulo}</TableCell>
+                                        
+                                        {/* --- COLUNA DUPLA INFORMAÇÃO --- */}
+                                        <TableCell width="30%">
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                {/* 1. Médico (Assinatura) */}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <FaUserMd color="#1976d2" size={12} title="Médico Responsável (Assinatura)"/>
+                                                    <div>
+                                                        <Typography variant="body2" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize:'11px' }}>
+                                                            {laudo.medico_responsavel || laudo.medico_nome}
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: '#555', fontSize:'10px' }}>
+                                                            CRM: {laudo.crm_medico || "N/I"}
+                                                        </Typography>
+                                                    </div>
+                                                </Box>
+
+                                                {/* 2. Usuário (Quem digitou) */}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: '1px dashed #e0e0e0' }}>
+                                                    <FaKeyboard color="#9e9e9e" size={12} title="Digitado/Gerado por"/>
+                                                    <Typography variant="caption" sx={{ color: '#757575', fontSize:'10px' }}>
+                                                        Gerado por: {laudo.medico_nome} {/* Nome do login */}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
                                         </TableCell>
-                                        {/* ---------------------------------- */}
-                                        {/* COLUNA DO ARQUIVO */}
+                                        {/* ------------------------------- */}
+                                        
                                         <TableCell align="center">
-                                            {/* Se tem PDF salvo no servidor (novos) */}
                                             {laudo.arquivos_exame && laudo.arquivos_exame.length > 0 ? (
                                                 <Button 
                                                     size="small" 
@@ -132,7 +174,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                                     Abrir PDF
                                                 </Button>
                                             ) : (
-                                                /* Se NÃO tem PDF (antigos), mostra botão de Gerar na Hora */
                                                 <Tooltip title="Recria o PDF usando os dados salvos">
                                                     <Button 
                                                         size="small" 
@@ -149,9 +190,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                             )}
                                         </TableCell>
 
-                                        {/* COLUNA DE ENVIAR */}
                                         <TableCell align="center">
-                                            {/* Só permite enviar link se o arquivo existir no servidor */}
                                             {laudo.arquivos_exame && laudo.arquivos_exame.length > 0 ? (
                                                 <IconButton 
                                                     color="success" 
