@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Dialog, DialogTitle, DialogContent, DialogActions, Button, 
+  Dialog, DialogTitle, DialogContent, Button, 
   TextField, Box, Typography, List, ListItem, ListItemText, 
   Chip, Divider, IconButton, CircularProgress 
 } from '@mui/material';
@@ -28,30 +28,51 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
       setLoading(true);
       const res = await crmService.getCicloDetalhe(cicloId);
       setDetalhes(res.data);
+      
       // Carrega a DUM se existir (formato YYYY-MM-DD)
-      if (res.data.data_dum) {
-        // As vezes vem como DD/MM/YYYY do serializer, precisamos converter se for input date
-        // Se o serializer mandar YYYY-MM-DD direto, use res.data.data_dum
-        // Aqui assumo que o input type="date" espera YYYY-MM-DD
-        setDum(res.data.data_dum.split('/').reverse().join('-')); 
+      if (res.data.dum) {
+        // Se vier YYYY-MM-DD (padrão Django Rest Framework), usa direto
+        setDum(res.data.dum);
+      } else if (res.data.data_dum) {
+        // Se vier DD/MM/YYYY, converte
+        if (res.data.data_dum.includes('/')) {
+            setDum(res.data.data_dum.split('/').reverse().join('-'));
+        } else {
+            setDum(res.data.data_dum);
+        }
       } else {
         setDum('');
       }
     } catch (error) {
-      console.error("Erro ao carregar detalhes", error);
+        console.error("Erro ao carregar detalhes", error);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+  }; // <--- FALTAVA FECHAR AQUI
 
   const handleSalvarDum = async () => {
+    if (!dum) return alert("Selecione uma data para a DUM.");
+    
+    setLoading(true); // Feedback visual
     try {
-      await crmService.updateCiclo(cicloId, { data_dum: dum });
-      // Recarrega para atualizar cálculos
-      loadDetalhes(); 
+      console.log(`Salvando DUM para o ciclo ${cicloId}: ${dum}`);
+      
+      // Envia a DUM para o serviço do CRM
+      await crmService.updateCiclo(cicloId, { dum: dum, data_dum: dum });
+
+      // Recarrega os dados para mostrar a nova IG calculada
+      await loadDetalhes(); 
+      
+      // Atualiza o Kanban pai
       if (onUpdate) onUpdate();
+      
+      alert("✅ DUM atualizada e IG recalculada!");
+
     } catch (error) {
-      alert("Erro ao salvar DUM");
+      console.error("Erro ao salvar DUM:", error);
+      alert("Erro ao salvar DUM. Verifique o console.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,7 +101,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
     } catch (error) {
       console.error("Erro ao concluir", error);
     }
-  }
+  };
 
   if (!open) return null;
 
@@ -122,7 +143,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                             size="small"
                             fullWidth
                             InputLabelProps={{ shrink: true }}
-                            value={dum}
+                            value={dum} 
                             onChange={(e) => setDum(e.target.value)}
                             sx={{ bgcolor: 'white' }}
                         />
