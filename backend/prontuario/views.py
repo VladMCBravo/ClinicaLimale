@@ -25,7 +25,7 @@ from core.services_assinatura import assinar_pdf_digitalmente
 import base64
 from django.core.files.base import ContentFile
 from .models import Laudo, ImagemLaudo
-from exames.models import Exame
+from exames.models import Exame, ArquivoExame
 from exames.serializers import ExameSerializer
 from .serializers import LaudoSerializer
 
@@ -858,28 +858,39 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             )
             
             # --- AQUI ESTÁ A CORREÇÃO (O PULO DO GATO) ---
-            # Vincula o Exame (Arquivos) ao Laudo (Texto)
+            # 3. Vincula Laudo -> Exame
             laudo.exame = exame
             laudo.save()
-            # ---------------------------------------------
-            
-            # 3. Retorna as credenciais para o Frontend (opcional, mas útil)
+
+            # 4. ★★★ CORREÇÃO: SALVA O PDF GERADO PELO FRONTEND ★★★
+            if 'arquivo_pdf' in request.FILES:
+                pdf_file = request.FILES['arquivo_pdf']
+                
+                # Cria o registro do arquivo vinculado ao Exame
+                ArquivoExame.objects.create(
+                    exame=exame,
+                    arquivo=pdf_file,
+                    tipo='LAUDO'
+                )
+                print(f"PDF do Laudo {laudo.id} salvo com sucesso no Exame {exame.id}")
+
+            # 5. Retorna credenciais e arquivos atualizados
             response.data['credenciais'] = {
                 'codigo': exame.codigo_acesso,
                 'senha': exame.senha_acesso,
-                'link': 'https://clinica-limale.vercel.app/resultados', # Seu link
-                'exame_id': exame.id # Retornamos o ID também
+                'link': 'https://clinica-limale.vercel.app/resultados',
+                'exame_id': exame.id
             }
                 
-        # Retorna também os arquivos que já existirem nesse exame (caso o upload tenha sido feito antes)
+            # Atualiza a lista de arquivos na resposta para o front já ver "Gerado"
             from exames.serializers import ArquivoExameSerializer
             arquivos = exame.arquivos.all()
             if arquivos.exists():
                 response.data['arquivos_vinculados'] = ArquivoExameSerializer(arquivos, many=True).data
                 
         except Exception as e:
-            print(f"Erro ao vincular Laudo x Exame: {e}")
-            # Não quebramos o request principal, apenas logamos o erro de vínculo
+            print(f"Erro crítico ao processar arquivos do laudo: {e}")
+            # Não quebra a requisição, mas loga o erro
 
         return response
 
