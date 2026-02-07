@@ -5,6 +5,7 @@ from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, An
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
 from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
+from .models import ModeloLaudo # <--- Adicione ModeloLaudo aqui
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
@@ -268,52 +269,83 @@ class RelatorioSalvoCreateSerializer(serializers.ModelSerializer):
             'template_origem': {'required': False, 'allow_null': True},
         }
 
+# --- MANTENHA O CÓDIGO IGUAL ATÉ CHEGAR AQUI EMBAIXO NA PARTE DE LAUDOS ---
+
+class ModeloLaudoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModeloLaudo
+        fields = '__all__'
+
 class ImagemLaudoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImagemLaudo
         fields = ['id', 'arquivo', 'data_upload']
 
 class LaudoSerializer(serializers.ModelSerializer):
+    paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
     
-    # Imagens do Editor (Mantive 'imagens' pois é o padrão do related_name)
     imagens = ImagemLaudoSerializer(many=True, read_only=True)
-
-    # --- NOVO: Arquivos do Portal do Paciente (PDFs/DICOM/Vídeos) ---
     arquivos_exame = serializers.SerializerMethodField()
     credenciais = serializers.SerializerMethodField()
+
+    # --- A CORREÇÃO MÁGICA ---
+    # Isso diz: "O campo 'titulo' do JSON deve ser gravado na coluna 'titulo_exame' do banco"
+    titulo = serializers.CharField(source='titulo_exame') 
+    # -------------------------
 
     class Meta:
         model = Laudo
         fields = [
-            'id', 'paciente', 'medico', 'medico_nome',
-            'tipo_exame', 'titulo', 'texto_laudo', 
-            'dados_estruturados', 'data_criacao', 'status', 
-            'imagens',        # Imagens coladas no texto (Editor)
-            'arquivos_exame', # PDFs/Imagens vindos da Recepção/Máquina
-            'credenciais',     # Login/Senha para o paciente
-            'medico_responsavel',  # Nome digitado/selecionado no formulário
-            'crm_medico'           # CRM digitado no formulário
+            'id', 
+            'paciente', 'paciente_nome', 
+            'medico', 'medico_nome',
+            'agendamento', 
+            'titulo',      # O front envia 'titulo'
+            'tipo_exame', 
+            'dados_estruturados', 
+            'texto_laudo',        
+            'imagens',          
+            'imagens_ids',      
+            'status', 
+            'data_criacao', 'data_atualizacao',
+            'medico_responsavel',  
+            'crm_medico',          
+            'credenciais',         
+            'arquivo_pdf',         
+            'arquivos_exame'       
         ]
         
-        read_only_fields = ['medico', 'data_criacao', 'imagens']
+        read_only_fields = ['medico', 'data_criacao', 'data_atualizacao', 'credenciais', 'imagens', 'paciente_nome', 'medico_nome']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['medico'] = request.user
+        return super().create(validated_data)
 
     def get_arquivos_exame(self, obj):
-        """Retorna os PDFs e imagens vinculados ao Exame deste Laudo"""
-        # BLINDAGEM CONTRA IMPORTAÇÃO CIRCULAR
         try:
             from exames.serializers import ArquivoExameSerializer
-            if obj.exame:
+            if hasattr(obj, 'exame') and obj.exame:
                 return ArquivoExameSerializer(obj.exame.arquivos.all(), many=True).data
         except ImportError:
             pass
         return []
 
     def get_credenciais(self, obj):
-        """Retorna código/senha para o médico ver/informar"""
-        if obj.exame:
+        if hasattr(obj, 'exame') and obj.exame:
             return {
                 'codigo': obj.exame.codigo_acesso,
-                'senha': obj.exame.senha_acesso
+                'senha': obj.exame.senha_acesso,
+                'link': 'https://clinica-limale.vercel.app/resultados',
+                'fonte': 'exame'
+            }
+        if obj.codigo_acesso and obj.senha_acesso:
+            return {
+                'codigo': obj.codigo_acesso,
+                'senha': obj.senha_acesso,
+                'link': 'https://clinica-limale.vercel.app/resultados',
+                'fonte': 'laudo'
             }
         return None
