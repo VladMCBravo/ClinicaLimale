@@ -1,73 +1,75 @@
 // src/pages/FinanceiroPage.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { Paper, Box, Tabs, Tab, Button, Stack, CircularProgress } from '@mui/material';
-import { 
-    FaChartLine, FaHandHoldingUsd, FaMoneyBillWave, 
-    FaFileInvoiceDollar, FaListAlt 
-} from 'react-icons/fa';
+import { FaFileInvoiceDollar, FaMoneyBillWave, FaHandHoldingUsd, FaListAlt, FaChartLine } from 'react-icons/fa';
 import { AccountBalanceWallet, ReceiptLong } from '@mui/icons-material';
 
-// Serviços
-import { faturamentoService } from '../services/faturamentoService';
-
-// Componentes Filhos
 import FinanceiroDashboardView from '../components/financeiro/FinanceiroDashboardView';
-import ContasReceberView from '../components/financeiro/ContasReceberView';
+import ContasReceberView from '../components/financeiro/ContasReceberView'; // Agora recebe props
 import DespesasView from '../components/financeiro/DespesasView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
 import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal';
+import { faturamentoService } from '../services/faturamentoService';
 
 function a11yProps(index) {
-    return { id: `tab-${index}`, 'aria-controls': `tabpanel-${index}` };
+    return { id: `financeiro-tab-${index}`, 'aria-controls': `financeiro-tabpanel-${index}` };
 }
 
 export default function FinanceiroPage() {
     const [activeTab, setActiveTab] = useState(0);
-    
-    // ESTADO UNIFICADO: Vamos guardar tudo junto, pois agora o banco é unificado
-    const [transacoes, setTransacoes] = useState([]);
-    const [loading, setLoading] = useState(true);
-    
-    // GATILHO DE ATUALIZAÇÃO: Serve para forçar a página a recarregar quando você salva algo no modal
-    const [triggerReload, setTriggerReload] = useState(0);
-
-    // Controle do Modal de Lançamento
     const [modalOpen, setModalOpen] = useState(false);
     const [modalConfig, setModalConfig] = useState({ tab: 0, type: 'receita' });
 
-    // 1. CARREGAMENTO INTELIGENTE (Busca tudo de uma vez)
+    // Estados de Dados Centralizados
+    const [lancamentos, setLancamentos] = useState([]); // Receitas
+    const [despesas, setDespesas] = useState([]);       // Despesas
+    const [loading, setLoading] = useState(true);
+
+    // 1. CARREGAMENTO DE DADOS (Memoizado para não entrar em loop)
+    const carregarDados = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [resPagamentos, resDespesas] = await Promise.all([
+                faturamentoService.getPagamentos(),
+                faturamentoService.getDespesas()
+            ]);
+            setLancamentos(resPagamentos.data || []);
+            setDespesas(resDespesas.data || []);
+        } catch (err) {
+            console.error("Erro ao carregar dados financeiros", err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Carrega ao montar
     useEffect(() => {
-        const carregarDados = async () => {
-            setLoading(true);
-            try {
-                // Buscamos as duas listas em paralelo
-                const [resReceitas, resDespesas] = await Promise.all([
-                    faturamentoService.getPagamentos(), // ou endpoint unificado se tiver
-                    faturamentoService.getDespesas()
-                ]);
-
-                // Adicionamos uma "etiqueta" para saber quem é quem
-                const receitas = (resReceitas.data || []).map(item => ({ ...item, tipo: 'receita' }));
-                const despesas = (resDespesas.data || []).map(item => ({ ...item, tipo: 'despesa' }));
-
-                // Juntamos tudo numa lista só
-                setTransacoes([...receitas, ...despesas]);
-            } catch (err) {
-                console.error("Erro ao carregar financeiro:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
         carregarDados();
-    }, [triggerReload]); // Recarrega sempre que 'triggerReload' mudar
+    }, [carregarDados]);
 
-    // 2. FILTROS MEMOIZADOS (Separa os dados instantaneamente sem travar)
-    const receitasList = useMemo(() => transacoes.filter(t => t.tipo === 'receita'), [transacoes]);
-    const despesasList = useMemo(() => transacoes.filter(t => t.tipo === 'despesa'), [transacoes]);
+    // 2. MOTOR DE PROJEÇÃO (Dashboard)
+    const projectionData = useMemo(() => {
+        const months = {};
+        lancamentos.forEach(l => {
+            const monthYear = dayjs(l.data_vencimento).format('MMM/YY');
+            if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
+            months[monthYear].entradas += parseFloat(l.valor || 0);
+        });
+        despesas.forEach(d => {
+            if (!d.pago) {
+                const monthYear = dayjs(d.data_despesa || d.data_vencimento).format('MMM/YY');
+                if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
+                months[monthYear].saidas += parseFloat(d.valor || 0);
+            }
+        });
+        return Object.values(months).sort((a, b) => 
+            dayjs(a.name, 'MMM/YY', 'pt-br').diff(dayjs(b.name, 'MMM/YY', 'pt-br'))
+        );
+    }, [lancamentos, despesas]);
 
-    // Função que passaremos para os filhos: "Quando você salvar algo, me avise para eu atualizar tudo"
-    const handleReload = () => setTriggerReload(prev => prev + 1);
+    const handleChange = (event, newValue) => setActiveTab(newValue);
 
     const handleOpenModal = (tabIndex, type = 'receita') => {
         setModalConfig({ tab: tabIndex, type: type });
@@ -75,77 +77,53 @@ export default function FinanceiroPage() {
     };
 
     return (
-        <Paper sx={{ p: 2, width: '100%', minHeight: '85vh', bgcolor: '#f4f5f7' }}>
+        <Paper sx={{ p: 2, margin: 'auto', width: '100%', minHeight: '85vh', backgroundColor: '#f4f5f7' }}>
             
-            {/* CABEÇALHO: ABAS E BOTÕES */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} variant="scrollable">
-                    <Tab icon={<FaChartLine />} label="Dashboard" {...a11yProps(0)} />
-                    <Tab icon={<FaHandHoldingUsd />} label="Recebimentos" {...a11yProps(1)} />
-                    <Tab icon={<FaMoneyBillWave />} label="Despesas" {...a11yProps(2)} />
-                    <Tab icon={<FaFileInvoiceDollar />} label="TISS" {...a11yProps(3)} />
-                    <Tab icon={<FaListAlt />} label="Procedimentos" {...a11yProps(4)} />
+            {/* LINHA DE TOPO */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: 1, borderColor: 'divider', mb: 1, px: 1, minHeight: '40px' }}>
+                <Tabs value={activeTab} onChange={handleChange} variant="scrollable" sx={{ minHeight: '40px', '& .MuiTab-root': { minHeight: '40px', py: 0.5, fontSize: '0.75rem' } }}>
+                    <Tab icon={<FaChartLine />} iconPosition="start" label="Dashboard" {...a11yProps(0)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
+                    <Tab icon={<FaHandHoldingUsd />} iconPosition="start" label="Recebimentos" {...a11yProps(1)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
+                    <Tab icon={<FaMoneyBillWave />} iconPosition="start" label="Contas a Pagar" {...a11yProps(2)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
+                    <Tab icon={<FaFileInvoiceDollar />} iconPosition="start" label="Faturamento TISS" {...a11yProps(3)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
+                    <Tab icon={<FaListAlt />} iconPosition="start" label="Procedimentos" {...a11yProps(4)} sx={{ fontWeight: 'bold', textTransform: 'none' }} />
                 </Tabs>
 
-                <Stack direction="row" spacing={2} mb={1}>
-                    <Button 
-                        variant="contained" startIcon={<ReceiptLong />} 
-                        onClick={() => handleOpenModal(0, 'receita')}
-                    >
+                <Stack direction="row" spacing={1.5} sx={{ mb: 1 }}>
+                    <Button variant="contained" color="primary" startIcon={<ReceiptLong />} onClick={() => handleOpenModal(0)} sx={{ fontWeight: 'bold', textTransform: 'none', borderRadius: 2, px: 3 }}>
                         Receber
                     </Button>
-                    <Button 
-                        variant="contained" color="error" startIcon={<AccountBalanceWallet />} 
-                        onClick={() => handleOpenModal(1, 'despesa')}
-                    >
+                    <Button variant="contained" color="error" startIcon={<AccountBalanceWallet />} onClick={() => handleOpenModal(1, 'despesa')} sx={{ fontWeight: 'bold', textTransform: 'none', borderRadius: 2, px: 3, bgcolor: '#d32f2f' }}>
                         Pagar
                     </Button>
                 </Stack>
             </Box>
 
-            {/* CONTEÚDO DAS ABAS */}
             <Box sx={{ p: 1 }}>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}><CircularProgress /></Box>
+                {loading && activeTab !== 0 ? ( 
+                    /* Dashboard tem tratamento próprio, outros esperam */
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                 ) : (
                     <>
-                        {activeTab === 0 && (
-                            /* Passamos as listas JÁ PRONTAS. O Dashboard só exibe. */
-                            <FinanceiroDashboardView 
-                                lancamentos={receitasList} 
-                                despesas={despesasList} 
-                            />
-                        )}
-
-                        {activeTab === 1 && (
-                            /* Recebimentos: Recebe a lista pronta + função de recarregar */
-                            <ContasReceberView 
-                                dadosIniciais={receitasList} 
-                                onReload={handleReload} 
-                            />
-                        )}
-
-                        {activeTab === 2 && (
-                            /* Despesas: Recebe a lista pronta + função de recarregar */
-                            <DespesasView 
-                                dadosIniciais={despesasList} 
-                                onReload={handleReload} 
-                            />
-                        )}
+                        {activeTab === 0 && <FinanceiroDashboardView lancamentos={lancamentos} despesas={despesas} projectionData={projectionData} />}
                         
-                        {/* Estas abas mantivemos igual pois podem ter lógicas muito específicas */}
+                        {/* AQUI ESTÁ A CORREÇÃO: Passamos os dados e a função de reload */}
+                        {activeTab === 1 && <ContasReceberView dadosIniciais={lancamentos} onReload={carregarDados} />}
+                        
+                        {/* DespesasView também se beneficia se você refatorar depois, mas mantive sem props por enquanto se ele não suportar */}
+                        {activeTab === 2 && <DespesasView />} 
+                        
                         {activeTab === 3 && <FaturamentoConveniosView />} 
                         {activeTab === 4 && <ProcedimentosView />}
                     </>
                 )}
             </Box>
 
-            {/* MODAL GLOBAL DE LANÇAMENTO */}
             <LancamentoCaixaModal 
                 open={modalOpen} 
                 onClose={() => {
                     setModalOpen(false);
-                    handleReload(); // Atualiza a tela ao fechar o modal
+                    carregarDados(); // Recarrega ao fechar modal principal
                 }} 
                 initialTab={modalConfig.tab} 
                 initialType={modalConfig.type} 

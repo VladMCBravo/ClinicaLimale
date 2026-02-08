@@ -3,7 +3,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    TransacaoFinanceiraViewSet,
     AgendamentosFaturaveisAPIView, PagamentosPendentesListAPIView,
     PagamentoViewSet,
     CategoriaDespesaViewSet,
@@ -24,8 +23,6 @@ from .views import (
 
 # O router regista os ViewSets (que criam múltiplas URLs)
 router = DefaultRouter()
-# Registra a nova API principal
-router.register(r'transacoes', TransacaoFinanceiraViewSet, basename='transacao')
 router.register(r'pagamentos', PagamentoViewSet, basename='pagamento')
 router.register(r'categorias-despesa', CategoriaDespesaViewSet, basename='categoria-despesa')
 router.register(r'despesas', DespesaViewSet, basename='despesa')
@@ -61,5 +58,4 @@ urlpatterns = [
     # <<< NOVA ROTA PARA LANÇAMENTOS AVULSOS (ABA 2) >>>
     path('lancamento-avulso/', LancamentoAvulsoAPIView.as_view(), name='lancamento-avulso'),
     path('projecao-caixa/', ProjecaoFluxoCaixaAPIView.as_view(), name='projecao-caixa'), # <--- Nova rota
-    
 ]

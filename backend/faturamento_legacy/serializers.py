@@ -2,45 +2,11 @@
 
 from rest_framework import serializers
 from .models import (
-    TransacaoFinanceira, Pagamento, CategoriaDespesa, Despesa, Convenio, 
+    Pagamento, CategoriaDespesa, Despesa, Convenio, 
     PlanoConvenio, Procedimento, ValorProcedimentoConvenio # 1. Importe o novo modelo
 )
 from agendamentos.models import Agendamento
 
-# --- O NOVO SERIALIZER UNIFICADO ---
-class TransacaoFinanceiraSerializer(serializers.ModelSerializer):
-    paciente_nome = serializers.SerializerMethodField()
-    status_visual = serializers.SerializerMethodField()
-    atrasado = serializers.SerializerMethodField()
-    origem_display = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TransacaoFinanceira
-        fields = '__all__'
-
-    def get_paciente_nome(self, obj):
-        return obj.paciente.nome_completo if obj.paciente else "Avulso/Fornecedor"
-
-    def get_atrasado(self, obj):
-        from datetime import date
-        if obj.status == 'Pendente' and obj.data_vencimento and obj.data_vencimento < date.today():
-            return True
-        return False
-
-    def get_status_visual(self, obj):
-        if obj.status == 'Pago': return 'success'
-        if obj.status == 'Renegociado' or obj.status == 'Liquidado': return 'info'
-        if obj.status == 'Cancelado': return 'default'
-        if self.get_atrasado(obj): return 'error'
-        return 'warning' # Pendente
-
-    def get_origem_display(self, obj):
-        if obj.transacao_pai:
-            return "Renegociação/Parcelamento"
-        if obj.agendamento:
-            return f"Agendamento {obj.agendamento.tipo_agendamento}"
-        return "Lançamento Manual"
-    
 # --- TODOS OS SEUS SERIALIZERS EXISTENTES (Pagamento, Despesa, etc.) FICAM AQUI EM CIMA ---
 # ... (seu código de PagamentoSerializer, DespesaSerializer, etc. não muda) ...
 class PagamentoStatusSerializer(serializers.ModelSerializer):

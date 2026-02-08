@@ -2,10 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText
+    IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText,
+    Checkbox, Button, Tooltip
 } from '@mui/material';
 import { 
-    Edit, CheckCircle, Search, Warning, Block, EventAvailable, History 
+    Edit, CheckCircle, Search, Warning, Block, EventAvailable, History, Handshake // Handshake icon para renegociação
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -14,6 +15,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import { agendamentoService } from '../../services/agendamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
+import RenegociacaoModal from './RenegociacaoModal'; // <--- IMPORT NOVO
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -25,8 +27,12 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
 
+    // Seleção Múltipla
+    const [selectedIds, setSelectedIds] = useState([]);
+
     // Modais e Menus
     const [openCaixaModal, setOpenCaixaModal] = useState(false);
+    const [openRenegociacaoModal, setOpenRenegociacaoModal] = useState(false);
     const [selectedPagamento, setSelectedPagamento] = useState(null);
     const [anchorEl, setAnchorEl] = useState(null);
     const [statusTarget, setStatusTarget] = useState(null);
@@ -56,8 +62,60 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     }, [filteredList]);
 
 
-    // AÇÕES DE ATUALIZAÇÃO (Chamam onReload ao invés de fetchData)
-    
+    // 3. LÓGICA DE SELEÇÃO
+    const handleSelectAll = (event) => {
+        if (event.target.checked) {
+            // Seleciona apenas os pendentes/atrasados visíveis
+            const newSelecteds = filteredList
+                .filter(n => n.status !== 'Pago' && n.status !== 'Cancelado')
+                .map(n => n.id);
+            setSelectedIds(newSelecteds);
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (event, id) => {
+        const selectedIndex = selectedIds.indexOf(id);
+        let newSelected = [];
+
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selectedIds, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selectedIds.slice(1));
+        } else if (selectedIndex === selectedIds.length - 1) {
+            newSelected = newSelected.concat(selectedIds.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(
+                selectedIds.slice(0, selectedIndex),
+                selectedIds.slice(selectedIndex + 1),
+            );
+        }
+        setSelectedIds(newSelected);
+    };
+
+    // AÇÕES
+    const handleConfirmarRenegociacao = async (novasParcelas, totalNovo) => {
+        try {
+            // Pega o ID do paciente do primeiro item selecionado (assumindo que renegociação é por paciente)
+            const itemReferencia = dadosIniciais.find(i => i.id === selectedIds[0]);
+            
+            await faturamentoService.renegociarDivida({
+                ids_originais: selectedIds,
+                novas_parcelas: novasParcelas,
+                paciente_id: itemReferencia?.paciente // ID do paciente
+            });
+
+            showSnackbar('Renegociação realizada com sucesso!', 'success');
+            setOpenRenegociacaoModal(false);
+            setSelectedIds([]); // Limpa seleção
+            onReload(); // Atualiza tabela
+        } catch (error) {
+            console.error(error);
+            showSnackbar('Erro ao processar renegociação.', 'error');
+        }
+    };
+
     const handleReverterPagamento = async () => {
         if (!statusTarget) return;
         try {
@@ -88,6 +146,9 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
             console.error("Erro update agendamento:", error);
         }
     };
+
+    // Prepara dados para o modal de renegociação
+    const itensParaRenegociar = dadosIniciais.filter(i => selectedIds.includes(i.id));
 
     return (
         <Box sx={{ p: 0.5 }}>
@@ -122,19 +183,34 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 </Grid>
             </Grid>
 
-            {/* FILTROS */}
-            <Box sx={{ display: 'flex', mb: 2, gap: 1 }}>
-                <DatePicker 
-                    label="Referência" views={['month', 'year']}
-                    value={filtroData} onChange={(newValue) => setFiltroData(newValue)}
-                    slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
-                />
-                <TextField
-                    placeholder="Buscar paciente ou descrição..." size="small"
-                    value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
-                    InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1rem' }} /> }}
-                    sx={{ width: 280 }}
-                />
+            {/* FILTROS E BOTÕES */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 1, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <DatePicker 
+                        label="Referência" views={['month', 'year']}
+                        value={filtroData} onChange={(newValue) => setFiltroData(newValue)}
+                        slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
+                    />
+                    <TextField
+                        placeholder="Buscar..." size="small"
+                        value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
+                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1rem' }} /> }}
+                        sx={{ width: 250 }}
+                    />
+                </Box>
+                
+                {/* BOTÃO DE RENEGOCIAÇÃO (Só aparece se tiver seleção) */}
+                {selectedIds.length > 0 && (
+                    <Button 
+                        variant="contained" 
+                        color="secondary" 
+                        startIcon={<Handshake />}
+                        onClick={() => setOpenRenegociacaoModal(true)}
+                        sx={{ fontWeight: 'bold' }}
+                    >
+                        Renegociar ({selectedIds.length})
+                    </Button>
+                )}
             </Box>
 
             {/* TABELA */}
@@ -142,6 +218,14 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 <Table stickyHeader size="small">
                     <TableHead>
                         <TableRow>
+                            <TableCell padding="checkbox">
+                                <Checkbox
+                                    color="primary"
+                                    indeterminate={selectedIds.length > 0 && selectedIds.length < filteredList.length}
+                                    checked={filteredList.length > 0 && selectedIds.length === filteredList.length}
+                                    onChange={handleSelectAll}
+                                />
+                            </TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Vencimento</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Paciente / Descrição</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Valor</TableCell>
@@ -151,29 +235,52 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                     </TableHead>
                     <TableBody>
                         {filteredList.length === 0 ? (
-                            <TableRow><TableCell colSpan={5} align="center">Nenhum registro encontrado.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={6} align="center">Nenhum registro encontrado.</TableCell></TableRow>
                         ) : filteredList.map((row) => {
+                            const isSelected = selectedIds.indexOf(row.id) !== -1;
                             const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
+                            const isPago = row.status === 'Pago';
+                            
                             return (
-                                <TableRow key={row.id} hover sx={{ bgcolor: isAtrasado ? '#fffafa' : 'inherit' }}>
+                                <TableRow 
+                                    key={row.id} hover 
+                                    sx={{ bgcolor: isAtrasado ? '#fffafa' : 'inherit' }}
+                                    selected={isSelected}
+                                >
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            color="primary"
+                                            checked={isSelected}
+                                            onChange={(event) => handleSelectOne(event, row.id)}
+                                            disabled={isPago} // Não seleciona se já pagou
+                                        />
+                                    </TableCell>
                                     <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
                                     <TableCell>
-                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.paciente_nome || 'Lançamento Avulso'}</Typography>
-                                        <Typography variant="caption" color="textSecondary">{row.descricao || row.descricao_visual}</Typography>
+                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.paciente_nome || 'Avulso'}</Typography>
+                                        <Typography variant="caption" color="textSecondary">
+                                            {row.descricao || row.descricao_visual} 
+                                            {/* Badge de Renegociado */}
+                                            {row.status === 'Renegociado' && <Chip label="Renegociado" size="small" sx={{ml:1, height:16, fontSize:'0.6rem'}} />}
+                                        </Typography>
                                     </TableCell>
-                                    <TableCell>{formatMoney(row.valor)}</TableCell>
+                                    <TableCell sx={{ color: isAtrasado ? 'error.main' : 'inherit', fontWeight: isAtrasado ? 'bold' : 'normal' }}>
+                                        {formatMoney(row.valor)}
+                                    </TableCell>
                                     <TableCell>
                                         <Chip 
                                             label={row.status} size="small" 
-                                            color={row.status === 'Pago' ? 'success' : row.status === 'Pendente' ? 'warning' : 'error'} 
+                                            color={row.status === 'Pago' ? 'success' : row.status === 'Pendente' ? 'warning' : 'default'} 
                                             sx={{ height: 20, fontWeight: 'bold' }}
                                         />
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                            <IconButton size="small" title="Baixar" onClick={() => { setSelectedPagamento(row); setOpenCaixaModal(true); }}>
-                                                <CheckCircle fontSize="small" color="success" />
+                                            {/* Botão Baixar (Check) */}
+                                            <IconButton size="small" title="Baixar" disabled={isPago} onClick={() => { setSelectedPagamento(row); setOpenCaixaModal(true); }}>
+                                                <CheckCircle fontSize="small" color={isPago ? "disabled" : "success"} />
                                             </IconButton>
+                                            {/* Botão Opções (Lápis) */}
                                             <IconButton size="small" title="Opções" onClick={(e) => { setAnchorEl(e.currentTarget); setStatusTarget(row); }}>
                                                 <Edit fontSize="small" color="action" />
                                             </IconButton>
@@ -204,10 +311,19 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 )}
             </Menu>
 
+            {/* MODAL DE BAIXA SIMPLES */}
             <LancamentoCaixaModal 
                 open={openCaixaModal} 
                 initialData={selectedPagamento} 
                 onClose={() => { setOpenCaixaModal(false); onReload(); }} 
+            />
+
+            {/* MODAL DE RENEGOCIAÇÃO (NOVO) */}
+            <RenegociacaoModal 
+                open={openRenegociacaoModal}
+                onClose={() => setOpenRenegociacaoModal(false)}
+                itensSelecionados={itensParaRenegociar}
+                onConfirm={handleConfirmarRenegociacao}
             />
         </Box>
     );
