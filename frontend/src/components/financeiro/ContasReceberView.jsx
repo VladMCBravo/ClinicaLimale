@@ -14,8 +14,7 @@ import dayjs from 'dayjs';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import { agendamentoService } from '../../services/agendamentoService';
-import LancamentoCaixaModal from './LancamentoCaixaModal';
-import RenegociacaoModal from './RenegociacaoModal'; // <--- IMPORT NOVO
+import BaixaUnificadaModal from './BaixaUnificadaModal'; // <--- NOVO MODAL
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -40,115 +39,37 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     // 1. LÓGICA DE FILTRAGEM (Rodada em memória, instantânea)
     const filteredList = useMemo(() => {
         return dadosIniciais.filter(row => {
-            // Filtro de Data (Mês/Ano)
             const rowDate = dayjs(row.data_vencimento);
-            const matchDate = rowDate.month() === filtroData.month() && rowDate.year() === filtroData.year();
-            
-            // Filtro de Texto
-            const matchText = (row.paciente_nome || '').toLowerCase().includes(termoBusca.toLowerCase()) ||
-                              (row.descricao || '').toLowerCase().includes(termoBusca.toLowerCase());
-
-            return matchDate && matchText;
+            return rowDate.month() === filtroData.month() && rowDate.year() === filtroData.year() &&
+                   ((row.paciente_nome || '').toLowerCase().includes(termoBusca.toLowerCase()) ||
+                    (row.descricao || '').toLowerCase().includes(termoBusca.toLowerCase()));
         });
     }, [dadosIniciais, filtroData, termoBusca]);
 
-    // 2. CÁLCULO DE KPIS (Baseado na lista filtrada ou geral, conforme preferência)
-    const kpis = useMemo(() => {
-        // Calculamos com base no mês selecionado (filteredList)
-        const totalRecebido = filteredList.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
-        const totalPendente = filteredList.filter(l => l.status === 'Pendente').reduce((acc, l) => acc + Number(l.valor), 0);
-        const atrasados = filteredList.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).length;
-        return { totalRecebido, totalPendente, atrasados };
-    }, [filteredList]);
-
-
-    // 3. LÓGICA DE SELEÇÃO
-    const handleSelectAll = (event) => {
-        if (event.target.checked) {
-            // Seleciona apenas os pendentes/atrasados visíveis
-            const newSelecteds = filteredList
-                .filter(n => n.status !== 'Pago' && n.status !== 'Cancelado')
-                .map(n => n.id);
-            setSelectedIds(newSelecteds);
-        } else {
-            setSelectedIds([]);
-        }
+    // Funções de Confirmação
+    const handleBaixa = async (id, dadosBaixa) => {
+        await faturamentoService.updatePagamento(id, dadosBaixa);
+        showSnackbar('Baixa realizada!', 'success');
+        onReload();
     };
 
-    const handleSelectOne = (event, id) => {
-        const selectedIndex = selectedIds.indexOf(id);
-        let newSelected = [];
-
-        if (selectedIndex === -1) {
-            newSelected = newSelected.concat(selectedIds, id);
-        } else if (selectedIndex === 0) {
-            newSelected = newSelected.concat(selectedIds.slice(1));
-        } else if (selectedIndex === selectedIds.length - 1) {
-            newSelected = newSelected.concat(selectedIds.slice(0, -1));
-        } else if (selectedIndex > 0) {
-            newSelected = newSelected.concat(
-                selectedIds.slice(0, selectedIndex),
-                selectedIds.slice(selectedIndex + 1),
-            );
-        }
-        setSelectedIds(newSelected);
+    const handleRenegociacao = async (ids, parcelas, pacienteId) => {
+        await faturamentoService.renegociarDivida({
+            ids_originais: ids,
+            novas_parcelas: parcelas,
+            paciente_id: pacienteId
+        });
+        showSnackbar('Renegociação concluída!', 'success');
+        onReload();
     };
 
-    // AÇÕES
-    const handleConfirmarRenegociacao = async (novasParcelas, totalNovo) => {
-        try {
-            // Pega o ID do paciente do primeiro item selecionado (assumindo que renegociação é por paciente)
-            const itemReferencia = dadosIniciais.find(i => i.id === selectedIds[0]);
-            
-            await faturamentoService.renegociarDivida({
-                ids_originais: selectedIds,
-                novas_parcelas: novasParcelas,
-                paciente_id: itemReferencia?.paciente // ID do paciente
-            });
-
-            showSnackbar('Renegociação realizada com sucesso!', 'success');
-            setOpenRenegociacaoModal(false);
-            setSelectedIds([]); // Limpa seleção
-            onReload(); // Atualiza tabela
-        } catch (error) {
-            console.error(error);
-            showSnackbar('Erro ao processar renegociação.', 'error');
-        }
-    };
-
-    const handleReverterPagamento = async () => {
+    const handleReverter = async () => {
         if (!statusTarget) return;
-        try {
-            await faturamentoService.updatePagamento(statusTarget.id, { 
-                status: 'Pendente', pago: false, data_pagamento: null 
-            });
-            showSnackbar('Pagamento revertido.', 'info');
-            setAnchorEl(null);
-            onReload(); // <--- AVISA O PAI PARA RECARREGAR
-        } catch (error) {
-            console.error("Erro reverter:", error);
-            showSnackbar('Erro ao reverter.', 'error');
-        }
+        await faturamentoService.updatePagamento(statusTarget.id, { status: 'Pendente', pago: false });
+        showSnackbar('Status revertido.', 'info');
+        setAnchorEl(null);
+        onReload();
     };
-
-    const handleUpdateStatus = async (novoStatus) => {
-        if (!statusTarget) return;
-        const rawId = statusTarget.agendamento_id || statusTarget.agendamento;
-        const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
-
-        if (!agendamentoId) return;
-
-        try {
-            await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
-            setAnchorEl(null);
-            onReload(); // <--- AVISA O PAI PARA RECARREGAR
-        } catch (error) {
-            console.error("Erro update agendamento:", error);
-        }
-    };
-
-    // Prepara dados para o modal de renegociação
-    const itensParaRenegociar = dadosIniciais.filter(i => selectedIds.includes(i.id));
 
     return (
         <Box sx={{ p: 0.5 }}>
@@ -293,37 +214,28 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 </Table>
             </TableContainer>
 
-            {/* MENUS E MODAIS */}
+            {/* MENUS */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-                <MenuItem onClick={() => handleUpdateStatus('Não Compareceu')}>
-                    <ListItemIcon><Block fontSize="small" color="error"/></ListItemIcon>
-                    <ListItemText>Não Compareceu</ListItemText>
+                <MenuItem onClick={() => handleReverterStatus('Pendente')}>
+                    <ListItemIcon><History fontSize="small" /></ListItemIcon>
+                    <ListItemText>Reverter para Pendente</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={() => handleUpdateStatus('Agendado')}>
-                    <ListItemIcon><EventAvailable fontSize="small" color="primary"/></ListItemIcon>
-                    <ListItemText>Reverter para Agendado</ListItemText>
-                </MenuItem>
-                {statusTarget?.status === 'Pago' && (
-                    <MenuItem onClick={handleReverterPagamento}>
-                        <ListItemIcon><History fontSize="small" color="warning"/></ListItemIcon>
-                        <ListItemText sx={{ color: '#ed6c02' }}>Reverter Pagamento</ListItemText>
+                {/* Opção extra para corrigir erros de renegociação */}
+                {statusTarget?.status === 'Renegociado' && (
+                    <MenuItem onClick={() => handleReverterStatus('Pendente')} sx={{ color: 'warning.main' }}>
+                        <ListItemIcon><Warning fontSize="small" color="warning" /></ListItemIcon>
+                        <ListItemText>Desfazer Renegociação (Reativar)</ListItemText>
                     </MenuItem>
                 )}
             </Menu>
 
-            {/* MODAL DE BAIXA SIMPLES */}
-            <LancamentoCaixaModal 
-                open={openCaixaModal} 
-                initialData={selectedPagamento} 
-                onClose={() => { setOpenCaixaModal(false); onReload(); }} 
-            />
-
-            {/* MODAL DE RENEGOCIAÇÃO (NOVO) */}
-            <RenegociacaoModal 
-                open={openRenegociacaoModal}
-                onClose={() => setOpenRenegociacaoModal(false)}
-                itensSelecionados={itensParaRenegociar}
-                onConfirm={handleConfirmarRenegociacao}
+            {/* SUPER MODAL (UNIFICADO) */}
+            <BaixaUnificadaModal 
+                open={modalUnificadoOpen}
+                onClose={() => setModalUnificadoOpen(false)}
+                item={itemSelecionado}
+                onConfirmBaixa={handleConfirmBaixa}
+                onConfirmRenegociacao={handleConfirmRenegociacao}
             />
         </Box>
     );

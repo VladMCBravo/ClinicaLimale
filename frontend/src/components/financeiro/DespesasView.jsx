@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import LancamentoCaixaModal from './LancamentoCaixaModal'; 
+import BaixaUnificadaModal from './BaixaUnificadaModal'; // <--- IMPORTAR
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -83,69 +84,50 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     const [openConfirmBaixa, setOpenConfirmBaixa] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
 
-    // Estado local para o modal de baixa detalhada
-    const [baixaData, setBaixaData] = useState(dayjs().format('YYYY-MM-DD'));
-    const [baixaMetodo, setBaixaMetodo] = useState('Dinheiro');
-
-    // Ao abrir o modal de baixa, reseta data para hoje e método padrão
-    const handleOpenBaixa = (item) => {
-        setSelectedItem(item);
-        setBaixaData(dayjs().format('YYYY-MM-DD'));
-        setBaixaMetodo('Dinheiro');
-        setOpenConfirmBaixa(true);
-    };
-
-    // --- DEBUG LOG: Para ver se os dados estão chegando ---
-    useEffect(() => {
-        console.log("📊 [DespesasView] Dados recebidos do Pai:", dadosIniciais);
-        if (dadosIniciais.length === 0) {
-            console.warn("⚠️ [DespesasView] Lista vazia! Verifique se FinanceiroPage está passando a prop 'dadosIniciais'.");
-        }
-    }, [dadosIniciais]);
-
-    // 1. FILTRAGEM (Usa os dadosIniciais direto, sem fetch local)
     const processedData = useMemo(() => {
         const filtered = dadosIniciais.filter(d => {
             const dataRef = dayjs(d.data_despesa || d.data_vencimento);
-            if (!dataRef.isValid()) return false;
-
-            return dataRef.month() === mesFiltro && 
-                   dataRef.year() === anoFiltro &&
+            return dataRef.month() === mesFiltro && dataRef.year() === anoFiltro &&
                    (d.descricao || '').toLowerCase().includes(searchTerm.toLowerCase());
         });
-
         const fixas = filtered.filter(d => d.categoria_tipo === 'Fixa');
         const variaveis = filtered.filter(d => d.categoria_tipo !== 'Fixa');
-        
         const resumoGeral = filtered.reduce((acc, curr) => {
             const val = parseFloat(curr.valor || 0);
             acc.total += val;
             curr.pago ? (acc.pagas += val) : (acc.aPagar += val);
-            if (!curr.pago && dayjs(curr.data_vencimento).isBefore(dayjs(), 'day')) acc.atrasadasCount++;
             return acc;
-        }, { pagas: 0, aPagar: 0, total: 0, atrasadasCount: 0 });
-
+        }, { pagas: 0, aPagar: 0, total: 0 });
         return { fixas, variaveis, resumoGeral };
     }, [dadosIniciais, mesFiltro, anoFiltro, searchTerm]);
 
     const { fixas, variaveis, resumoGeral } = processedData;
 
     // AÇÕES
-    const handleConfirmarBaixaRapida = async () => {
-        try {
-            await faturamentoService.alternarPagamento(selectedItem.id, { pago: true });
-            showSnackbar('Baixa realizada!', 'success');
-            setOpenConfirmBaixa(false);
-            onReload(); // <--- AVISA O PAI
-        } catch (e) { showSnackbar('Erro ao processar.', 'error'); }
+    const handleBaixa = async (id, dadosBaixa) => {
+        await faturamentoService.updateDespesa(id, { 
+            pago: true, 
+            data_pagamento: dadosBaixa.data_pagamento,
+            forma_pagamento: dadosBaixa.forma_pagamento 
+        });
+        showSnackbar('Despesa quitada!', 'success');
+        if(onReload) onReload();
+    };
+
+    const handleRenegociacao = async (ids, parcelas) => {
+        await faturamentoService.renegociarDivida({
+            ids_originais: ids,
+            novas_parcelas: parcelas,
+            paciente_id: null // Despesas não têm paciente
+        });
+        showSnackbar('Despesa renegociada!', 'success');
+        if(onReload) onReload();
     };
 
     const onDelete = async (id) => {
-        if (!window.confirm("Deseja realmente excluir esta despesa?")) return;
-        try {
-            await faturamentoService.deleteDespesa(id);
-            onReload(); // <--- AVISA O PAI
-        } catch (e) { showSnackbar('Erro ao excluir', 'error'); }
+        if (!window.confirm("Confirmar exclusão?")) return;
+        await faturamentoService.deleteDespesa(id);
+        if(onReload) onReload();
     };
 
    
@@ -210,40 +192,14 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
                 onClose={() => { setOpenMestreModal(false); if (onReload) onReload(); }} 
             />
 
-            {/* MODAL DE BAIXA DETALHADA */}
-            <Dialog open={openConfirmBaixa} onClose={() => setOpenConfirmBaixa(false)}>
-                <DialogTitle sx={{ fontWeight: 'bold', fontSize: '1rem', pb: 1 }}>Baixar Despesa</DialogTitle>
-                <DialogContent sx={{ pt: 1 }}>
-                    <Typography variant="body2" gutterBottom>
-                        Confirmar pagamento de: <strong>{selectedItem?.descricao}</strong>
-                    </Typography>
-                    <Typography variant="h6" color="error" sx={{ mb: 2, fontWeight: 'bold' }}>
-                        {selectedItem ? formatMoney(selectedItem.valor) : ''}
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField 
-                            label="Data do Pagamento" type="date" size="small" fullWidth
-                            value={baixaData} onChange={(e) => setBaixaData(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                        <TextField 
-                            select label="Forma de Pagamento" size="small" fullWidth
-                            value={baixaMetodo} onChange={(e) => setBaixaMetodo(e.target.value)}
-                        >
-                            <MenuItem value="Dinheiro">Dinheiro</MenuItem>
-                            <MenuItem value="PIX">PIX / Transferência</MenuItem>
-                            <MenuItem value="CartaoCredito">Cartão de Crédito</MenuItem>
-                            <MenuItem value="CartaoDebito">Cartão de Débito</MenuItem>
-                            <MenuItem value="Boleto">Boleto</MenuItem>
-                        </TextField>
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setOpenConfirmBaixa(false)} size="small" color="inherit">Cancelar</Button>
-                    <Button onClick={handleConfirmarBaixaRapida} variant="contained" color="success">Confirmar Pagamento</Button>
-                </DialogActions>
-            </Dialog>
+            {/* AQUI ESTÁ A MÁGICA: O MESMO MODAL PARA DESPESAS */}
+            <BaixaUnificadaModal 
+                open={openBaixaModal}
+                onClose={() => setOpenBaixaModal(false)}
+                item={selectedItem}
+                onConfirmBaixa={handleBaixa}
+                onConfirmRenegociacao={handleRenegociacao}
+            />
         </Box>
     );
 }
