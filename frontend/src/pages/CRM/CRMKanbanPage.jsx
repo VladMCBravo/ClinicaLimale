@@ -186,7 +186,10 @@ export default function CRMKanbanPage() {
                                       }}
                                   >
                                       <Chip 
-                                          label={`${ciclo.alerta_clinico.semanas} sem`} 
+                                          // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
+                                          // Se o backend mandou "8s + 5d", usa isso. Se não, usa o fallback antigo.
+                                          label={ciclo.idade_gestacional || `${ciclo.alerta_clinico.semanas} sem`} 
+                                          // ------------------------------------
                                           size="small" 
                                           sx={{ 
                                               height: 16, fontSize: '0.6rem', fontWeight: 'bold',
