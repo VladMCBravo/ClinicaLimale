@@ -83,6 +83,18 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     const [openConfirmBaixa, setOpenConfirmBaixa] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
 
+    // Estado local para o modal de baixa detalhada
+    const [baixaData, setBaixaData] = useState(dayjs().format('YYYY-MM-DD'));
+    const [baixaMetodo, setBaixaMetodo] = useState('Dinheiro');
+
+    // Ao abrir o modal de baixa, reseta data para hoje e método padrão
+    const handleOpenBaixa = (item) => {
+        setSelectedItem(item);
+        setBaixaData(dayjs().format('YYYY-MM-DD'));
+        setBaixaMetodo('Dinheiro');
+        setOpenConfirmBaixa(true);
+    };
+
     // --- DEBUG LOG: Para ver se os dados estão chegando ---
     useEffect(() => {
         console.log("📊 [DespesasView] Dados recebidos do Pai:", dadosIniciais);
@@ -195,17 +207,41 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
             {/* MODAIS */}
             <LancamentoCaixaModal 
                 open={openMestreModal} initialData={selectedItem} 
-                onClose={() => { setOpenMestreModal(false); onReload(); }} 
+                onClose={() => { setOpenMestreModal(false); if (onReload) onReload(); }} 
             />
 
+            {/* MODAL DE BAIXA DETALHADA */}
             <Dialog open={openConfirmBaixa} onClose={() => setOpenConfirmBaixa(false)}>
-                <DialogTitle>Confirmar Baixa</DialogTitle>
-                <DialogContent>
-                    <Typography>Liquidar <strong>{selectedItem?.descricao}</strong>?</Typography>
+                <DialogTitle sx={{ fontWeight: 'bold', fontSize: '1rem', pb: 1 }}>Baixar Despesa</DialogTitle>
+                <DialogContent sx={{ pt: 1 }}>
+                    <Typography variant="body2" gutterBottom>
+                        Confirmar pagamento de: <strong>{selectedItem?.descricao}</strong>
+                    </Typography>
+                    <Typography variant="h6" color="error" sx={{ mb: 2, fontWeight: 'bold' }}>
+                        {selectedItem ? formatMoney(selectedItem.valor) : ''}
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <TextField 
+                            label="Data do Pagamento" type="date" size="small" fullWidth
+                            value={baixaData} onChange={(e) => setBaixaData(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField 
+                            select label="Forma de Pagamento" size="small" fullWidth
+                            value={baixaMetodo} onChange={(e) => setBaixaMetodo(e.target.value)}
+                        >
+                            <MenuItem value="Dinheiro">Dinheiro</MenuItem>
+                            <MenuItem value="PIX">PIX / Transferência</MenuItem>
+                            <MenuItem value="CartaoCredito">Cartão de Crédito</MenuItem>
+                            <MenuItem value="CartaoDebito">Cartão de Débito</MenuItem>
+                            <MenuItem value="Boleto">Boleto</MenuItem>
+                        </TextField>
+                    </Box>
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenConfirmBaixa(false)}>Cancelar</Button>
-                    <Button onClick={handleConfirmarBaixaRapida} variant="contained" color="success">Confirmar</Button>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setOpenConfirmBaixa(false)} size="small" color="inherit">Cancelar</Button>
+                    <Button onClick={handleConfirmarBaixaRapida} variant="contained" color="success">Confirmar Pagamento</Button>
                 </DialogActions>
             </Dialog>
         </Box>

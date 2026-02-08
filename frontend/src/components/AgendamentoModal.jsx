@@ -88,7 +88,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (open) {
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
-                    setPacientes(pacientesRes.data);
+                    // ORDENAÇÃO ALFABÉTICA ADICIONADA AQUI
+                    const pacientesOrdenados = (pacientesRes.data || []).sort((a, b) => 
+                        a.nome_completo.localeCompare(b.nome_completo)
+                    );
+                    setPacientes(pacientesOrdenados);
                     setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
                     setMedicos(medicosRes.data);
                     setEspecialidades(especialidadesRes.data);

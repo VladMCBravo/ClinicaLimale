@@ -27,6 +27,11 @@ export const faturamentoService = {
     updatePagamento: (pagamentoId, data) => apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data),
     deletePagamento: (id) => apiClient.delete(`/faturamento/pagamentos/${id}/`),
 
+    // --- FUNCIONALIDADES NOVAS (RENEGOCIAÇÃO) ---
+    // Adicionado para corrigir o erro "$Q.renegociarDivida is not a function"
+    renegociarDivida: (data) => apiClient.post('/faturamento/transacoes/renegociar/', data),
+    baixarMultiplo: (id, data) => apiClient.post(`/faturamento/transacoes/${id}/baixar-multiplo/`, data),
+
     // Lançamento Avulso (Receita ou Despesa, inclusive com parcelamento)
     createLancamentoAvulso: (data) => apiClient.post('/faturamento/lancamento-avulso/', data),
 
@@ -36,6 +41,9 @@ export const faturamentoService = {
     createDespesa: (data) => apiClient.post('/faturamento/despesas/', data),
     updateDespesa: (id, data) => apiClient.put(`/faturamento/despesas/${id}/`, data),
     deleteDespesa: (id) => apiClient.delete(`/faturamento/despesas/${id}/`),
+
+    // Função auxiliar para baixa rápida de despesa (usada no botão Check)
+    alternarPagamento: (id, data) => apiClient.patch(`/faturamento/despesas/${id}/`, data),
 
     // --- FATURAMENTO / CONVÊNIOS ---
     getConvenios: () => apiClient.get('/faturamento/convenios/'),
