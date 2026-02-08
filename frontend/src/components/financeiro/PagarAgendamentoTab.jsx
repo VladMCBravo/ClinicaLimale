@@ -26,44 +26,40 @@ export default function PagarAgendamentoTab({ onClose }) {
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-    console.log("[DEBUG-UI] Solicitando lista de pacientes devedores...");
+    let isMounted = true; // Previne erro de update em componente desmontado
+
     faturamentoService.getPagamentosPendentes()
         .then(response => {
-            // A API envia uma lista de PAGAMENTOS
+            if (!isMounted) return;
             const pagamentos = response.data || [];
-            console.log("[DEBUG-UI] Pagamentos brutos recebidos:", pagamentos);
             
-            const pacientesMap = new Map();
+            // Usando Map para garantir unicidade com complexidade O(n) em vez de O(n^2)
+            const pacientesUnicos = new Map();
 
-            pagamentos.forEach(pag => {
-                // Verificamos se o objeto 'paciente' existe dentro do pagamento
-                // IMPORTANTE: Se o backend enviar apenas o ID no campo 'paciente', 
-                // usamos o 'paciente_nome' que criamos no serializer.
-                if (pag.paciente) {
-                    const idPaciente = typeof pag.paciente === 'object' ? pag.paciente.id : pag.paciente;
-                    
-                    if (!pacientesMap.has(idPaciente)) {
-                        pacientesMap.set(idPaciente, {
-                            id: idPaciente,
-                            nome_completo: pag.paciente_nome || "Paciente sem Nome"
-                        });
-                    }
+            for (const pag of pagamentos) {
+                // Verificação de segurança (Short-circuit evaluation)
+                const pacienteInfo = pag.paciente;
+                if (!pacienteInfo) continue;
+
+                // Suporta tanto objeto quanto ID direto (caso serializer mude)
+                const id = typeof pacienteInfo === 'object' ? pacienteInfo.id : pacienteInfo;
+                const nome = pag.paciente_nome || pacienteInfo.nome || "Desconhecido";
+
+                if (!pacientesUnicos.has(id)) {
+                    pacientesUnicos.set(id, { id, nome_completo: nome });
                 }
-            });
+            }
 
-            // Convertemos o Map de volta para uma lista de objetos
-            const listaFinal = Array.from(pacientesMap.values());
-            
-            console.log("[DEBUG-UI] Lista final para o Autocomplete:", listaFinal);
-            
-            setPacientes(listaFinal.sort((a, b) => 
+            setPacientes(Array.from(pacientesUnicos.values()).sort((a, b) => 
                 a.nome_completo.localeCompare(b.nome_completo)
             ));
         })
         .catch(err => {
-            console.error("[DEBUG-UI] Erro:", err);
-            showSnackbar('Erro ao carregar devedores.', 'error');
+            console.error("Erro ao carregar pacientes", err);
+            if(isMounted) showSnackbar('Erro ao carregar lista.', 'error');
         });
+
+    return () => { isMounted = false; };
 }, [showSnackbar]);
 
     useEffect(() => {

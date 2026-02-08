@@ -1,11 +1,41 @@
 # backend/faturamento/models.py
 
+import uuid
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+# --- 1. NOVO MODELO PAI (Coloque antes de Pagamento e Despesa) ---
+class TransacaoFinanceira(models.Model):
+    TIPO_CHOICES = [('Receita', 'Receita'), ('Despesa', 'Despesa')]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    descricao = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    
+    # Vínculos Opcionais
+    paciente = models.ForeignKey('pacientes.Paciente', on_delete=models.SET_NULL, null=True, blank=True)
+    categoria = models.ForeignKey('CategoriaDespesa', on_delete=models.PROTECT, null=True, blank=True)
+    
+    # Totais
+    valor_total_original = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    qtd_parcelas = models.IntegerField(default=1)
+    
+    # Recorrência
+    eh_recorrente = models.BooleanField(default=False)
+    frequencia = models.CharField(max_length=20, choices=[('Mensal', 'Mensal'), ('Semanal', 'Semanal')], blank=True, null=True)
+    
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    # Deixe nulo por enquanto para facilitar migração de dados antigos sem user logado
+    criado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.descricao} ({self.get_tipo_display()})"
+
+# --- 2. ATUALIZE OS MODELOS EXISTENTES ---
+
 class Pagamento(models.Model):
-    # ... (seus campos e choices existentes permanecem iguais)
+    
     FORMA_PAGAMENTO_CHOICES = [
         ('Dinheiro', 'Dinheiro'),
         ('CartaoCredito', 'Cartão de Crédito'),
@@ -55,6 +85,16 @@ class Pagamento(models.Model):
     pix_expira_em = models.DateTimeField(blank=True, null=True, help_text="Data e hora em que a cobrança PIX expira")
     # --- NOVO CAMPO PARA LINK DE CARTÃO ---
     link_pagamento = models.URLField(max_length=500, blank=True, null=True, help_text="URL do link de pagamento para Cartão de Crédito")
+
+    # ADICIONE ESTE CAMPO:
+    transacao_pai = models.ForeignKey(
+        TransacaoFinanceira, 
+        on_delete=models.CASCADE, 
+        related_name='parcelas_receita',
+        null=True,  # Importante: Permite existir sem pai (para dados legados antes do script)
+        blank=True
+    )
+    numero_parcela = models.IntegerField(default=1)
 
 
     def __str__(self):
@@ -124,6 +164,16 @@ class Despesa(models.Model):
         ordering = ['-data_despesa']
         verbose_name = "Despesa"
         verbose_name_plural = "Despesas"
+    
+    # ADICIONE ESTE CAMPO:
+    transacao_pai = models.ForeignKey(
+        TransacaoFinanceira, 
+        on_delete=models.CASCADE, 
+        related_name='parcelas_despesa',
+        null=True, 
+        blank=True
+    )
+    numero_parcela = models.IntegerField(default=1)
 
 class Convenio(models.Model):
     # ... (sem alterações) ...
