@@ -1,5 +1,5 @@
 // src/components/financeiro/DespesasView.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, IconButton, Typography, 
@@ -83,11 +83,18 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     const [openConfirmBaixa, setOpenConfirmBaixa] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
 
-    // 1. FILTRAGEM (Memory Based) - Não usa mais useEffect para fetch
+    // --- DEBUG LOG: Para ver se os dados estão chegando ---
+    useEffect(() => {
+        console.log("📊 [DespesasView] Dados recebidos do Pai:", dadosIniciais);
+        if (dadosIniciais.length === 0) {
+            console.warn("⚠️ [DespesasView] Lista vazia! Verifique se FinanceiroPage está passando a prop 'dadosIniciais'.");
+        }
+    }, [dadosIniciais]);
+
+    // 1. FILTRAGEM (Usa os dadosIniciais direto, sem fetch local)
     const processedData = useMemo(() => {
         const filtered = dadosIniciais.filter(d => {
             const dataRef = dayjs(d.data_despesa || d.data_vencimento);
-            // Corrige comparação de data para não falhar se data for nula
             if (!dataRef.isValid()) return false;
 
             return dataRef.month() === mesFiltro && 
@@ -129,31 +136,7 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
         } catch (e) { showSnackbar('Erro ao excluir', 'error'); }
     };
 
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            console.log("🔍 [FRONT DEBUG] Iniciando busca de despesas...");
-            const res = await faturamentoService.getDespesas();
-            
-            console.log("📦 [FRONT DEBUG] Resposta completa:", res);
-            console.log("📊 [FRONT DEBUG] Dados (data):", res.data);
-            console.log("🔢 [FRONT DEBUG] Quantidade:", res.data?.length);
-
-            if (res.data && res.data.length > 0) {
-                console.log("Exemplo do item 0:", res.data[0]);
-                // Verifica se os campos essenciais existem
-                if (!res.data[0].categoria_nome) console.warn("⚠️ ALERTA: 'categoria_nome' está undefined!");
-                if (!res.data[0].categoria_tipo) console.warn("⚠️ ALERTA: 'categoria_tipo' está undefined!");
-            }
-
-            setDespesas(res.data || []);
-        } catch (error) {
-            console.error("❌ [FRONT DEBUG] Erro ao buscar despesas:", error);
-        } finally { 
-            setIsLoading(false); 
-        }
-    };
-
+   
     return (
         <Box>
             {/* KPIs */}

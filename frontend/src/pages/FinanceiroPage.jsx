@@ -31,12 +31,14 @@ export default function FinanceiroPage() {
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
+            console.log("🔄 [FinanceiroPage] Carregando dados globais...");
             const [resPagamentos, resDespesas] = await Promise.all([
                 faturamentoService.getPagamentos(),
                 faturamentoService.getDespesas()
             ]);
             setLancamentos(resPagamentos.data || []);
             setDespesas(resDespesas.data || []);
+            console.log("✅ [FinanceiroPage] Dados carregados. Despesas:", resDespesas.data?.length);
         } catch (err) {
             console.error("Erro ao carregar dados financeiros", err);
         } finally {
@@ -111,7 +113,12 @@ export default function FinanceiroPage() {
                         {activeTab === 1 && <ContasReceberView dadosIniciais={lancamentos} onReload={carregarDados} />}
                         
                         {/* DespesasView também se beneficia se você refatorar depois, mas mantive sem props por enquanto se ele não suportar */}
-                        {activeTab === 2 && <DespesasView />} 
+                        {activeTab === 2 && (
+                            <DespesasView 
+                                dadosIniciais={despesas} 
+                                onReload={carregarDados} 
+                            />
+                        )}
                         
                         {activeTab === 3 && <FaturamentoConveniosView />} 
                         {activeTab === 4 && <ProcedimentosView />}
