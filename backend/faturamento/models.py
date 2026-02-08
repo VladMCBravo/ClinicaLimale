@@ -105,7 +105,12 @@ class Pagamento(models.Model):
         ('Renegociado', 'Renegociado'),
     ]
     
-    agendamento = models.OneToOneField('agendamentos.Agendamento', on_delete=models.SET_NULL, related_name='pagamento_legado', null=True, blank=True)
+    agendamento = models.OneToOneField(
+        'agendamentos.Agendamento',
+        on_delete=models.SET_NULL, 
+        related_name='pagamento', # OBRIGATÓRIO SER 'pagamento' PARA NÃO QUEBRAR O FRONT
+        null=True, blank=True
+    )
     paciente = models.ForeignKey('pacientes.Paciente', on_delete=models.PROTECT, null=True, blank=True)
     descricao = models.CharField(max_length=255, blank=True, null=True)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
