@@ -5,7 +5,7 @@ import {
   Chip, Divider, IconButton, CircularProgress 
 } from '@mui/material';
 import { FaCheckCircle, FaTimes, FaSave } from 'react-icons/fa';
-import apiClient from '../../api/axiosConfig'; // <--- ADICIONE ISSO
+import apiClient from '../../api/axiosConfig'; // Importante
 import { crmService } from '../../services/crmService';
 
 export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate }) {
@@ -25,65 +25,84 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   }, [open, cicloId]);
 
   const loadDetalhes = async () => {
+    console.log("🔍 [DEBUG] Iniciando loadDetalhes para Ciclo ID:", cicloId);
     try {
       setLoading(true);
       const res = await crmService.getCicloDetalhe(cicloId);
+      console.log("📦 [DEBUG] Dados recebidos do Backend:", res.data);
       setDetalhes(res.data);
       
-      // Carrega a DUM se existir (formato YYYY-MM-DD)
+      // Carrega a DUM
+      let dataCarregada = '';
       if (res.data.dum) {
-        // Se vier YYYY-MM-DD (padrão Django Rest Framework), usa direto
-        setDum(res.data.dum);
+        dataCarregada = res.data.dum;
       } else if (res.data.data_dum) {
-        // Se vier DD/MM/YYYY, converte
         if (res.data.data_dum.includes('/')) {
-            setDum(res.data.data_dum.split('/').reverse().join('-'));
+            dataCarregada = res.data.data_dum.split('/').reverse().join('-');
         } else {
-            setDum(res.data.data_dum);
+            dataCarregada = res.data.data_dum;
         }
-      } else {
-        setDum('');
       }
+      
+      console.log("📅 [DEBUG] DUM processada para o input:", dataCarregada);
+      setDum(dataCarregada);
+
     } catch (error) {
-        console.error("Erro ao carregar detalhes", error);
+        console.error("❌ [DEBUG] Erro ao carregar detalhes", error);
     } finally {
         setLoading(false);
     }
-  }; // <--- FALTAVA FECHAR AQUI
+  }; 
 
   const handleSalvarDum = async () => {
     if (!dum) return alert("Selecione uma data para a DUM.");
     
+    console.log("💾 [DEBUG] Botão Salvar Clicado. Data:", dum);
     setLoading(true); 
-    try {
-      console.log(`Salvando DUM: ${dum}`);
-      
-      // 1. Tenta atualizar o CICLO (CRM)
-      // Enviamos nos dois formatos de chave para garantir
-      await crmService.updateCiclo(cicloId, { dum: dum, data_dum: dum });
 
-      // 2. Tenta atualizar o PACIENTE DIRETAMENTE (A Fonte da Verdade)
-      // Isso garante que se o CRM for apenas "leitura", o paciente seja atualizado
-      if (detalhes && detalhes.paciente) {
-          // O ID do paciente geralmente vem dentro de 'detalhes.paciente' (se for int) 
-          // ou 'detalhes.paciente.id' (se for objeto). Vamos testar ambos.
-          const pacienteId = typeof detalhes.paciente === 'object' ? detalhes.paciente.id : detalhes.paciente;
+    try {
+      // 1. Tenta atualizar o CICLO
+      console.log("🚀 [DEBUG] Enviando PATCH para o Ciclo...");
+      await crmService.updateCiclo(cicloId, { dum: dum, data_dum: dum });
+      console.log("✅ [DEBUG] Ciclo atualizado com sucesso.");
+
+      // 2. Tenta atualizar o PACIENTE DIRETAMENTE
+      console.log("🕵️ [DEBUG] Tentando identificar Paciente ID em:", detalhes);
+      
+      if (detalhes) {
+          // Tenta achar o ID em vários lugares possíveis
+          let pacienteId = null;
           
+          if (detalhes.paciente && typeof detalhes.paciente === 'object') {
+              pacienteId = detalhes.paciente.id;
+              console.log("👉 [DEBUG] ID achado em detalhes.paciente.id:", pacienteId);
+          } else if (detalhes.paciente) {
+              pacienteId = detalhes.paciente;
+              console.log("👉 [DEBUG] ID achado em detalhes.paciente (direto):", pacienteId);
+          } else if (detalhes.paciente_id) {
+              pacienteId = detalhes.paciente_id;
+              console.log("👉 [DEBUG] ID achado em detalhes.paciente_id:", pacienteId);
+          }
+
           if (pacienteId) {
+              console.log(`🚀 [DEBUG] Enviando PATCH para Paciente ID ${pacienteId}...`);
               await apiClient.patch(`/pacientes/${pacienteId}/`, { dum: dum });
-              console.log("Paciente atualizado diretamente via ID:", pacienteId);
+              console.log("✅ [DEBUG] Paciente atualizado com sucesso via API direta.");
+          } else {
+              console.warn("⚠️ [DEBUG] NÃO FOI POSSÍVEL IDENTIFICAR O ID DO PACIENTE. A atualização direta falhou.");
+              alert("Atenção: Não consegui vincular ao cadastro do paciente. O ID não foi encontrado.");
           }
       }
 
       // 3. Recarrega tudo
       await loadDetalhes(); 
-      if (onUpdate) onUpdate(); // Atualiza o Kanban (Card)
+      if (onUpdate) onUpdate(); 
       
-      alert("✅ DUM Salva com sucesso!");
+      alert("✅ DUM Salva!");
 
     } catch (error) {
-      console.error("Erro ao salvar DUM:", error);
-      alert("Erro ao salvar. Verifique se a data é válida.");
+      console.error("❌ [DEBUG] Erro CRÍTICO ao salvar DUM:", error);
+      alert("Erro ao salvar. Veja o console (F12).");
     } finally {
       setLoading(false);
     }
@@ -99,8 +118,8 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
         status: 'PENDENTE'
       });
       setNovaAcaoDesc('');
-      loadDetalhes(); // Recarrega a lista
-      if (onUpdate) onUpdate(); // Atualiza o Kanban atrás
+      loadDetalhes(); 
+      if (onUpdate) onUpdate(); 
     } catch (error) {
       alert("Erro ao salvar ação");
     }
@@ -121,7 +140,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Detalhes do Ciclo
+        Detalhes do Ciclo (DEBUG MODE)
         <IconButton onClick={onClose}><FaTimes /></IconButton>
       </DialogTitle>
       
@@ -130,20 +149,14 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>
         ) : detalhes ? (
           <>
-            {/* CABEÇALHO: Nome e DUM */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{detalhes.paciente_nome}</Typography>
+              <Typography variant="caption" sx={{color:'red'}}>DEBUG: Paciente ID: {JSON.stringify(detalhes.paciente)}</Typography>
               <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
                 <Chip label={detalhes.fase_atual} color="primary" size="small" />
-                {detalhes.receita_acumulada > 0 && (
-                    <Typography variant="caption" sx={{ color: 'green', fontWeight: 'bold' }}>
-                        R$ {detalhes.receita_acumulada}
-                    </Typography>
-                )}
               </Box>
             </Box>
 
-            {/* BOX DE GESTÃO GESTACIONAL */}
             {detalhes.tipo === 'GESTACAO' && (
                 <Box sx={{ backgroundColor: '#e3f2fd', p: 2, borderRadius: 2, mb: 3 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 1 }}>
@@ -169,7 +182,6 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                             <FaSave />
                         </Button>
                     </Box>
-                    {/* Se tiver idade gestacional calculada, mostra aqui */}
                     {detalhes.idade_gestacional && (
                         <Typography variant="body2" sx={{ mt: 1, color: '#0d47a1' }}>
                             <strong>Idade Atual:</strong> {detalhes.idade_gestacional}
@@ -180,7 +192,6 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Seção Próxima Ação */}
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
               🎯 Nova Próxima Ação
             </Typography>
@@ -199,7 +210,6 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
               <Button variant="contained" onClick={handleSalvarAcao}>Add</Button>
             </Box>
 
-            {/* Lista de Ações */}
             <Typography variant="subtitle2" sx={{ mb: 1 }}>Histórico de Ações</Typography>
             <List dense sx={{ bgcolor: '#f9f9f9', borderRadius: 1 }}>
               {detalhes.acoes && detalhes.acoes.map((acao) => (
