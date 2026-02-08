@@ -74,21 +74,16 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     def get_paciente_foto(self, obj):
         return None
 
-    # 1. CORREÇÃO DA IDADE GESTACIONAL NO CARD
     def get_idade_gestacional(self, obj):
         try:
-            # Prioridade: DUM do Paciente
+            # 1. Busca a DUM (Prioridade: Paciente > Ciclo)
             dum = obj.paciente.dum if obj.paciente else None
+            if not dum: dum = getattr(obj, 'data_dum', None)
             
-            # Fallback: DUM do Ciclo
-            if not dum:
-                dum = getattr(obj, 'data_dum', None)
-            
-            # Validação
-            if not dum or dum.year < 2000:
-                return None
+            # Validações básicas
+            if not dum or dum.year < 2000: return None
 
-            # Cálculo
+            # 2. Cálculo Matemático
             from datetime import date
             hoje = date.today()
             dias_totais = (hoje - dum).days
@@ -98,8 +93,10 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             semanas = dias_totais // 7
             dias_restantes = dias_totais % 7
             
-            # Formato curto para o Card (Ex: "8s + 5d")
+            # 3. FORMATAÇÃO PRECISA (AQUI ESTÁ A MUDANÇA)
+            # Retorna ex: "8s + 5d" ou "12s + 0d"
             return f"{semanas}s + {dias_restantes}d"
+            
         except:
             return None
         
