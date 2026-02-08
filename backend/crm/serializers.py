@@ -74,13 +74,36 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     def get_paciente_foto(self, obj):
         return None
 
+    # 1. CORREÇÃO DA IDADE GESTACIONAL NO CARD
     def get_idade_gestacional(self, obj):
-        # [LOG DEUS] Calculando IG para o Card
-        ig = obj.calcular_idade_gestacional()
-        if ig:
-            return f"{ig[0]}s + {ig[1]}d"
-        return None
+        try:
+            # Prioridade: DUM do Paciente
+            dum = obj.paciente.dum if obj.paciente else None
+            
+            # Fallback: DUM do Ciclo
+            if not dum:
+                dum = getattr(obj, 'data_dum', None)
+            
+            # Validação
+            if not dum or dum.year < 2000:
+                return None
 
+            # Cálculo
+            from datetime import date
+            hoje = date.today()
+            dias_totais = (hoje - dum).days
+            
+            if dias_totais < 0: return None
+
+            semanas = dias_totais // 7
+            dias_restantes = dias_totais % 7
+            
+            # Formato curto para o Card (Ex: "8s + 5d")
+            return f"{semanas}s + {dias_restantes}d"
+        except:
+            return None
+        
+    # 2. CORREÇÃO DO ALERTA (Morfologico, etc) NO CARD
     def get_alerta_clinico(self, obj):
         """
         LÓGICA DA TABELA MESTRA (PDF)
@@ -89,11 +112,19 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         if obj.tipo != 'GESTACAO':
             return None
 
-        ig = obj.calcular_idade_gestacional()
-        if not ig:
+        # --- REPETIR A LÓGICA DE BUSCAR A DUM CERTA ---
+        dum = obj.paciente.dum if obj.paciente else None
+        if not dum: dum = getattr(obj, 'data_dum', None)
+        
+        if not dum or dum.year < 2000:
             return None
-
-        semanas = ig[0]
+        
+        from datetime import date
+        hoje = date.today()
+        dias_totais = (hoje - dum).days
+        semanas = dias_totais // 7
+        # ----------------------------------------------
+        
         sugestao = ""
         prioridade = "normal" # normal, alta, urgente
 
