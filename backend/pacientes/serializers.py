@@ -30,6 +30,7 @@ class PacienteSerializer(serializers.ModelSerializer):
             'nome_completo', 
             'data_nascimento',
             'genero', # <<-- CAMPO ADICIONADO AQUI
+            'dum', # <<-- CAMPO DUM ADICIONADO AQUI
             'cpf',
             'email',
             'telefone_celular',            
@@ -101,4 +102,4 @@ class PacienteClinicalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paciente
         # Apenas campos clínicos, NUNCA cpf, telefone, etc.
-        fields = ['id', 'nome_completo', 'data_nascimento', 'genero', 'alergias'] 
+        fields = ['id', 'nome_completo', 'data_nascimento', 'genero', 'alergias','dum'] 

@@ -25,58 +25,55 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   }, [open, cicloId]);
 
   const loadDetalhes = async () => {
-    console.log("🔍 [DEBUG] Iniciando loadDetalhes para Ciclo ID:", cicloId);
+    console.log("🔍 [DEBUG] Iniciando loadDetalhes...");
     try {
       setLoading(true);
-      
-      // 1. Busca dados do Ciclo (CRM)
       const res = await crmService.getCicloDetalhe(cicloId);
       let dadosFinais = res.data;
-      
-      // 2. IDENTIFICA O PACIENTE E BUSCA A DATA REAL (FONTE DA VERDADE)
+
+      // IDENTIFICA O PACIENTE
       let pacienteId = null;
-      if (dadosFinais.paciente && typeof dadosFinais.paciente === 'object') {
-          pacienteId = dadosFinais.paciente.id;
-      } else if (dadosFinais.paciente) {
-          pacienteId = dadosFinais.paciente;
-      } else if (dadosFinais.paciente_id) {
-          pacienteId = dadosFinais.paciente_id;
-      }
+      if (dadosFinais.paciente?.id) pacienteId = dadosFinais.paciente.id;
+      else if (dadosFinais.paciente) pacienteId = dadosFinais.paciente;
+      else if (dadosFinais.paciente_id) pacienteId = dadosFinais.paciente_id;
 
       if (pacienteId) {
           try {
-              // Busca o cadastro fresco do paciente
               const pacienteRes = await apiClient.get(`/pacientes/${pacienteId}/`);
-              console.log("🏥 [DEBUG] DUM Real do Paciente (Banco):", pacienteRes.data.dum);
               
-              // Se o paciente tem DUM, usamos ela (ignora a do Ciclo que pode estar velha)
-              if (pacienteRes.data.dum) {
-                  dadosFinais.dum = pacienteRes.data.dum;
+              // --- AQUI ESTÁ A MUDANÇA: VAMOS VER TUDO ---
+              console.log("🏥 [DEBUG] RESPOSTA COMPLETA DA API DE PACIENTES:", pacienteRes.data);
+              
+              // Tenta encontrar a data em qualquer variação de nome possível
+              const dumReal = pacienteRes.data.dum || pacienteRes.data.data_dum || pacienteRes.data.data_ultima_menstruacao;
+              
+              if (dumReal) {
+                  console.log("✅ DUM Encontrada no Paciente:", dumReal);
+                  dadosFinais.dum = dumReal;
+              } else {
+                  console.warn("⚠️ O campo DUM continua INVISÍVEL no retorno da API.");
               }
+
           } catch (err) {
-              console.warn("⚠️ Não foi possível confirmar a DUM no cadastro do paciente.", err);
+              console.warn("Erro ao buscar paciente", err);
           }
       }
 
-      console.log("📦 [DEBUG] Dados Finais para Tela:", dadosFinais);
       setDetalhes(dadosFinais);
       
-      // Processa a data para o input (YYYY-MM-DD)
+      // Lógica de exibição no input
       let dataInput = '';
       if (dadosFinais.dum) {
         dataInput = dadosFinais.dum;
       } else if (dadosFinais.data_dum) {
-        if (dadosFinais.data_dum.includes('/')) {
-            dataInput = dadosFinais.data_dum.split('/').reverse().join('-');
-        } else {
-            dataInput = dadosFinais.data_dum;
-        }
+        dataInput = dadosFinais.data_dum.includes('/') 
+            ? dadosFinais.data_dum.split('/').reverse().join('-') 
+            : dadosFinais.data_dum;
       }
-      
       setDum(dataInput);
 
     } catch (error) {
-        console.error("❌ [DEBUG] Erro ao carregar detalhes", error);
+        console.error("Erro", error);
     } finally {
         setLoading(false);
     }

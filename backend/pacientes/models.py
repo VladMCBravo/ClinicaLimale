@@ -25,6 +25,9 @@ class Paciente(models.Model):
     # Dados Demográficos
     nome_completo = models.CharField(max_length=255)
     data_nascimento = models.DateField()
+    # --- AQUI ESTÁ A CORREÇÃO CRUCIAL (CAMPO DUM) ---
+    dum = models.DateField(null=True, blank=True, help_text="Data da Última Menstruação")
+    # ------------------------------------------------
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
     genero = models.CharField(max_length=20, choices=GENERO_CHOICES, blank=True)
     # Dados VITAIS mais recentes (aferidos na recepção ou última consulta)
