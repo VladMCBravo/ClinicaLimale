@@ -28,31 +28,59 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
     console.log("🔍 [DEBUG] Iniciando loadDetalhes para Ciclo ID:", cicloId);
     try {
       setLoading(true);
-      const res = await crmService.getCicloDetalhe(cicloId);
-      console.log("📦 [DEBUG] Dados recebidos do Backend:", res.data);
-      setDetalhes(res.data);
       
-      // Carrega a DUM
-      let dataCarregada = '';
-      if (res.data.dum) {
-        dataCarregada = res.data.dum;
-      } else if (res.data.data_dum) {
-        if (res.data.data_dum.includes('/')) {
-            dataCarregada = res.data.data_dum.split('/').reverse().join('-');
+      // 1. Busca dados do Ciclo (CRM)
+      const res = await crmService.getCicloDetalhe(cicloId);
+      let dadosFinais = res.data;
+      
+      // 2. IDENTIFICA O PACIENTE E BUSCA A DATA REAL (FONTE DA VERDADE)
+      let pacienteId = null;
+      if (dadosFinais.paciente && typeof dadosFinais.paciente === 'object') {
+          pacienteId = dadosFinais.paciente.id;
+      } else if (dadosFinais.paciente) {
+          pacienteId = dadosFinais.paciente;
+      } else if (dadosFinais.paciente_id) {
+          pacienteId = dadosFinais.paciente_id;
+      }
+
+      if (pacienteId) {
+          try {
+              // Busca o cadastro fresco do paciente
+              const pacienteRes = await apiClient.get(`/pacientes/${pacienteId}/`);
+              console.log("🏥 [DEBUG] DUM Real do Paciente (Banco):", pacienteRes.data.dum);
+              
+              // Se o paciente tem DUM, usamos ela (ignora a do Ciclo que pode estar velha)
+              if (pacienteRes.data.dum) {
+                  dadosFinais.dum = pacienteRes.data.dum;
+              }
+          } catch (err) {
+              console.warn("⚠️ Não foi possível confirmar a DUM no cadastro do paciente.", err);
+          }
+      }
+
+      console.log("📦 [DEBUG] Dados Finais para Tela:", dadosFinais);
+      setDetalhes(dadosFinais);
+      
+      // Processa a data para o input (YYYY-MM-DD)
+      let dataInput = '';
+      if (dadosFinais.dum) {
+        dataInput = dadosFinais.dum;
+      } else if (dadosFinais.data_dum) {
+        if (dadosFinais.data_dum.includes('/')) {
+            dataInput = dadosFinais.data_dum.split('/').reverse().join('-');
         } else {
-            dataCarregada = res.data.data_dum;
+            dataInput = dadosFinais.data_dum;
         }
       }
       
-      console.log("📅 [DEBUG] DUM processada para o input:", dataCarregada);
-      setDum(dataCarregada);
+      setDum(dataInput);
 
     } catch (error) {
         console.error("❌ [DEBUG] Erro ao carregar detalhes", error);
     } finally {
         setLoading(false);
     }
-  }; 
+  };
 
   const handleSalvarDum = async () => {
     if (!dum) return alert("Selecione uma data para a DUM.");
