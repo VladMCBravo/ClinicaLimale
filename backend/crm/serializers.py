@@ -4,6 +4,8 @@ from rest_framework import serializers
 from .models import Ciclo, AnaliseComportamental, ProximaAcao
 from django.utils import timezone
 from django.apps import apps # Usado para evitar erro de importação circular
+from .models import Ciclo
+from datetime import date
 import logging
 
 # --- 1. COMPORTAMENTO E AÇÕES (BLOCOS MENORES) ---
@@ -233,17 +235,37 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
             'exames',       # Resultados e arquivos vinculados
         ]
 
-    # --- O MÉTODO QUE FALTAVA ---
+    # --- O CÁLCULO REAL E SEGURO DA IDADE GESTACIONAL ---
     def get_idade_gestacional(self, obj):
         try:
-            print(f"[LOG DEUS] Calculando IG Detalhada para Ciclo {obj.id}...")
-            ig = obj.calcular_idade_gestacional()
-            if ig:
-                resultado = f"{ig[0]} semanas + {ig[1]} dias"
-                print(f"[LOG DEUS] Resultado IG: {resultado}")
-                return resultado
-            print("[LOG DEUS] Sem DUM cadastrada.")
-            return None
+            # 1. Prioridade Total: DUM do Paciente (Fonte da Verdade)
+            dum = obj.paciente.dum if obj.paciente else None
+            
+            # 2. Fallback: Se não tiver no paciente, tenta do Ciclo
+            if not dum:
+                dum = getattr(obj, 'data_dum', None)
+
+            # 3. Se não tiver data, retorna vazio
+            if not dum:
+                return None
+
+            # 4. Proteção contra datas antigas (Bug de 1529)
+            if dum.year < 2000:
+                return "Data Inválida (Antiga)"
+
+            # 5. O Cálculo Matemático
+            from datetime import date
+            hoje = date.today()
+            dias_totais = (hoje - dum).days
+            
+            if dias_totais < 0:
+                return "Data Futura"
+
+            semanas = dias_totais // 7
+            dias_restantes = dias_totais % 7
+            
+            return f"{semanas} semanas + {dias_restantes} dias"
+
         except Exception as e:
             print(f"[ERRO SERIALIZER] Calculo IG: {e}")
             return None
@@ -252,22 +274,18 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
     def get_comportamento(self, obj):
         """Busca o perfil comportamental do paciente vinculado"""
         try:
-            # Verifica se o paciente tem perfil (related_name='perfil_comportamental')
             if hasattr(obj.paciente, 'perfil_comportamental'):
                 return AnaliseComportamentalSerializer(obj.paciente.perfil_comportamental).data
             return None
         except Exception:
             return None
 
-    def get_comportamento(self, obj):
-        if hasattr(obj.paciente, 'perfil_comportamental'):
-            return AnaliseComportamentalSerializer(obj.paciente.perfil_comportamental).data
-        return None
-
     def get_agendamentos(self, obj):
         try:
             from agendamentos.serializers import AgendamentoSerializer
-            return AgendamentoSerializer(obj.agendamentos.all().order_by('-data_hora_inicio'), many=True).data
+            if hasattr(obj, 'agendamentos'):
+                return AgendamentoSerializer(obj.agendamentos.all().order_by('-data_hora_inicio'), many=True).data
+            return []
         except ImportError:
             return []
 
@@ -284,13 +302,12 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
         # 1. Atualiza os dados normais do Ciclo
         instance = super().update(instance, validated_data)
 
-        # 2. TENTATIVA DE SALVAR A DUM NO PACIENTE (O Pulo do Gato) 🐱
-        # Pegamos de 'initial_data' porque 'validated_data' costuma limpar campos que não são do model
+        # 2. SALVA A DUM NO PACIENTE (Correção do Bug)
         nova_dum = self.initial_data.get('dum') or self.initial_data.get('data_dum')
 
         if nova_dum and instance.paciente:
             print(f"🔄 CRM Atualizando DUM do Paciente {instance.paciente.nome_completo}: {nova_dum}")
             instance.paciente.dum = nova_dum
-            instance.paciente.save() # <--- Isso força o recálculo da IG
+            instance.paciente.save() 
         
         return instance
