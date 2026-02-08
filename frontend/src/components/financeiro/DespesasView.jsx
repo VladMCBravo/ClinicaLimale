@@ -1,12 +1,12 @@
 // src/components/financeiro/DespesasView.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-    CircularProgress, TextField, Paper, Table, TableBody, TableCell, 
+    TextField, Paper, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, IconButton, Typography, 
     Grid, Chip, Box, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions,
     MenuItem, Select
 } from '@mui/material';
-import { Edit, Delete, CheckCircle, Domain, LocalCafe, Warning, Search } from '@mui/icons-material';
+import { Edit, Delete, CheckCircle, Domain, LocalCafe, Search } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -14,7 +14,7 @@ import LancamentoCaixaModal from './LancamentoCaixaModal';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// Componente de Tabela Interno Único e Reutilizável
+// Mantivemos o componente visual TabelaDespesas igual (ele é apenas visual)
 const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDelete }) => (
     <Paper elevation={0} sx={{ border: `1px solid ${corTema}40`, borderRadius: 2, overflow: 'hidden', flex: 1 }}>
         <Box sx={{ px: 1.5, py: 0.8, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -28,57 +28,36 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDele
             <Table size="small" stickyHeader>
                 <TableHead>
                     <TableRow>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Vencimento</TableCell>
-                        <TableCell sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Descrição</TableCell>
-                        <TableCell align="right" sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Valor</TableCell>
-                        <TableCell align="center" sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>Ações</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Vencimento</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Descrição</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>Valor</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
                     {dados.map((item) => {
-                        // Sinalização visual de atraso
                         const isVencida = !item.pago && dayjs(item.data_vencimento).isBefore(dayjs(), 'day');
                         return (
                             <TableRow key={item.id} hover sx={{ bgcolor: isVencida ? '#fff5f5' : 'inherit' }}>
-                                <TableCell sx={{ fontSize: '0.7rem' }}>
-    {/* Tenta ler vencimento, se não tiver, tenta a data da despesa, se não, mostra vazio */}
-    {(item.data_vencimento || item.data_despesa) 
-        ? dayjs(item.data_vencimento || item.data_despesa).format('DD/MM/YY') 
-        : '--/--/--'}
-</TableCell>
-
-<TableCell sx={{ py: 0.5 }}>
-    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.descricao}</Typography>
-    
-    {/* EXIBE NOME DA CATEGORIA E TIPO */}
-    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem', display: 'block' }}>
-        {item.categoria_nome} • <span style={{ color: item.categoria_tipo === 'Fixa' ? '#1565c0' : '#e65100' }}>
-            {item.categoria_tipo}
-        </span>
-    </Typography>
-
-    {item.pago && (
-        <Typography variant="caption" color="success.main" sx={{ fontSize: '0.6rem', display: 'block' }}>
-            Pago em {item.data_pagamento ? dayjs(item.data_pagamento).format('DD/MM/YY') : 'Data nula'}
-        </Typography>
-    )}
-</TableCell>
+                                <TableCell sx={{ fontSize: '0.75rem' }}>
+                                    {(item.data_vencimento || item.data_despesa) 
+                                        ? dayjs(item.data_vencimento || item.data_despesa).format('DD/MM/YY') 
+                                        : '--'}
+                                </TableCell>
+                                <TableCell sx={{ py: 0.5 }}>
+                                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>{item.descricao}</Typography>
+                                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem' }}>
+                                        {item.categoria_nome} • {item.categoria_tipo}
+                                    </Typography>
+                                </TableCell>
                                 <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{formatMoney(item.valor)}</TableCell>
                                 <TableCell align="center">
                                     <Stack direction="row" spacing={0} justifyContent="center">
-                                        {/* Lápis: Abre Modal Unificado para Editar/Reverter status de Pago */}
-                                        <IconButton size="small" onClick={() => onEdit(item)} color="primary">
-                                            <Edit sx={{ fontSize: 14 }} />
-                                        </IconButton>
-                                        {/* Check: Abre confirmação rápida de baixa */}
+                                        <IconButton size="small" onClick={() => onEdit(item)} color="primary"><Edit sx={{ fontSize: 14 }} /></IconButton>
                                         {!item.pago && (
-                                            <IconButton size="small" onClick={() => onCheck(item)} color="success">
-                                                <CheckCircle sx={{ fontSize: 14 }} />
-                                            </IconButton>
+                                            <IconButton size="small" onClick={() => onCheck(item)} color="success"><CheckCircle sx={{ fontSize: 14 }} /></IconButton>
                                         )}
-                                        <IconButton size="small" color="error" onClick={() => onDelete(item.id)}>
-                                            <Delete sx={{ fontSize: 14 }} />
-                                        </IconButton>
+                                        <IconButton size="small" color="error" onClick={() => onDelete(item.id)}><Delete sx={{ fontSize: 14 }} /></IconButton>
                                     </Stack>
                                 </TableCell>
                             </TableRow>
@@ -90,37 +69,35 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDele
     </Paper>
 );
 
-export default function DespesasView() {
+// RECEBE dadosIniciais e onReload
+export default function DespesasView({ dadosIniciais = [], onReload }) {
     const { showSnackbar } = useSnackbar();
-    const [despesas, setDespesas] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    
+    // Filtros Locais
     const [searchTerm, setSearchTerm] = useState('');
     const [mesFiltro, setMesFiltro] = useState(dayjs().month()); 
     const [anoFiltro, setAnoFiltro] = useState(dayjs().year());
     
+    // Modais
     const [openMestreModal, setOpenMestreModal] = useState(false);
     const [openConfirmBaixa, setOpenConfirmBaixa] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
 
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const res = await faturamentoService.getDespesas();
-            setDespesas(res.data || []);
-        } finally { setIsLoading(false); }
-    };
-
-    useEffect(() => { fetchData(); }, []);
-
-    // Motor de filtragem consolidado
+    // 1. FILTRAGEM (Memory Based) - Não usa mais useEffect para fetch
     const processedData = useMemo(() => {
-        const filtered = despesas.filter(d => {
+        const filtered = dadosIniciais.filter(d => {
             const dataRef = dayjs(d.data_despesa || d.data_vencimento);
-            return dataRef.month() === mesFiltro && dataRef.year() === anoFiltro &&
-                   d.descricao.toLowerCase().includes(searchTerm.toLowerCase());
+            // Corrige comparação de data para não falhar se data for nula
+            if (!dataRef.isValid()) return false;
+
+            return dataRef.month() === mesFiltro && 
+                   dataRef.year() === anoFiltro &&
+                   (d.descricao || '').toLowerCase().includes(searchTerm.toLowerCase());
         });
+
         const fixas = filtered.filter(d => d.categoria_tipo === 'Fixa');
         const variaveis = filtered.filter(d => d.categoria_tipo !== 'Fixa');
+        
         const resumoGeral = filtered.reduce((acc, curr) => {
             const val = parseFloat(curr.valor || 0);
             acc.total += val;
@@ -130,35 +107,35 @@ export default function DespesasView() {
         }, { pagas: 0, aPagar: 0, total: 0, atrasadasCount: 0 });
 
         return { fixas, variaveis, resumoGeral };
-    }, [despesas, mesFiltro, anoFiltro, searchTerm]);
+    }, [dadosIniciais, mesFiltro, anoFiltro, searchTerm]);
 
     const { fixas, variaveis, resumoGeral } = processedData;
 
+    // AÇÕES
     const handleConfirmarBaixaRapida = async () => {
         try {
-            // Usa o endpoint otimizado do views.py para baixa rápida
             await faturamentoService.alternarPagamento(selectedItem.id, { pago: true });
             showSnackbar('Baixa realizada!', 'success');
             setOpenConfirmBaixa(false);
-            fetchData();
+            onReload(); // <--- AVISA O PAI
         } catch (e) { showSnackbar('Erro ao processar.', 'error'); }
     };
 
     const onDelete = async (id) => {
         if (!window.confirm("Deseja realmente excluir esta despesa?")) return;
-        await faturamentoService.deleteDespesa(id);
-        fetchData();
+        try {
+            await faturamentoService.deleteDespesa(id);
+            onReload(); // <--- AVISA O PAI
+        } catch (e) { showSnackbar('Erro ao excluir', 'error'); }
     };
-
-    if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress size={24} /></Box>;
 
     return (
         <Box>
-            {/* KPIs COMPACTOS */}
+            {/* KPIs */}
             <Grid container spacing={1} sx={{ mb: 2 }}>
                 <Grid item xs={4}>
                     <Paper variant="outlined" sx={{ p: 1, borderLeft: '4px solid #1a233b', bgcolor: '#f8f9fa' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem' }}>TOTAL NO MÊS</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem' }}>TOTAL (FILTRADO)</Typography>
                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{formatMoney(resumoGeral.total)}</Typography>
                     </Paper>
                 </Grid>
@@ -170,19 +147,19 @@ export default function DespesasView() {
                 </Grid>
                 <Grid item xs={4}>
                     <Paper variant="outlined" sx={{ p: 1, borderLeft: '4px solid #d32f2f', bgcolor: '#fff5f5' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: '#d32f2f' }}>A PAGAR / VENCIDAS</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: '#d32f2f' }}>A PAGAR</Typography>
                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#d32f2f' }}>{formatMoney(resumoGeral.aPagar)}</Typography>
                     </Paper>
                 </Grid>
             </Grid>
 
-            {/* BARRA DE FERRAMENTAS */}
+            {/* FILTROS */}
             <Box sx={{ mb: 1.5, display: 'flex', gap: 1 }}>
                 <TextField 
                     size="small" placeholder="Filtrar..." 
                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                     InputProps={{ startAdornment: <Search sx={{ mr: 0.5, color: 'gray', fontSize: 16 }} /> }}
-                    sx={{ width: 180, "& .MuiInputBase-input": { fontSize: '0.75rem' } }}
+                    sx={{ width: 180 }}
                 />
                 <Select size="small" value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} sx={{ fontSize: '0.75rem', height: 32 }}>
                     {Array.from({ length: 12 }, (_, i) => (
@@ -191,7 +168,7 @@ export default function DespesasView() {
                 </Select>
             </Box>
 
-            {/* TABELAS LADO A LADO */}
+            {/* TABELAS */}
             <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', md: 'row' } }}>
                 <TabelaDespesas 
                     dados={fixas} titulo="FIXAS" icone={<Domain />} corTema="#1565c0" 
@@ -207,21 +184,20 @@ export default function DespesasView() {
                 />
             </Box>
 
-            {/* MODAIS DE SUPORTE */}
+            {/* MODAIS */}
             <LancamentoCaixaModal 
-                open={openMestreModal} 
-                initialData={selectedItem} 
-                onClose={() => { setOpenMestreModal(false); fetchData(); }} 
+                open={openMestreModal} initialData={selectedItem} 
+                onClose={() => { setOpenMestreModal(false); onReload(); }} 
             />
 
             <Dialog open={openConfirmBaixa} onClose={() => setOpenConfirmBaixa(false)}>
-                <DialogTitle sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Confirmar Baixa</DialogTitle>
+                <DialogTitle>Confirmar Baixa</DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2">Deseja liquidar <strong>{selectedItem?.descricao}</strong>?</Typography>
+                    <Typography>Liquidar <strong>{selectedItem?.descricao}</strong>?</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenConfirmBaixa(false)} size="small">Cancelar</Button>
-                    <Button onClick={handleConfirmarBaixaRapida} variant="contained" color="success" size="small">Confirmar</Button>
+                    <Button onClick={() => setOpenConfirmBaixa(false)}>Cancelar</Button>
+                    <Button onClick={handleConfirmarBaixaRapida} variant="contained" color="success">Confirmar</Button>
                 </DialogActions>
             </Dialog>
         </Box>
