@@ -129,6 +129,31 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
         } catch (e) { showSnackbar('Erro ao excluir', 'error'); }
     };
 
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            console.log("🔍 [FRONT DEBUG] Iniciando busca de despesas...");
+            const res = await faturamentoService.getDespesas();
+            
+            console.log("📦 [FRONT DEBUG] Resposta completa:", res);
+            console.log("📊 [FRONT DEBUG] Dados (data):", res.data);
+            console.log("🔢 [FRONT DEBUG] Quantidade:", res.data?.length);
+
+            if (res.data && res.data.length > 0) {
+                console.log("Exemplo do item 0:", res.data[0]);
+                // Verifica se os campos essenciais existem
+                if (!res.data[0].categoria_nome) console.warn("⚠️ ALERTA: 'categoria_nome' está undefined!");
+                if (!res.data[0].categoria_tipo) console.warn("⚠️ ALERTA: 'categoria_tipo' está undefined!");
+            }
+
+            setDespesas(res.data || []);
+        } catch (error) {
+            console.error("❌ [FRONT DEBUG] Erro ao buscar despesas:", error);
+        } finally { 
+            setIsLoading(false); 
+        }
+    };
+
     return (
         <Box>
             {/* KPIs */}

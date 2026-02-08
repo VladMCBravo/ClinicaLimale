@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from datetime import datetime
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
@@ -60,6 +62,29 @@ class DespesaViewSet(viewsets.ModelViewSet):
     queryset = Despesa.objects.all().order_by('-data_despesa')
     serializer_class = DespesaSerializer
     permission_classes = [IsAdminUser]
+
+    def list(self, request, *args, **kwargs):
+        print(f"========== [DEBUG BACKEND] Listando Despesas ==========")
+        print(f"Usuário solicitante: {request.user} (Is Admin? {request.user.is_staff})")
+        
+        queryset = self.filter_queryset(self.get_queryset())
+        count = queryset.count()
+        print(f"Total de despesas encontradas no banco: {count}")
+        
+        if count > 0:
+            first = queryset.first()
+            print(f"Exemplo da primeira despesa: ID={first.id}, Desc={first.descricao}, Valor={first.valor}")
+        else:
+            print("⚠️ A tabela de Despesas parece estar vazia!")
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        print(f"========== [FIM DEBUG BACKEND] ==========")
+        return Response(serializer.data)
 
 class PagamentosPendentesListAPIView(generics.ListAPIView):
     """
