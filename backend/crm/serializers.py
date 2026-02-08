@@ -279,3 +279,18 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
             return []
         except:
             return []
+    
+    def update(self, instance, validated_data):
+        # 1. Atualiza os dados normais do Ciclo
+        instance = super().update(instance, validated_data)
+
+        # 2. TENTATIVA DE SALVAR A DUM NO PACIENTE (O Pulo do Gato) 🐱
+        # Pegamos de 'initial_data' porque 'validated_data' costuma limpar campos que não são do model
+        nova_dum = self.initial_data.get('dum') or self.initial_data.get('data_dum')
+
+        if nova_dum and instance.paciente:
+            print(f"🔄 CRM Atualizando DUM do Paciente {instance.paciente.nome_completo}: {nova_dum}")
+            instance.paciente.dum = nova_dum
+            instance.paciente.save() # <--- Isso força o recálculo da IG
+        
+        return instance
