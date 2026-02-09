@@ -9,7 +9,7 @@ import { History } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 
-const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
 export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePaciente }) {
     const [transacoes, setTransacoes] = useState([]);
@@ -18,14 +18,17 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
     useEffect(() => {
         if (open && pacienteId) {
             setLoading(true);
-            // Filtra explicitamente por Receita no Backend e pelo Paciente
-            faturamentoService.getTransacoes({ paciente: pacienteId, tipo: 'Receita' })
+            // Busca dados. Se você tiver endpoint unificado, usa ele.
+            // Aqui buscamos a rota unificada que criamos.
+            faturamentoService.getTransacoes({ paciente: pacienteId })
                 .then(res => {
-                    // Dupla segurança: Filtra no front também caso o backend traga lixo
-                    const apenasReceitas = (res.data || []).filter(t => t.tipo === 'Receita');
-                    setTransacoes(apenasReceitas);
+                    // Filtra apenas o que tem valor ou data válida para evitar lixo visual
+                    const dadosValidos = (res.data || []).filter(t => t.valor > 0 || t.status === 'Renegociado');
+                    // Ordena do mais recente para o mais antigo
+                    dadosValidos.sort((a, b) => dayjs(b.data_vencimento).diff(dayjs(a.data_vencimento)));
+                    setTransacoes(dadosValidos);
                 })
-                .catch(err => console.error(err))
+                .catch(err => console.error("Erro ao buscar resumo:", err))
                 .finally(() => setLoading(false));
         }
     }, [open, pacienteId]);
@@ -33,10 +36,16 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
     const resumo = useMemo(() => {
         return transacoes.reduce((acc, t) => {
             const valor = Number(t.valor || 0);
-            if (t.status === 'Pago') acc.pago += valor;
-            else if (t.status === 'Pendente') {
+            
+            // Lógica de Soma
+            if (t.status === 'Pago') {
+                acc.pago += valor;
+            } else if (t.status === 'Pendente') {
                 acc.aberto += valor;
-                if (dayjs(t.data_vencimento).isBefore(dayjs(), 'day')) acc.atrasado += valor;
+                // Verifica atraso
+                if (t.data_vencimento && dayjs(t.data_vencimento).isBefore(dayjs(), 'day')) {
+                    acc.atrasado += valor;
+                }
             }
             return acc;
         }, { pago: 0, aberto: 0, atrasado: 0 });
@@ -53,7 +62,7 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
                 ) : (
                     <>
-                        {/* RESUMO DE VALORES */}
+                        {/* CARDS DE TOTALIZADORES */}
                         <Grid container spacing={2} sx={{ mb: 3, mt: 0 }}>
                             <Grid item xs={4}>
                                 <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e8f5e9', border: '1px solid #c8e6c9' }}>
@@ -77,7 +86,7 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
 
                         <Divider sx={{ mb: 2 }} />
 
-                        {/* LISTA DE TRANSAÇÕES */}
+                        {/* LISTA DETALHADA */}
                         <Typography variant="subtitle2" gutterBottom>Histórico de Lançamentos</Typography>
                         <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
                             <Table size="small" stickyHeader>
@@ -91,19 +100,29 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {transacoes.map((row) => (
+                                    {transacoes.length === 0 ? (
+                                        <TableRow><TableCell colSpan={5} align="center">Nenhum registro encontrado.</TableCell></TableRow>
+                                    ) : transacoes.map((row) => (
                                         <TableRow key={row.id} hover>
-                                            <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
+                                            <TableCell>
+                                                {/* CORREÇÃO DO INVALID DATE */}
+                                                {row.data_vencimento ? dayjs(row.data_vencimento).format('DD/MM/YY') : '--'}
+                                            </TableCell>
                                             <TableCell>
                                                 <Typography variant="body2">{row.descricao}</Typography>
-                                                <Typography variant="caption" color="textSecondary">
-                                                    {row.tipo === 'Receita' ? 'Receita' : 'Despesa'}
-                                                </Typography>
+                                                {row.transacao_pai && (
+                                                    <Typography variant="caption" color="primary" sx={{ fontSize: '0.7rem' }}>
+                                                        (Parcelamento/Renegociação)
+                                                    </Typography>
+                                                )}
                                             </TableCell>
-                                            <TableCell sx={{ fontWeight: 'bold' }}>{formatMoney(row.valor)}</TableCell>
+                                            <TableCell sx={{ fontWeight: 'bold' }}>
+                                                {formatMoney(row.valor)}
+                                            </TableCell>
                                             <TableCell>
-                                                {row.status === 'Pago' && row.data_pagamento 
-                                                    ? `${dayjs(row.data_pagamento).format('DD/MM/YY')} (${row.forma_pagamento})` 
+                                                {/* CORREÇÃO DA DATA DE PAGAMENTO */}
+                                                {row.status === 'Pago' && row.data_pagamento
+                                                    ? `${dayjs(row.data_pagamento).format('DD/MM/YY')} (${row.forma_pagamento || 'PIX'})` 
                                                     : '-'
                                                 }
                                             </TableCell>
@@ -112,6 +131,7 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
                                                     label={row.status} size="small" 
                                                     color={row.status === 'Pago' ? 'success' : row.status === 'Renegociado' ? 'default' : row.status === 'Pendente' ? 'warning' : 'error'} 
                                                     variant={row.status === 'Renegociado' ? 'outlined' : 'filled'}
+                                                    sx={{ height: 24, fontSize: '0.7rem' }}
                                                 />
                                             </TableCell>
                                         </TableRow>
