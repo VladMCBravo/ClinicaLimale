@@ -13,6 +13,10 @@ class TransacaoFinanceiraSerializer(serializers.ModelSerializer):
     status_visual = serializers.SerializerMethodField()
     atrasado = serializers.SerializerMethodField()
     origem_display = serializers.SerializerMethodField()
+    # CAMPOS EXTRAS PARA COMPATIBILIDADE COM TELAS ANTIGAS
+    categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    categoria_tipo = serializers.CharField(source='categoria.tipo', read_only=True)
+    pago = serializers.SerializerMethodField()
 
     class Meta:
         model = TransacaoFinanceira
@@ -40,6 +44,9 @@ class TransacaoFinanceiraSerializer(serializers.ModelSerializer):
         if obj.agendamento:
             return f"Agendamento {obj.agendamento.tipo_agendamento}"
         return "Lançamento Manual"
+    
+    def get_pago(self, obj):
+        return obj.status == 'Pago'
     
 # --- TODOS OS SEUS SERIALIZERS EXISTENTES (Pagamento, Despesa, etc.) FICAM AQUI EM CIMA ---
 # ... (seu código de PagamentoSerializer, DespesaSerializer, etc. não muda) ...

@@ -18,10 +18,14 @@ export const faturamentoService = {
     definirPrecoConvenio: (procedimentoId, data) => apiClient.post(`/faturamento/procedimentos/${procedimentoId}/definir-preco-convenio/`, data),
     getPlanosConvenio: () => apiClient.get('/faturamento/planos/'),
 
+    // --- NOVA API UNIFICADA (RESOLVE O ERRO E O SUMIÇO DE DADOS) ---
+    getTransacoes: (params) => apiClient.get('/faturamento/transacoes/', { params }),
+    renegociarDivida: (data) => apiClient.post('/faturamento/transacoes/renegociar/', data),
+    baixarMultiplo: (id, data) => apiClient.post(`/faturamento/transacoes/${id}/baixar-multiplo/`, data),
+
     // --- PAGAMENTOS (RECEITAS) ---
     // Aceita params para filtros (?status=Pago&data_inicio=...)
     getPagamentos: (params) => apiClient.get('/faturamento/pagamentos/', { params }),
-    
     getPagamentosPendentes: () => apiClient.get('/faturamento/pagamentos-pendentes/'),
     getCobrancasPendentes: (pacienteId) => apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`),
     updatePagamento: (pagamentoId, data) => apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data),
@@ -49,8 +53,5 @@ export const faturamentoService = {
     getDashboardFinanceiro: () => apiClient.get('/faturamento/dashboard-financeiro/'),
     getProjecaoFinanceira: () => apiClient.get('/faturamento/projecao-caixa/'),
     getRelatorioFinanceiro: () => apiClient.get('/faturamento/relatorios/financeiro/'),
-
-    // --- FUNCIONALIDADES NOVAS (IMPORTANTE: ISSO ESTAVA FALTANDO) ---
-    renegociarDivida: (data) => apiClient.post('/faturamento/transacoes/renegociar/', data),
-    baixarMultiplo: (id, data) => apiClient.post(`/faturamento/transacoes/${id}/baixar-multiplo/`, data),
+    
 };

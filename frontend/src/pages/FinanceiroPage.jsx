@@ -6,7 +6,7 @@ import { FaFileInvoiceDollar, FaMoneyBillWave, FaHandHoldingUsd, FaListAlt, FaCh
 import { AccountBalanceWallet, ReceiptLong } from '@mui/icons-material';
 
 import FinanceiroDashboardView from '../components/financeiro/FinanceiroDashboardView';
-import ContasReceberView from '../components/financeiro/ContasReceberView'; // Agora recebe props
+import ContasReceberView from '../components/financeiro/ContasReceberView';
 import DespesasView from '../components/financeiro/DespesasView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
 import ProcedimentosView from '../components/financeiro/ProcedimentosView';
@@ -23,22 +23,27 @@ export default function FinanceiroPage() {
     const [modalConfig, setModalConfig] = useState({ tab: 0, type: 'receita' });
 
     // Estados de Dados Centralizados
-    const [lancamentos, setLancamentos] = useState([]); // Receitas
-    const [despesas, setDespesas] = useState([]);       // Despesas
+    const [lancamentos, setLancamentos] = useState([]);
+    const [despesas, setDespesas] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // 1. CARREGAMENTO DE DADOS (Memoizado para não entrar em loop)
+    // 1. CARREGAMENTO DE DADOS (AGORA DA TABELA UNIFICADA)
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
-            console.log("🔄 [FinanceiroPage] Carregando dados globais...");
-            const [resPagamentos, resDespesas] = await Promise.all([
-                faturamentoService.getPagamentos(),
-                faturamentoService.getDespesas()
+            console.log("🔄 [FinanceiroPage] Buscando transações unificadas...");
+            
+            // Busca TUDO da tabela nova. O backend filtra por tipo se necessário, 
+            // mas aqui pedimos separado para facilitar
+            const [resReceitas, resDespesas] = await Promise.all([
+                faturamentoService.getTransacoes({ tipo: 'Receita' }),
+                faturamentoService.getTransacoes({ tipo: 'Despesa' })
             ]);
-            setLancamentos(resPagamentos.data || []);
+
+            setLancamentos(resReceitas.data || []);
             setDespesas(resDespesas.data || []);
-            console.log("✅ [FinanceiroPage] Dados carregados. Despesas:", resDespesas.data?.length);
+            
+            console.log("✅ Dados carregados. Rec:", resReceitas.data?.length, "Desp:", resDespesas.data?.length);
         } catch (err) {
             console.error("Erro ao carregar dados financeiros", err);
         } finally {
@@ -60,8 +65,8 @@ export default function FinanceiroPage() {
             months[monthYear].entradas += parseFloat(l.valor || 0);
         });
         despesas.forEach(d => {
-            if (!d.pago) {
-                const monthYear = dayjs(d.data_despesa || d.data_vencimento).format('MMM/YY');
+            if (d.status !== 'Pago') { // Ajuste para usar 'status' da tabela nova
+                const monthYear = dayjs(d.data_vencimento).format('MMM/YY');
                 if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
                 months[monthYear].saidas += parseFloat(d.valor || 0);
             }
@@ -103,22 +108,14 @@ export default function FinanceiroPage() {
 
             <Box sx={{ p: 1 }}>
                 {loading && activeTab !== 0 ? ( 
-                    /* Dashboard tem tratamento próprio, outros esperam */
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                 ) : (
                     <>
                         {activeTab === 0 && <FinanceiroDashboardView lancamentos={lancamentos} despesas={despesas} projectionData={projectionData} />}
                         
-                        {/* AQUI ESTÁ A CORREÇÃO: Passamos os dados e a função de reload */}
                         {activeTab === 1 && <ContasReceberView dadosIniciais={lancamentos} onReload={carregarDados} />}
                         
-                        {/* DespesasView também se beneficia se você refatorar depois, mas mantive sem props por enquanto se ele não suportar */}
-                        {activeTab === 2 && (
-                            <DespesasView 
-                                dadosIniciais={despesas} 
-                                onReload={carregarDados} 
-                            />
-                        )}
+                        {activeTab === 2 && <DespesasView dadosIniciais={despesas} onReload={carregarDados} />}
                         
                         {activeTab === 3 && <FaturamentoConveniosView />} 
                         {activeTab === 4 && <ProcedimentosView />}
@@ -130,7 +127,7 @@ export default function FinanceiroPage() {
                 open={modalOpen} 
                 onClose={() => {
                     setModalOpen(false);
-                    carregarDados(); // Recarrega ao fechar modal principal
+                    carregarDados(); 
                 }} 
                 initialTab={modalConfig.tab} 
                 initialType={modalConfig.type} 
