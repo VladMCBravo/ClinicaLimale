@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { Box, Grid, Paper, Typography, Divider, Stack, Tooltip } from '@mui/material';
-import { TrendingUp, TrendingDown, AccountBalanceWallet, AttachMoney, PieChart } from '@mui/icons-material';
+import { Box, Grid, Paper, Typography, Divider, Stack } from '@mui/material';
+import { TrendingUp, TrendingDown, AccountBalanceWallet, AttachMoney, Storefront } from '@mui/icons-material'; // Ícone novo: Storefront
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-    PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, Legend
+    PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar 
 } from 'recharts';
 import dayjs from 'dayjs';
 
@@ -15,7 +15,8 @@ const COLORS = {
     fixa: '#0288d1',    // Azul Claro
     variavel: '#ed6c02',// Laranja
     pendente: '#f57c00',
-    atrasado: '#d32f2f'
+    atrasado: '#d32f2f',
+    aporte: '#7b1fa2'   // Roxo para Aportes
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -25,27 +26,45 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
     
     // --- CÁLCULOS ESTRATÉGICOS (MEMOIZED) ---
     const kpis = useMemo(() => {
-        // 1. Receitas
+        // --- 1. RECEITAS ---
         const receitasPagas = lancamentos.filter(l => l.status === 'Pago');
-        const totalRecebido = receitasPagas.reduce((acc, l) => acc + Number(l.valor), 0);
+
+        // SEPARAÇÃO CRÍTICA: Operacional (Pacientes) vs Aportes (Sem Paciente)
+        const receitasOperacionais = receitasPagas.filter(l => l.paciente !== null && l.paciente !== undefined);
+        const receitasAportes = receitasPagas.filter(l => l.paciente === null || l.paciente === undefined);
+
+        // Totais
+        const valorOperacional = receitasOperacionais.reduce((acc, l) => acc + Number(l.valor), 0);
+        const valorAportes = receitasAportes.reduce((acc, l) => acc + Number(l.valor), 0);
+        const valorTotalCaixa = valorOperacional + valorAportes; // Para cálculo de saldo
+
         const totalReceber = lancamentos.filter(l => l.status === 'Pendente').reduce((acc, l) => acc + Number(l.valor), 0);
         
-        // 2. Despesas
+        // --- 2. TICKET MÉDIO (Apenas Operacional) ---
+        // Faturamento Real / Quantidade de Atendimentos Pagos
+        const ticketMedio = receitasOperacionais.length > 0 
+            ? valorOperacional / receitasOperacionais.length 
+            : 0;
+
+        // --- 3. DESPESAS ---
         const totalDespesas = despesas.reduce((acc, d) => acc + Number(d.valor), 0);
         const despesasPagas = despesas.filter(d => d.pago).reduce((acc, d) => acc + Number(d.valor), 0);
         
-        // 3. Ticket Médio
-        const ticketMedio = receitasPagas.length > 0 ? totalRecebido / receitasPagas.length : 0;
-
         // 4. Fixas vs Variáveis
         const fixas = despesas.filter(d => d.categoria_tipo === 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
         const variaveis = despesas.filter(d => d.categoria_tipo !== 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
 
         return {
-            totalRecebido,
+            valorOperacional, // KPI Principal de Vendas
+            valorAportes,     // KPI Secundário (Sócios)
+            valorTotalCaixa,  // Para Saldo Real
+            
             totalDespesas,
             despesasPagas,
-            saldo: totalRecebido - despesasPagas,
+            
+            // O Saldo considera TUDO que tem no banco (Operacional + Aportes - Despesas Pagas)
+            saldo: valorTotalCaixa - despesasPagas,
+            
             ticketMedio,
             fixas,
             variaveis,
@@ -59,9 +78,9 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
         { name: 'Variáveis', value: kpis.variaveis }
     ];
 
-    // Dados para Barra de Status
+    // Dados para Barra de Status (Focada na operação)
     const dataStatusReceitas = [
-        { name: 'Pago', valor: kpis.totalRecebido, fill: COLORS.receita },
+        { name: 'Pago (Op)', valor: kpis.valorOperacional, fill: COLORS.receita },
         { name: 'Pendente', valor: kpis.totalReceber, fill: COLORS.pendente },
         { name: 'Atrasado', valor: lancamentos.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).reduce((acc, l) => acc + Number(l.valor), 0), fill: COLORS.atrasado }
     ];
@@ -69,12 +88,45 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
     return (
         <Box sx={{ p: 1, overflow: 'hidden', height: '100%' }}>
             
-            {/* LINHA 1: BIG NUMBERS (KPIs) - Altura Reduzida */}
+            {/* LINHA 1: BIG NUMBERS (KPIs) */}
             <Grid container spacing={1} sx={{ mb: 1 }}>
-                <KPICard title="RECEITA TOTAL (Histórico)" value={kpis.totalRecebido} icon={<TrendingUp />} color={COLORS.receita} subtext={`${lancamentos.filter(l => l.status === 'Pago').length} pagamentos`} />
-                <KPICard title="DESPESA TOTAL" value={kpis.totalDespesas} icon={<TrendingDown />} color={COLORS.despesa} subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} />
-                <KPICard title="SALDO EM CAIXA" value={kpis.saldo} icon={<AccountBalanceWallet />} color={kpis.saldo >= 0 ? COLORS.saldo : COLORS.despesa} subtext="Receitas - Pagamentos" />
-                <KPICard title="TICKET MÉDIO" value={kpis.ticketMedio} icon={<AttachMoney />} color="#555" subtext="Por atendimento pago" />
+                
+                {/* 1. FATURAMENTO CLÍNICO (Apenas Pacientes) */}
+                <KPICard 
+                    title="FATURAMENTO CLÍNICO" 
+                    value={kpis.valorOperacional} 
+                    icon={<Storefront />} 
+                    color={COLORS.receita} 
+                    // Mostra o aporte pequeno embaixo para referência
+                    subtext={`+ ${formatMoney(kpis.valorAportes)} de aportes`} 
+                />
+                
+                {/* 2. DESPESAS TOTAIS */}
+                <KPICard 
+                    title="DESPESA TOTAL" 
+                    value={kpis.totalDespesas} 
+                    icon={<TrendingDown />} 
+                    color={COLORS.despesa} 
+                    subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} 
+                />
+                
+                {/* 3. SALDO REAL (Considera Aportes) */}
+                <KPICard 
+                    title="SALDO EM CAIXA" 
+                    value={kpis.saldo} 
+                    icon={<AccountBalanceWallet />} 
+                    color={kpis.saldo >= 0 ? COLORS.saldo : COLORS.despesa} 
+                    subtext="Disponível (Inc. Aportes)" 
+                />
+                
+                {/* 4. TICKET MÉDIO (Real) */}
+                <KPICard 
+                    title="TICKET MÉDIO" 
+                    value={kpis.ticketMedio} 
+                    icon={<AttachMoney />} 
+                    color="#555" 
+                    subtext="Por paciente atendido" 
+                />
             </Grid>
 
             <Grid container spacing={1}>
@@ -82,7 +134,7 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
                 <Grid item xs={12} md={8}>
                     <Paper variant="outlined" sx={{ p: 1.5, height: 260, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">EVOLUÇÃO MENSAL (CAIXA)</Typography>
+                            <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">FLUXO DE CAIXA MENSAL</Typography>
                             <Box sx={{ display: 'flex', gap: 2 }}>
                                 <LegendItem color={COLORS.receita} label="Entradas" />
                                 <LegendItem color={COLORS.despesa} label="Saídas" />
@@ -162,19 +214,19 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
     );
 }
 
-// --- SUBCOMPONENTES PARA CÓDIGO LIMPO ---
+// --- SUBCOMPONENTES ---
 
 const KPICard = ({ title, value, icon, color, subtext }) => (
     <Grid item xs={6} md={3}>
         <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 85, borderLeft: `4px solid ${color}` }}>
             <Box>
-                <Typography variant="caption" color="text.secondary" fontWeight="bold">{title}</Typography>
-                <Typography variant="h6" fontWeight="bold" sx={{ color: color, lineHeight: 1.2 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ fontSize: '0.7rem' }}>{title}</Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{ color: color, lineHeight: 1.2, fontSize: '1.1rem' }}>
                     {formatMoney(value)}
                 </Typography>
                 <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#888' }}>{subtext}</Typography>
             </Box>
-            {React.cloneElement(icon, { sx: { fontSize: 28, color: color, opacity: 0.2 } })}
+            {React.cloneElement(icon, { sx: { fontSize: 24, color: color, opacity: 0.2 } })}
         </Paper>
     </Grid>
 );
