@@ -169,7 +169,7 @@ export default function FaturamentoConveniosView() {
     return (
         <Box sx={{ 
             p: 1, 
-            height: 'calc(100vh - 85px)', 
+            height: 'calc(100vh - 155px)', 
             display: 'flex', 
             flexDirection: 'column', 
             overflow: 'hidden' 
