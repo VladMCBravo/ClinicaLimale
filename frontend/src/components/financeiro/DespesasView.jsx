@@ -3,8 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, IconButton, Typography, 
-    Grid, Chip, Box, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions,
-    MenuItem, Select
+    Grid, Chip, Box, Stack, MenuItem, Select
 } from '@mui/material';
 import { Edit, Delete, CheckCircle, Domain, LocalCafe, Search } from '@mui/icons-material';
 import dayjs from 'dayjs';
@@ -84,6 +83,7 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     const [openBaixaModal, setOpenBaixaModal] = useState(false); // DEFINIÇÃO DO ESTADO
     const [selectedItem, setSelectedItem] = useState(null);
 
+    // Filtragem
     const processedData = useMemo(() => {
         const filtered = dadosIniciais.filter(d => {
             const dataRef = dayjs(d.data_despesa || d.data_vencimento);

@@ -3,10 +3,10 @@ import React, { useState, useMemo } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText,
-    Checkbox, Button, Tooltip
+    Checkbox, Button
 } from '@mui/material';
 import { 
-    Edit, CheckCircle, Search, Warning, Block, EventAvailable, History, Handshake // Handshake icon para renegociação
+    Edit, CheckCircle, Search, Warning, History, Handshake // Handshake icon para renegociação
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -26,27 +26,27 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
 
-    // Seleção Múltipla
+    // Estados de Seleção e Modal (DECLARADOS AQUI PARA EVITAR ERRO 'NOT DEFINED')
     const [selectedIds, setSelectedIds] = useState([]);
+    const [modalUnificadoOpen, setModalUnificadoOpen] = useState(false);
+    const [itemSelecionado, setItemSelecionado] = useState(null);
 
-    // Modais e Menus
-    const [openCaixaModal, setOpenCaixaModal] = useState(false);
-    const [openRenegociacaoModal, setOpenRenegociacaoModal] = useState(false);
-    const [selectedPagamento, setSelectedPagamento] = useState(null);
+    // Menus
     const [anchorEl, setAnchorEl] = useState(null);
     const [statusTarget, setStatusTarget] = useState(null);
 
-    // 1. LÓGICA DE FILTRAGEM (Rodada em memória, instantânea)
+    // Filtragem
     const filteredList = useMemo(() => {
         return dadosIniciais.filter(row => {
             const rowDate = dayjs(row.data_vencimento);
-            return rowDate.month() === filtroData.month() && rowDate.year() === filtroData.year() &&
-                   ((row.paciente_nome || '').toLowerCase().includes(termoBusca.toLowerCase()) ||
-                    (row.descricao || '').toLowerCase().includes(termoBusca.toLowerCase()));
+            const matchDate = rowDate.month() === filtroData.month() && rowDate.year() === filtroData.year();
+            const matchText = (row.paciente_nome || '').toLowerCase().includes(termoBusca.toLowerCase()) ||
+                              (row.descricao || '').toLowerCase().includes(termoBusca.toLowerCase());
+            return matchDate && matchText;
         });
     }, [dadosIniciais, filtroData, termoBusca]);
 
-    // KPIs (DEFINIÇÃO QUE FALTAVA)
+    // KPIs
     const kpis = useMemo(() => {
         const totalRecebido = filteredList.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
         const totalPendente = filteredList.filter(l => l.status === 'Pendente').reduce((acc, l) => acc + Number(l.valor), 0);
@@ -54,7 +54,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         return { totalRecebido, totalPendente, atrasados };
     }, [filteredList]);
 
-    // Lógica de Seleção (DEFINIÇÃO QUE FALTAVA)
+    // Lógica de Seleção
     const handleSelectAll = (event) => {
         if (event.target.checked) {
             const newSelecteds = filteredList
@@ -81,7 +81,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         setSelectedIds(newSelected);
     };
 
-    // Ações do Modal Unificado (DEFINIÇÃO QUE FALTAVA)
+    // Ações do Modal Unificado
     const handleConfirmBaixa = async (id, dadosBaixa) => {
         try {
             await faturamentoService.updatePagamento(id, dadosBaixa);
@@ -106,7 +106,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         }
     };
 
-    // Ações do Menu (Lápis) (DEFINIÇÃO QUE FALTAVA)
+    // Ações do Menu (Lápis)
     const handleReverterStatus = async (novoStatus) => {
         if (!statusTarget) return;
         try {
@@ -123,7 +123,6 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         }
     };
 
-    // Handler para "Não Compareceu" ou "Reverter para Agendado" (via Agenda)
     const handleUpdateStatusAgenda = async (novoStatus) => {
         if (!statusTarget) return;
         const rawId = statusTarget.agendamento_id || statusTarget.agendamento;
@@ -138,6 +137,19 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         } catch (error) {
             console.error("Erro update agendamento:", error);
         }
+    };
+
+    // Para renegociação em lote
+    const handleRenegociarLote = () => {
+        // Pega o primeiro item como referência
+        const itemReferencia = dadosIniciais.find(i => i.id === selectedIds[0]);
+        setItemSelecionado({
+            ...itemReferencia,
+            // Soma o valor total
+            valor: dadosIniciais.filter(i => selectedIds.includes(i.id)).reduce((acc, curr) => acc + Number(curr.valor), 0),
+            descricao: `Renegociação de ${selectedIds.length} itens`
+        });
+        setModalUnificadoOpen(true);
     };
 
     return (
