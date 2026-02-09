@@ -5,7 +5,7 @@ import {
     IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText,
     Checkbox, Button, Tooltip
 } from '@mui/material';
-import { Edit, CheckCircle, Search, Warning, History, Handshake, Block } from '@mui/icons-material';
+import { Edit, CheckCircle, Search, Warning, History, Handshake, Block, Info } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { useSnackbar } from '../../contexts/SnackbarContext';
