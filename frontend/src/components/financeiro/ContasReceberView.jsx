@@ -149,10 +149,10 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     return (
         <Box sx={{ 
             p: 1, 
-            height: 'calc(100vh - 85px)', // Ajuste fino para não rolar a página
+            height: 'calc(100vh - 110px)', // <--- AJUSTE DE ALTURA: Mais espaço embaixo para evitar rolagem
             display: 'flex', 
             flexDirection: 'column', 
-            overflow: 'hidden' // Garante que nada vaze
+            overflow: 'hidden' // Garante que a barra da página não apareça
         }}>
             
             {/* 1. LINHA ÚNICA: KPIs (Esq) + FILTROS (Dir) */}
