@@ -126,9 +126,38 @@ class AgendamentosFaturaveisAPIView(generics.ListAPIView):
 # ==============================================================================
 
 class TransacaoFinanceiraViewSet(viewsets.ModelViewSet):
-    queryset = TransacaoFinanceira.objects.all()
+    queryset = TransacaoFinanceira.objects.all().order_by('-data_vencimento')
     serializer_class = TransacaoFinanceiraSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Filtra as transações com base nos parâmetros da URL
+        """
+        qs = super().get_queryset()
+        
+        # 1. Filtro por TIPO (Receita ou Despesa)
+        tipo = self.request.query_params.get('tipo')
+        if tipo:
+            qs = qs.filter(tipo__iexact=tipo)
+
+        # 2. Filtro por PACIENTE (Para o Resumo/Extrato)
+        paciente_id = self.request.query_params.get('paciente')
+        if paciente_id:
+            qs = qs.filter(paciente_id=paciente_id)
+            
+        # 3. Filtro por STATUS
+        status = self.request.query_params.get('status')
+        if status:
+            qs = qs.filter(status__iexact=status)
+
+        # 4. Filtro por DATA (Vencimento)
+        data_inicio = self.request.query_params.get('data_inicio')
+        data_fim = self.request.query_params.get('data_fim')
+        if data_inicio and data_fim:
+            qs = qs.filter(data_vencimento__range=[data_inicio, data_fim])
+
+        return qs
 
     @action(detail=False, methods=['post'], url_path='renegociar')
     def renegociar(self, request):

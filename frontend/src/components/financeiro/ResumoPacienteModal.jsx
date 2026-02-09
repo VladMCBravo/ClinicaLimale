@@ -5,7 +5,7 @@ import {
     Box, Typography, Grid, Chip, Divider, CircularProgress,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
 } from '@mui/material';
-import { AttachMoney, CheckCircle, Warning, History } from '@mui/icons-material';
+import { History } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 
@@ -18,9 +18,13 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
     useEffect(() => {
         if (open && pacienteId) {
             setLoading(true);
-            // Busca TODAS as transações deste paciente (sem filtro de data)
-            faturamentoService.getTransacoes({ paciente: pacienteId })
-                .then(res => setTransacoes(res.data || []))
+            // Filtra explicitamente por Receita no Backend e pelo Paciente
+            faturamentoService.getTransacoes({ paciente: pacienteId, tipo: 'Receita' })
+                .then(res => {
+                    // Dupla segurança: Filtra no front também caso o backend traga lixo
+                    const apenasReceitas = (res.data || []).filter(t => t.tipo === 'Receita');
+                    setTransacoes(apenasReceitas);
+                })
                 .catch(err => console.error(err))
                 .finally(() => setLoading(false));
         }
