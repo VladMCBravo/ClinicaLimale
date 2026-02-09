@@ -143,6 +143,16 @@ class CategoriaDespesa(models.Model):
     class Meta: ordering = ['nome']
 
 class Despesa(models.Model):
+    # Adicione as opções de pagamento aqui também (ou reutilize se preferir)
+    FORMA_PAGAMENTO_CHOICES = [
+        ('Dinheiro', 'Dinheiro'),
+        ('PIX', 'PIX'),
+        ('CartaoCredito', 'Cartão de Crédito'),
+        ('CartaoDebito', 'Cartão de Débito'),
+        ('Transferencia', 'Transferência Bancária'),
+        ('Boleto', 'Boleto'),
+        ('Outro', 'Outro'),
+    ]
     categoria = models.ForeignKey(CategoriaDespesa, on_delete=models.PROTECT, related_name='despesas')
     descricao = models.CharField(max_length=255)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
@@ -150,6 +160,7 @@ class Despesa(models.Model):
     data_vencimento = models.DateField(null=True, blank=True)
     pago = models.BooleanField(default=False)
     data_pagamento = models.DateField(null=True, blank=True)
+    forma_pagamento = models.CharField(max_length=50, choices=FORMA_PAGAMENTO_CHOICES, blank=True, null=True)
     registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     data_registro = models.DateTimeField(auto_now_add=True)
     
