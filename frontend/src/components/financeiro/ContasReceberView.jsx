@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
     IconButton, Typography, Chip, Box, Stack, Menu, MenuItem, ListItemIcon, ListItemText,
-    Checkbox, Button
+    Checkbox, Button, InputAdornment
 } from '@mui/material';
 import { Edit, CheckCircle, Search, Warning, History, Handshake, Block, Info, TrendingUp, TrendingDown, AccessTime } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
