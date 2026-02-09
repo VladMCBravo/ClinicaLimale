@@ -5,29 +5,27 @@ import {
     IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText,
     Checkbox, Button
 } from '@mui/material';
-import { 
-    Edit, CheckCircle, Search, Warning, History, Handshake // Handshake icon para renegociação
-} from '@mui/icons-material';
+import { Edit, CheckCircle, Search, Warning, History, Handshake, Block } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import { agendamentoService } from '../../services/agendamentoService';
-import BaixaUnificadaModal from './BaixaUnificadaModal'; // <--- NOVO MODAL
+import BaixaUnificadaModal from './BaixaUnificadaModal';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// RECEBE dadosIniciais (Lista pronta) e onReload (Função para avisar o pai)
 export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     const { showSnackbar } = useSnackbar();
     
-    // Filtros Locais
+    // Filtros
     const [filtroData, setFiltroData] = useState(dayjs());
     const [termoBusca, setTermoBusca] = useState('');
 
-    // Estados de Seleção e Modal (DECLARADOS AQUI PARA EVITAR ERRO 'NOT DEFINED')
+    // Estados de Seleção e Modal
     const [selectedIds, setSelectedIds] = useState([]);
+    
+    // --- ESTADO ÚNICO DO MODAL ---
     const [modalUnificadoOpen, setModalUnificadoOpen] = useState(false);
     const [itemSelecionado, setItemSelecionado] = useState(null);
 
@@ -100,6 +98,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 paciente_id: pacienteId
             });
             showSnackbar('Renegociação realizada!', 'success');
+            setSelectedIds([]); // Limpa seleção
             if(onReload) onReload();
         } catch(e) {
             showSnackbar('Erro na renegociação.', 'error');
@@ -139,77 +138,65 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         }
     };
 
-    // Para renegociação em lote
+    // Para renegociação em lote (Botão topo)
     const handleRenegociarLote = () => {
-        // Pega o primeiro item como referência
         const itemReferencia = dadosIniciais.find(i => i.id === selectedIds[0]);
+        if (!itemReferencia) return;
+
         setItemSelecionado({
             ...itemReferencia,
-            // Soma o valor total
             valor: dadosIniciais.filter(i => selectedIds.includes(i.id)).reduce((acc, curr) => acc + Number(curr.valor), 0),
-            descricao: `Renegociação de ${selectedIds.length} itens`
+            descricao: `Renegociação de ${selectedIds.length} itens`,
+            tipo: 'receita'
         });
         setModalUnificadoOpen(true);
     };
 
     return (
         <Box sx={{ p: 0.5 }}>
-            {/* KPI CARDS */}
+            {/* KPIs */}
             <Grid container spacing={1.5} sx={{ mb: 2 }}>
                 <Grid item xs={12} md={4}>
                     <Card sx={{ bgcolor: '#f0f9f1', borderLeft: '4px solid #2e7d32' }}>
                         <CardContent sx={{ py: 1.2, px: 2, '&:last-child': { pb: 1.2 } }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>RECEBIDO (FILTRADO)</Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(kpis.totalRecebido)}</Typography>
+                            <Typography variant="caption" fontWeight="bold">RECEBIDO (FILTRADO)</Typography>
+                            <Typography variant="h6" color="#2e7d32">{formatMoney(kpis.totalRecebido)}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={4}>
                     <Card sx={{ bgcolor: '#fff9f0', borderLeft: '4px solid #ef6c00' }}>
                         <CardContent sx={{ py: 1.2, px: 2, '&:last-child': { pb: 1.2 } }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>PENDENTE (FILTRADO)</Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ef6c00' }}>{formatMoney(kpis.totalPendente)}</Typography>
+                            <Typography variant="caption" fontWeight="bold">PENDENTE (FILTRADO)</Typography>
+                            <Typography variant="h6" color="#ef6c00">{formatMoney(kpis.totalPendente)}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
                 <Grid item xs={12} md={4}>
                     <Card sx={{ bgcolor: '#fff5f5', borderLeft: '4px solid #c62828' }}>
                         <CardContent sx={{ py: 1.2, px: 2, '&:last-child': { pb: 1.2 } }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}>ATRASADOS</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Warning sx={{ color: '#c62828', fontSize: '1rem' }} />
-                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#c62828' }}>{kpis.atrasados}</Typography>
-                            </Box>
+                            <Typography variant="caption" fontWeight="bold">ATRASADOS</Typography>
+                            <Typography variant="h6" color="#c62828">{kpis.atrasados}</Typography>
                         </CardContent>
                     </Card>
                 </Grid>
             </Grid>
 
-            {/* FILTROS E BOTÕES */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 1, flexWrap: 'wrap' }}>
+            {/* FILTROS E BOTÃO RENEGOCIAR */}
+            <Box sx={{ display: 'flex', mb: 2, gap: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <DatePicker 
-                        label="Referência" views={['month', 'year']}
-                        value={filtroData} onChange={(newValue) => setFiltroData(newValue)}
+                        views={['month', 'year']} value={filtroData} onChange={(v) => setFiltroData(v)}
                         slotProps={{ textField: { size: 'small', sx: { width: 140 } } }}
                     />
                     <TextField
-                        placeholder="Buscar..." size="small"
-                        value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
-                        InputProps={{ startAdornment: <Search sx={{ color: 'action.active', mr: 0.5, fontSize: '1rem' }} /> }}
+                        placeholder="Buscar..." size="small" value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
+                        InputProps={{ startAdornment: <Search sx={{ color: 'gray', mr: 1 }} /> }}
                         sx={{ width: 250 }}
                     />
                 </Box>
-                
-                {/* BOTÃO DE RENEGOCIAÇÃO (Só aparece se tiver seleção) */}
                 {selectedIds.length > 0 && (
-                    <Button 
-                        variant="contained" 
-                        color="secondary" 
-                        startIcon={<Handshake />}
-                        onClick={() => setOpenRenegociacaoModal(true)}
-                        sx={{ fontWeight: 'bold' }}
-                    >
+                    <Button variant="contained" color="secondary" startIcon={<Handshake />} onClick={handleRenegociarLote}>
                         Renegociar ({selectedIds.length})
                     </Button>
                 )}
@@ -236,54 +223,49 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredList.length === 0 ? (
-                            <TableRow><TableCell colSpan={6} align="center">Nenhum registro encontrado.</TableCell></TableRow>
-                        ) : filteredList.map((row) => {
+                        {filteredList.map((row) => {
                             const isSelected = selectedIds.indexOf(row.id) !== -1;
                             const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
-                            const isPago = row.status === 'Pago';
+                            const canInteract = row.status !== 'Pago' && row.status !== 'Renegociado' && row.status !== 'Cancelado';
                             
                             return (
-                                <TableRow 
-                                    key={row.id} hover 
-                                    sx={{ bgcolor: isAtrasado ? '#fffafa' : 'inherit' }}
-                                    selected={isSelected}
-                                >
+                                <TableRow key={row.id} hover sx={{ bgcolor: isAtrasado ? '#fffafa' : 'inherit' }} selected={isSelected}>
                                     <TableCell padding="checkbox">
                                         <Checkbox
                                             color="primary"
                                             checked={isSelected}
                                             onChange={(event) => handleSelectOne(event, row.id)}
-                                            disabled={isPago} // Não seleciona se já pagou
+                                            disabled={!canInteract}
                                         />
                                     </TableCell>
                                     <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
                                     <TableCell>
-                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.paciente_nome || 'Avulso'}</Typography>
-                                        <Typography variant="caption" color="textSecondary">
-                                            {row.descricao || row.descricao_visual} 
-                                            {/* Badge de Renegociado */}
-                                            {row.status === 'Renegociado' && <Chip label="Renegociado" size="small" sx={{ml:1, height:16, fontSize:'0.6rem'}} />}
-                                        </Typography>
+                                        <Typography variant="body2" fontWeight="bold">{row.paciente_nome || 'Avulso'}</Typography>
+                                        <Typography variant="caption" color="textSecondary">{row.descricao || row.descricao_visual}</Typography>
                                     </TableCell>
-                                    <TableCell sx={{ color: isAtrasado ? 'error.main' : 'inherit', fontWeight: isAtrasado ? 'bold' : 'normal' }}>
+                                    <TableCell sx={{ fontWeight: isAtrasado ? 'bold' : 'normal', color: isAtrasado ? 'error.main' : 'inherit' }}>
                                         {formatMoney(row.valor)}
                                     </TableCell>
                                     <TableCell>
                                         <Chip 
-                                            label={row.status} size="small" 
-                                            color={row.status === 'Pago' ? 'success' : row.status === 'Pendente' ? 'warning' : 'default'} 
-                                            sx={{ height: 20, fontWeight: 'bold' }}
+                                            label={row.status} 
+                                            size="small" 
+                                            color={row.status === 'Pago' ? 'success' : row.status === 'Renegociado' ? 'default' : row.status === 'Pendente' ? 'warning' : 'error'} 
+                                            sx={{ height: 20, fontWeight: 'bold', fontSize: '0.7rem' }}
                                         />
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                            {/* Botão Baixar (Check) */}
-                                            <IconButton size="small" title="Baixar" disabled={isPago} onClick={() => { setSelectedPagamento(row); setOpenCaixaModal(true); }}>
-                                                <CheckCircle fontSize="small" color={isPago ? "disabled" : "success"} />
+                                            {/* BOTÃO CHECK UNIFICADO */}
+                                            <IconButton 
+                                                size="small" 
+                                                disabled={!canInteract} 
+                                                onClick={() => { setItemSelecionado(row); setModalUnificadoOpen(true); }}
+                                            >
+                                                <CheckCircle fontSize="small" color={canInteract ? "success" : "disabled"} />
                                             </IconButton>
-                                            {/* Botão Opções (Lápis) */}
-                                            <IconButton size="small" title="Opções" onClick={(e) => { setAnchorEl(e.currentTarget); setStatusTarget(row); }}>
+                                            
+                                            <IconButton size="small" onClick={(e) => { setAnchorEl(e.currentTarget); setStatusTarget(row); }}>
                                                 <Edit fontSize="small" color="action" />
                                             </IconButton>
                                         </Stack>
@@ -295,13 +277,16 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 </Table>
             </TableContainer>
 
-            {/* MENUS */}
+            {/* MENUS DE OPÇÕES */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+                <MenuItem onClick={() => handleUpdateStatusAgenda('Não Compareceu')}>
+                    <ListItemIcon><Block fontSize="small" color="error"/></ListItemIcon>
+                    <ListItemText>Não Compareceu</ListItemText>
+                </MenuItem>
                 <MenuItem onClick={() => handleReverterStatus('Pendente')}>
                     <ListItemIcon><History fontSize="small" /></ListItemIcon>
                     <ListItemText>Reverter para Pendente</ListItemText>
                 </MenuItem>
-                {/* Opção extra para corrigir erros de renegociação */}
                 {statusTarget?.status === 'Renegociado' && (
                     <MenuItem onClick={() => handleReverterStatus('Pendente')} sx={{ color: 'warning.main' }}>
                         <ListItemIcon><Warning fontSize="small" color="warning" /></ListItemIcon>
@@ -310,7 +295,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 )}
             </Menu>
 
-            {/* SUPER MODAL (UNIFICADO) */}
+            {/* MODAL UNIFICADO (Substitui todos os anteriores) */}
             <BaixaUnificadaModal 
                 open={modalUnificadoOpen}
                 onClose={() => setModalUnificadoOpen(false)}
