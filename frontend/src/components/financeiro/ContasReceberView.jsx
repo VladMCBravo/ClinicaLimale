@@ -46,29 +46,98 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         });
     }, [dadosIniciais, filtroData, termoBusca]);
 
-    // Funções de Confirmação
-    const handleBaixa = async (id, dadosBaixa) => {
-        await faturamentoService.updatePagamento(id, dadosBaixa);
-        showSnackbar('Baixa realizada!', 'success');
-        onReload();
+    // KPIs (DEFINIÇÃO QUE FALTAVA)
+    const kpis = useMemo(() => {
+        const totalRecebido = filteredList.filter(l => l.status === 'Pago').reduce((acc, l) => acc + Number(l.valor), 0);
+        const totalPendente = filteredList.filter(l => l.status === 'Pendente').reduce((acc, l) => acc + Number(l.valor), 0);
+        const atrasados = filteredList.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).length;
+        return { totalRecebido, totalPendente, atrasados };
+    }, [filteredList]);
+
+    // Lógica de Seleção (DEFINIÇÃO QUE FALTAVA)
+    const handleSelectAll = (event) => {
+        if (event.target.checked) {
+            const newSelecteds = filteredList
+                .filter(n => n.status !== 'Pago' && n.status !== 'Cancelado' && n.status !== 'Renegociado')
+                .map(n => n.id);
+            setSelectedIds(newSelecteds);
+        } else {
+            setSelectedIds([]);
+        }
     };
 
-    const handleRenegociacao = async (ids, parcelas, pacienteId) => {
-        await faturamentoService.renegociarDivida({
-            ids_originais: ids,
-            novas_parcelas: parcelas,
-            paciente_id: pacienteId
-        });
-        showSnackbar('Renegociação concluída!', 'success');
-        onReload();
+    const handleSelectOne = (event, id) => {
+        const selectedIndex = selectedIds.indexOf(id);
+        let newSelected = [];
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selectedIds, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selectedIds.slice(1));
+        } else if (selectedIndex === selectedIds.length - 1) {
+            newSelected = newSelected.concat(selectedIds.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(selectedIds.slice(0, selectedIndex), selectedIds.slice(selectedIndex + 1));
+        }
+        setSelectedIds(newSelected);
     };
 
-    const handleReverter = async () => {
+    // Ações do Modal Unificado (DEFINIÇÃO QUE FALTAVA)
+    const handleConfirmBaixa = async (id, dadosBaixa) => {
+        try {
+            await faturamentoService.updatePagamento(id, dadosBaixa);
+            showSnackbar('Baixa realizada!', 'success');
+            if(onReload) onReload();
+        } catch(e) {
+            showSnackbar('Erro na baixa.', 'error');
+        }
+    };
+
+    const handleConfirmRenegociacao = async (ids, parcelas, pacienteId) => {
+        try {
+            await faturamentoService.renegociarDivida({
+                ids_originais: ids,
+                novas_parcelas: parcelas,
+                paciente_id: pacienteId
+            });
+            showSnackbar('Renegociação realizada!', 'success');
+            if(onReload) onReload();
+        } catch(e) {
+            showSnackbar('Erro na renegociação.', 'error');
+        }
+    };
+
+    // Ações do Menu (Lápis) (DEFINIÇÃO QUE FALTAVA)
+    const handleReverterStatus = async (novoStatus) => {
         if (!statusTarget) return;
-        await faturamentoService.updatePagamento(statusTarget.id, { status: 'Pendente', pago: false });
-        showSnackbar('Status revertido.', 'info');
-        setAnchorEl(null);
-        onReload();
+        try {
+            await faturamentoService.updatePagamento(statusTarget.id, { 
+                status: novoStatus, 
+                pago: false, 
+                data_pagamento: null 
+            });
+            showSnackbar(`Status alterado para ${novoStatus}.`, 'info');
+            setAnchorEl(null);
+            if(onReload) onReload();
+        } catch (error) {
+            showSnackbar('Erro ao alterar status.', 'error');
+        }
+    };
+
+    // Handler para "Não Compareceu" ou "Reverter para Agendado" (via Agenda)
+    const handleUpdateStatusAgenda = async (novoStatus) => {
+        if (!statusTarget) return;
+        const rawId = statusTarget.agendamento_id || statusTarget.agendamento;
+        const agendamentoId = (rawId && typeof rawId === 'object') ? rawId.id : rawId;
+        if (!agendamentoId) return;
+
+        try {
+            await agendamentoService.updateAgendamento(agendamentoId, { status: novoStatus });
+            showSnackbar(`Agenda atualizada para ${novoStatus}`, 'success');
+            setAnchorEl(null);
+            if(onReload) onReload();
+        } catch (error) {
+            console.error("Erro update agendamento:", error);
+        }
     };
 
     return (

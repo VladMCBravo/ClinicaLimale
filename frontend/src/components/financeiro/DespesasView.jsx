@@ -81,7 +81,7 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     
     // Modais
     const [openMestreModal, setOpenMestreModal] = useState(false);
-    const [openConfirmBaixa, setOpenConfirmBaixa] = useState(false);
+    const [openBaixaModal, setOpenBaixaModal] = useState(false); // DEFINIÇÃO DO ESTADO
     const [selectedItem, setSelectedItem] = useState(null);
 
     const processedData = useMemo(() => {
