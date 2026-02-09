@@ -139,35 +139,44 @@ class TransacaoFinanceiraViewSet(viewsets.ModelViewSet):
         if not ids: return Response({"erro": "Sem seleção."}, 400)
 
         with transaction.atomic():
-            # AQUI ESTÁ O TRUQUE: Buscamos nos DOIS lugares (Legado e Novo)
-            # para permitir migração gradual
-            
-            # Tenta achar em TransacaoFinanceira
+            # 1. Marca originais como Renegociado
             originais_novas = TransacaoFinanceira.objects.filter(id__in=ids)
+            pai = None
+            
             if originais_novas.exists():
                 originais_novas.update(status='Renegociado', observacoes=f"Renegociado em {datetime.now()}")
                 pai = originais_novas.first()
             else:
-                # Se não achou, tenta achar em Pagamento (Legado)
+                # Compatibilidade com legado
                 originais_legado = Pagamento.objects.filter(id__in=ids)
-                if not originais_legado.exists():
+                if originais_legado.exists():
+                    originais_legado.update(status='Renegociado')
+                else:
                     return Response({"erro": "Transações não encontradas."}, 400)
-                
-                originais_legado.update(status='Renegociado')
-                pai = None # Legado não vira pai direto na tabela nova
 
-            novos = []
+            novos_ids = []
+            
+            # 2. Cria as novas parcelas com status dinâmico
             for i, p in enumerate(parcelas):
-                novos.append(TransacaoFinanceira.objects.create(
-                    tipo='Receita',
+                # Verifica se o frontend mandou flag de pago
+                esta_pago = p.get('pago_agora', False)
+                
+                nova = TransacaoFinanceira.objects.create(
+                    tipo='Receita', # Ou dinâmico se precisar
                     descricao=f"Renegociação ({i+1}/{len(parcelas)})",
                     valor=p['valor'],
                     data_vencimento=p['vencimento'],
-                    status='Pendente',
+                    # Se pago agora, define status Pago e data de pagamento
+                    status='Pago' if esta_pago else 'Pendente',
+                    data_pagamento=timezone.now().date() if esta_pago else None,
+                    forma_pagamento=p.get('forma_pagamento') if esta_pago else None,
+                    
                     paciente_id=paciente_id,
                     transacao_pai=pai
-                ))
-        return Response({"msg": "Sucesso", "ids": [n.id for n in novos]})
+                )
+                novos_ids.append(nova.id)
+
+        return Response({"msg": "Sucesso", "ids": novos_ids})
 
 # ==============================================================================
 # 3. VIEWS AUXILIARES (CRUDs)
