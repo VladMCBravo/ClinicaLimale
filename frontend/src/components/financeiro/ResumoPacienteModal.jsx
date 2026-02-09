@@ -18,18 +18,40 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
     useEffect(() => {
         if (open && pacienteId) {
             setLoading(true);
-            // Busca dados. Se você tiver endpoint unificado, usa ele.
-            // Aqui buscamos a rota unificada que criamos.
-            faturamentoService.getTransacoes({ paciente: pacienteId })
-                .then(res => {
-                    // Filtra apenas o que tem valor ou data válida para evitar lixo visual
-                    const dadosValidos = (res.data || []).filter(t => t.valor > 0 || t.status === 'Renegociado');
-                    // Ordena do mais recente para o mais antigo
-                    dadosValidos.sort((a, b) => dayjs(b.data_vencimento).diff(dayjs(a.data_vencimento)));
-                    setTransacoes(dadosValidos);
-                })
-                .catch(err => console.error("Erro ao buscar resumo:", err))
-                .finally(() => setLoading(false));
+            console.log(`🔍 [RESUMO] Iniciando busca para paciente ID: ${pacienteId}`);
+
+            // BUSCA HÍBRIDA: LEGADO + NOVO
+            Promise.all([
+                faturamentoService.getPagamentos({ paciente: pacienteId }), // Legado (Tabela Pagamento)
+                faturamentoService.getTransacoes({ paciente: pacienteId, tipo: 'Receita' }) // Novo (Tabela TransacaoFinanceira)
+            ])
+            .then(([resLegado, resNovo]) => {
+                const dadosLegado = resLegado.data || [];
+                const dadosNovo = resNovo.data || [];
+
+                console.log("📦 [RESUMO] Dados Legados encontrados:", dadosLegado.length);
+                console.log("📦 [RESUMO] Dados Novos encontrados:", dadosNovo.length);
+
+                // Unifica as listas
+                const listaUnificada = [...dadosLegado, ...dadosNovo];
+
+                // Filtra para remover itens sem valor ou cancelados (opcional, ajustável)
+                const dadosValidos = listaUnificada.filter(t => t.status !== 'Cancelado');
+
+                // Ordena por data (Mais recente primeiro)
+                dadosValidos.sort((a, b) => {
+                    const dataA = a.data_vencimento || a.data_pagamento;
+                    const dataB = b.data_vencimento || b.data_pagamento;
+                    return dayjs(dataB).diff(dayjs(dataA));
+                });
+
+                console.log("✅ [RESUMO] Total unificado para exibição:", dadosValidos.length);
+                setTransacoes(dadosValidos);
+            })
+            .catch(err => {
+                console.error("❌ [RESUMO] Erro ao buscar dados:", err);
+            })
+            .finally(() => setLoading(false));
         }
     }, [open, pacienteId]);
 
@@ -37,7 +59,7 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
         return transacoes.reduce((acc, t) => {
             const valor = Number(t.valor || 0);
             
-            // Lógica de Soma
+            // Lógica de Soma Segura
             if (t.status === 'Pago') {
                 acc.pago += valor;
             } else if (t.status === 'Pendente') {
@@ -59,7 +81,10 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
             
             <DialogContent sx={{ p: 3 }}>
                 {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 5 }}>
+                        <CircularProgress />
+                        <Typography variant="caption" sx={{ mt: 1 }}>Buscando histórico completo...</Typography>
+                    </Box>
                 ) : (
                     <>
                         {/* CARDS DE TOTALIZADORES */}
@@ -105,14 +130,16 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
                                     ) : transacoes.map((row) => (
                                         <TableRow key={row.id} hover>
                                             <TableCell>
-                                                {/* CORREÇÃO DO INVALID DATE */}
-                                                {row.data_vencimento ? dayjs(row.data_vencimento).format('DD/MM/YY') : '--'}
+                                                {/* DATA VENCIMENTO */}
+                                                {row.data_vencimento 
+                                                    ? dayjs(row.data_vencimento).format('DD/MM/YY') 
+                                                    : (row.data_pagamento ? dayjs(row.data_pagamento).format('DD/MM/YY') : '-')}
                                             </TableCell>
                                             <TableCell>
-                                                <Typography variant="body2">{row.descricao}</Typography>
+                                                <Typography variant="body2">{row.descricao || row.descricao_visual}</Typography>
                                                 {row.transacao_pai && (
-                                                    <Typography variant="caption" color="primary" sx={{ fontSize: '0.7rem' }}>
-                                                        (Parcelamento/Renegociação)
+                                                    <Typography variant="caption" color="primary" sx={{ fontSize: '0.65rem' }}>
+                                                        (Renegociação)
                                                     </Typography>
                                                 )}
                                             </TableCell>
@@ -120,9 +147,9 @@ export default function ResumoPacienteModal({ open, onClose, pacienteId, nomePac
                                                 {formatMoney(row.valor)}
                                             </TableCell>
                                             <TableCell>
-                                                {/* CORREÇÃO DA DATA DE PAGAMENTO */}
+                                                {/* DATA PAGAMENTO */}
                                                 {row.status === 'Pago' && row.data_pagamento
-                                                    ? `${dayjs(row.data_pagamento).format('DD/MM/YY')} (${row.forma_pagamento || 'PIX'})` 
+                                                    ? `${dayjs(row.data_pagamento).format('DD/MM/YY')} (${row.forma_pagamento || '?'})` 
                                                     : '-'
                                                 }
                                             </TableCell>
