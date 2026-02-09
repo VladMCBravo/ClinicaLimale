@@ -27,23 +27,50 @@ export default function FinanceiroPage() {
     const [despesas, setDespesas] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // 1. CARREGAMENTO DE DADOS (AGORA DA TABELA UNIFICADA)
+    // 1. CARREGAMENTO DE DADOS (HÍBRIDO: LEGADO + NOVO)
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
-            console.log("🔄 [FinanceiroPage] Buscando transações unificadas...");
+            console.log("🔄 [FinanceiroPage] Buscando dados (Legado + Novo)...");
             
-            // Busca TUDO da tabela nova. O backend filtra por tipo se necessário, 
-            // mas aqui pedimos separado para facilitar
-            const [resReceitas, resDespesas] = await Promise.all([
-                faturamentoService.getTransacoes({ tipo: 'Receita' }),
-                faturamentoService.getTransacoes({ tipo: 'Despesa' })
+            // A. Busca TUDO o que existe (Antigo e Novo) em paralelo
+            const [
+                resPagamentosLegado, 
+                resDespesasLegado,
+                resTransacoesReceita,
+                resTransacoesDespesa
+            ] = await Promise.all([
+                faturamentoService.getPagamentos(), // Legado Receitas
+                faturamentoService.getDespesas(),   // Legado Despesas
+                faturamentoService.getTransacoes({ tipo: 'Receita' }), // Novas Receitas
+                faturamentoService.getTransacoes({ tipo: 'Despesa' })  // Novas Despesas
             ]);
 
-            setLancamentos(resReceitas.data || []);
-            setDespesas(resDespesas.data || []);
+            // B. Unificação das Listas (Merge)
+            const receitasUnificadas = [
+                ...(resPagamentosLegado.data || []), 
+                ...(resTransacoesReceita.data || [])
+            ];
             
-            console.log("✅ Dados carregados. Rec:", resReceitas.data?.length, "Desp:", resDespesas.data?.length);
+            const despesasUnificadas = [
+                ...(resDespesasLegado.data || []), 
+                ...(resTransacoesDespesa.data || [])
+            ];
+
+            // C. Ordenação por Data de Vencimento
+            const sortFn = (a, b) => {
+                const dataA = a.data_vencimento || a.data_despesa; // Despesa legada usa data_despesa
+                const dataB = b.data_vencimento || b.data_despesa;
+                return dayjs(dataA).diff(dayjs(dataB));
+            };
+
+            receitasUnificadas.sort(sortFn);
+            despesasUnificadas.sort(sortFn);
+
+            setLancamentos(receitasUnificadas);
+            setDespesas(despesasUnificadas);
+            
+            console.log(`✅ Dados carregados. Receitas: ${receitasUnificadas.length}, Despesas: ${despesasUnificadas.length}`);
         } catch (err) {
             console.error("Erro ao carregar dados financeiros", err);
         } finally {
@@ -62,11 +89,16 @@ export default function FinanceiroPage() {
         lancamentos.forEach(l => {
             const monthYear = dayjs(l.data_vencimento).format('MMM/YY');
             if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
-            months[monthYear].entradas += parseFloat(l.valor || 0);
+            // Só conta se não for "Renegociado" (pois o valor foi transferido para as novas parcelas)
+            if (l.status !== 'Renegociado') {
+                months[monthYear].entradas += parseFloat(l.valor || 0);
+            }
         });
         despesas.forEach(d => {
-            if (d.status !== 'Pago') { // Ajuste para usar 'status' da tabela nova
-                const monthYear = dayjs(d.data_vencimento).format('MMM/YY');
+            // Usa status novo ou campo pago antigo
+            const isPago = d.status === 'Pago' || d.pago === true;
+            if (!isPago && d.status !== 'Renegociado') {
+                const monthYear = dayjs(d.data_despesa || d.data_vencimento).format('MMM/YY');
                 if (!months[monthYear]) months[monthYear] = { name: monthYear, entradas: 0, saidas: 0 };
                 months[monthYear].saidas += parseFloat(d.valor || 0);
             }
