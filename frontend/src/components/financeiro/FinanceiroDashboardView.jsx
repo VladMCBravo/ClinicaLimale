@@ -1,113 +1,194 @@
-import React from 'react';
-import { Box, Grid, Paper, Typography, Stack, Divider } from '@mui/material';
-import { Warning } from '@mui/icons-material';
+import React, { useMemo } from 'react';
+import { Box, Grid, Paper, Typography, Divider, Stack, Tooltip } from '@mui/material';
+import { TrendingUp, TrendingDown, AccountBalanceWallet, AttachMoney, PieChart } from '@mui/icons-material';
 import { 
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer 
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+    PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts';
 import dayjs from 'dayjs';
 
-// Função de formatação para moeda brasileira
-const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { 
-    style: 'currency', 
-    currency: 'BRL' 
-}).format(val);
-
-// Formatador curto para os eixos (ex: 1k em vez de 1000)
-const formatAxis = (value) => {
-    if (value >= 1000) return `R$ ${(value / 1000).toFixed(1)}k`;
-    return `R$ ${value}`;
+// --- CONFIGURAÇÕES VISUAIS ---
+const COLORS = {
+    receita: '#2e7d32', // Verde
+    despesa: '#d32f2f', // Vermelho
+    saldo: '#1976d2',   // Azul
+    fixa: '#0288d1',    // Azul Claro
+    variavel: '#ed6c02',// Laranja
+    pendente: '#f57c00',
+    atrasado: '#d32f2f'
 };
 
-export default function FinanceiroDashboardView({ lancamentos, despesas, projectionData }) {
+const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+const formatK = (val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val;
+
+export default function FinanceiroDashboardView({ lancamentos = [], despesas = [], projectionData = [] }) {
+    
+    // --- CÁLCULOS ESTRATÉGICOS (MEMOIZED) ---
+    const kpis = useMemo(() => {
+        // 1. Receitas
+        const receitasPagas = lancamentos.filter(l => l.status === 'Pago');
+        const totalRecebido = receitasPagas.reduce((acc, l) => acc + Number(l.valor), 0);
+        const totalReceber = lancamentos.filter(l => l.status === 'Pendente').reduce((acc, l) => acc + Number(l.valor), 0);
+        
+        // 2. Despesas
+        const totalDespesas = despesas.reduce((acc, d) => acc + Number(d.valor), 0);
+        const despesasPagas = despesas.filter(d => d.pago).reduce((acc, d) => acc + Number(d.valor), 0);
+        
+        // 3. Ticket Médio
+        const ticketMedio = receitasPagas.length > 0 ? totalRecebido / receitasPagas.length : 0;
+
+        // 4. Fixas vs Variáveis
+        const fixas = despesas.filter(d => d.categoria_tipo === 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
+        const variaveis = despesas.filter(d => d.categoria_tipo !== 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
+
+        return {
+            totalRecebido,
+            totalDespesas,
+            despesasPagas,
+            saldo: totalRecebido - despesasPagas,
+            ticketMedio,
+            fixas,
+            variaveis,
+            totalReceber
+        };
+    }, [lancamentos, despesas]);
+
+    // Dados para o Gráfico de Rosca (Despesas)
+    const dataDespesasPie = [
+        { name: 'Fixas', value: kpis.fixas },
+        { name: 'Variáveis', value: kpis.variaveis }
+    ];
+
+    // Dados para Barra de Status
+    const dataStatusReceitas = [
+        { name: 'Pago', valor: kpis.totalRecebido, fill: COLORS.receita },
+        { name: 'Pendente', valor: kpis.totalReceber, fill: COLORS.pendente },
+        { name: 'Atrasado', valor: lancamentos.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).reduce((acc, l) => acc + Number(l.valor), 0), fill: COLORS.atrasado }
+    ];
+
     return (
-        <Box sx={{ mt: 0.5, overflow: 'hidden' }}>
+        <Box sx={{ p: 1, overflow: 'hidden', height: '100%' }}>
+            
+            {/* LINHA 1: BIG NUMBERS (KPIs) - Altura Reduzida */}
+            <Grid container spacing={1} sx={{ mb: 1 }}>
+                <KPICard title="RECEITA TOTAL (Histórico)" value={kpis.totalRecebido} icon={<TrendingUp />} color={COLORS.receita} subtext={`${lancamentos.filter(l => l.status === 'Pago').length} pagamentos`} />
+                <KPICard title="DESPESA TOTAL" value={kpis.totalDespesas} icon={<TrendingDown />} color={COLORS.despesa} subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} />
+                <KPICard title="SALDO EM CAIXA" value={kpis.saldo} icon={<AccountBalanceWallet />} color={kpis.saldo >= 0 ? COLORS.saldo : COLORS.despesa} subtext="Receitas - Pagamentos" />
+                <KPICard title="TICKET MÉDIO" value={kpis.ticketMedio} icon={<AttachMoney />} color="#555" subtext="Por atendimento pago" />
+            </Grid>
+
             <Grid container spacing={1}>
-                {/* 1. FLUXO MENSAL - Reduzido para 240px */}
+                {/* LINHA 2: COLUNA PRINCIPAL (Gráfico Mensal) */}
                 <Grid item xs={12} md={8}>
-                    <Paper variant="outlined" sx={{ p: 1, height: 240, borderRadius: 2 }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', ml: 1 }}>
-                            FLUXO DE CAIXA MENSAL
-                        </Typography>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <BarChart data={projectionData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                <XAxis dataKey="name" tick={{fontSize: 9}} axisLine={false} tickLine={false} />
-                                <YAxis tick={{fontSize: 9}} axisLine={false} tickLine={false} tickFormatter={formatAxis} />
-                                <RechartsTooltip formatter={(val) => formatMoney(val)} labelStyle={{ fontSize: 11 }} />
-                                <Bar dataKey="entradas" fill="#1976d2" radius={[2, 2, 0, 0]} barSize={20} name="Entradas" />
-                                <Bar dataKey="saidas" fill="#d32f2f" radius={[2, 2, 0, 0]} barSize={20} name="Saídas" />
-                            </BarChart>
+                    <Paper variant="outlined" sx={{ p: 1.5, height: 260, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">EVOLUÇÃO MENSAL (CAIXA)</Typography>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <LegendItem color={COLORS.receita} label="Entradas" />
+                                <LegendItem color={COLORS.despesa} label="Saídas" />
+                            </Box>
+                        </Box>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={projectionData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.receita} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={COLORS.receita} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.despesa} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={COLORS.despesa} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                                <XAxis dataKey="name" style={{ fontSize: '0.7rem', fontWeight: 600 }} axisLine={false} tickLine={false} dy={10} />
+                                <YAxis tickFormatter={formatK} style={{ fontSize: '0.7rem' }} axisLine={false} tickLine={false} />
+                                <RechartsTooltip 
+                                    formatter={(value) => formatMoney(value)}
+                                    contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}
+                                />
+                                <Area type="monotone" dataKey="entradas" stroke={COLORS.receita} strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" />
+                                <Area type="monotone" dataKey="saidas" stroke={COLORS.despesa} strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" />
+                            </AreaChart>
                         </ResponsiveContainer>
                     </Paper>
                 </Grid>
 
-                {/* 2. MINI CARDS - Mais densos */}
+                {/* LINHA 2: COLUNA LATERAL (Breakdowns) */}
                 <Grid item xs={12} md={4}>
-                    <Grid container spacing={1}>
-                        <Grid item xs={6}>
-                            <Paper variant="outlined" sx={{ p: 1, height: 115, textAlign: 'center' }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', fontWeight: 800 }}>TICKETS PENDENTES</Typography>
-                                <Typography variant="h5" color="warning.main" sx={{ fontWeight: 800, mt: 0.5 }}>
-                                    {lancamentos.filter(l => l.status === 'Pendente').length}
-                                </Typography>
-                                <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>Em aberto</Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Paper variant="outlined" sx={{ p: 1, height: 115, textAlign: 'center' }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', fontWeight: 800 }}>CONVERSÃO</Typography>
-                                <Typography variant="h5" color="success.main" sx={{ fontWeight: 800, mt: 0.5 }}>
-                                    {lancamentos.length > 0 ? ((lancamentos.filter(l => l.status === 'Pago').length / lancamentos.length) * 100).toFixed(0) : 0}%
-                                </Typography>
-                                <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>Taxa de recebimento</Typography>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12}>
-                             <Paper variant="outlined" sx={{ p: 1, height: 115, display: 'flex', alignItems: 'center', bgcolor: '#fff5f5' }}>
-                                <Box sx={{ flex: 1, pl: 1 }}>
-                                    <Typography variant="caption" color="error" sx={{ fontSize: '0.6rem', fontWeight: 800 }}>DÉBITOS ATRASADOS</Typography>
-                                    <Typography variant="h5" color="error.main" sx={{ fontWeight: 800 }}>
-                                        {formatMoney(lancamentos.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).reduce((acc, i) => acc + Number(i.valor), 0))}
-                                    </Typography>
-                                </Box>
-                                <Warning color="error" sx={{ opacity: 0.15, fontSize: 35, pr: 1 }} />
-                             </Paper>
-                        </Grid>
-                    </Grid>
-                </Grid>
+                    <Stack spacing={1}>
+                        {/* Gráfico 1: Despesas Fixas vs Variáveis */}
+                        <Paper variant="outlined" sx={{ p: 1, height: 125, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ width: '50%', height: '100%' }}>
+                                <ResponsiveContainer>
+                                    <RechartsPieChart>
+                                        <Pie data={dataDespesasPie} innerRadius={25} outerRadius={40} paddingAngle={2} dataKey="value">
+                                            {dataDespesasPie.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.fixa : COLORS.variavel} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip formatter={formatMoney} />
+                                    </RechartsPieChart>
+                                </ResponsiveContainer>
+                            </Box>
+                            <Box sx={{ width: '50%', pr: 1 }}>
+                                <Typography variant="caption" fontWeight="bold" display="block">DESPESAS</Typography>
+                                <Divider sx={{ my: 0.5 }} />
+                                <DetailRow label="Fixas" value={kpis.fixas} color={COLORS.fixa} />
+                                <DetailRow label="Variáveis" value={kpis.variaveis} color={COLORS.variavel} />
+                            </Box>
+                        </Paper>
 
-                {/* 3. DISTRIBUIÇÃO E ÚLTIMOS - Reduzidos para 200px */}
-                <Grid item xs={12} md={6}>
-                    <Paper variant="outlined" sx={{ p: 1, height: 200, borderRadius: 2 }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', ml: 1 }}>DISTRIBUIÇÃO DE DESPESAS</Typography>
-                        <ResponsiveContainer width="100%" height="85%">
-                            <BarChart layout="vertical" data={[
-                                { name: 'Fixas', valor: despesas.filter(d => d.categoria_tipo === 'Fixa').reduce((acc, i) => acc + Number(i.valor), 0) },
-                                { name: 'Variáveis', valor: despesas.filter(d => d.categoria_tipo !== 'Fixa').reduce((acc, i) => acc + Number(i.valor), 0) }
-                            ]} margin={{ left: 10, right: 30 }}>
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" tick={{fontSize: 10}} width={60} axisLine={false} />
-                                <RechartsTooltip formatter={(val) => formatMoney(val)} />
-                                <Bar dataKey="valor" fill="#455a64" radius={[0, 2, 2, 0]} barSize={15} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                    <Paper variant="outlined" sx={{ p: 1, height: 200, borderRadius: 2, overflow: 'hidden' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', ml: 1 }}>ÚLTIMOS LANÇAMENTOS</Typography>
-                        <Stack spacing={0.2} sx={{ mt: 1 }}>
-                            {lancamentos.slice(0, 6).map(l => (
-                                <Box key={l.id} sx={{ display: 'flex', justifyContent: 'space-between', px: 1, py: 0.3, borderBottom: '1px solid #f9f9f9' }}>
-                                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 600 }}>{l.paciente_nome?.substring(0, 25)}</Typography>
-                                    <Typography sx={{ fontSize: '0.68rem', color: l.status === 'Pago' ? '#2e7d32' : '#ed6c02', fontWeight: 800 }}>{formatMoney(l.valor)}</Typography>
-                                </Box>
-                            ))}
-                        </Stack>
-                    </Paper>
+                        {/* Gráfico 2: Status Recebimentos */}
+                        <Paper variant="outlined" sx={{ p: 1, height: 125, display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5 }}>STATUS DE RECEBIMENTOS</Typography>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart layout="vertical" data={dataStatusReceitas} margin={{ left: 0, right: 30 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={60} style={{ fontSize: '0.65rem', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                    <RechartsTooltip cursor={{fill: 'transparent'}} formatter={formatMoney} />
+                                    <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={12}>
+                                        {dataStatusReceitas.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Stack>
                 </Grid>
             </Grid>
         </Box>
     );
 }
+
+// --- SUBCOMPONENTES PARA CÓDIGO LIMPO ---
+
+const KPICard = ({ title, value, icon, color, subtext }) => (
+    <Grid item xs={6} md={3}>
+        <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 85, borderLeft: `4px solid ${color}` }}>
+            <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight="bold">{title}</Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{ color: color, lineHeight: 1.2 }}>
+                    {formatMoney(value)}
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#888' }}>{subtext}</Typography>
+            </Box>
+            {React.cloneElement(icon, { sx: { fontSize: 28, color: color, opacity: 0.2 } })}
+        </Paper>
+    </Grid>
+);
+
+const LegendItem = ({ color, label }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ width: 10, height: 10, bgcolor: color, borderRadius: '50%' }} />
+        <Typography variant="caption" fontWeight="bold">{label}</Typography>
+    </Box>
+);
+
+const DetailRow = ({ label, value, color }) => (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+        <Typography variant="caption" sx={{ color: color, fontWeight: 600 }}>{label}</Typography>
+        <Typography variant="caption" fontWeight="bold">{formatK(value)}</Typography>
+    </Box>
+);
