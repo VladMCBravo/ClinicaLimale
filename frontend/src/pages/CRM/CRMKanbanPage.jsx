@@ -1,17 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress, IconButton, Tooltip } from '@mui/material';
-import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt } from 'react-icons/fa';
+import { Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress, IconButton, Tooltip, Badge } from '@mui/material';
+import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt, FaStethoscope } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
 
-// Cores das colunas
+// Configuração Visual das Colunas
 const COLUMNS = {
-  'F1': { title: 'F1 - Entrada', color: '#90caf9' },
-  'F2': { title: 'F2 - Conversão', color: '#a5d6a7' },
-  'F3': { title: 'F3 - Pós-Exame', color: '#ffcc80' },
-  'F4': { title: 'F4 - Retenção', color: '#ce93d8' }
+  'F1': { title: 'F1 - Entrada', color: '#e3f2fd', border: '#90caf9' }, // Azul
+  'F2': { title: 'F2 - Conversão', color: '#e8f5e9', border: '#a5d6a7' }, // Verde
+  'F3': { title: 'F3 - Pós-Exame', color: '#fff3e0', border: '#ffcc80' }, // Laranja
+  'F4': { title: 'F4 - Retenção', color: '#f3e5f5', border: '#ce93d8' }  // Roxo
 };
+
+// Formatador de Moeda
+const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
 
 export default function CRMKanbanPage() {
   const [columns, setColumns] = useState({ F1: [], F2: [], F3: [], F4: [] });
@@ -51,19 +54,20 @@ export default function CRMKanbanPage() {
     }
   };
 
-  // Abre Modal apenas para ver detalhes
+  // Calcula o valor total no Pipeline por coluna (NOVA IDEIA)
+  const getColumnTotal = (colId) => {
+    return columns[colId]?.reduce((acc, item) => acc + (parseFloat(item.receita_acumulada) || 0), 0) || 0;
+  };
+
   const handleOpenDetalhes = (e, cicloId) => {
-    e.stopPropagation(); // Garante que não dispare outros eventos
+    e.stopPropagation();
     setSelectedCicloId(cicloId);
     setModalOpen(true);
   };
 
-  // Abre WhatsApp
   const handleWhatsappClick = (e, numero, nome) => {
-    e.stopPropagation(); // IMPEDE QUE O MODAL ABRA
+    e.stopPropagation();
     if (!numero) return alert("Paciente sem número cadastrado");
-    
-    // Limpa o número para formato internacional
     const cleanNum = numero.replace(/\D/g, '');
     const url = `https://wa.me/55${cleanNum}?text=Olá ${nome}, tudo bem? Falamos da Clínica Limalé.`;
     window.open(url, '_blank');
@@ -98,25 +102,64 @@ export default function CRMKanbanPage() {
   if (loading) return <LinearProgress />;
 
   return (
-    <Box sx={{ p: 2, height: 'calc(100vh - 80px)', overflowX: 'auto', backgroundColor: '#f4f5f7' }}>
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#444' }}>
-        Funil de Atendimentos
-      </Typography>
+    <Box sx={{ 
+        p: 1, 
+        height: 'calc(100vh - 70px)', // Ajuste fino para não rolar a página
+        overflow: 'hidden', // Importante: Impede rolagem da página inteira
+        bgcolor: '#f4f5f7',
+        display: 'flex',
+        flexDirection: 'column'
+    }}>
+      {/* Título Compacto */}
+      <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#444' }}>
+            CRM - Funil de Vendas
+          </Typography>
+          {/* Pode adicionar filtros aqui no futuro */}
+      </Box>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box sx={{ display: 'flex', gap: 1.5, minWidth: '1000px', height: '100%' }}>
+        <Box sx={{ 
+            display: 'flex', 
+            gap: 1, 
+            flexGrow: 1, 
+            height: '100%',
+            overflow: 'hidden' // Garante que as colunas não estourem
+        }}>
           {Object.entries(COLUMNS).map(([colId, colDef]) => (
-            <Box key={colId} sx={{ width: '280px', display: 'flex', flexDirection: 'column' }}>
-              {/* Header Compacto */}
+            <Box key={colId} sx={{ 
+                flex: 1, // COLUNA FLEXÍVEL (Preenche espaço disponível)
+                display: 'flex', 
+                flexDirection: 'column',
+                minWidth: 0, // Impede que o flex quebre com conteúdo largo
+                bgcolor: '#ebecf0',
+                borderRadius: 2,
+                maxHeight: '100%'
+            }}>
+              
+              {/* Header da Coluna (FIXO) */}
               <Box sx={{ 
-                p: 1, mb: 1, borderRadius: 1, 
-                backgroundColor: colDef.color, fontWeight: 'bold', fontSize: '0.85rem',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                p: 1, 
+                bgcolor: colDef.color, 
+                borderBottom: `2px solid ${colDef.border}`,
+                borderRadius: '8px 8px 0 0',
+                display: 'flex', 
+                flexDirection: 'column',
+                gap: 0.5
               }}>
-                {colDef.title}
-                <Chip label={columns[colId]?.length || 0} size="small" sx={{ height: 20, fontSize: '0.7rem', backgroundColor: 'rgba(255,255,255,0.6)' }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#333', fontSize: '0.8rem' }}>
+                        {colDef.title}
+                    </Typography>
+                    <Chip label={columns[colId]?.length || 0} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 'bold' }} />
+                </Box>
+                {/* NOVO: Total em Pipeline */}
+                <Typography variant="caption" sx={{ color: '#555', fontWeight: 600, fontSize: '0.7rem', alignSelf: 'flex-end' }}>
+                    Total: {formatMoney(getColumnTotal(colId))}
+                </Typography>
               </Box>
 
+              {/* Área de Drop (ROLÁVEL) */}
               <Droppable droppableId={colId}>
                 {(provided, snapshot) => (
                   <Box
@@ -124,168 +167,118 @@ export default function CRMKanbanPage() {
                     {...provided.droppableProps}
                     sx={{
                       flexGrow: 1,
-                      backgroundColor: snapshot.isDraggingOver ? '#e3f2fd' : '#ebecf0',
-                      borderRadius: 2, p: 0.5, overflowY: 'auto'
+                      overflowY: 'auto', // A rolagem acontece AQUI dentro
+                      p: 0.8,
+                      backgroundColor: snapshot.isDraggingOver ? '#e3f2fd' : 'transparent',
+                      // Estilização da Scrollbar Fina
+                      '&::-webkit-scrollbar': { width: '4px' },
+                      '&::-webkit-scrollbar-track': { background: '#f1f1f1' },
+                      '&::-webkit-scrollbar-thumb': { background: '#ccc', borderRadius: '4px' },
+                      '&::-webkit-scrollbar-thumb:hover': { background: '#aaa' }
                     }}
                   >
                     {columns[colId]?.map((ciclo, index) => (
                       <Draggable key={String(ciclo.id)} draggableId={String(ciclo.id)} index={index}>
                         {(provided, snapshot) => (
-                          <Box
+                          <Card
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            sx={{ mb: 1, ...provided.draggableProps.style }}
+                            elevation={snapshot.isDragging ? 6 : 1}
+                            sx={{ 
+                              mb: 0.8, 
+                              borderRadius: 2,
+                              transition: 'all 0.2s',
+                              borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '4px solid #f44336' : '4px solid transparent',
+                              ...provided.draggableProps.style
+                            }}
                           >
-                            <Card
-                              sx={{ 
-                                backgroundColor: 'white',
-                                transition: 'all 0.2s',
-                                boxShadow: snapshot.isDragging ? 4 : 1,
-                                borderLeft: ciclo.proxima_acao_imediata?.atrasada ? '3px solid #f44336' : '3px solid transparent',
-                                '&:hover': { boxShadow: 3 }
-                              }}
-                            >
-                              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
-  
-                                {/* LINHA 1: Avatar + Nome (Clicável) + WhatsApp */}
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                                  <Box 
-                                    onClick={(e) => handleOpenDetalhes(e, ciclo.id)}
-                                    sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexGrow: 1 }}
-                                  >
-                                    <Avatar sx={{ bgcolor: colDef.color, width: 20, height: 20, fontSize: '0.65rem', mr: 0.8 }}>
-                                      {ciclo.paciente_nome?.charAt(0)}
+                            <CardContent sx={{ p: '8px !important' }}> {/* Padding ultra reduzido */}
+                                
+                                {/* LINHA 1: Avatar + Nome + WhatsApp */}
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                                    <Avatar sx={{ bgcolor: colDef.border, width: 22, height: 22, fontSize: '0.7rem', mr: 1 }}>
+                                        {ciclo.paciente_nome?.charAt(0)}
                                     </Avatar>
-                                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', fontSize: '0.8rem', maxWidth: '180px', color: '#333' }}>
-                                      {ciclo.paciente_nome}
-                                    </Typography>
-                                  </Box>
-                                  
-                                  {/* Botão WhatsApp isolado */}
-                                  <IconButton 
-                                    size="small" 
-                                    sx={{ padding: 0.5, marginLeft: 0.5 }}
-                                    onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}
-                                  >
-                                    <FaWhatsapp color="#25D366" size={16} />
-                                  </IconButton>
-                                </Box>
-                                {/* --- NOVO: BARRA DE ALERTA GESTACIONAL (Lógica do PDF) --- */}
-                                {ciclo.alerta_clinico && (
-                                  <Box 
-                                      onClick={(e) => handleOpenDetalhes(e, ciclo.id)} // Clicar aqui também abre detalhes para ajustar DUM
-                                      sx={{ 
-                                          mt: 0.5, mb: 1, p: 0.5, borderRadius: 1, cursor: 'pointer',
-                                          backgroundColor: 
-                                          ciclo.alerta_clinico.prioridade === 'urgente' ? '#ffebee' : 
-                                          ciclo.alerta_clinico.prioridade === 'alta' ? '#fff8e1' : '#e3f2fd',
-                                          border: 
-                                          ciclo.alerta_clinico.prioridade === 'urgente' ? '1px solid #ef5350' : '1px solid transparent',
-                                          display: 'flex', alignItems: 'center', gap: 1
-                                      }}
-                                  >
-                                      <Chip 
-                                          // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
-                                          // Se o backend mandou "8s + 5d", usa isso. Se não, usa o fallback antigo.
-                                          label={ciclo.idade_gestacional || `${ciclo.alerta_clinico.semanas} sem`} 
-                                          // ------------------------------------
-                                          size="small" 
-                                          sx={{ 
-                                              height: 16, fontSize: '0.6rem', fontWeight: 'bold',
-                                              bgcolor: 'white', color: '#333'
-                                          }} 
-                                      />
-                                      <Typography variant="caption" noWrap sx={{ 
-                                          fontSize: '0.65rem', fontWeight: 'bold', 
-                                          color: 
-                                              ciclo.alerta_clinico.prioridade === 'urgente' ? '#c62828' : 
-                                              ciclo.alerta_clinico.prioridade === 'alta' ? '#f57f17' : '#1565c0'
-                                      }}>
-                                      {ciclo.alerta_clinico.texto}
-                                      </Typography>
-                                  </Box>
-                                )}
-                                {/* ----------------------------------------------------------- */}
-
-                                {/* LINHA 2: Data + Status (A Pedido: Mesma linha) */}
-                                {ciclo.dados_agendamento ? (
-                                  <>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'nowrap' }}>
-                                        {/* Data Compacta */}
-                                        <Box sx={{ display: 'flex', alignItems: 'center', color: '#555', fontSize: '0.7rem', minWidth: 'fit-content' }}>
-                                            <FaRegCalendarAlt style={{ marginRight: 3, fontSize: '0.65rem' }} />
-                                            {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
-                                            {' '}
-                                            {new Date(ciclo.dados_agendamento.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
-                                        </Box>
-
-                                        {/* Chips de Status (Mini) */}
-                                        <Chip 
-                                            label={ciclo.dados_agendamento.status_ag} 
-                                            size="small" 
-                                            sx={{ 
-                                                height: 14, fontSize: '0.55rem', px: 0,
-                                                bgcolor: ciclo.dados_agendamento.status_ag === 'Confirmado' ? '#e8f5e9' : '#fff3e0',
-                                                color: ciclo.dados_agendamento.status_ag === 'Confirmado' ? '#2e7d32' : '#ef6c00'
-                                            }} 
-                                        />
-                                        <Chip 
-                                            label={ciclo.dados_agendamento.status_pag} 
-                                            size="small" 
-                                            sx={{ 
-                                                height: 14, fontSize: '0.55rem', px: 0,
-                                                bgcolor: ciclo.dados_agendamento.status_pag === 'Pago' ? '#e3f2fd' : '#ffebee',
-                                                color: ciclo.dados_agendamento.status_pag === 'Pago' ? '#1565c0' : '#c62828'
-                                            }} 
-                                        />
+                                    <Box sx={{ flexGrow: 1, minWidth: 0, cursor: 'pointer' }} onClick={(e) => handleOpenDetalhes(e, ciclo.id)}>
+                                        <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', fontSize: '0.75rem', lineHeight: 1.1 }}>
+                                            {ciclo.paciente_nome}
+                                        </Typography>
                                     </Box>
+                                    <IconButton 
+                                        size="small" 
+                                        sx={{ p: 0.3, ml: 0.5, bgcolor: '#e8f5e9' }}
+                                        onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}
+                                    >
+                                        <FaWhatsapp color="#25D366" size={12} />
+                                    </IconButton>
+                                </Box>
 
-                                    {/* LINHA 3: Procedimento e Preço */}
+                                {/* ALERTA GESTACIONAL (Faixa Compacta) */}
+                                {ciclo.alerta_clinico && (
+                                    <Box sx={{ 
+                                        bgcolor: ciclo.alerta_clinico.prioridade === 'urgente' ? '#ffebee' : '#fff8e1',
+                                        color: ciclo.alerta_clinico.prioridade === 'urgente' ? '#c62828' : '#f57f17',
+                                        borderRadius: 1, px: 0.5, py: 0.2, mb: 0.5,
+                                        display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.65rem', fontWeight: 'bold'
+                                    }}>
+                                        <Typography variant="inherit">{ciclo.idade_gestacional || `${ciclo.alerta_clinico.semanas} sem`}</Typography>
+                                        <Typography variant="inherit" noWrap>• {ciclo.alerta_clinico.texto}</Typography>
+                                    </Box>
+                                )}
+
+                                {/* LINHA 2: Info Técnica (Data e Procedimento) */}
+                                {ciclo.dados_agendamento ? (
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                        <Typography noWrap title={ciclo.dados_agendamento.procedimento} sx={{ fontSize: '0.7rem', color: '#666', maxWidth: '160px' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#666' }}>
+                                            <FaRegCalendarAlt size={10} />
+                                            <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+                                            </Typography>
+                                            {/* Status Mini Chips */}
+                                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: ciclo.dados_agendamento.status_ag === 'Confirmado' ? '#2e7d32' : '#ff9800' }} title={`Agenda: ${ciclo.dados_agendamento.status_ag}`} />
+                                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: ciclo.dados_agendamento.status_pag === 'Pago' ? '#1565c0' : '#f44336' }} title={`Pagamento: ${ciclo.dados_agendamento.status_pag}`} />
+                                        </Box>
+                                        
+                                        <Typography noWrap sx={{ fontSize: '0.65rem', color: '#444', maxWidth: '45%' }} title={ciclo.dados_agendamento.procedimento}>
                                             {ciclo.dados_agendamento.procedimento}
                                         </Typography>
-                                        {parseFloat(ciclo.receita_acumulada) > 0 && (
-                                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'green', fontSize: '0.7rem' }}>
-                                                R$ {parseInt(ciclo.receita_acumulada)}
-                                            </Typography>
-                                        )}
                                     </Box>
-                                  </>
                                 ) : (
-                                    <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: '#aaa', fontSize: '0.65rem', fontStyle: 'italic' }}>
+                                    <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: '#999', fontSize: '0.6rem', fontStyle: 'italic' }}>
                                         Sem agendamento
                                     </Typography>
                                 )}
 
-                                {/* LINHA 4: Barra de Ação (Clicável) */}
-                                <Box 
-                                    onClick={(e) => handleOpenDetalhes(e, ciclo.id)}
-                                    sx={{ 
-                                        display: 'flex', alignItems: 'center', 
-                                        bgcolor: ciclo.proxima_acao_imediata?.atrasada ? '#ffebee' : '#f5f5f5', 
-                                        p: 0.5, borderRadius: 1, cursor: 'pointer',
-                                        '&:hover': { bgcolor: '#e0e0e0' }
-                                    }}
-                                >
-                                    {ciclo.proxima_acao_imediata ? (
-                                        <>
-                                            {ciclo.proxima_acao_imediata.atrasada && <FaExclamationTriangle color="red" size={10} style={{ marginRight: 4 }} />}
-                                            <Typography noWrap sx={{ fontSize: '0.65rem', color: '#444', fontWeight: '500' }}>
-                                                {ciclo.proxima_acao_imediata.descricao}
-                                            </Typography>
-                                        </>
-                                    ) : (
-                                        <Typography sx={{ fontSize: '0.65rem', color: '#ff9800', fontStyle: 'italic' }}>
-                                            ⚠️ Definir próxima ação...
+                                {/* LINHA 3: Ação + Valor (Footer do Card) */}
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5, pt: 0.5, borderTop: '1px dashed #eee' }}>
+                                    
+                                    {/* Próxima Ação */}
+                                    <Box 
+                                        onClick={(e) => handleOpenDetalhes(e, ciclo.id)}
+                                        sx={{ 
+                                            display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer',
+                                            color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2',
+                                            bgcolor: ciclo.proxima_acao_imediata?.atrasada ? '#ffebee' : 'transparent',
+                                            borderRadius: 1, px: 0.5
+                                        }}
+                                    >
+                                        {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={10} />}
+                                        <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 600, maxWidth: '110px' }}>
+                                            {ciclo.proxima_acao_imediata?.descricao || "Definir ação..."}
+                                        </Typography>
+                                    </Box>
+
+                                    {/* Valor (Se houver) */}
+                                    {parseFloat(ciclo.receita_acumulada) > 0 && (
+                                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#2e7d32' }}>
+                                            {formatMoney(ciclo.receita_acumulada)}
                                         </Typography>
                                     )}
                                 </Box>
 
-                              </CardContent>
-                            </Card>
-                          </Box>
+                            </CardContent>
+                          </Card>
                         )}
                       </Draggable>
                     ))}
