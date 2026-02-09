@@ -139,15 +139,16 @@ class TransacaoFinanceiraViewSet(viewsets.ModelViewSet):
         if not ids: return Response({"erro": "Sem seleção."}, 400)
 
         with transaction.atomic():
-            # 1. Marca originais como Renegociado
+            # 1. Atualiza as transações ORIGINAIS para 'Renegociado' (Histórico)
             originais_novas = TransacaoFinanceira.objects.filter(id__in=ids)
             pai = None
             
             if originais_novas.exists():
-                originais_novas.update(status='Renegociado', observacoes=f"Renegociado em {datetime.now()}")
+                # Soma o valor original para registro histórico se necessário
+                originais_novas.update(status='Renegociado', observacoes=f"Renegociado em {datetime.now().strftime('%d/%m/%Y')}")
                 pai = originais_novas.first()
             else:
-                # Compatibilidade com legado
+                # Fallback para legado (Pagamento)
                 originais_legado = Pagamento.objects.filter(id__in=ids)
                 if originais_legado.exists():
                     originais_legado.update(status='Renegociado')
@@ -156,27 +157,34 @@ class TransacaoFinanceiraViewSet(viewsets.ModelViewSet):
 
             novos_ids = []
             
-            # 2. Cria as novas parcelas com status dinâmico
+            # 2. Cria as NOVAS parcelas
             for i, p in enumerate(parcelas):
-                # Verifica se o frontend mandou flag de pago
-                esta_pago = p.get('pago_agora', False)
+                # Verifica explicitamente se o frontend marcou para pagar agora
+                esta_pago = p.get('pago_agora') is True
                 
+                status_inicial = 'Pago' if esta_pago else 'Pendente'
+                data_pgto = timezone.now().date() if esta_pago else None
+                forma_pgto = p.get('forma_pagamento') if esta_pago else None
+
                 nova = TransacaoFinanceira.objects.create(
-                    tipo='Receita', # Ou dinâmico se precisar
+                    tipo='Receita',
+                    # Descrição clara: "Renegociação 1/3"
                     descricao=f"Renegociação ({i+1}/{len(parcelas)})",
                     valor=p['valor'],
                     data_vencimento=p['vencimento'],
-                    # Se pago agora, define status Pago e data de pagamento
-                    status='Pago' if esta_pago else 'Pendente',
-                    data_pagamento=timezone.now().date() if esta_pago else None,
-                    forma_pagamento=p.get('forma_pagamento') if esta_pago else None,
+                    
+                    # AQUI ESTÁ A CORREÇÃO DO STATUS:
+                    status=status_inicial,
+                    data_pagamento=data_pgto,
+                    forma_pagamento=forma_pgto,
                     
                     paciente_id=paciente_id,
-                    transacao_pai=pai
+                    transacao_pai=pai,
+                    observacoes=f"Gerado via renegociação. Origem: {ids}"
                 )
                 novos_ids.append(nova.id)
 
-        return Response({"msg": "Sucesso", "ids": novos_ids})
+        return Response({"msg": "Renegociação concluída com sucesso!", "ids": novos_ids})
 
 # ==============================================================================
 # 3. VIEWS AUXILIARES (CRUDs)

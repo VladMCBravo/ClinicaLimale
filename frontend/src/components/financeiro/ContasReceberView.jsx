@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     IconButton, Typography, Chip, Box, Grid, Card, CardContent, Stack, Menu, MenuItem, ListItemIcon, ListItemText,
-    Checkbox, Button
+    Checkbox, Button, Tooltip
 } from '@mui/material';
 import { Edit, CheckCircle, Search, Warning, History, Handshake, Block } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -12,6 +12,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import { agendamentoService } from '../../services/agendamentoService';
 import BaixaUnificadaModal from './BaixaUnificadaModal';
+import ResumoPacienteModal from './ResumoPacienteModal'; // <--- IMPORT NOVO
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -28,6 +29,9 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     // --- ESTADO ÚNICO DO MODAL ---
     const [modalUnificadoOpen, setModalUnificadoOpen] = useState(false);
     const [itemSelecionado, setItemSelecionado] = useState(null);
+    // --- NOVO: MODAL DE RESUMO DO PACIENTE ---
+    const [modalResumoOpen, setModalResumoOpen] = useState(false);
+    const [pacienteResumo, setPacienteResumo] = useState({ id: null, nome: '' });
 
     // Menus
     const [anchorEl, setAnchorEl] = useState(null);
@@ -152,6 +156,18 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
         setModalUnificadoOpen(true);
     };
 
+    // --- AÇÃO DE ABRIR RESUMO ---
+    const handleOpenResumo = (paciente) => {
+        // Se paciente for objeto ou ID, ajustamos
+        const id = typeof paciente === 'object' ? paciente.id : paciente;
+        const nome = typeof paciente === 'object' ? paciente.nome_completo : 'Paciente';
+        
+        if (id) {
+            setPacienteResumo({ id, nome });
+            setModalResumoOpen(true);
+        }
+    };
+
     return (
         <Box sx={{ p: 0.5 }}>
             {/* KPIs */}
@@ -182,7 +198,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 </Grid>
             </Grid>
 
-            {/* FILTROS E BOTÃO RENEGOCIAR */}
+            {/* FILTROS */}
             <Box sx={{ display: 'flex', mb: 2, gap: 1, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <DatePicker 
@@ -223,7 +239,9 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredList.map((row) => {
+                        {filteredList.length === 0 ? (
+                            <TableRow><TableCell colSpan={6} align="center">Nenhum registro.</TableCell></TableRow>
+                        ) : filteredList.map((row) => {
                             const isSelected = selectedIds.indexOf(row.id) !== -1;
                             const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
                             const canInteract = row.status !== 'Pago' && row.status !== 'Renegociado' && row.status !== 'Cancelado';
@@ -239,24 +257,33 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                                         />
                                     </TableCell>
                                     <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" fontWeight="bold">{row.paciente_nome || 'Avulso'}</Typography>
+                                    
+                                    {/* NOME DO PACIENTE CLICÁVEL */}
+                                    <TableCell 
+                                        onClick={() => row.paciente && handleOpenResumo({ id: row.paciente, nome_completo: row.paciente_nome })}
+                                        sx={{ cursor: row.paciente ? 'pointer' : 'default', '&:hover': { textDecoration: row.paciente ? 'underline' : 'none' } }}
+                                    >
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <Typography variant="body2" fontWeight="bold" color={row.paciente ? 'primary' : 'textPrimary'}>
+                                                {row.paciente_nome || 'Avulso'}
+                                            </Typography>
+                                            {row.paciente && <Info fontSize="inherit" color="action" sx={{ fontSize: 12 }} />}
+                                        </Box>
                                         <Typography variant="caption" color="textSecondary">{row.descricao || row.descricao_visual}</Typography>
                                     </TableCell>
+
                                     <TableCell sx={{ fontWeight: isAtrasado ? 'bold' : 'normal', color: isAtrasado ? 'error.main' : 'inherit' }}>
                                         {formatMoney(row.valor)}
                                     </TableCell>
                                     <TableCell>
                                         <Chip 
-                                            label={row.status} 
-                                            size="small" 
+                                            label={row.status} size="small" 
                                             color={row.status === 'Pago' ? 'success' : row.status === 'Renegociado' ? 'default' : row.status === 'Pendente' ? 'warning' : 'error'} 
                                             sx={{ height: 20, fontWeight: 'bold', fontSize: '0.7rem' }}
                                         />
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                            {/* BOTÃO CHECK UNIFICADO */}
                                             <IconButton 
                                                 size="small" 
                                                 disabled={!canInteract} 
@@ -277,7 +304,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 </Table>
             </TableContainer>
 
-            {/* MENUS DE OPÇÕES */}
+            {/* MENUS */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                 <MenuItem onClick={() => handleUpdateStatusAgenda('Não Compareceu')}>
                     <ListItemIcon><Block fontSize="small" color="error"/></ListItemIcon>
@@ -295,13 +322,20 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                 )}
             </Menu>
 
-            {/* MODAL UNIFICADO (Substitui todos os anteriores) */}
+            {/* MODAIS */}
             <BaixaUnificadaModal 
                 open={modalUnificadoOpen}
                 onClose={() => setModalUnificadoOpen(false)}
                 item={itemSelecionado}
                 onConfirmBaixa={handleConfirmBaixa}
                 onConfirmRenegociacao={handleConfirmRenegociacao}
+            />
+
+            <ResumoPacienteModal 
+                open={modalResumoOpen}
+                onClose={() => setModalResumoOpen(false)}
+                pacienteId={pacienteResumo.id}
+                nomePaciente={pacienteResumo.nome}
             />
         </Box>
     );
