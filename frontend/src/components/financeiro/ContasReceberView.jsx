@@ -147,64 +147,102 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     };
 
     return (
-        <Box sx={{ p: 1, height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ 
+            p: 1, 
+            height: 'calc(100vh - 85px)', // Ajuste fino para não rolar a página
+            display: 'flex', 
+            flexDirection: 'column', 
+            overflow: 'hidden' // Garante que nada vaze
+        }}>
             
-            {/* 1. HEADER DE KPIS COMPACTOS */}
-            <Stack direction="row" spacing={2} sx={{ mb: 1.5 }}>
-                <CompactKPI 
-                    title="RECEBIDO" 
-                    value={kpis.totalRecebido} 
-                    icon={<TrendingUp />} 
-                    color="#2e7d32" 
-                    bgcolor="#e8f5e9"
-                />
-                <CompactKPI 
-                    title="A RECEBER" 
-                    value={kpis.totalPendente} 
-                    icon={<AccessTime />} 
-                    color="#ef6c00" 
-                    bgcolor="#fff3e0"
-                />
-                <CompactKPI 
-                    title="ATRASADOS" 
-                    value={kpis.atrasados} 
-                    isCount 
-                    icon={<Warning />} 
-                    color="#c62828" 
-                    bgcolor="#ffebee"
-                />
-            </Stack>
+            {/* 1. LINHA ÚNICA: KPIs (Esq) + FILTROS (Dir) */}
+            <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                mb: 1,
+                gap: 2,
+                flexWrap: 'wrap' // Segurança para telas muito pequenas
+            }}>
+                
+                {/* Lado Esquerdo: KPIs Compactos */}
+                <Stack direction="row" spacing={1.5}>
+                    <CompactKPI 
+                        title="RECEBIDO" 
+                        value={kpis.totalRecebido} 
+                        icon={<TrendingUp fontSize="inherit" />} 
+                        color="#2e7d32" 
+                        bgcolor="#e8f5e9"
+                    />
+                    <CompactKPI 
+                        title="A RECEBER" 
+                        value={kpis.totalPendente} 
+                        icon={<AccessTime fontSize="inherit" />} 
+                        color="#ef6c00" 
+                        bgcolor="#fff3e0"
+                    />
+                    <CompactKPI 
+                        title="ATRASADOS" 
+                        value={kpis.atrasados} 
+                        isCount 
+                        icon={<Warning fontSize="inherit" />} 
+                        color="#c62828" 
+                        bgcolor="#ffebee"
+                    />
+                </Stack>
 
-            {/* 2. BARRA DE FERRAMENTAS */}
-            <Box sx={{ display: 'flex', mb: 1, gap: 1, justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                {/* Lado Direito: Filtros e Botões */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <DatePicker 
-                        views={['month', 'year']} value={filtroData} onChange={(v) => setFiltroData(v)}
-                        slotProps={{ textField: { size: 'small', sx: { width: 130, bgcolor: 'white' } } }}
+                        views={['month', 'year']} 
+                        value={filtroData} 
+                        onChange={(v) => setFiltroData(v)}
+                        slotProps={{ 
+                            textField: { 
+                                size: 'small', 
+                                sx: { width: 120, bgcolor: 'white' },
+                                inputProps: { style: { fontSize: '0.8rem', padding: '8px' } }
+                            } 
+                        }}
                     />
                     <TextField
-                        placeholder="Buscar paciente, descrição..." size="small" 
-                        value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
-                        InputProps={{ startAdornment: <Search sx={{ color: 'gray', mr: 1, fontSize: 20 }} /> }}
-                        sx={{ width: 280, bgcolor: 'white' }}
+                        placeholder="Buscar..." 
+                        size="small" 
+                        value={termoBusca} 
+                        onChange={(e) => setTermoBusca(e.target.value)}
+                        InputProps={{ 
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <Search sx={{ color: 'gray', fontSize: 18 }} />
+                                </InputAdornment>
+                            ),
+                            style: { fontSize: '0.8rem', paddingLeft: 0 }
+                        }}
+                        sx={{ width: 220, bgcolor: 'white' }}
                     />
+                    {selectedIds.length > 0 && (
+                        <Button 
+                            variant="contained" color="secondary" size="small" 
+                            startIcon={<Handshake />} onClick={handleRenegociarLote}
+                            sx={{ textTransform: 'none', fontWeight: 'bold', height: 36 }}
+                        >
+                            Renegociar ({selectedIds.length})
+                        </Button>
+                    )}
                 </Box>
-                {selectedIds.length > 0 && (
-                    <Button 
-                        variant="contained" color="secondary" size="small" 
-                        startIcon={<Handshake />} onClick={handleRenegociarLote}
-                        sx={{ textTransform: 'none', fontWeight: 'bold' }}
-                    >
-                        Renegociar ({selectedIds.length})
-                    </Button>
-                )}
             </Box>
 
-            {/* 3. TABELA COM SCROLL INTERNO E FOOTER FIXO */}
-            <Paper variant="outlined" sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRadius: 2 }}>
+            {/* 2. TABELA COM SCROLL INTERNO (Ocupa todo o resto) */}
+            <Paper variant="outlined" sx={{ 
+                flexGrow: 1, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                overflow: 'hidden', // Importante para segurar o TableContainer
+                borderRadius: 2 
+            }}>
                 <TableContainer sx={{ 
                     flexGrow: 1, 
-                    overflowY: 'auto',
+                    overflowY: 'auto', // A rolagem é só aqui
                     '&::-webkit-scrollbar': { width: '6px' },
                     '&::-webkit-scrollbar-track': { background: '#f1f1f1' },
                     '&::-webkit-scrollbar-thumb': { background: '#ccc', borderRadius: '4px' }
@@ -212,7 +250,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell padding="checkbox" sx={{ bgcolor: '#f5f5f5' }}>
+                                <TableCell padding="checkbox" sx={{ bgcolor: '#f5f5f5', height: 40 }}>
                                     <Checkbox
                                         size="small"
                                         color="primary"
@@ -301,14 +339,21 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
                             })}
                         </TableBody>
                         
-                        {/* NOVO: FOOTER DE TOTAIS */}
-                        <TableFooter sx={{ position: 'sticky', bottom: 0, bgcolor: '#fafafa', zIndex: 2, borderTop: '2px solid #e0e0e0' }}>
+                        {/* FOOTER FIXO NO FINAL DA TABELA */}
+                        <TableFooter sx={{ 
+                            position: 'sticky', 
+                            bottom: 0, 
+                            bgcolor: '#fcfcfc', 
+                            zIndex: 2, 
+                            borderTop: '1px solid #e0e0e0',
+                            boxShadow: '0 -2px 5px rgba(0,0,0,0.05)' 
+                        }}>
                              <TableRow>
                                 <TableCell colSpan={2} />
-                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: '#666' }}>
-                                    TOTAL VISÍVEL:
+                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#666', textAlign: 'right', pr: 2 }}>
+                                    TOTAL DESTA LISTA:
                                 </TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#333' }}>
+                                <TableCell sx={{ fontWeight: '800', fontSize: '0.9rem', color: '#333' }}>
                                     {formatMoney(kpis.totalGeralVisivel)}
                                 </TableCell>
                                 <TableCell colSpan={2} />
@@ -354,25 +399,26 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     );
 }
 
-// COMPONENTE AUXILIAR DE KPI COMPACTO
+// COMPONENTE AUXILIAR DE KPI COMPACTO (Ajustado para caber na linha)
 const CompactKPI = ({ title, value, isCount, icon, color, bgcolor }) => (
     <Paper 
         elevation={0} 
         sx={{ 
-            p: 1, px: 2, borderRadius: 2, bgcolor: bgcolor, 
-            display: 'flex', alignItems: 'center', gap: 1.5,
-            border: `1px solid ${color}40`,
-            minWidth: 160
+            p: 0.5, px: 1.5, borderRadius: 2, bgcolor: bgcolor, 
+            display: 'flex', alignItems: 'center', gap: 1,
+            border: `1px solid ${color}30`,
+            minWidth: 140,
+            height: 40 // Altura fixa e compacta
         }}
     >
-        <Box sx={{ bgcolor: 'white', p: 0.5, borderRadius: '50%', display: 'flex', color: color }}>
-            {React.cloneElement(icon, { fontSize: 'small' })}
+        <Box sx={{ bgcolor: 'white', p: 0.3, borderRadius: '50%', display: 'flex', color: color }}>
+            {icon}
         </Box>
-        <Box>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: color, opacity: 0.9 }}>
+        <Box sx={{ lineHeight: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: color, opacity: 0.9, fontSize: '0.65rem', display: 'block' }}>
                 {title}
             </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: color, lineHeight: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: color, fontSize: '0.85rem' }}>
                 {isCount ? value : formatMoney(value)}
             </Typography>
         </Box>
