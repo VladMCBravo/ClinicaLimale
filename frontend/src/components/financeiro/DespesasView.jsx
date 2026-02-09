@@ -175,7 +175,7 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     return (
         <Box sx={{ 
             p: 1, 
-            height: 'calc(100vh - 150px)', // Altura travada para evitar rolagem de página
+            height: 'calc(100vh - 155px)', // Altura travada para evitar rolagem de página
             display: 'flex', 
             flexDirection: 'column', 
             overflow: 'hidden'
