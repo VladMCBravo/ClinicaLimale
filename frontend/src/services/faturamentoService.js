@@ -38,7 +38,7 @@ export const faturamentoService = {
     getDespesas: () => apiClient.get('/faturamento/despesas/'),
     getCategoriasDespesa: () => apiClient.get('/faturamento/categorias-despesa/'),
     createDespesa: (data) => apiClient.post('/faturamento/despesas/', data),
-    updateDespesa: (id, data) => apiClient.put(`/faturamento/despesas/${id}/`, data),
+    updateDespesa: (id, data) => apiClient.patch(`/faturamento/despesas/${id}/`, data),
     deleteDespesa: (id) => apiClient.delete(`/faturamento/despesas/${id}/`),
 
     // Função auxiliar para baixa rápida de despesa (usada no botão Check)
