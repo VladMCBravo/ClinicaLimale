@@ -43,6 +43,11 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # --- CORREÇÃO AQUI: FILTRO POR PACIENTE ADICIONADO ---
+        paciente_id = self.request.query_params.get('paciente')
+        if paciente_id:
+            qs = qs.filter(paciente_id=paciente_id)
+        # -----------------------------------------------------
         status_param = self.request.query_params.get('status')
         if status_param:
             qs = qs.filter(status=status_param)
@@ -61,30 +66,15 @@ class DespesaViewSet(viewsets.ModelViewSet):
     """
     queryset = Despesa.objects.all().order_by('-data_despesa')
     serializer_class = DespesaSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
+        # Apenas para debug, pode remover depois
         print(f"========== [DEBUG BACKEND] Listando Despesas ==========")
-        print(f"Usuário solicitante: {request.user} (Is Admin? {request.user.is_staff})")
-        
         queryset = self.filter_queryset(self.get_queryset())
-        count = queryset.count()
-        print(f"Total de despesas encontradas no banco: {count}")
-        
-        if count > 0:
-            first = queryset.first()
-            print(f"Exemplo da primeira despesa: ID={first.id}, Desc={first.descricao}, Valor={first.valor}")
-        else:
-            print("⚠️ A tabela de Despesas parece estar vazia!")
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
+        print(f"Total de despesas: {queryset.count()}")
         print(f"========== [FIM DEBUG BACKEND] ==========")
-        return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
 
 class PagamentosPendentesListAPIView(generics.ListAPIView):
     """
