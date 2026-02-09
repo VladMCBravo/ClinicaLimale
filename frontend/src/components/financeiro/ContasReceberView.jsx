@@ -149,7 +149,7 @@ export default function ContasReceberView({ dadosIniciais = [], onReload }) {
     return (
         <Box sx={{ 
             p: 1, 
-            height: 'calc(100vh - 110px)', // <--- AJUSTE DE ALTURA: Mais espaço embaixo para evitar rolagem
+            height: 'calc(100vh - 200px)', // <--- AJUSTE DE ALTURA: Mais espaço embaixo para evitar rolagem
             display: 'flex', 
             flexDirection: 'column', 
             overflow: 'hidden' // Garante que a barra da página não apareça
