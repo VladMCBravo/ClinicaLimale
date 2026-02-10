@@ -1,21 +1,23 @@
 // src/components/financeiro/DespesasView.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
-    IconButton, Typography, Chip, Box, Stack, MenuItem, Select, InputAdornment
+    IconButton, Typography, Chip, Box, Stack, InputAdornment
 } from '@mui/material';
-import { Edit, Delete, CheckCircle, Domain, LocalCafe, Search, TrendingDown, Check, MoneyOff } from '@mui/icons-material';
+import { 
+    Edit, Delete, CheckCircle, Domain, LocalCafe, Search, TrendingDown, Check, MoneyOff, Close 
+} from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import { debounce } from '@mui/material/utils';
+
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
-import { debounce } from '@mui/material/utils'; // Ou use lodash se tiver
 import LancamentoCaixaModal from './LancamentoCaixaModal'; 
 import BaixaUnificadaModal from './BaixaUnificadaModal'; 
-import EditarDespesaModal from './EditarDespesaModal'; // <--- Importe o novo modal
+import EditarDespesaModal from './EditarDespesaModal'; // Certifique-se de que este arquivo existe
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
 // --- COMPONENTE VISUAL DA TABELA (OTIMIZADO) ---
 const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDelete }) => {
     // Cálculo do total desta tabela específica para o rodapé
@@ -104,17 +106,22 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onCheck, onDele
     );
 };
 
-export default function DespesasView({ dadosIniciais = [], onReload }) {
+// --- COMPONENTE PRINCIPAL (ATUALIZADO) ---
+export default function DespesasView({ onReload }) {
     const { showSnackbar } = useSnackbar();
     
+    // Estados Globais
+    const [despesas, setDespesas] = useState([]);
+    const [loading, setLoading] = useState(false);
+
     // Filtros
     const [searchTerm, setSearchTerm] = useState('');
-    // Usei filtroData para suportar Mês e Ano via DatePicker
     const [filtroData, setFiltroData] = useState(dayjs());
     
-    // Estados Modais
-    const [openMestreModal, setOpenMestreModal] = useState(false);
+    // Modais
+    const [openEditModal, setOpenEditModal] = useState(false);
     const [openBaixaModal, setOpenBaixaModal] = useState(false);
+    const [openMestreModal, setOpenMestreModal] = useState(false); // Mantido para compatibilidade se necessário
     const [selectedItem, setSelectedItem] = useState(null);
 
     // --- CARREGAMENTO DE DADOS INTELIGENTE ---
