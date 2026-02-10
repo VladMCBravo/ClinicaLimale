@@ -1,10 +1,13 @@
+# src/faturamento/views.py (Atualização parcial - Substitua ou Atualize o DespesaViewSet)
 import logging
 logger = logging.getLogger(__name__)
+import re
 from datetime import datetime
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
+from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -68,13 +71,74 @@ class DespesaViewSet(viewsets.ModelViewSet):
     serializer_class = DespesaSerializer
     permission_classes = [IsAuthenticated]
 
-    def list(self, request, *args, **kwargs):
-        # Apenas para debug, pode remover depois
-        print(f"========== [DEBUG BACKEND] Listando Despesas ==========")
-        queryset = self.filter_queryset(self.get_queryset())
-        print(f"Total de despesas: {queryset.count()}")
-        print(f"========== [FIM DEBUG BACKEND] ==========")
-        return super().list(request, *args, **kwargs)
+    def get_queryset(self):
+        qs = super().get_queryset()
+        
+        # 1. BUSCA GLOBAL (Resolve o problema da busca limitada ao mês)
+        search_term = self.request.query_params.get('search')
+        if search_term:
+            # Se tiver busca, ignora filtros de data e retorna tudo que der match
+            return qs.filter(descricao__icontains=search_term)
+
+        # 2. Filtros de Data (Só aplicados se NÃO tiver busca)
+        mes = self.request.query_params.get('mes')
+        ano = self.request.query_params.get('ano')
+        
+        if mes and ano:
+            qs = qs.filter(data_despesa__month=mes, data_despesa__year=ano)
+            
+        return qs
+
+    @action(detail=True, methods=['delete'], url_path='excluir-serie')
+    def excluir_serie(self, request, pk=None):
+        """
+        Exclui a despesa atual E todas as outras criadas no mesmo lote (ex: erro de parcelamento).
+        Lógica: Mesmo usuário + Mesma data de registro (margem de 10s) + Descrição similar.
+        """
+        despesa_alvo = self.get_object()
+        
+        # Remove a parte "(x/y)" da descrição para achar as irmãs
+        descricao_base = re.sub(r'\s*\(\d+/\d+\)$', '', despesa_alvo.descricao)
+        
+        # Margem de segurança de tempo (mesmo lote de criação)
+        time_margin = timezone.timedelta(seconds=30)
+        
+        irmas = Despesa.objects.filter(
+            registrado_por=despesa_alvo.registrado_por,
+            data_registro__range=(despesa_alvo.data_registro - time_margin, despesa_alvo.data_registro + time_margin),
+            descricao__startswith=descricao_base
+        )
+        
+        total = irmas.count()
+        irmas.delete()
+        
+        return Response({"msg": f"{total} lançamentos da série foram excluídos com sucesso."})
+
+    @action(detail=True, methods=['patch'], url_path='editar-serie')
+    def editar_serie(self, request, pk=None):
+        """
+        Edita o valor ou categoria de toda a série
+        """
+        despesa_alvo = self.get_object()
+        descricao_base = re.sub(r'\s*\(\d+/\d+\)$', '', despesa_alvo.descricao)
+        time_margin = timezone.timedelta(seconds=30)
+        
+        irmas = Despesa.objects.filter(
+            registrado_por=despesa_alvo.registrado_por,
+            data_registro__range=(despesa_alvo.data_registro - time_margin, despesa_alvo.data_registro + time_margin),
+            descricao__startswith=descricao_base
+        )
+
+        dados = request.data
+        update_fields = {}
+        
+        if 'valor' in dados: update_fields['valor'] = dados['valor']
+        if 'categoria' in dados: update_fields['categoria_id'] = dados['categoria']
+        
+        if update_fields:
+            irmas.update(**update_fields)
+            
+        return Response({"msg": f"Série atualizada ({irmas.count()} itens)."})
 
 class PagamentosPendentesListAPIView(generics.ListAPIView):
     """

@@ -9,8 +9,10 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { debounce } from '@mui/material/utils'; // Ou use lodash se tiver
 import LancamentoCaixaModal from './LancamentoCaixaModal'; 
 import BaixaUnificadaModal from './BaixaUnificadaModal'; 
+import EditarDespesaModal from './EditarDespesaModal'; // <--- Importe o novo modal
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -115,19 +117,61 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     const [openBaixaModal, setOpenBaixaModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
 
-    // Filtragem Otimizada
+    // --- CARREGAMENTO DE DADOS INTELIGENTE ---
+    const fetchDespesas = useCallback(async (busca = '') => {
+        setLoading(true);
+        try {
+            let params = {};
+            
+            if (busca) {
+                // MODO BUSCA GLOBAL: Ignora data, manda termo de busca
+                params = { search: busca };
+            } else {
+                // MODO PADRÃO: Filtra por Mês/Ano
+                params = { 
+                    mes: filtroData.month() + 1,
+                    ano: filtroData.year()
+                };
+            }
+
+            const response = await faturamentoService.getDespesas(params);
+            setDespesas(response.data); // O Backend agora retorna lista filtrada
+        } catch (error) {
+            console.error(error);
+            showSnackbar('Erro ao carregar despesas', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [filtroData, showSnackbar]);
+
+    // Debounce para a busca (espera o usuário parar de digitar)
+    const debouncedSearch = useMemo(() => 
+        debounce((termo) => {
+            fetchDespesas(termo);
+        }, 800),
+    [fetchDespesas]);
+
+    // Efeito: Quando muda a data, recarrega (se não tiver busca)
+    useEffect(() => {
+        if (!searchTerm) {
+            fetchDespesas();
+        }
+    }, [filtroData, fetchDespesas, searchTerm]);
+
+    // Handler do Input de Busca
+    const handleSearchChange = (e) => {
+        const val = e.target.value;
+        setSearchTerm(val);
+        debouncedSearch(val);
+    };
+
+    // --- PROCESSAMENTO LOCAL (Separação Fixa/Variável) ---
     const processedData = useMemo(() => {
-        const filtered = dadosIniciais.filter(d => {
-            const dataRef = dayjs(d.data_despesa || d.data_vencimento);
-            return dataRef.month() === filtroData.month() && 
-                   dataRef.year() === filtroData.year() &&
-                   (d.descricao || '').toLowerCase().includes(searchTerm.toLowerCase());
-        });
+        // Como o backend já filtrou, aqui só separamos as categorias
+        const fixas = despesas.filter(d => d.categoria_tipo === 'Fixa');
+        const variaveis = despesas.filter(d => d.categoria_tipo !== 'Fixa');
 
-        const fixas = filtered.filter(d => d.categoria_tipo === 'Fixa');
-        const variaveis = filtered.filter(d => d.categoria_tipo !== 'Fixa');
-
-        const resumoGeral = filtered.reduce((acc, curr) => {
+        const resumoGeral = despesas.reduce((acc, curr) => {
             const val = parseFloat(curr.valor || 0);
             acc.total += val;
             curr.pago ? (acc.pagas += val) : (acc.aPagar += val);
@@ -135,11 +179,20 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
         }, { pagas: 0, aPagar: 0, total: 0 });
 
         return { fixas, variaveis, resumoGeral };
-    }, [dadosIniciais, filtroData, searchTerm]);
+    }, [despesas]);
 
     const { fixas, variaveis, resumoGeral } = processedData;
 
-    // AÇÕES
+    // --- MANIPULADORES ---
+    const handleDelete = async (id) => {
+        if (!window.confirm("Confirmar exclusão?")) return;
+        try {
+            await faturamentoService.deleteDespesa(id);
+            fetchDespesas(searchTerm); // Recarrega mantendo o contexto atual
+            if(onReload) onReload();
+        } catch (e) { showSnackbar('Erro ao excluir', 'error'); }
+    };
+
     const handleBaixa = async (id, dadosBaixa) => {
         try {
             await faturamentoService.updateDespesa(id, { 
@@ -173,121 +226,85 @@ export default function DespesasView({ dadosIniciais = [], onReload }) {
     };
 
     return (
-        <Box sx={{ 
-            p: 1, 
-            height: 'calc(100vh - 155px)', // Altura travada para evitar rolagem de página
-            display: 'flex', 
-            flexDirection: 'column', 
-            overflow: 'hidden'
-        }}>
+        <Box sx={{ p: 1, height: 'calc(100vh - 155px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             
-            {/* 1. LINHA ÚNICA: KPIs + FILTROS */}
-            <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                mb: 1.5,
-                gap: 2,
-                flexWrap: 'wrap'
-            }}>
-                {/* Lado Esquerdo: KPIs */}
+            {/* KPI + FILTROS */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, gap: 2 }}>
                 <Stack direction="row" spacing={1.5}>
-                    <CompactKPI 
-                        title="TOTAL" 
-                        value={resumoGeral.total} 
-                        icon={<TrendingDown fontSize="inherit" />} 
-                        color="#455a64" 
-                        bgcolor="#eceff1"
-                    />
-                    <CompactKPI 
-                        title="PAGAS" 
-                        value={resumoGeral.pagas} 
-                        icon={<Check fontSize="inherit" />} 
-                        color="#2e7d32" 
-                        bgcolor="#e8f5e9"
-                    />
-                    <CompactKPI 
-                        title="A PAGAR" 
-                        value={resumoGeral.aPagar} 
-                        icon={<MoneyOff fontSize="inherit" />} 
-                        color="#d32f2f" 
-                        bgcolor="#ffebee"
-                    />
+                    <CompactKPI title="TOTAL" value={resumoGeral.total} icon={<TrendingDown fontSize="inherit" />} color="#455a64" bgcolor="#eceff1"/>
+                    <CompactKPI title="PAGAS" value={resumoGeral.pagas} icon={<Check fontSize="inherit" />} color="#2e7d32" bgcolor="#e8f5e9"/>
+                    <CompactKPI title="A PAGAR" value={resumoGeral.aPagar} icon={<MoneyOff fontSize="inherit" />} color="#d32f2f" bgcolor="#ffebee"/>
                 </Stack>
 
-                {/* Lado Direito: Filtros */}
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
                     <DatePicker 
                         views={['month', 'year']} 
                         value={filtroData} 
-                        onChange={(v) => setFiltroData(v)}
-                        slotProps={{ 
-                            textField: { 
-                                size: 'small', 
-                                sx: { width: 120, bgcolor: 'white' },
-                                inputProps: { style: { fontSize: '0.8rem', padding: '8px' } }
-                            } 
-                        }}
+                        onChange={(v) => { setFiltroData(v); setSearchTerm(''); }} // Limpa busca ao trocar data
+                        slotProps={{ textField: { size: 'small', sx: { width: 140, bgcolor: 'white' } } }}
+                        disabled={!!searchTerm} // Desabilita data se estiver buscando
                     />
                     <TextField 
                         size="small" 
-                        placeholder="Buscar..." 
+                        placeholder="Busca Global (Descrição)..." 
                         value={searchTerm} 
-                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        onChange={handleSearchChange} 
                         InputProps={{ 
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <Search sx={{ color: 'gray', fontSize: 18 }} />
-                                </InputAdornment>
-                            ),
-                            style: { fontSize: '0.8rem', paddingLeft: 0 }
+                            startAdornment: (<InputAdornment position="start"><Search /></InputAdornment>),
+                            endAdornment: searchTerm && (
+                                <IconButton size="small" onClick={() => { setSearchTerm(''); fetchDespesas(''); }}>
+                                    <Close fontSize="small" />
+                                </IconButton>
+                            )
                         }}
-                        sx={{ width: 200, bgcolor: 'white' }} 
+                        sx={{ width: 250, bgcolor: searchTerm ? '#e3f2fd' : 'white' }} 
                     />
                 </Box>
             </Box>
 
-            {/* 2. ÁREA DAS TABELAS (Dual View) */}
-            <Box sx={{ 
-                flexGrow: 1, 
-                display: 'flex', 
-                gap: 2, 
-                flexDirection: { xs: 'column', md: 'row' },
-                overflow: 'hidden' // Garante que as tabelas scrollam internamente
-            }}>
-                <TabelaDespesas 
-                    dados={fixas} 
-                    titulo="FIXAS" 
-                    icone={<Domain />} 
-                    corTema="#1565c0" 
-                    onEdit={(item) => { setSelectedItem(item); setOpenMestreModal(true); }} 
-                    onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
-                    onDelete={onDelete} 
-                />
-                <TabelaDespesas 
-                    dados={variaveis} 
-                    titulo="VARIÁVEIS" 
-                    icone={<LocalCafe />} 
-                    corTema="#e65100" 
-                    onEdit={(item) => { setSelectedItem(item); setOpenMestreModal(true); }} 
-                    onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
-                    onDelete={onDelete} 
-                />
-            </Box>
+            {/* TABELAS */}
+            {loading ? (
+                <Typography sx={{p:4, textAlign: 'center'}}>Carregando...</Typography>
+            ) : (
+                <Box sx={{ flexGrow: 1, display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden' }}>
+                    <TabelaDespesas 
+                        dados={fixas} 
+                        titulo={searchTerm ? "RESULTADO (FIXAS)" : "FIXAS"} 
+                        icone={<Domain />} 
+                        corTema="#1565c0" 
+                        onEdit={(item) => { setSelectedItem(item); setOpenEditModal(true); }} 
+                        onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
+                        onDelete={handleDelete} 
+                    />
+                    <TabelaDespesas 
+                        dados={variaveis} 
+                        titulo={searchTerm ? "RESULTADO (VARIÁVEIS)" : "VARIÁVEIS"} 
+                        icone={<LocalCafe />} 
+                        corTema="#e65100" 
+                        onEdit={(item) => { setSelectedItem(item); setOpenEditModal(true); }} 
+                        onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
+                        onDelete={handleDelete} 
+                    />
+                </Box>
+            )}
 
-            {/* Modais */}
-            <LancamentoCaixaModal 
-                open={openMestreModal} 
-                initialData={selectedItem} 
-                onClose={() => { setOpenMestreModal(false); if(onReload) onReload(); }} 
+            {/* --- NOVO MODAL DE EDIÇÃO --- */}
+            <EditarDespesaModal
+                open={openEditModal}
+                despesa={selectedItem}
+                onClose={() => setOpenEditModal(false)}
+                onSave={() => fetchDespesas(searchTerm)}
+                showSnackbar={showSnackbar}
             />
 
             <BaixaUnificadaModal 
                 open={openBaixaModal}
                 onClose={() => setOpenBaixaModal(false)}
                 item={selectedItem}
-                onConfirmBaixa={handleBaixa}
-                onConfirmRenegociacao={handleRenegociacao}
+                onConfirmBaixa={async (id, dados) => {
+                    await faturamentoService.updateDespesa(id, { pago: true, ...dados });
+                    fetchDespesas(searchTerm);
+                }}
             />
         </Box>
     );

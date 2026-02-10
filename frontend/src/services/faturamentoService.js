@@ -35,14 +35,16 @@ export const faturamentoService = {
     createLancamentoAvulso: (data) => apiClient.post('/faturamento/lancamento-avulso/', data),
 
     // --- DESPESAS ---
-    getDespesas: () => apiClient.get('/faturamento/despesas/'),
+    getDespesas: (params) => apiClient.get('/faturamento/despesas/', { params }),
     getCategoriasDespesa: () => apiClient.get('/faturamento/categorias-despesa/'),
     createDespesa: (data) => apiClient.post('/faturamento/despesas/', data),
     updateDespesa: (id, data) => apiClient.patch(`/faturamento/despesas/${id}/`, data),
     deleteDespesa: (id) => apiClient.delete(`/faturamento/despesas/${id}/`),
-
     // Função auxiliar para baixa rápida de despesa (usada no botão Check)
     alternarPagamento: (id, data) => apiClient.patch(`/faturamento/despesas/${id}/`, data),
+    // Novas ações de lote
+    excluirSerieDespesas: (id) => apiClient.delete(`/faturamento/despesas/${id}/excluir-serie/`),
+    editarSerieDespesas: (id, data) => apiClient.patch(`/faturamento/despesas/${id}/editar-serie/`, data),
 
     // --- FATURAMENTO / CONVÊNIOS ---
     getConvenios: () => apiClient.get('/faturamento/convenios/'),
