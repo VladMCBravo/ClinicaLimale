@@ -1,0 +1,200 @@
+/* src/components/financeiro/Financeiro.css */
+
+:root {
+    --bg-color: #f4f5f7;
+    --card-bg: #ffffff;
+    --text-primary: #1a233b;
+    --text-secondary: #6b7280;
+    --border-color: #e5e7eb;
+    --primary-color: #1976d2;
+    --success-color: #2e7d32;
+    --danger-color: #d32f2f;
+    --warning-color: #ed6c02;
+    --radius: 8px;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* --- CONTAINER GERAL --- */
+.fin-container {
+    padding: 16px;
+    height: calc(100vh - 80px); /* Ajuste conforme seu header */
+    overflow-y: auto;
+    background-color: var(--bg-color);
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    box-sizing: border-box;
+}
+
+/* --- BARRA DE FERRAMENTAS (FILTROS) --- */
+.fin-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    height: 50px;
+}
+
+.fin-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fin-btn-toggle {
+    text-transform: none !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    border-radius: 20px !important;
+    padding: 4px 12px !important;
+}
+
+/* --- GRID DE KPIS (CARDS) --- */
+.fin-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.fin-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 75px; /* Altura fixa e compacta */
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s;
+}
+
+.fin-card:hover {
+    transform: translateY(-1px);
+    border-color: #d1d5db;
+}
+
+.fin-card-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.fin-card-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.fin-card-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.fin-card-sub {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.fin-card-icon {
+    font-size: 1.5rem;
+    opacity: 0.15;
+}
+
+/* --- ÁREA DOS GRÁFICOS --- */
+.fin-charts-grid {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr; /* 70% / 30% */
+    gap: 12px;
+    height: calc(100% - 150px); /* Ocupa o resto da tela */
+    min-height: 300px;
+}
+
+.fin-chart-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+}
+
+.fin-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.fin-chart-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.fin-chart-content {
+    flex: 1;
+    width: 100%;
+    min-height: 0; /* Importante para o Recharts não estourar */
+    position: relative;
+}
+
+/* --- SIDEBAR DE DETALHES --- */
+.fin-sidebar-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+}
+
+.fin-mini-panel {
+    flex: 1;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.fin-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+}
+
+.fin-label { color: var(--text-secondary); font-weight: 600; }
+.fin-val { font-weight: 700; }
+
+/* Utilitários de Cor de Borda para Cards */
+.border-l-success { border-left: 3px solid var(--success-color); }
+.border-l-danger { border-left: 3px solid var(--danger-color); }
+.border-l-primary { border-left: 3px solid var(--primary-color); }
+.border-l-warning { border-left: 3px solid var(--text-secondary); }
+
+/* Responsividade */
+@media (max-width: 1024px) {
+    .fin-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .fin-charts-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+    .fin-kpi-grid { grid-template-columns: 1fr; }
+    .fin-toolbar { flex-direction: column; height: auto; gap: 10px; align-items: flex-start; }
+}
