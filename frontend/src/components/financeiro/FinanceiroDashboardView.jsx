@@ -1,8 +1,9 @@
+// src/components/financeiro/FinanceiroDashboardView.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, Stack, LinearProgress } from '@mui/material';
+import { Box, Grid, Paper, Typography, Stack, LinearProgress, Alert } from '@mui/material';
 import { 
     TrendingDown, AccountBalanceWallet, AttachMoney, 
-    Storefront, EventAvailable
+    Storefront
 } from '@mui/icons-material';
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -16,17 +17,10 @@ import { agendamentoService } from '../../services/agendamentoService';
 
 dayjs.locale('pt-br');
 
-// Configuração de Cores
 const COLORS = {
-    receita: '#2e7d32', 
-    despesa: '#d32f2f', 
-    saldo: '#1976d2',   
-    fixa: '#0288d1',    
-    variavel: '#ed6c02',
-    pendente: '#f57c00',
-    atrasado: '#d32f2f', 
-    aporte: '#7b1fa2',
-    ocupacao: '#009688'
+    receita: '#2e7d32', despesa: '#d32f2f', saldo: '#1976d2',   
+    fixa: '#0288d1', variavel: '#ed6c02', pendente: '#f57c00',
+    atrasado: '#d32f2f', aporte: '#7b1fa2', ocupacao: '#009688'
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
@@ -34,6 +28,7 @@ const formatK = (val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val;
 
 export default function FinanceiroDashboardView() {
     const [loading, setLoading] = useState(true);
+    const [erroAPI, setErroAPI] = useState(false);
     
     // Estado inicial seguro
     const [dados, setDados] = useState({
@@ -54,17 +49,26 @@ export default function FinanceiroDashboardView() {
         const fetchDados = async () => {
             setLoading(true);
             try {
-                // Busca dados Financeiros (SQL Backend) e Operacionais (Agenda) em paralelo
+                // Busca paralela com tratamento de falha individual
                 const [resFin, resOp] = await Promise.all([
-                    faturamentoService.getDashboardFinanceiro(),
-                    agendamentoService.getDashboardKPIs ? agendamentoService.getDashboardKPIs() : { data: {} }
+                    faturamentoService.getDashboardFinanceiro().catch(err => ({ error: true, err })),
+                    agendamentoService.getDashboardKPIs ? agendamentoService.getDashboardKPIs().catch(() => ({ data: {} })) : { data: {} }
                 ]);
                 
-                if(resFin.data) setDados(resFin.data);
+                // VERIFICAÇÃO DE SEGURANÇA: Só atualiza se vier a estrutura correta
+                if(resFin.data && resFin.data.kpis) {
+                    setDados(resFin.data);
+                } else {
+                    console.warn("Resposta do Dashboard incompleta ou antiga:", resFin.data);
+                    // Não substituímos o estado inicial se a resposta for inválida (ex: {msg: "OK"})
+                    if(resFin.error) setErroAPI(true);
+                }
+
                 if(resOp.data) setOperacional(resOp.data);
 
             } catch (error) {
-                console.error("Erro ao carregar dashboard", error);
+                console.error("Erro crítico no dashboard", error);
+                setErroAPI(true);
             } finally {
                 setLoading(false);
             }
@@ -73,50 +77,54 @@ export default function FinanceiroDashboardView() {
         fetchDados();
     }, []);
 
-    const { kpis, grafico_fluxo, custos_mes } = dados;
+    // EXTRAÇÃO SEGURA DE DADOS (Impede Tela Branca)
+    // Se 'dados' ou suas propriedades forem undefined, usa {} ou 0
+    const kpis = dados?.kpis || {};
+    const custos_mes = dados?.custos_mes || { fixas: 0, variaveis: 0 };
+    const grafico_fluxo = dados?.grafico_fluxo || [];
 
-    // Preparação de dados para Gráficos Laterais
+    // Dados para gráficos laterais
     const dataDespesasPie = [
-        { name: 'Fixas', value: custos_mes.fixas },
-        { name: 'Variáveis', value: custos_mes.variaveis }
+        { name: 'Fixas', value: custos_mes.fixas || 0 },
+        { name: 'Variáveis', value: custos_mes.variaveis || 0 }
     ];
 
-    // Gráfico de Recebimentos: Focado em "Quanto entrou" vs "Quanto deveria ter entrado e atrasou"
     const dataStatusReceitas = [
-        { name: 'Pago', valor: kpis.valorOperacional + kpis.valorAportes, fill: COLORS.receita },
-        { name: 'Atrasado', valor: kpis.totalAtrasado, fill: COLORS.atrasado } 
+        { name: 'Pago', valor: (kpis.valorOperacional || 0) + (kpis.valorAportes || 0), fill: COLORS.receita },
+        { name: 'Atrasado', valor: kpis.totalAtrasado || 0, fill: COLORS.atrasado } 
     ];
 
     if (loading) return <LinearProgress />;
 
     return (
         <Box sx={{ p: 1, overflow: 'hidden', height: '100%' }}>
-            
-            {/* LINHA 1: KPIS (Calculados no Backend) */}
+            {erroAPI && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    Não foi possível carregar alguns dados. Verifique se o servidor foi atualizado.
+                </Alert>
+            )}
+
+            {/* LINHA 1: KPIS */}
             <Grid container spacing={1} sx={{ mb: 1 }}>
-                
                 <KPICard 
                     title="FATURAMENTO CLÍNICO" 
                     value={kpis.valorOperacional} 
                     icon={<Storefront />} color={COLORS.receita} 
                     subtext={`+ ${formatMoney(kpis.valorAportes)} aportes`} 
                 />
-                
                 <KPICard 
                     title="DESPESA TOTAL" 
                     value={kpis.totalDespesas} 
                     icon={<TrendingDown />} color={COLORS.despesa} 
                     subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} 
                 />
-                
                 <KPICard 
                     title="SALDO EM CAIXA" 
                     value={kpis.saldo} 
                     icon={<AccountBalanceWallet />} 
-                    color={kpis.saldo >= 0 ? COLORS.saldo : COLORS.despesa} 
+                    color={(kpis.saldo || 0) >= 0 ? COLORS.saldo : COLORS.despesa} 
                     subtext="Disponível Real" 
                 />
-                
                 <KPICard 
                     title="TICKET MÉDIO" 
                     value={kpis.ticketMedio} 
@@ -126,7 +134,7 @@ export default function FinanceiroDashboardView() {
             </Grid>
 
             <Grid container spacing={1}>
-                {/* LINHA 2: GRÁFICO PRINCIPAL (Fluxo de Caixa) */}
+                {/* LINHA 2: GRÁFICO PRINCIPAL */}
                 <Grid item xs={12} md={8}>
                     <Paper variant="outlined" sx={{ p: 1.5, height: 280, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -161,11 +169,9 @@ export default function FinanceiroDashboardView() {
                     </Paper>
                 </Grid>
 
-                {/* LINHA 2: LATERAL (Operacional + Custos + Recebimentos) */}
+                {/* LINHA 2: LATERAL */}
                 <Grid item xs={12} md={4}>
                     <Stack spacing={1}>
-                        
-                        {/* 1. Capacidade Operacional (Vem da Agenda) */}
                         <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#e0f2f1', border: `1px solid ${COLORS.ocupacao}50` }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                                 <Typography variant="caption" fontWeight="bold" color={COLORS.ocupacao}>CAPACIDADE OPERACIONAL</Typography>
@@ -175,7 +181,6 @@ export default function FinanceiroDashboardView() {
                             <Typography variant="caption">Faturamento/Hora: <b>{formatMoney(operacional.ticket_medio_hora || 0)}</b></Typography>
                         </Paper>
 
-                        {/* 2. Pizza de Custos (Vem do Backend) */}
                         <Paper variant="outlined" sx={{ p: 1, height: 90, display: 'flex', alignItems: 'center' }}>
                             <ResponsiveContainer width="40%">
                                 <RechartsPieChart>
@@ -186,18 +191,16 @@ export default function FinanceiroDashboardView() {
                             </ResponsiveContainer>
                             <Box sx={{ width: '60%', pl: 1 }}>
                                 <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>CUSTOS (Mês)</Typography>
-                                <DetailRow label="Fixos" value={custos_mes.fixas} color={COLORS.fixa} />
-                                <DetailRow label="Variáveis" value={custos_mes.variaveis} color={COLORS.variavel} />
+                                <DetailRow label="Fixos" value={custos_mes.fixas || 0} color={COLORS.fixa} />
+                                <DetailRow label="Variáveis" value={custos_mes.variaveis || 0} color={COLORS.variavel} />
                             </Box>
                         </Paper>
 
-                        {/* 3. Gráfico Recebimentos (LAYOUT CORRIGIDO) */}
                         <Paper variant="outlined" sx={{ p: 1, height: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                             <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5, fontSize: '0.75rem' }}>RECEBIMENTOS (Total)</Typography>
                             <ResponsiveContainer width="100%" height={60}>
                                 <BarChart layout="vertical" data={dataStatusReceitas} margin={{ left: -20, right: 30, bottom: 0, top: 0 }}>
                                     <XAxis type="number" hide />
-                                    {/* AQUI ESTAVA O PROBLEMA: Aumentei width para 70 e diminui a fonte */}
                                     <YAxis 
                                         dataKey="name" 
                                         type="category" 
