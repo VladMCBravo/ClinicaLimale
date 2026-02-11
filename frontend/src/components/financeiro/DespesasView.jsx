@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
-    IconButton, Typography, Chip, Box, Stack, InputAdornment
+    IconButton, Typography, Chip, Box, Stack, InputAdornment, Button, Dialog, DialogTitle, DialogContent, DialogActions 
 } from '@mui/material';
 import { 
-    Edit, Delete, CheckCircle, Domain, LocalCafe, Search, TrendingDown, Check, MoneyOff, Close 
+    Edit, Delete, CheckCircle, Domain, LocalCafe, Search, TrendingDown, Check, MoneyOff, Close, Settings 
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
