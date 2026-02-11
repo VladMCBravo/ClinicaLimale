@@ -198,3 +198,51 @@
     .fin-kpi-grid { grid-template-columns: 1fr; }
     .fin-toolbar { flex-direction: column; height: auto; gap: 10px; align-items: flex-start; }
 }
+
+/* --- ESTILIZAÇÃO DAS ABAS (TABS) COMPACTAS --- */
+
+/* O container da barra de abas */
+.fin-tabs-container {
+    background-color: #fff;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 16px;
+    height: 42px; /* Altura fixa fina */
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+}
+
+/* O componente Tabs do MUI */
+.fin-tabs-root {
+    min-height: 40px !important;
+    height: 40px !important;
+    width: 100%;
+}
+
+/* Os itens individuais (Botões das abas) */
+.fin-tab-item {
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 0 16px !important; /* Espaçamento lateral reduzido */
+    
+    /* Texto */
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    text-transform: none !important; /* Remove CAIXA ALTA */
+    color: var(--text-secondary) !important;
+    
+    /* Layout Ícone ao lado do Texto (Economiza altura) */
+    flex-direction: row !important; 
+    gap: 8px;
+}
+
+/* Item selecionado */
+.fin-tab-item.Mui-selected {
+    color: var(--primary-color) !important;
+    font-weight: 700 !important;
+}
+
+/* Ocultar trilho de scroll se sobrar */
+.MuiTabs-scroller {
+    overflow: hidden !important;
+}

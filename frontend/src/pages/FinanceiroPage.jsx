@@ -1,9 +1,9 @@
 // src/pages/FinanceiroPage.jsx
 import React, { useState } from 'react';
 import { Paper, Box, Tabs, Tab } from '@mui/material';
-import { FaMoneyBillWave, FaHandHoldingUsd, FaChartLine } from 'react-icons/fa';
+import { FaMoneyBillWave, FaHandHoldingUsd, FaChartLine, FaFileMedical, FaRegHandshake } from 'react-icons/fa';
 
-// Importa o CSS Global (Garante que carregue)
+// Importa o CSS Global
 import '../components/financeiro/Financeiro.css';
 
 import FinanceiroDashboardView from '../components/financeiro/FinanceiroDashboardView';
@@ -23,19 +23,51 @@ export default function FinanceiroPage() {
     return (
         <Paper className="fin-container" sx={{ p: 0, m: 0, borderRadius: 0, boxShadow: 'none' }}>
             
-            {/* Header de Navegação Simplificado */}
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0, bgcolor: '#fff', px: 2 }}>
-                <Tabs value={activeTab} onChange={handleChange} variant="scrollable">
-                    <Tab icon={<FaChartLine />} iconPosition="start" label="Dashboard" {...a11yProps(0)} />
-                    <Tab icon={<FaHandHoldingUsd />} iconPosition="start" label="Receber" {...a11yProps(1)} />
-                    <Tab icon={<FaMoneyBillWave />} iconPosition="start" label="Pagar" {...a11yProps(2)} />
-                    <Tab label="Convênios" {...a11yProps(3)} />
-                    <Tab label="Procedimentos" {...a11yProps(4)} />
+            {/* Header de Navegação Fino e Compacto */}
+            <Box className="fin-tabs-container">
+                <Tabs 
+                    value={activeTab} 
+                    onChange={handleChange} 
+                    className="fin-tabs-root"
+                    variant="standard" /* Remove a rolagem, tenta caber tudo */
+                    centered={false}   /* Alinha à esquerda (mais profissional) ou true para centralizar */
+                    TabIndicatorProps={{ style: { height: 3, borderRadius: '3px 3px 0 0' } }} // Indicador mais bonito
+                >
+                    <Tab 
+                        icon={<FaChartLine size={14} />} 
+                        label="Dashboard" 
+                        {...a11yProps(0)} 
+                        className="fin-tab-item" 
+                    />
+                    <Tab 
+                        icon={<FaHandHoldingUsd size={14} />} 
+                        label="Receber" 
+                        {...a11yProps(1)} 
+                        className="fin-tab-item" 
+                    />
+                    <Tab 
+                        icon={<FaMoneyBillWave size={14} />} 
+                        label="Pagar" 
+                        {...a11yProps(2)} 
+                        className="fin-tab-item" 
+                    />
+                    <Tab 
+                        icon={<FaRegHandshake size={14} />} 
+                        label="Convênios" 
+                        {...a11yProps(3)} 
+                        className="fin-tab-item" 
+                    />
+                    <Tab 
+                        icon={<FaFileMedical size={14} />} 
+                        label="Procedimentos" 
+                        {...a11yProps(4)} 
+                        className="fin-tab-item" 
+                    />
                 </Tabs>
             </Box>
 
-            {/* Conteúdo das Abas */}
-            <Box sx={{ p: 0, height: 'calc(100% - 50px)' }}>
+            {/* Conteúdo das Abas (Ocupa o resto da tela) */}
+            <Box sx={{ p: 0, height: 'calc(100% - 42px)', overflow: 'hidden' }}>
                 {activeTab === 0 && <FinanceiroDashboardView />}
                 {activeTab === 1 && <ContasReceberView />}
                 {activeTab === 2 && <DespesasView />}
