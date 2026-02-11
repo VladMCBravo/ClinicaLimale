@@ -82,54 +82,14 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             
         return qs
 
-# 2. NOVO ENDPOINT DE CAPACIDADE OPERACIONAL (Dashboard)
-class DashboardOperacionalAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        mes = request.query_params.get('mes', timezone.now().month)
-        ano = request.query_params.get('ano', timezone.now().year)
-
-        # 1. Capacidade Total Teórica
-        # Ex: 2 Salas * 8 horas/dia * 22 dias úteis (Simplificado, pode refinar depois)
-        qtd_salas = Sala.objects.filter(ativa=True).count() or 1
-        dias_uteis = 22 
-        horas_dia = 9 # Ex: das 9h às 18h
-        capacidade_horas = qtd_salas * dias_uteis * horas_dia
-        
-        # 2. Ocupação Real (Agendamentos que não foram cancelados)
-        agendamentos_mes = Agendamento.objects.filter(
-            data_hora_inicio__month=mes,
-            data_hora_inicio__year=ano
-        ).exclude(status='Cancelado')
-        
-        horas_ocupadas = agendamentos_mes.count() # Assumindo 1h por agendamento (ajustar se tiver duração)
-        
-        # 3. Eficiência Financeira
-        faturamento_total = Pagamento.objects.filter(
-            data_pagamento__month=mes, 
-            data_pagamento__year=ano, 
-            status='Pago'
-        ).aggregate(Sum('valor'))['valor__sum'] or 0
-
-        ticket_medio = faturamento_total / horas_ocupadas if horas_ocupadas > 0 else 0
-
-        return Response({
-            "capacidade_total_slots": capacidade_horas,
-            "slots_ocupados": horas_ocupadas,
-            "taxa_ocupacao": round((horas_ocupadas / capacidade_horas) * 100, 1) if capacidade_horas > 0 else 0,
-            "faturamento_real": faturamento_total,
-            "ticket_medio_hora": round(ticket_medio, 2)
-        })
-    
 # ==============================================================================
-# VIEW DE DASHBOARD (CORRIGIDA E OTIMIZADA)
+# 1. DASHBOARD & KPIs (A CLASSE CORRETA AGORA)
 # ==============================================================================
 
 class FinanceiroDashboardAPIView(APIView):
     """
-    Retorna todos os KPIs financeiros calculados via SQL (Banco de Dados).
-    Muito mais rápido e escalável que processar no Javascript.
+    Retorna KPI financeiro completo calculado no banco de dados.
+    Substitui a lógica antiga de frontend.
     """
     permission_classes = [IsAuthenticated]
 
@@ -138,51 +98,39 @@ class FinanceiroDashboardAPIView(APIView):
         mes_atual = hoje.month
         ano_atual = hoje.year
 
-        # --- 1. KPIS GERAIS (ALL-TIME / HISTÓRICO COMPLETO) ---
-        # Como solicitado: Totais de todos os tempos, não só do mês.
-        
-        # Receitas (Considera Pagamento Legado + TransacaoFinanceira Nova se houver migração)
-        # Por enquanto focando no Pagamento (Legado) conforme seu uso atual
+        # --- 1. KPIS GERAIS (ALL-TIME) ---
         receitas_qs = Pagamento.objects.all()
         
-        # Aportes vs Operacional
-        # Regra: Se tem paciente é Operacional. Se não tem, é Aporte/Outros.
+        # Receita Operacional (Com Paciente) vs Aportes (Sem Paciente)
         total_operacional = receitas_qs.filter(status='Pago', paciente__isnull=False).aggregate(total=Sum('valor'))['total'] or 0
         total_aportes = receitas_qs.filter(status='Pago', paciente__isnull=True).aggregate(total=Sum('valor'))['total'] or 0
         
-        # A Receber (Geral)
+        # Pendente e Atrasado
         total_pendente = receitas_qs.filter(status='Pendente').aggregate(total=Sum('valor'))['total'] or 0
-        
-        # Atrasados (Geral - Vencidos antes de hoje)
         total_atrasado = receitas_qs.filter(status='Pendente', data_vencimento__lt=hoje).aggregate(total=Sum('valor'))['total'] or 0
 
-        # Despesas (Geral)
+        # Despesas Totais
         despesas_qs = Despesa.objects.all()
         total_despesas = despesas_qs.aggregate(total=Sum('valor'))['total'] or 0
         total_despesas_pagas = despesas_qs.filter(pago=True).aggregate(total=Sum('valor'))['total'] or 0
 
-        # Ticket Médio (All-time, baseado apenas em atendimentos pagos)
+        # Ticket Médio
         qtd_atendimentos = receitas_qs.filter(status='Pago', paciente__isnull=False).count()
         ticket_medio = total_operacional / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
-        # --- 2. GRÁFICO DE FLUXO DE CAIXA (DIÁRIO - APENAS MÊS ATUAL) ---
-        # O gráfico de linha precisa ser "zoom in" no mês atual, senão fica ilegível com 5 anos de dados.
-        
-        # Agrega Receitas por Dia
+        # --- 2. GRÁFICO DE FLUXO (DIÁRIO - MÊS ATUAL) ---
         receitas_dia = receitas_qs.filter(
             status='Pago', 
             data_pagamento__month=mes_atual, 
             data_pagamento__year=ano_atual
         ).annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
 
-        # Agrega Despesas por Dia
         despesas_dia = despesas_qs.filter(
             pago=True, 
             data_pagamento__month=mes_atual, 
             data_pagamento__year=ano_atual
         ).annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
 
-        # Monta a estrutura para o Recharts
         from calendar import monthrange
         _, dias_no_mes = monthrange(ano_atual, mes_atual)
         grafico_fluxo = []
@@ -198,11 +146,9 @@ class FinanceiroDashboardAPIView(APIView):
                     "entradas": float(mapa_receitas.get(data_obj, 0)),
                     "saidas": float(mapa_despesas.get(data_obj, 0))
                 })
-            except ValueError:
-                pass # Ignora dias inválidos (ex: 30 de fev)
+            except ValueError: pass
 
-        # --- 3. GRÁFICO DE CUSTOS (FIXA vs VARIÁVEL - MÊS ATUAL) ---
-        # Reflete o custo operacional do mês corrente
+        # --- 3. CUSTOS FIXOS vs VARIÁVEIS (MÊS ATUAL) ---
         fixas = despesas_qs.filter(categoria__tipo='Fixa', data_despesa__month=mes_atual, data_despesa__year=ano_atual).aggregate(total=Sum('valor'))['total'] or 0
         variaveis = despesas_qs.filter(categoria__tipo__in=['Variavel', 'Variavel (Consumo/Eventual)'], data_despesa__month=mes_atual, data_despesa__year=ano_atual).aggregate(total=Sum('valor'))['total'] or 0
 
@@ -222,6 +168,32 @@ class FinanceiroDashboardAPIView(APIView):
                 "fixas": float(fixas),
                 "variaveis": float(variaveis)
             }
+        })
+
+class DashboardOperacionalAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        mes = request.query_params.get('mes', timezone.now().month)
+        ano = request.query_params.get('ano', timezone.now().year)
+
+        qtd_salas = Sala.objects.filter(ativa=True).count() or 1
+        dias_uteis = 22 
+        horas_dia = 9 
+        capacidade_horas = qtd_salas * dias_uteis * horas_dia
+        
+        agendamentos_mes = Agendamento.objects.filter(data_hora_inicio__month=mes, data_hora_inicio__year=ano).exclude(status='Cancelado')
+        horas_ocupadas = agendamentos_mes.count() 
+        
+        faturamento_total = Pagamento.objects.filter(data_pagamento__month=mes, data_pagamento__year=ano, status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
+        ticket_medio = faturamento_total / horas_ocupadas if horas_ocupadas > 0 else 0
+
+        return Response({
+            "capacidade_total_slots": capacidade_horas,
+            "slots_ocupados": horas_ocupadas,
+            "taxa_ocupacao": round((horas_ocupadas / capacidade_horas) * 100, 1) if capacidade_horas > 0 else 0,
+            "faturamento_real": faturamento_total,
+            "ticket_medio_hora": round(ticket_medio, 2)
         })
     
 class DespesaViewSet(viewsets.ModelViewSet):
@@ -568,8 +540,6 @@ class TussUploadView(APIView):
 
 # Stubs para evitar erro de importação no urls.py
 class RelatorioFinanceiroAPIView(APIView):
-    def get(self, request): return Response({"msg": "OK"})
-class FinanceiroDashboardAPIView(APIView):
     def get(self, request): return Response({"msg": "OK"})
 class InterWebhookAPIView(APIView):
     def post(self, request): return Response(status=200)
