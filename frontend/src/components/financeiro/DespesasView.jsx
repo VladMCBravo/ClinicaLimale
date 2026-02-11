@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
-    IconButton, Typography, Chip, Box, Stack, InputAdornment, Button, Dialog, DialogTitle, DialogContent, DialogActions 
+    IconButton, Typography, Chip, Box, Stack, InputAdornment, Button, Dialog, DialogTitle, DialogContent, DialogActions, TablePagination
 } from '@mui/material';
 import { 
     Edit, Delete, CheckCircle, Domain, LocalCafe, Search, TrendingDown, Check, MoneyOff, Close, Settings 
@@ -21,12 +21,27 @@ import CategoriasTab from '../configuracoes/CategoriasTab';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// --- COMPONENTE VISUAL DA TABELA (AJUSTADO PARA DUPLO MODO) ---
-// Adicionamos a prop "onRowClick" separada do "onEdit"
+// --- TABELA COM PAGINAÇÃO (RESOLVE A LENTIDÃO DE RENDERIZAÇÃO) ---
 const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onCheck, onDelete }) => {
-    
-    const totalTabela = useMemo(() => dados.reduce((acc, item) => acc + Number(item.valor), 0), [dados]);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(25); // Padrão 25 itens
 
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
+    // Cálcula os dados visíveis na página atual
+    const dadosVisiveis = useMemo(() => {
+        return dados.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    }, [dados, page, rowsPerPage]);
+
+    const totalTabela = useMemo(() => dados.reduce((acc, item) => acc + Number(item.valor), 0), [dados]);
+    
     return (
         <Paper 
             variant="outlined" 

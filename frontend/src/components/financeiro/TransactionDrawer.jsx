@@ -11,9 +11,10 @@ import {
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
 import { faturamentoService } from '../../services/faturamentoService';
 
-// Função segura para data
+// --- CORREÇÃO ROBUSTA DE DATAS ---
 const safeDate = (dateStr) => {
     if (!dateStr) return null;
     const d = dayjs(dateStr);
@@ -22,6 +23,7 @@ const safeDate = (dateStr) => {
 
 const formatDate = (dateStr) => {
     const d = safeDate(dateStr);
+    // Se a data for inválida, mostra "--/--/----" em vez de quebrar ou mostrar Invalid Date
     return d ? d.format('DD/MM/YYYY') : '--/--/----';
 };
 
@@ -36,6 +38,10 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
     useEffect(() => {
         if (open && transactionId) {
             loadData();
+        } else {
+            // Limpa estado ao fechar para evitar flashes de dados antigos
+            setTimeline([]);
+            setLoading(true);
         }
     }, [open, transactionId]);
 
@@ -45,7 +51,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
             const res = await faturamentoService.getDespesaTimeline(transactionId);
             setTimeline(res.data);
             
-            // Tenta focar no item clicado, senão pega o primeiro da lista
+            // Foca no item atual ou no primeiro da lista
             const current = res.data.find(t => t.id === transactionId) || res.data[0];
             if (current) enterEditMode(current);
             
@@ -61,6 +67,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
         setEditForm({
             descricao: item.descricao,
             valor: item.valor,
+            // Importante: garante que o DatePicker receba null ou dayjs válido
             data_vencimento: safeDate(item.data_vencimento),
             categoria: item.categoria
         });
@@ -70,13 +77,13 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
         try {
             const payload = {
                 ...editForm,
-                // Garante formato correto YYYY-MM-DD para o backend
+                // Formata para o padrão que o Django espera YYYY-MM-DD
                 data_vencimento: editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null,
                 data_despesa: editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null
             };
 
             await faturamentoService.updateDespesa(editingId, payload);
-            loadData(); // Recarrega timeline
+            loadData(); // Recarrega timeline local
             if(onUpdate) onUpdate(); // Atualiza dashboard principal
         } catch (error) {
             alert('Erro ao salvar');
@@ -104,9 +111,8 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
             anchor="right"
             open={open}
             onClose={onClose}
-            PaperProps={{ sx: { width: { xs: '100%', md: 400 }, p: 0 } }} // Largura reduzida para 400px
+            PaperProps={{ sx: { width: { xs: '100%', md: 400 }, p: 0 } }} 
         >
-            {/* CABEÇALHO COMPACTO */}
             <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fafafa' }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#1a233b', fontSize: '1rem' }}>
                     Detalhes da Despesa
@@ -123,7 +129,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
             ) : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                     
-                    {/* ÁREA DE EDIÇÃO (COMPACTA) */}
+                    {/* ÁREA DE EDIÇÃO */}
                     <Box sx={{ p: 2, bgcolor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                         <Grid container spacing={1.5}>
                             <Grid item xs={12}>
@@ -178,7 +184,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
 
                     <Divider />
 
-                    {/* LISTA HISTÓRICO (COMPACTA) */}
+                    {/* LISTA HISTÓRICO */}
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', bgcolor: '#f8f9fa', px: 1, py: 2 }}>
                         <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ px: 1, mb: 1, display: 'block', textTransform: 'uppercase' }}>
                             Série / Histórico ({timeline.length} itens)
@@ -202,7 +208,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
                                             cursor: 'pointer',
                                             transition: '0.1s',
                                             '&:hover': { bgcolor: '#f0f7ff', borderColor: 'primary.light' },
-                                            py: 0.5 // Padding vertical reduzido
+                                            py: 0.5 
                                         }}
                                         secondaryAction={
                                             <Tooltip title="Excluir Parcela">
@@ -224,6 +230,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
                                                 <Box display="flex" justifyContent="space-between" alignItems="center">
                                                     <Box display="flex" alignItems="center" gap={0.5}>
                                                         <CalendarMonth sx={{ fontSize: 12, color: 'text.secondary', opacity: 0.7 }} />
+                                                        {/* AQUI ESTAVA O PROBLEMA: Usamos formatDate que trata nulos */}
                                                         <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
                                                             {formatDate(item.data_vencimento)}
                                                         </Typography>
