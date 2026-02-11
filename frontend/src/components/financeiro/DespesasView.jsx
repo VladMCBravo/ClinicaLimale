@@ -16,6 +16,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import LancamentoCaixaModal from './LancamentoCaixaModal'; 
 import BaixaUnificadaModal from './BaixaUnificadaModal'; 
 import EditarDespesaModal from './EditarDespesaModal'; // Certifique-se de que este arquivo existe
+import CategoriasTab from '../configuracoes/CategoriasTab';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 // --- COMPONENTE VISUAL DA TABELA (OTIMIZADO) ---
@@ -122,6 +123,7 @@ export default function DespesasView({ onReload }) {
     const [openEditModal, setOpenEditModal] = useState(false);
     const [openBaixaModal, setOpenBaixaModal] = useState(false);
     const [openMestreModal, setOpenMestreModal] = useState(false); // Mantido para compatibilidade se necessário
+    const [openCategorias, setOpenCategorias] = useState(false); // <--- ESTADO DO MODAL DE CATEGORIAS
     const [selectedItem, setSelectedItem] = useState(null);
 
     // --- CARREGAMENTO DE DADOS INTELIGENTE ---
@@ -251,6 +253,16 @@ export default function DespesasView({ onReload }) {
                         slotProps={{ textField: { size: 'small', sx: { width: 140, bgcolor: 'white' } } }}
                         disabled={!!searchTerm} // Desabilita data se estiver buscando
                     />
+                    {/* BOTÃO PARA ABRIR O SEU COMPONENTE DE CATEGORIAS */}
+                    <Button 
+                        variant="outlined" 
+                        size="small" 
+                        onClick={() => setOpenCategorias(true)}
+                        startIcon={<Settings />}
+                        sx={{ height: 40, bgcolor: 'white', borderColor: '#ccc', color: '#666' }}
+                    >
+                        Categorias
+                    </Button>
                     <TextField 
                         size="small" 
                         placeholder="Busca Global (Descrição)..." 
@@ -313,6 +325,29 @@ export default function DespesasView({ onReload }) {
                     fetchDespesas(searchTerm);
                 }}
             />
+        {/* --- INTEGRAÇÃO: MODAL COM O SEU COMPONENTE DE CATEGORIAS --- */}
+            <Dialog 
+                open={openCategorias} 
+                onClose={() => { 
+                    setOpenCategorias(false); 
+                    fetchDespesas(searchTerm); // Recarrega ao fechar para atualizar os tipos (Fixo/Variavel)
+                }} 
+                maxWidth="md" 
+                fullWidth
+            >
+                <DialogTitle sx={{ pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    Gerenciar Categorias Financeiras
+                    <IconButton onClick={() => setOpenCategorias(false)} size="small"><Close /></IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {/* Aqui renderizamos o seu componente existente */}
+                    <CategoriasTab />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenCategorias(false)}>Fechar</Button>
+                </DialogActions>
+            </Dialog>
+
         </Box>
     );
 }
