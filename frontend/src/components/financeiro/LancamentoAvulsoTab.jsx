@@ -3,75 +3,77 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Grid, TextField, Button, CircularProgress, 
     ToggleButton, ToggleButtonGroup, Typography, Paper, InputAdornment, MenuItem,
-    FormControlLabel, Switch
+    FormControlLabel, Switch, Divider, Alert
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AttachMoney, MoneyOff } from '@mui/icons-material';
+import { AttachMoney, MoneyOff, CalendarMonth } from '@mui/icons-material';
 import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
-// 1. Adicione esta função auxiliar no topo para blindar contra datas inválidas
-const safeDayjs = (date) => {
-    const d = dayjs(date);
-    return d.isValid() ? d : dayjs();
-};
-
-export default function LancamentoAvulsoTab({ onClose, initialType, existingData = null }) {
+export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', existingData = null }) {
     const isEditing = !!existingData?.id;
-    const [tipo, setTipo] = useState(initialType);
-    const [jaLiquidado, setJaLiquidado] = useState(existingData?.pago || false);
+    const [tipo, setTipo] = useState(existingData ? (existingData.tipo || initialType) : initialType);
+    
+    // Estado para controlar se está pago (liquidado) ou pendente
+    const [jaLiquidado, setJaLiquidado] = useState(existingData ? existingData.pago : true);
+    
     const [categorias, setCategorias] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const [formData, setFormData] = useState({
-        id: existingData?.id || null, 
-        descricao: existingData?.descricao || '',
-        valor: existingData?.valor || '',
-        categoria: existingData?.categoria || '',
-        forma_pagamento: existingData?.forma_pagamento || 'Dinheiro',
-        data_vencimento: existingData?.data_vencimento || dayjs().format('YYYY-MM-DD'),
-        data_pagamento: existingData?.data_pagamento || dayjs().format('YYYY-MM-DD'),
-        qtd_parcelas: 1 // Mantemos 1 para novos, mas ignoramos em edição
-    });
-    
     const { showSnackbar } = useSnackbar();
 
-    // Sincroniza os dados ao editar
+    // --- REVISADO: ID REINSERIDO EXPLICITAMENTE PARA SEGURANÇA ---
+    const [formData, setFormData] = useState({
+        id: existingData?.id || null, // <--- ID GARANTIDO AQUI
+        descricao: existingData?.descricao || '',
+        valor: existingData?.valor || '',
+        // Lógica inteligente para categoria: se vier objeto (do backend), pega o ID; se não, pega o valor direto
+        categoria: existingData?.categoria?.id || existingData?.categoria || '', 
+        forma_pagamento: existingData?.forma_pagamento || 'PIX',
+        data_vencimento: existingData?.data_vencimento ? dayjs(existingData.data_vencimento) : dayjs(),
+        data_pagamento: existingData?.data_pagamento ? dayjs(existingData.data_pagamento) : dayjs(),
+        qtd_parcelas: 1
+    });
+
+    // Sincroniza dados se existingData mudar (ex: ao abrir modal de edição)
     useEffect(() => {
         if (existingData) {
             setFormData({
-                ...existingData,
-                // Garante que o ID da categoria seja preservado para o seletor
-                categoria: existingData.categoria?.id || existingData.categoria 
+                id: existingData.id,
+                descricao: existingData.descricao || '',
+                valor: existingData.valor,
+                categoria: existingData.categoria?.id || existingData.categoria || '',
+                forma_pagamento: existingData.forma_pagamento || 'PIX',
+                data_vencimento: dayjs(existingData.data_vencimento || existingData.data_despesa),
+                data_pagamento: existingData.data_pagamento ? dayjs(existingData.data_pagamento) : dayjs(),
+                qtd_parcelas: 1
             });
             setJaLiquidado(existingData.pago);
+            
+            if (!existingData.tipo) {
+                setTipo(existingData.data_despesa ? 'despesa' : 'receita');
+            }
         }
     }, [existingData]);
 
+    // Carrega categorias ao montar
     useEffect(() => {
-        // Carrega apenas categorias de despesa
-        faturamentoService.getCategoriasDespesa()
-            .then(res => setCategorias(res.data || []))
-            .catch(err => console.error("Erro categorias", err));
+        carregarCategorias();
     }, []);
 
-    useEffect(() => {
-        // CARREGA AS CATEGORIAS DO BANCO
-        faturamentoService.getCategoriasDespesa()
-            .then(res => {
-                // Filtramos apenas as categorias que batem com o tipo selecionado (opcional)
-                setCategorias(res.data || []);
-            })
-            .catch(err => console.error("Erro ao carregar categorias", err));
-    }, []);
+    const carregarCategorias = async () => {
+        try {
+            const res = await faturamentoService.getCategoriasDespesa();
+            setCategorias(res.data || []);
+        } catch (error) {
+            console.error("Erro ao carregar categorias", error);
+        }
+    };
 
     const handleTipoChange = (event, newTipo) => {
         if (newTipo !== null) {
             setTipo(newTipo);
-            setJaLiquidado(true);
-            setFormData(prev => ({ ...prev, data_pagamento: dayjs().format('YYYY-MM-DD') }));
         }
     };
 
@@ -82,165 +84,250 @@ export default function LancamentoAvulsoTab({ onClose, initialType, existingData
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Validação básica
+        if (!formData.descricao || !formData.valor) {
+            showSnackbar('Preencha descrição e valor.', 'warning');
+            return;
+        }
+        if (tipo === 'despesa' && !formData.categoria) {
+            showSnackbar('Selecione uma categoria para a despesa.', 'warning');
+            return;
+        }
+
         setIsSubmitting(true);
-        const payload = { 
-            ...formData, 
-            pago: jaLiquidado,
-            tipo: tipo 
-        };
 
         try {
+            // Formata payload comum
+            const payload = {
+                descricao: formData.descricao,
+                valor: parseFloat(formData.valor),
+                forma_pagamento: formData.forma_pagamento,
+                data_vencimento: dayjs(formData.data_vencimento).format('YYYY-MM-DD'),
+                pago: jaLiquidado,
+                data_pagamento: jaLiquidado ? dayjs(formData.data_pagamento).format('YYYY-MM-DD') : null,
+            };
+
             if (isEditing) {
-                // UPDATE: Corrige ou reverte o pagamento
-                await faturamentoService.updateDespesa(formData.id, payload);
-                showSnackbar('Alteração salva com sucesso!', 'success');
+                // --- EDIÇÃO (USA O ID DO FORM DATA) ---
+                if (tipo === 'despesa') {
+                    payload.categoria = formData.categoria; // Envia o ID da categoria
+                    await faturamentoService.updateDespesa(formData.id, payload);
+                } else {
+                    await faturamentoService.updatePagamento(formData.id, payload);
+                }
+                showSnackbar('Atualizado com sucesso!', 'success');
             } else {
-                // CREATE: Gera novo lançamento
-                await faturamentoService.createLancamentoAvulso(payload);
-                showSnackbar('Lançamento realizado!', 'success');
+                // --- CRIAÇÃO ---
+                if (tipo === 'despesa') {
+                    const despesaPayload = {
+                        ...payload,
+                        categoria_id: formData.categoria, // Backend espera categoria_id
+                        qtd_parcelas: parseInt(formData.qtd_parcelas),
+                        data_competencia: payload.data_vencimento 
+                    };
+                    await faturamentoService.createDespesa(despesaPayload);
+                } else {
+                    const receitaPayload = {
+                        ...payload,
+                        qtd_parcelas: parseInt(formData.qtd_parcelas),
+                        paciente: null 
+                    };
+                    await faturamentoService.createLancamentoAvulso(receitaPayload);
+                }
+                showSnackbar(`${tipo === 'despesa' ? 'Despesa' : 'Receita'} lançada com sucesso!`, 'success');
             }
-            onClose();
+            
+            if (onClose) onClose();
+
         } catch (error) {
-            showSnackbar('Erro ao salvar.', 'error');
+            console.error(error);
+            showSnackbar('Erro ao salvar lançamento.', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const limiteParcelas = tipo === 'receita' ? 10 : 64;
-
     return (
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+            
+            {/* SELETOR DE TIPO (Só mostra se for novo lançamento) */}
             {!isEditing && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-                    <ToggleButtonGroup value={tipo} exclusive onChange={handleTipoChange} size="small">
-                        <ToggleButton value="receita" color="success" sx={{ px: 4 }}>
-                            <AttachMoney sx={{ mr: 1 }} /> RECEITA AVULSA
+                <Paper elevation={0} sx={{ p: 1, mb: 3, bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center' }}>
+                    <ToggleButtonGroup 
+                        value={tipo} 
+                        exclusive 
+                        onChange={handleTipoChange} 
+                        size="small"
+                        disabled={isEditing}
+                    >
+                        <ToggleButton value="receita" color="success" sx={{ px: 3, fontWeight: 'bold' }}>
+                            <AttachMoney sx={{ mr: 1 }} /> RECEITA
                         </ToggleButton>
-                        <ToggleButton value="despesa" color="error" sx={{ px: 4 }}>
+                        <ToggleButton value="despesa" color="error" sx={{ px: 3, fontWeight: 'bold' }}>
                             <MoneyOff sx={{ mr: 1 }} /> DESPESA
                         </ToggleButton>
                     </ToggleButtonGroup>
-                </Box>
+                </Paper>
             )}
 
-        <Grid container spacing={3}>
-            {/* COLUNA 1: DADOS GERAIS */}
-            <Grid item xs={12} md={7}>
-                <Paper sx={{ p: 2 }} variant="outlined">
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography variant="subtitle2" fontWeight="bold">
-                            {isEditing ? `Revisão de Parcela: ${formData.descricao}` : 'Dados do Lançamento'}
-                        </Typography>
-                        <FormControlLabel
-                            control={
-                                <Switch 
-                                    size="small" 
-                                    checked={jaLiquidado} 
-                                    onChange={(e) => setJaLiquidado(e.target.checked)} 
-                                />
-                            }
-                            label={
-                                <Typography variant="caption" fontWeight="bold" color={jaLiquidado ? "success.main" : "warning.main"}>
-                                    {jaLiquidado ? 'LIQUIDADO' : 'AGENDADO'}
-                                </Typography>
-                            }
-                        />
-                    </Box>
-
-                    <TextField 
-                        name="descricao" label="Descrição" 
-                        fullWidth size="small" margin="dense" required
-                        value={formData.descricao} onChange={handleChange}
-                        disabled={isEditing} // Bloqueia alteração de nome em parcelas (ex: 6/24) para manter o rastro
-                    />
-
-                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                        <Grid item xs={6}>
-                            <DatePicker
-                                label="Vencimento"
-                                // CORREÇÃO DATA INVÁLIDA: Usa safeDayjs para garantir objeto válido
-                                value={safeDayjs(formData.data_vencimento)}
-                                onChange={(v) => setFormData({...formData, data_vencimento: v.format('YYYY-MM-DD')})}
-                                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                            />
-                        </Grid>
-                        {jaLiquidado && (
-                            <Grid item xs={6}>
-                                <DatePicker
-                                    label="Data do Caixa"
-                                    value={safeDayjs(formData.data_pagamento || formData.data_vencimento)}
-                                    onChange={(v) => setFormData({...formData, data_pagamento: v.format('YYYY-MM-DD')})}
-                                    slotProps={{ textField: { size: 'small', fullWidth: true, color: 'success' } }}
-                                />
-                            </Grid>
-                        )}
-                    </Grid>
-                </Paper>
-            </Grid>
-
-            {/* COLUNA 2: VALORES E PAGAMENTO */}
-            <Grid item xs={12} md={5}>
-                <Paper sx={{ p: 2, bgcolor: '#fcfcfc', height: '100%' }} variant="outlined">
-                    <TextField 
-                        name="valor" label="Valor Total" type="number" fullWidth required
-                        value={formData.valor} onChange={handleChange}
-                        InputProps={{ 
-                            startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                            sx: { fontWeight: 'bold', fontSize: '1.2rem' }
-                        }}
-                    />
-
-                    <Box sx={{ mt: 3 }}>
-                        <Typography variant="caption" fontWeight="bold" color="text.secondary">
-                            {tipo === 'receita' ? 'FORMA DE RECEBIMENTO' : 'CONDIÇÃO'}
-                        </Typography>
+            <Grid container spacing={3}>
+                {/* LADO ESQUERDO: DADOS DO LANÇAMENTO */}
+                <Grid item xs={12} md={7}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        
                         <TextField 
-                            select fullWidth size="small" name="forma_pagamento"
-                            value={formData.forma_pagamento} onChange={handleChange}
-                            sx={{ mt: 1 }}
-                        >
-                            <MenuItem value="Dinheiro">Dinheiro</MenuItem>
-                            <MenuItem value="PIX">PIX / Transferência</MenuItem>
-                            <MenuItem value="Cartao">Cartão</MenuItem>
-                        </TextField>
+                            label="Descrição" 
+                            name="descricao" 
+                            fullWidth 
+                            required 
+                            autoFocus
+                            value={formData.descricao} 
+                            onChange={handleChange}
+                            placeholder={tipo === 'despesa' ? "Ex: Aluguel, Luz, Fornecedor X" : "Ex: Venda de Produto, Reembolso"}
+                        />
 
-                        {/* DESATIVAR PARCELAS EM EDIÇÃO: Impede que uma parcela (ex: 6/24) gere um novo carnê */}
-                        {!isEditing && (
-                            <TextField 
-                                select 
-                                label={tipo === 'receita' ? "Parcelas" : "Parcelas (Recorrência)"}
-                                fullWidth 
-                                size="small" 
-                                name="qtd_parcelas"
-                                value={formData.qtd_parcelas || 1} 
+                        {/* CAMPO DE CATEGORIA (ESSENCIAL PARA DESPESAS) */}
+                        {tipo === 'despesa' && (
+                            <TextField
+                                select
+                                label="Categoria"
+                                name="categoria"
+                                fullWidth
+                                required
+                                value={formData.categoria}
                                 onChange={handleChange}
-                                sx={{ mt: 2 }}
-                                helperText={tipo === 'despesa' ? "Gera lançamentos mensais automáticos" : ""}
+                                helperText="Define se é Fixa ou Variável"
                             >
-                                {[...Array(limiteParcelas)].map((_, i) => (
-                                    <MenuItem key={i + 1} value={i + 1}>
-                                        {i + 1}x {formData.valor ? `de R$ ${(formData.valor / (i + 1)).toFixed(2)}` : ''}
+                                {categorias.map((cat) => (
+                                    <MenuItem key={cat.id} value={cat.id}>
+                                        {cat.nome} ({cat.tipo === 'Fixa' ? 'Fixa' : 'Variável'})
                                     </MenuItem>
                                 ))}
                             </TextField>
                         )}
-                    </Box>
 
-                    <Button 
-                        type="submit" variant="contained" fullWidth 
-                        disabled={isSubmitting}
-                        sx={{ mt: 4, py: 1.5, fontWeight: 'bold', bgcolor: '#1a233b' }}
-                    >
-                        {isSubmitting ? (
-                            <CircularProgress size={24} color="inherit" />
-                        ) : (
-                            isEditing ? 'SALVAR ALTERAÇÕES' : 'CONFIRMAR LANÇAMENTO'
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <DatePicker
+                                label="Vencimento"
+                                value={formData.data_vencimento}
+                                onChange={(v) => setFormData(prev => ({ ...prev, data_vencimento: v }))}
+                                slotProps={{ textField: { fullWidth: true, required: true } }}
+                            />
+                            
+                            {/* SELETOR DE PARCELAS (SÓ PARA NOVOS) */}
+                            {!isEditing && (
+                                <TextField
+                                    select
+                                    label="Parcelas"
+                                    name="qtd_parcelas"
+                                    value={formData.qtd_parcelas}
+                                    onChange={handleChange}
+                                    sx={{ minWidth: 100 }}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start"><CalendarMonth fontSize="small"/></InputAdornment>
+                                    }}
+                                >
+                                    {[1, 2, 3, 4, 5, 6, 10, 12, 24, 36, 48, 60, 64].map((num) => (
+                                        <MenuItem key={num} value={num}>
+                                            {num}x
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            )}
+                        </Box>
+
+                        {/* STATUS DO PAGAMENTO */}
+                        <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: jaLiquidado ? '#e8f5e9' : '#fff3e0' }}>
+                            <Box>
+                                <Typography variant="subtitle2" fontWeight="bold" color={jaLiquidado ? "success.main" : "warning.dark"}>
+                                    STATUS: {jaLiquidado ? "PAGO / RECEBIDO" : "PENDENTE / A RECEBER"}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    {jaLiquidado ? "O valor já entrou/saiu do caixa." : "Será agendado para o futuro."}
+                                </Typography>
+                            </Box>
+                            <Switch 
+                                checked={jaLiquidado} 
+                                onChange={(e) => setJaLiquidado(e.target.checked)} 
+                                color={tipo === 'receita' ? "success" : "error"}
+                            />
+                        </Paper>
+
+                        {/* DATA DO PAGAMENTO (SÓ SE ESTIVER PAGO) */}
+                        {jaLiquidado && (
+                            <DatePicker
+                                label={tipo === 'receita' ? "Data do Recebimento" : "Data do Pagamento"}
+                                value={formData.data_pagamento}
+                                onChange={(v) => setFormData(prev => ({ ...prev, data_pagamento: v }))}
+                                slotProps={{ textField: { fullWidth: true, helperText: "Data efetiva que impacta o caixa" } }}
+                            />
                         )}
-                    </Button>
-                </Paper>
+
+                    </Box>
+                </Grid>
+
+                {/* LADO DIREITO: VALORES */}
+                <Grid item xs={12} md={5}>
+                    <Paper elevation={3} sx={{ p: 3, height: '100%', bgcolor: '#fafafa', display: 'flex', flexDirection: 'column' }}>
+                        <Typography variant="overline" color="text.secondary" fontWeight="bold">
+                            VALOR {formData.qtd_parcelas > 1 ? "TOTAL" : ""}
+                        </Typography>
+                        
+                        <TextField
+                            name="valor"
+                            fullWidth
+                            required
+                            type="number"
+                            value={formData.valor}
+                            onChange={handleChange}
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                                style: { fontSize: '1.5rem', fontWeight: 'bold', color: tipo === 'receita' ? '#2e7d32' : '#c62828' }
+                            }}
+                            sx={{ mb: 2 }}
+                        />
+
+                        {formData.qtd_parcelas > 1 && formData.valor > 0 && (
+                            <Alert severity="info" sx={{ mb: 2 }}>
+                                Serão <b>{formData.qtd_parcelas} parcelas</b> de aproximadamente <b>R$ {(formData.valor / formData.qtd_parcelas).toFixed(2)}</b>
+                            </Alert>
+                        )}
+
+                        <Divider sx={{ my: 2 }} />
+
+                        <TextField
+                            select
+                            label="Forma de Pagamento"
+                            name="forma_pagamento"
+                            fullWidth
+                            value={formData.forma_pagamento}
+                            onChange={handleChange}
+                        >
+                            <MenuItem value="Dinheiro">Dinheiro</MenuItem>
+                            <MenuItem value="PIX">PIX</MenuItem>
+                            <MenuItem value="CartaoCredito">Cartão de Crédito</MenuItem>
+                            <MenuItem value="CartaoDebito">Cartão de Débito</MenuItem>
+                            <MenuItem value="Boleto">Boleto</MenuItem>
+                            <MenuItem value="Transferencia">Transferência</MenuItem>
+                        </TextField>
+
+                        <Box sx={{ flexGrow: 1 }} />
+
+                        <Button 
+                            type="submit" 
+                            variant="contained" 
+                            size="large" 
+                            fullWidth 
+                            disabled={isSubmitting}
+                            color={tipo === 'receita' ? "success" : "error"} 
+                            sx={{ mt: 3, py: 1.5, fontWeight: 'bold' }}
+                        >
+                            {isSubmitting ? <CircularProgress size={24} color="inherit" /> : (isEditing ? "SALVAR ALTERAÇÕES" : "CONFIRMAR")}
+                        </Button>
+                    </Paper>
+                </Grid>
             </Grid>
-        </Grid>
-    </Box>
-);
+        </Box>
+    );
 }
