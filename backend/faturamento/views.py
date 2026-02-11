@@ -143,15 +143,27 @@ class FinanceiroDashboardAPIView(APIView):
             total_despesas_cadastradas = despesas_kpi.aggregate(t=Sum('valor'))['t'] or 0
             total_despesas_pagas_val = despesas_pagas.aggregate(t=Sum('valor'))['t'] or 0
             
-            # --- CORREÇÃO TICKET MÉDIO ---
-            # Conta quantos pagamentos operacionais (com paciente) existem
+            # --- DEBUG TICKET MÉDIO ---
+            # Verifica quantos pagamentos tem vínculo com paciente
             qtd_atendimentos = receitas_pagas.filter(paciente__isnull=False).count()
             
-            # Evita divisão por zero
+            print(f"--- DEBUG TICKET MÉDIO ({'MENSAL' if modo_mensal else 'GERAL'}) ---")
+            print(f"Total Operacional (R$): {total_operacional}")
+            print(f"Qtd Atendimentos (com Paciente): {qtd_atendimentos}")
+            
             if qtd_atendimentos > 0:
                 ticket_medio = total_operacional / qtd_atendimentos
             else:
-                ticket_medio = 0
+                # TENTATIVA SECUNDÁRIA: Se não tem paciente, usa contagem total de receitas pagas
+                print("Aviso: Nenhum paciente vinculado. Tentando cálculo com total de recibos.")
+                qtd_total_recibos = receitas_pagas.count()
+                if qtd_total_recibos > 0:
+                    ticket_medio = (total_operacional + total_aportes) / qtd_total_recibos
+                else:
+                    ticket_medio = 0
+            
+            print(f"Ticket Médio Calculado: {ticket_medio}")
+            print("-----------------------------------")
 
             # --- GRÁFICO (FLUXO) ---
             grafico_fluxo = []
