@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Drawer, Box, Typography, IconButton, Divider, Button, 
     TextField, Grid, Tabs, Tab, List, ListItem, ListItemText, 
-    Chip, Alert, InputAdornment, MenuItem
+    Chip, Alert, InputAdornment, MenuItem, Paper // <--- PAPER ADICIONADO AQUI
 } from '@mui/material';
 import { 
     Close, CheckCircle, History, AttachMoney, 
@@ -15,54 +15,6 @@ import { faturamentoService } from '../../services/faturamentoService';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-export default function PatientPaymentDrawer({ open, onClose, paymentId, onUpdate }) {
-    const [tab, setTab] = useState(0);
-    const [loading, setLoading] = useState(false);
-    const [dados, setDados] = useState(null); // Dados do pagamento atual
-    const [historico, setHistorico] = useState([]);
-    
-    // Estado do Formulário de Negociação
-    const [form, setForm] = useState({
-        desconto: '',
-        valor_entrada: '',
-        qtd_parcelas: 1,
-        forma_pagamento: 'PIX',
-        data_pagamento: dayjs()
-    });
-
-    useEffect(() => {
-        if (open && paymentId) {
-            carregarDados();
-        }
-    }, [open, paymentId]);
-
-    const carregarDados = async () => {
-        setLoading(true);
-        try {
-            // 1. Busca dados do pagamento atual (pelo ID da linha clicada)
-            // Precisamos de um endpoint de detalhe ou buscamos na lista. 
-            // Vamos assumir que temos acesso ou buscar novamente.
-            // Para simplificar, vou buscar na lista geral filtrando pelo ID (o backend DRF padrão tem /pagamentos/ID/)
-            // Ajuste: Vamos assumir que paymentId é o objeto completo passado pelo pai, ou buscamos.
-            // Vou buscar para garantir dados frescos.
-            
-            // Mas espera, o service getPagamentos retorna lista. Precisamos de getDetail.
-            // Se não tiver, usamos a lista filtrada.
-            const res = await faturamentoService.getPagamentos({ id: paymentId }); // Filtro fictício se backend suportar
-            // Se o backend não suportar filtro por ID no list, melhor passar o objeto inteiro via props.
-            // Vou assumir que o pai passa o ID e faremos uma gambiarra segura: buscar histórico do paciente.
-            
-            // MUDANÇA DE ESTRATÉGIA: O PAI TEM QUE PASSAR O OBJETO OU BUSCAMOS O HISTÓRICO DO PACIENTE.
-            // Vamos buscar o histórico do paciente dono desse pagamento.
-        } catch (error) { console.error(error); } 
-        setLoading(false);
-    };
-    
-    // Melhor: O componente PAI passa o objeto `payment` completo.
-    // Vamos alterar a prop `paymentId` para `paymentItem`.
-}
-
-// --- VERSÃO FINAL CORRETA DO COMPONENTE ---
 export function PatientDrawerContent({ item, onClose, onUpdate }) {
     const [activeTab, setActiveTab] = useState(0);
     const [history, setHistory] = useState([]);
