@@ -181,6 +181,35 @@ class DespesaViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             return Response({"erro": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'], url_path='timeline')
+    def timeline(self, request, pk=None):
+        """
+        Retorna a despesa atual E todas as suas irmãs de série (parcelas).
+        """
+        despesa_alvo = self.get_object()
+        
+        # 1. Tenta identificar a série pela descrição base (remove " (x/y)")
+        # Ex: "Aluguel (1/12)" vira "Aluguel"
+        import re
+        descricao_base = re.sub(r'\s*\(\d+/\d+\)$', '', despesa_alvo.descricao).strip()
+        
+        # 2. Busca itens com mesma descrição base, mesmo valor (ou próximo) e mesmo dia de criação
+        # Margem de 1 minuto na criação para pegar o lote
+        time_margin = timezone.timedelta(minutes=1)
+        
+        irmas = Despesa.objects.filter(
+            registrado_por=despesa_alvo.registrado_por,
+            data_registro__range=(despesa_alvo.data_registro - time_margin, despesa_alvo.data_registro + time_margin),
+            descricao__startswith=descricao_base
+        ).order_by('data_vencimento')
+
+        # Se não achar irmãs (foi criada avulsa), retorna só ela
+        if not irmas.exists():
+            irmas = [despesa_alvo]
+
+        serializer = self.get_serializer(irmas, many=True)
+        return Response(serializer.data)
 
 class PagamentosPendentesListAPIView(generics.ListAPIView):
     """

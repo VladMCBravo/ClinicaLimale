@@ -37,6 +37,7 @@ export const faturamentoService = {
     // --- DESPESAS ---
     getDespesas: (params) => apiClient.get('/faturamento/despesas/', { params }),
     getCategoriasDespesa: () => apiClient.get('/faturamento/categorias-despesa/'),
+    getDespesaTimeline: (id) => apiClient.get(`/faturamento/despesas/${id}/timeline/`),
     createDespesa: (data) => apiClient.post('/faturamento/despesas/', data),
     updateDespesa: (id, data) => apiClient.patch(`/faturamento/despesas/${id}/`, data),
     deleteDespesa: (id) => apiClient.delete(`/faturamento/despesas/${id}/`),
