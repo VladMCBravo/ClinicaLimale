@@ -160,6 +160,9 @@ export default function DespesasView({ onReload }) {
 
     const fetchDespesas = useCallback(async (busca = '') => {
         setLoading(true);
+        const inicio = performance.now();
+        console.log("🔄 [DespesasView] Iniciando busca...", { busca, mes: filtroData.month() + 1 });
+
         try {
             let params = {};
             if (busca) {
@@ -171,9 +174,13 @@ export default function DespesasView({ onReload }) {
                 };
             }
             const response = await faturamentoService.getDespesas(params);
+            
+            const fim = performance.now();
+            console.log(`✅ [DespesasView] Dados carregados em ${(fim - inicio).toFixed(2)}ms. Itens: ${response.data.length}`);
+            
             setDespesas(response.data); 
         } catch (error) {
-            console.error(error);
+            console.error("❌ [DespesasView] Erro:", error);
             showSnackbar('Erro ao carregar despesas', 'error');
         } finally {
             setLoading(false);
@@ -182,6 +189,7 @@ export default function DespesasView({ onReload }) {
 
     const debouncedSearch = useMemo(() => 
         debounce((termo) => {
+            console.log("🔎 [DespesasView] Debounce ativado para:", termo);
             fetchDespesas(termo);
         }, 800),
     [fetchDespesas]);

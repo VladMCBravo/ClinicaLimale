@@ -14,11 +14,20 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { faturamentoService } from '../../services/faturamentoService';
 
-// --- CORREÇÃO ROBUSTA DE DATAS ---
+/// --- CORREÇÃO E LOG DE DATAS ---
 const safeDate = (dateStr) => {
-    if (!dateStr) return null;
+    // LOG DE DEBUG PARA DESCOBRIR O QUE ESTÁ VINDO
+    if (dateStr === undefined || dateStr === null) {
+        // console.warn("⚠️ safeDate recebeu nulo/undefined");
+        return null;
+    }
+    
     const d = dayjs(dateStr);
-    return d.isValid() ? d : null;
+    if (!d.isValid()) {
+        console.error("❌ safeDate falhou para:", dateStr);
+        return null;
+    }
+    return d;
 };
 
 const formatDate = (dateStr) => {
@@ -37,9 +46,9 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
 
     useEffect(() => {
         if (open && transactionId) {
+            console.log("📂 [Drawer] Abrindo para ID:", transactionId);
             loadData();
         } else {
-            // Limpa estado ao fechar para evitar flashes de dados antigos
             setTimeline([]);
             setLoading(true);
         }
@@ -49,26 +58,31 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
         setLoading(true);
         try {
             const res = await faturamentoService.getDespesaTimeline(transactionId);
+            console.log("📥 [Drawer] Dados recebidos:", res.data); // <--- LOG IMPORTANTE
             setTimeline(res.data);
             
-            // Foca no item atual ou no primeiro da lista
             const current = res.data.find(t => t.id === transactionId) || res.data[0];
             if (current) enterEditMode(current);
             
         } catch (error) {
-            console.error(error);
+            console.error("❌ [Drawer] Erro ao carregar:", error);
         } finally {
             setLoading(false);
         }
     };
 
     const enterEditMode = (item) => {
+        console.log("✏️ [Drawer] Editando item:", item);
         setEditingId(item.id);
+        
+        // Verifica o que está sendo passado para o DatePicker
+        const dataSegura = safeDate(item.data_vencimento);
+        console.log("📅 [Drawer] Data processada:", dataSegura);
+
         setEditForm({
             descricao: item.descricao,
             valor: item.valor,
-            // Importante: garante que o DatePicker receba null ou dayjs válido
-            data_vencimento: safeDate(item.data_vencimento),
+            data_vencimento: dataSegura,
             categoria: item.categoria
         });
     };
@@ -77,14 +91,14 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
         try {
             const payload = {
                 ...editForm,
-                // Formata para o padrão que o Django espera YYYY-MM-DD
                 data_vencimento: editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null,
                 data_despesa: editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null
             };
+            console.log("💾 [Drawer] Salvando payload:", payload);
 
             await faturamentoService.updateDespesa(editingId, payload);
-            loadData(); // Recarrega timeline local
-            if(onUpdate) onUpdate(); // Atualiza dashboard principal
+            loadData(); 
+            if(onUpdate) onUpdate(); 
         } catch (error) {
             alert('Erro ao salvar');
         }
