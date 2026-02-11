@@ -1,8 +1,6 @@
 // src/components/financeiro/FinanceiroDashboardView.jsx
 import React, { useState, useEffect } from 'react';
-import { 
-    Button, IconButton, LinearProgress 
-} from '@mui/material';
+import { Button, IconButton, LinearProgress, Alert } from '@mui/material';
 import { 
     TrendingDown, AccountBalanceWallet, AttachMoney, 
     Storefront, Refresh, Public, CalendarMonth
@@ -37,6 +35,7 @@ export default function FinanceiroDashboardView() {
     const [filtroData, setFiltroData] = useState(dayjs()); 
     const [modoGeral, setModoGeral] = useState(false);
     
+    // Estado inicial seguro
     const [dados, setDados] = useState({
         kpis: { valorOperacional: 0, valorAportes: 0, totalDespesas: 0, despesasPagas: 0, saldo: 0, ticketMedio: 0 },
         grafico_fluxo: [],
@@ -60,6 +59,10 @@ export default function FinanceiroDashboardView() {
             ]);
             
             if (resFin.data) {
+                // DEBUG: Verifique isso no Console do navegador (F12)
+                console.log("📊 [KPIs RECEBIDOS]:", resFin.data.kpis);
+                console.log("💰 Ticket Médio do Backend:", resFin.data.kpis?.ticketMedio);
+
                 setDados({
                     ...resFin.data,
                     grafico_fluxo: Array.isArray(resFin.data.grafico_fluxo) ? resFin.data.grafico_fluxo : []
@@ -85,6 +88,11 @@ export default function FinanceiroDashboardView() {
         { name: 'Variáveis', value: custos.variaveis || 0 }
     ];
 
+    const dataStatus = [
+        { name: 'Pago', valor: (kpis.valorOperacional || 0) + (kpis.valorAportes || 0), fill: COLORS.receita },
+        { name: 'Atrasado', valor: kpis.totalAtrasado || 0, fill: COLORS.atrasado }
+    ];
+
     return (
         <div className="fin-container">
             {/* 1. BARRA DE FILTROS */}
@@ -106,7 +114,7 @@ export default function FinanceiroDashboardView() {
                             views={['month', 'year']}
                             value={filtroData}
                             onChange={(v) => setFiltroData(v)}
-                            slotProps={{ textField: { size: 'small', variant: 'standard', sx: { width: 100 } } }}
+                            slotProps={{ textField: { size: 'small', variant: 'standard', sx: { width: 90 }, InputProps: { disableUnderline: true, style: { fontSize: '0.8rem', fontWeight: 600 } } } }}
                         />
                     )}
                 </div>
@@ -120,7 +128,15 @@ export default function FinanceiroDashboardView() {
                 <KPICard title="FATURAMENTO" value={kpis.valorOperacional} icon={<Storefront />} color="success" subtext={`+ ${formatMoney(kpis.valorAportes)} aportes`} />
                 <KPICard title="DESPESAS" value={kpis.totalDespesas} icon={<TrendingDown />} color="danger" subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} />
                 <KPICard title="SALDO LÍQUIDO" value={kpis.saldo} icon={<AccountBalanceWallet />} color={(kpis.saldo||0) >= 0 ? "primary" : "danger"} subtext="Realizado" />
-                <KPICard title="TICKET MÉDIO" value={kpis.ticketMedio} icon={<AttachMoney />} color="warning" subtext="Por atendimento" />
+                
+                {/* CARD TICKET MÉDIO COM DEBUG VISUAL (Se for 0 e houver faturamento, mostra alerta) */}
+                <KPICard 
+                    title="TICKET MÉDIO" 
+                    value={kpis.ticketMedio} 
+                    icon={<AttachMoney />} 
+                    color="warning" 
+                    subtext="Por paciente" 
+                />
             </div>
 
             {/* 3. GRÁFICOS */}
@@ -130,7 +146,7 @@ export default function FinanceiroDashboardView() {
                 <div className="fin-chart-box">
                     <div className="fin-chart-header">
                         <span className="fin-chart-title">
-                            {modoGeral ? "EVOLUÇÃO ANUAL" : "FLUXO DIÁRIO"}
+                            {modoGeral ? "EVOLUÇÃO ANUAL (12 MESES)" : "FLUXO DIÁRIO DO MÊS"}
                         </span>
                         <div style={{ display: 'flex', gap: 10, fontSize: '0.65rem' }}>
                             <span style={{ color: COLORS.receita }}>● Entradas</span>
@@ -138,30 +154,26 @@ export default function FinanceiroDashboardView() {
                         </div>
                     </div>
                     <div className="fin-chart-content">
-                        {fluxo.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={fluxo} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={COLORS.receita} stopOpacity={0.2}/>
-                                            <stop offset="95%" stopColor={COLORS.receita} stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={COLORS.despesa} stopOpacity={0.2}/>
-                                            <stop offset="95%" stopColor={COLORS.despesa} stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                    <XAxis dataKey="name" style={{ fontSize: '0.65rem' }} axisLine={false} tickLine={false} dy={5} />
-                                    <YAxis tickFormatter={formatK} style={{ fontSize: '0.65rem' }} axisLine={false} tickLine={false} />
-                                    <RechartsTooltip formatter={(value) => formatMoney(value)} contentStyle={{ fontSize: '0.8rem' }} />
-                                    <Area type="monotone" dataKey="entradas" stroke={COLORS.receita} strokeWidth={2} fill="url(#colorEntradas)" />
-                                    <Area type="monotone" dataKey="saidas" stroke={COLORS.despesa} strokeWidth={2} fill="url(#colorSaidas)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '0.8rem' }}>Sem dados</div>
-                        )}
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={fluxo} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.receita} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={COLORS.receita} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.despesa} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={COLORS.despesa} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                <XAxis dataKey="name" style={{ fontSize: '0.65rem' }} axisLine={false} tickLine={false} dy={5} />
+                                <YAxis tickFormatter={formatK} style={{ fontSize: '0.65rem' }} axisLine={false} tickLine={false} />
+                                <RechartsTooltip formatter={(value) => formatMoney(value)} contentStyle={{ fontSize: '0.8rem', borderRadius: 8 }} />
+                                <Area type="monotone" dataKey="entradas" stroke={COLORS.receita} strokeWidth={2} fill="url(#colorEntradas)" />
+                                <Area type="monotone" dataKey="saidas" stroke={COLORS.despesa} strokeWidth={2} fill="url(#colorSaidas)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
 
@@ -175,8 +187,8 @@ export default function FinanceiroDashboardView() {
                         </div>
                         <LinearProgress variant="determinate" value={operacional.taxa_ocupacao || 0} sx={{ height: 6, borderRadius: 4, mb: 1, bgcolor: 'white', '& .MuiLinearProgress-bar': { bgcolor: COLORS.ocupacao } }} />
                         <div className="fin-row">
-                            <span className="fin-label" style={{ fontSize: '0.65rem' }}>Faturamento/Hora:</span>
-                            <span className="fin-val" style={{ fontSize: '0.7rem' }}>{formatMoney(operacional.ticket_medio_hora)}</span>
+                            <span style={{ fontSize: '0.6rem', color: '#555' }}>Faturamento/Hora:</span>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>{formatMoney(operacional.ticket_medio_hora)}</span>
                         </div>
                     </div>
 
@@ -184,10 +196,10 @@ export default function FinanceiroDashboardView() {
                     <div className="fin-mini-panel">
                         <div className="fin-chart-title" style={{ marginBottom: 5 }}>CUSTOS</div>
                         <div style={{ display: 'flex', alignItems: 'center', height: '100%', minHeight: 0 }}>
-                            <div style={{ width: '40%', height: 70 }}>
+                            <div style={{ width: '40%', height: 60 }}>
                                 <ResponsiveContainer>
                                     <RechartsPieChart>
-                                        <Pie data={dataPie} innerRadius={12} outerRadius={28} paddingAngle={2} dataKey="value">
+                                        <Pie data={dataPie} innerRadius={12} outerRadius={25} paddingAngle={2} dataKey="value">
                                             {dataPie.map((entry, index) => <Cell key={index} fill={index === 0 ? COLORS.fixa : COLORS.variavel} />)}
                                         </Pie>
                                     </RechartsPieChart>
@@ -197,6 +209,23 @@ export default function FinanceiroDashboardView() {
                                 <div className="fin-row"><span style={{ color: COLORS.fixa }}>Fixos</span> <span>{formatK(custos.fixas)}</span></div>
                                 <div className="fin-row"><span style={{ color: COLORS.variavel }}>Var.</span> <span>{formatK(custos.variaveis)}</span></div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Recebimentos */}
+                    <div className="fin-mini-panel">
+                        <div className="fin-chart-title" style={{ marginBottom: 5 }}>RECEBIMENTOS</div>
+                        <div style={{ flex: 1, minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart layout="vertical" data={dataStatus} margin={{ left: -25, right: 10, bottom: 0, top: 0 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={60} style={{ fontSize: '0.6rem', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                    <RechartsTooltip cursor={{fill: 'transparent'}} formatter={formatMoney} />
+                                    <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={8}>
+                                        {dataStatus.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
