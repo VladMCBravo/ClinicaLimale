@@ -25,16 +25,17 @@ export default function ContasReceberView() {
     
     // Modais e Drawers
     const [modalOpen, setModalOpen] = useState(false);
+    const [itemParaEdicao, setItemParaEdicao] = useState(null); // Estado para passar dados ao modal
+    
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
 
-    // BUSCA DE DADOS (Server-Side)
+    // BUSCA DE DADOS (Server-Side + Ordenação Front)
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
             const params = {};
             
-            // Lógica Inteligente: Busca Global vs Filtro Mês
             if (busca.length > 2) {
                 params.search = busca;
             } else {
@@ -43,7 +44,16 @@ export default function ContasReceberView() {
             }
 
             const res = await faturamentoService.getPagamentos(params);
-            setLista(res.data || []);
+            const dadosBrutos = res.data || [];
+
+            // ORDENAÇÃO DECRESCENTE (Data mais futura -> Data mais antiga)
+            const dadosOrdenados = dadosBrutos.sort((a, b) => {
+                const dataA = dayjs(a.data_vencimento);
+                const dataB = dayjs(b.data_vencimento);
+                return dataB.diff(dataA);
+            });
+
+            setLista(dadosOrdenados);
             
         } catch (error) {
             console.error("Erro ao buscar contas a receber", error);
@@ -52,49 +62,52 @@ export default function ContasReceberView() {
         }
     }, [filtroData, busca]);
 
-    // Debounce da busca
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            carregarDados();
-        }, 500);
+        const timeoutId = setTimeout(() => { carregarDados(); }, 500);
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
     // --- HANDLERS ---
 
     const handleRowClick = (item) => {
+        // Clicar na linha abre o Drawer de detalhes (apenas leitura/histórico)
         setSelectedId(item.id);
         setDrawerOpen(true);
     };
 
-    const handleBaixarRapido = async (e, item) => {
-        e.stopPropagation(); // Evita abrir o drawer ao clicar no check
-        if(!window.confirm(`Confirmar recebimento de ${formatMoney(item.valor)}?`)) return;
-        
-        // Optimistic Update (Atualiza visualmente antes do servidor)
-        setLista(prev => prev.map(p => p.id === item.id ? { ...p, status: 'Pago' } : p));
+    // Ação do Botão CHECK (Agora abre o modal para confirmar pagamento)
+    const handleAbrirBaixa = (e, item) => {
+        e.stopPropagation();
+        // Prepara o item para o modal, forçando status de pago se confirmar
+        setItemParaEdicao({
+            ...item,
+            pago: true, // Força o modal a abrir com a chave "Pago" ligada
+            data_pagamento: dayjs() // Sugere hoje como data
+        });
+        setModalOpen(true);
+    };
 
-        try {
-            await faturamentoService.updatePagamento(item.id, { 
-                status: 'Pago', 
-                data_pagamento: dayjs().format('YYYY-MM-DD') 
-            });
-            carregarDados(); 
-        } catch (error) {
-            alert('Erro ao baixar');
-            carregarDados(); // Reverte em caso de erro
-        }
+    // Ação do Botão EDITAR (Lápis)
+    const handleAbrirEdicao = (e, item) => {
+        e.stopPropagation();
+        setItemParaEdicao({
+            ...item,
+            pago: item.status === 'Pago'
+        });
+        setModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setModalOpen(false);
+        setItemParaEdicao(null); // Limpa seleção
+        carregarDados();
     };
 
     const getStatusColor = (status, vencimento) => {
         if (status === 'Pago') return 'success';
         if (status === 'Cancelado') return 'default';
-        
-        // Verifica atraso
-        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) {
-            return 'error'; // Vermelho para atrasado
-        }
-        return 'warning'; // Laranja para pendente no prazo
+        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) return 'error';
+        return 'warning';
     };
 
     return (
@@ -115,18 +128,14 @@ export default function ContasReceberView() {
                         placeholder="Buscar Paciente/Valor..."
                         value={busca}
                         onChange={(e) => setBusca(e.target.value)}
-                        InputProps={{
-                            startAdornment: <InputAdornment position="start"><Search /></InputAdornment>
-                        }}
+                        InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }}
                         sx={{ width: 300, bgcolor: 'white' }}
                     />
                 </Box>
 
                 <Button 
-                    variant="contained" 
-                    color="success" 
-                    startIcon={<Add />}
-                    onClick={() => setModalOpen(true)}
+                    variant="contained" color="success" startIcon={<Add />}
+                    onClick={() => { setItemParaEdicao(null); setModalOpen(true); }}
                     sx={{ fontWeight: 'bold' }}
                 >
                     NOVA RECEITA
@@ -173,34 +182,29 @@ export default function ContasReceberView() {
                                         <TableCell sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
                                             {formatMoney(row.valor)}
                                         </TableCell>
-                                        
-                                        {/* COLUNA STATUS (AGORA VISÍVEL) */}
                                         <TableCell>
                                             <Chip 
-                                                label={labelStatus} 
-                                                size="small" 
-                                                color={colorStatus}
+                                                label={labelStatus} size="small" color={colorStatus}
                                                 variant={row.status === 'Pago' ? 'filled' : 'outlined'}
                                                 sx={{ fontWeight: 'bold', height: 24, fontSize: '0.75rem' }}
                                             />
                                         </TableCell>
-
-                                        {/* COLUNA AÇÕES (AGORA VISÍVEL) */}
                                         <TableCell align="right">
+                                            {/* BOTÃO CHECK: Abre modal para confirmar pagamento */}
                                             {row.status !== 'Pago' && (
                                                 <Tooltip title="Confirmar Recebimento">
                                                     <IconButton 
-                                                        size="small" 
-                                                        color="success" 
-                                                        onClick={(e) => handleBaixarRapido(e, row)}
+                                                        size="small" color="success" 
+                                                        onClick={(e) => handleAbrirBaixa(e, row)}
                                                         sx={{ mr: 1 }}
                                                     >
                                                         <CheckCircle fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
-                                            <Tooltip title="Editar / Ver Detalhes">
-                                                <IconButton size="small" onClick={() => handleRowClick(row)}>
+                                            {/* BOTÃO EDITAR: Abre modal para editar dados */}
+                                            <Tooltip title="Editar">
+                                                <IconButton size="small" onClick={(e) => handleAbrirEdicao(e, row)}>
                                                     <Edit fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
@@ -216,16 +220,17 @@ export default function ContasReceberView() {
                 </TableContainer>
             </Paper>
 
-            {/* MODAL CONFIGURADO APENAS PARA RECEITA */}
+            {/* MODAL UNIFICADO (CRIAÇÃO, EDIÇÃO E BAIXA) */}
+            {/* Passamos existingData para preencher o modal com os dados da linha clicada */}
             <LancamentoCaixaModal 
                 open={modalOpen} 
-                onClose={() => { setModalOpen(false); carregarDados(); }}
+                onClose={handleCloseModal}
                 initialType="receita" 
                 initialTab={0}
+                existingData={itemParaEdicao} // <--- AQUI ESTÁ A MÁGICA
             />
 
-            {/* DRAWER LATERAL (O MESMO DE DESPESAS, MAS FUNCIONA PARA RECEITA TAMBÉM SE O ID FOR DE PAGAMENTO) */}
-            {/* Nota: O Backend precisará suportar getDespesaTimeline ou você cria um getPagamentoTimeline similar */}
+            {/* DRAWER LATERAL (HISTÓRICO/DETALHES) */}
             <TransactionDrawer 
                 open={drawerOpen} 
                 onClose={() => setDrawerOpen(false)} 
