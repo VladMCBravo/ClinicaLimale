@@ -83,7 +83,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             
         return qs
     
-    # === AÇÃO DE RECEBIMENTO AVANÇADA (Entrada + Parcelamento + Desconto) ===
+    # === AÇÃO DE RECEBIMENTO AVANÇADA (CORRIGIDA) ===
     @action(detail=True, methods=['post'], url_path='receber')
     @transaction.atomic
     def receber(self, request, pk=None):
@@ -110,7 +110,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
         # CENÁRIO 1: PAGAMENTO SIMPLES (Sem parcelas extras, sem entrada complexa)
         if qtd_parcelas <= 1 and valor_entrada == 0:
-            pagamento_original.valor = valor_com_desconto # Atualiza valor final
+            pagamento_original.valor = valor_com_desconto
             pagamento_original.status = 'Pago'
             pagamento_original.data_pagamento = data_pagamento
             pagamento_original.forma_pagamento = forma_pagamento
@@ -140,7 +140,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
                 data_vencimento=data_base,
                 data_pagamento=data_base,
                 registrado_por=user,
-                agendamento=pagamento_original.agendamento # Mantém vínculo se possível
+                # REMOVIDO: agendamento=... (Causa UniqueViolation)
             )
             valor_a_parcelar = valor_com_desconto - valor_entrada
         else:
@@ -148,14 +148,10 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
         # B. Cria as Parcelas do Restante
         if valor_a_parcelar > 0.01:
-            # Se teve entrada, as parcelas restantes são "qtd_parcelas" ou "qtd_parcelas - 1"? 
-            # Lógica de negócio: Cliente pediu "Entrada + 3x". Então criamos 3 parcelas.
-            
             valor_parcela = round(valor_a_parcelar / qtd_parcelas, 2)
             diferenca = round(valor_a_parcelar - (valor_parcela * qtd_parcelas), 2)
 
             for i in range(qtd_parcelas):
-                # Primeira parcela vence em 30 dias após a entrada/hoje
                 data_venc = data_base + relativedelta(months=i+1)
                 valor_final = valor_parcela + diferenca if i == 0 else valor_parcela
                 
@@ -163,10 +159,11 @@ class PagamentoViewSet(viewsets.ModelViewSet):
                     paciente=pagamento_original.paciente,
                     descricao=f"Parc {i+1}/{qtd_parcelas} - {pagamento_original.descricao}",
                     valor=valor_final,
-                    forma_pagamento=None, # Ainda não sabemos como ele vai pagar a parcela futura
+                    forma_pagamento=None,
                     status='Pendente',
                     data_vencimento=data_venc,
                     registrado_por=user
+                    # REMOVIDO: agendamento=... (Causa UniqueViolation)
                 )
 
         return Response({"msg": "Negociação realizada com sucesso!"})
