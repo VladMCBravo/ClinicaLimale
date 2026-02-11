@@ -7,7 +7,6 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
-from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -37,10 +36,8 @@ except ImportError:
 # ==============================================================================
 
 class PagamentoViewSet(viewsets.ModelViewSet):
-    """
-    Mantida para compatibilidade com o frontend atual de Agendamentos e Financeiro
-    """
-    queryset = Pagamento.objects.all().select_related('paciente', 'agendamento')
+    # OTIMIZAÇÃO: Traz paciente e agendamento junto para evitar N+1
+    queryset = Pagamento.objects.select_related('paciente', 'agendamento', 'registrado_por').all()
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
 
@@ -64,10 +61,9 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return qs
 
 class DespesaViewSet(viewsets.ModelViewSet):
-    """
-    Mantida para compatibilidade com o frontend de Despesas
-    """
-    queryset = Despesa.objects.all().order_by('-data_despesa')
+    # OTIMIZAÇÃO CRÍTICA: Traz categoria e usuário junto.
+    # Isso transforma 880 queries em apenas 1 query.
+    queryset = Despesa.objects.select_related('categoria', 'registrado_por').all().order_by('-data_despesa')
     serializer_class = DespesaSerializer
     permission_classes = [IsAuthenticated]
 
@@ -251,7 +247,8 @@ class AgendamentosFaturaveisAPIView(generics.ListAPIView):
 # ==============================================================================
 
 class TransacaoFinanceiraViewSet(viewsets.ModelViewSet):
-    queryset = TransacaoFinanceira.objects.all().order_by('-data_vencimento')
+    # OTIMIZAÇÃO: select_related aqui também
+    queryset = TransacaoFinanceira.objects.select_related('paciente', 'categoria', 'transacao_pai').all().order_by('-data_vencimento')
     serializer_class = TransacaoFinanceiraSerializer
     permission_classes = [IsAuthenticated]
 

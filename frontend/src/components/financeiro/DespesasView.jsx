@@ -199,13 +199,22 @@ export default function DespesasView({ onReload }) {
 
     const { fixas, variaveis, resumoGeral } = processedData;
 
+    // --- MANIPULADORES OTIMIZADOS (OPTIMISTIC UPDATES) ---
+    
     const handleDelete = async (id) => {
         if (!window.confirm("Confirmar exclusão?")) return;
+        
+        // 1. Otimismo: Remove da tela imediatamente
+        const backup = [...despesas];
+        setDespesas(prev => prev.filter(d => d.id !== id));
+
         try {
             await faturamentoService.deleteDespesa(id);
-            fetchDespesas(searchTerm);
-            if(onReload) onReload();
-        } catch (e) { showSnackbar('Erro ao excluir', 'error'); }
+            if(onReload) onReload(); // Sincroniza KPIs do dashboard
+        } catch (e) { 
+            showSnackbar('Erro ao excluir', 'error');
+            setDespesas(backup); // Reverte se falhar
+        }
     };
 
     return (
