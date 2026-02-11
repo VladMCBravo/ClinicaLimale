@@ -194,7 +194,8 @@ class DespesaViewSet(viewsets.ModelViewSet):
         # Margem de 1 minuto na criação para pegar o lote
         time_margin = timezone.timedelta(minutes=1)
         
-        irmas = Despesa.objects.filter(
+        # --- OTIMIZAÇÃO AQUI: select_related adicionado ---
+        irmas = Despesa.objects.select_related('categoria', 'registrado_por').filter(
             registrado_por=despesa_alvo.registrado_por,
             data_registro__range=(despesa_alvo.data_registro - time_margin, despesa_alvo.data_registro + time_margin),
             descricao__startswith=descricao_base
