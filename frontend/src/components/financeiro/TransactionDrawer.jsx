@@ -1,5 +1,5 @@
 // src/components/financeiro/TransactionDrawer.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { 
     Drawer, Box, Typography, IconButton, Divider, 
     List, ListItem, ListItemText, ListItemIcon, Button, 
@@ -14,13 +14,10 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { faturamentoService } from '../../services/faturamentoService';
 
-// --- CORREÇÃO DE DATAS (Fallback Inteligente) ---
+// --- HELPERS DE DATA ---
 const safeDate = (dateVencimento, dateDespesa) => {
-    // 1. Tenta Vencimento
     if (dateVencimento && dayjs(dateVencimento).isValid()) return dayjs(dateVencimento);
-    // 2. Tenta Competência (Despesa)
     if (dateDespesa && dayjs(dateDespesa).isValid()) return dayjs(dateDespesa);
-    // 3. Retorna nulo seguro
     return null;
 };
 
@@ -29,11 +26,73 @@ const formatDate = (dateVencimento, dateDespesa) => {
     return d ? d.format('DD/MM/YYYY') : '--/--/----';
 };
 
+const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+// --- SUBCOMPONENTE OTIMIZADO (MEMOIZED) ---
+// Isso evita que as 48 parcelas sejam redesenhadas a cada letra digitada
+const TimelineItem = memo(({ item, isSelected, onClick, onDelete }) => {
+    const isPago = item.pago;
+    
+    return (
+        <ListItem 
+            onClick={() => onClick(item)}
+            sx={{ 
+                bgcolor: isSelected ? '#e3f2fd' : 'white',
+                mb: 0.8, borderRadius: 1.5, 
+                border: '1px solid',
+                borderColor: isSelected ? 'primary.main' : 'transparent',
+                boxShadow: isSelected ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
+                cursor: 'pointer',
+                transition: '0.1s',
+                '&:hover': { bgcolor: '#f0f7ff', borderColor: 'primary.light' },
+                py: 0.5 
+            }}
+            secondaryAction={
+                <Tooltip title="Excluir Parcela">
+                    <IconButton edge="end" size="small" onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}>
+                        <Delete sx={{ fontSize: 16 }} color="disabled" />
+                    </IconButton>
+                </Tooltip>
+            }
+        >
+            <ListItemIcon sx={{ minWidth: 32 }}>
+                {isPago ? 
+                    <CheckCircle color="success" sx={{ fontSize: 18 }} /> : 
+                    <RadioButtonUnchecked color="disabled" sx={{ fontSize: 18 }} />
+                }
+            </ListItemIcon>
+            
+            <ListItemText 
+                primary={
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                            <CalendarMonth sx={{ fontSize: 12, color: 'text.secondary', opacity: 0.7 }} />
+                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
+                                {formatDate(item.data_vencimento, item.data_despesa)}
+                            </Typography>
+                        </Box>
+                        <Typography variant="body2" fontWeight="700" fontSize="0.85rem" color={isPago ? 'success.dark' : 'text.primary'}>
+                            {formatMoney(item.valor)}
+                        </Typography>
+                    </Box>
+                }
+                secondary={
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', mt: 0.2 }}>
+                        {item.descricao} • {item.categoria_nome || 'Sem Categoria'}
+                    </Typography>
+                }
+            />
+        </ListItem>
+    );
+}, (prevProps, nextProps) => {
+    // Só atualiza se a seleção mudou ou os dados do item mudaram
+    return prevProps.isSelected === nextProps.isSelected && prevProps.item === nextProps.item;
+});
+
 export default function TransactionDrawer({ open, onClose, transactionId, onUpdate }) {
     const [loading, setLoading] = useState(true);
     const [timeline, setTimeline] = useState([]);
     const [editingId, setEditingId] = useState(null);
-    
     const [editForm, setEditForm] = useState({});
 
     useEffect(() => {
@@ -63,10 +122,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
 
     const enterEditMode = (item) => {
         setEditingId(item.id);
-        
-        // Aqui usamos a lógica de fallback para preencher o formulário
         const dataValida = safeDate(item.data_vencimento, item.data_despesa);
-
         setEditForm({
             descricao: item.descricao,
             valor: item.valor,
@@ -78,14 +134,11 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
     const handleSave = async () => {
         try {
             const dataFormatada = editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null;
-            
             const payload = {
                 ...editForm,
                 data_vencimento: dataFormatada,
-                // Se alterou a data, sincroniza a competência também para não ficar perdido no futuro
                 data_despesa: dataFormatada 
             };
-
             await faturamentoService.updateDespesa(editingId, payload);
             loadData(); 
             if(onUpdate) onUpdate(); 
@@ -107,8 +160,6 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
             }
         } catch (error) { alert('Erro ao apagar'); }
     };
-
-    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
     return (
         <Drawer
@@ -188,70 +239,22 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
 
                     <Divider />
 
+                    {/* LISTA HISTÓRICO OTIMIZADA */}
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', bgcolor: '#f8f9fa', px: 1, py: 2 }}>
                         <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ px: 1, mb: 1, display: 'block', textTransform: 'uppercase' }}>
                             Série / Histórico ({timeline.length} itens)
                         </Typography>
 
                         <List dense sx={{ pt: 0 }}>
-                            {timeline.map((item) => {
-                                const isSelected = item.id === editingId;
-                                const isPago = item.pago;
-                                
-                                return (
-                                    <ListItem 
-                                        key={item.id}
-                                        onClick={() => enterEditMode(item)}
-                                        sx={{ 
-                                            bgcolor: isSelected ? '#e3f2fd' : 'white',
-                                            mb: 0.8, borderRadius: 1.5, 
-                                            border: '1px solid',
-                                            borderColor: isSelected ? 'primary.main' : 'transparent',
-                                            boxShadow: isSelected ? 'none' : '0 1px 2px rgba(0,0,0,0.03)',
-                                            cursor: 'pointer',
-                                            transition: '0.1s',
-                                            '&:hover': { bgcolor: '#f0f7ff', borderColor: 'primary.light' },
-                                            py: 0.5 
-                                        }}
-                                        secondaryAction={
-                                            <Tooltip title="Excluir Parcela">
-                                                <IconButton edge="end" size="small" onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
-                                                    <Delete sx={{ fontSize: 16 }} color="disabled" />
-                                                </IconButton>
-                                            </Tooltip>
-                                        }
-                                    >
-                                        <ListItemIcon sx={{ minWidth: 32 }}>
-                                            {isPago ? 
-                                                <CheckCircle color="success" sx={{ fontSize: 18 }} /> : 
-                                                <RadioButtonUnchecked color="disabled" sx={{ fontSize: 18 }} />
-                                            }
-                                        </ListItemIcon>
-                                        
-                                        <ListItemText 
-                                            primary={
-                                                <Box display="flex" justifyContent="space-between" alignItems="center">
-                                                    <Box display="flex" alignItems="center" gap={0.5}>
-                                                        <CalendarMonth sx={{ fontSize: 12, color: 'text.secondary', opacity: 0.7 }} />
-                                                        <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
-                                                            {/* CORREÇÃO AQUI TAMBÉM: Passamos os dois campos */}
-                                                            {formatDate(item.data_vencimento, item.data_despesa)}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Typography variant="body2" fontWeight="700" fontSize="0.85rem" color={isPago ? 'success.dark' : 'text.primary'}>
-                                                        {formatMoney(item.valor)}
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                            secondary={
-                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', mt: 0.2 }}>
-                                                    {item.descricao} • {item.categoria_nome || 'Sem Categoria'}
-                                                </Typography>
-                                            }
-                                        />
-                                    </ListItem>
-                                );
-                            })}
+                            {timeline.map((item) => (
+                                <TimelineItem 
+                                    key={item.id}
+                                    item={item}
+                                    isSelected={item.id === editingId}
+                                    onClick={enterEditMode}
+                                    onDelete={handleDelete}
+                                />
+                            ))}
                         </List>
                     </Box>
                 </Box>
