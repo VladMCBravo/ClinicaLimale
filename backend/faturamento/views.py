@@ -83,7 +83,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             
         return qs
     
-    # === AÇÃO DE RECEBIMENTO AVANÇADA (CORRIGIDA) ===
+    # === AÇÃO DE RECEBIMENTO (LÓGICA DE DATAS CORRIGIDA) ===
     @action(detail=True, methods=['post'], url_path='receber')
     @transaction.atomic
     def receber(self, request, pk=None):
@@ -92,44 +92,49 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         # Dados do formulário
         forma_pagamento = request.data.get('forma_pagamento')
         qtd_parcelas = int(request.data.get('qtd_parcelas', 1))
-        data_pagamento = request.data.get('data_pagamento', timezone.now().date())
         
-        # Novos campos de negociação
+        # Data Base: Se vier string, converte. Se não, usa hoje.
+        raw_data = request.data.get('data_pagamento')
+        if raw_data:
+            data_pagamento = datetime.strptime(str(raw_data), '%Y-%m-%d').date()
+        else:
+            data_pagamento = timezone.now().date()
+        
+        # Valores
         desconto = float(request.data.get('desconto', 0))
         valor_entrada = float(request.data.get('valor_entrada', 0))
 
         if not forma_pagamento:
             return Response({"erro": "Forma de pagamento obrigatória."}, status=400)
 
-        # 1. Aplica Desconto
+        # Aplica Desconto
         valor_base = float(pagamento_original.valor)
         valor_com_desconto = valor_base - desconto
         
         if valor_com_desconto <= 0:
-            return Response({"erro": "O desconto não pode zerar o valor total."}, 400)
+            return Response({"erro": "Valor inválido após desconto."}, 400)
 
-        # CENÁRIO 1: PAGAMENTO SIMPLES (Sem parcelas extras, sem entrada complexa)
+        # CENÁRIO 1: PAGAMENTO À VISTA (Sem entrada complexa, sem parcelas)
         if qtd_parcelas <= 1 and valor_entrada == 0:
             pagamento_original.valor = valor_com_desconto
             pagamento_original.status = 'Pago'
             pagamento_original.data_pagamento = data_pagamento
             pagamento_original.forma_pagamento = forma_pagamento
             if desconto > 0:
-                pagamento_original.descricao += f" (Desc. R$ {desconto:.2f})"
+                pagamento_original.descricao += f" (Desc. {desconto})"
             pagamento_original.save()
-            return Response({"msg": "Recebimento registrado!"})
+            return Response({"msg": "Recebido com sucesso!"})
 
-        # CENÁRIO 2: NEGOCIAÇÃO (Entrada + Parcelas ou Apenas Parcelas)
+        # CENÁRIO 2: NEGOCIAÇÃO (Entrada + Parcelas)
         
-        # Marca original como Renegociado (Histórico)
+        # 1. Arquiva o original como 'Renegociado'
         pagamento_original.status = 'Renegociado'
-        pagamento_original.observacoes = f"Renegociado: Total R$ {valor_com_desconto} (Entrada R$ {valor_entrada} + {qtd_parcelas}x)"
+        pagamento_original.observacoes = f"Renegociado em {data_pagamento.strftime('%d/%m/%Y')}. Total novo: {valor_com_desconto}"
         pagamento_original.save()
 
         user = request.user
-        data_base = datetime.strptime(str(data_pagamento), '%Y-%m-%d').date()
         
-        # A. Cria a Entrada (Se houver)
+        # 2. Gera Entrada (Se houver) - Vencimento HOJE (data_base)
         if valor_entrada > 0:
             Pagamento.objects.create(
                 paciente=pagamento_original.paciente,
@@ -137,22 +142,25 @@ class PagamentoViewSet(viewsets.ModelViewSet):
                 valor=valor_entrada,
                 forma_pagamento=forma_pagamento,
                 status='Pago',
-                data_vencimento=data_base,
-                data_pagamento=data_base,
-                registrado_por=user,
-                # REMOVIDO: agendamento=... (Causa UniqueViolation)
+                data_vencimento=data_pagamento, # Entrada é na data do pagamento
+                data_pagamento=data_pagamento,
+                registrado_por=user
+                # Sem agendamento para evitar UniqueConstraint
             )
             valor_a_parcelar = valor_com_desconto - valor_entrada
         else:
             valor_a_parcelar = valor_com_desconto
 
-        # B. Cria as Parcelas do Restante
+        # 3. Gera Parcelas Futuras
         if valor_a_parcelar > 0.01:
             valor_parcela = round(valor_a_parcelar / qtd_parcelas, 2)
             diferenca = round(valor_a_parcelar - (valor_parcela * qtd_parcelas), 2)
 
             for i in range(qtd_parcelas):
-                data_venc = data_base + relativedelta(months=i+1)
+                # AQUI ESTÁ A MÁGICA:
+                # A primeira parcela do restante vence 1 mês APÓS a data base (entrada)
+                data_venc = data_pagamento + relativedelta(months=i+1)
+                
                 valor_final = valor_parcela + diferenca if i == 0 else valor_parcela
                 
                 Pagamento.objects.create(
@@ -161,12 +169,11 @@ class PagamentoViewSet(viewsets.ModelViewSet):
                     valor=valor_final,
                     forma_pagamento=None,
                     status='Pendente',
-                    data_vencimento=data_venc,
+                    data_vencimento=data_venc, # Garante mês seguinte
                     registrado_por=user
-                    # REMOVIDO: agendamento=... (Causa UniqueViolation)
                 )
 
-        return Response({"msg": "Negociação realizada com sucesso!"})
+        return Response({"msg": "Negociação realizada!"})
 
 # ==============================================================================
 # 1. DASHBOARD & KPIs (A CLASSE CORRETA AGORA)

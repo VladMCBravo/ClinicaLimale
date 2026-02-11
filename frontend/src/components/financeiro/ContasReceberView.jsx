@@ -2,9 +2,9 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Typography, Box, LinearProgress, Button, InputAdornment, Chip, IconButton, Tooltip, Drawer
+    Typography, Box, LinearProgress, Button, InputAdornment, Chip, Drawer
 } from '@mui/material';
-import { Search, Add, ReceiptLong } from '@mui/icons-material';
+import { Search, Add } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
@@ -18,20 +18,15 @@ import './Financeiro.css';
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function ContasReceberView() {
-    // ESTADOS
     const [lista, setLista] = useState([]);
     const [loading, setLoading] = useState(false);
-    
-    // Filtros
     const [filtroData, setFiltroData] = useState(dayjs());
     const [busca, setBusca] = useState('');
     
-    // Modais e Drawers
     const [modalOpen, setModalOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
 
-    // BUSCA DE DADOS
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
@@ -46,7 +41,7 @@ export default function ContasReceberView() {
             const res = await faturamentoService.getPagamentos(params);
             const dados = res.data || [];
 
-            // Ordenação
+            // Ordenação: Data Futura -> Passada
             dados.sort((a, b) => {
                 const dataA = a.data_vencimento ? dayjs(a.data_vencimento) : dayjs(0);
                 const dataB = b.data_vencimento ? dayjs(b.data_vencimento) : dayjs(0);
@@ -54,12 +49,8 @@ export default function ContasReceberView() {
             });
 
             setLista(dados);
-            
-        } catch (error) {
-            console.error("Erro ao buscar contas a receber", error);
-        } finally {
-            setLoading(false);
-        }
+        } catch (error) { console.error(error); } 
+        finally { setLoading(false); }
     }, [filtroData, busca]);
 
     useEffect(() => {
@@ -67,10 +58,11 @@ export default function ContasReceberView() {
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
-    // CÁLCULO DE TOTAIS (Para o rodapé)
     const totais = useMemo(() => {
-        const totalValor = lista.reduce((acc, item) => acc + parseFloat(item.valor || 0), 0);
-        return { qtd: lista.length, valor: totalValor };
+        // Não soma itens renegociados ou cancelados no total do rodapé
+        const validos = lista.filter(i => i.status !== 'Renegociado' && i.status !== 'Cancelado');
+        const totalValor = validos.reduce((acc, item) => acc + parseFloat(item.valor || 0), 0);
+        return { qtd: validos.length, valor: totalValor };
     }, [lista]);
 
     const handleRowClick = (item) => {
@@ -78,17 +70,20 @@ export default function ContasReceberView() {
         setDrawerOpen(true);
     };
 
+    // --- CORREÇÃO DE CORES ---
     const getStatusColor = (status, vencimento) => {
         if (status === 'Pago') return 'success';
-        if (status === 'Cancelado') return 'default';
-        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) return 'error';
-        return 'warning';
+        if (status === 'Cancelado') return 'error'; // Vermelho forte
+        if (status === 'Renegociado') return 'secondary'; // Roxo (MUI Default) ou customizado
+        
+        // Pendente
+        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) return 'error'; // Atrasado
+        return 'warning'; // Pendente normal
     };
 
     return (
-        <div className="fin-container" style={{ padding: '10px 20px' }}> {/* Container ajustado */}
+        <div className="fin-container" style={{ padding: '10px 20px' }}>
             
-            {/* BARRA DE FERRAMENTAS */}
             <div className="fin-toolbar" style={{ marginBottom: 10 }}>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     <DatePicker 
@@ -122,7 +117,6 @@ export default function ContasReceberView() {
                 </Button>
             </div>
 
-            {/* TABELA COMPACTA COM SCROLL */}
             <Paper variant="outlined" sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', width: '99%', margin: '0 auto', borderRadius: 2, border: '1px solid #eee' }}>
                 {loading && <LinearProgress sx={{ height: 2 }} />}
                 
@@ -139,35 +133,52 @@ export default function ContasReceberView() {
                         <TableBody>
                             {lista.map(row => {
                                 const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
+                                const isRenegociado = row.status === 'Renegociado';
                                 
                                 return (
                                     <TableRow 
                                         key={row.id} 
                                         hover 
                                         onClick={() => handleRowClick(row)}
-                                        sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f0f7ff !important' } }}
+                                        sx={{ 
+                                            cursor: 'pointer', 
+                                            '&:hover': { bgcolor: '#f0f7ff !important' },
+                                            // Se for renegociado, deixa "apagado"
+                                            opacity: isRenegociado ? 0.6 : 1,
+                                            bgcolor: isRenegociado ? '#fafafa' : 'inherit'
+                                        }}
                                     >
                                         <TableCell sx={{ fontSize: '0.8rem', color: '#444' }}>
                                             {dayjs(row.data_vencimento).format('DD/MM/YY')}
                                         </TableCell>
                                         <TableCell>
-                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
+                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem" sx={{ textDecoration: isRenegociado ? 'line-through' : 'none' }}>
                                                 {row.paciente_nome || row.descricao}
                                             </Typography>
                                             <Typography variant="caption" color="textSecondary" fontSize="0.7rem">
                                                 {row.descricao_visual || row.categoria_nome}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '0.85rem' }}>
+                                        <TableCell align="right" sx={{ fontWeight: 'bold', color: isRenegociado ? '#999' : '#2e7d32', fontSize: '0.85rem', textDecoration: isRenegociado ? 'line-through' : 'none' }}>
                                             {formatMoney(row.valor)}
                                         </TableCell>
                                         <TableCell align="center">
                                             <Chip 
-                                                label={isAtrasado ? 'Atrasado' : row.status} 
+                                                label={isAtrasado && row.status === 'Pendente' ? 'Atrasado' : row.status} 
                                                 size="small" 
                                                 color={getStatusColor(row.status, row.data_vencimento)}
                                                 variant={row.status === 'Pago' ? 'filled' : 'outlined'}
-                                                sx={{ fontWeight: 'bold', height: 20, fontSize: '0.65rem' }}
+                                                sx={{ 
+                                                    fontWeight: 'bold', 
+                                                    height: 20, 
+                                                    fontSize: '0.65rem',
+                                                    // Estilo customizado para o Roxo do Renegociado se 'secondary' não for roxo no seu tema
+                                                    ...(row.status === 'Renegociado' && {
+                                                        color: '#7b1fa2',
+                                                        borderColor: '#7b1fa2',
+                                                        bgcolor: 'transparent'
+                                                    })
+                                                }}
                                             />
                                         </TableCell>
                                     </TableRow>
@@ -180,18 +191,16 @@ export default function ContasReceberView() {
                     </Table>
                 </TableContainer>
 
-                {/* RODAPÉ FIXO DE TOTAIS */}
                 <Box sx={{ p: 1.5, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
                     <Typography variant="caption" color="text.secondary">
                         QUANTIDADE: <b>{totais.qtd}</b>
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        TOTAL NO PERÍODO: <b style={{ color: '#2e7d32', fontSize: '0.9rem' }}>{formatMoney(totais.valor)}</b>
+                        TOTAL ATIVO: <b style={{ color: '#2e7d32', fontSize: '0.9rem' }}>{formatMoney(totais.valor)}</b>
                     </Typography>
                 </Box>
             </Paper>
 
-            {/* MODAIS E DRAWERS */}
             <LancamentoCaixaModal 
                 open={modalOpen} 
                 onClose={() => { setModalOpen(false); carregarDados(); }}
