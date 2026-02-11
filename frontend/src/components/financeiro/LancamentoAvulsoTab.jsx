@@ -98,8 +98,8 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
         setIsSubmitting(true);
 
         try {
-            // Formata payload comum
-            const payload = {
+            // 1. DEFINIÇÃO DA BASE PAYLOAD (Aqui estava o erro antes, verifique se esta linha existe)
+            const basePayload = {
                 descricao: formData.descricao,
                 valor: parseFloat(formData.valor),
                 forma_pagamento: formData.forma_pagamento,
@@ -109,22 +109,27 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
             };
 
             if (isEditing) {
-                // --- EDIÇÃO (USA O ID DO FORM DATA) ---
+                // --- EDIÇÃO ---
                 if (tipo === 'despesa') {
-                    payload.categoria = formData.categoria; // Envia o ID da categoria
-                    await faturamentoService.updateDespesa(formData.id, payload);
+                    // Update Despesa
+                    await faturamentoService.updateDespesa(formData.id, {
+                        ...basePayload,
+                        categoria: formData.categoria, // Nome exato "categoria"
+                        data_despesa: basePayload.data_vencimento // Mantém data_despesa sincronizada
+                    });
                 } else {
-                    await faturamentoService.updatePagamento(formData.id, payload);
+                    // Update Receita
+                    await faturamentoService.updatePagamento(formData.id, basePayload);
                 }
                 showSnackbar('Atualizado com sucesso!', 'success');
             } else {
                 // --- CRIAÇÃO ---
                 if (tipo === 'despesa') {
-                    // Payload CORRIGIDO para Despesa
+                    // Payload para Despesa
                     const despesaPayload = {
                         ...basePayload,
-                        categoria: formData.categoria, // CORREÇÃO: Enviando 'categoria' (ID) e não categoria_id
-                        data_despesa: basePayload.data_vencimento, // CORREÇÃO: Campo obrigatório 'data_despesa'
+                        categoria: formData.categoria, // ID da categoria
+                        data_despesa: basePayload.data_vencimento, // Campo obrigatório
                         qtd_parcelas: parseInt(formData.qtd_parcelas)
                     };
                     await faturamentoService.createDespesa(despesaPayload);
@@ -144,7 +149,6 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
 
         } catch (error) {
             console.error(error);
-            // Mostra mensagem de erro mais detalhada se vier do backend
             const msg = error.response?.data 
                 ? JSON.stringify(error.response.data) 
                 : 'Erro ao salvar lançamento.';
