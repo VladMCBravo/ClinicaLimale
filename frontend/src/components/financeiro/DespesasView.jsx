@@ -1,5 +1,5 @@
 // src/components/financeiro/DespesasView.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
     IconButton, Typography, Chip, Box, Stack, InputAdornment, Button, Dialog, DialogTitle, DialogContent, DialogActions, TablePagination
@@ -9,11 +9,9 @@ import {
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-import { debounce } from '@mui/material/utils';
 
 import { faturamentoService } from '../../services/faturamentoService';
 import { useSnackbar } from '../../contexts/SnackbarContext';
-import LancamentoCaixaModal from './LancamentoCaixaModal';
 import TransactionDrawer from './TransactionDrawer'; 
 import BaixaUnificadaModal from './BaixaUnificadaModal'; 
 import EditarDespesaModal from './EditarDespesaModal'; 
@@ -21,21 +19,23 @@ import CategoriasTab from '../configuracoes/CategoriasTab';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// --- TABELA COM PAGINAÇÃO (RESOLVE A LENTIDÃO DE RENDERIZAÇÃO) ---
+// Helper para data segura (Vencimento > Competência > Hoje)
+const getDisplayDate = (item) => {
+    if (item.data_vencimento) return dayjs(item.data_vencimento);
+    if (item.data_despesa) return dayjs(item.data_despesa);
+    return dayjs();
+};
+
 const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onCheck, onDelete }) => {
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(25); // Padrão 25 itens
+    const [rowsPerPage, setRowsPerPage] = useState(25);
 
-    const handleChangePage = (event, newPage) => {
-        setPage(newPage);
-    };
-
+    const handleChangePage = (event, newPage) => setPage(newPage);
     const handleChangeRowsPerPage = (event) => {
         setRowsPerPage(parseInt(event.target.value, 10));
         setPage(0);
     };
 
-    // Cálcula os dados visíveis na página atual
     const dadosVisiveis = useMemo(() => {
         return dados.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
     }, [dados, page, rowsPerPage]);
@@ -45,10 +45,7 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onC
     return (
         <Paper 
             variant="outlined" 
-            sx={{ 
-                flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', 
-                borderRadius: 2, borderTop: `4px solid ${corTema}`
-            }}
+            sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, borderTop: `4px solid ${corTema}` }}
         >
             <Box sx={{ px: 1.5, py: 1, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1 }}>
                 {React.cloneElement(icone, { sx: { fontSize: 18, color: corTema } })}
@@ -69,20 +66,22 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onC
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {dados.length === 0 ? (
+                        {dadosVisiveis.length === 0 ? (
                             <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: '#999' }}>Sem lançamentos</TableCell></TableRow>
-                        ) : dados.map((item) => {
-                            const isVencida = !item.pago && dayjs(item.data_vencimento).isBefore(dayjs(), 'day');
+                        ) : dadosVisiveis.map((item) => {
+                            // DATA FIX: Usa o helper para garantir que nunca venha nulo
+                            const dataExibicao = getDisplayDate(item);
+                            const isVencida = !item.pago && dataExibicao.isBefore(dayjs(), 'day');
+                            
                             return (
                                 <TableRow 
                                     key={item.id} 
                                     hover 
                                     sx={{ bgcolor: isVencida ? '#fff5f5' : 'inherit', cursor: 'pointer' }}
-                                    // 1. CLIQUE NA LINHA -> Abre a Gaveta (Drawer)
                                     onClick={() => onRowClick(item)}
                                 >
                                     <TableCell sx={{ fontSize: '0.75rem', color: isVencida ? '#d32f2f' : 'inherit', fontWeight: isVencida ? 600 : 400 }}>
-                                        {dayjs(item.data_vencimento || item.data_despesa).format('DD/MM/YY')}
+                                        {dataExibicao.format('DD/MM/YY')}
                                     </TableCell>
                                     <TableCell sx={{ py: 0.5 }}>
                                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#444' }}>{item.descricao}</Typography>
@@ -93,27 +92,15 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onC
                                     </TableCell>
                                     <TableCell align="center">
                                         <Stack direction="row" spacing={0} justifyContent="center">
-                                            {/* 2. CLIQUE NO LÁPIS -> Abre o Modal Antigo (Backup) */}
-                                            <IconButton size="small" onClick={(e) => { 
-                                                e.stopPropagation(); // Impede que o clique no lápis abra a gaveta também
-                                                onEdit(item); 
-                                            }}>
+                                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(item); }}>
                                                 <Edit sx={{ fontSize: 16, color: 'text.secondary' }} />
                                             </IconButton>
-                                            
                                             {!item.pago && (
-                                                <IconButton size="small" onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onCheck(item);
-                                                }} color="success">
+                                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); onCheck(item); }} color="success">
                                                     <CheckCircle sx={{ fontSize: 16 }} />
                                                 </IconButton>
                                             )}
-                                            
-                                            <IconButton size="small" color="error" onClick={(e) => {
-                                                e.stopPropagation();
-                                                onDelete(item.id);
-                                            }}>
+                                            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}>
                                                 <Delete sx={{ fontSize: 16 }} />
                                             </IconButton>
                                         </Stack>
@@ -122,95 +109,88 @@ const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onC
                             );
                         })}
                     </TableBody>
-                    <TableFooter sx={{ position: 'sticky', bottom: 0, bgcolor: '#fafafa', zIndex: 2, borderTop: '1px solid #eee' }}>
-                         <TableRow>
-                            <TableCell colSpan={2} sx={{ textAlign: 'right', fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>TOTAL:</TableCell>
-                            <TableCell align="right" sx={{ fontSize: '0.8rem', fontWeight: '800', color: corTema }}>{formatMoney(totalTabela)}</TableCell>
-                            <TableCell />
-                         </TableRow>
-                    </TableFooter>
+                    {dados.length > 0 && (
+                        <TableFooter sx={{ position: 'sticky', bottom: 0, bgcolor: '#fafafa', zIndex: 2, borderTop: '1px solid #eee' }}>
+                            <TableRow>
+                                <TableCell colSpan={2} sx={{ textAlign: 'right', fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>
+                                    TOTAL PARCIAL:
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: '0.8rem', fontWeight: '800', color: corTema }}>
+                                    {formatMoney(totalTabela)}
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                        </TableFooter>
+                    )}
                 </Table>
             </TableContainer>
+            
+            <TablePagination
+                component="div"
+                count={dados.length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Itens:"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                sx={{ borderTop: '1px solid #eee', bgcolor: '#fff' }}
+            />
         </Paper>
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
-export default function DespesasView({ onReload }) {
+export default function DespesasView({ dadosIniciais = [], onReload }) {
     const { showSnackbar } = useSnackbar();
     
-    // Estados Globais
-    const [despesas, setDespesas] = useState([]);
-    const [loading, setLoading] = useState(false);
+    // Agora usamos dadosIniciais como fonte de verdade! Sem fetch duplicado.
+    const [localDespesas, setLocalDespesas] = useState(dadosIniciais);
     
-    // Estados para os DOIS modos de edição
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [drawerId, setDrawerId] = useState(null); // ID para a Gaveta
-    const [openEditModal, setOpenEditModal] = useState(false); // Modal Antigo
-    const [selectedItem, setSelectedItem] = useState(null); // Objeto para o Modal Antigo
+    const [drawerId, setDrawerId] = useState(null); 
+    const [openEditModal, setOpenEditModal] = useState(false); 
+    const [selectedItem, setSelectedItem] = useState(null); 
 
-    // Filtros
     const [searchTerm, setSearchTerm] = useState('');
     const [filtroData, setFiltroData] = useState(dayjs());
     
-    // Outros Modais
     const [openBaixaModal, setOpenBaixaModal] = useState(false);
-    const [openMestreModal, setOpenMestreModal] = useState(false); 
     const [openCategorias, setOpenCategorias] = useState(false); 
 
-    const fetchDespesas = useCallback(async (busca = '') => {
-        setLoading(true);
-        const inicio = performance.now();
-        console.log("🔄 [DespesasView] Iniciando busca...", { busca, mes: filtroData.month() + 1 });
-
-        try {
-            let params = {};
-            if (busca) {
-                params = { search: busca };
-            } else {
-                params = { 
-                    mes: filtroData.month() + 1,
-                    ano: filtroData.year()
-                };
-            }
-            const response = await faturamentoService.getDespesas(params);
-            
-            const fim = performance.now();
-            console.log(`✅ [DespesasView] Dados carregados em ${(fim - inicio).toFixed(2)}ms. Itens: ${response.data.length}`);
-            
-            setDespesas(response.data); 
-        } catch (error) {
-            console.error("❌ [DespesasView] Erro:", error);
-            showSnackbar('Erro ao carregar despesas', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [filtroData, showSnackbar]);
-
-    const debouncedSearch = useMemo(() => 
-        debounce((termo) => {
-            console.log("🔎 [DespesasView] Debounce ativado para:", termo);
-            fetchDespesas(termo);
-        }, 800),
-    [fetchDespesas]);
-
+    // Sincroniza se a tela principal atualizar
     useEffect(() => {
-        if (!searchTerm) {
-            fetchDespesas();
-        }
-    }, [filtroData, fetchDespesas, searchTerm]);
+        setLocalDespesas(dadosIniciais);
+    }, [dadosIniciais]);
 
-    const handleSearchChange = (e) => {
-        const val = e.target.value;
-        setSearchTerm(val);
-        debouncedSearch(val);
-    };
-
+    // Filtragem Local Instantânea (Client-Side)
+    // Resolve a lentidão de buscar no servidor a cada letra digitada
     const processedData = useMemo(() => {
-        const fixas = despesas.filter(d => d.categoria_tipo === 'Fixa');
-        const variaveis = despesas.filter(d => d.categoria_tipo !== 'Fixa');
+        // 1. Filtrar
+        let filtrados = localDespesas;
 
-        const resumoGeral = despesas.reduce((acc, curr) => {
+        // Filtro de Mês (Só aplica se não tiver busca global)
+        if (!searchTerm) {
+            filtrados = filtrados.filter(d => {
+                // Tenta Vencimento, se não, Competência
+                const dataRef = d.data_vencimento ? dayjs(d.data_vencimento) : dayjs(d.data_despesa);
+                return dataRef.month() === filtroData.month() && dataRef.year() === filtroData.year();
+            });
+        }
+
+        // Filtro de Busca (Texto)
+        if (searchTerm) {
+            const lowerBusca = searchTerm.toLowerCase();
+            filtrados = filtrados.filter(d => 
+                (d.descricao && d.descricao.toLowerCase().includes(lowerBusca)) ||
+                (d.categoria_nome && d.categoria_nome.toLowerCase().includes(lowerBusca))
+            );
+        }
+
+        // 2. Separar e Calcular
+        const fixas = filtrados.filter(d => d.categoria_tipo === 'Fixa');
+        const variaveis = filtrados.filter(d => d.categoria_tipo !== 'Fixa');
+
+        const resumoGeral = filtrados.reduce((acc, curr) => {
             const val = parseFloat(curr.valor || 0);
             acc.total += val;
             curr.pago ? (acc.pagas += val) : (acc.aPagar += val);
@@ -218,31 +198,36 @@ export default function DespesasView({ onReload }) {
         }, { pagas: 0, aPagar: 0, total: 0 });
 
         return { fixas, variaveis, resumoGeral };
-    }, [despesas]);
+    }, [localDespesas, searchTerm, filtroData]);
 
     const { fixas, variaveis, resumoGeral } = processedData;
 
-    // --- MANIPULADORES OTIMIZADOS (OPTIMISTIC UPDATES) ---
-    
+    // --- AÇÕES ---
+
+    const handleReload = () => {
+        if (onReload) onReload(); // Chama o recarregamento "pesado" do pai
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm("Confirmar exclusão?")) return;
         
-        // 1. Otimismo: Remove da tela imediatamente
-        const backup = [...despesas];
-        setDespesas(prev => prev.filter(d => d.id !== id));
+        // Optimistic Update: Remove da tela antes do servidor responder
+        setLocalDespesas(prev => prev.filter(d => d.id !== id));
 
         try {
             await faturamentoService.deleteDespesa(id);
-            if(onReload) onReload(); // Sincroniza KPIs do dashboard
+            // Sucesso silencioso, já atualizamos a tela
+            if(onReload) onReload(); // Sincroniza totais do dashboard em background
         } catch (e) { 
             showSnackbar('Erro ao excluir', 'error');
-            setDespesas(backup); // Reverte se falhar
+            setLocalDespesas(dadosIniciais); // Reverte em caso de erro
         }
     };
 
     return (
         <Box sx={{ p: 1, height: 'calc(100vh - 155px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             
+            {/* KPI + FILTROS */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, gap: 2 }}>
                 <Stack direction="row" spacing={1.5}>
                     <CompactKPI title="TOTAL" value={resumoGeral.total} icon={<TrendingDown fontSize="inherit" />} color="#455a64" bgcolor="#eceff1"/>
@@ -254,27 +239,18 @@ export default function DespesasView({ onReload }) {
                     <DatePicker 
                         views={['month', 'year']} 
                         value={filtroData} 
-                        onChange={(v) => { setFiltroData(v); setSearchTerm(''); }} 
+                        onChange={(v) => setFiltroData(v)} 
                         slotProps={{ textField: { size: 'small', sx: { width: 140, bgcolor: 'white' } } }}
                         disabled={!!searchTerm}
                     />
-                    <Button 
-                        variant="outlined" size="small" 
-                        onClick={() => setOpenCategorias(true)}
-                        startIcon={<Settings />}
-                        sx={{ height: 40, bgcolor: 'white', borderColor: '#ccc', color: '#666' }}
-                    >
-                        Categorias
-                    </Button>
+                    <Button variant="outlined" size="small" onClick={() => setOpenCategorias(true)} startIcon={<Settings />} sx={{ height: 40, bgcolor: 'white', borderColor: '#ccc', color: '#666' }}>Categorias</Button>
                     <TextField 
                         size="small" placeholder="Busca Global (Descrição)..." 
-                        value={searchTerm} onChange={handleSearchChange} 
+                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
                         InputProps={{ 
                             startAdornment: (<InputAdornment position="start"><Search /></InputAdornment>),
                             endAdornment: searchTerm && (
-                                <IconButton size="small" onClick={() => { setSearchTerm(''); fetchDespesas(''); }}>
-                                    <Close fontSize="small" />
-                                </IconButton>
+                                <IconButton size="small" onClick={() => setSearchTerm('')}><Close fontSize="small" /></IconButton>
                             )
                         }}
                         sx={{ width: 250, bgcolor: searchTerm ? '#e3f2fd' : 'white' }} 
@@ -282,86 +258,32 @@ export default function DespesasView({ onReload }) {
                 </Box>
             </Box>
 
-            {/* TABELAS - COM DUPLA AÇÃO */}
-            {loading ? (
-                <Typography sx={{p:4, textAlign: 'center'}}>Carregando...</Typography>
-            ) : (
-                <Box sx={{ flexGrow: 1, display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden' }}>
-                    <TabelaDespesas 
-                        dados={fixas} 
-                        titulo={searchTerm ? "RESULTADO (FIXAS)" : "FIXAS"} 
-                        icone={<Domain />} corTema="#1565c0" 
-                        
-                        // MODO GAVETA (NOVO): Clique na Linha
-                        onRowClick={(item) => { 
-                            setDrawerId(item.id); 
-                            setDrawerOpen(true); 
-                        }}
-                        
-                        // MODO MODAL (ANTIGO): Clique no Lápis
-                        onEdit={(item) => { 
-                            setSelectedItem(item); 
-                            setOpenEditModal(true); 
-                        }} 
-                        
-                        onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
-                        onDelete={handleDelete} 
-                    />
-                    <TabelaDespesas 
-                        dados={variaveis} 
-                        titulo={searchTerm ? "RESULTADO (VARIÁVEIS)" : "VARIÁVEIS"} 
-                        icone={<LocalCafe />} corTema="#e65100" 
-                        
-                        // MODO GAVETA (NOVO)
-                        onRowClick={(item) => { 
-                            setDrawerId(item.id); 
-                            setDrawerOpen(true); 
-                        }}
+            {/* TABELAS (Carregam Instantaneamente agora) */}
+            <Box sx={{ flexGrow: 1, display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden' }}>
+                <TabelaDespesas 
+                    dados={fixas} titulo={searchTerm ? "RESULTADO (FIXAS)" : "FIXAS"} icone={<Domain />} corTema="#1565c0" 
+                    onRowClick={(item) => { setDrawerId(item.id); setDrawerOpen(true); }}
+                    onEdit={(item) => { setSelectedItem(item); setOpenEditModal(true); }} 
+                    onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
+                    onDelete={handleDelete} 
+                />
+                <TabelaDespesas 
+                    dados={variaveis} titulo={searchTerm ? "RESULTADO (VARIÁVEIS)" : "VARIÁVEIS"} icone={<LocalCafe />} corTema="#e65100" 
+                    onRowClick={(item) => { setDrawerId(item.id); setDrawerOpen(true); }}
+                    onEdit={(item) => { setSelectedItem(item); setOpenEditModal(true); }} 
+                    onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
+                    onDelete={handleDelete} 
+                />
+            </Box>
 
-                        // MODO MODAL (ANTIGO)
-                        onEdit={(item) => { 
-                            setSelectedItem(item); 
-                            setOpenEditModal(true); 
-                        }} 
-
-                        onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
-                        onDelete={handleDelete} 
-                    />
-                </Box>
-            )}
-
-            {/* --- MODAL ANTIGO (Lápis) --- */}
-            <EditarDespesaModal
-                open={openEditModal}
-                despesa={selectedItem}
-                onClose={() => setOpenEditModal(false)}
-                onSave={() => fetchDespesas(searchTerm)}
-                showSnackbar={showSnackbar}
-            />
-
-            {/* --- GAVETA NOVA (Clique na Linha) --- */}
-            <TransactionDrawer
-                open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
-                transactionId={drawerId} 
-                onUpdate={() => fetchDespesas(searchTerm)} 
-            />
-
-            <BaixaUnificadaModal 
-                open={openBaixaModal}
-                onClose={() => setOpenBaixaModal(false)}
-                item={selectedItem}
-                onConfirmBaixa={async (id, dados) => {
-                    await faturamentoService.updateDespesa(id, { pago: true, ...dados });
-                    fetchDespesas(searchTerm);
-                }}
-            />
-
-            <Dialog 
-                open={openCategorias} 
-                onClose={() => { setOpenCategorias(false); fetchDespesas(searchTerm); }} 
-                maxWidth="md" fullWidth
-            >
+            {/* MODAIS */}
+            <EditarDespesaModal open={openEditModal} despesa={selectedItem} onClose={() => setOpenEditModal(false)} onSave={handleReload} showSnackbar={showSnackbar} />
+            <TransactionDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} transactionId={drawerId} onUpdate={handleReload} />
+            <BaixaUnificadaModal open={openBaixaModal} onClose={() => setOpenBaixaModal(false)} item={selectedItem} onConfirmBaixa={async (id, dados) => {
+                    setLocalDespesas(prev => prev.map(d => d.id === id ? { ...d, pago: true } : d));
+                    try { await faturamentoService.updateDespesa(id, { pago: true, ...dados }); handleReload(); } catch(e) { handleReload(); }
+            }} />
+            <Dialog open={openCategorias} onClose={() => { setOpenCategorias(false); handleReload(); }} maxWidth="md" fullWidth>
                 <DialogTitle sx={{ pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     Gerenciar Categorias Financeiras
                     <IconButton onClick={() => setOpenCategorias(false)} size="small"><Close /></IconButton>
@@ -374,15 +296,7 @@ export default function DespesasView({ onReload }) {
 }
 
 const CompactKPI = ({ title, value, icon, color, bgcolor }) => (
-    <Paper 
-        elevation={0} 
-        sx={{ 
-            p: 0.5, px: 1.5, borderRadius: 2, bgcolor: bgcolor, 
-            display: 'flex', alignItems: 'center', gap: 1,
-            border: `1px solid ${color}30`,
-            minWidth: 130, height: 40
-        }}
-    >
+    <Paper elevation={0} sx={{ p: 0.5, px: 1.5, borderRadius: 2, bgcolor: bgcolor, display: 'flex', alignItems: 'center', gap: 1, border: `1px solid ${color}30`, minWidth: 130, height: 40 }}>
         <Box sx={{ bgcolor: 'white', p: 0.3, borderRadius: '50%', display: 'flex', color: color }}>{icon}</Box>
         <Box sx={{ lineHeight: 1 }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', color: color, opacity: 0.9, fontSize: '0.65rem', display: 'block' }}>{title}</Typography>

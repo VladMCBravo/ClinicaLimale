@@ -14,25 +14,18 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { faturamentoService } from '../../services/faturamentoService';
 
-/// --- CORREÇÃO E LOG DE DATAS ---
-const safeDate = (dateStr) => {
-    // LOG DE DEBUG PARA DESCOBRIR O QUE ESTÁ VINDO
-    if (dateStr === undefined || dateStr === null) {
-        // console.warn("⚠️ safeDate recebeu nulo/undefined");
-        return null;
-    }
-    
-    const d = dayjs(dateStr);
-    if (!d.isValid()) {
-        console.error("❌ safeDate falhou para:", dateStr);
-        return null;
-    }
-    return d;
+// --- CORREÇÃO DE DATAS (Fallback Inteligente) ---
+const safeDate = (dateVencimento, dateDespesa) => {
+    // 1. Tenta Vencimento
+    if (dateVencimento && dayjs(dateVencimento).isValid()) return dayjs(dateVencimento);
+    // 2. Tenta Competência (Despesa)
+    if (dateDespesa && dayjs(dateDespesa).isValid()) return dayjs(dateDespesa);
+    // 3. Retorna nulo seguro
+    return null;
 };
 
-const formatDate = (dateStr) => {
-    const d = safeDate(dateStr);
-    // Se a data for inválida, mostra "--/--/----" em vez de quebrar ou mostrar Invalid Date
+const formatDate = (dateVencimento, dateDespesa) => {
+    const d = safeDate(dateVencimento, dateDespesa);
     return d ? d.format('DD/MM/YYYY') : '--/--/----';
 };
 
@@ -41,12 +34,10 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
     const [timeline, setTimeline] = useState([]);
     const [editingId, setEditingId] = useState(null);
     
-    // Dados temporários de edição
     const [editForm, setEditForm] = useState({});
 
     useEffect(() => {
         if (open && transactionId) {
-            console.log("📂 [Drawer] Abrindo para ID:", transactionId);
             loadData();
         } else {
             setTimeline([]);
@@ -58,43 +49,42 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
         setLoading(true);
         try {
             const res = await faturamentoService.getDespesaTimeline(transactionId);
-            console.log("📥 [Drawer] Dados recebidos:", res.data); // <--- LOG IMPORTANTE
             setTimeline(res.data);
             
             const current = res.data.find(t => t.id === transactionId) || res.data[0];
             if (current) enterEditMode(current);
             
         } catch (error) {
-            console.error("❌ [Drawer] Erro ao carregar:", error);
+            console.error(error);
         } finally {
             setLoading(false);
         }
     };
 
     const enterEditMode = (item) => {
-        console.log("✏️ [Drawer] Editando item:", item);
         setEditingId(item.id);
         
-        // Verifica o que está sendo passado para o DatePicker
-        const dataSegura = safeDate(item.data_vencimento);
-        console.log("📅 [Drawer] Data processada:", dataSegura);
+        // Aqui usamos a lógica de fallback para preencher o formulário
+        const dataValida = safeDate(item.data_vencimento, item.data_despesa);
 
         setEditForm({
             descricao: item.descricao,
             valor: item.valor,
-            data_vencimento: dataSegura,
+            data_vencimento: dataValida,
             categoria: item.categoria
         });
     };
 
     const handleSave = async () => {
         try {
+            const dataFormatada = editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null;
+            
             const payload = {
                 ...editForm,
-                data_vencimento: editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null,
-                data_despesa: editForm.data_vencimento ? editForm.data_vencimento.format('YYYY-MM-DD') : null
+                data_vencimento: dataFormatada,
+                // Se alterou a data, sincroniza a competência também para não ficar perdido no futuro
+                data_despesa: dataFormatada 
             };
-            console.log("💾 [Drawer] Salvando payload:", payload);
 
             await faturamentoService.updateDespesa(editingId, payload);
             loadData(); 
@@ -198,7 +188,6 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
 
                     <Divider />
 
-                    {/* LISTA HISTÓRICO */}
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', bgcolor: '#f8f9fa', px: 1, py: 2 }}>
                         <Typography variant="caption" color="text.secondary" fontWeight="bold" sx={{ px: 1, mb: 1, display: 'block', textTransform: 'uppercase' }}>
                             Série / Histórico ({timeline.length} itens)
@@ -244,9 +233,9 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
                                                 <Box display="flex" justifyContent="space-between" alignItems="center">
                                                     <Box display="flex" alignItems="center" gap={0.5}>
                                                         <CalendarMonth sx={{ fontSize: 12, color: 'text.secondary', opacity: 0.7 }} />
-                                                        {/* AQUI ESTAVA O PROBLEMA: Usamos formatDate que trata nulos */}
                                                         <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
-                                                            {formatDate(item.data_vencimento)}
+                                                            {/* CORREÇÃO AQUI TAMBÉM: Passamos os dois campos */}
+                                                            {formatDate(item.data_vencimento, item.data_despesa)}
                                                         </Typography>
                                                     </Box>
                                                     <Typography variant="body2" fontWeight="700" fontSize="0.85rem" color={isPago ? 'success.dark' : 'text.primary'}>
