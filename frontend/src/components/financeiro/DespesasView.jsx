@@ -1,324 +1,213 @@
 // src/components/financeiro/DespesasView.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-    TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
-    IconButton, Typography, Chip, Box, Stack, InputAdornment, Button, Dialog, DialogTitle, DialogContent, DialogActions, TablePagination, LinearProgress
+    TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    IconButton, Typography, Chip, Box, InputAdornment, Button, Drawer, LinearProgress
 } from '@mui/material';
-import { 
-    Edit, Delete, CheckCircle, Domain, LocalCafe, Search, TrendingDown, Check, MoneyOff, Close, Settings, Add 
-} from '@mui/icons-material';
+import { Search, Add, Settings, Domain, LocalCafe } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
-import { useSnackbar } from '../../contexts/SnackbarContext';
-import TransactionDrawer from './TransactionDrawer'; 
-import BaixaUnificadaModal from './BaixaUnificadaModal'; 
-import LancamentoCaixaModal from './LancamentoCaixaModal'; // Usando o Modal Unificado
+import LancamentoCaixaModal from './LancamentoCaixaModal';
+import { ExpenseDrawerContent } from './ExpensePaymentDrawer'; // NOVO DRAWER
 import CategoriasTab from '../configuracoes/CategoriasTab';
+
+// Importa CSS Global
+import './Financeiro.css';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-// Helper para data segura
-const getDisplayDate = (item) => {
-    if (item.data_vencimento) return dayjs(item.data_vencimento);
-    if (item.data_despesa) return dayjs(item.data_despesa);
-    return dayjs();
-};
+// Subcomponente de Tabela Compacta
+const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
+    // Totais locais da tabela
+    const total = useMemo(() => data.reduce((acc, i) => acc + parseFloat(i.valor), 0), [data]);
 
-// --- SUBCOMPONENTE DE TABELA (MANTIDO E OTIMIZADO) ---
-const TabelaDespesas = ({ dados, titulo, icone, corTema, onEdit, onRowClick, onCheck, onDelete }) => {
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(25);
-
-    const handleChangePage = (event, newPage) => setPage(newPage);
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
-
-    // Reseta página se dados mudarem drasticamente
-    useEffect(() => { if(page > 0 && dados.length < rowsPerPage) setPage(0); }, [dados, rowsPerPage]);
-
-    const dadosVisiveis = useMemo(() => {
-        return dados.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    }, [dados, page, rowsPerPage]);
-
-    const totalTabela = useMemo(() => dados.reduce((acc, item) => acc + Number(item.valor), 0), [dados]);
-    
     return (
-        <Paper 
-            variant="outlined" 
-            sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, borderTop: `4px solid ${corTema}` }}
-        >
-            <Box sx={{ px: 1.5, py: 1, bgcolor: `${corTema}10`, display: 'flex', alignItems: 'center', gap: 1 }}>
-                {React.cloneElement(icone, { sx: { fontSize: 18, color: corTema } })}
-                <Typography variant="caption" sx={{ fontWeight: '800', color: corTema, flexGrow: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    {titulo}
+        <Paper variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, borderTop: `3px solid ${color}` }}>
+            {/* Header da Tabela */}
+            <Box sx={{ px: 1.5, py: 1, bgcolor: `${color}10`, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid #eee' }}>
+                {React.cloneElement(icon, { sx: { fontSize: 16, color: color } })}
+                <Typography variant="caption" sx={{ fontWeight: '800', color: color, flexGrow: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {title}
                 </Typography>
-                <Chip label={dados.length} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold', bgcolor: 'white' }} />
+                <Chip label={data.length} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', bgcolor: 'white' }} />
             </Box>
 
-            <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+            <TableContainer sx={{ flexGrow: 1 }}>
                 <Table size="small" stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold', bgcolor: '#fff' }}>Vencimento</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', bgcolor: '#fff' }}>Descrição</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: '#fff' }}>Valor</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: '#fff' }}>Ações</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>Vencimento</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>Descrição</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>Valor</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>Status</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {dadosVisiveis.length === 0 ? (
-                            <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: '#999' }}>Nenhum registro</TableCell></TableRow>
-                        ) : dadosVisiveis.map((item) => {
-                            const dataExibicao = getDisplayDate(item);
-                            const isVencida = !item.pago && dataExibicao.isBefore(dayjs(), 'day');
+                        {data.length === 0 ? (
+                            <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: '#999', fontSize: '0.8rem' }}>Sem despesas</TableCell></TableRow>
+                        ) : data.map((item) => {
+                            const dataDisplay = item.data_vencimento ? dayjs(item.data_vencimento) : dayjs(item.data_despesa);
+                            const isVencida = !item.pago && dataDisplay.isBefore(dayjs(), 'day');
                             
                             return (
                                 <TableRow 
                                     key={item.id} 
                                     hover 
-                                    sx={{ bgcolor: isVencida ? '#fff5f5' : 'inherit', cursor: 'pointer' }}
                                     onClick={() => onRowClick(item)}
+                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f5f5f5 !important' } }}
                                 >
-                                    <TableCell sx={{ fontSize: '0.75rem', color: isVencida ? '#d32f2f' : 'inherit', fontWeight: isVencida ? 600 : 400 }}>
-                                        {dataExibicao.format('DD/MM/YY')}
+                                    <TableCell sx={{ fontSize: '0.75rem', color: isVencida ? '#d32f2f' : '#444', fontWeight: isVencida ? 600 : 400 }}>
+                                        {dataDisplay.format('DD/MM/YY')}
                                     </TableCell>
                                     <TableCell sx={{ py: 0.5 }}>
-                                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#444' }}>{item.descricao}</Typography>
+                                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#333' }}>{item.descricao}</Typography>
                                         <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem' }}>{item.categoria_nome}</Typography>
                                     </TableCell>
                                     <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#555' }}>
                                         {formatMoney(item.valor)}
                                     </TableCell>
                                     <TableCell align="center">
-                                        <Stack direction="row" spacing={0} justifyContent="center">
-                                            {!item.pago && (
-                                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); onCheck(item); }} color="success" title="Dar Baixa">
-                                                    <CheckCircle sx={{ fontSize: 16 }} />
-                                                </IconButton>
-                                            )}
-                                            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}>
-                                                <Delete sx={{ fontSize: 16 }} />
-                                            </IconButton>
-                                        </Stack>
+                                        <Chip 
+                                            label={item.pago ? "Pago" : (isVencida ? "Atrasado" : "Aberto")} 
+                                            size="small" 
+                                            color={item.pago ? "success" : (isVencida ? "error" : "default")}
+                                            variant={item.pago ? "filled" : "outlined"}
+                                            sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold' }}
+                                        />
                                     </TableCell>
                                 </TableRow>
                             );
                         })}
                     </TableBody>
-                    {dados.length > 0 && (
-                        <TableFooter sx={{ position: 'sticky', bottom: 0, bgcolor: '#fafafa', zIndex: 2, borderTop: '1px solid #eee' }}>
-                            <TableRow>
-                                <TableCell colSpan={2} sx={{ textAlign: 'right', fontSize: '0.7rem', fontWeight: 'bold', color: '#666' }}>
-                                    TOTAL:
-                                </TableCell>
-                                <TableCell align="right" sx={{ fontSize: '0.8rem', fontWeight: '800', color: corTema }}>
-                                    {formatMoney(totalTabela)}
-                                </TableCell>
-                                <TableCell />
-                            </TableRow>
-                        </TableFooter>
-                    )}
                 </Table>
             </TableContainer>
-            
-            <TablePagination
-                component="div"
-                count={dados.length}
-                page={page}
-                onPageChange={handleChangePage}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage="Itens:"
-                sx={{ borderTop: '1px solid #eee', bgcolor: '#fff' }}
-            />
+
+            {/* Rodapé Fixo */}
+            <Box sx={{ p: 1, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                <Typography variant="caption" color="text.secondary" fontSize="0.7rem">TOTAL:</Typography>
+                <Typography variant="caption" fontWeight="800" color={color} fontSize="0.8rem">
+                    {formatMoney(total)}
+                </Typography>
+            </Box>
         </Paper>
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export default function DespesasView() {
-    const { showSnackbar } = useSnackbar();
-    
-    // ESTADOS DE DADOS
     const [lista, setLista] = useState([]);
     const [loading, setLoading] = useState(false);
-
-    // FILTROS
     const [filtroData, setFiltroData] = useState(dayjs());
     const [busca, setBusca] = useState('');
     
-    // MODAIS E DRAWER
+    // Modais e Drawer
+    const [modalOpen, setModalOpen] = useState(false); // Nova Despesa
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [drawerId, setDrawerId] = useState(null); 
-    const [modalOpen, setModalOpen] = useState(false); // Modal de Nova Despesa
-    const [selectedItem, setSelectedItem] = useState(null); 
-    const [openBaixaModal, setOpenBaixaModal] = useState(false);
-    const [openCategorias, setOpenCategorias] = useState(false); 
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [openCategorias, setOpenCategorias] = useState(false);
 
-    // --- CARREGAMENTO DE DADOS (Igual ContasReceberView) ---
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
             const params = {};
-            
-            // Lógica Inteligente: Busca Global vs Filtro Mês
             if (busca.length > 2) {
                 params.search = busca;
             } else {
                 params.mes = filtroData.month() + 1;
                 params.ano = filtroData.year();
             }
-
-            // Busca do endpoint de Despesas
             const res = await faturamentoService.getDespesas(params);
             setLista(res.data || []);
-            
-        } catch (error) {
-            console.error("Erro ao buscar despesas", error);
-            showSnackbar('Erro ao carregar despesas', 'error');
-        } finally {
-            setLoading(false);
-        }
-    }, [filtroData, busca, showSnackbar]);
+        } catch (error) { console.error(error); } 
+        finally { setLoading(false); }
+    }, [filtroData, busca]);
 
-    // Debounce da busca
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            carregarDados();
-        }, 500);
+        const timeoutId = setTimeout(() => { carregarDados(); }, 500);
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
-    // --- PROCESSAMENTO (Client-Side Split) ---
-    // Separa Fixas de Variáveis baseado na lista carregada
-    const processedData = useMemo(() => {
-        const fixas = lista.filter(d => d.categoria_tipo === 'Fixa');
-        const variaveis = lista.filter(d => d.categoria_tipo !== 'Fixa'); // Variável ou Null
-
-        const resumoGeral = lista.reduce((acc, curr) => {
-            const val = parseFloat(curr.valor || 0);
-            acc.total += val;
-            curr.pago ? (acc.pagas += val) : (acc.aPagar += val);
-            return acc;
-        }, { pagas: 0, aPagar: 0, total: 0 });
-
-        return { fixas, variaveis, resumoGeral };
+    // Separa dados (Fixas vs Variáveis)
+    const { fixas, variaveis } = useMemo(() => {
+        return {
+            fixas: lista.filter(d => d.categoria_tipo === 'Fixa'),
+            variaveis: lista.filter(d => d.categoria_tipo !== 'Fixa')
+        };
     }, [lista]);
 
-    const { fixas, variaveis, resumoGeral } = processedData;
-
-    // --- AÇÕES ---
-
-    const handleDelete = async (id) => {
-        if (!window.confirm("Confirmar exclusão desta despesa?")) return;
-        
-        // Optimistic Update: Remove da tela imediatamente
-        setLista(prev => prev.filter(d => d.id !== id));
-
-        try {
-            await faturamentoService.deleteDespesa(id);
-            // Não precisa recarregar se deu certo, o optimistic já resolveu
-        } catch (e) { 
-            showSnackbar('Erro ao excluir', 'error');
-            carregarDados(); // Reverte em caso de erro
-        }
+    const handleRowClick = (item) => {
+        setSelectedItem(item);
+        setDrawerOpen(true);
     };
 
     return (
-        <Box sx={{ p: 0, height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="fin-container" style={{ padding: '10px 20px' }}>
             
-            {/* KPI + FILTROS */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
-                
-                {/* ESQUERDA: Data e KPIs */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* TOOLBAR */}
+            <div className="fin-toolbar" style={{ marginBottom: 10 }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     <DatePicker 
                         views={['month', 'year']} 
                         value={filtroData} 
                         onChange={(v) => { setFiltroData(v); setBusca(''); }} 
-                        slotProps={{ textField: { size: 'small', sx: { width: 140, bgcolor: 'white' } } }}
+                        slotProps={{ textField: { size: 'small', variant: 'standard', sx: { width: 120 } } }}
                         disabled={busca.length > 0}
                     />
-                    
-                    {/* KPIs Compactos (Só aparecem se não for mobile muito pequeno) */}
-                    <Stack direction="row" spacing={1.5} sx={{ display: { xs: 'none', md: 'flex' } }}>
-                        <CompactKPI title="TOTAL" value={resumoGeral.total} icon={<TrendingDown fontSize="inherit" />} color="#455a64" bgcolor="#eceff1"/>
-                        <CompactKPI title="PAGAS" value={resumoGeral.pagas} icon={<Check fontSize="inherit" />} color="#2e7d32" bgcolor="#e8f5e9"/>
-                        <CompactKPI title="A PAGAR" value={resumoGeral.aPagar} icon={<MoneyOff fontSize="inherit" />} color="#d32f2f" bgcolor="#ffebee"/>
-                    </Stack>
-                </Box>
-
-                {/* DIREITA: Busca e Ações */}
-                <Box sx={{ display: 'flex', gap: 1 }}>
                     <TextField 
                         size="small" 
-                        placeholder="Buscar Fornecedor/Desc..." 
+                        placeholder="Buscar Despesa..." 
                         value={busca} 
                         onChange={(e) => setBusca(e.target.value)} 
+                        variant="standard"
                         InputProps={{ 
-                            startAdornment: (<InputAdornment position="start"><Search /></InputAdornment>),
-                            endAdornment: busca && (
-                                <IconButton size="small" onClick={() => setBusca('')}><Close fontSize="small" /></IconButton>
-                            )
+                            startAdornment: (<InputAdornment position="start"><Search fontSize="small"/></InputAdornment>),
+                            disableUnderline: true,
+                            style: { fontSize: '0.9rem' }
                         }}
-                        sx={{ width: 220, bgcolor: busca ? '#e3f2fd' : 'white' }} 
+                        sx={{ width: 250, borderBottom: '1px solid #ddd' }} 
                     />
-                    
-                    <Button 
-                        variant="outlined" 
-                        onClick={() => setOpenCategorias(true)} 
-                        startIcon={<Settings />} 
-                        sx={{ bgcolor: 'white', color: '#666', borderColor: '#ccc' }}
-                    >
-                        Cat.
-                    </Button>
+                </Box>
 
+                <Box display="flex" gap={1}>
                     <Button 
-                        variant="contained" 
-                        color="error" // Vermelho para Despesa
-                        startIcon={<Add />}
-                        onClick={() => setModalOpen(true)}
-                        sx={{ fontWeight: 'bold' }}
+                        size="small" onClick={() => setOpenCategorias(true)} startIcon={<Settings fontSize="small"/>} 
+                        sx={{ color: '#666', textTransform: 'none' }}
                     >
-                        NOVA DESPESA
+                        Categorias
+                    </Button>
+                    <Button 
+                        variant="contained" color="error" size="small" startIcon={<Add />}
+                        onClick={() => setModalOpen(true)}
+                        sx={{ fontWeight: 'bold', textTransform: 'none', borderRadius: 6, px: 3 }}
+                    >
+                        Nova Despesa
                     </Button>
                 </Box>
-            </Box>
+            </div>
 
-            {/* ÁREA DE CONTEÚDO */}
+            {/* CONTEÚDO (DUAS TABELAS) */}
             <Box sx={{ flexGrow: 1, display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden', position: 'relative' }}>
-                {loading && (
-                    <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />
-                )}
+                {loading && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />}
 
-                <TabelaDespesas 
-                    dados={fixas} 
-                    titulo={busca ? "RESULTADO (FIXAS)" : "FIXAS"} 
-                    icone={<Domain />} 
-                    corTema="#1565c0" 
-                    onRowClick={(item) => { setDrawerId(item.id); setDrawerOpen(true); }}
-                    onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
-                    onDelete={handleDelete} 
+                <DespesaTable 
+                    data={fixas} 
+                    title="DESPESAS FIXAS" 
+                    icon={<Domain />} 
+                    color="#1565c0" // Azul
+                    onRowClick={handleRowClick}
                 />
                 
-                <TabelaDespesas 
-                    dados={variaveis} 
-                    titulo={busca ? "RESULTADO (VARIÁVEIS)" : "VARIÁVEIS"} 
-                    icone={<LocalCafe />} 
-                    corTema="#e65100" 
-                    onRowClick={(item) => { setDrawerId(item.id); setDrawerOpen(true); }}
-                    onCheck={(item) => { setSelectedItem(item); setOpenBaixaModal(true); }} 
-                    onDelete={handleDelete} 
+                <DespesaTable 
+                    data={variaveis} 
+                    title="DESPESAS VARIÁVEIS" 
+                    icon={<LocalCafe />} 
+                    color="#e65100" // Laranja
+                    onRowClick={handleRowClick}
                 />
             </Box>
 
-            {/* MODAIS E DRAWER */}
-            
-            {/* 1. Modal Unificado (Forçado para Despesa) */}
+            {/* MODAIS */}
             <LancamentoCaixaModal 
                 open={modalOpen} 
                 onClose={() => { setModalOpen(false); carregarDados(); }}
@@ -326,53 +215,27 @@ export default function DespesasView() {
                 initialTab={0}
             />
 
-            {/* 2. Drawer de Detalhes/Edição */}
-            <TransactionDrawer 
+            <Drawer 
+                anchor="right" 
                 open={drawerOpen} 
-                onClose={() => setDrawerOpen(false)} 
-                transactionId={drawerId} 
-                onUpdate={carregarDados} // Recarrega ao salvar/editar no drawer
-            />
-            
-            {/* 3. Modal de Baixa Rápida (Check) */}
-            <BaixaUnificadaModal 
-                open={openBaixaModal} 
-                onClose={() => setOpenBaixaModal(false)} 
-                item={selectedItem} 
-                onConfirmBaixa={async (id, dados) => {
-                    // Optimistic update na lista
-                    setLista(prev => prev.map(d => d.id === id ? { ...d, pago: true } : d));
-                    try { 
-                        await faturamentoService.updateDespesa(id, { pago: true, ...dados }); 
-                        carregarDados(); 
-                    } catch(e) { carregarDados(); }
-                }} 
-            />
+                onClose={() => setDrawerOpen(false)}
+                PaperProps={{ sx: { width: { xs: '100%', md: 450 }, p: 0 } }}
+            >
+                {selectedItem && (
+                    <ExpenseDrawerContent 
+                        item={selectedItem} 
+                        onClose={() => setDrawerOpen(false)} 
+                        onUpdate={carregarDados} 
+                    />
+                )}
+            </Drawer>
 
-            {/* 4. Gerenciador de Categorias */}
-            <Dialog open={openCategorias} onClose={() => { setOpenCategorias(false); carregarDados(); }} maxWidth="md" fullWidth>
-                <DialogTitle sx={{ pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    Gerenciar Categorias Financeiras
-                    <IconButton onClick={() => setOpenCategorias(false)} size="small"><Close /></IconButton>
-                </DialogTitle>
-                <DialogContent dividers>
+            {/* Gerenciador de Categorias (Reutilizado) */}
+            <Drawer anchor="right" open={openCategorias} onClose={() => { setOpenCategorias(false); carregarDados(); }}>
+                <Box sx={{ width: 400, p: 2 }}>
                     <CategoriasTab />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenCategorias(false)}>Fechar</Button>
-                </DialogActions>
-            </Dialog>
-        </Box>
+                </Box>
+            </Drawer>
+        </div>
     );
 }
-
-// KPI Component (Reutilizado)
-const CompactKPI = ({ title, value, icon, color, bgcolor }) => (
-    <Paper elevation={0} sx={{ p: 0.5, px: 1.5, borderRadius: 2, bgcolor: bgcolor, display: 'flex', alignItems: 'center', gap: 1, border: `1px solid ${color}30`, minWidth: 120, height: 40 }}>
-        <Box sx={{ bgcolor: 'white', p: 0.3, borderRadius: '50%', display: 'flex', color: color }}>{icon}</Box>
-        <Box sx={{ lineHeight: 1 }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: color, opacity: 0.9, fontSize: '0.65rem', display: 'block' }}>{title}</Typography>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: color, fontSize: '0.85rem' }}>{formatMoney(value)}</Typography>
-        </Box>
-    </Paper>
-);
