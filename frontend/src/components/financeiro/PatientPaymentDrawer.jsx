@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Box, Typography, IconButton, Button, TextField, Grid, Tabs, Tab, 
-    List, ListItem, ListItemText, Chip, Divider, Menu, MenuItem, ListItemIcon
+    List, ListItem, ListItemText, Chip, Divider, Menu, MenuItem, ListItemIcon, 
+    Paper, InputAdornment, Alert // <--- IMPORTS ADICIONADOS AQUI
 } from '@mui/material';
 import { 
     Close, CheckCircle, MoreVert, Undo, Block, 
