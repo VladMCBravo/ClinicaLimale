@@ -139,6 +139,48 @@ class DespesaViewSet(viewsets.ModelViewSet):
             irmas.update(**update_fields)
             
         return Response({"msg": f"Série atualizada ({irmas.count()} itens)."})
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Sobrescreve o create padrão para usar o Service quando houver parcelamento/recorrência.
+        """
+        qtd_parcelas = int(request.data.get('qtd_parcelas', 1))
+        
+        # Se for parcela única, usa o padrão do Django Rest Framework (Simples e rápido)
+        if qtd_parcelas <= 1:
+            return super().create(request, *args, **kwargs)
+
+        # Se tiver parcelas, delega para a Inteligência do Service
+        try:
+            # Captura dados
+            dados = request.data
+            categoria_id = dados.get('categoria_id') or dados.get('categoria')
+            valor = float(dados.get('valor'))
+            vencimento = datetime.strptime(dados.get('data_vencimento'), '%Y-%m-%d').date()
+            pago = dados.get('pago') is True or str(dados.get('pago')).lower() == 'true'
+            
+            # Detecta se é Recorrência (Repetir valor) ou Rateio (Dividir valor)
+            # Vamos assumir: Se veio do front como 'repetir_valor', é recorrência.
+            # Caso contrário, comportamento padrão é dividir.
+            modo_recorrencia = dados.get('repetir_valor') is True
+
+            # Chama o Service
+            FaturamentoService.criar_despesa(
+                categoria_id=categoria_id,
+                valor_total=valor,
+                qtd_parcelas=qtd_parcelas,
+                data_vencimento_base=vencimento,
+                user=request.user,
+                descricao=dados.get('descricao'),
+                pago_inicialmente=pago,
+                data_pagamento_manual=vencimento if pago else None, # Assume data caixa = vencimento se não vier
+                modo_recorrencia=modo_recorrencia
+            )
+            
+            return Response({"msg": f"{qtd_parcelas} lançamentos gerados com sucesso."}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({"erro": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class PagamentosPendentesListAPIView(generics.ListAPIView):
     """

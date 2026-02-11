@@ -64,9 +64,19 @@ class FaturamentoService:
 
     @staticmethod
     @transaction.atomic
-    def criar_despesa(categoria_id, valor_total, qtd_parcelas, data_vencimento_base, user, descricao, pago_inicialmente, data_pagamento_manual=None, data_despesa_competencia=None):
-        valor_parcela, diferenca_centavos = FaturamentoService._calcular_parcelas(valor_total, qtd_parcelas)
+    def criar_despesa(categoria_id, valor_total, qtd_parcelas, data_vencimento_base, user, descricao, pago_inicialmente, data_pagamento_manual=None, data_despesa_competencia=None, modo_recorrencia=False):
+        """
+        modo_recorrencia=True: Repete o valor (Ex: Aluguel 100,00 x 12 = 12 parcelas de 100,00)
+        modo_recorrencia=False: Divide o valor (Ex: Compra 1000,00 / 10 = 10 parcelas de 100,00)
+        """
         objetos_criados = []
+        
+        # LÓGICA DE CÁLCULO
+        if modo_recorrencia:
+            valor_parcela = valor_total
+            diferenca_centavos = 0
+        else:
+            valor_parcela, diferenca_centavos = FaturamentoService._calcular_parcelas(valor_total, qtd_parcelas)
         
         if not data_despesa_competencia:
             data_despesa_competencia = data_vencimento_base
@@ -75,14 +85,19 @@ class FaturamentoService:
             nova_data_venc = data_vencimento_base + relativedelta(months=i)
             nova_data_competencia = data_despesa_competencia + relativedelta(months=i)
 
+            # Ajuste de centavos apenas na primeira parcela e SE for rateio
+            if i == 0 and not modo_recorrencia:
+                valor_final = valor_parcela + diferenca_centavos
+            else:
+                valor_final = valor_parcela
+            
+            # Lógica de Pagamento Inicial
             if i == 0:
                 esta_pago = pago_inicialmente
                 data_pag = data_pagamento_manual if esta_pago else None
-                valor_final = valor_parcela + diferenca_centavos
             else:
                 esta_pago = False
                 data_pag = None
-                valor_final = valor_parcela
 
             nova_despesa = Despesa.objects.create(
                 categoria_id=categoria_id,

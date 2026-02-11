@@ -130,7 +130,10 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                         ...basePayload,
                         categoria: formData.categoria, // ID da categoria
                         data_despesa: basePayload.data_vencimento, // Campo obrigatório
-                        qtd_parcelas: parseInt(formData.qtd_parcelas)
+                        qtd_parcelas: parseInt(formData.qtd_parcelas),
+                        // AQUI ESTÁ A SOLUÇÃO ELEGANTE:
+                        // Enviamos uma flag dizendo: "Ei backend, isso é conta fixa, repete o valor pra mim"
+                        repetir_valor: true 
                     };
                     await faturamentoService.createDespesa(despesaPayload);
                 } else {
@@ -300,7 +303,16 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
 
                         {formData.qtd_parcelas > 1 && formData.valor > 0 && (
                             <Alert severity="info" sx={{ mb: 2 }}>
-                                Serão <b>{formData.qtd_parcelas} parcelas</b> de aproximadamente <b>R$ {(formData.valor / formData.qtd_parcelas).toFixed(2)}</b>
+                                {tipo === 'despesa' ? (
+                                    // Mensagem correta agora
+                                    <>
+                                        <b>Recorrência (Backend):</b> Serão criadas {formData.qtd_parcelas} despesas de <b>R$ {parseFloat(formData.valor).toFixed(2)}</b> cada.
+                                    </>
+                                ) : (
+                                    <>
+                                        <b>Parcelamento:</b> {formData.qtd_parcelas}x de <b>R$ {(formData.valor / formData.qtd_parcelas).toFixed(2)}</b>.
+                                    </>
+                                )}
                             </Alert>
                         )}
 
