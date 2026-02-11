@@ -2,9 +2,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Typography, Box, LinearProgress, Button, InputAdornment, Chip, IconButton, Tooltip
+    Typography, Box, LinearProgress, Button, InputAdornment, Chip, IconButton, Tooltip,
+    Menu, MenuItem, ListItemIcon, ListItemText
 } from '@mui/material';
-import { Search, Add, CheckCircle, Edit } from '@mui/icons-material';
+import { 
+    Search, Add, CheckCircle, Edit, Block, Undo, MonetizationOn 
+} from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
@@ -25,17 +28,19 @@ export default function ContasReceberView() {
     
     // Modais e Drawers
     const [modalOpen, setModalOpen] = useState(false);
-    const [itemParaEdicao, setItemParaEdicao] = useState(null); // Estado para passar dados ao modal
-    
+    const [itemParaEdicao, setItemParaEdicao] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
 
-    // BUSCA DE DADOS (Server-Side + Ordenação Front)
+    // Menu do Lápis
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [menuRow, setMenuRow] = useState(null);
+
+    // BUSCA DE DADOS
     const carregarDados = useCallback(async () => {
         setLoading(true);
         try {
             const params = {};
-            
             if (busca.length > 2) {
                 params.search = busca;
             } else {
@@ -44,16 +49,16 @@ export default function ContasReceberView() {
             }
 
             const res = await faturamentoService.getPagamentos(params);
-            const dadosBrutos = res.data || [];
+            const dados = res.data || [];
 
-            // ORDENAÇÃO DECRESCENTE (Data mais futura -> Data mais antiga)
-            const dadosOrdenados = dadosBrutos.sort((a, b) => {
-                const dataA = dayjs(a.data_vencimento);
-                const dataB = dayjs(b.data_vencimento);
-                return dataB.diff(dataA);
+            // ORDENAÇÃO DECRESCENTE (Mais recente/futuro no topo -> Mais antigo embaixo)
+            dados.sort((a, b) => {
+                const dataA = a.data_vencimento ? dayjs(a.data_vencimento) : dayjs(0);
+                const dataB = b.data_vencimento ? dayjs(b.data_vencimento) : dayjs(0);
+                return dataB.diff(dataA); // B - A = Decrescente
             });
 
-            setLista(dadosOrdenados);
+            setLista(dados);
             
         } catch (error) {
             console.error("Erro ao buscar contas a receber", error);
@@ -70,37 +75,61 @@ export default function ContasReceberView() {
     // --- HANDLERS ---
 
     const handleRowClick = (item) => {
-        // Clicar na linha abre o Drawer de detalhes (apenas leitura/histórico)
         setSelectedId(item.id);
         setDrawerOpen(true);
     };
 
-    // Ação do Botão CHECK (Agora abre o modal para confirmar pagamento)
+    // BOTÃO CHECK: Abre modal para confirmar pagamento (Fluxo Seguro)
     const handleAbrirBaixa = (e, item) => {
         e.stopPropagation();
-        // Prepara o item para o modal, forçando status de pago se confirmar
         setItemParaEdicao({
             ...item,
-            pago: true, // Força o modal a abrir com a chave "Pago" ligada
-            data_pagamento: dayjs() // Sugere hoje como data
+            pago: true, // Força flag de pago
+            data_pagamento: dayjs() // Sugere hoje
         });
         setModalOpen(true);
     };
 
-    // Ação do Botão EDITAR (Lápis)
-    const handleAbrirEdicao = (e, item) => {
-        e.stopPropagation();
-        setItemParaEdicao({
-            ...item,
-            pago: item.status === 'Pago'
-        });
-        setModalOpen(true);
+    // MENU DO LÁPIS
+    const handleOpenMenu = (event, row) => {
+        event.stopPropagation();
+        setAnchorEl(event.currentTarget);
+        setMenuRow(row);
     };
 
-    const handleCloseModal = () => {
-        setModalOpen(false);
-        setItemParaEdicao(null); // Limpa seleção
-        carregarDados();
+    const handleCloseMenu = () => {
+        setAnchorEl(null);
+        setMenuRow(null);
+    };
+
+    const handleMenuAction = async (action) => {
+        if (!menuRow) return;
+        const id = menuRow.id;
+        handleCloseMenu();
+
+        try {
+            if (action === 'editar') {
+                setItemParaEdicao({ ...menuRow, pago: menuRow.status === 'Pago' });
+                setModalOpen(true);
+            } 
+            else if (action === 'pago') {
+                if(!window.confirm("Marcar como PAGO agora?")) return;
+                await faturamentoService.updatePagamento(id, { status: 'Pago', data_pagamento: dayjs().format('YYYY-MM-DD') });
+                carregarDados();
+            } 
+            else if (action === 'pendente') {
+                if(!window.confirm("Reverter para PENDENTE?")) return;
+                await faturamentoService.updatePagamento(id, { status: 'Pendente', data_pagamento: null });
+                carregarDados();
+            } 
+            else if (action === 'cancelar') {
+                if(!window.confirm("CANCELAR este recebimento?")) return;
+                await faturamentoService.updatePagamento(id, { status: 'Cancelado' });
+                carregarDados();
+            }
+        } catch (error) {
+            alert("Erro ao atualizar status");
+        }
     };
 
     const getStatusColor = (status, vencimento) => {
@@ -113,7 +142,6 @@ export default function ContasReceberView() {
     return (
         <Box sx={{ height: 'calc(100vh - 155px)', display: 'flex', flexDirection: 'column' }}>
             
-            {/* BARRA DE FERRAMENTAS */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                     <DatePicker 
@@ -142,7 +170,6 @@ export default function ContasReceberView() {
                 </Button>
             </Box>
 
-            {/* TABELA */}
             <Paper variant="outlined" sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {loading && <LinearProgress />}
                 
@@ -190,9 +217,9 @@ export default function ContasReceberView() {
                                             />
                                         </TableCell>
                                         <TableCell align="right">
-                                            {/* BOTÃO CHECK: Abre modal para confirmar pagamento */}
+                                            {/* CHECK: Abre Modal de Pagamento */}
                                             {row.status !== 'Pago' && (
-                                                <Tooltip title="Confirmar Recebimento">
+                                                <Tooltip title="Realizar Recebimento">
                                                     <IconButton 
                                                         size="small" color="success" 
                                                         onClick={(e) => handleAbrirBaixa(e, row)}
@@ -202,9 +229,10 @@ export default function ContasReceberView() {
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
-                                            {/* BOTÃO EDITAR: Abre modal para editar dados */}
-                                            <Tooltip title="Editar">
-                                                <IconButton size="small" onClick={(e) => handleAbrirEdicao(e, row)}>
+                                            
+                                            {/* LÁPIS: Abre Menu de Opções */}
+                                            <Tooltip title="Opções">
+                                                <IconButton size="small" onClick={(e) => handleOpenMenu(e, row)}>
                                                     <Edit fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
@@ -220,17 +248,54 @@ export default function ContasReceberView() {
                 </TableContainer>
             </Paper>
 
-            {/* MODAL UNIFICADO (CRIAÇÃO, EDIÇÃO E BAIXA) */}
-            {/* Passamos existingData para preencher o modal com os dados da linha clicada */}
+            {/* MENU DO LÁPIS */}
+            <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleCloseMenu}
+            >
+                <MenuItem onClick={() => handleMenuAction('editar')}>
+                    <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
+                    <ListItemText>Editar Detalhes</ListItemText>
+                </MenuItem>
+                
+                {menuRow?.status !== 'Pago' && (
+                    <MenuItem onClick={() => handleMenuAction('pago')}>
+                        <ListItemIcon><MonetizationOn fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText>Marcar como Pago</ListItemText>
+                    </MenuItem>
+                )}
+
+                {menuRow?.status === 'Pago' && (
+                    <MenuItem onClick={() => handleMenuAction('pendente')}>
+                        <ListItemIcon><Undo fontSize="small" color="warning" /></ListItemIcon>
+                        <ListItemText>Reverter para Pendente</ListItemText>
+                    </MenuItem>
+                )}
+
+                {menuRow?.status !== 'Cancelado' ? (
+                    <MenuItem onClick={() => handleMenuAction('cancelar')}>
+                        <ListItemIcon><Block fontSize="small" color="error" /></ListItemIcon>
+                        <ListItemText>Cancelar Cobrança</ListItemText>
+                    </MenuItem>
+                ) : (
+                    <MenuItem onClick={() => handleMenuAction('pendente')}>
+                        <ListItemIcon><Undo fontSize="small" /></ListItemIcon>
+                        <ListItemText>Reativar (Pendente)</ListItemText>
+                    </MenuItem>
+                )}
+            </Menu>
+
+            {/* MODAL PRINCIPAL */}
             <LancamentoCaixaModal 
                 open={modalOpen} 
-                onClose={handleCloseModal}
+                onClose={() => { setModalOpen(false); carregarDados(); }}
                 initialType="receita" 
                 initialTab={0}
-                existingData={itemParaEdicao} // <--- AQUI ESTÁ A MÁGICA
+                existingData={itemParaEdicao} 
             />
 
-            {/* DRAWER LATERAL (HISTÓRICO/DETALHES) */}
+            {/* DRAWER LATERAL */}
             <TransactionDrawer 
                 open={drawerOpen} 
                 onClose={() => setDrawerOpen(false)} 
