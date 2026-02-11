@@ -88,77 +88,127 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
 class FinanceiroDashboardAPIView(APIView):
     """
-    Retorna KPI financeiro completo calculado no banco de dados.
-    Substitui a lógica antiga de frontend.
+    Dashboard Inteligente:
+    - Se receber ?mes=X&ano=Y -> Retorna dados daquele mês (Gráfico diário).
+    - Se não receber nada -> Retorna dados GERAIS/All-Time (Gráfico mensal dos últimos 12 meses).
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        hoje = timezone.localdate()
-        mes_atual = hoje.month
-        ano_atual = hoje.year
-
-        # --- 1. KPIS GERAIS (ALL-TIME) ---
+        # 1. Captura Filtros
+        mes = request.query_params.get('mes')
+        ano = request.query_params.get('ano')
+        
+        # Define o modo de operação
+        modo_mensal = bool(mes and ano)
+        
+        # Querysets Base
         receitas_qs = Pagamento.objects.all()
-        
-        # Receita Operacional (Com Paciente) vs Aportes (Sem Paciente)
-        total_operacional = receitas_qs.filter(status='Pago', paciente__isnull=False).aggregate(total=Sum('valor'))['total'] or 0
-        total_aportes = receitas_qs.filter(status='Pago', paciente__isnull=True).aggregate(total=Sum('valor'))['total'] or 0
-        
-        # Pendente e Atrasado
-        total_pendente = receitas_qs.filter(status='Pendente').aggregate(total=Sum('valor'))['total'] or 0
-        total_atrasado = receitas_qs.filter(status='Pendente', data_vencimento__lt=hoje).aggregate(total=Sum('valor'))['total'] or 0
-
-        # Despesas Totais
         despesas_qs = Despesa.objects.all()
-        total_despesas = despesas_qs.aggregate(total=Sum('valor'))['total'] or 0
-        total_despesas_pagas = despesas_qs.filter(pago=True).aggregate(total=Sum('valor'))['total'] or 0
+
+        # --- FILTRAGEM DOS QUERYSETS (Para KPIs) ---
+        if modo_mensal:
+            # Filtra pelo mês selecionado
+            receitas_kpi = receitas_qs.filter(data_vencimento__month=mes, data_vencimento__year=ano)
+            despesas_kpi = despesas_qs.filter(data_despesa__month=mes, data_despesa__year=ano)
+            
+            # Para valores pagos, usamos a data de pagamento efetiva
+            receitas_pagas_kpi = receitas_qs.filter(status='Pago', data_pagamento__month=mes, data_pagamento__year=ano)
+            despesas_pagas_kpi = despesas_qs.filter(pago=True, data_pagamento__month=mes, data_pagamento__year=ano)
+        else:
+            # Modo Geral (Pega tudo)
+            receitas_kpi = receitas_qs
+            despesas_kpi = despesas_qs
+            receitas_pagas_kpi = receitas_qs.filter(status='Pago')
+            despesas_pagas_kpi = despesas_qs.filter(pago=True)
+
+        # --- 1. CÁLCULO DE KPIS ---
+        total_operacional = receitas_pagas_kpi.filter(paciente__isnull=False).aggregate(total=Sum('valor'))['total'] or 0
+        total_aportes = receitas_pagas_kpi.filter(paciente__isnull=True).aggregate(total=Sum('valor'))['total'] or 0
+        
+        # Pendente e Atrasado (Sempre em relação ao filtro ou geral)
+        if modo_mensal:
+            # No mês, o que venceu e não foi pago
+            total_pendente = receitas_kpi.filter(status='Pendente').aggregate(total=Sum('valor'))['total'] or 0
+            # Atrasado só faz sentido se o mês já passou ou é hoje, mas simplificamos:
+            total_atrasado = receitas_kpi.filter(status='Pendente', data_vencimento__lt=timezone.localdate()).aggregate(total=Sum('valor'))['total'] or 0
+        else:
+            # Geral: Tudo que está pendente no sistema
+            total_pendente = receitas_qs.filter(status='Pendente').aggregate(total=Sum('valor'))['total'] or 0
+            total_atrasado = receitas_qs.filter(status='Pendente', data_vencimento__lt=timezone.localdate()).aggregate(total=Sum('valor'))['total'] or 0
+
+        total_despesas_cadastradas = despesas_kpi.aggregate(total=Sum('valor'))['total'] or 0
+        total_despesas_pagas = despesas_pagas_kpi.aggregate(total=Sum('valor'))['total'] or 0
+
+        # Saldo (Realizado)
+        saldo = total_operacional + total_aportes - total_despesas_pagas
 
         # Ticket Médio
-        qtd_atendimentos = receitas_qs.filter(status='Pago', paciente__isnull=False).count()
+        qtd_atendimentos = receitas_pagas_kpi.filter(paciente__isnull=False).count()
         ticket_medio = total_operacional / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
-        # --- 2. GRÁFICO DE FLUXO (DIÁRIO - MÊS ATUAL) ---
-        receitas_dia = receitas_qs.filter(
-            status='Pago', 
-            data_pagamento__month=mes_atual, 
-            data_pagamento__year=ano_atual
-        ).annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
-
-        despesas_dia = despesas_qs.filter(
-            pago=True, 
-            data_pagamento__month=mes_atual, 
-            data_pagamento__year=ano_atual
-        ).annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
-
-        from calendar import monthrange
-        _, dias_no_mes = monthrange(ano_atual, mes_atual)
+        # --- 2. GRÁFICO DE FLUXO (A MÁGICA DA UX) ---
         grafico_fluxo = []
-
-        mapa_receitas = {r['dia']: r['total'] for r in receitas_dia}
-        mapa_despesas = {d['dia']: d['total'] for d in despesas_dia}
-
-        for dia in range(1, dias_no_mes + 1):
+        
+        if modo_mensal:
+            # MODO MENSAL: Agrupa por DIA (1, 2, 3... 30)
+            # Usa os dados PAGOS (Fluxo de Caixa Real)
+            r_dia = receitas_pagas_kpi.annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+            d_dia = despesas_pagas_kpi.annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+            
+            # Preenche o gráfico
+            from calendar import monthrange
             try:
-                data_obj = date(ano_atual, mes_atual, dia)
-                grafico_fluxo.append({
-                    "name": str(dia),
-                    "entradas": float(mapa_receitas.get(data_obj, 0)),
-                    "saidas": float(mapa_despesas.get(data_obj, 0))
-                })
-            except ValueError: pass
+                _, dias_no_mes = monthrange(int(ano), int(mes))
+                mapa_r = {r['dia']: r['total'] for r in r_dia}
+                mapa_d = {d['dia']: d['total'] for d in d_dia}
 
-        # --- 3. CUSTOS FIXOS vs VARIÁVEIS (MÊS ATUAL) ---
-        fixas = despesas_qs.filter(categoria__tipo='Fixa', data_despesa__month=mes_atual, data_despesa__year=ano_atual).aggregate(total=Sum('valor'))['total'] or 0
-        variaveis = despesas_qs.filter(categoria__tipo__in=['Variavel', 'Variavel (Consumo/Eventual)'], data_despesa__month=mes_atual, data_despesa__year=ano_atual).aggregate(total=Sum('valor'))['total'] or 0
+                for dia in range(1, dias_no_mes + 1):
+                    data_obj = date(int(ano), int(mes), dia)
+                    grafico_fluxo.append({
+                        "name": str(dia), # Ex: "15"
+                        "entradas": float(mapa_r.get(data_obj, 0)),
+                        "saidas": float(mapa_d.get(data_obj, 0))
+                    })
+            except: pass
+
+        else:
+            # MODO GERAL: Agrupa por MÊS (Jan, Fev, Mar...) - Últimos 12 meses
+            # Isso mostra a TENDÊNCIA ANUAL
+            data_limite = timezone.now().date() - timezone.timedelta(days=365)
+            
+            r_mes = receitas_qs.filter(status='Pago', data_pagamento__gte=data_limite)\
+                .annotate(mes_ref=TruncMonth('data_pagamento')).values('mes_ref').annotate(total=Sum('valor')).order_by('mes_ref')
+            
+            d_mes = despesas_qs.filter(pago=True, data_pagamento__gte=data_limite)\
+                .annotate(mes_ref=TruncMonth('data_pagamento')).values('mes_ref').annotate(total=Sum('valor')).order_by('mes_ref')
+
+            mapa_r = {r['mes_ref'].strftime('%Y-%m'): r['total'] for r in r_mes}
+            mapa_d = {d['mes_ref'].strftime('%Y-%m'): d['total'] for d in d_mes}
+            
+            # Gera lista dos últimos 12 meses para garantir eixo X contínuo
+            for i in range(12):
+                d = (timezone.now().date().replace(day=1) - timezone.timedelta(days=30 * (11-i)))
+                key = d.strftime('%Y-%m')
+                label = d.strftime('%b/%y') # Ex: Jan/25
+                grafico_fluxo.append({
+                    "name": label,
+                    "entradas": float(mapa_r.get(key, 0)),
+                    "saidas": float(mapa_d.get(key, 0))
+                })
+
+        # --- 3. CUSTOS (Pizza) ---
+        fixas = despesas_kpi.filter(categoria__tipo='Fixa').aggregate(total=Sum('valor'))['total'] or 0
+        variaveis = despesas_kpi.filter(categoria__tipo__in=['Variavel', 'Variavel (Consumo/Eventual)']).aggregate(total=Sum('valor'))['total'] or 0
 
         return Response({
+            "filtros_aplicados": {"mes": mes, "ano": ano} if modo_mensal else "Geral",
             "kpis": {
                 "valorOperacional": float(total_operacional),
                 "valorAportes": float(total_aportes),
-                "totalDespesas": float(total_despesas),
+                "totalDespesas": float(total_despesas_cadastradas),
                 "despesasPagas": float(total_despesas_pagas),
-                "saldo": float(total_operacional + total_aportes - total_despesas_pagas),
+                "saldo": float(saldo),
                 "ticketMedio": float(ticket_medio),
                 "totalReceber": float(total_pendente),
                 "totalAtrasado": float(total_atrasado)

@@ -53,7 +53,7 @@ export const faturamentoService = {
     gerarLoteFaturamento: (data) => apiClient.post('/faturamento/gerar-lote/', data, { responseType: 'blob' }),
 
     // --- DASHBOARD E RELATÓRIOS ---
-    getDashboardFinanceiro: () => apiClient.get('/faturamento/dashboard-financeiro/'),
+    getDashboardFinanceiro: (params) => apiClient.get('/faturamento/dashboard-financeiro/', { params }),
     getProjecaoFinanceira: () => apiClient.get('/faturamento/projecao-caixa/'),
     getRelatorioFinanceiro: () => apiClient.get('/faturamento/relatorios/financeiro/'),
     

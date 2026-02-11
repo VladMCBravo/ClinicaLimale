@@ -1,10 +1,11 @@
 // src/components/financeiro/FinanceiroDashboardView.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, Stack, LinearProgress, Alert } from '@mui/material';
+import { Box, Grid, Paper, Typography, Stack, LinearProgress, Alert, Button, Divider } from '@mui/material';
 import { 
     TrendingDown, AccountBalanceWallet, AttachMoney, 
-    Storefront
+    Storefront, FilterAlt, CalendarMonth, Public
 } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar 
@@ -30,60 +31,60 @@ export default function FinanceiroDashboardView() {
     const [loading, setLoading] = useState(true);
     const [erroAPI, setErroAPI] = useState(false);
     
-    // Estado inicial seguro
-    const [dados, setDados] = useState({
-        kpis: { 
-            valorOperacional: 0, valorAportes: 0, 
-            totalDespesas: 0, despesasPagas: 0, 
-            saldo: 0, ticketMedio: 0, totalAtrasado: 0 
-        },
-        grafico_fluxo: [],
-        custos_mes: { fixas: 0, variaveis: 0 }
-    });
+    // --- ESTADO DO FILTRO ---
+    // null = Visão Geral. Objeto dayjs = Mês específico.
+    const [filtroData, setFiltroData] = useState(dayjs()); // Inicia no mês atual por padrão
+    const [modoGeral, setModoGeral] = useState(false); // Toggle para "Todos os tempos"
 
-    const [operacional, setOperacional] = useState({
-        taxa_ocupacao: 0, ticket_medio_hora: 0
-    });
+    const [dados, setDados] = useState(null);
+    const [operacional, setOperacional] = useState({ taxa_ocupacao: 0, ticket_medio_hora: 0 });
 
-    useEffect(() => {
-        const fetchDados = async () => {
-            setLoading(true);
-            try {
-                // Busca paralela com tratamento de falha individual
-                const [resFin, resOp] = await Promise.all([
-                    faturamentoService.getDashboardFinanceiro().catch(err => ({ error: true, err })),
-                    agendamentoService.getDashboardKPIs ? agendamentoService.getDashboardKPIs().catch(() => ({ data: {} })) : { data: {} }
-                ]);
-                
-                // VERIFICAÇÃO DE SEGURANÇA: Só atualiza se vier a estrutura correta
-                if(resFin.data && resFin.data.kpis) {
-                    setDados(resFin.data);
-                } else {
-                    console.warn("Resposta do Dashboard incompleta ou antiga:", resFin.data);
-                    // Não substituímos o estado inicial se a resposta for inválida (ex: {msg: "OK"})
-                    if(resFin.error) setErroAPI(true);
-                }
-
-                if(resOp.data) setOperacional(resOp.data);
-
-            } catch (error) {
-                console.error("Erro crítico no dashboard", error);
-                setErroAPI(true);
-            } finally {
-                setLoading(false);
+    const fetchDados = async () => {
+        setLoading(true);
+        try {
+            const params = {};
+            
+            // Lógica do Filtro
+            if (!modoGeral && filtroData) {
+                params.mes = filtroData.month() + 1;
+                params.ano = filtroData.year();
             }
-        };
+            // Se modoGeral for true, mandamos params vazio e o backend entende.
 
+            const [resFin, resOp] = await Promise.all([
+                faturamentoService.getDashboardFinanceiro(params).catch(err => ({ error: true })),
+                // KPI Operacional também deve respeitar o filtro de mês se possível, 
+                // mas se o endpoint não suportar, pegamos o padrão.
+                agendamentoService.getDashboardKPIs ? agendamentoService.getDashboardKPIs(params).catch(() => ({ data: {} })) : { data: {} }
+            ]);
+            
+            if(resFin.data && resFin.data.kpis) {
+                setDados(resFin.data);
+                setErroAPI(false);
+            } else {
+                setErroAPI(true);
+            }
+
+            if(resOp.data) setOperacional(resOp.data);
+
+        } catch (error) {
+            console.error("Erro dashboard", error);
+            setErroAPI(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Recarrega sempre que o filtro mudar
+    useEffect(() => {
         fetchDados();
-    }, []);
+    }, [filtroData, modoGeral]);
 
-    // EXTRAÇÃO SEGURA DE DADOS (Impede Tela Branca)
-    // Se 'dados' ou suas propriedades forem undefined, usa {} ou 0
+    // Extração segura
     const kpis = dados?.kpis || {};
     const custos_mes = dados?.custos_mes || { fixas: 0, variaveis: 0 };
     const grafico_fluxo = dados?.grafico_fluxo || [];
 
-    // Dados para gráficos laterais
     const dataDespesasPie = [
         { name: 'Fixas', value: custos_mes.fixas || 0 },
         { name: 'Variáveis', value: custos_mes.variaveis || 0 }
@@ -94,131 +95,178 @@ export default function FinanceiroDashboardView() {
         { name: 'Atrasado', valor: kpis.totalAtrasado || 0, fill: COLORS.atrasado } 
     ];
 
-    if (loading) return <LinearProgress />;
+    // Handlers de Filtro
+    const handleSetGeral = () => {
+        setModoGeral(true);
+        setFiltroData(null);
+    };
+
+    const handleSetMes = (newValue) => {
+        setModoGeral(false);
+        setFiltroData(newValue || dayjs());
+    };
 
     return (
-        <Box sx={{ p: 1, overflow: 'hidden', height: '100%' }}>
-            {erroAPI && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                    Não foi possível carregar alguns dados. Verifique se o servidor foi atualizado.
-                </Alert>
+        <Box sx={{ p: 1, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            
+            {/* --- BARRA DE FILTROS --- */}
+            <Paper elevation={0} sx={{ p: 1, mb: 2, display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'transparent' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FilterAlt color="action" />
+                    <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">FILTRAR POR:</Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', bgcolor: 'white', borderRadius: 1, p: 0.5, border: '1px solid #e0e0e0' }}>
+                    <Button 
+                        size="small" 
+                        variant={modoGeral ? "contained" : "text"} 
+                        color={modoGeral ? "primary" : "inherit"}
+                        onClick={handleSetGeral}
+                        startIcon={<Public />}
+                        sx={{ fontWeight: 'bold' }}
+                    >
+                        GERAL (Tudo)
+                    </Button>
+                    <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                    <DatePicker 
+                        views={['month', 'year']}
+                        value={filtroData}
+                        onChange={handleSetMes}
+                        slotProps={{ 
+                            textField: { 
+                                size: 'small', 
+                                placeholder: "Selecione Mês",
+                                variant: 'standard',
+                                InputProps: { disableUnderline: true },
+                                sx: { width: 140, ml: 1 } 
+                            } 
+                        }}
+                        disabled={modoGeral} // Desabilita visualmente se estiver em modo geral
+                    />
+                    {!modoGeral && <CalendarMonth color="action" sx={{ mr: 1, opacity: 0.6 }} />}
+                </Box>
+
+                {loading && <Typography variant="caption" color="text.secondary">Atualizando...</Typography>}
+            </Paper>
+
+            {erroAPI && <Alert severity="warning" sx={{ mb: 1 }}>Erro ao carregar dados. Verifique a conexão.</Alert>}
+
+            {loading && !dados ? (
+                <LinearProgress />
+            ) : (
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                    
+                    {/* KPI CARDS */}
+                    <Grid container spacing={1} sx={{ mb: 1 }}>
+                        <KPICard 
+                            title={modoGeral ? "FATURAMENTO TOTAL" : "FATURAMENTO (MÊS)"}
+                            value={kpis.valorOperacional} 
+                            icon={<Storefront />} color={COLORS.receita} 
+                            subtext={`+ ${formatMoney(kpis.valorAportes)} aportes`} 
+                        />
+                        <KPICard 
+                            title="DESPESA TOTAL" 
+                            value={kpis.totalDespesas} 
+                            icon={<TrendingDown />} color={COLORS.despesa} 
+                            subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} 
+                        />
+                        <KPICard 
+                            title="SALDO EM CAIXA" 
+                            value={kpis.saldo} 
+                            icon={<AccountBalanceWallet />} 
+                            color={(kpis.saldo || 0) >= 0 ? COLORS.saldo : COLORS.despesa} 
+                            subtext={modoGeral ? "Acumulado Real" : "Resultado do Período"} 
+                        />
+                        <KPICard 
+                            title="TICKET MÉDIO" 
+                            value={kpis.ticketMedio} 
+                            icon={<AttachMoney />} color="#555" 
+                            subtext="Por paciente" 
+                        />
+                    </Grid>
+
+                    <Grid container spacing={1} sx={{ height: 'calc(100% - 100px)' }}> {/* Ajuste de altura */}
+                        
+                        {/* GRÁFICO PRINCIPAL */}
+                        <Grid item xs={12} md={8} sx={{ height: '100%', minHeight: 250 }}>
+                            <Paper variant="outlined" sx={{ p: 1.5, height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">
+                                        {modoGeral ? "EVOLUÇÃO DO FLUXO (ÚLTIMOS 12 MESES)" : "FLUXO DIÁRIO DO MÊS"}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', gap: 2 }}>
+                                        <LegendItem color={COLORS.receita} label="Entradas" />
+                                        <LegendItem color={COLORS.despesa} label="Saídas" />
+                                    </Box>
+                                </Box>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={grafico_fluxo} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={COLORS.receita} stopOpacity={0.2}/>
+                                                <stop offset="95%" stopColor={COLORS.receita} stopOpacity={0}/>
+                                            </linearGradient>
+                                            <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={COLORS.despesa} stopOpacity={0.2}/>
+                                                <stop offset="95%" stopColor={COLORS.despesa} stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                        <XAxis dataKey="name" style={{ fontSize: '0.7rem', fontWeight: 600 }} axisLine={false} tickLine={false} dy={5} />
+                                        <YAxis tickFormatter={formatK} style={{ fontSize: '0.7rem' }} axisLine={false} tickLine={false} />
+                                        <RechartsTooltip formatter={(value) => formatMoney(value)} />
+                                        <Area type="monotone" dataKey="entradas" stroke={COLORS.receita} strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" />
+                                        <Area type="monotone" dataKey="saidas" stroke={COLORS.despesa} strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </Paper>
+                        </Grid>
+
+                        {/* COLUNA LATERAL */}
+                        <Grid item xs={12} md={4} sx={{ height: '100%' }}>
+                            <Stack spacing={1} sx={{ height: '100%' }}>
+                                <Paper variant="outlined" sx={{ p: 1.5, flex: 1, bgcolor: '#e0f2f1', border: `1px solid ${COLORS.ocupacao}50`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                        <Typography variant="caption" fontWeight="bold" color={COLORS.ocupacao}>CAPACIDADE OPERACIONAL</Typography>
+                                        <Typography variant="caption" fontWeight="bold">{operacional.taxa_ocupacao || 0}%</Typography>
+                                    </Box>
+                                    <LinearProgress variant="determinate" value={operacional.taxa_ocupacao || 0} sx={{ height: 8, borderRadius: 4, mb: 1, bgcolor: 'white', '& .MuiLinearProgress-bar': { bgcolor: COLORS.ocupacao } }} />
+                                    <Typography variant="caption">Faturamento/Hora: <b>{formatMoney(operacional.ticket_medio_hora || 0)}</b></Typography>
+                                </Paper>
+
+                                <Paper variant="outlined" sx={{ p: 1, flex: 1, display: 'flex', alignItems: 'center' }}>
+                                    <ResponsiveContainer width="40%" height="100%">
+                                        <RechartsPieChart>
+                                            <Pie data={dataDespesasPie} innerRadius={15} outerRadius={30} paddingAngle={2} dataKey="value">
+                                                {dataDespesasPie.map((entry, index) => <Cell key={index} fill={index === 0 ? COLORS.fixa : COLORS.variavel} />)}
+                                            </Pie>
+                                        </RechartsPieChart>
+                                    </ResponsiveContainer>
+                                    <Box sx={{ width: '60%', pl: 1 }}>
+                                        <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>CUSTOS ({modoGeral ? "Média" : "Mês"})</Typography>
+                                        <DetailRow label="Fixos" value={custos_mes.fixas || 0} color={COLORS.fixa} />
+                                        <DetailRow label="Variáveis" value={custos_mes.variaveis || 0} color={COLORS.variavel} />
+                                    </Box>
+                                </Paper>
+
+                                <Paper variant="outlined" sx={{ p: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5, fontSize: '0.75rem' }}>RECEBIMENTOS</Typography>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart layout="vertical" data={dataStatusReceitas} margin={{ left: -20, right: 30, bottom: 0, top: 0 }}>
+                                            <XAxis type="number" hide />
+                                            <YAxis dataKey="name" type="category" width={70} style={{ fontSize: '0.65rem', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                            <RechartsTooltip cursor={{fill: 'transparent'}} formatter={formatMoney} />
+                                            <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={10}>
+                                                {dataStatusReceitas.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </Paper>
+                            </Stack>
+                        </Grid>
+                    </Grid>
+                </Box>
             )}
-
-            {/* LINHA 1: KPIS */}
-            <Grid container spacing={1} sx={{ mb: 1 }}>
-                <KPICard 
-                    title="FATURAMENTO CLÍNICO" 
-                    value={kpis.valorOperacional} 
-                    icon={<Storefront />} color={COLORS.receita} 
-                    subtext={`+ ${formatMoney(kpis.valorAportes)} aportes`} 
-                />
-                <KPICard 
-                    title="DESPESA TOTAL" 
-                    value={kpis.totalDespesas} 
-                    icon={<TrendingDown />} color={COLORS.despesa} 
-                    subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} 
-                />
-                <KPICard 
-                    title="SALDO EM CAIXA" 
-                    value={kpis.saldo} 
-                    icon={<AccountBalanceWallet />} 
-                    color={(kpis.saldo || 0) >= 0 ? COLORS.saldo : COLORS.despesa} 
-                    subtext="Disponível Real" 
-                />
-                <KPICard 
-                    title="TICKET MÉDIO" 
-                    value={kpis.ticketMedio} 
-                    icon={<AttachMoney />} color="#555" 
-                    subtext="Por paciente" 
-                />
-            </Grid>
-
-            <Grid container spacing={1}>
-                {/* LINHA 2: GRÁFICO PRINCIPAL */}
-                <Grid item xs={12} md={8}>
-                    <Paper variant="outlined" sx={{ p: 1.5, height: 280, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">
-                                FLUXO DE CAIXA ({dayjs().format('MMMM/YYYY').toUpperCase()})
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <LegendItem color={COLORS.receita} label="Entradas" />
-                                <LegendItem color={COLORS.despesa} label="Saídas" />
-                            </Box>
-                        </Box>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={grafico_fluxo} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.receita} stopOpacity={0.2}/>
-                                        <stop offset="95%" stopColor={COLORS.receita} stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.despesa} stopOpacity={0.2}/>
-                                        <stop offset="95%" stopColor={COLORS.despesa} stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                <XAxis dataKey="name" style={{ fontSize: '0.7rem', fontWeight: 600 }} axisLine={false} tickLine={false} dy={5} />
-                                <YAxis tickFormatter={formatK} style={{ fontSize: '0.7rem' }} axisLine={false} tickLine={false} />
-                                <RechartsTooltip formatter={(value) => formatMoney(value)} />
-                                <Area type="monotone" dataKey="entradas" stroke={COLORS.receita} strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" />
-                                <Area type="monotone" dataKey="saidas" stroke={COLORS.despesa} strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </Paper>
-                </Grid>
-
-                {/* LINHA 2: LATERAL */}
-                <Grid item xs={12} md={4}>
-                    <Stack spacing={1}>
-                        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#e0f2f1', border: `1px solid ${COLORS.ocupacao}50` }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="caption" fontWeight="bold" color={COLORS.ocupacao}>CAPACIDADE OPERACIONAL</Typography>
-                                <Typography variant="caption" fontWeight="bold">{operacional.taxa_ocupacao || 0}%</Typography>
-                            </Box>
-                            <LinearProgress variant="determinate" value={operacional.taxa_ocupacao || 0} sx={{ height: 8, borderRadius: 4, mb: 1, bgcolor: 'white', '& .MuiLinearProgress-bar': { bgcolor: COLORS.ocupacao } }} />
-                            <Typography variant="caption">Faturamento/Hora: <b>{formatMoney(operacional.ticket_medio_hora || 0)}</b></Typography>
-                        </Paper>
-
-                        <Paper variant="outlined" sx={{ p: 1, height: 90, display: 'flex', alignItems: 'center' }}>
-                            <ResponsiveContainer width="40%">
-                                <RechartsPieChart>
-                                    <Pie data={dataDespesasPie} innerRadius={15} outerRadius={30} paddingAngle={2} dataKey="value">
-                                        {dataDespesasPie.map((entry, index) => <Cell key={index} fill={index === 0 ? COLORS.fixa : COLORS.variavel} />)}
-                                    </Pie>
-                                </RechartsPieChart>
-                            </ResponsiveContainer>
-                            <Box sx={{ width: '60%', pl: 1 }}>
-                                <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>CUSTOS (Mês)</Typography>
-                                <DetailRow label="Fixos" value={custos_mes.fixas || 0} color={COLORS.fixa} />
-                                <DetailRow label="Variáveis" value={custos_mes.variaveis || 0} color={COLORS.variavel} />
-                            </Box>
-                        </Paper>
-
-                        <Paper variant="outlined" sx={{ p: 1, height: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                            <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5, fontSize: '0.75rem' }}>RECEBIMENTOS (Total)</Typography>
-                            <ResponsiveContainer width="100%" height={60}>
-                                <BarChart layout="vertical" data={dataStatusReceitas} margin={{ left: -20, right: 30, bottom: 0, top: 0 }}>
-                                    <XAxis type="number" hide />
-                                    <YAxis 
-                                        dataKey="name" 
-                                        type="category" 
-                                        width={70} 
-                                        style={{ fontSize: '0.65rem', fontWeight: 600 }} 
-                                        axisLine={false} 
-                                        tickLine={false} 
-                                    />
-                                    <RechartsTooltip cursor={{fill: 'transparent'}} formatter={formatMoney} />
-                                    <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={10}>
-                                        {dataStatusReceitas.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </Paper>
-                    </Stack>
-                </Grid>
-            </Grid>
         </Box>
     );
 }
