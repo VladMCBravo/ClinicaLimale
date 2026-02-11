@@ -7,6 +7,7 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
+from django.db.models.functions import Coalesce
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -194,14 +195,17 @@ class DespesaViewSet(viewsets.ModelViewSet):
         # Margem de 1 minuto na criação para pegar o lote
         time_margin = timezone.timedelta(minutes=1)
         
-        # --- OTIMIZAÇÃO AQUI: select_related adicionado ---
+        # 1. Busca Irmãs
+        # 2. Anota uma data efetiva (Vencimento ou Competência)
+        # 3. Ordena Decrescente por essa data efetiva
         irmas = Despesa.objects.select_related('categoria', 'registrado_por').filter(
             registrado_por=despesa_alvo.registrado_por,
             data_registro__range=(despesa_alvo.data_registro - time_margin, despesa_alvo.data_registro + time_margin),
             descricao__startswith=descricao_base
-        ).order_by('data_vencimento')
+        ).annotate(
+            data_ordenacao=Coalesce('data_vencimento', 'data_despesa')
+        ).order_by('-data_ordenacao', '-id') # Desempate por ID garante ordem estável
 
-        # Se não achar irmãs (foi criada avulsa), retorna só ela
         if not irmas.exists():
             irmas = [despesa_alvo]
 
