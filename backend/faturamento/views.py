@@ -81,6 +81,56 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             qs = qs.filter(status=status_param)
             
         return qs
+    
+    # === NOVA AÇÃO DE RECEBIMENTO INTELIGENTE ===
+    @action(detail=True, methods=['post'], url_path='receber')
+    @transaction.atomic
+    def receber(self, request, pk=None):
+        """
+        Recebe um pagamento. 
+        Se qtd_parcelas > 1, ele 'Renegocia' o atual e cria as parcelas futuras.
+        Se qtd_parcelas == 1, ele apenas baixa o atual.
+        """
+        pagamento_original = self.get_object()
+        
+        # Dados do formulário de recebimento
+        forma_pagamento = request.data.get('forma_pagamento')
+        qtd_parcelas = int(request.data.get('qtd_parcelas', 1))
+        data_pagamento = request.data.get('data_pagamento', timezone.now().date())
+        
+        # Validação básica
+        if not forma_pagamento:
+            return Response({"erro": "Forma de pagamento é obrigatória."}, status=400)
+
+        # CENÁRIO 1: PAGAMENTO À VISTA (Simples)
+        if qtd_parcelas <= 1:
+            pagamento_original.status = 'Pago'
+            pagamento_original.data_pagamento = data_pagamento
+            pagamento_original.forma_pagamento = forma_pagamento
+            pagamento_original.save()
+            return Response({"msg": "Recebimento registrado com sucesso!"})
+
+        # CENÁRIO 2: PARCELAMENTO (Complexo)
+        # 1. Marca o original como 'Renegociado' (Para manter histórico de que existiu essa cobrança)
+        pagamento_original.status = 'Renegociado'
+        pagamento_original.observacoes = f"Parcelado em {qtd_parcelas}x via {forma_pagamento} em {datetime.now().strftime('%d/%m/%Y')}"
+        pagamento_original.save()
+
+        # 2. Gera as novas parcelas usando o Service existente
+        # Importante: A primeira parcela já nasce PAGA
+        novos_pagamentos = FaturamentoService.criar_receita(
+            paciente=pagamento_original.paciente.id if pagamento_original.paciente else None,
+            valor_total=float(pagamento_original.valor), # Valor total a ser parcelado
+            qtd_parcelas=qtd_parcelas,
+            data_vencimento_base=datetime.strptime(str(data_pagamento), '%Y-%m-%d').date(), # Começa a contar de hoje
+            user=request.user,
+            descricao=f"{pagamento_original.descricao} (Refin.)",
+            forma_pagamento=forma_pagamento,
+            status_inicial='Pago', # A primeira já nasce paga (entrada)
+            data_pagamento_manual=data_pagamento
+        )
+
+        return Response({"msg": f"Pagamento parcelado em {qtd_parcelas}x com sucesso!"})
 
 # ==============================================================================
 # 1. DASHBOARD & KPIs (A CLASSE CORRETA AGORA)

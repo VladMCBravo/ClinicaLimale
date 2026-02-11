@@ -30,6 +30,7 @@ export const faturamentoService = {
     getCobrancasPendentes: (pacienteId) => apiClient.get(`/faturamento/pacientes/${pacienteId}/cobrancas-pendentes/`),
     updatePagamento: (pagamentoId, data) => apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, data),
     deletePagamento: (id) => apiClient.delete(`/faturamento/pagamentos/${id}/`),
+    realizarRecebimento: (id, dados) => apiClient.post(`/faturamento/pagamentos/${id}/receber/`, dados),
 
     // Lançamento Avulso
     createLancamentoAvulso: (data) => apiClient.post('/faturamento/lancamento-avulso/', data),

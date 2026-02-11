@@ -5,9 +5,7 @@ import {
     Typography, Box, LinearProgress, Button, InputAdornment, Chip, IconButton, Tooltip,
     Menu, MenuItem, ListItemIcon, ListItemText
 } from '@mui/material';
-import { 
-    Search, Add, CheckCircle, Edit, Block, Undo, MonetizationOn 
-} from '@mui/icons-material';
+import { Search, Add, CheckCircle, Edit, Block, Undo, MonetizationOn } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
@@ -51,11 +49,12 @@ export default function ContasReceberView() {
             const res = await faturamentoService.getPagamentos(params);
             const dados = res.data || [];
 
-            // ORDENAÇÃO DECRESCENTE (Mais recente/futuro no topo -> Mais antigo embaixo)
+            // ORDENAÇÃO DECRESCENTE (Data mais futura no topo -> Data mais antiga embaixo)
+            // Ex: 2026-03-01 vem antes de 2026-02-01
             dados.sort((a, b) => {
                 const dataA = a.data_vencimento ? dayjs(a.data_vencimento) : dayjs(0);
                 const dataB = b.data_vencimento ? dayjs(b.data_vencimento) : dayjs(0);
-                return dataB.diff(dataA); // B - A = Decrescente
+                return dataB.diff(dataA); 
             });
 
             setLista(dados);
@@ -79,13 +78,14 @@ export default function ContasReceberView() {
         setDrawerOpen(true);
     };
 
-    // BOTÃO CHECK: Abre modal para confirmar pagamento (Fluxo Seguro)
+    // BOTÃO CHECK: Abre o modal de edição (LancamentoAvulsoTab)
+    // mas já seta o status como PAGO visualmente para o usuário apenas confirmar
     const handleAbrirBaixa = (e, item) => {
         e.stopPropagation();
         setItemParaEdicao({
             ...item,
-            pago: true, // Força flag de pago
-            data_pagamento: dayjs() // Sugere hoje
+            pago: true, // Força flag de pago ao abrir
+            data_pagamento: dayjs().format('YYYY-MM-DD') // Sugere hoje
         });
         setModalOpen(true);
     };
@@ -104,27 +104,29 @@ export default function ContasReceberView() {
 
     const handleMenuAction = async (action) => {
         if (!menuRow) return;
-        const id = menuRow.id;
+        const row = menuRow;
         handleCloseMenu();
 
         try {
             if (action === 'editar') {
-                setItemParaEdicao({ ...menuRow, pago: menuRow.status === 'Pago' });
+                // Abre o modal de edição normal (mantém status original)
+                setItemParaEdicao({ ...row, pago: row.status === 'Pago' });
                 setModalOpen(true);
             } 
             else if (action === 'pago') {
+                // Atalho rápido (sem modal)
                 if(!window.confirm("Marcar como PAGO agora?")) return;
-                await faturamentoService.updatePagamento(id, { status: 'Pago', data_pagamento: dayjs().format('YYYY-MM-DD') });
+                await faturamentoService.updatePagamento(row.id, { status: 'Pago', data_pagamento: dayjs().format('YYYY-MM-DD') });
                 carregarDados();
             } 
             else if (action === 'pendente') {
                 if(!window.confirm("Reverter para PENDENTE?")) return;
-                await faturamentoService.updatePagamento(id, { status: 'Pendente', data_pagamento: null });
+                await faturamentoService.updatePagamento(row.id, { status: 'Pendente', data_pagamento: null });
                 carregarDados();
             } 
             else if (action === 'cancelar') {
                 if(!window.confirm("CANCELAR este recebimento?")) return;
-                await faturamentoService.updatePagamento(id, { status: 'Cancelado' });
+                await faturamentoService.updatePagamento(row.id, { status: 'Cancelado' });
                 carregarDados();
             }
         } catch (error) {
@@ -217,7 +219,7 @@ export default function ContasReceberView() {
                                             />
                                         </TableCell>
                                         <TableCell align="right">
-                                            {/* CHECK: Abre Modal de Pagamento */}
+                                            {/* CHECK: Abre Modal de Edição (LancamentoAvulsoTab) */}
                                             {row.status !== 'Pago' && (
                                                 <Tooltip title="Realizar Recebimento">
                                                     <IconButton 
@@ -229,8 +231,7 @@ export default function ContasReceberView() {
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
-                                            
-                                            {/* LÁPIS: Abre Menu de Opções */}
+                                            {/* LÁPIS: Abre Menu */}
                                             <Tooltip title="Opções">
                                                 <IconButton size="small" onClick={(e) => handleOpenMenu(e, row)}>
                                                     <Edit fontSize="small" />
@@ -249,11 +250,7 @@ export default function ContasReceberView() {
             </Paper>
 
             {/* MENU DO LÁPIS */}
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleCloseMenu}
-            >
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
                 <MenuItem onClick={() => handleMenuAction('editar')}>
                     <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
                     <ListItemText>Editar Detalhes</ListItemText>
@@ -273,20 +270,14 @@ export default function ContasReceberView() {
                     </MenuItem>
                 )}
 
-                {menuRow?.status !== 'Cancelado' ? (
+                {menuRow?.status !== 'Cancelado' && (
                     <MenuItem onClick={() => handleMenuAction('cancelar')}>
                         <ListItemIcon><Block fontSize="small" color="error" /></ListItemIcon>
                         <ListItemText>Cancelar Cobrança</ListItemText>
                     </MenuItem>
-                ) : (
-                    <MenuItem onClick={() => handleMenuAction('pendente')}>
-                        <ListItemIcon><Undo fontSize="small" /></ListItemIcon>
-                        <ListItemText>Reativar (Pendente)</ListItemText>
-                    </MenuItem>
                 )}
             </Menu>
 
-            {/* MODAL PRINCIPAL */}
             <LancamentoCaixaModal 
                 open={modalOpen} 
                 onClose={() => { setModalOpen(false); carregarDados(); }}
@@ -295,7 +286,6 @@ export default function ContasReceberView() {
                 existingData={itemParaEdicao} 
             />
 
-            {/* DRAWER LATERAL */}
             <TransactionDrawer 
                 open={drawerOpen} 
                 onClose={() => setDrawerOpen(false)} 
