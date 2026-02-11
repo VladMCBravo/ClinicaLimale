@@ -9,6 +9,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
+import TransactionDrawer from './TransactionDrawer'; // <--- IMPORTANTE: DRAWER DE DETALHES
 
 // <--- ADICIONADO A FUNÇÃO QUE FALTAVA
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -22,8 +23,10 @@ export default function ContasReceberView() {
     const [filtroData, setFiltroData] = useState(dayjs());
     const [busca, setBusca] = useState('');
     
-    // Modal
+    // Modais e Drawers
     const [modalOpen, setModalOpen] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false); // <--- ESTADO DO DRAWER
+    const [selectedId, setSelectedId] = useState(null); // <--- ID SELECIONADO
 
     // BUSCA DE DADOS (Server-Side)
     const carregarDados = useCallback(async () => {
@@ -58,9 +61,37 @@ export default function ContasReceberView() {
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
+    // HANDLERS
+    const handleRowClick = (item) => {
+        setSelectedId(item.id);
+        setDrawerOpen(true);
+    };
+
+    const handleBaixarRapido = async (e, item) => {
+        e.stopPropagation();
+        if(!window.confirm(`Confirmar recebimento de ${formatMoney(item.valor)}?`)) return;
+        
+        try {
+            await faturamentoService.updatePagamento(item.id, { status: 'Pago', data_pagamento: dayjs().format('YYYY-MM-DD') });
+            carregarDados(); // Recarrega
+        } catch (error) {
+            alert('Erro ao baixar');
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'Pago': return 'success';
+            case 'Pendente': return 'warning';
+            case 'Atrasado': return 'error';
+            case 'Cancelado': return 'default';
+            default: return 'default';
+        }
+    };
+
 
     return (
-        <Box sx={{ height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ height: 'calc(100vh - 155px)', display: 'flex', flexDirection: 'column' }}>
             
             {/* BARRA DE FERRAMENTAS */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
@@ -143,6 +174,13 @@ export default function ContasReceberView() {
                 onClose={() => { setModalOpen(false); carregarDados(); }}
                 initialType="receita" // <--- Força tipo Receita
                 initialTab={0}
+            />
+            {/* DRAWER LATERAL (IGUAL AO DE DESPESAS) */}
+            <TransactionDrawer 
+                open={drawerOpen} 
+                onClose={() => setDrawerOpen(false)} 
+                transactionId={selectedId} 
+                onUpdate={carregarDados} // Atualiza a lista ao editar/salvar no drawer
             />
         </Box>
     );

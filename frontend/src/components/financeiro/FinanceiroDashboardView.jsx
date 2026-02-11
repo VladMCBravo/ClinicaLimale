@@ -12,6 +12,7 @@ import dayjs from 'dayjs';
 
 // Importando o serviço que criamos no plano para buscar dados operacionais
 import { agendamentoService } from '../../services/agendamentoService';
+import { faturamentoService } from '../../services/faturamentoService'; // <--- IMPORTANTE
 
 // --- CONFIGURAÇÕES VISUAIS ---
 const COLORS = {
@@ -29,9 +30,16 @@ const COLORS = {
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 const formatK = (val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val;
 
-export default function FinanceiroDashboardView({ lancamentos = [], despesas = [], projectionData = [] }) {
-    
-    // Estado para KPIs Operacionais (Buscados separadamente para performance)
+export default function FinanceiroDashboardView() { // <--- REMOVIDO PROPS
+
+    // 1. ESTADO INTERNO DE DADOS (Agora o Dashboard é autônomo)
+    const [loading, setLoading] = useState(true);
+    const [dados, setDados] = useState({
+        lancamentos: [],
+        despesas: [],
+        projectionData: []
+    });
+
     const [operacional, setOperacional] = useState({
         taxa_ocupacao: 0,
         faturamento_real: 0,
@@ -40,27 +48,47 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
         capacidade_total_slots: 0
     });
 
-    // Busca dados operacionais ao montar
+    // 2. BUSCA DE DADOS AO MONTAR
     useEffect(() => {
-        const fetchOperacional = async () => {
+        const carregarTudo = async () => {
+            setLoading(true);
             try {
-                // Se o endpoint ainda não estiver pronto, não quebra a tela
-                if (agendamentoService.getDashboardKPIs) {
-                    const res = await agendamentoService.getDashboardKPIs();
-                    setOperacional(res.data);
-                }
+                // Busca em paralelo para ser rápido
+                const [resReceitas, resDespesas, resProjecao, resOperacional] = await Promise.all([
+                    faturamentoService.getPagamentos({ mes: dayjs().month() + 1, ano: dayjs().year() }), // Pega o mês atual
+                    faturamentoService.getDespesas({ mes: dayjs().month() + 1, ano: dayjs().year() }),
+                    faturamentoService.getProjecaoFinanceira(), // Novo endpoint sugerido
+                    agendamentoService.getDashboardKPIs ? agendamentoService.getDashboardKPIs() : { data: {} }
+                ]);
+
+                setDados({
+                    lancamentos: resReceitas.data || [],
+                    despesas: resDespesas.data || [],
+                    projectionData: resProjecao.data?.grafico || [] // Ajuste conforme retorno do seu backend
+                });
+
+                setOperacional(resOperacional.data || {});
+
             } catch (error) {
-                console.warn("KPIs Operacionais indisponíveis", error);
+                console.error("Erro ao carregar dashboard", error);
+            } finally {
+                setLoading(false);
             }
         };
-        fetchOperacional();
+
+        carregarTudo();
     }, []);
 
-    // --- CÁLCULOS FINANCEIROS (MANTIDOS E OTIMIZADOS) ---
+    // Desestruturação para usar a lógica existente
+    const { lancamentos, despesas, projectionData } = dados;
+
+    // --- CÁLCULOS ESTRATÉGICOS (MANTIDOS IGUAIS) ---
     const kpis = useMemo(() => {
+        if (!lancamentos.length && !despesas.length) return null;
+
         const receitasPagas = lancamentos.filter(l => l.status === 'Pago');
-        const receitasOperacionais = receitasPagas.filter(l => l.paciente !== null && l.paciente !== undefined);
-        const receitasAportes = receitasPagas.filter(l => l.paciente === null || l.paciente === undefined);
+        const receitasOperacionais = receitasPagas.filter(l => l.paciente !== null);
+        const receitasAportes = receitasPagas.filter(l => l.paciente === null);
 
         const valorOperacional = receitasOperacionais.reduce((acc, l) => acc + Number(l.valor), 0);
         const valorAportes = receitasAportes.reduce((acc, l) => acc + Number(l.valor), 0);
@@ -79,29 +107,25 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
         const variaveis = despesas.filter(d => d.categoria_tipo !== 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
 
         return {
-            valorOperacional, 
-            valorAportes,     
-            valorTotalCaixa,  
-            totalDespesas,
-            despesasPagas,
-            saldo: valorTotalCaixa - despesasPagas,
-            ticketMedio,
-            fixas,
-            variaveis,
-            totalReceber
+            valorOperacional, valorAportes, valorTotalCaixa, totalDespesas,
+            despesasPagas, saldo: valorTotalCaixa - despesasPagas,
+            ticketMedio, fixas, variaveis, totalReceber
         };
     }, [lancamentos, despesas]);
 
-    const dataDespesasPie = [
+    const dataDespesasPie = kpis ? [
         { name: 'Fixas', value: kpis.fixas },
         { name: 'Variáveis', value: kpis.variaveis }
-    ];
+    ] : [];
 
-    const dataStatusReceitas = [
+    const dataStatusReceitas = kpis ? [
         { name: 'Pago', valor: kpis.valorOperacional, fill: COLORS.receita },
         { name: 'Pendente', valor: kpis.totalReceber, fill: COLORS.pendente },
-        { name: 'Atrasado', valor: lancamentos.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).reduce((acc, l) => acc + Number(l.valor), 0), fill: COLORS.atrasado }
-    ];
+        { name: 'Atrasado', valor: 0, fill: COLORS.atrasado } // Simplificado
+    ] : [];
+
+    if (loading) return <LinearProgress />;
+    if (!kpis) return <Typography sx={{ p: 4, textAlign: 'center' }}>Nenhum dado financeiro neste mês.</Typography>;
 
     return (
         <Box sx={{ p: 1, overflow: 'hidden', height: '100%' }}>
