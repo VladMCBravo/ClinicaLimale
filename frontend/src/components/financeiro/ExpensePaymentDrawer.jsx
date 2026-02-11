@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { 
     Close, CheckCircle, MoreVert, Undo, Block, 
-    CalendarMonth, Description, Category, Save
+    CalendarMonth, Description, Category, Save, AttachMoney // <--- ADICIONADO AQUI
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
