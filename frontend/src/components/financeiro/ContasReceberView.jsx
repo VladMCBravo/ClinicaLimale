@@ -1,17 +1,17 @@
 // src/components/financeiro/ContasReceberView.jsx
-import React, { useState, useCallback, useEffect } from 'react'; // <--- ADICIONADO useCallback e useEffect
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Typography, Box, LinearProgress, Button, InputAdornment, 
+    Typography, Box, LinearProgress, Button, InputAdornment, Chip, IconButton, Tooltip
 } from '@mui/material';
-import { Search, Add } from '@mui/icons-material';
+import { Search, Add, CheckCircle, Edit } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+
 import { faturamentoService } from '../../services/faturamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
-import TransactionDrawer from './TransactionDrawer'; // <--- IMPORTANTE: DRAWER DE DETALHES
+import TransactionDrawer from './TransactionDrawer';
 
-// <--- ADICIONADO A FUNÇÃO QUE FALTAVA
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function ContasReceberView() {
@@ -25,8 +25,8 @@ export default function ContasReceberView() {
     
     // Modais e Drawers
     const [modalOpen, setModalOpen] = useState(false);
-    const [drawerOpen, setDrawerOpen] = useState(false); // <--- ESTADO DO DRAWER
-    const [selectedId, setSelectedId] = useState(null); // <--- ID SELECIONADO
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [selectedId, setSelectedId] = useState(null);
 
     // BUSCA DE DADOS (Server-Side)
     const carregarDados = useCallback(async () => {
@@ -34,15 +34,14 @@ export default function ContasReceberView() {
         try {
             const params = {};
             
-            // Lógica Inteligente: Se tem busca, ignora data. Se não tem, usa data.
+            // Lógica Inteligente: Busca Global vs Filtro Mês
             if (busca.length > 2) {
                 params.search = busca;
             } else {
-                params.mes = filtroData.month() + 1; // Backend espera 1-12
+                params.mes = filtroData.month() + 1;
                 params.ano = filtroData.year();
             }
 
-            // Busca Legado + Novo (backend filtra)
             const res = await faturamentoService.getPagamentos(params);
             setLista(res.data || []);
             
@@ -53,42 +52,50 @@ export default function ContasReceberView() {
         }
     }, [filtroData, busca]);
 
-    // Debounce da busca (para não chamar API a cada letra)
+    // Debounce da busca
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             carregarDados();
-        }, 500); // Espera 500ms após parar de digitar
+        }, 500);
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
-    // HANDLERS
+    // --- HANDLERS ---
+
     const handleRowClick = (item) => {
         setSelectedId(item.id);
         setDrawerOpen(true);
     };
 
     const handleBaixarRapido = async (e, item) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Evita abrir o drawer ao clicar no check
         if(!window.confirm(`Confirmar recebimento de ${formatMoney(item.valor)}?`)) return;
         
+        // Optimistic Update (Atualiza visualmente antes do servidor)
+        setLista(prev => prev.map(p => p.id === item.id ? { ...p, status: 'Pago' } : p));
+
         try {
-            await faturamentoService.updatePagamento(item.id, { status: 'Pago', data_pagamento: dayjs().format('YYYY-MM-DD') });
-            carregarDados(); // Recarrega
+            await faturamentoService.updatePagamento(item.id, { 
+                status: 'Pago', 
+                data_pagamento: dayjs().format('YYYY-MM-DD') 
+            });
+            carregarDados(); 
         } catch (error) {
             alert('Erro ao baixar');
+            carregarDados(); // Reverte em caso de erro
         }
     };
 
-    const getStatusColor = (status) => {
-        switch(status) {
-            case 'Pago': return 'success';
-            case 'Pendente': return 'warning';
-            case 'Atrasado': return 'error';
-            case 'Cancelado': return 'default';
-            default: return 'default';
+    const getStatusColor = (status, vencimento) => {
+        if (status === 'Pago') return 'success';
+        if (status === 'Cancelado') return 'default';
+        
+        // Verifica atraso
+        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) {
+            return 'error'; // Vermelho para atrasado
         }
+        return 'warning'; // Laranja para pendente no prazo
     };
-
 
     return (
         <Box sx={{ height: 'calc(100vh - 155px)', display: 'flex', flexDirection: 'column' }}>
@@ -99,13 +106,13 @@ export default function ContasReceberView() {
                     <DatePicker 
                         views={['month', 'year']}
                         value={filtroData}
-                        onChange={(v) => { setFiltroData(v); setBusca(''); }} // Limpa busca ao mudar data
+                        onChange={(v) => { setFiltroData(v); setBusca(''); }}
                         slotProps={{ textField: { size: 'small', sx: { width: 140, bgcolor: 'white' } } }}
-                        disabled={busca.length > 0} // Trava data se estiver buscando globalmente
+                        disabled={busca.length > 0}
                     />
                     <TextField
                         size="small"
-                        placeholder="Buscar Paciente/Valor (Global)..."
+                        placeholder="Buscar Paciente/Valor..."
                         value={busca}
                         onChange={(e) => setBusca(e.target.value)}
                         InputProps={{
@@ -134,34 +141,75 @@ export default function ContasReceberView() {
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell>Vencimento</TableCell>
-                                <TableCell>Paciente / Descrição</TableCell>
-                                <TableCell>Valor</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell align="right">Ações</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Vencimento</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Paciente / Descrição</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Valor</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Ações</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {lista.map(row => (
-                                <TableRow key={row.id} hover>
-                                    <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" fontWeight="bold">
-                                            {row.paciente_nome || row.descricao}
-                                        </Typography>
-                                        <Typography variant="caption" color="textSecondary">
-                                            {row.descricao_visual || row.categoria_nome}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>R$ {parseFloat(row.valor).toFixed(2)}</TableCell>
-                                    <TableCell>{/* Chip de Status aqui */}</TableCell>
-                                    <TableCell align="right">
-                                        {/* Seus botões de ação aqui (Drawer, Editar, etc) */}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {lista.map(row => {
+                                const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
+                                const labelStatus = isAtrasado ? 'Atrasado' : row.status;
+                                const colorStatus = getStatusColor(row.status, row.data_vencimento);
+
+                                return (
+                                    <TableRow 
+                                        key={row.id} 
+                                        hover 
+                                        onClick={() => handleRowClick(row)}
+                                        sx={{ cursor: 'pointer' }}
+                                    >
+                                        <TableCell>{dayjs(row.data_vencimento).format('DD/MM/YY')}</TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" fontWeight="bold">
+                                                {row.paciente_nome || row.descricao}
+                                            </Typography>
+                                            <Typography variant="caption" color="textSecondary">
+                                                {row.descricao_visual || row.categoria_nome}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                                            {formatMoney(row.valor)}
+                                        </TableCell>
+                                        
+                                        {/* COLUNA STATUS (AGORA VISÍVEL) */}
+                                        <TableCell>
+                                            <Chip 
+                                                label={labelStatus} 
+                                                size="small" 
+                                                color={colorStatus}
+                                                variant={row.status === 'Pago' ? 'filled' : 'outlined'}
+                                                sx={{ fontWeight: 'bold', height: 24, fontSize: '0.75rem' }}
+                                            />
+                                        </TableCell>
+
+                                        {/* COLUNA AÇÕES (AGORA VISÍVEL) */}
+                                        <TableCell align="right">
+                                            {row.status !== 'Pago' && (
+                                                <Tooltip title="Confirmar Recebimento">
+                                                    <IconButton 
+                                                        size="small" 
+                                                        color="success" 
+                                                        onClick={(e) => handleBaixarRapido(e, row)}
+                                                        sx={{ mr: 1 }}
+                                                    >
+                                                        <CheckCircle fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            <Tooltip title="Editar / Ver Detalhes">
+                                                <IconButton size="small" onClick={() => handleRowClick(row)}>
+                                                    <Edit fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                             {!loading && lista.length === 0 && (
-                                <TableRow><TableCell colSpan={5} align="center">Nada encontrado.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 3, color: '#999' }}>Nenhum registro encontrado.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -172,42 +220,18 @@ export default function ContasReceberView() {
             <LancamentoCaixaModal 
                 open={modalOpen} 
                 onClose={() => { setModalOpen(false); carregarDados(); }}
-                initialType="receita" // <--- Força tipo Receita
+                initialType="receita" 
                 initialTab={0}
             />
-            {/* DRAWER LATERAL (IGUAL AO DE DESPESAS) */}
+
+            {/* DRAWER LATERAL (O MESMO DE DESPESAS, MAS FUNCIONA PARA RECEITA TAMBÉM SE O ID FOR DE PAGAMENTO) */}
+            {/* Nota: O Backend precisará suportar getDespesaTimeline ou você cria um getPagamentoTimeline similar */}
             <TransactionDrawer 
                 open={drawerOpen} 
                 onClose={() => setDrawerOpen(false)} 
                 transactionId={selectedId} 
-                onUpdate={carregarDados} // Atualiza a lista ao editar/salvar no drawer
+                onUpdate={carregarDados} 
             />
         </Box>
     );
 }
-
-// COMPONENTE AUXILIAR DE KPI COMPACTO
-const CompactKPI = ({ title, value, isCount, icon, color, bgcolor }) => (
-    <Paper 
-        elevation={0} 
-        sx={{ 
-            p: 0.5, px: 1.5, borderRadius: 2, bgcolor: bgcolor, 
-            display: 'flex', alignItems: 'center', gap: 1,
-            border: `1px solid ${color}30`,
-            minWidth: 140,
-            height: 40 // Altura fixa e compacta
-        }}
-    >
-        <Box sx={{ bgcolor: 'white', p: 0.3, borderRadius: '50%', display: 'flex', color: color }}>
-            {icon}
-        </Box>
-        <Box sx={{ lineHeight: 1 }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: color, opacity: 0.9, fontSize: '0.65rem', display: 'block' }}>
-                {title}
-            </Typography>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: color, fontSize: '0.85rem' }}>
-                {isCount ? value : formatMoney(value)}
-            </Typography>
-        </Box>
-    </Paper>
-);
