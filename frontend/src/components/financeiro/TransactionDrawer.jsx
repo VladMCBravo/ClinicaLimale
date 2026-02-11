@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Drawer, Box, Typography, IconButton, Divider, Chip, 
     List, ListItem, ListItemText, ListItemIcon, Button, 
-    TextField, Grid, Skeleton, ButtonGroup
+    TextField, Grid, Skeleton, ButtonGroup, InputAdornment 
 } from '@mui/material';
 import { 
     Close, Event, AttachMoney, Description, Delete, 
@@ -33,9 +33,9 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
             // Busca a série completa
             const res = await faturamentoService.getDespesaTimeline(transactionId);
             setTimeline(res.data);
-            // Inicia edição focado no item clicado
+            // Inicia edição focado no item clicado ou no primeiro
             const current = res.data.find(t => t.id === transactionId) || res.data[0];
-            enterEditMode(current);
+            if (current) enterEditMode(current);
         } catch (error) {
             console.error(error);
         } finally {
@@ -74,7 +74,7 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
             await faturamentoService.deleteDespesa(id);
             if (timeline.length <= 1) onClose(); // Se era o único, fecha
             else loadData(); // Se tem mais, recarrega
-            onUpdate();
+            if(onUpdate) onUpdate();
         } catch (error) { alert('Erro ao apagar'); }
     };
 
@@ -201,6 +201,3 @@ export default function TransactionDrawer({ open, onClose, transactionId, onUpda
         </Drawer>
     );
 }
-
-// Pequeno helper para input
-import { InputAdornment } from '@mui/material';
