@@ -3,13 +3,14 @@
 import logging
 logger = logging.getLogger(__name__)
 import re
-from datetime import datetime
+from datetime import datetime, date
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
-from django.db.models import Q, Sum, Count, F
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, Count, Case, When, Value, DecimalField, Q
+from django.db.models.functions import TruncDate, TruncMonth, Coalesce
+
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -119,6 +120,108 @@ class DashboardOperacionalAPIView(APIView):
             "taxa_ocupacao": round((horas_ocupadas / capacidade_horas) * 100, 1) if capacidade_horas > 0 else 0,
             "faturamento_real": faturamento_total,
             "ticket_medio_hora": round(ticket_medio, 2)
+        })
+    
+# ==============================================================================
+# VIEW DE DASHBOARD (CORRIGIDA E OTIMIZADA)
+# ==============================================================================
+
+class FinanceiroDashboardAPIView(APIView):
+    """
+    Retorna todos os KPIs financeiros calculados via SQL (Banco de Dados).
+    Muito mais rápido e escalável que processar no Javascript.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        hoje = timezone.localdate()
+        mes_atual = hoje.month
+        ano_atual = hoje.year
+
+        # --- 1. KPIS GERAIS (ALL-TIME / HISTÓRICO COMPLETO) ---
+        # Como solicitado: Totais de todos os tempos, não só do mês.
+        
+        # Receitas (Considera Pagamento Legado + TransacaoFinanceira Nova se houver migração)
+        # Por enquanto focando no Pagamento (Legado) conforme seu uso atual
+        receitas_qs = Pagamento.objects.all()
+        
+        # Aportes vs Operacional
+        # Regra: Se tem paciente é Operacional. Se não tem, é Aporte/Outros.
+        total_operacional = receitas_qs.filter(status='Pago', paciente__isnull=False).aggregate(total=Sum('valor'))['total'] or 0
+        total_aportes = receitas_qs.filter(status='Pago', paciente__isnull=True).aggregate(total=Sum('valor'))['total'] or 0
+        
+        # A Receber (Geral)
+        total_pendente = receitas_qs.filter(status='Pendente').aggregate(total=Sum('valor'))['total'] or 0
+        
+        # Atrasados (Geral - Vencidos antes de hoje)
+        total_atrasado = receitas_qs.filter(status='Pendente', data_vencimento__lt=hoje).aggregate(total=Sum('valor'))['total'] or 0
+
+        # Despesas (Geral)
+        despesas_qs = Despesa.objects.all()
+        total_despesas = despesas_qs.aggregate(total=Sum('valor'))['total'] or 0
+        total_despesas_pagas = despesas_qs.filter(pago=True).aggregate(total=Sum('valor'))['total'] or 0
+
+        # Ticket Médio (All-time, baseado apenas em atendimentos pagos)
+        qtd_atendimentos = receitas_qs.filter(status='Pago', paciente__isnull=False).count()
+        ticket_medio = total_operacional / qtd_atendimentos if qtd_atendimentos > 0 else 0
+
+        # --- 2. GRÁFICO DE FLUXO DE CAIXA (DIÁRIO - APENAS MÊS ATUAL) ---
+        # O gráfico de linha precisa ser "zoom in" no mês atual, senão fica ilegível com 5 anos de dados.
+        
+        # Agrega Receitas por Dia
+        receitas_dia = receitas_qs.filter(
+            status='Pago', 
+            data_pagamento__month=mes_atual, 
+            data_pagamento__year=ano_atual
+        ).annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+
+        # Agrega Despesas por Dia
+        despesas_dia = despesas_qs.filter(
+            pago=True, 
+            data_pagamento__month=mes_atual, 
+            data_pagamento__year=ano_atual
+        ).annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor')).order_by('dia')
+
+        # Monta a estrutura para o Recharts
+        from calendar import monthrange
+        _, dias_no_mes = monthrange(ano_atual, mes_atual)
+        grafico_fluxo = []
+
+        mapa_receitas = {r['dia']: r['total'] for r in receitas_dia}
+        mapa_despesas = {d['dia']: d['total'] for d in despesas_dia}
+
+        for dia in range(1, dias_no_mes + 1):
+            try:
+                data_obj = date(ano_atual, mes_atual, dia)
+                grafico_fluxo.append({
+                    "name": str(dia),
+                    "entradas": float(mapa_receitas.get(data_obj, 0)),
+                    "saidas": float(mapa_despesas.get(data_obj, 0))
+                })
+            except ValueError:
+                pass # Ignora dias inválidos (ex: 30 de fev)
+
+        # --- 3. GRÁFICO DE CUSTOS (FIXA vs VARIÁVEL - MÊS ATUAL) ---
+        # Reflete o custo operacional do mês corrente
+        fixas = despesas_qs.filter(categoria__tipo='Fixa', data_despesa__month=mes_atual, data_despesa__year=ano_atual).aggregate(total=Sum('valor'))['total'] or 0
+        variaveis = despesas_qs.filter(categoria__tipo__in=['Variavel', 'Variavel (Consumo/Eventual)'], data_despesa__month=mes_atual, data_despesa__year=ano_atual).aggregate(total=Sum('valor'))['total'] or 0
+
+        return Response({
+            "kpis": {
+                "valorOperacional": float(total_operacional),
+                "valorAportes": float(total_aportes),
+                "totalDespesas": float(total_despesas),
+                "despesasPagas": float(total_despesas_pagas),
+                "saldo": float(total_operacional + total_aportes - total_despesas_pagas),
+                "ticketMedio": float(ticket_medio),
+                "totalReceber": float(total_pendente),
+                "totalAtrasado": float(total_atrasado)
+            },
+            "grafico_fluxo": grafico_fluxo,
+            "custos_mes": {
+                "fixas": float(fixas),
+                "variaveis": float(variaveis)
+            }
         })
     
 class DespesaViewSet(viewsets.ModelViewSet):
