@@ -1,4 +1,5 @@
-# src/faturamento/views.py (Atualização parcial - Substitua ou Atualize o DespesaViewSet)
+# src/faturamento/views.py
+
 import logging
 logger = logging.getLogger(__name__)
 import re
@@ -7,6 +8,7 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
+from django.db.models import Q, Sum, Count, F
 from django.db.models.functions import Coalesce
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
@@ -24,7 +26,7 @@ from .serializers import (
     PlanoConvenioSerializer, ProcedimentoSerializer, CobrancaPendenteSerializer
 )
 from agendamentos.serializers import AgendamentoSerializer
-from agendamentos.models import Agendamento
+from agendamentos.models import Agendamento, Sala
 
 # IMPORTANTE: Se rules_faturamento não existir, comente esta linha
 try:
@@ -44,23 +46,81 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        # --- CORREÇÃO AQUI: FILTRO POR PACIENTE ADICIONADO ---
-        paciente_id = self.request.query_params.get('paciente')
-        if paciente_id:
-            qs = qs.filter(paciente_id=paciente_id)
-        # -----------------------------------------------------
-        status_param = self.request.query_params.get('status')
-        if status_param:
-            qs = qs.filter(status=status_param)
+        # --- BUSCA GLOBAL (Prioridade Máxima) ---
+        search_term = self.request.query_params.get('search')
+        if search_term:
+            # Se tem busca, RETORNA TUDO que der match, ignorando mês/ano
+            return qs.filter(
+                Q(paciente__nome_completo__icontains=search_term) | 
+                Q(descricao__icontains=search_term)
+            )
+
+        # --- FILTROS DE DATA (Só aplicam se não tiver busca) ---
+        # Compatibilidade com o filtro de mês/ano do frontend
+        mes = self.request.query_params.get('mes')
+        ano = self.request.query_params.get('ano')
         
-        # Filtros de data usados no ContasReceberView
+        if mes and ano:
+            # Filtra por Vencimento (Padrão Financeiro)
+            qs = qs.filter(data_vencimento__month=mes, data_vencimento__year=ano)
+        
+        # Filtros legados de range (mantendo compatibilidade)
         inicio = self.request.query_params.get('data_inicio')
         fim = self.request.query_params.get('data_fim')
         if inicio and fim:
             qs = qs.filter(data_vencimento__range=[inicio, fim])
+
+        # Filtros extras
+        paciente_id = self.request.query_params.get('paciente')
+        if paciente_id:
+            qs = qs.filter(paciente_id=paciente_id)
+            
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
             
         return qs
 
+# 2. NOVO ENDPOINT DE CAPACIDADE OPERACIONAL (Dashboard)
+class DashboardOperacionalAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        mes = request.query_params.get('mes', timezone.now().month)
+        ano = request.query_params.get('ano', timezone.now().year)
+
+        # 1. Capacidade Total Teórica
+        # Ex: 2 Salas * 8 horas/dia * 22 dias úteis (Simplificado, pode refinar depois)
+        qtd_salas = Sala.objects.filter(ativa=True).count() or 1
+        dias_uteis = 22 
+        horas_dia = 9 # Ex: das 9h às 18h
+        capacidade_horas = qtd_salas * dias_uteis * horas_dia
+        
+        # 2. Ocupação Real (Agendamentos que não foram cancelados)
+        agendamentos_mes = Agendamento.objects.filter(
+            data_hora_inicio__month=mes,
+            data_hora_inicio__year=ano
+        ).exclude(status='Cancelado')
+        
+        horas_ocupadas = agendamentos_mes.count() # Assumindo 1h por agendamento (ajustar se tiver duração)
+        
+        # 3. Eficiência Financeira
+        faturamento_total = Pagamento.objects.filter(
+            data_pagamento__month=mes, 
+            data_pagamento__year=ano, 
+            status='Pago'
+        ).aggregate(Sum('valor'))['valor__sum'] or 0
+
+        ticket_medio = faturamento_total / horas_ocupadas if horas_ocupadas > 0 else 0
+
+        return Response({
+            "capacidade_total_slots": capacidade_horas,
+            "slots_ocupados": horas_ocupadas,
+            "taxa_ocupacao": round((horas_ocupadas / capacidade_horas) * 100, 1) if capacidade_horas > 0 else 0,
+            "faturamento_real": faturamento_total,
+            "ticket_medio_hora": round(ticket_medio, 2)
+        })
+    
 class DespesaViewSet(viewsets.ModelViewSet):
     # OTIMIZAÇÃO CRÍTICA: Traz categoria e usuário junto.
     # Isso transforma 880 queries em apenas 1 query.
