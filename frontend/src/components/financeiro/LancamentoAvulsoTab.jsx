@@ -25,10 +25,10 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
 
     // --- REVISADO: ID REINSERIDO EXPLICITAMENTE PARA SEGURANÇA ---
     const [formData, setFormData] = useState({
-        id: existingData?.id || null, // <--- ID GARANTIDO AQUI
+        id: existingData?.id || null, 
         descricao: existingData?.descricao || '',
         valor: existingData?.valor || '',
-        // Lógica inteligente para categoria: se vier objeto (do backend), pega o ID; se não, pega o valor direto
+        // Tenta pegar o ID se for objeto, ou usa o valor direto
         categoria: existingData?.categoria?.id || existingData?.categoria || '', 
         forma_pagamento: existingData?.forma_pagamento || 'PIX',
         data_vencimento: existingData?.data_vencimento ? dayjs(existingData.data_vencimento) : dayjs(),
@@ -120,16 +120,18 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
             } else {
                 // --- CRIAÇÃO ---
                 if (tipo === 'despesa') {
+                    // Payload CORRIGIDO para Despesa
                     const despesaPayload = {
-                        ...payload,
-                        categoria_id: formData.categoria, // Backend espera categoria_id
-                        qtd_parcelas: parseInt(formData.qtd_parcelas),
-                        data_competencia: payload.data_vencimento 
+                        ...basePayload,
+                        categoria: formData.categoria, // CORREÇÃO: Enviando 'categoria' (ID) e não categoria_id
+                        data_despesa: basePayload.data_vencimento, // CORREÇÃO: Campo obrigatório 'data_despesa'
+                        qtd_parcelas: parseInt(formData.qtd_parcelas)
                     };
                     await faturamentoService.createDespesa(despesaPayload);
                 } else {
+                    // Payload para Receita
                     const receitaPayload = {
-                        ...payload,
+                        ...basePayload,
                         qtd_parcelas: parseInt(formData.qtd_parcelas),
                         paciente: null 
                     };
@@ -142,7 +144,11 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
 
         } catch (error) {
             console.error(error);
-            showSnackbar('Erro ao salvar lançamento.', 'error');
+            // Mostra mensagem de erro mais detalhada se vier do backend
+            const msg = error.response?.data 
+                ? JSON.stringify(error.response.data) 
+                : 'Erro ao salvar lançamento.';
+            showSnackbar(msg, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -228,7 +234,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                                         startAdornment: <InputAdornment position="start"><CalendarMonth fontSize="small"/></InputAdornment>
                                     }}
                                 >
-                                    {[1, 2, 3, 4, 5, 6, 10, 12, 24, 36, 48, 60, 64].map((num) => (
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 36, 48, 60, 64].map((num) => (
                                         <MenuItem key={num} value={num}>
                                             {num}x
                                         </MenuItem>
