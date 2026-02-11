@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Typography, Box, LinearProgress, Button, InputAdornment, Chip, IconButton, Tooltip,
-    Menu, MenuItem, ListItemIcon, ListItemText
+    Menu, MenuItem, ListItemIcon, ListItemText, Drawer
 } from '@mui/material';
 import { Search, Add, CheckCircle, Edit, Block, Undo, MonetizationOn } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -12,6 +12,7 @@ import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
 import TransactionDrawer from './TransactionDrawer';
+import { PatientDrawerContent } from './PatientPaymentDrawer'; // Importe o componente novo (Crie o arquivo acima)
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
@@ -33,6 +34,7 @@ export default function ContasReceberView() {
     // Menu do Lápis
     const [anchorEl, setAnchorEl] = useState(null);
     const [menuRow, setMenuRow] = useState(null);
+    const [selectedItem, setSelectedItem] = useState(null);
 
     // BUSCA DE DADOS
     const carregarDados = useCallback(async () => {
@@ -74,7 +76,7 @@ export default function ContasReceberView() {
     // --- HANDLERS ---
 
     const handleRowClick = (item) => {
-        setSelectedId(item.id);
+        setSelectedItem(item); // Salva o item inteiro
         setDrawerOpen(true);
     };
 
@@ -286,12 +288,20 @@ export default function ContasReceberView() {
                 existingData={itemParaEdicao} 
             />
 
-            <TransactionDrawer 
+            <Drawer 
+                anchor="right" 
                 open={drawerOpen} 
-                onClose={() => setDrawerOpen(false)} 
-                transactionId={selectedId} 
-                onUpdate={carregarDados} 
-            />
+                onClose={() => setDrawerOpen(false)}
+                PaperProps={{ sx: { width: { xs: '100%', md: 450 }, p: 0 } }}
+            >
+                {selectedItem && (
+                    <PatientDrawerContent 
+                        item={selectedItem} 
+                        onClose={() => setDrawerOpen(false)} 
+                        onUpdate={carregarDados} 
+                    />
+                )}
+            </Drawer>
         </Box>
     );
 }
