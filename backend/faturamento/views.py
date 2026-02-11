@@ -133,6 +133,7 @@ class FinanceiroDashboardAPIView(APIView):
             total_aportes = receitas_pagas.filter(paciente__isnull=True).aggregate(t=Sum('valor'))['t'] or 0
             
             total_pendente = receitas_kpi.filter(status='Pendente').aggregate(t=Sum('valor'))['t'] or 0
+            
             # Atrasado sempre olha para o passado global se estiver no modo geral
             if modo_mensal:
                 total_atrasado = receitas_kpi.filter(status='Pendente', data_vencimento__lt=timezone.localdate()).aggregate(t=Sum('valor'))['t'] or 0
@@ -141,6 +142,16 @@ class FinanceiroDashboardAPIView(APIView):
 
             total_despesas_cadastradas = despesas_kpi.aggregate(t=Sum('valor'))['t'] or 0
             total_despesas_pagas_val = despesas_pagas.aggregate(t=Sum('valor'))['t'] or 0
+            
+            # --- CORREÇÃO TICKET MÉDIO ---
+            # Conta quantos pagamentos operacionais (com paciente) existem
+            qtd_atendimentos = receitas_pagas.filter(paciente__isnull=False).count()
+            
+            # Evita divisão por zero
+            if qtd_atendimentos > 0:
+                ticket_medio = total_operacional / qtd_atendimentos
+            else:
+                ticket_medio = 0
 
             # --- GRÁFICO (FLUXO) ---
             grafico_fluxo = []
