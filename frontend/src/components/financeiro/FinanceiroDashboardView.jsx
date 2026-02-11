@@ -1,22 +1,29 @@
-import React, { useMemo } from 'react';
-import { Box, Grid, Paper, Typography, Divider, Stack } from '@mui/material';
-import { TrendingUp, TrendingDown, AccountBalanceWallet, AttachMoney, Storefront } from '@mui/icons-material'; // Ícone novo: Storefront
+import React, { useMemo, useState, useEffect } from 'react';
+import { Box, Grid, Paper, Typography, Divider, Stack, LinearProgress } from '@mui/material';
+import { 
+    TrendingUp, TrendingDown, AccountBalanceWallet, AttachMoney, 
+    Storefront, EventAvailable, Speed 
+} from '@mui/icons-material';
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar 
 } from 'recharts';
 import dayjs from 'dayjs';
 
+// Importando o serviço que criamos no plano para buscar dados operacionais
+import { agendamentoService } from '../../services/agendamentoService';
+
 // --- CONFIGURAÇÕES VISUAIS ---
 const COLORS = {
-    receita: '#2e7d32', // Verde
-    despesa: '#d32f2f', // Vermelho
-    saldo: '#1976d2',   // Azul
-    fixa: '#0288d1',    // Azul Claro
-    variavel: '#ed6c02',// Laranja
+    receita: '#2e7d32', 
+    despesa: '#d32f2f', 
+    saldo: '#1976d2',   
+    fixa: '#0288d1',    
+    variavel: '#ed6c02',
     pendente: '#f57c00',
     atrasado: '#d32f2f',
-    aporte: '#7b1fa2'   // Roxo para Aportes
+    aporte: '#7b1fa2',
+    ocupacao: '#009688' // Cor nova para Ocupação (Teal)
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -24,47 +31,60 @@ const formatK = (val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val;
 
 export default function FinanceiroDashboardView({ lancamentos = [], despesas = [], projectionData = [] }) {
     
-    // --- CÁLCULOS ESTRATÉGICOS (MEMOIZED) ---
-    const kpis = useMemo(() => {
-        // --- 1. RECEITAS ---
-        const receitasPagas = lancamentos.filter(l => l.status === 'Pago');
+    // Estado para KPIs Operacionais (Buscados separadamente para performance)
+    const [operacional, setOperacional] = useState({
+        taxa_ocupacao: 0,
+        faturamento_real: 0,
+        ticket_medio_hora: 0,
+        slots_ocupados: 0,
+        capacidade_total_slots: 0
+    });
 
-        // SEPARAÇÃO CRÍTICA: Operacional (Pacientes) vs Aportes (Sem Paciente)
+    // Busca dados operacionais ao montar
+    useEffect(() => {
+        const fetchOperacional = async () => {
+            try {
+                // Se o endpoint ainda não estiver pronto, não quebra a tela
+                if (agendamentoService.getDashboardKPIs) {
+                    const res = await agendamentoService.getDashboardKPIs();
+                    setOperacional(res.data);
+                }
+            } catch (error) {
+                console.warn("KPIs Operacionais indisponíveis", error);
+            }
+        };
+        fetchOperacional();
+    }, []);
+
+    // --- CÁLCULOS FINANCEIROS (MANTIDOS E OTIMIZADOS) ---
+    const kpis = useMemo(() => {
+        const receitasPagas = lancamentos.filter(l => l.status === 'Pago');
         const receitasOperacionais = receitasPagas.filter(l => l.paciente !== null && l.paciente !== undefined);
         const receitasAportes = receitasPagas.filter(l => l.paciente === null || l.paciente === undefined);
 
-        // Totais
         const valorOperacional = receitasOperacionais.reduce((acc, l) => acc + Number(l.valor), 0);
         const valorAportes = receitasAportes.reduce((acc, l) => acc + Number(l.valor), 0);
-        const valorTotalCaixa = valorOperacional + valorAportes; // Para cálculo de saldo
+        const valorTotalCaixa = valorOperacional + valorAportes;
 
         const totalReceber = lancamentos.filter(l => l.status === 'Pendente').reduce((acc, l) => acc + Number(l.valor), 0);
         
-        // --- 2. TICKET MÉDIO (Apenas Operacional) ---
-        // Faturamento Real / Quantidade de Atendimentos Pagos
         const ticketMedio = receitasOperacionais.length > 0 
             ? valorOperacional / receitasOperacionais.length 
             : 0;
 
-        // --- 3. DESPESAS ---
         const totalDespesas = despesas.reduce((acc, d) => acc + Number(d.valor), 0);
         const despesasPagas = despesas.filter(d => d.pago).reduce((acc, d) => acc + Number(d.valor), 0);
         
-        // 4. Fixas vs Variáveis
         const fixas = despesas.filter(d => d.categoria_tipo === 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
         const variaveis = despesas.filter(d => d.categoria_tipo !== 'Fixa').reduce((acc, d) => acc + Number(d.valor), 0);
 
         return {
-            valorOperacional, // KPI Principal de Vendas
-            valorAportes,     // KPI Secundário (Sócios)
-            valorTotalCaixa,  // Para Saldo Real
-            
+            valorOperacional, 
+            valorAportes,     
+            valorTotalCaixa,  
             totalDespesas,
             despesasPagas,
-            
-            // O Saldo considera TUDO que tem no banco (Operacional + Aportes - Despesas Pagas)
             saldo: valorTotalCaixa - despesasPagas,
-            
             ticketMedio,
             fixas,
             variaveis,
@@ -72,15 +92,13 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
         };
     }, [lancamentos, despesas]);
 
-    // Dados para o Gráfico de Rosca (Despesas)
     const dataDespesasPie = [
         { name: 'Fixas', value: kpis.fixas },
         { name: 'Variáveis', value: kpis.variaveis }
     ];
 
-    // Dados para Barra de Status (Focada na operação)
     const dataStatusReceitas = [
-        { name: 'Pago (Op)', valor: kpis.valorOperacional, fill: COLORS.receita },
+        { name: 'Pago', valor: kpis.valorOperacional, fill: COLORS.receita },
         { name: 'Pendente', valor: kpis.totalReceber, fill: COLORS.pendente },
         { name: 'Atrasado', valor: lancamentos.filter(l => l.status === 'Pendente' && dayjs(l.data_vencimento).isBefore(dayjs(), 'day')).reduce((acc, l) => acc + Number(l.valor), 0), fill: COLORS.atrasado }
     ];
@@ -88,20 +106,15 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
     return (
         <Box sx={{ p: 1, overflow: 'hidden', height: '100%' }}>
             
-            {/* LINHA 1: BIG NUMBERS (KPIs) */}
+            {/* LINHA 1: BIG NUMBERS (KPIs FINANCEIROS) */}
             <Grid container spacing={1} sx={{ mb: 1 }}>
-                
-                {/* 1. FATURAMENTO CLÍNICO (Apenas Pacientes) */}
                 <KPICard 
                     title="FATURAMENTO CLÍNICO" 
                     value={kpis.valorOperacional} 
                     icon={<Storefront />} 
                     color={COLORS.receita} 
-                    // Mostra o aporte pequeno embaixo para referência
-                    subtext={`+ ${formatMoney(kpis.valorAportes)} de aportes`} 
+                    subtext={`+ ${formatMoney(kpis.valorAportes)} aportes`} 
                 />
-                
-                {/* 2. DESPESAS TOTAIS */}
                 <KPICard 
                     title="DESPESA TOTAL" 
                     value={kpis.totalDespesas} 
@@ -109,30 +122,26 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
                     color={COLORS.despesa} 
                     subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} 
                 />
-                
-                {/* 3. SALDO REAL (Considera Aportes) */}
                 <KPICard 
                     title="SALDO EM CAIXA" 
                     value={kpis.saldo} 
                     icon={<AccountBalanceWallet />} 
                     color={kpis.saldo >= 0 ? COLORS.saldo : COLORS.despesa} 
-                    subtext="Disponível (Inc. Aportes)" 
+                    subtext="Disponível Real" 
                 />
-                
-                {/* 4. TICKET MÉDIO (Real) */}
                 <KPICard 
                     title="TICKET MÉDIO" 
                     value={kpis.ticketMedio} 
                     icon={<AttachMoney />} 
                     color="#555" 
-                    subtext="Por paciente atendido" 
+                    subtext="Por paciente" 
                 />
             </Grid>
 
             <Grid container spacing={1}>
                 {/* LINHA 2: COLUNA PRINCIPAL (Gráfico Mensal) */}
                 <Grid item xs={12} md={8}>
-                    <Paper variant="outlined" sx={{ p: 1.5, height: 260, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                    <Paper variant="outlined" sx={{ p: 1.5, height: 280, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">FLUXO DE CAIXA MENSAL</Typography>
                             <Box sx={{ display: 'flex', gap: 2 }}>
@@ -166,15 +175,45 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
                     </Paper>
                 </Grid>
 
-                {/* LINHA 2: COLUNA LATERAL (Breakdowns) */}
+                {/* LINHA 2: COLUNA LATERAL (Breakdowns + OPERACIONAL) */}
                 <Grid item xs={12} md={4}>
                     <Stack spacing={1}>
-                        {/* Gráfico 1: Despesas Fixas vs Variáveis */}
-                        <Paper variant="outlined" sx={{ p: 1, height: 125, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Box sx={{ width: '50%', height: '100%' }}>
+                        
+                        {/* NOVO: CARD SAÚDE OPERACIONAL */}
+                        <Paper variant="outlined" sx={{ p: 1.5, height: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center', bgcolor: '#e0f2f1', border: `1px solid ${COLORS.ocupacao}50` }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <EventAvailable sx={{ color: COLORS.ocupacao }} fontSize="small" />
+                                    <Typography variant="caption" fontWeight="bold" color={COLORS.ocupacao}>CAPACIDADE OPERACIONAL</Typography>
+                                </Box>
+                                <Typography variant="caption" fontWeight="bold">{operacional.taxa_ocupacao}% Ocupado</Typography>
+                            </Box>
+                            
+                            <LinearProgress 
+                                variant="determinate" 
+                                value={operacional.taxa_ocupacao} 
+                                sx={{ height: 8, borderRadius: 4, mb: 1, bgcolor: 'white', '& .MuiLinearProgress-bar': { bgcolor: COLORS.ocupacao } }} 
+                            />
+                            
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                    {operacional.slots_ocupados} / {operacional.capacidade_total_slots} Horas
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Speed sx={{ fontSize: 12, color: '#666' }} />
+                                    <Typography variant="caption" fontWeight="bold" color="text.primary">
+                                        {formatMoney(operacional.ticket_medio_hora)}/h
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Paper>
+
+                        {/* Gráfico 1: Despesas */}
+                        <Paper variant="outlined" sx={{ p: 1, height: 85, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ width: '40%', height: '100%' }}>
                                 <ResponsiveContainer>
                                     <RechartsPieChart>
-                                        <Pie data={dataDespesasPie} innerRadius={25} outerRadius={40} paddingAngle={2} dataKey="value">
+                                        <Pie data={dataDespesasPie} innerRadius={15} outerRadius={30} paddingAngle={2} dataKey="value">
                                             {dataDespesasPie.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.fixa : COLORS.variavel} />
                                             ))}
@@ -183,23 +222,21 @@ export default function FinanceiroDashboardView({ lancamentos = [], despesas = [
                                     </RechartsPieChart>
                                 </ResponsiveContainer>
                             </Box>
-                            <Box sx={{ width: '50%', pr: 1 }}>
-                                <Typography variant="caption" fontWeight="bold" display="block">DESPESAS</Typography>
-                                <Divider sx={{ my: 0.5 }} />
-                                <DetailRow label="Fixas" value={kpis.fixas} color={COLORS.fixa} />
+                            <Box sx={{ width: '60%', pr: 1 }}>
+                                <DetailRow label="Custos Fixos" value={kpis.fixas} color={COLORS.fixa} />
                                 <DetailRow label="Variáveis" value={kpis.variaveis} color={COLORS.variavel} />
                             </Box>
                         </Paper>
 
-                        {/* Gráfico 2: Status Recebimentos */}
-                        <Paper variant="outlined" sx={{ p: 1, height: 125, display: 'flex', flexDirection: 'column' }}>
-                            <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5 }}>STATUS DE RECEBIMENTOS</Typography>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart layout="vertical" data={dataStatusReceitas} margin={{ left: 0, right: 30 }}>
+                        {/* Gráfico 2: Status */}
+                        <Paper variant="outlined" sx={{ p: 1, height: 85, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5 }}>RECEBIMENTOS</Typography>
+                            <ResponsiveContainer width="100%" height={50}>
+                                <BarChart layout="vertical" data={dataStatusReceitas} margin={{ left: 0, right: 30, bottom: -5 }}>
                                     <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={60} style={{ fontSize: '0.65rem', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                                    <YAxis dataKey="name" type="category" width={50} style={{ fontSize: '0.60rem', fontWeight: 600 }} axisLine={false} tickLine={false} />
                                     <RechartsTooltip cursor={{fill: 'transparent'}} formatter={formatMoney} />
-                                    <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={12}>
+                                    <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={8}>
                                         {dataStatusReceitas.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}

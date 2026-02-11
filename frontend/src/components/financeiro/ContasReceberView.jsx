@@ -1,14 +1,17 @@
 // src/components/financeiro/ContasReceberView.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react'; // <--- ADICIONADO useCallback e useEffect
 import {
-    TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
+    TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Typography, Box, LinearProgress, Button, InputAdornment, 
 } from '@mui/material';
-import { Search, Add, Refresh } from '@mui/icons-material';
+import { Search, Add } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
+
+// <--- ADICIONADO A FUNÇÃO QUE FALTAVA
+const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function ContasReceberView() {
     // ESTADOS
@@ -145,7 +148,7 @@ export default function ContasReceberView() {
     );
 }
 
-// COMPONENTE AUXILIAR DE KPI COMPACTO (Ajustado para caber na linha)
+// COMPONENTE AUXILIAR DE KPI COMPACTO
 const CompactKPI = ({ title, value, isCount, icon, color, bgcolor }) => (
     <Paper 
         elevation={0} 
