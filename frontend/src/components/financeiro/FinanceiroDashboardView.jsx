@@ -1,9 +1,9 @@
 // src/components/financeiro/FinanceiroDashboardView.jsx
 import React, { useState, useEffect } from 'react';
-import { Button, IconButton, LinearProgress, Alert } from '@mui/material';
+import { Button, IconButton, LinearProgress, Box, Typography } from '@mui/material';
 import { 
     TrendingDown, AccountBalanceWallet, AttachMoney, 
-    Storefront, Refresh, Public, CalendarMonth, Box, Typography
+    Storefront, Refresh, Public, CalendarMonth
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
