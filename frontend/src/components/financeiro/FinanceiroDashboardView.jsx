@@ -93,6 +93,9 @@ export default function FinanceiroDashboardView() {
         { name: 'Atrasado', valor: kpis.totalAtrasado || 0, fill: COLORS.atrasado }
     ];
 
+    // CÁLCULO TOTAL PARA BARRA DE PROGRESSO (CORREÇÃO DO ERRO)
+    const totalRec = dataStatus.reduce((acc, item) => acc + item.valor, 0);
+
     return (
         <div className="fin-container">
             {/* 1. BARRA DE FILTROS */}
