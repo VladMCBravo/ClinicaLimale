@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { 
     Close, CheckCircle, MoreVert, Undo, Block, 
-    CalendarMonth, Description, Category, Save, AttachMoney // <--- ADICIONADO AQUI
+    CalendarMonth, Description, Category, Save, AttachMoney, DeleteForever
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
@@ -110,6 +110,19 @@ export function ExpenseDrawerContent({ item, onClose, onUpdate }) {
             await faturamentoService.deleteDespesa(item.id);
             onUpdate(); onClose();
         } catch(e) { alert("Erro ao excluir."); }
+    };
+
+    // NOVA AÇÃO: EXCLUIR SÉRIE
+    const handleExcluirSerie = async () => {
+        if(!window.confirm("ATENÇÃO: Isso apagará TODAS as parcelas desta série (passadas e futuras).\n\nTem certeza absoluta?")) return;
+        
+        try {
+            await faturamentoService.excluirSerieDespesas(item.id);
+            alert("Série completa excluída com sucesso.");
+            onUpdate(); onClose();
+        } catch (error) {
+            alert("Erro ao excluir série. Verifique se o servidor suporta esta ação.");
+        }
     };
 
     return (
@@ -286,10 +299,18 @@ export function ExpenseDrawerContent({ item, onClose, onUpdate }) {
                 )}
             </Box>
 
-            {/* MENU OPÇÕES */}
+            {/* MENU DE OPÇÕES (AGORA COM EXCLUIR SÉRIE) */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                 <MenuItem onClick={() => { handleDelete(); setAnchorEl(null); }} dense>
-                    <ListItemIcon><Block fontSize="small" color="error" /></ListItemIcon> <Typography variant="body2" color="error">Excluir Despesa</Typography>
+                    <ListItemIcon><Block fontSize="small" color="error" /></ListItemIcon> 
+                    <Typography variant="body2" color="error">Excluir APENAS ESTA</Typography>
+                </MenuItem>
+                
+                {/* BOTÃO NOVO AQUI: */}
+                <Divider />
+                <MenuItem onClick={() => { handleExcluirSerie(); setAnchorEl(null); }} dense>
+                    <ListItemIcon><DeleteForever fontSize="small" color="error" /></ListItemIcon> 
+                    <Typography variant="body2" color="error" fontWeight="bold">Excluir SÉRIE COMPLETA</Typography>
                 </MenuItem>
             </Menu>
         </Box>
