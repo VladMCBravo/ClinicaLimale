@@ -212,22 +212,37 @@ export default function FinanceiroDashboardView() {
                         </div>
                     </div>
 
-                    {/* Recebimentos */}
+                    {/* --- RECEBIMENTOS (CORRIGIDO AQUI) --- */}
                     <div className="fin-mini-panel">
-                        <div className="fin-chart-title" style={{ marginBottom: 5 }}>RECEBIMENTOS</div>
-                        <div style={{ flex: 1, minHeight: 0 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart layout="vertical" data={dataStatus} margin={{ left: -25, right: 10, bottom: 0, top: 0 }}>
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={60} style={{ fontSize: '0.6rem', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                                    <RechartsTooltip cursor={{fill: 'transparent'}} formatter={formatMoney} />
-                                    <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={8}>
-                                        {dataStatus.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <div className="fin-chart-title" style={{ marginBottom: 10 }}>RECEBIMENTOS</div>
+                        
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {dataStatus.map((item, index) => (
+                                <Box key={index}>
+                                    <Box display="flex" justifyContent="space-between" mb={0.5}>
+                                        <Typography variant="caption" fontWeight="bold" sx={{ color: item.fill, textTransform: 'uppercase' }}>
+                                            {item.name}
+                                        </Typography>
+                                        <Typography variant="caption" fontWeight="bold">
+                                            {formatMoney(item.valor)}
+                                        </Typography>
+                                    </Box>
+                                    <LinearProgress 
+                                        variant="determinate" 
+                                        // Calcula porcentagem relativa ao total (evita divisão por zero)
+                                        value={totalRec > 0 ? (item.valor / totalRec) * 100 : 0} 
+                                        sx={{ 
+                                            height: 8, 
+                                            borderRadius: 4, 
+                                            bgcolor: '#f5f5f5', 
+                                            '& .MuiLinearProgress-bar': { bgcolor: item.fill } 
+                                        }} 
+                                    />
+                                </Box>
+                            ))}
+                        </Box>
                     </div>
+
                 </div>
             </div>
         </div>
