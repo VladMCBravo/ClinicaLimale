@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, IconButton, LinearProgress, Alert } from '@mui/material';
 import { 
     TrendingDown, AccountBalanceWallet, AttachMoney, 
-    Storefront, Refresh, Public, CalendarMonth
+    Storefront, Refresh, Public, CalendarMonth, Box, Typography
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { 
