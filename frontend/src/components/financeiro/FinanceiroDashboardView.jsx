@@ -1,6 +1,6 @@
 // src/components/financeiro/FinanceiroDashboardView.jsx
 import React, { useState, useEffect } from 'react';
-import { Button, IconButton, LinearProgress, Box, Typography } from '@mui/material';
+import { Button, IconButton, LinearProgress, Alert, Box, Typography } from '@mui/material';
 import { 
     TrendingDown, AccountBalanceWallet, AttachMoney, 
     Storefront, Refresh, Public, CalendarMonth
