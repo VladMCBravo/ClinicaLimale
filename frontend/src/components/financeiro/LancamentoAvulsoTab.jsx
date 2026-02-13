@@ -18,7 +18,9 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
     const hasPaciente = !!existingData?.paciente || !!existingData?.paciente_nome;
     
     const [tipo, setTipo] = useState(existingData ? (existingData.tipo || initialType) : initialType);
-    const [jaLiquidado, setJaLiquidado] = useState(existingData ? existingData.pago : true);
+    
+    // CORREÇÃO: Inicia sempre como Pendente (false) se for novo lançamento
+    const [jaLiquidado, setJaLiquidado] = useState(existingData ? existingData.pago : false);
     
     const [categorias, setCategorias] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,8 +49,8 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                 data_pagamento: existingData.data_pagamento ? dayjs(existingData.data_pagamento) : dayjs(),
                 qtd_parcelas: 1
             });
-            // IMPORTANTE: Se o pai mandou pago=true (via botão Check), respeitamos
-            setJaLiquidado(existingData.pago);
+            // Respeita o status que veio da edição/pai
+            setJaLiquidado(existingData.pago || false);
             
             if (!existingData.tipo) {
                 setTipo(existingData.data_despesa ? 'despesa' : 'receita');
@@ -96,8 +98,8 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                 valor: parseFloat(formData.valor),
                 forma_pagamento: formData.forma_pagamento,
                 data_vencimento: dayjs(formData.data_vencimento).format('YYYY-MM-DD'),
-                status: jaLiquidado ? 'Pago' : 'Pendente', // Unifica status
-                pago: jaLiquidado, // Mantém compatibilidade com Despesa
+                status: jaLiquidado ? 'Pago' : 'Pendente', 
+                pago: jaLiquidado, 
                 data_pagamento: jaLiquidado ? dayjs(formData.data_pagamento).format('YYYY-MM-DD') : null,
             };
 
@@ -109,7 +111,6 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                         data_despesa: basePayload.data_vencimento
                     });
                 } else {
-                    // Update Receita (Mantém paciente intacto pois não enviamos o campo paciente)
                     await faturamentoService.updatePagamento(formData.id, basePayload);
                 }
                 showSnackbar('Atualizado com sucesso!', 'success');
@@ -140,6 +141,10 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
         }
     };
 
+    // Arrays de parcelas dinâmicos
+    const parcelasReceita = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const parcelasDespesa = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 36, 48, 64];
+
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
             
@@ -156,7 +161,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                 </Paper>
             )}
 
-            {/* SELETOR DE TIPO (Só mostra se for novo ou não tiver paciente) */}
+            {/* SELETOR DE TIPO */}
             {!isEditing && !hasPaciente && (
                 <Paper elevation={0} sx={{ p: 1, mb: 3, bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center' }}>
                     <ToggleButtonGroup 
@@ -182,7 +187,6 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                             name="descricao" 
                             fullWidth 
                             required 
-                            // Se for paciente, sugerimos não alterar a descrição para manter histórico limpo, mas deixamos editável
                             value={formData.descricao} 
                             onChange={handleChange}
                         />
@@ -206,12 +210,15 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
                                 slotProps={{ textField: { fullWidth: true, required: true } }}
                             />
                             
+                            {/* CORREÇÃO: PARCELAS DINÂMICAS */}
                             {!isEditing && (
                                 <TextField
                                     select label="Parcelas" name="qtd_parcelas"
                                     value={formData.qtd_parcelas} onChange={handleChange} sx={{ minWidth: 100 }}
                                 >
-                                    {[1, 2, 3, 4, 5, 6, 12].map((num) => <MenuItem key={num} value={num}>{num}x</MenuItem>)}
+                                    {(tipo === 'receita' ? parcelasReceita : parcelasDespesa).map((num) => (
+                                        <MenuItem key={num} value={num}>{num}x</MenuItem>
+                                    ))}
                                 </TextField>
                             )}
                         </Box>
