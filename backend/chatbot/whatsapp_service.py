@@ -1,8 +1,9 @@
 import requests
 import logging
 from django.conf import settings
-from .models import Ciclo, Paciente
 from .bot_logic import processar_mensagem_bot
+from pacientes.models import Paciente
+from crm.models import Ciclo
 
 logger = logging.getLogger(__name__)
 
