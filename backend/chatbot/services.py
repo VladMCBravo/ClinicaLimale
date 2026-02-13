@@ -1,5 +1,6 @@
 # chatbot/services.py
 
+import requests
 from usuarios.models import Especialidade
 from faturamento.models import Procedimento
 from django.utils.html import escape
@@ -116,3 +117,11 @@ def get_resposta_preco(nome_servico: str, memoria_atual: dict) -> str:
             f"{nome_usuario_seguro}, nossas consultas particulares geralmente têm valores a partir de R$ 350,00. "
             f"Se você me disser para qual *especialidade* deseja saber o valor, posso te informar o preço exato."
         )
+
+def enviar_msg_whatsapp(numero, texto):
+    # ATUAL: Evolution API
+    # FUTURO: Basta trocar a URL e o Header para os da META
+    url = "https://sua-instancia-evolution.com/message/sendText/limale"
+    headers = {"apikey": "sua_chave_aqui"}
+    payload = {"number": numero, "text": texto}
+    requests.post(url, json=payload, headers=headers)

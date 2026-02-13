@@ -214,3 +214,11 @@ else:
 # 100 * 1024 * 1024 = 104857600 bytes
 DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
 FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
+
+# --- chatbot/settings.py ---
+# Adicionar ao final do arquivo core/settings.py
+
+EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL')
+EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY')
+EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE_NAME')
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')

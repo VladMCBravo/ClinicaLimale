@@ -1,0 +1,41 @@
+services:
+  evolution_db:
+    image: postgres:15
+    container_name: evolution_db
+    restart: always
+    environment:
+      - POSTGRES_DB=evolution
+      - POSTGRES_USER=evolution_user
+      - POSTGRES_PASSWORD=evolution_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evolution_net
+
+  evolution_redis:
+    image: redis:7-alpine
+    container_name: evolution_redis
+    restart: always
+    networks:
+      - evolution_net
+
+  evolution_api:
+    container_name: evolution_api
+    image: atendai/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      - evolution_db
+      - evolution_redis
+    networks:
+      - evolution_net
+
+volumes:
+  postgres_data:
+
+networks:
+  evolution_net:
+    driver: bridge

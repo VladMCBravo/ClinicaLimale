@@ -1,0 +1,19 @@
+version: '3'
+services:
+  evolution-api:
+    container_name: evolution_api
+    image: atendai/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTHENTICATION_API_KEY=Bravotech0510
+      - DATABASE_ENABLED=false
+      - DATABASE_CONNECTION_CLIENT=sqlite
+    volumes:
+      - evolution_store:/evolution/store
+      - evolution_instances:/evolution/instances
+
+volumes:
+  evolution_store:
+  evolution_instances:

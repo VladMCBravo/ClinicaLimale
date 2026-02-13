@@ -1,40 +1,64 @@
 import requests
-import json
+import logging
+from django.conf import settings
+from .models import Ciclo, Paciente
+from .bot_logic import processar_mensagem_bot
 
-# Configurações
-API_URL = "https://evolution.116.203.150.219.nip.io"
-API_KEY = "Bravotech0510"  # A senha que definimos no docker-compose
-HEADERS = {
-    "Content-Type": "application/json",
-    "apikey": API_KEY
-}
+logger = logging.getLogger(__name__)
 
-def criar_instancia_whatsapp(nome_clinica):
-    endpoint = f"{API_URL}/instance/create"
-    payload = {
-        "instanceName": nome_clinica,
-        "token": f"token-{nome_clinica}",
-        "qrcode": True
-    }
-    
-    try:
-        # verify=False é o equivalente ao -k do curl (útil em desenvolvimento)
-        response = requests.post(endpoint, json=payload, headers=HEADERS, verify=False)
-        response.raise_for_status()
-        
-        dados = response.json()
-        print(f"Instância '{nome_clinica}' criada!")
-        
-        # Aqui você pegaria o QR Code para exibir no seu Frontend React
-        if 'qrcode' in dados and 'base64' in dados['qrcode']:
-            return dados['qrcode']['base64']
+class WhatsAppBotHandler:
+    def __init__(self, phone):
+        self.phone = phone
+        # Remove caracteres não numéricos para buscar no banco
+        self.clean_phone = ''.join(filter(str.isdigit, phone))
+        self.paciente, _ = Paciente.objects.get_or_create(telefone_celular=self.clean_phone)
+        # Busca se existe um ciclo de qualquer tipo aberto para este paciente
+        self.ciclo_ativo = Ciclo.objects.filter(paciente=self.paciente, status='ativo').first()
+
+    def enviar_mensagem(self, texto):
+        """Envia a resposta via Evolution API"""
+        if not texto:
+            return
             
-        return dados
+        url = f"{settings.EVOLUTION_API_URL}/message/sendText/{settings.EVOLUTION_INSTANCE}"
+        payload = {
+            "number": self.phone, 
+            "textMessage": {"text": texto}
+        }
+        headers = {"apikey": settings.EVOLUTION_API_KEY}
         
-    except Exception as e:
-        print(f"Erro ao criar instância: {e}")
-        return None
+        try:
+            # verify=False contorna o erro [SSL: TLSV1_UNRECOGNIZED_NAME] visto nos testes
+            response = requests.post(url, json=payload, headers=headers, verify=False, timeout=10)
+            response.raise_for_status()
+            return response
+        except Exception as e:
+            logger.error(f"Erro ao enviar mensagem para {self.phone}: {e}")
+            return None
 
-# Para testar agora mesmo:
-qrcode = criar_instancia_whatsapp("clinica_teste_django")
-print("QR Code Base64 recebido (mande isso pro React exibir):", qrcode[:50], "...")
+    def processar_fluxo(self, texto):
+        """Orquestra entre acolhimento de Pré-Natal ou Agendamento Geral"""
+        msg_lower = texto.lower()
+        
+        # Identifica interesse em gestação para abrir o Ciclo automaticamente
+        palavras_prenatal = ['grávida', 'gravida', 'gestante', 'pré-natal', 'pre-natal', 'dum']
+        if not self.ciclo_ativo and any(p in msg_lower for p in palavras_prenatal):
+            return self.iniciar_acolhimento_gestante()
+
+        # Para todos os outros casos (FAQ, Agendamento, Preço), usa a lógica da IA
+        resultado = processar_mensagem_bot(self.phone, texto)
+        return resultado.get("response_message")
+
+    def iniciar_acolhimento_gestante(self):
+        """Cria o ciclo de GESTACAO e move para Fase F1"""
+        Ciclo.objects.create(
+            paciente=self.paciente, 
+            tipo='GESTACAO', 
+            fase_atual='F1', 
+            status='ativo'
+        )
+        return (
+            "Parabéns por esse momento especial! 🌸 Sou o assistente da Clínica Limale.\n\n"
+            "Identifiquei seu interesse em nosso Pré-Natal. Para começarmos seu acompanhamento, "
+            "qual foi a data da sua última menstruação (DUM)?"
+        )
