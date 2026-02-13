@@ -143,7 +143,7 @@ export default function LancamentoAvulsoTab({ onClose, initialType = 'despesa', 
 
     // Arrays de parcelas dinâmicos
     const parcelasReceita = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const parcelasDespesa = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 36, 48, 64];
+    const parcelasDespesa = Array.from({ length: 72 }, (_, i) => i + 1); // Gera de 1 até 72 direto
 
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
