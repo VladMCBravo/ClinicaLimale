@@ -83,6 +83,52 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             
         return qs
     
+    # ---> ADICIONE ESTE BLOCO AQUI <---
+    def create(self, request, *args, **kwargs):
+        qtd_parcelas = int(request.data.get('qtd_parcelas', 1))
+        
+        if qtd_parcelas <= 1:
+            return super().create(request, *args, **kwargs)
+
+        try:
+            dados = request.data
+            valor_total = float(dados.get('valor', 0))
+            descricao_base = dados.get('descricao', 'Receita')
+            
+            data_base_str = dados.get('data_vencimento')
+            vencimento_base = datetime.strptime(data_base_str, '%Y-%m-%d').date() if data_base_str else timezone.now().date()
+            
+            pago_primeira = str(dados.get('pago', 'false')).lower() == 'true'
+            data_pagamento_str = dados.get('data_pagamento')
+            data_pagamento = datetime.strptime(data_pagamento_str, '%Y-%m-%d').date() if data_pagamento_str else timezone.now().date()
+
+            valor_parcela = round(valor_total / qtd_parcelas, 2)
+            diferenca = round(valor_total - (valor_parcela * qtd_parcelas), 2)
+
+            novos_ids = []
+            with transaction.atomic():
+                for i in range(qtd_parcelas):
+                    data_venc = vencimento_base + relativedelta(months=i)
+                    valor_final = valor_parcela + diferenca if i == 0 else valor_parcela
+                    is_pago = pago_primeira and i == 0
+                    
+                    pagamento = Pagamento.objects.create(
+                        descricao=f"Parc {i+1}/{qtd_parcelas} - {descricao_base}",
+                        valor=valor_final,
+                        forma_pagamento=dados.get('forma_pagamento') if is_pago else None,
+                        status='Pago' if is_pago else 'Pendente',
+                        data_vencimento=data_venc,
+                        data_pagamento=data_pagamento if is_pago else None,
+                        registrado_por=request.user,
+                        paciente_id=dados.get('paciente') 
+                    )
+                    novos_ids.append(pagamento.id)
+
+            return Response({"msg": f"{qtd_parcelas} parcelas geradas!"}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"erro": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    # ---> FIM DO BLOCO ADICIONADO <---
+    
     # === AÇÃO DE RECEBIMENTO (LÓGICA DE DATAS CORRIGIDA) ===
     @action(detail=True, methods=['post'], url_path='receber')
     @transaction.atomic
