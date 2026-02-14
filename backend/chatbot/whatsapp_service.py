@@ -10,11 +10,16 @@ logger = logging.getLogger(__name__)
 class WhatsAppBotHandler:
     def __init__(self, phone):
         self.phone = phone
-        # Remove caracteres não numéricos para buscar no banco
         self.clean_phone = ''.join(filter(str.isdigit, phone))
-        self.paciente, _ = Paciente.objects.get_or_create(telefone_celular=self.clean_phone)
-        # Busca se existe um ciclo de qualquer tipo aberto para este paciente
-        self.ciclo_ativo = Ciclo.objects.filter(paciente=self.paciente, status='ativo').first()
+        
+        # AGORA É SÓ BUSCA: Ele apenas PROCURA. Se não achar, paciente fica None.
+        self.paciente = Paciente.objects.filter(telefone_celular=self.clean_phone).first()
+        
+        # Só busca o ciclo se o paciente existir
+        if self.paciente:
+            self.ciclo_ativo = Ciclo.objects.filter(paciente=self.paciente, status='ativo').first()
+        else:
+            self.ciclo_ativo = None
 
     def enviar_mensagem(self, texto):
         """Envia a resposta via Evolution API"""

@@ -112,28 +112,54 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
              nome_candidato = None
              msg_lower = user_message.lower().strip()
              
-             # Tenta padrões comuns
              padroes = [
                  r"me chamo (\w+)", 
                  r"meu nome é (\w+)", 
                  r"sou o? (\w+)"
              ]
-             import re # Garanta que 're' está importado no início do arquivo
+             import re
              for padrao in padroes:
                  match = re.search(padrao, msg_lower)
                  if match:
                      nome_candidato = match.group(1).title()
                      break
              
-             # Se não achou em padrões, pega a última palavra (ou a única)
              if not nome_candidato:
                   partes = user_message.strip().title().split(' ')
                   if partes:
-                      nome_candidato = partes[-1] # Pega a última palavra
+                      nome_candidato = partes[-1]
 
-             # Validação simples (pelo menos 3 letras)
              if nome_candidato and len(nome_candidato) >= 3 and nome_candidato.isalpha():
                  memoria_atual['nome_usuario'] = nome_candidato
+                 
+                 # --- [NOVO] CRIAÇÃO DO PACIENTE E DO CICLO APÓS DESCOBRIR O NOME ---
+                 from pacientes.models import Paciente
+                 from crm.models import Ciclo
+                 from datetime import date
+                 
+                 # Cria o paciente (usando uma data 'fantasma' temporária para passar pela validação do banco)
+                 # Usamos 1900-01-01 como padrão. Você pode pedir a data real depois em outro fluxo.
+                 paciente, criado = Paciente.objects.get_or_create(
+                     telefone_celular=session_id, # Assumindo que session_id é o telefone
+                     defaults={
+                         'nome_completo': nome_candidato,
+                         'data_nascimento': date(1900, 1, 1) # <--- Data de nascimento temporária "fantasma"
+                     }
+                 )
+                 
+                 # Atualiza o nome se o paciente já existia com outro nome
+                 if not criado and paciente.nome_completo != nome_candidato:
+                     paciente.nome_completo = nome_candidato
+                     paciente.save()
+
+                 # Cria o Ciclo Inicial (F1 - Entrada) atrelado a este paciente
+                 ciclo, _ = Ciclo.objects.get_or_create(
+                     paciente=paciente,
+                     status='ativo',
+                     defaults={'tipo': 'OUTRO', 'fase_atual': 'F1'}
+                 )
+                 # ------------------------------------------------------------------
+
                  resultado = {"response_message": f"Prazer, {nome_candidato}! Como posso te direcionar ao melhor cuidado hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
              else:
                  resultado = {"response_message": "Não entendi bem. Por favor, qual o seu primeiro nome?", "new_state": 'aguardando_nome', "memory_data": {}}
