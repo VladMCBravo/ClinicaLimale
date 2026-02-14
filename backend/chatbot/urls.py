@@ -14,6 +14,7 @@ from .views import (
     ListarEspecialidadesView,
     ListarMedicosPorEspecialidadeView,
     ListarConversasAtivasView,
+    EvolutionWebhookView,
 )
 from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
 from . import views
@@ -41,4 +42,5 @@ urlpatterns = [
     path('dashboard/metricas/', ChatbotDashboardView.as_view(), name='chatbot_dashboard'),
     path('dashboard/health/', ChatbotHealthCheckView.as_view(), name='chatbot_health'),
     path('conversas-ativas/', ListarConversasAtivasView.as_view(), name='listar_conversas_ativas'),
+    path('webhook/evolution/', EvolutionWebhookView.as_view(), name='webhook_evolution'),
 ]
