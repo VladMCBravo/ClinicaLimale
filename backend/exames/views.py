@@ -64,13 +64,16 @@ class UploadExameView(APIView):
                 status='ativo'
             ).order_by('-data_inicio').first()
 
-        # 3. CRIAÇÃO DO EXAME
-        exame = Exame.objects.create(
-            paciente=paciente_encontrado,
-            data_exame=data_str,
+        # 3. CRIAÇÃO OU RECUPERAÇÃO DO EXAME (Escudo Antiduplicação)
+        # Em vez de create(), usamos get_or_create para buscar a pasta primeiro
+        exame, created = Exame.objects.get_or_create(
             nome_paciente_pasta=nome_pasta,
-            status='DISPONIVEL' if paciente_encontrado else 'PENDENTE',
-            ciclo=ciclo_ativo # <--- AQUI ESTÁ A MÁGICA
+            data_exame=data_str,
+            defaults={
+                'paciente': paciente_encontrado,
+                'status': 'DISPONIVEL' if paciente_encontrado else 'PENDENTE',
+                'ciclo': ciclo_ativo
+            }
         )
         # --- A PONTE MÁGICA PARA APARECER NO HISTÓRICO ---
         if paciente_encontrado:
@@ -81,25 +84,28 @@ class UploadExameView(APIView):
                 status='FINALIZADO'
             )
 
-        # 4. SALVAMENTO DOS ARQUIVOS
+        # 4. SALVAMENTO DOS ARQUIVOS SEM DUPLICAR
         count_imgs = 0
         for f in files:
-            # Detecção simples de tipo
             ext = f.name.lower().split('.')[-1]
             tipo = 'IMAGEM'
             if ext in ['mp4', 'avi', 'mov', 'mkv']: tipo = 'VIDEO'
             elif ext in ['pdf']: tipo = 'LAUDO'
             
-            ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
-            count_imgs += 1
+            # Verifica se essa imagem/arquivo já foi salva neste exame para não clonar
+            if not ArquivoExame.objects.filter(exame=exame, arquivo__icontains=f.name).exists():
+                ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
+                count_imgs += 1
 
+        # Responde informando se criou um novo ou atualizou um existente
         return Response({
             'status': 'sucesso',
             'exame_id': exame.id,
-            'arquivos_salvos': count_imgs,
+            'acao': 'criado' if created else 'atualizado',
+            'arquivos_salvos_agora': count_imgs,
             'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO",
             'crm_vinculado': f"Ciclo {ciclo_ativo.tipo}" if ciclo_ativo else "Sem ciclo ativo"
-        }, status=status.HTTP_201_CREATED)
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 class AcessarResultadosView(APIView):
     """

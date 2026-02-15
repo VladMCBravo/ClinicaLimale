@@ -65,7 +65,8 @@ def processar_pasta(caminho_pasta, nome_pasta):
         # Timeout aumentado para 180s (3 min) para exames grandes
         resposta = requests.post(URL_API, data=dados, files=arquivos_para_enviar, timeout=180)
         
-        if resposta.status_code == 201:
+        # Aceita 201 (Criado) e 200 (Atualizado/Bloqueado por duplicidade)
+        if resposta.status_code in [200, 201]:
             print("✅ Sucesso! Exame salvo na nuvem.")
             sucesso = True
         else:
