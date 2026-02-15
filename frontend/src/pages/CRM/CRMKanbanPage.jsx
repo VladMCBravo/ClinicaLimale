@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress, IconButton, 
-  Grid, TextField, InputAdornment, Paper, Button
+  Grid, TextField, InputAdornment, Paper
 } from '@mui/material';
-import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt, FaSearch } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
 
@@ -20,7 +20,7 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
 export default function CRMKanbanPage() {
   const [rawData, setRawData] = useState({ F1: [], F2: [], F3: [], F4: [], F5: [] });
   const [loading, setLoading] = useState(true);
-  const [activePhase, setActivePhase] = useState('F2'); // Começa mostrando os Agendados
+  const [activePhase, setActivePhase] = useState('F2'); 
   const [searchTerm, setSearchTerm] = useState('');
   
   const [modalOpen, setModalOpen] = useState(false);
@@ -60,7 +60,6 @@ export default function CRMKanbanPage() {
     window.open(`https://wa.me/55${cleanNum}?text=Olá ${nome}, tudo bem? Falamos da Clínica Limalé.`, '_blank');
   };
 
-  // Filtra os cards da fase ativa baseada na pesquisa de texto
   const displayedCards = useMemo(() => {
     const cards = rawData[activePhase] || [];
     if (!searchTerm) return cards;
@@ -75,25 +74,25 @@ export default function CRMKanbanPage() {
   if (loading) return <LinearProgress />;
 
   return (
-    <Box sx={{ p: 2, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
+    <Box sx={{ p: 1.5, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
       
-      {/* CABEÇALHO E FILTROS */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
+      {/* CABEÇALHO COMPACTO */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>
           Gestão de Pacientes (CRM)
         </Typography>
         <TextField 
           size="small"
-          placeholder="Buscar paciente ou especialidade..."
+          placeholder="Buscar..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ bgcolor: 'white', borderRadius: 1, width: '300px' }}
-          InputProps={{ startAdornment: <InputAdornment position="start"><FaSearch color="#999" /></InputAdornment> }}
+          sx={{ bgcolor: 'white', borderRadius: 1, width: '250px', '& .MuiInputBase-input': { p: 1, fontSize: '0.8rem' } }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><FaSearch size={12} color="#999" /></InputAdornment> }}
         />
       </Box>
 
-      {/* DASHBOARD DE FASES (Botões clicáveis) */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
+      {/* DASHBOARD TOP (Cards menores) */}
+      <Grid container spacing={1} sx={{ mb: 2 }}>
         {PHASES.map((phase) => {
           const count = rawData[phase.id]?.length || 0;
           const totalValue = rawData[phase.id]?.reduce((acc, item) => acc + (parseFloat(item.receita_acumulada) || 0), 0) || 0;
@@ -102,10 +101,10 @@ export default function CRMKanbanPage() {
           return (
             <Grid item xs={12} sm={6} md={2.4} key={phase.id}>
               <Paper 
-                elevation={isActive ? 6 : 1}
+                elevation={isActive ? 4 : 1}
                 onClick={() => setActivePhase(phase.id)}
                 sx={{ 
-                  p: 2, 
+                  p: 1, 
                   cursor: 'pointer', 
                   bgcolor: isActive ? phase.color : 'white',
                   borderTop: `4px solid ${phase.border}`,
@@ -113,9 +112,9 @@ export default function CRMKanbanPage() {
                   transform: isActive ? 'scale(1.02)' : 'none'
                 }}
               >
-                <Typography variant="subtitle2" sx={{ color: '#555', fontWeight: 'bold' }}>{phase.title}</Typography>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', my: 1, color: '#333' }}>{count}</Typography>
-                <Typography variant="caption" sx={{ color: '#666', fontWeight: 600 }}>
+                <Typography noWrap variant="subtitle2" sx={{ color: '#555', fontWeight: 'bold', fontSize: '0.75rem' }}>{phase.title}</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', my: 0.5, color: '#333', lineHeight: 1 }}>{count}</Typography>
+                <Typography variant="caption" sx={{ color: '#666', fontWeight: 600, fontSize: '0.65rem' }}>
                   Previsão: {formatMoney(totalValue)}
                 </Typography>
               </Paper>
@@ -124,74 +123,76 @@ export default function CRMKanbanPage() {
         })}
       </Grid>
 
-      {/* LISTA DE CARDS DA FASE SELECIONADA */}
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#444' }}>
+      {/* LISTA DE CARDS COMPACTA */}
+      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#444' }}>
         {PHASES.find(p => p.id === activePhase)?.title} ({displayedCards.length})
       </Typography>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={1}>
         {displayedCards.map((ciclo) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={ciclo.id}>
+          <Grid item xs={12} sm={6} md={4} lg={3} xl={2.4} key={ciclo.id}>
             <Card 
               elevation={1} 
-              sx={{ borderRadius: 2, borderLeft: `4px solid ${PHASES.find(p=>p.id === activePhase).border}`, cursor: 'pointer', '&:hover': { boxShadow: 3 } }}
+              sx={{ borderRadius: 1, borderLeft: `4px solid ${PHASES.find(p=>p.id === activePhase).border}`, cursor: 'pointer', '&:hover': { boxShadow: 3 } }}
               onClick={() => handleOpenDetalhes(ciclo.id)}
             >
-              <CardContent sx={{ p: '12px !important' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <Avatar sx={{ bgcolor: '#eee', color: '#333', width: 28, height: 28, mr: 1, fontWeight: 'bold', fontSize: '0.9rem' }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
+                
+                {/* CABEÇALHO DO CARD */}
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                  <Avatar sx={{ bgcolor: '#eee', color: '#333', width: 22, height: 22, mr: 0.5, fontWeight: 'bold', fontSize: '0.7rem' }}>
                     {ciclo.paciente_nome?.charAt(0)}
                   </Avatar>
-                  <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'bold', flexGrow: 1, lineHeight: 1.1 }}>
+                  <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', flexGrow: 1, fontSize: '0.75rem', lineHeight: 1 }}>
                     {ciclo.paciente_nome}
                   </Typography>
-                  <IconButton size="small" sx={{ bgcolor: '#e8f5e9' }} onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}>
-                    <FaWhatsapp color="#25D366" size={14} />
+                  <IconButton size="small" sx={{ bgcolor: '#e8f5e9', p: 0.3 }} onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}>
+                    <FaWhatsapp color="#25D366" size={12} />
                   </IconButton>
                 </Box>
 
-                {/* VOLTA DA TAG DE GESTAÇÃO (Semanas + Dias) */}
-                {ciclo.tipo === 'GESTACAO' && ciclo.idade_gestacional && (
-                  <Box sx={{ mb: 1 }}>
-                    <Chip 
-                      label={ciclo.idade_gestacional} 
-                      size="small" 
-                      sx={{ bgcolor: '#ffe0b2', color: '#e65100', fontWeight: 'bold', borderRadius: 1 }} 
-                    />
-                  </Box>
+                {/* VOLTA DO ALERTA CLÍNICO / GESTAÇÃO (IDÊNTICO AO ORIGINAL) */}
+                {ciclo.alerta_clinico && (
+                    <Box sx={{ bgcolor: ciclo.alerta_clinico.prioridade === 'urgente' ? '#ffebee' : '#fff8e1', color: ciclo.alerta_clinico.prioridade === 'urgente' ? '#c62828' : '#f57f17', borderRadius: 1, px: 0.5, py: 0.2, mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.65rem', fontWeight: 'bold' }}>
+                        <Typography variant="inherit">{ciclo.idade_gestacional || `${ciclo.alerta_clinico.semanas} sem`}</Typography>
+                        <Typography variant="inherit" noWrap>• {ciclo.alerta_clinico.texto}</Typography>
+                    </Box>
                 )}
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, color: '#666' }}>
+                {/* DATA E PROCEDIMENTO */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, color: '#666' }}>
                   {ciclo.dados_agendamento ? (
                     <>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <FaRegCalendarAlt size={12} />
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                        <FaRegCalendarAlt size={10} />
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
                           {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
                         </Typography>
                       </Box>
-                      <Typography noWrap sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#333', maxWidth: '60%' }}>
+                      <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#333', maxWidth: '65%' }}>
                         {ciclo.dados_agendamento.procedimento || ciclo.tipo}
                       </Typography>
                     </>
                   ) : (
-                    <Chip label="Sem Agendamento" size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
+                    <Typography sx={{ fontSize: '0.65rem', fontStyle: 'italic', color: '#999' }}>Sem agendamento</Typography>
                   )}
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1, pt: 1, borderTop: '1px dashed #ddd', color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>
-                  {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={12} />}
-                  <Typography noWrap sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                    {ciclo.proxima_acao_imediata?.descricao || "Sem próxima ação definida"}
+                {/* PRÓXIMA AÇÃO */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>
+                  {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={10} />}
+                  <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                    {ciclo.proxima_acao_imediata?.descricao || "Definir próxima ação"}
                   </Typography>
                 </Box>
+
               </CardContent>
             </Card>
           </Grid>
         ))}
         {displayedCards.length === 0 && (
-          <Box sx={{ p: 4, width: '100%', textAlign: 'center', color: '#999' }}>
-            Nenhum paciente encontrado nesta fase.
+          <Box sx={{ p: 4, width: '100%', textAlign: 'center', color: '#999', fontSize: '0.85rem' }}>
+            Nenhum paciente nesta fase.
           </Box>
         )}
       </Grid>
