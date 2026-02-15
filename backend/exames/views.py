@@ -109,10 +109,10 @@ class UploadExameView(APIView):
 
 class AcessarResultadosView(APIView):
     """
-    API pública para o paciente acessar seus exames via Código e Senha.
-    AGORA RETORNA UMA LINHA DO TEMPO (HISTÓRICO COMPLETO).
+    API pública para o paciente acessar seus exames.
+    Aceita tanto logins antigos (EX-) quanto novos (PCT-) e retorna a Linha do Tempo completa.
     """
-    permission_classes = [AllowAny] # Garante que não precisa de token
+    permission_classes = [AllowAny] 
 
     def post(self, request):
         codigo = request.data.get('codigo') or request.data.get('codigo_acesso')
@@ -121,50 +121,73 @@ class AcessarResultadosView(APIView):
         if not codigo or not senha:
             return Response({'erro': 'Código e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Importa a model Laudo, que é a nova fonte da verdade das senhas
         from prontuario.models import Laudo
-        
-        # 1. Busca TODOS os laudos que possuem essa mesma senha
-        laudos = Laudo.objects.filter(codigo_acesso__iexact=codigo, senha_acesso=senha).order_by('-data_criacao')
+        from exames.models import Exame
+        paciente_encontrado = None
 
-        if not laudos.exists():
+        # 1. TENTA ACHA A SENHA NA TABELA NOVA (Laudos - Senha Única)
+        laudo_match = Laudo.objects.filter(codigo_acesso__iexact=codigo, senha_acesso=senha).first()
+        if laudo_match and laudo_match.paciente:
+            paciente_encontrado = laudo_match.paciente
+        
+        # 2. SE NÃO ACHOU, TENTA NA TABELA ANTIGA (Exames)
+        if not paciente_encontrado:
+            exame_match = Exame.objects.filter(codigo_acesso__iexact=codigo, senha_acesso=senha).first()
+            if exame_match and exame_match.paciente:
+                paciente_encontrado = exame_match.paciente
+
+        # 3. SE AINDA NÃO ACHOU, BARRA O ACESSO
+        if not paciente_encontrado:
             return Response({'erro': 'Credenciais inválidas ou exame não encontrado.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 2. Pega o nome do paciente
-        paciente_nome = laudos.first().paciente.nome_completo if laudos.first().paciente else "Paciente"
-
-        # 3. Monta o Histórico (Linha do Tempo)
+        # 4. MONTA A LINHA DO TEMPO COMPLETA DO PACIENTE
         historico = []
+        exames_ja_listados = set() # Evita duplicar fotos que já estão dentro do laudo
+
+        # A) Pega todos os laudos finalizados
+        laudos = Laudo.objects.filter(paciente=paciente_encontrado).order_by('-data_criacao')
         for laudo in laudos:
             arquivos_data = []
-            
-            # A) Anexa o PDF do Laudo gerado pelo médico
             if laudo.arquivo_pdf:
-                arquivos_data.append({
-                    'id': f"pdf_{laudo.id}",
-                    'tipo': 'LAUDO',
-                    'url': laudo.arquivo_pdf.url
-                })
-                
-            # B) Anexa Imagens/Vídeos do ultrassom (se estiver vinculado)
+                arquivos_data.append({'id': f"pdf_{laudo.id}", 'tipo': 'LAUDO', 'url': laudo.arquivo_pdf.url})
+            
+            # Puxa as imagens se tiver um exame de ultrassom amarrado
             if hasattr(laudo, 'exame') and laudo.exame:
+                exames_ja_listados.add(laudo.exame.id)
                 for arq in laudo.exame.arquivos.all():
-                    arquivos_data.append({
-                        'id': arq.id,
-                        'tipo': arq.tipo,
-                        'url': arq.arquivo.url
-                    })
+                    arquivos_data.append({'id': arq.id, 'tipo': arq.tipo, 'url': arq.arquivo.url})
 
             historico.append({
-                'id': laudo.id,
-                'data_exame': laudo.data_criacao.strftime('%Y-%m-%dT%H:%M:%S'), # Formato seguro para o Javascript
-                'titulo': laudo.titulo_exame or "Exame de Imagem",
-                'medico': laudo.medico_responsavel or (laudo.medico.get_full_name() if laudo.medico else "Clínica"),
+                'id': f"L_{laudo.id}",
+                'data_exame': laudo.data_criacao.strftime('%Y-%m-%dT%H:%M:%S'),
+                'titulo': laudo.titulo_exame or "Laudo Médico",
+                'medico': laudo.medico_responsavel or (laudo.medico.get_full_name() if laudo.medico else "Clínica Limalé"),
                 'arquivos': arquivos_data
             })
 
+        # B) Pega exames antigos "soltos" (que o robô subiu mas não tem laudo em texto)
+        exames_soltos = Exame.objects.filter(paciente=paciente_encontrado, status='DISPONIVEL').exclude(id__in=exames_ja_listados)
+        for exame in exames_soltos:
+            arquivos_data = []
+            for arq in exame.arquivos.all():
+                arquivos_data.append({'id': arq.id, 'tipo': arq.tipo, 'url': arq.arquivo.url})
+            
+            if arquivos_data:
+                # Trata formatação caso a data venha como string ou Date
+                data_str = exame.data_exame.strftime('%Y-%m-%dT%H:%M:%S') if hasattr(exame.data_exame, 'strftime') else f"{exame.data_exame}T00:00:00"
+                historico.append({
+                    'id': f"E_{exame.id}",
+                    'data_exame': data_str,
+                    'titulo': "Imagens de Exame (Sem Laudo)",
+                    'medico': "Clínica Limalé",
+                    'arquivos': arquivos_data
+                })
+
+        # C) Ordena tudo do mais recente para o mais antigo
+        historico.sort(key=lambda x: x['data_exame'], reverse=True)
+
         return Response({
-            'paciente': paciente_nome,
+            'paciente': paciente_encontrado.nome_completo,
             'historico': historico
         })
 
