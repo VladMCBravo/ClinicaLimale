@@ -34,15 +34,29 @@ export default function CRMKanbanPage() {
     try {
       setLoading(true);
       const response = await crmService.getKanban();
+      
+      // LOG DE DEBUG: Olhe o F12 (Console) do seu navegador para ver os dados puros!
+      console.log("🔍 [DEBUG] Dados recebidos do Backend CRM:", response.data);
+
+      const sortCronologico = (lista) => {
+        return lista.sort((a, b) => {
+          // ORDEM CRONOLÓGICA: Pega a data do agendamento ou a data de criação.
+          // dataA - dataB significa do MAIS ANTIGO para o MAIS NOVO.
+          const dateA = a.dados_agendamento?.data ? new Date(a.dados_agendamento.data) : new Date(a.data_inicio || 0);
+          const dateB = b.dados_agendamento?.data ? new Date(b.dados_agendamento.data) : new Date(b.data_inicio || 0);
+          return dateA - dateB; 
+        });
+      };
+
       setRawData({
-        F1: response.data.F1 || [],
-        F2: response.data.F2 || [],
-        F3: response.data.F3 || [],
-        F4: response.data.F4 || [],
-        F5: response.data.F5 || []
+        F1: sortCronologico(response.data.F1 || []),
+        F2: sortCronologico(response.data.F2 || []),
+        F3: sortCronologico(response.data.F3 || []),
+        F4: sortCronologico(response.data.F4 || []),
+        F5: sortCronologico(response.data.F5 || [])
       });
     } catch (error) {
-      console.error("Erro ao carregar CRM", error);
+      console.error("❌ Erro ao carregar CRM", error);
     } finally {
       setLoading(false);
     }
@@ -76,7 +90,6 @@ export default function CRMKanbanPage() {
   return (
     <Box sx={{ p: 1.5, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
       
-      {/* CABEÇALHO COMPACTO */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>
           Gestão de Pacientes (CRM)
@@ -91,7 +104,6 @@ export default function CRMKanbanPage() {
         />
       </Box>
 
-      {/* DASHBOARD TOP (Cards menores) */}
       <Grid container spacing={1} sx={{ mb: 2 }}>
         {PHASES.map((phase) => {
           const count = rawData[phase.id]?.length || 0;
@@ -123,7 +135,6 @@ export default function CRMKanbanPage() {
         })}
       </Grid>
 
-      {/* LISTA DE CARDS COMPACTA */}
       <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#444' }}>
         {PHASES.find(p => p.id === activePhase)?.title} ({displayedCards.length})
       </Typography>
@@ -138,7 +149,6 @@ export default function CRMKanbanPage() {
             >
               <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px !important' } }}>
                 
-                {/* CABEÇALHO DO CARD */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                   <Avatar sx={{ bgcolor: '#eee', color: '#333', width: 22, height: 22, mr: 0.5, fontWeight: 'bold', fontSize: '0.7rem' }}>
                     {ciclo.paciente_nome?.charAt(0)}
@@ -151,15 +161,21 @@ export default function CRMKanbanPage() {
                   </IconButton>
                 </Box>
 
-                {/* VOLTA DO ALERTA CLÍNICO / GESTAÇÃO (IDÊNTICO AO ORIGINAL) */}
+                {/* VOLTA DA GESTAÇÃO - INDEPENDENTE DO CAMPO 'TIPO' */}
                 {ciclo.alerta_clinico && (
-                    <Box sx={{ bgcolor: ciclo.alerta_clinico.prioridade === 'urgente' ? '#ffebee' : '#fff8e1', color: ciclo.alerta_clinico.prioridade === 'urgente' ? '#c62828' : '#f57f17', borderRadius: 1, px: 0.5, py: 0.2, mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.65rem', fontWeight: 'bold' }}>
-                        <Typography variant="inherit">{ciclo.idade_gestacional || `${ciclo.alerta_clinico.semanas} sem`}</Typography>
-                        <Typography variant="inherit" noWrap>• {ciclo.alerta_clinico.texto}</Typography>
+                    <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        <Typography variant="inherit">{ciclo.alerta_clinico.semanas} sem</Typography>
+                        {ciclo.alerta_clinico.texto && <Typography variant="inherit" noWrap>• {ciclo.alerta_clinico.texto}</Typography>}
+                    </Box>
+                )}
+                
+                {/* Fallback caso não tenha alerta, mas tenha idade_gestacional simples */}
+                {!ciclo.alerta_clinico && ciclo.idade_gestacional && (
+                    <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, display: 'inline-flex', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        <Typography variant="inherit">{ciclo.idade_gestacional}</Typography>
                     </Box>
                 )}
 
-                {/* DATA E PROCEDIMENTO */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, color: '#666' }}>
                   {ciclo.dados_agendamento ? (
                     <>
@@ -178,7 +194,6 @@ export default function CRMKanbanPage() {
                   )}
                 </Box>
 
-                {/* PRÓXIMA AÇÃO */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>
                   {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={10} />}
                   <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 600 }}>

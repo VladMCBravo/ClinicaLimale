@@ -36,7 +36,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
       const res = await crmService.getCicloDetalhe(cicloId);
       let dadosFinais = res.data;
 
-      // Puxa DUM extra se precisar
+      // Puxa DUM
       let pacienteId = dadosFinais.paciente?.id || dadosFinais.paciente || dadosFinais.paciente_id;
       if (pacienteId) {
           try {
@@ -50,7 +50,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
       setDum(dadosFinais.dum ? dadosFinais.dum.split('T')[0] : '');
 
     } catch (error) {
-        console.error("Erro ao carregar", error);
+        console.error("Erro ao carregar detalhes", error);
     } finally {
         setLoading(false);
     }
@@ -90,18 +90,16 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
     } catch (error) { console.error("Erro", error); }
   };
 
-  // --- CONSTRUTOR DE LINHA DO TEMPO INTELIGENTE (CORRIGIDO) ---
+  // --- CONSTRUTOR DE LINHA DO TEMPO (ERRO DO APPEND CORRIGIDO) ---
   const renderTimeline = () => {
     if (!detalhes) return null;
-    let eventos = [];
+    let eventos = []; // Array do Javascript!
 
-    // Adiciona o Cadastro do Ciclo
     if (detalhes.data_inicio) {
-        // CORREÇÃO: Usar .push() no JavaScript, não .append()
+        // CORREÇÃO: push no lugar de append
         eventos.push({ data: detalhes.data_inicio, tipo: 'info', texto: 'Paciente ingressou no Funil CRM' });
     }
 
-    // Puxa do backend os Agendamentos
     if (detalhes.agendamentos && Array.isArray(detalhes.agendamentos)) {
         detalhes.agendamentos.forEach(ag => {
             eventos.push({
@@ -112,7 +110,6 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
         });
     }
 
-    // Ordena do mais recente para o mais antigo
     eventos.sort((a, b) => new Date(b.data) - new Date(a.data));
 
     return (
@@ -155,29 +152,27 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
               <Chip label={detalhes.tipo} variant="outlined" size="small" />
             </Box>
 
-            {/* VOLTA DO LAYOUT ORIGINAL DA DUM */}
-            {(detalhes.tipo === 'GESTACAO' || detalhes.tipo === 'OBSTETRÍCIA') && (
-                <Box sx={{ backgroundColor: '#e3f2fd', p: 1.5, borderRadius: 2, mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 1 }}>
-                        🤰 Calculadora Gestacional
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <TextField 
-                            label="DUM (Data Última Menstruação)" type="date" size="small" fullWidth
-                            InputLabelProps={{ shrink: true }} value={dum} onChange={(e) => setDum(e.target.value)}
-                            sx={{ bgcolor: 'white' }}
-                        />
-                        <Button variant="contained" size="medium" sx={{ minWidth: '40px', px: 2 }} onClick={handleSalvarDum}>
-                            <FaSave />
-                        </Button>
-                    </Box>
-                    {detalhes.idade_gestacional && (
-                        <Typography variant="body2" sx={{ mt: 1, color: '#0d47a1' }}>
-                            <strong>Idade Atual:</strong> {detalhes.idade_gestacional}
-                        </Typography>
-                    )}
+            {/* DUM E GESTAÇÃO - AGORA SEMPRE VISÍVEL (SEM TRAVA) */}
+            <Box sx={{ backgroundColor: '#e3f2fd', p: 1.5, borderRadius: 2, mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 1 }}>
+                    🤰 Calculadora Gestacional / DUM
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <TextField 
+                        label="DUM (Data Última Menstruação)" type="date" size="small" fullWidth
+                        InputLabelProps={{ shrink: true }} value={dum} onChange={(e) => setDum(e.target.value)}
+                        sx={{ bgcolor: 'white' }}
+                    />
+                    <Button variant="contained" size="medium" sx={{ minWidth: '40px', px: 2 }} onClick={handleSalvarDum}>
+                        <FaSave />
+                    </Button>
                 </Box>
-            )}
+                {detalhes.idade_gestacional && (
+                    <Typography variant="body2" sx={{ mt: 1, color: '#0d47a1' }}>
+                        <strong>Idade Atual calculada pelo sistema:</strong> {detalhes.idade_gestacional}
+                    </Typography>
+                )}
+            </Box>
 
             <Divider sx={{ my: 1.5 }} />
 
