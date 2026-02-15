@@ -19,9 +19,10 @@ export default function ModalVincularExame({ open, onClose, paciente, onSuccess 
   const fetchPendentes = async () => {
     setLoading(true);
     try {
-      // Chama a rota que você já criou: ListarExamesPendentesView
       const res = await apiClient.get('/exames/pendentes/'); 
-      setExamesPendentes(res.data);
+      // NOVO: Lê os dados corretamente mesmo se houver paginação
+      const dados_seguros = Array.isArray(res.data) ? res.data : (res.data.results || []);
+      setExamesPendentes(dados_seguros);
     } catch (error) {
       console.error("Erro ao buscar pendentes", error);
     } finally {

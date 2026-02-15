@@ -13,6 +13,8 @@ from rest_framework.generics import ListAPIView, UpdateAPIView
 from .serializers import ExameSerializer
 import boto3
 from django.conf import settings
+from prontuario.models import Laudo
+import re  # Para ajudar a limpar os números do nome da pasta
 
 class UploadExameView(APIView):
     """
@@ -35,7 +37,8 @@ class UploadExameView(APIView):
 
         # 1. BUSCA INTELIGENTE DA PACIENTE
         paciente_encontrado = None
-        nome_limpo = nome_pasta.replace('_', ' ').strip()
+        # NOVO: Remove os números e traços do início (ex: "11022026-5_ARAUJO" vira "ARAUJO")
+        nome_limpo = re.sub(r'^[0-9-]+\s*_?', '', nome_pasta).replace('_', ' ').strip()
         
         # Tenta busca exata
         pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
@@ -69,6 +72,14 @@ class UploadExameView(APIView):
             status='DISPONIVEL' if paciente_encontrado else 'PENDENTE',
             ciclo=ciclo_ativo # <--- AQUI ESTÁ A MÁGICA
         )
+        # --- A PONTE MÁGICA PARA APARECER NO HISTÓRICO ---
+        if paciente_encontrado:
+            Laudo.objects.create(
+                paciente=paciente_encontrado,
+                exame=exame,
+                titulo_exame=f"Exames Anexados (Auto): {nome_limpo}",
+                status='FINALIZADO'
+            )
 
         # 4. SALVAMENTO DOS ARQUIVOS
         count_imgs = 0
@@ -177,6 +188,16 @@ class VincularPacienteView(APIView):
         exame.paciente = paciente
         exame.status = 'DISPONIVEL'
         exame.save()
+        
+        # --- A PONTE MÁGICA DO VÍNCULO MANUAL ---
+        Laudo.objects.get_or_create(
+            exame=exame,
+            defaults={
+                'paciente': paciente,
+                'titulo_exame': f"Exames Anexados (Manual): {exame.nome_paciente_pasta}",
+                'status': 'FINALIZADO'
+            }
+        )
         
         return Response({'status': 'vínculo realizado', 'paciente': paciente.nome_completo})
 
