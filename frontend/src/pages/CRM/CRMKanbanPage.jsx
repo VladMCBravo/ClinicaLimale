@@ -5,13 +5,12 @@ import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt } from 'react-icons
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
 
-// --- NOVA CONFIGURAÇÃO VISUAL DAS COLUNAS (5 FASES) ---
 const COLUMNS = {
-  'F1': { title: '1. Novos Leads', color: '#e3f2fd', border: '#90caf9' }, // Azul
-  'F2': { title: '2. Agendados', color: '#e8f5e9', border: '#a5d6a7' },   // Verde
-  'F3': { title: '3. Pós-Atendimento', color: '#fff3e0', border: '#ffcc80' }, // Laranja
-  'F4': { title: '4. Retenção / Retorno', color: '#f3e5f5', border: '#ce93d8' }, // Roxo
-  'F5': { title: '5. Recuperação (Faltas)', color: '#ffebee', border: '#ef5350' } // Vermelho
+  'F1': { title: '1. Novos Leads', color: '#e3f2fd', border: '#90caf9' }, 
+  'F2': { title: '2. Agendados', color: '#e8f5e9', border: '#a5d6a7' },   
+  'F3': { title: '3. Pós-Atendimento', color: '#fff3e0', border: '#ffcc80' }, 
+  'F4': { title: '4. Retenção / Retorno', color: '#f3e5f5', border: '#ce93d8' }, 
+  'F5': { title: '5. Recuperação (Faltas)', color: '#ffebee', border: '#ef5350' } 
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
@@ -31,7 +30,6 @@ export default function CRMKanbanPage() {
       const response = await crmService.getKanban();
       const rawData = response.data;
 
-      // Ordenação: Mais urgentes no topo
       const sortCiclos = (lista) => {
         return lista.sort((a, b) => {
           const dateA = a.dados_agendamento ? new Date(a.dados_agendamento.data) : new Date(9999, 11, 31);
@@ -45,7 +43,7 @@ export default function CRMKanbanPage() {
         F2: sortCiclos(rawData.F2 || []),
         F3: sortCiclos(rawData.F3 || []),
         F4: sortCiclos(rawData.F4 || []),
-        F5: sortCiclos(rawData.F5 || []) // Nova coluna F5
+        F5: sortCiclos(rawData.F5 || [])
       }); 
     } catch (error) {
       console.error("Erro ao carregar Kanban", error);
@@ -98,6 +96,29 @@ export default function CRMKanbanPage() {
     }
   };
 
+  // --- NOVA FUNÇÃO PARA RENDERIZAR O STATUS EXPLICITO ---
+  const renderStatusChip = (ciclo) => {
+    if (!ciclo.dados_agendamento) {
+      return <Chip label="Apenas Cadastro" size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#e0e0e0' }} />;
+    }
+    
+    const status = ciclo.dados_agendamento.status_ag;
+    let corBadge = '#e0e0e0';
+    let corTexto = '#333';
+
+    if (['Confirmado', 'Realizado'].includes(status)) { corBadge = '#c8e6c9'; corTexto = '#2e7d32'; }
+    if (['Agendado', 'Aguardando', 'Em Atendimento', 'Laudando'].includes(status)) { corBadge = '#bbdefb'; corTexto = '#1565c0'; }
+    if (['Cancelado', 'Não Compareceu'].includes(status)) { corBadge = '#ffcdd2'; corTexto = '#c62828'; }
+
+    return (
+      <Chip 
+        label={status} 
+        size="small" 
+        sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', bgcolor: corBadge, color: corTexto }} 
+      />
+    );
+  };
+
   if (loading) return <LinearProgress />;
 
   return (
@@ -115,7 +136,7 @@ export default function CRMKanbanPage() {
                 flex: 1, 
                 display: 'flex', 
                 flexDirection: 'column',
-                minWidth: '240px', // Evita que as 5 colunas fiquem esmagadas
+                minWidth: '240px', 
                 bgcolor: '#ebecf0',
                 borderRadius: 2,
                 maxHeight: '100%'
@@ -177,21 +198,24 @@ export default function CRMKanbanPage() {
                                     </Box>
                                 )}
 
-                                {ciclo.dados_agendamento ? (
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#666' }}>
-                                            <FaRegCalendarAlt size={10} />
-                                            <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
-                                                {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
-                                            </Typography>
-                                        </Box>
-                                        <Typography noWrap sx={{ fontSize: '0.65rem', color: '#444', maxWidth: '55%', fontWeight: 'bold' }} title={ciclo.dados_agendamento.procedimento || ciclo.tipo}>
-                                            {ciclo.dados_agendamento.procedimento || ciclo.tipo}
-                                        </Typography>
-                                    </Box>
-                                ) : (
-                                    <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: '#999', fontSize: '0.6rem', fontStyle: 'italic' }}>
-                                        {ciclo.tipo !== 'OUTRO' ? ciclo.tipo : 'Sem agendamento'}
+                                {/* LINHA DE STATUS E DATA EXPLICITOS */}
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, mt: 1 }}>
+                                    {renderStatusChip(ciclo)}
+                                    
+                                    {ciclo.dados_agendamento && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#666' }}>
+                                          <FaRegCalendarAlt size={10} />
+                                          <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                              {new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})}
+                                          </Typography>
+                                      </Box>
+                                    )}
+                                </Box>
+
+                                {/* PROCEDIMENTO ABAIXO DO STATUS */}
+                                {ciclo.dados_agendamento && (
+                                    <Typography noWrap sx={{ display: 'block', mt: 0.5, fontSize: '0.65rem', color: '#444', fontWeight: 'bold' }} title={ciclo.dados_agendamento.procedimento || ciclo.tipo}>
+                                        {ciclo.dados_agendamento.procedimento || ciclo.tipo}
                                     </Typography>
                                 )}
 
