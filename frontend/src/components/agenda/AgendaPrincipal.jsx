@@ -270,18 +270,82 @@ export default function AgendaPrincipal({
                     // ... (Seus outros configs de headerToolbar, etc)
                     slotDuration="00:15:00"
                     eventMinHeight={28}
-                    eventContent={(arg) => (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden', width: '100%' }}>
-                            <span style={{ fontWeight: 'bold', fontSize: '0.9em', opacity: 0.9 }}>{arg.timeText}</span>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{arg.event.title}</span>
-                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                            {arg.event.extendedProps.pagamento_status === 'Pendente' && (
-                                <FaExclamationTriangle style={{ color: 'yellow', marginRight: 4 }} title="Pagamento Pendente" />
-                            )}
-                            <span>{arg.event.title}</span>
-                        </Box>
-                        </Box>
-                    )}
+                    eventContent={(arg) => {
+                        const dados = arg.event.extendedProps;
+                        
+                        // Lógica de Emojis/Ícones visuais baseados nos dados do backend
+                        let emojis = "";
+                        
+                        // 1. Status Financeiro
+                        if (dados.pagamento_status === 'Pendente' && dados.status !== 'Cancelado') {
+                            emojis += " 🔴"; // Bolinha vermelha chama mais atenção que o triângulo amarelo
+                        }
+                        
+                        // 2. Tipo de Consulta
+                        if (dados.primeira_consulta) {
+                            emojis += " ⭐"; // Estrela para paciente novo
+                        } else if (dados.tipo_visita === 'Retorno') {
+                            emojis += " 🔄"; // Seta de retorno
+                        }
+                        
+                        // 3. Status do Agendamento
+                        if (dados.status === 'Confirmado') emojis += " ✅";
+                        if (dados.status === 'Cancelado') emojis += " ❌";
+                        if (dados.status === 'Realizado') emojis += " 🏁";
+
+                        // Cores de Borda por tipo de procedimento (Exemplo visual)
+                        const tipo = (dados.tipo_procedimento || '').toLowerCase();
+                        let borderLeftColor = 'transparent';
+                        if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) {
+                            borderLeftColor = '#e91e63'; // Rosa para saúde da mulher/gestação
+                        } else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) {
+                            borderLeftColor = '#ff9800'; // Laranja para coração
+                        } else if (tipo.includes('consulta')) {
+                            borderLeftColor = '#2196f3'; // Azul para consulta normal
+                        }
+
+                        return (
+                            <Box sx={{ 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                width: '100%', 
+                                height: '100%',
+                                borderLeft: `4px solid ${borderLeftColor}`, // Borda lateral colorida!
+                                paddingLeft: '4px'
+                            }}>
+                                {/* Linha 1: Hora + Emojis de Alerta */}
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 800, fontSize: '0.85em', letterSpacing: '-0.5px' }}>
+                                        {arg.timeText}
+                                    </span>
+                                    <span style={{ fontSize: '0.9em' }}>{emojis}</span>
+                                </Box>
+                                
+                                {/* Linha 2: Nome do Paciente (Maior destaque) */}
+                                <span style={{ 
+                                    fontWeight: 'bold', 
+                                    textOverflow: 'ellipsis', 
+                                    overflow: 'hidden', 
+                                    whiteSpace: 'nowrap',
+                                    textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none',
+                                    opacity: dados.status === 'Cancelado' ? 0.6 : 1
+                                }}>
+                                    {arg.event.title}
+                                </span>
+                                
+                                {/* Linha 3: Procedimento (Apenas se houver espaço/tamanho do card) */}
+                                <span style={{ 
+                                    fontSize: '0.7em', 
+                                    opacity: 0.8,
+                                    textOverflow: 'ellipsis', 
+                                    overflow: 'hidden', 
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {dados.procedimento || dados.tipo_procedimento}
+                                </span>
+                            </Box>
+                        );
+                    }}
                         
                 />
             </StyledCalendarWrapper>
