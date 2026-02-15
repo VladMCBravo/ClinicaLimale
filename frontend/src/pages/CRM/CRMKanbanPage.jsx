@@ -161,11 +161,22 @@ export default function CRMKanbanPage() {
                   </IconButton>
                 </Box>
 
-                {/* VOLTA DA GESTAÇÃO - INDEPENDENTE DO CAMPO 'TIPO' */}
+                {/* TAG DE GESTAÇÃO */}
                 {ciclo.alerta_clinico && (
                     <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.7rem', fontWeight: 'bold' }}>
                         <Typography variant="inherit">{ciclo.alerta_clinico.semanas} sem</Typography>
                         {ciclo.alerta_clinico.texto && <Typography variant="inherit" noWrap>• {ciclo.alerta_clinico.texto}</Typography>}
+                    </Box>
+                )}
+
+                {/* --- NOVO: TAG DE RETORNO AUTOMÁTICA --- */}
+                {ciclo.dados_agendamento?.tipo_visita === 'Retorno' && (
+                    <Box sx={{ mb: 1 }}>
+                        <Chip 
+                            label="🔄 RETORNO" 
+                            size="small" 
+                            sx={{ bgcolor: '#f3e5f5', color: '#6a1b9a', fontWeight: '900', borderRadius: 1, height: 20, fontSize: '0.65rem' }} 
+                        />
                     </Box>
                 )}
                 
