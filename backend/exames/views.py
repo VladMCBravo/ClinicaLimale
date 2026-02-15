@@ -110,46 +110,62 @@ class UploadExameView(APIView):
 class AcessarResultadosView(APIView):
     """
     API pública para o paciente acessar seus exames via Código e Senha.
+    AGORA RETORNA UMA LINHA DO TEMPO (HISTÓRICO COMPLETO).
     """
     permission_classes = [AllowAny] # Garante que não precisa de token
 
     def post(self, request):
-        # 1. Tenta pegar os campos como o Front envia (codigo/senha) 
-        #    OU como o banco espera (codigo_acesso/senha_acesso) para garantir.
         codigo = request.data.get('codigo') or request.data.get('codigo_acesso')
         senha = request.data.get('senha') or request.data.get('senha_acesso')
 
         if not codigo or not senha:
-            return Response(
-                {'erro': 'Código e senha são obrigatórios.'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'erro': 'Código e senha são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. Busca exame pelo código (case insensitive)
-        # O try/except é mais seguro que get_object_or_404 para APIs públicas
-        try:
-            exame = Exame.objects.get(codigo_acesso__iexact=codigo)
-        except Exame.DoesNotExist:
-            # Retornar 404 ou 403 genérico para segurança
-            return Response({'erro': 'Exame não encontrado ou credenciais inválidas.'}, status=status.HTTP_404_NOT_FOUND)
+        # Importa a model Laudo, que é a nova fonte da verdade das senhas
+        from prontuario.models import Laudo
+        
+        # 1. Busca TODOS os laudos que possuem essa mesma senha
+        laudos = Laudo.objects.filter(codigo_acesso__iexact=codigo, senha_acesso=senha).order_by('-data_criacao')
 
-        # 3. Verifica a senha
-        if exame.senha_acesso != senha:
-            return Response({'erro': 'Senha incorreta.'}, status=status.HTTP_403_FORBIDDEN)
+        if not laudos.exists():
+            return Response({'erro': 'Credenciais inválidas ou exame não encontrado.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 4. Monta a resposta
-        arquivos_data = []
-        for arquivo in exame.arquivos.all():
-            arquivos_data.append({
-                'id': arquivo.id,
-                'tipo': arquivo.tipo,
-                'url': arquivo.arquivo.url,
+        # 2. Pega o nome do paciente
+        paciente_nome = laudos.first().paciente.nome_completo if laudos.first().paciente else "Paciente"
+
+        # 3. Monta o Histórico (Linha do Tempo)
+        historico = []
+        for laudo in laudos:
+            arquivos_data = []
+            
+            # A) Anexa o PDF do Laudo gerado pelo médico
+            if laudo.arquivo_pdf:
+                arquivos_data.append({
+                    'id': f"pdf_{laudo.id}",
+                    'tipo': 'LAUDO',
+                    'url': laudo.arquivo_pdf.url
+                })
+                
+            # B) Anexa Imagens/Vídeos do ultrassom (se estiver vinculado)
+            if hasattr(laudo, 'exame') and laudo.exame:
+                for arq in laudo.exame.arquivos.all():
+                    arquivos_data.append({
+                        'id': arq.id,
+                        'tipo': arq.tipo,
+                        'url': arq.arquivo.url
+                    })
+
+            historico.append({
+                'id': laudo.id,
+                'data_exame': laudo.data_criacao.strftime('%Y-%m-%dT%H:%M:%S'), # Formato seguro para o Javascript
+                'titulo': laudo.titulo_exame or "Exame de Imagem",
+                'medico': laudo.medico_responsavel or (laudo.medico.get_full_name() if laudo.medico else "Clínica"),
+                'arquivos': arquivos_data
             })
 
         return Response({
-            'paciente': exame.paciente.nome_completo if exame.paciente else exame.nome_paciente_pasta,
-            'data_exame': exame.data_exame,
-            'arquivos': arquivos_data
+            'paciente': paciente_nome,
+            'historico': historico
         })
 
 class ListarExamesPendentesView(ListAPIView):

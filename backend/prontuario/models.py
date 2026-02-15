@@ -586,13 +586,82 @@ class Laudo(models.Model):
     arquivo_pdf = models.FileField(upload_to='laudos_assinados/%Y/%m/', null=True, blank=True)
 
     def save(self, *args, **kwargs):
-        # Gera credenciais automáticas se não existirem
-        # Estes métodos PRECISAM existir nesta classe para o 'self' funcionar
+        # --- SISTEMA DE SENHA ÚNICA (PORTAL DO PACIENTE) ---
+        # Só executa essa lógica se o laudo atual ainda não tiver um código
         if not self.codigo_acesso:
-            self.codigo_acesso = self.gerar_codigo_unico()
+            
+            # 1. Procura no banco se este paciente já tem algum laudo antigo com código gerado
+            laudo_anterior = Laudo.objects.filter(
+                paciente=self.paciente, 
+                codigo_acesso__isnull=False
+            ).exclude(codigo_acesso='').first()
+            
+            if laudo_anterior:
+                # 2. PACIENTE RECORRENTE: Copia o login e senha antigos!
+                self.codigo_acesso = laudo_anterior.codigo_acesso
+                self.senha_acesso = laudo_anterior.senha_acesso
+            else:
+                # 3. PACIENTE NOVO: É o primeiro exame da vida dele, gera uma senha nova.
+                self.codigo_acesso = self.gerar_codigo_unico()
+                self.senha_acesso = self.gerar_senha_simples()
+        
+        # Fallback de segurança caso a senha venha vazia por algum erro
         if not self.senha_acesso:
             self.senha_acesso = self.gerar_senha_simples()
+        
+        # Salva o laudo no banco de dados
         super().save(*args, **kwargs)
+        
+        # --- GATILHO AUTOMÁTICO: Atualiza o CRM após salvar ---
+        self.sincronizar_crm()
+    
+    def sincronizar_crm(self):
+        """Lê o laudo que acabou de ser salvo e injeta a DUM no CRM"""
+        try:
+            if not self.dados_estruturados:
+                return
+            
+            import json
+            from datetime import datetime
+            from crm.models import Ciclo # Importação local para evitar ciclo de imports
+            
+            dados = self.dados_estruturados
+            if isinstance(dados, str):
+                dados = json.loads(dados)
+                
+            # Função detetive interna
+            def extrair_dum(d):
+                if isinstance(d, dict):
+                    for k, v in d.items():
+                        if k.lower() in ['dum', 'data_dum'] and isinstance(v, str) and len(v) >= 10:
+                            return v[:10]
+                        if isinstance(v, (dict, list)):
+                            res = extrair_dum(v)
+                            if res: return res
+                elif isinstance(d, list):
+                    for item in d:
+                        res = extrair_dum(item)
+                        if res: return res
+                return None
+                
+            dum_str = extrair_dum(dados)
+            
+            if dum_str:
+                dum_date = datetime.strptime(dum_str, "%Y-%m-%d").date()
+                # Pega o Ciclo ativo ou cria um
+                ciclo, created = Ciclo.objects.get_or_create(
+                    paciente=self.paciente,
+                    tipo='GESTACAO',
+                    status='ativo'
+                )
+                # Atualiza só se estiver vazio ou mudou
+                if ciclo.data_dum != dum_date:
+                    ciclo.data_dum = dum_date
+                    ciclo.save(update_fields=['data_dum'])
+                    
+        except Exception as e:
+            # Se der erro no CRM, não impede o laudo de ser salvo para o médico
+            print(f"Erro ao sincronizar CRM silenciosamente: {e}")
 
     # Métodos auxiliares pertencentes a ESTE modelo
     def gerar_codigo_unico(self):
