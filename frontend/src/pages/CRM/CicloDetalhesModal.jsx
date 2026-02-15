@@ -5,7 +5,7 @@ import {
   Chip, Divider, IconButton, CircularProgress 
 } from '@mui/material';
 import { FaCheckCircle, FaTimes, FaSave } from 'react-icons/fa';
-import apiClient from '../../api/axiosConfig'; // Importante
+import apiClient from '../../api/axiosConfig';
 import { crmService } from '../../services/crmService';
 
 export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate }) {
@@ -13,11 +13,8 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   const [detalhes, setDetalhes] = useState(null);
   const [novaAcaoDesc, setNovaAcaoDesc] = useState('');
   const [novaAcaoData, setNovaAcaoData] = useState(new Date().toISOString().split('T')[0]);
-
-  // State para DUM
   const [dum, setDum] = useState('');
 
-  // Carrega os dados completos quando abre o modal
   useEffect(() => {
     if (open && cicloId) {
       loadDetalhes();
@@ -25,43 +22,25 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   }, [open, cicloId]);
 
   const loadDetalhes = async () => {
-    console.log("🔍 [DEBUG] Iniciando loadDetalhes...");
     try {
       setLoading(true);
       const res = await crmService.getCicloDetalhe(cicloId);
       let dadosFinais = res.data;
 
-      // IDENTIFICA O PACIENTE
-      let pacienteId = null;
-      if (dadosFinais.paciente?.id) pacienteId = dadosFinais.paciente.id;
-      else if (dadosFinais.paciente) pacienteId = dadosFinais.paciente;
-      else if (dadosFinais.paciente_id) pacienteId = dadosFinais.paciente_id;
+      let pacienteId = dadosFinais.paciente?.id || dadosFinais.paciente || dadosFinais.paciente_id;
 
       if (pacienteId) {
           try {
               const pacienteRes = await apiClient.get(`/pacientes/${pacienteId}/`);
-              
-              // --- AQUI ESTÁ A MUDANÇA: VAMOS VER TUDO ---
-              console.log("🏥 [DEBUG] RESPOSTA COMPLETA DA API DE PACIENTES:", pacienteRes.data);
-              
-              // Tenta encontrar a data em qualquer variação de nome possível
               const dumReal = pacienteRes.data.dum || pacienteRes.data.data_dum || pacienteRes.data.data_ultima_menstruacao;
-              
-              if (dumReal) {
-                  console.log("✅ DUM Encontrada no Paciente:", dumReal);
-                  dadosFinais.dum = dumReal;
-              } else {
-                  console.warn("⚠️ O campo DUM continua INVISÍVEL no retorno da API.");
-              }
-
+              if (dumReal) dadosFinais.dum = dumReal;
           } catch (err) {
-              console.warn("Erro ao buscar paciente", err);
+              console.warn("Erro ao buscar paciente auxiliar", err);
           }
       }
 
       setDetalhes(dadosFinais);
       
-      // Lógica de exibição no input
       let dataInput = '';
       if (dadosFinais.dum) {
         dataInput = dadosFinais.dum;
@@ -73,7 +52,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
       setDum(dataInput);
 
     } catch (error) {
-        console.error("Erro", error);
+        console.error("Erro ao carregar detalhes", error);
     } finally {
         setLoading(false);
     }
@@ -81,53 +60,23 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
 
   const handleSalvarDum = async () => {
     if (!dum) return alert("Selecione uma data para a DUM.");
-    
-    console.log("💾 [DEBUG] Botão Salvar Clicado. Data:", dum);
     setLoading(true); 
 
     try {
-      // 1. Tenta atualizar o CICLO
-      console.log("🚀 [DEBUG] Enviando PATCH para o Ciclo...");
       await crmService.updateCiclo(cicloId, { dum: dum, data_dum: dum });
-      console.log("✅ [DEBUG] Ciclo atualizado com sucesso.");
-
-      // 2. Tenta atualizar o PACIENTE DIRETAMENTE
-      console.log("🕵️ [DEBUG] Tentando identificar Paciente ID em:", detalhes);
       
       if (detalhes) {
-          // Tenta achar o ID em vários lugares possíveis
-          let pacienteId = null;
-          
-          if (detalhes.paciente && typeof detalhes.paciente === 'object') {
-              pacienteId = detalhes.paciente.id;
-              console.log("👉 [DEBUG] ID achado em detalhes.paciente.id:", pacienteId);
-          } else if (detalhes.paciente) {
-              pacienteId = detalhes.paciente;
-              console.log("👉 [DEBUG] ID achado em detalhes.paciente (direto):", pacienteId);
-          } else if (detalhes.paciente_id) {
-              pacienteId = detalhes.paciente_id;
-              console.log("👉 [DEBUG] ID achado em detalhes.paciente_id:", pacienteId);
-          }
-
+          let pacienteId = detalhes.paciente?.id || detalhes.paciente || detalhes.paciente_id;
           if (pacienteId) {
-              console.log(`🚀 [DEBUG] Enviando PATCH para Paciente ID ${pacienteId}...`);
               await apiClient.patch(`/pacientes/${pacienteId}/`, { dum: dum });
-              console.log("✅ [DEBUG] Paciente atualizado com sucesso via API direta.");
-          } else {
-              console.warn("⚠️ [DEBUG] NÃO FOI POSSÍVEL IDENTIFICAR O ID DO PACIENTE. A atualização direta falhou.");
-              alert("Atenção: Não consegui vincular ao cadastro do paciente. O ID não foi encontrado.");
           }
       }
 
-      // 3. Recarrega tudo
       await loadDetalhes(); 
       if (onUpdate) onUpdate(); 
       
-      alert("✅ DUM Salva!");
-
     } catch (error) {
-      console.error("❌ [DEBUG] Erro CRÍTICO ao salvar DUM:", error);
-      alert("Erro ao salvar. Veja o console (F12).");
+      alert("Erro ao salvar. Verifique a conexão.");
     } finally {
       setLoading(false);
     }
@@ -164,8 +113,8 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Detalhes do Ciclo (DEBUG MODE)
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f4f5f7' }}>
+        <Typography variant="h6" fontWeight="bold">Ficha de Acompanhamento</Typography>
         <IconButton onClick={onClose}><FaTimes /></IconButton>
       </DialogTitle>
       
@@ -174,11 +123,11 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>
         ) : detalhes ? (
           <>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{detalhes.paciente_nome}</Typography>
-              <Typography variant="caption" sx={{color:'red'}}>DEBUG: Paciente ID: {JSON.stringify(detalhes.paciente)}</Typography>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>{detalhes.paciente_nome}</Typography>
               <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
                 <Chip label={detalhes.fase_atual} color="primary" size="small" />
+                <Chip label={detalhes.tipo} variant="outlined" size="small" />
               </Box>
             </Box>
 
@@ -189,21 +138,11 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                         <TextField 
-                            label="DUM (Data Última Menstruação)"
-                            type="date" 
-                            size="small"
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                            value={dum} 
-                            onChange={(e) => setDum(e.target.value)}
+                            label="DUM (Data Última Menstruação)" type="date" size="small" fullWidth
+                            InputLabelProps={{ shrink: true }} value={dum} onChange={(e) => setDum(e.target.value)}
                             sx={{ bgcolor: 'white' }}
                         />
-                        <Button 
-                            variant="contained" 
-                            size="medium"
-                            sx={{ minWidth: '40px', px: 2 }}
-                            onClick={handleSalvarDum}
-                        >
+                        <Button variant="contained" size="medium" sx={{ minWidth: '40px', px: 2 }} onClick={handleSalvarDum}>
                             <FaSave />
                         </Button>
                     </Box>
@@ -217,52 +156,48 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
 
             <Divider sx={{ my: 2 }} />
 
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-              🎯 Nova Próxima Ação
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>
+              🎯 Adicionar Próxima Ação
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
               <TextField 
-                fullWidth size="small" 
-                placeholder="Ex: Ligar para confirmar..."
-                value={novaAcaoDesc}
-                onChange={(e) => setNovaAcaoDesc(e.target.value)}
+                fullWidth size="small" placeholder="Ex: Ligar para agendar retorno..."
+                value={novaAcaoDesc} onChange={(e) => setNovaAcaoDesc(e.target.value)}
               />
               <TextField 
-                type="date" size="small"
-                value={novaAcaoData}
-                onChange={(e) => setNovaAcaoData(e.target.value)}
+                type="date" size="small" value={novaAcaoData} onChange={(e) => setNovaAcaoData(e.target.value)}
               />
-              <Button variant="contained" onClick={handleSalvarAcao}>Add</Button>
+              <Button variant="contained" disableElevation onClick={handleSalvarAcao}>Salvar</Button>
             </Box>
 
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Histórico de Ações</Typography>
-            <List dense sx={{ bgcolor: '#f9f9f9', borderRadius: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>Histórico de Atendimento</Typography>
+            <List dense sx={{ bgcolor: '#f9f9f9', borderRadius: 2, border: '1px solid #eee' }}>
               {detalhes.acoes && detalhes.acoes.map((acao) => (
                 <ListItem key={acao.id}
                   secondaryAction={
                     acao.status === 'PENDENTE' && (
                       <IconButton edge="end" onClick={() => handleConcluirAcao(acao.id)}>
-                        <FaCheckCircle color="green" />
+                        <FaCheckCircle color="#4caf50" />
                       </IconButton>
                     )
                   }
                 >
                   <ListItemText 
-                    primary={acao.descricao}
-                    secondary={`Para: ${acao.data_alvo} - ${acao.status}`}
-                    sx={{ textDecoration: acao.status === 'REALIZADA' ? 'line-through' : 'none' }}
+                    primary={<Typography sx={{ fontWeight: acao.status === 'PENDENTE' ? 'bold' : 'normal', color: '#333', fontSize: '0.9rem' }}>{acao.descricao}</Typography>}
+                    secondary={`Agendado para: ${new Date(acao.data_alvo + 'T00:00:00').toLocaleDateString('pt-BR')} - ${acao.status}`}
+                    sx={{ textDecoration: acao.status === 'REALIZADA' ? 'line-through' : 'none', opacity: acao.status === 'REALIZADA' ? 0.6 : 1 }}
                   />
                 </ListItem>
               ))}
               {detalhes.acoes?.length === 0 && (
-                <Typography variant="body2" sx={{ p: 2, textAlign: 'center', color: 'gray' }}>
-                  Nenhuma ação registrada.
+                <Typography variant="body2" sx={{ p: 2, textAlign: 'center', color: '#999' }}>
+                  Nenhuma ação registrada neste ciclo.
                 </Typography>
               )}
             </List>
           </>
         ) : (
-          <Typography>Erro ao carregar dados.</Typography>
+          <Typography sx={{p: 3}}>Nenhum dado encontrado.</Typography>
         )}
       </DialogContent>
     </Dialog>

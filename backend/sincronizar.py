@@ -42,10 +42,12 @@ for ag in agendamentos_sem_crm:
     agendamentos_atualizados += 1
     
     novo_tipo = ciclo.tipo
+    
+    # --- CORREÇÃO AQUI: Limitando o tamanho da string para 20 caracteres ---
     if ag.tipo_agendamento == 'Consulta' and ag.especialidade:
-        novo_tipo = str(ag.especialidade.nome).upper()[:50]
+        novo_tipo = str(ag.especialidade.nome).upper()[:20] 
     elif ag.tipo_agendamento == 'Procedimento' and ag.procedimento:
-        novo_tipo = str(ag.procedimento.descricao).upper()[:50]
+        novo_tipo = str(ag.procedimento.descricao).upper()[:20]
         
     nova_fase = ciclo.fase_atual
     
