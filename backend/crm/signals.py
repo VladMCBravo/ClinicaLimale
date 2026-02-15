@@ -95,9 +95,10 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
         print(f"[CRM] Card de {instance.paciente.nome_completo} movido para {nova_fase}")
 
 
-# 3. GATILHO: EXAMES (Move para a Retenção)
+# 3. GATILHO: EXAMES (Move para Pós-Atendimento)
 @receiver(post_save, sender='exames.Exame')
 def acionar_crm_exame(sender, instance, created, **kwargs):
-    if instance.ciclo and instance.ciclo.fase_atual in ['F1', 'F2', 'F3']:
+    # Se o laudo/exame for anexado, o paciente vai para a F3 para a equipe avisar.
+    if instance.ciclo and instance.ciclo.fase_atual in ['F1', 'F2']:
         Ciclo = apps.get_model('crm', 'Ciclo')
-        Ciclo.objects.filter(pk=instance.ciclo.pk).update(fase_atual='F4')
+        Ciclo.objects.filter(pk=instance.ciclo.pk).update(fase_atual='F3')
