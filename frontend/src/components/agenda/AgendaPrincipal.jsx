@@ -1,6 +1,6 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, FormControl, InputLabel, Select, Typography, Stack } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
 import { useNavigate } from 'react-router-dom';
