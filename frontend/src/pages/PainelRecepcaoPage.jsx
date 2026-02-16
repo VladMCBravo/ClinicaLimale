@@ -85,69 +85,100 @@ export default function PainelRecepcaoPage() {
     };
 
     return (
-        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 1, gap: 1, backgroundColor: '#f4f6f8', overflow: 'hidden' }}>
+        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 1, gap: 1, backgroundColor: '#f4f6f8', overflow: 'hidden' }}>
             
-            {/* --- NOVA LINHA SUPERIOR UNIFICADA (KPIs + Controles + Ícones) --- */}
-            <Paper variant="outlined" sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fff', flexShrink: 0 }}>
+            {/* =======================================================
+                COLUNA ESQUERDA (Vai do topo até o fim da tela)
+            ======================================================= */}
+            <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
                 
-                {/* 1. KPIs (Lado Esquerdo) */}
-                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                     <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>HOJE</Typography>
-                        {loadingKpis ? <CircularProgress size={14} /> : 
-                            <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.hoje}</Typography>
-                        }
-                     </Box>
-                     <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>NOVOS (MÊS)</Typography>
-                         {loadingKpis ? <CircularProgress size={14} /> : 
-                            <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.novos}</Typography>
-                         }
-                     </Box>
-                     <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>A CONFIRM.</Typography>
-                         {loadingKpis ? <CircularProgress size={14} /> : 
-                            <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.confirmar}</Typography>
-                         }
-                     </Box>
+                {/* Pacientes do Dia */}
+                <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
+                    <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
                 </Box>
-
-                {/* 2. Controles Principais (Centro) */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {/* Reutilizando o seu componente de controles, mas forçando ele a ficar em linha (row) se possível */}
-                    <Box sx={{ transform: 'scale(0.9)', transformOrigin: 'center right', display: 'flex', gap: 1 }}>
-                        <ControlesAgenda 
-                            onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                            onCaixaClick={() => setIsCaixaModalOpen(true)}
-                            onFiltroChange={handleFiltroChange}
-                            onVerificarDispoClick={() => setIsDispoOpen(true)}
-                        />
-                    </Box>
-                </Box>
-
-                {/* 3. Ícones Laterais Antigos (Agora no Topo Direito) */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, transform: 'scale(0.9)', transformOrigin: 'center right' }}>
-                     <BarraIconesLateral />
-                </Box>
-
-            </Paper>
-
-            {/* --- MIOLO DA TELA (Colunas) --- */}
-            <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, minHeight: 0 }}>
                 
-                {/* COLUNA ESQUERDA (Apenas Listas) */}
-                <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0 }}>
-                    {/* Pacientes do Dia agora ocupa a maior parte do espaço lateral */}
-                    <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
-                        <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
-                    </Box>
-                    {/* Lista de Espera */}
-                    <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                        <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
-                    </Box>
+                {/* Lista de Espera */}
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
                 </Box>
+            </Box>
 
-                {/* COLUNA DIREITA (Agenda Gigante) */}
+
+            {/* =======================================================
+                ÁREA DIREITA (Topo de Controles + Calendário)
+            ======================================================= */}
+            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, overflow: 'hidden' }}>
+                
+                {/* --- BARRA SUPERIOR (Horizontal e Estreita) --- */}
+                <Paper variant="outlined" sx={{ 
+                    p: '8px 16px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    bgcolor: '#fff', 
+                    flexShrink: 0,
+                    minHeight: '56px' // Força uma altura pequena
+                }}>
+                    
+                    {/* 1. KPIs (Lado Esquerdo da Barra) */}
+                    <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                         <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>HOJE</Typography>
+                            {loadingKpis ? <CircularProgress size={14} /> : 
+                                <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.hoje}</Typography>
+                            }
+                         </Box>
+                         <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>NOVOS (MÊS)</Typography>
+                             {loadingKpis ? <CircularProgress size={14} /> : 
+                                <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.novos}</Typography>
+                             }
+                         </Box>
+                         <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>A CONFIRM.</Typography>
+                             {loadingKpis ? <CircularProgress size={14} /> : 
+                                <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.confirmar}</Typography>
+                             }
+                         </Box>
+                    </Box>
+
+                    {/* 2. Controles Principais (Centro - Forçado Horizontalmente) */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ 
+                            /* ESTE É O SEGREDO PARA OS BOTÕES FICAREM LADO A LADO */
+                            display: 'flex', 
+                            flexDirection: 'row', 
+                            gap: '8px',
+                            alignItems: 'center',
+                            '& > div': { display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' }, // Força filhos a serem linha
+                            '& button, & .MuiFormControl-root': { margin: 0 } // Remove margens extras
+                        }}>
+                            <ControlesAgenda 
+                                onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
+                                onCaixaClick={() => setIsCaixaModalOpen(true)}
+                                onFiltroChange={handleFiltroChange}
+                                onVerificarDispoClick={() => setIsDispoOpen(true)}
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* 3. Ícones Laterais Antigos (Lado Direito) */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {/* Se o componente BarraIconesLateral também tiver botões empilhados, 
+                            esta classe os força a ficarem lado a lado */}
+                        <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'row', 
+                            alignItems: 'center',
+                            gap: '4px',
+                            '& > div': { display: 'flex', flexDirection: 'row', gap: '4px' } 
+                        }}>
+                             <BarraIconesLateral />
+                        </Box>
+                    </Box>
+                </Paper>
+
+                {/* --- AGENDA (Ocupa o resto do espaço direito) --- */}
                 <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
                     <AgendaPrincipal 
                         medicoFiltro={medicoFiltro} 
@@ -158,7 +189,6 @@ export default function PainelRecepcaoPage() {
                         refreshTrigger={refreshTrigger} 
                     />
                 </Box>
-
             </Box>
             
             {/* --- MODAIS INVISÍVEIS --- */}
