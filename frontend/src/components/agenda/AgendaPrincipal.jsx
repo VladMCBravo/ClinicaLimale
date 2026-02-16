@@ -22,6 +22,13 @@ const StyledCalendarWrapper = styled('div')({
     flexDirection: 'column',
     backgroundColor: '#fff',
 
+    // --- CORREÇÃO 1: FONTES DOS HORÁRIOS MENORES ---
+    '.fc-timegrid-slot-label-cushion': { 
+        fontSize: '0.75rem !important', // Fonte menor (aprox 12px)
+        fontWeight: 500,
+        color: '#90a4ae'
+    },
+    // -----------------------------------------------
     // Ajuste fino das células e slots
     '.fc-timegrid-slot': { height: '32px !important' }, 
     '.fc-theme-standard td, .fc-theme-standard th': { borderColor: '#f1f3f5' },
@@ -99,13 +106,16 @@ export default function AgendaPrincipal({
 
     useEffect(() => { if (calendarRef.current) calendarRef.current.getApi().refetchEvents(); }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
 
-    // --- FUNÇÃO QUE FALTAVA ---
-    const handleCalendarEventClick = (clickInfo) => {
-        clickInfo.jsEvent.preventDefault(); // Impede comportamento padrão
-        setAnchorEl(clickInfo.el); // Define o elemento onde o menu vai "ancorar" (abrir ao lado)
-        setSelectedEvent(clickInfo.event); // Salva o evento clicado no estado para saber qual editar/atender
+    // --- CORREÇÃO 2: VOLTAR A CHAMAR O MODAL ORIGINAL ---
+    const handleEventClick = (clickInfo) => {
+        clickInfo.jsEvent.preventDefault();
+        // Em vez de abrir menu, chamamos a prop que veio do pai (PainelRecepcaoPage)
+        // Isso vai abrir o AgendamentoModal bonito.
+        if (onEventClick) {
+            onEventClick(clickInfo);
+        }
     };
-    // --------------------------
+    // ----------------------------------------------------
 
     const handleAction = (action) => {
         const dados = selectedEvent?.extendedProps;
