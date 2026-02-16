@@ -2,15 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Box, Typography, TextField, Button, CircularProgress, 
-    Divider, Alert, Autocomplete, Chip, Stack, Paper 
+    Divider, Alert, Autocomplete, Chip, Stack 
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import ptBR from 'date-fns/locale/pt-BR';
+
+// --- CORREÇÃO DO IMPORT AQUI ---
+// Em versões novas do date-fns, importamos assim:
+import { ptBR } from 'date-fns/locale'; 
+
 import SearchIcon from '@mui/icons-material/Search';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import dayjs from 'dayjs'; // Mantendo compatibilidade se você usa dayjs em outros lugares
 
 import apiClient from '../../api/axiosConfig';
 import { agendamentoService } from '../../services/agendamentoService';
