@@ -1,11 +1,10 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { Paper, Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, FormControl, InputLabel, Select, Typography } from '@mui/material';
+import { Paper, Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, FormControl, InputLabel, Select, Typography, Stack } from '@mui/material';
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
-import { useNavigate } from 'react-router-dom'; // Adicionado useNavigate
-// Ícones para o Menu
-import { FaEdit, FaFileMedical, FaStethoscope, FaExclamationTriangle } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaEdit, FaFileMedical, FaStethoscope, FaFilter, FaCalendarAlt } from 'react-icons/fa';
 // Plugins
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -13,103 +12,55 @@ import interactionPlugin from '@fullcalendar/interaction';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 
 import { agendamentoService } from '../../services/agendamentoService';
-import apiClient from '../../api/axiosConfig'; // <--- Usado para buscar médicos e especialidades
+import apiClient from '../../api/axiosConfig';
 
-// --- CSS CUSTOMIZADO (AJUSTE FINO) ---
+// --- CSS CUSTOMIZADO DA AGENDA ---
 const StyledCalendarWrapper = styled('div')(({ theme }) => ({
     flexGrow: 1,
-    height: '100%',
+    height: '100%', // Ocupa o resto do espaço
     display: 'flex',
     flexDirection: 'column',
+    backgroundColor: '#fff',
 
-    // 1. Lateral (Horários)
-    '.fc-timegrid-slot-label-cushion': {
-        fontSize: '0.7rem', 
-        color: '#888',
-        fontWeight: 500,
-        textTransform: 'lowercase',
-    },
+    // Grid e Slots
+    '.fc-timegrid-slot': { height: '35px !important' }, // Altura confortável
+    '.fc-timegrid-slot-label-cushion': { fontSize: '0.75rem', color: '#666', fontWeight: 500 },
+    '.fc-col-header-cell-cushion': { padding: '10px 0', fontSize: '0.85rem', fontWeight: 'bold', color: '#1C2E4A' },
+    '.fc-theme-standard td, .fc-theme-standard th': { borderColor: '#f1f3f5' },
     
-    // 2. Bordas suaves
-    '.fc-theme-standard td, .fc-theme-standard th': {
-        borderColor: '#f0f0f0', 
-    },
-    
-    // 3. O PULO DO GATO: Altura COMPACTA (30px)
-    // 30px é suficiente para 1 linha de texto legível.
-    // Antes estava 50px (muito alto). Menos que 30px vai encavalar.
-    '.fc-timegrid-slot': {
-        height: '30px !important', 
-    },
-
-    // 4. Estilo do Card de Evento
+    // Eventos
     '.fc-event': {
-        boxShadow: '0 1px 2px rgba(0,0,0,0.1)', 
+        boxShadow: '0 2px 4px rgba(0,0,0,0.05)', 
         border: 'none',
         borderRadius: '4px',
-        padding: '0 4px', // Padding lateral apertado
-        fontSize: '0.8rem', // Fonte levemente menor
-        // Centraliza o texto verticalmente no evento
-        display: 'flex',
-        alignItems: 'center',
+        padding: '0 2px',
+        fontSize: '0.8rem',
+        margin: '1px'
     },
 
-    // 5. Cabeçalho das salas
-    '.fc-col-header-cell-cushion': {
-        padding: '8px 0',
-        fontSize: '0.85rem',
-        fontWeight: 'bold',
-        color: '#1C2E4A'
+    // Toolbar do FullCalendar (Navegação de datas)
+    '.fc-header-toolbar': {
+        margin: 0,
+        padding: '8px 16px',
+        backgroundColor: '#fff',
+        borderBottom: '1px solid #f0f0f0'
     },
-    
-    // 6. Indicador de hora atual
-    '.fc-timegrid-now-indicator-line': {
-        borderColor: '#f50057',
-        borderWidth: '2px'
+    '.fc-toolbar-title': { fontSize: '1.2rem !important', fontWeight: 800, color: '#1C2E4A' },
+    '.fc-button': { 
+        borderRadius: '6px !important', 
+        fontWeight: 600, 
+        textTransform: 'capitalize',
+        padding: '4px 12px !important',
+        height: '32px !important'
     },
-
-    // 7. Estilo dos Botões da Toolbar
-    '.fc-button-primary': {
-        backgroundColor: '#1C2E4A !important',
-        borderColor: '#1C2E4A !important',
-        fontSize: '0.85rem !important',
-        textTransform: 'capitalize !important',
-        '&:hover': {
-            backgroundColor: '#2c3e50 !important',
-        },
-        '&:disabled': {
-            backgroundColor: '#ccc !important',
-            borderColor: '#ccc !important'
-        }
-    },
-
-    // 8. Ajuste do Título (Data)
-    '.fc-toolbar-title': {
-        fontSize: '1.1rem !important',
-        fontWeight: 'bold',
-        color: '#1C2E4A'
-    },
-
-    // 9. Correção para o botão 'Hoje' não sumir em telas menores
-    '.fc-toolbar': {
-        gap: '8px',
-        flexWrap: 'wrap',
-        padding: '8px !important'
-    }
+    '.fc-button-primary': { backgroundColor: '#1C2E4A', borderColor: '#1C2E4A' },
+    '.fc-button-active': { backgroundColor: '#0f1b2d !important' }
 }));
 
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
-
 const getColorForSala = (salaId) => {
     const numericId = parseInt(String(salaId).replace(/\D/g, ''), 10) || 0;
     return SALA_COLORS[numericId % SALA_COLORS.length];
-};
-
-// Simulação de verificação de permissão (ajuste conforme seu Context de Autenticação)
-const isMedico = () => {
-    // Exemplo: return user.cargo === 'MEDICO';
-    // Por enquanto vou deixar true para você testar, mas mude para sua lógica real
-    return true; 
 };
 
 export default function AgendaPrincipal({
@@ -119,21 +70,21 @@ export default function AgendaPrincipal({
     onEventClick, 
     salas = [],
     refreshTrigger,
-    onFiltroChange // <--- NOVO PROP PARA AVISAR A TELA PRINCIPAL
+    onFiltroChange
 }) {
     const calendarRef = useRef(null);
     const navigate = useNavigate();
 
-    // --- ESTADOS DOS FILTROS ---
+    // Filtros internos
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
 
-    // --- ESTADOS DO MENU DE OPÇÕES ---
+    // Menu Contexto
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
 
-    // Carrega Médicos e Especialidades para o Filtro Interno
+    // Carregar dados de filtros
     useEffect(() => {
         apiClient.get('/usuarios/usuarios/?cargo=medico')
             .then(res => setMedicos(res.data.results || res.data || []))
@@ -151,14 +102,13 @@ export default function AgendaPrincipal({
                     .filter(ag => ag.status !== 'Cancelado' && ag.sala)
                     .map(ag => ({
                         id: ag.id,
-                        // Truque: Juntar hora e nome no título para ocupar menos espaço visual
                         title: ag.paciente_nome, 
                         start: ag.data_hora_inicio,
                         end: ag.data_hora_fim,
                         extendedProps: { 
                             ...ag,
-                            tipo_procedimento: ag.tipo_exame || 'CONSULTA', // Exemplo
-                            paciente_id: ag.paciente, // ID do paciente é crucial
+                            tipo_procedimento: ag.tipo_exame || 'CONSULTA',
+                            paciente_id: ag.paciente,
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
                         },
@@ -172,12 +122,10 @@ export default function AgendaPrincipal({
     }, [medicoFiltro, especialidadeFiltro]);
 
     useEffect(() => {
-        if (calendarRef.current) {
-            calendarRef.current.getApi().refetchEvents();
-        }
+        if (calendarRef.current) calendarRef.current.getApi().refetchEvents();
     }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
 
-    // --- HANDLERS DOS FILTROS ---
+    // Handlers de Filtro
     const handleMedicoChange = (e) => {
         if (onFiltroChange) onFiltroChange({ medicoId: e.target.value, especialidadeId: especialidadeFiltro });
     };
@@ -186,126 +134,91 @@ export default function AgendaPrincipal({
         if (onFiltroChange) onFiltroChange({ medicoId: medicoFiltro, especialidadeId: e.target.value });
     };
 
-    // --- HANDLERS DO MENU ---
-
-    // 1. Ao clicar no evento no calendário
+    // Menu Handlers
     const handleCalendarEventClick = (clickInfo) => {
-        // Impede o comportamento padrão e abre nosso menu
         clickInfo.jsEvent.preventDefault(); 
         setAnchorEl(clickInfo.el);
         setSelectedEvent(clickInfo.event);
     };
+    const handleCloseMenu = () => { setAnchorEl(null); setSelectedEvent(null); };
 
-    const handleCloseMenu = () => {
-        setAnchorEl(null);
-        setSelectedEvent(null);
-    };
-
-    // 2. Ação: Editar (chama a função antiga)
     const handleActionEditar = () => {
-        if (selectedEvent) {
-            // Passa o objeto original (extendedProps contém os dados puros do backend)
-            onEventClick({ 
-                event: { 
-                    id: selectedEvent.id, 
-                    ...selectedEvent.extendedProps 
-                } 
-            }); 
-        }
+        if (selectedEvent) onEventClick({ event: { id: selectedEvent.id, ...selectedEvent.extendedProps } }); 
         handleCloseMenu();
     };
 
-    // 3. Ação: Ir para Laudos
     const handleActionLaudo = () => {
         const dados = selectedEvent?.extendedProps;
-        if (!dados || !dados.paciente_id) {
-            alert("Erro: Este agendamento não tem um paciente vinculado.");
-            return;
-        }
-
-        // PREPARA O AMBIENTE PARA A PÁGINA DE LAUDOS LER
-        // Como sua página Laudos lê do localStorage na inicialização:
+        if (!dados || !dados.paciente_id) return alert("Erro: Paciente não identificado.");
         const draftLaudo = {
-            paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title }, // Ajuste conforme objeto esperado
+            paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title },
             medicoNome: dados.medico_nome,
             medicoCrm: dados.medico_crm,
-            tipoExame: dados.tipo_procedimento !== 'CONSULTA' ? dados.tipo_procedimento : 'OBSTETRICO', // Default ou real
-            textoFinal: '', // Novo laudo
-            dadosEstruturados: {}
+            tipoExame: dados.tipo_procedimento || 'OBSTETRICO',
+            textoFinal: '', dadosEstruturados: {}
         };
-
-        // Salva no storage que a página Laudos escuta
         localStorage.setItem('laudos_rascunho_auto_save', JSON.stringify(draftLaudo));
-
         handleCloseMenu();
-        navigate('/laudos'); // Redireciona
+        navigate('/laudos');
     };
 
-    // 4. Ação: Ir para Painel Médico
     const handleActionConsulta = () => {
         const dados = selectedEvent?.extendedProps;
-        
-        // SEGURANÇA: Só deixa ir se for médico (lógica de frontend, o backend deve barrar dados também)
-        if (!dados?.paciente_id) {
-             alert("Erro: Paciente não identificado.");
-             return;
-        }
-
-        navigate('/painel-medico', { 
-            state: { 
-                agendamentoId: selectedEvent.id, 
-                pacienteId: dados.paciente_id 
-            } 
-        });
-        
+        if (!dados?.paciente_id) return alert("Erro: Paciente não identificado.");
+        navigate('/painel-medico', { state: { agendamentoId: selectedEvent.id, pacienteId: dados.paciente_id } });
         handleCloseMenu();
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 0, height: '100%', overflow: 'hidden', border: '1px solid #ddd', display: 'flex', flexDirection: 'column' }}>
+        <Paper elevation={0} sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff', overflow: 'hidden' }}>
             
-            {/* --- NOVA BARRA DE FILTROS EMBUTIDA --- */}
+            {/* --- BARRA DE FILTROS BONITA (Integrada) --- */}
             <Box sx={{ 
-                display: 'flex', alignItems: 'center', gap: 2, p: '6px 12px', 
-                bgcolor: '#f8f9fa', borderBottom: '1px solid #e0e0e0', flexShrink: 0 
+                p: '10px 16px', 
+                bgcolor: '#f8f9fa', 
+                borderBottom: '1px solid #e0e0e0',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 3
             }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', fontSize: '0.75rem', mr: 1 }}>
-                    Filtros da Agenda:
-                </Typography>
+                <Stack direction="row" alignItems="center" gap={1} sx={{color: '#546E7A'}}>
+                    <FaFilter />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Filtrar:</Typography>
+                </Stack>
 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel sx={{ fontSize: '0.75rem', top: '-4px' }}>Médico</InputLabel>
-                    <Select
-                        value={medicoFiltro || ''}
-                        label="Médico"
-                        onChange={handleMedicoChange}
-                        sx={{ fontSize: '0.75rem', height: '28px', bgcolor: '#fff', '& .MuiSelect-select': { py: 0.5 } }}
-                    >
-                        <MenuItem value="" sx={{ fontSize: '0.75rem' }}><em>Todos os Médicos</em></MenuItem>
+                {/* Filtro Médico */}
+                <FormControl size="small" variant="outlined" sx={{ minWidth: 200, bgcolor: '#fff' }}>
+                    <InputLabel>Médico</InputLabel>
+                    <Select value={medicoFiltro || ''} label="Médico" onChange={handleMedicoChange}>
+                        <MenuItem value=""><em>Todos os Médicos</em></MenuItem>
                         {medicos.map(m => (
-                            <MenuItem key={m.id} value={m.id} sx={{ fontSize: '0.75rem' }}>
-                                {m.first_name ? `${m.first_name} ${m.last_name}` : m.username}
-                            </MenuItem>
+                            <MenuItem key={m.id} value={m.id}>{m.first_name ? `${m.first_name} ${m.last_name}` : m.username}</MenuItem>
                         ))}
                     </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel sx={{ fontSize: '0.75rem', top: '-4px' }}>Especialidade</InputLabel>
-                    <Select
-                        value={especialidadeFiltro || ''}
-                        label="Especialidade"
-                        onChange={handleEspecialidadeChange}
-                        sx={{ fontSize: '0.75rem', height: '28px', bgcolor: '#fff', '& .MuiSelect-select': { py: 0.5 } }}
-                    >
-                        <MenuItem value="" sx={{ fontSize: '0.75rem' }}><em>Todas as Especialidades</em></MenuItem>
+                {/* Filtro Especialidade */}
+                <FormControl size="small" variant="outlined" sx={{ minWidth: 200, bgcolor: '#fff' }}>
+                    <InputLabel>Especialidade</InputLabel>
+                    <Select value={especialidadeFiltro || ''} label="Especialidade" onChange={handleEspecialidadeChange}>
+                        <MenuItem value=""><em>Todas as Especialidades</em></MenuItem>
                         {especialidades.map(e => (
-                            <MenuItem key={e.id} value={e.id} sx={{ fontSize: '0.75rem' }}>
-                                {e.nome}
-                            </MenuItem>
+                            <MenuItem key={e.id} value={e.id}>{e.nome}</MenuItem>
                         ))}
                     </Select>
                 </FormControl>
+
+                <Box sx={{ flexGrow: 1 }} />
+                
+                {/* Legenda rápida opcional */}
+                <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', md: 'flex' } }}>
+                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', color: '#666' }}>
+                       <Box sx={{ w: 10, h: 10, bgcolor: '#e91e63', borderRadius: '50%', width: 8, height: 8 }} /> Obstétrico
+                   </Box>
+                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', color: '#666' }}>
+                       <Box sx={{ w: 10, h: 10, bgcolor: '#2196f3', borderRadius: '50%', width: 8, height: 8 }} /> Consulta
+                   </Box>
+                </Stack>
             </Box>
 
             {/* --- FULLCALENDAR --- */}
@@ -327,52 +240,41 @@ export default function AgendaPrincipal({
                     allDaySlot={false}
                     nowIndicator={true}
                     slotDuration="00:15:00"
-                    eventMinHeight={28}
                     eventContent={(arg) => {
                         const dados = arg.event.extendedProps;
                         
+                        // Icones de status
                         let emojis = "";
-                        if (dados.pagamento_status === 'Pendente' && dados.status !== 'Cancelado') emojis += " 🔴";
-                        if (dados.primeira_consulta) emojis += " ⭐";
-                        else if (dados.tipo_visita === 'Retorno') emojis += " 🔄";
+                        if (dados.pagamento_status === 'Pendente') emojis += " 🔴";
                         if (dados.status === 'Confirmado') emojis += " ✅";
-                        if (dados.status === 'Cancelado') emojis += " ❌";
                         if (dados.status === 'Realizado') emojis += " 🏁";
 
+                        // Cor lateral baseada no tipo
                         const tipo = (dados.tipo_procedimento || '').toLowerCase();
-                        let borderLeftColor = 'transparent';
-                        if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) borderLeftColor = '#e91e63';
-                        else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) borderLeftColor = '#ff9800';
-                        else if (tipo.includes('consulta')) borderLeftColor = '#2196f3';
+                        let borderLeftColor = '#2196f3'; // Consulta padrão
+                        if (tipo.includes('obstétrico') || tipo.includes('fetal')) borderLeftColor = '#e91e63';
+                        else if (tipo.includes('cardio')) borderLeftColor = '#ff9800';
 
                         return (
                             <Box sx={{ 
-                                display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-                                width: '100%', height: '100%', borderLeft: `3px solid ${borderLeftColor}`, padding: '0 2px 0 4px', overflow: 'hidden'
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                                width: '100%', height: '100%', borderLeft: `4px solid ${borderLeftColor}`, pl: 0.5, overflow: 'hidden'
                             }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', whiteSpace: 'nowrap', flexGrow: 1 }}>
-                                    <span style={{ fontWeight: 900, fontSize: '0.7em', opacity: 0.8 }}>{arg.timeText.replace(/:\d{2}$/, '')}</span>
-                                    <span style={{ fontWeight: 'bold', fontSize: '0.75em', textOverflow: 'ellipsis', overflow: 'hidden', textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none', color: dados.status === 'Cancelado' ? '#999' : '#fff' }}>
-                                        {arg.event.title}
-                                    </span>
-                                </Box>
-                                <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center' }}>{emojis}</Box>
+                                <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontWeight: 600 }}>
+                                    {arg.timeText.replace(/:\d{2}$/, '')} {arg.event.title}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', flexShrink: 0 }}>{emojis}</div>
                             </Box>
                         );
                     }}
                 />
             </StyledCalendarWrapper>
 
-            {/* --- MENU DE OPÇÕES (FLUTUANTE) --- */}
-            <Menu anchorEl={anchorEl} open={openMenu} onClose={handleCloseMenu} PaperProps={{ elevation: 3, sx: { minWidth: 200 } }}>
-                <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
-                    <div style={{fontWeight: 'bold', fontSize: '14px', color:'#1C2E4A'}}>{selectedEvent?.title || 'Agendamento'}</div>
-                    <div style={{fontSize: '11px', color:'#666'}}>Selecione uma ação:</div>
-                </Box>
-                <MenuItem onClick={handleActionEditar}><ListItemIcon><FaEdit fontSize="small" /></ListItemIcon><ListItemText>Editar Agendamento</ListItemText></MenuItem>
-                <Divider />
-                <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}><ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32"/></ListItemIcon><ListItemText>Realizar Laudo</ListItemText></MenuItem>
-                <MenuItem onClick={handleActionConsulta} disabled={!selectedEvent?.extendedProps?.paciente_id}><ListItemIcon><FaStethoscope fontSize="small" color="#1976d2"/></ListItemIcon><ListItemText>Iniciar Atendimento</ListItemText></MenuItem>
+            {/* --- MENU CONTEXTO --- */}
+            <Menu anchorEl={anchorEl} open={openMenu} onClose={handleCloseMenu}>
+                <MenuItem onClick={handleActionEditar}><ListItemIcon><FaEdit/></ListItemIcon><ListItemText>Editar</ListItemText></MenuItem>
+                <MenuItem onClick={handleActionLaudo}><ListItemIcon><FaFileMedical color="green"/></ListItemIcon><ListItemText>Laudo</ListItemText></MenuItem>
+                <MenuItem onClick={handleActionConsulta}><ListItemIcon><FaStethoscope color="blue"/></ListItemIcon><ListItemText>Atender</ListItemText></MenuItem>
             </Menu>
         </Paper>
     );

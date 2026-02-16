@@ -1,6 +1,6 @@
 // src/pages/PainelRecepcaoPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Drawer, Typography, Paper, CircularProgress } from '@mui/material';
+import { Box, Drawer, Typography, Paper, CircularProgress, Stack, Divider, Button } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
 
 // Componentes do Painel
@@ -72,7 +72,12 @@ export default function PainelRecepcaoPage() {
         setIsAgendamentoModalOpen(true); 
     };
 
-    const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
+    // A AgendaPrincipal vai chamar isso quando mudar o filtro interno dela,
+    // ou se você quiser controlar tudo por aqui.
+    const handleFiltroChange = (filtros) => { 
+        setMedicoFiltro(filtros.medicoId); 
+        setEspecialidadeFiltro(filtros.especialidadeId); 
+    };
 
     const handleSlotSelect = (slotInfo) => {
         setIsDispoOpen(false);
@@ -87,9 +92,7 @@ export default function PainelRecepcaoPage() {
     return (
         <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 1, gap: 1, backgroundColor: '#f4f6f8', overflow: 'hidden' }}>
             
-            {/* =======================================================
-                COLUNA ESQUERDA (Lista de Espera e Hoje - Contínua)
-            ======================================================= */}
+            {/* --- COLUNA ESQUERDA --- */}
             <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
                 <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
                     <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
@@ -100,85 +103,59 @@ export default function PainelRecepcaoPage() {
             </Box>
 
 
-            {/* =======================================================
-                ÁREA DIREITA (Topo Fino + Filtros + Agenda Gigante)
-            ======================================================= */}
+            {/* --- ÁREA DIREITA (PRINCIPAL) --- */}
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, overflow: 'hidden' }}>
                 
-                {/* --- SUPER BARRA (Fina, Delicada e Centralizada) --- */}
+                {/* === BARRA SUPERIOR UNIFICADA === 
+                    Altura fixa, flexbox limpo, botões alinhados.
+                */}
                 <Paper variant="outlined" sx={{ 
-                    px: 2, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', /* Distribui as 3 caixas principais */
-                    bgcolor: '#fff', 
-                    flexShrink: 0,
-                    height: '45px', // Ainda mais fina!
-                    borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                    px: 2, py: 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                    bgcolor: '#fff', flexShrink: 0, height: '54px', borderRadius: '8px', border: 'none',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
                 }}>
                     
-                    {/* CAIXA 1: KPIs (Largura travada para garantir a centralização) */}
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: '220px' }}>
-                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>HOJE</Typography>
-                            {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '0.9rem', fontWeight: 800, color: '#1C2E4A' }}>{kpis.hoje}</Typography>}
-                         </Box>
-                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>NOVOS</Typography>
-                             {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '0.9rem', fontWeight: 800 }}>{kpis.novos}</Typography>}
-                         </Box>
-                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>A CONFIRM.</Typography>
-                             {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '0.9rem', fontWeight: 800 }}>{kpis.confirmar}</Typography>}
-                         </Box>
-                    </Box>
+                    {/* 1. KPIs */}
+                    <Stack direction="row" spacing={3} alignItems="center">
+                        <Box>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem'}}>HOJE</Typography>
+                            {loadingKpis ? <CircularProgress size={14} /> : <Typography sx={{fontWeight: 800, color: '#1C2E4A', lineHeight: 1}}>{kpis.hoje}</Typography>}
+                        </Box>
+                        <Box>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem'}}>NOVOS</Typography>
+                            {loadingKpis ? <CircularProgress size={14} /> : <Typography sx={{fontWeight: 800, color: 'secondary.main', lineHeight: 1}}>{kpis.novos}</Typography>}
+                        </Box>
+                        <Box>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem'}}>A CONFIRM.</Typography>
+                            {loadingKpis ? <CircularProgress size={14} /> : <Typography sx={{fontWeight: 800, color: 'warning.main', lineHeight: 1}}>{kpis.confirmar}</Typography>}
+                        </Box>
+                    </Stack>
 
-                    {/* CAIXA 2: CONTROLES (Exatamente no meio da tela) */}
-                    <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        flexGrow: 1,
-                        // Camisa de força CSS para os botões do componente
-                        '& > div': { display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', border: 'none !important', boxShadow: 'none !important', background: 'transparent !important' },
-                        '& .MuiButton-root': { height: '30px', minHeight: '30px', whiteSpace: 'nowrap', padding: '0 16px', fontSize: '0.75rem', fontWeight: 600, borderRadius: '6px' },
-                        // HACK: Esconde o dropdown de Filtro antigo que estava aqui
-                        '& .MuiFormControl-root, & .MuiTextField-root': { display: 'none !important' } 
-                    }}>
-                        <ControlesAgenda 
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%' }} />
+
+                    {/* 2. BOTÕES DE AÇÃO (Usando Stack para alinhar perfeitamente) */}
+                    <Stack direction="row" spacing={1} sx={{ flexGrow: 1, justifyContent: 'center' }}>
+                         {/* Passando as funções para o componente filho ou renderizando botões diretos se preferir */}
+                         <ControlesAgenda 
                             onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
                             onCaixaClick={() => setIsCaixaModalOpen(true)}
                             onVerificarDispoClick={() => setIsDispoOpen(true)}
-                            onFiltroChange={() => {}} // Desativado aqui, pois vamos para a barra de baixo
+                            onFiltroChange={() => {}} // Filtros foram movidos para baixo
                         />
-                    </Box>
+                    </Stack>
 
-                    {/* CAIXA 3: ÍCONES (Alinhados na direita, mesma largura da Caixa 1) */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '220px', '& > div': { display: 'flex', gap: '4px', border: 'none !important', boxShadow: 'none !important', background: 'transparent !important' }, '& .MuiIconButton-root': { padding: '4px', '& svg': { fontSize: '16px', color: '#546E7A' } } }}>
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%' }} />
+
+                    {/* 3. ÍCONES LATERAIS */}
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
                          <BarraIconesLateral />
                     </Box>
 
                 </Paper>
 
-                {/* --- NOVA BARRA DE FILTROS (Horizontal, embaixo do topo e acima da agenda) --- */}
-                <Paper variant="outlined" sx={{ 
-                    p: '6px 16px', display: 'flex', alignItems: 'center', gap: 2, bgcolor: '#fff', borderRadius: '8px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)', flexShrink: 0
-                }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', fontSize: '0.75rem' }}>
-                        Filtrar Agenda:
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexGrow: 1 }}>
-                        {/* ⚠️ AVISO PARA VOCÊ: Substitua este texto abaixo pelos seus Selects de Médico/Especialidade que você tirou do ControlesAgenda */}
-                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', alignSelf: 'center' }}>
-                            [ Cole aqui os campos de Médico e Especialidade. Eles vão ficar perfeitamente alinhados na horizontal! ]
-                        </Typography>
-                    </Box>
-                </Paper>
-
-                {/* --- AGENDA --- */}
-                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                {/* --- AGENDA (Ocupa todo o resto) --- */}
+                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
                     <AgendaPrincipal 
                         medicoFiltro={medicoFiltro} 
                         especialidadeFiltro={especialidadeFiltro} 
@@ -186,12 +163,12 @@ export default function PainelRecepcaoPage() {
                         onEventClick={handleEventClick} 
                         salas={salas}
                         refreshTrigger={refreshTrigger}
-                        onFiltroChange={handleFiltroChange}  // <---- É só adicionar esta linha!
+                        onFiltroChange={handleFiltroChange} 
                     />
                 </Box>
             </Box>
             
-            {/* --- MODAIS INVISÍVEIS --- */}
+            {/* --- MODAIS --- */}
             <Drawer anchor="left" open={isDispoOpen} onClose={() => setIsDispoOpen(false)}>
                 <Box sx={{ width: 350, p: 2, height: '100%', bgcolor: '#f5f5f5' }}>
                     <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
