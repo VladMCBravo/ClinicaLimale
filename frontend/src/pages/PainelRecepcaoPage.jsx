@@ -42,21 +42,32 @@ export default function PainelRecepcaoPage() {
     const [editingEvent, setEditingEvent] = useState(null);
     const [initialData, setInitialData] = useState(null);
 
-    // --- CARREGAMENTO DE DADOS ---
+    // Carrega SALAS
     useEffect(() => {
-        agendamentoService.getSalas().then(res => setSalas(res.data));
+        agendamentoService.getSalas()
+            .then(res => setSalas(res.data))
+            .catch(err => console.error("Falha ao buscar salas", err));
     }, []);
 
+    // Carrega KPIs (Números do Topo) - CORREÇÃO AQUI
     useEffect(() => {
         setLoadingKpis(true);
         agendamentoService.getDashboardKPIs()
-            .then(res => setKpis(res.data)) // A API retorna { agendamentos_hoje_count, etc... }
+            .then(res => {
+                // Mapeia os nomes que vêm do backend para os nomes usados no layout
+                setKpis({
+                    hoje: res.data.agendamentos_hoje_count || res.data.hoje || 0,
+                    novos: res.data.pacientes_novos_mes_count || res.data.novos || 0,
+                    confirmar: res.data.consultas_a_confirmar_count || res.data.confirmar || 0
+                });
+            })
+            .catch(err => console.error("Erro ao carregar KPIs:", err))
             .finally(() => setLoadingKpis(false));
     }, [refreshTrigger]);
 
     const forceRefresh = () => setRefreshTrigger(prev => prev + 1);
 
-    // --- HANDLERS ---
+    // Handlers
     const handleCloseAgendamentoModal = () => { setIsAgendamentoModalOpen(false); setEditingEvent(null); setInitialData(null); };
     const handleAgendamentoSave = () => { handleCloseAgendamentoModal(); forceRefresh(); };
     
@@ -66,17 +77,14 @@ export default function PainelRecepcaoPage() {
         setIsAgendamentoModalOpen(true); 
     };
     
+    // Este handler é chamado quando clicamos em "Editar" no menu do card
     const handleEventClick = (clickInfo) => { 
         setInitialData(null); 
         setEditingEvent(clickInfo.event || clickInfo); 
         setIsAgendamentoModalOpen(true); 
     };
 
-    // Handler vindo da AgendaPrincipal
-    const handleFiltroChange = (filtros) => { 
-        setMedicoFiltro(filtros.medicoId); 
-        setEspecialidadeFiltro(filtros.especialidadeId); 
-    };
+    const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
 
     const handleSlotSelect = (slotInfo) => {
         setIsDispoOpen(false);
@@ -121,33 +129,21 @@ export default function PainelRecepcaoPage() {
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                 }}>
                     
-                    {/* 1. KPIs (Extraídos do seu KpiCards.jsx mas em linha) */}
-                    <Stack direction="row" spacing={3} alignItems="center">
-                         <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem', display:'block', lineHeight: 1}}>HOJE</Typography>
-                            {loadingKpis ? <CircularProgress size={14} /> : 
-                                <Typography sx={{fontWeight: 800, color: '#1C2E4A', fontSize: '0.95rem', lineHeight: 1}}>
-                                    {kpis.agendamentos_hoje_count || 0}
-                                </Typography>
-                            }
+                    {/* KPIs */}
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: '220px' }}>
+                         <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>HOJE</Typography>
+                            {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '0.9rem', fontWeight: 800, color: '#1C2E4A' }}>{kpis.hoje}</Typography>}
                          </Box>
-                         <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem', display:'block', lineHeight: 1}}>NOVOS</Typography>
-                             {loadingKpis ? <CircularProgress size={14} /> : 
-                                <Typography sx={{fontWeight: 800, color: 'secondary.main', fontSize: '0.95rem', lineHeight: 1}}>
-                                    {kpis.pacientes_novos_mes_count || 0}
-                                </Typography>
-                            }
+                         <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>NOVOS</Typography>
+                             {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '0.9rem', fontWeight: 800 }}>{kpis.novos}</Typography>}
                          </Box>
-                         <Box sx={{ textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem', display:'block', lineHeight: 1}}>CONFIRM.</Typography>
-                             {loadingKpis ? <CircularProgress size={14} /> : 
-                                <Typography sx={{fontWeight: 800, color: 'warning.main', fontSize: '0.95rem', lineHeight: 1}}>
-                                    {kpis.consultas_a_confirmar_count || 0}
-                                </Typography>
-                            }
+                         <Box>
+                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>A CONFIRM.</Typography>
+                             {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '0.9rem', fontWeight: 800 }}>{kpis.confirmar}</Typography>}
                          </Box>
-                    </Stack>
+                    </Box>
 
                     <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
 

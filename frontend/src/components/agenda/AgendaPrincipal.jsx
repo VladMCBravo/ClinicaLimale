@@ -75,65 +75,104 @@ export default function AgendaPrincipal({
 }) {
     const calendarRef = useRef(null);
     const navigate = useNavigate();
-    // Menu Contexto
+    // ESTADOS DO MENU
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
 
-    // Recarrega eventos quando filtros externos mudam
-    useEffect(() => { 
-        if (calendarRef.current) calendarRef.current.getApi().refetchEvents(); 
-    }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
-
     const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
-            .then(res => {
-                const evts = res.data
-                    .filter(a => a.status !== 'Cancelado' && a.sala)
-                    .map(a => ({
-                        id: a.id,
-                        title: a.paciente_nome, 
-                        start: a.data_hora_inicio,
-                        end: a.data_hora_fim,
-                        resourceId: String(a.sala),
-                        backgroundColor: getColorForSala(a.sala),
-                        extendedProps: { ...a, paciente_id: a.paciente }
+            .then(response => {
+                const eventosFormatados = response.data
+                    .filter(ag => ag.status !== 'Cancelado' && ag.sala)
+                    .map(ag => ({
+                        id: ag.id,
+                        title: ag.paciente_nome, 
+                        start: ag.data_hora_inicio,
+                        end: ag.data_hora_fim,
+                        extendedProps: { 
+                            ...ag,
+                            tipo_procedimento: ag.tipo_exame || 'CONSULTA', 
+                            paciente_id: ag.paciente, 
+                            medico_nome: ag.medico_nome,
+                            medico_crm: ag.medico_crm
+                        },
+                        resourceId: String(ag.sala),
+                        backgroundColor: getColorForSala(ag.sala),
+                        textColor: '#fff'
                     }));
-                successCallback(evts);
+                successCallback(eventosFormatados);
             })
-            .catch(failureCallback);
+            .catch(error => failureCallback(error));
     }, [medicoFiltro, especialidadeFiltro]);
 
-    useEffect(() => { if (calendarRef.current) calendarRef.current.getApi().refetchEvents(); }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
-
-    // --- CORREÇÃO 2: VOLTAR A CHAMAR O MODAL ORIGINAL ---
-    const handleEventClick = (clickInfo) => {
-        clickInfo.jsEvent.preventDefault();
-        // Em vez de abrir menu, chamamos a prop que veio do pai (PainelRecepcaoPage)
-        // Isso vai abrir o AgendamentoModal bonito.
-        if (onEventClick) {
-            onEventClick(clickInfo);
+    useEffect(() => {
+        if (calendarRef.current) {
+            calendarRef.current.getApi().refetchEvents();
         }
+    }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
+
+    // HANDLERS DO MENU
+
+    // 1. Ao clicar no evento (abre o menu)
+    const handleCalendarEventClick = (clickInfo) => {
+        clickInfo.jsEvent.preventDefault(); 
+        setAnchorEl(clickInfo.el);
+        setSelectedEvent(clickInfo.event);
     };
-    // ----------------------------------------------------
 
-    const handleAction = (action) => {
-        const dados = selectedEvent?.extendedProps;
-        if (!dados) return;
+    const handleCloseMenu = () => {
         setAnchorEl(null);
+        setSelectedEvent(null);
+    };
 
-        if (action === 'edit') onEventClick({ event: { id: selectedEvent.id, ...dados } });
-        else if (action === 'laudo') {
-            if (!dados.paciente_id) return alert('Sem paciente');
-            localStorage.setItem('laudos_rascunho_auto_save', JSON.stringify({
-                paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title },
-                medicoNome: dados.medico_nome, tipoExame: dados.tipo_exame || 'OBSTETRICO', textoFinal: ''
-            }));
-            navigate('/laudos');
-        } else if (action === 'consulta') {
-            if (!dados.paciente_id) return alert('Sem paciente');
-            navigate('/painel-medico', { state: { agendamentoId: selectedEvent.id, pacienteId: dados.paciente_id } });
+    // 2. Ação: Editar
+    const handleActionEditar = () => {
+        if (selectedEvent) {
+            onEventClick({ 
+                event: { 
+                    id: selectedEvent.id, 
+                    ...selectedEvent.extendedProps 
+                } 
+            }); 
         }
+        handleCloseMenu();
+    };
+
+    // 3. Ação: Laudo
+    const handleActionLaudo = () => {
+        const dados = selectedEvent?.extendedProps;
+        if (!dados || !dados.paciente_id) {
+            alert("Erro: Este agendamento não tem um paciente vinculado.");
+            return;
+        }
+        const draftLaudo = {
+            paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title }, 
+            medicoNome: dados.medico_nome,
+            medicoCrm: dados.medico_crm,
+            tipoExame: dados.tipo_procedimento !== 'CONSULTA' ? dados.tipo_procedimento : 'OBSTETRICO',
+            textoFinal: '',
+            dadosEstruturados: {}
+        };
+        localStorage.setItem('laudos_rascunho_auto_save', JSON.stringify(draftLaudo));
+        handleCloseMenu();
+        navigate('/laudos');
+    };
+
+    // 4. Ação: Painel Médico
+    const handleActionConsulta = () => {
+        const dados = selectedEvent?.extendedProps;
+        if (!dados?.paciente_id) {
+             alert("Erro: Paciente não identificado.");
+             return;
+        }
+        navigate('/painel-medico', { 
+            state: { 
+                agendamentoId: selectedEvent.id, 
+                pacienteId: dados.paciente_id 
+            } 
+        });
+        handleCloseMenu();
     };
 
     return (
@@ -194,10 +233,35 @@ export default function AgendaPrincipal({
                 />
             </StyledCalendarWrapper>
 
-            <Menu anchorEl={anchorEl} open={openMenu} onClose={() => setAnchorEl(null)}>
-                <MenuItem onClick={() => handleAction('edit')}><ListItemIcon><FaEdit size={14}/></ListItemIcon><ListItemText primaryTypographyProps={{fontSize:'0.85rem'}}>Editar</ListItemText></MenuItem>
-                <MenuItem onClick={() => handleAction('laudo')}><ListItemIcon><FaFileMedical size={14}/></ListItemIcon><ListItemText primaryTypographyProps={{fontSize:'0.85rem'}}>Laudo</ListItemText></MenuItem>
-                <MenuItem onClick={() => handleAction('consulta')}><ListItemIcon><FaStethoscope size={14}/></ListItemIcon><ListItemText primaryTypographyProps={{fontSize:'0.85rem'}}>Atender</ListItemText></MenuItem>
+            <Menu
+                anchorEl={anchorEl}
+                open={openMenu}
+                onClose={handleCloseMenu}
+                PaperProps={{ elevation: 3, sx: { minWidth: 200 } }}
+            >
+                <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
+                    <div style={{fontWeight: 'bold', fontSize: '14px', color:'#1C2E4A'}}>
+                        {selectedEvent?.title || 'Agendamento'}
+                    </div>
+                    <div style={{fontSize: '11px', color:'#666'}}>Selecione uma ação:</div>
+                </Box>
+
+                <MenuItem onClick={handleActionEditar}>
+                    <ListItemIcon><FaEdit fontSize="small" /></ListItemIcon>
+                    <ListItemText>Editar Agendamento</ListItemText>
+                </MenuItem>
+
+                <Divider />
+
+                <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                    <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32"/></ListItemIcon>
+                    <ListItemText>Realizar Laudo</ListItemText>
+                </MenuItem>
+
+                <MenuItem onClick={handleActionConsulta} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                    <ListItemIcon><FaStethoscope fontSize="small" color="#1976d2"/></ListItemIcon>
+                    <ListItemText>Iniciar Atendimento</ListItemText>
+                </MenuItem>
             </Menu>
         </Box>
     );
