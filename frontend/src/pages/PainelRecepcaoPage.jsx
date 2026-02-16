@@ -85,93 +85,92 @@ export default function PainelRecepcaoPage() {
     };
 
     return (
-        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 1, gap: 1, backgroundColor: '#f4f6f8' }}>
+        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 1, gap: 1, backgroundColor: '#f4f6f8', overflow: 'hidden' }}>
             
-            {/* COLUNA LATERAL ESQUERDA */}
-            <Box sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <ControlesAgenda 
-                    onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                    onCaixaClick={() => setIsCaixaModalOpen(true)}
-                    onFiltroChange={handleFiltroChange}
-                    onVerificarDispoClick={() => setIsDispoOpen(true)}
-                />
-                <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ flex: 1, minHeight: 0, mb: 1 }}>
-                        <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
-                    </Box>
-                    <Box sx={{ height: '35%', minHeight: 150 }}>
-                        <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
-                    </Box>
-                </Box>
-            </Box>
-
-            {/* ÁREA PRINCIPAL */}
-            <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* --- NOVA LINHA SUPERIOR UNIFICADA (KPIs + Controles + Ícones) --- */}
+            <Paper variant="outlined" sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#fff', flexShrink: 0 }}>
                 
-                {/* BARRA DE STATUS RÁPIDA (Com dados reais) */}
-                <Paper variant="outlined" sx={{ p: 1, display: 'flex', gap: 3, alignItems: 'center', bgcolor: '#fff', height: 50 }}>
+                {/* 1. KPIs (Lado Esquerdo) */}
+                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                      <Box>
                         <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>HOJE</Typography>
                         {loadingKpis ? <CircularProgress size={14} /> : 
-                            <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '1.1rem' }}>{kpis.hoje}</Typography>
+                            <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.hoje}</Typography>
                         }
                      </Box>
                      <Box>
                         <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>NOVOS (MÊS)</Typography>
                          {loadingKpis ? <CircularProgress size={14} /> : 
-                            <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '1.1rem' }}>{kpis.novos}</Typography>
+                            <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.novos}</Typography>
                          }
                      </Box>
                      <Box>
                         <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1}}>A CONFIRM.</Typography>
                          {loadingKpis ? <CircularProgress size={14} /> : 
-                            <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '1.1rem' }}>{kpis.confirmar}</Typography>
+                            <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '1.1rem', fontWeight: 'bold' }}>{kpis.confirmar}</Typography>
                          }
                      </Box>
-                </Paper>
+                </Box>
 
-                {/* AGENDA */}
-                <Box sx={{ flexGrow: 1 }}>
+                {/* 2. Controles Principais (Centro) */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {/* Reutilizando o seu componente de controles, mas forçando ele a ficar em linha (row) se possível */}
+                    <Box sx={{ transform: 'scale(0.9)', transformOrigin: 'center right', display: 'flex', gap: 1 }}>
+                        <ControlesAgenda 
+                            onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
+                            onCaixaClick={() => setIsCaixaModalOpen(true)}
+                            onFiltroChange={handleFiltroChange}
+                            onVerificarDispoClick={() => setIsDispoOpen(true)}
+                        />
+                    </Box>
+                </Box>
+
+                {/* 3. Ícones Laterais Antigos (Agora no Topo Direito) */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, transform: 'scale(0.9)', transformOrigin: 'center right' }}>
+                     <BarraIconesLateral />
+                </Box>
+
+            </Paper>
+
+            {/* --- MIOLO DA TELA (Colunas) --- */}
+            <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, minHeight: 0 }}>
+                
+                {/* COLUNA ESQUERDA (Apenas Listas) */}
+                <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0 }}>
+                    {/* Pacientes do Dia agora ocupa a maior parte do espaço lateral */}
+                    <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
+                        <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
+                    </Box>
+                    {/* Lista de Espera */}
+                    <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                        <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
+                    </Box>
+                </Box>
+
+                {/* COLUNA DIREITA (Agenda Gigante) */}
+                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
                     <AgendaPrincipal 
                         medicoFiltro={medicoFiltro} 
                         especialidadeFiltro={especialidadeFiltro} 
                         onDateClick={handleDateClick} 
                         onEventClick={handleEventClick} 
                         salas={salas}
-                        refreshTrigger={refreshTrigger} // <--- ADICIONE ESTA LINHA AQUI
+                        refreshTrigger={refreshTrigger} 
                     />
                 </Box>
+
             </Box>
             
-            <BarraIconesLateral />
-            
-            <Drawer
-                anchor="left"
-                open={isDispoOpen}
-                onClose={() => setIsDispoOpen(false)}
-            >
+            {/* --- MODAIS INVISÍVEIS --- */}
+            <Drawer anchor="left" open={isDispoOpen} onClose={() => setIsDispoOpen(false)}>
                 <Box sx={{ width: 350, p: 2, height: '100%', bgcolor: '#f5f5f5' }}>
                     <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
                 </Box>
             </Drawer>
             
-            <PacienteModal
-                open={isPacienteModalOpen}
-                onClose={() => setIsPacienteModalOpen(false)}
-                onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }}
-                pacienteParaEditar={null}
-            />
-            <AgendamentoModal
-                open={isAgendamentoModalOpen}
-                onClose={handleCloseAgendamentoModal}
-                onSave={handleAgendamentoSave}
-                initialData={initialData}
-                editingEvent={editingEvent}
-            />
-            <LancamentoCaixaModal
-                open={isCaixaModalOpen}
-                onClose={() => setIsCaixaModalOpen(false)}
-            />
+            <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }} pacienteParaEditar={null} />
+            <AgendamentoModal open={isAgendamentoModalOpen} onClose={handleCloseAgendamentoModal} onSave={handleAgendamentoSave} initialData={initialData} editingEvent={editingEvent} />
+            <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} />
         </Box>
     );
 }
