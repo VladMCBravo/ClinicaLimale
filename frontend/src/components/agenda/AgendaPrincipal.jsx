@@ -152,7 +152,7 @@ export default function AgendaPrincipal({
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     dateClick={onDateClick}
-                    eventClick={handleCalendarEventClick} 
+                    eventClick={handleEventClick}
                     slotMinTime="07:00:00" 
                     slotMaxTime="20:00:00"
                     allDaySlot={false}
