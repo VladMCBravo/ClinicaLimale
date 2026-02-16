@@ -1,144 +1,172 @@
 // src/components/painel/VerificadorDisponibilidade.jsx
 import React, { useState, useEffect } from 'react';
-import {
-    Paper, Typography, Box, Grid, FormControl, InputLabel, Select, MenuItem, Button, CircularProgress, Chip
+import { 
+    Box, Typography, TextField, Button, CircularProgress, 
+    Divider, Alert, Autocomplete, Chip, Stack, Paper 
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs from 'dayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ptBR from 'date-fns/locale/pt-BR';
+import SearchIcon from '@mui/icons-material/Search';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import dayjs from 'dayjs'; // Mantendo compatibilidade se você usa dayjs em outros lugares
+
 import apiClient from '../../api/axiosConfig';
 import { agendamentoService } from '../../services/agendamentoService';
-import { useSnackbar } from '../../contexts/SnackbarContext';
 
-export default React.memo(function VerificadorDisponibilidade({ onSlotSelect }) {
+export default function VerificadorDisponibilidade({ onSlotSelect }) {
+    // ESTADOS
+    const [dataSelecionada, setDataSelecionada] = useState(new Date());
     const [medicos, setMedicos] = useState([]);
-    const [especialidades, setEspecialidades] = useState([]);
+    const [medicoSelecionado, setMedicoSelecionado] = useState(null);
     
-    const [dataSelecionada, setDataSelecionada] = useState(dayjs());
-    const [medicoSelecionado, setMedicoSelecionado] = useState('');
-    const [especialidadeSelecionada, setEspecialidadeSelecionada] = useState('');
-    
-    const [horarios, setHorarios] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const { showSnackbar } = useSnackbar();
-    const [mensagemRetorno, setMensagemRetorno] = useState('Selecione uma data e um médico para iniciar a busca.');
+    // RESULTADOS
+    const [horariosLivres, setHorariosLivres] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [feedback, setFeedback] = useState('Selecione Data e Médico para buscar.');
 
+    // Carrega médicos ao abrir
     useEffect(() => {
-        const fetchFiltroData = async () => {
-            try {
-                const [medicosRes, especialidadesRes] = await Promise.all([
-                    apiClient.get('/usuarios/usuarios/?cargo=medico'),
-                    apiClient.get('/usuarios/especialidades/')
-                ]);
-                setMedicos(medicosRes.data);
-                setEspecialidades(especialidadesRes.data);
-            } catch (error) {
-                console.error("Erro ao buscar dados para filtros:", error);
-            }
-        };
-        fetchFiltroData();
+        apiClient.get('/usuarios/usuarios/?cargo=medico')
+            .then(res => setMedicos(res.data.results || res.data || []))
+            .catch(err => console.error("Erro médicos", err));
     }, []);
 
-    const handleSearch = async () => {
-        if (!dataSelecionada || !medicoSelecionado) {
-            showSnackbar('Por favor, selecione uma data e um médico.', 'warning');
+    // --- A MÁGICA: CALCULA HORÁRIOS LIVRES NO FRONTEND ---
+    const buscarDisponibilidade = async () => {
+        if (!medicoSelecionado) {
+            setFeedback("Por favor, selecione um médico.");
             return;
         }
-        setIsLoading(true);
-        setHorarios([]);
-        setMensagemRetorno('Buscando...'); 
+
+        setLoading(true);
+        setHorariosLivres([]);
+        setFeedback("Buscando agenda...");
+
         try {
-            const response = await agendamentoService.verificarDisponibilidade({
-                data: dataSelecionada.format('YYYY-MM-DD'),
-                medicoId: medicoSelecionado,
-                especialidadeId: especialidadeSelecionada,
+            // 1. Pega todos os agendamentos do médico
+            const res = await agendamentoService.getAgendamentos(medicoSelecionado.id, '');
+            const agendamentos = res.data || [];
+
+            // 2. Filtra agendamentos DO DIA escolhido (ignorando cancelados)
+            const diaAlvoStr = dataSelecionada.toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            const ocupados = agendamentos.filter(ag => {
+                const dataAg = ag.data_hora_inicio.split('T')[0];
+                return dataAg === diaAlvoStr && ag.status !== 'Cancelado';
             });
 
-            if (response.data && response.data.status === 'sucesso') {
-                setHorarios(response.data.horarios);
-                if (response.data.horarios.length === 0) {
-                    setMensagemRetorno('Não há horários disponíveis para esta seleção.');
+            // 3. Gera slots de 30 em 30 min (das 08:00 às 18:00)
+            const slotsLivres = [];
+            let hora = 8; 
+            let min = 0;
+            const fimHora = 18; // Até as 18:00
+
+            while (hora < fimHora) {
+                // Cria objeto Date para esse slot
+                const slotDate = new Date(dataSelecionada);
+                slotDate.setHours(hora, min, 0, 0);
+
+                // Verifica se colide com algum agendamento existente
+                // (Colisão simples: se o horário de inicio é igual)
+                const isOcupado = ocupados.some(ag => {
+                    const agDate = new Date(ag.data_hora_inicio);
+                    return agDate.getHours() === hora && agDate.getMinutes() === min;
+                });
+
+                if (!isOcupado) {
+                    const horaFormatada = `${String(hora).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+                    slotsLivres.push({
+                        label: horaFormatada,
+                        date: slotDate
+                    });
                 }
-            } else {
-                setHorarios([]);
-                setMensagemRetorno(response.data.motivo || 'Nenhum horário disponível para a seleção.');
+
+                // Incrementa 30 min
+                min += 30;
+                if (min === 60) { min = 0; hora++; }
             }
 
-        } catch (error) {
-            showSnackbar('Erro ao buscar horários disponíveis.', 'error');
-            setMensagemRetorno('Ocorreu um erro ao conectar com o servidor.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleSlotClick = (horario) => {
-        const [hora, minuto] = horario.split(':');
-        const dataHoraInicio = dataSelecionada.hour(hora).minute(minuto);
-        const medicoObj = medicos.find(m => m.id === medicoSelecionado) || null;
-        const especialidadeObj = especialidades.find(e => e.id === especialidadeSelecionada) || null;
+            setHorariosLivres(slotsLivres);
+            if (slotsLivres.length === 0) setFeedback("Agenda cheia para este dia.");
+            else setFeedback("");
 
-        onSlotSelect({
-            medico: medicoObj,
-            especialidade: especialidadeObj,
-            data_hora_inicio: dataHoraInicio,
-        });
+        } catch (error) {
+            console.error(error);
+            setFeedback("Erro ao carregar agenda.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Verificar Disponibilidade</Typography>
-            
-            <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
-                    <DatePicker label="Data" value={dataSelecionada} onChange={setDataSelecionada} sx={{ width: '100%' }} slotProps={{ textField: { size: 'small' } }} />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Especialidade</InputLabel>
-                        <Select value={especialidadeSelecionada} label="Especialidade" onChange={(e) => setEspecialidadeSelecionada(e.target.value)}>
-                            {especialidades.map((esp) => (<MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                     <FormControl fullWidth required size="small">
-                        <InputLabel>Médico</InputLabel>
-                        <Select value={medicoSelecionado} label="Médico" onChange={(e) => setMedicoSelecionado(e.target.value)}>
-                            {medicos.map((med) => (<MenuItem key={med.id} value={med.id}>{med.first_name} {med.last_name}</MenuItem>))}
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                    <Button onClick={handleSearch} variant="contained" disabled={isLoading} fullWidth>
-                        {isLoading ? <CircularProgress size={24} /> : 'Buscar'}
-                    </Button>
-                </Grid>
-            </Grid>
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
+                
+                {/* Título */}
+                <Typography variant="h6" sx={{ color: '#1C2E4A', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SearchIcon /> Buscar Horário
+                </Typography>
+                <Divider />
 
-            {/* A área de resultados volta a ficar abaixo dos filtros */}
-            <Box sx={{ mt: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="overline">Horários Disponíveis</Typography>
-                <Paper variant="outlined" sx={{ flexGrow: 1, p: 2, overflowY: 'auto', backgroundColor: '#fdfdfd' }}>
-                    {horarios.length > 0 ? (
+                {/* Formulário Compacto (Vertical) */}
+                <Stack spacing={2}>
+                    <DatePicker
+                        label="Data"
+                        value={dataSelecionada}
+                        onChange={(d) => { setDataSelecionada(d); setHorariosLivres([]); setFeedback("Clique em buscar."); }}
+                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    />
+
+                    <Autocomplete
+                        size="small"
+                        options={medicos}
+                        getOptionLabel={(o) => o.first_name ? `${o.first_name} ${o.last_name}` : o.username}
+                        value={medicoSelecionado}
+                        onChange={(e, v) => { setMedicoSelecionado(v); setHorariosLivres([]); }}
+                        renderInput={(params) => <TextField {...params} label="Selecione o Médico" />}
+                    />
+
+                    <Button 
+                        variant="contained" 
+                        onClick={buscarDisponibilidade}
+                        disabled={loading}
+                        fullWidth
+                        sx={{ bgcolor: '#1C2E4A', fontWeight: 'bold' }}
+                    >
+                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Ver Disponibilidade'}
+                    </Button>
+                </Stack>
+
+                <Divider sx={{ my: 1 }} />
+
+                {/* Área de Resultados (Chips) */}
+                <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                    {horariosLivres.length > 0 ? (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {horarios.map((horario, index) => (
-                                <Chip 
-                                    key={index} 
-                                    label={horario} 
-                                    onClick={() => handleSlotClick(horario)} 
-                                    color="primary" 
-                                    size="small" // <-- MUDANÇA PRINCIPAL AQUI
-                                    sx={{ cursor: 'pointer' }}
+                            {horariosLivres.map((slot, idx) => (
+                                <Chip
+                                    key={idx}
+                                    label={slot.label}
+                                    icon={<AccessTimeIcon fontSize="small"/>}
+                                    onClick={() => onSlotSelect({
+                                        data_hora_inicio: { toDate: () => slot.date }, // Formato compatível com o modal
+                                        medico: medicoSelecionado,
+                                        especialidade: null // Opcional
+                                    })}
+                                    color="primary"
+                                    variant="outlined"
+                                    sx={{ cursor: 'pointer', fontWeight: 'bold', '&:hover': { bgcolor: '#e3f2fd' } }}
                                 />
                             ))}
                         </Box>
                     ) : (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '40px' }}>
-                            {!isLoading && <Typography color="text.secondary">{mensagemRetorno}</Typography>}
-                        </Box>
+                        <Alert severity="info" sx={{ mt: 1 }}>{feedback}</Alert>
                     )}
-                </Paper>
+                </Box>
+
             </Box>
-        </Paper>
+        </LocalizationProvider>
     );
-});
+}

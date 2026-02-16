@@ -64,23 +64,19 @@ export default function AgendaPrincipal({
     onDateClick, 
     onEventClick, 
     salas = [],
-    refreshTrigger,
-    onFiltroChange
+    refreshTrigger
 }) {
     const calendarRef = useRef(null);
     const navigate = useNavigate();
-    const [medicos, setMedicos] = useState([]);
-    const [especialidades, setEspecialidades] = useState([]);
-    
     // Menu Contexto
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
 
-    useEffect(() => {
-        apiClient.get('/usuarios/usuarios/?cargo=medico').then(res => setMedicos(res.data.results || []));
-        apiClient.get('/usuarios/especialidades/').then(res => setEspecialidades(res.data.results || []));
-    }, []);
+    // Recarrega eventos quando filtros externos mudam
+    useEffect(() => { 
+        if (calendarRef.current) calendarRef.current.getApi().refetchEvents(); 
+    }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
 
     const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
@@ -132,48 +128,7 @@ export default function AgendaPrincipal({
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
-            
-            {/* === BARRA DE FILTROS DA AGENDA (Aqui embaixo, bonita e organizada) === */}
-            <Box sx={{ 
-                p: '8px 16px', 
-                bgcolor: '#f9fafb', 
-                borderBottom: '1px solid #e0e0e0',
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 2 
-            }}>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ color: '#546E7A', opacity: 0.8 }}>
-                    <FaFilter size={12} />
-                    <Typography variant="overline" sx={{ fontWeight: 'bold', lineHeight: 1 }}>Filtros</Typography>
-                </Stack>
-
-                <FormControl size="small" sx={{ minWidth: 180, bgcolor: '#fff' }}>
-                    <InputLabel sx={{ fontSize: '0.8rem' }}>Médico</InputLabel>
-                    <Select 
-                        value={medicoFiltro || ''} 
-                        label="Médico" 
-                        onChange={e => onFiltroChange({ medicoId: e.target.value, especialidadeId: especialidadeFiltro })}
-                        sx={{ height: '32px', fontSize: '0.8rem' }}
-                    >
-                        <MenuItem value="">Todos</MenuItem>
-                        {medicos.map(m => <MenuItem key={m.id} value={m.id}>{m.first_name || m.username}</MenuItem>)}
-                    </Select>
-                </FormControl>
-
-                <FormControl size="small" sx={{ minWidth: 180, bgcolor: '#fff' }}>
-                    <InputLabel sx={{ fontSize: '0.8rem' }}>Especialidade</InputLabel>
-                    <Select 
-                        value={especialidadeFiltro || ''} 
-                        label="Especialidade" 
-                        onChange={e => onFiltroChange({ medicoId: medicoFiltro, especialidadeId: e.target.value })}
-                        sx={{ height: '32px', fontSize: '0.8rem' }}
-                    >
-                        <MenuItem value="">Todas</MenuItem>
-                        {especialidades.map(e => <MenuItem key={e.id} value={e.id}>{e.nome}</MenuItem>)}
-                    </Select>
-                </FormControl>
-            </Box>
-
+           
             {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
                 <FullCalendar
