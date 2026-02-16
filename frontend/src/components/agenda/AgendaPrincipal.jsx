@@ -4,7 +4,7 @@ import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/m
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaFileMedical, FaStethoscope, FaFilter } from 'react-icons/fa';
+import { FaEdit, FaFileMedical, FaStethoscope, FaExclamationTriangle } from 'react-icons/fa';
 // Plugins
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -12,7 +12,6 @@ import interactionPlugin from '@fullcalendar/interaction';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 
 import { agendamentoService } from '../../services/agendamentoService';
-import apiClient from '../../api/axiosConfig';
 
 // CSS CUSTOMIZADO
 const StyledCalendarWrapper = styled('div')({
@@ -22,13 +21,13 @@ const StyledCalendarWrapper = styled('div')({
     flexDirection: 'column',
     backgroundColor: '#fff',
 
-    // --- CORREÇÃO 1: FONTES DOS HORÁRIOS MENORES ---
+    // --- FONTES DOS HORÁRIOS MENORES ---
     '.fc-timegrid-slot-label-cushion': { 
-        fontSize: '0.75rem !important', // Fonte menor (aprox 12px)
+        fontSize: '0.7rem !important', // Fonte menor
         fontWeight: 500,
         color: '#90a4ae'
     },
-    // -----------------------------------------------
+    
     // Ajuste fino das células e slots
     '.fc-timegrid-slot': { height: '32px !important' }, 
     '.fc-theme-standard td, .fc-theme-standard th': { borderColor: '#f1f3f5' },
@@ -75,6 +74,7 @@ export default function AgendaPrincipal({
 }) {
     const calendarRef = useRef(null);
     const navigate = useNavigate();
+    
     // ESTADOS DO MENU
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -191,7 +191,10 @@ export default function AgendaPrincipal({
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     dateClick={onDateClick}
-                    eventClick={handleEventClick}
+                    
+                    // CORREÇÃO FINAL AQUI:
+                    eventClick={handleCalendarEventClick}
+                    
                     slotMinTime="07:00:00" 
                     slotMaxTime="20:00:00"
                     allDaySlot={false}
