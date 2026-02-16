@@ -13,6 +13,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 
 import { agendamentoService } from '../../services/agendamentoService';
+import apiClient from '../../api/axiosConfig'; // <--- Usado para buscar médicos e especialidades
 
 // --- CSS CUSTOMIZADO (AJUSTE FINO) ---
 const StyledCalendarWrapper = styled('div')(({ theme }) => ({
@@ -117,15 +118,31 @@ export default function AgendaPrincipal({
     onDateClick, 
     onEventClick, 
     salas = [],
-    refreshTrigger 
+    refreshTrigger,
+    onFiltroChange // <--- NOVO PROP PARA AVISAR A TELA PRINCIPAL
 }) {
     const calendarRef = useRef(null);
     const navigate = useNavigate();
+
+    // --- ESTADOS DOS FILTROS ---
+    const [medicos, setMedicos] = useState([]);
+    const [especialidades, setEspecialidades] = useState([]);
 
     // --- ESTADOS DO MENU DE OPÇÕES ---
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
+
+    // Carrega Médicos e Especialidades para o Filtro Interno
+    useEffect(() => {
+        apiClient.get('/usuarios/usuarios/?cargo=medico')
+            .then(res => setMedicos(res.data.results || res.data || []))
+            .catch(err => console.error("Erro ao buscar médicos", err));
+
+        apiClient.get('/usuarios/especialidades/')
+            .then(res => setEspecialidades(res.data.results || res.data || []))
+            .catch(err => console.error("Erro ao buscar especialidades", err));
+    }, []);
 
     const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
@@ -159,6 +176,15 @@ export default function AgendaPrincipal({
             calendarRef.current.getApi().refetchEvents();
         }
     }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
+
+    // --- HANDLERS DOS FILTROS ---
+    const handleMedicoChange = (e) => {
+        if (onFiltroChange) onFiltroChange({ medicoId: e.target.value, especialidadeId: especialidadeFiltro });
+    };
+
+    const handleEspecialidadeChange = (e) => {
+        if (onFiltroChange) onFiltroChange({ medicoId: medicoFiltro, especialidadeId: e.target.value });
+    };
 
     // --- HANDLERS DO MENU ---
 
@@ -236,38 +262,70 @@ export default function AgendaPrincipal({
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 0, height: '100%', overflow: 'hidden', border: '1px solid #ddd' }}>
+        <Paper variant="outlined" sx={{ p: 0, height: '100%', overflow: 'hidden', border: '1px solid #ddd', display: 'flex', flexDirection: 'column' }}>
+            
+            {/* --- NOVA BARRA DE FILTROS EMBUTIDA --- */}
+            <Box sx={{ 
+                display: 'flex', alignItems: 'center', gap: 2, p: '6px 12px', 
+                bgcolor: '#f8f9fa', borderBottom: '1px solid #e0e0e0', flexShrink: 0 
+            }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', fontSize: '0.75rem', mr: 1 }}>
+                    Filtros da Agenda:
+                </Typography>
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel sx={{ fontSize: '0.75rem', top: '-4px' }}>Médico</InputLabel>
+                    <Select
+                        value={medicoFiltro || ''}
+                        label="Médico"
+                        onChange={handleMedicoChange}
+                        sx={{ fontSize: '0.75rem', height: '28px', bgcolor: '#fff', '& .MuiSelect-select': { py: 0.5 } }}
+                    >
+                        <MenuItem value="" sx={{ fontSize: '0.75rem' }}><em>Todos os Médicos</em></MenuItem>
+                        {medicos.map(m => (
+                            <MenuItem key={m.id} value={m.id} sx={{ fontSize: '0.75rem' }}>
+                                {m.first_name ? `${m.first_name} ${m.last_name}` : m.username}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel sx={{ fontSize: '0.75rem', top: '-4px' }}>Especialidade</InputLabel>
+                    <Select
+                        value={especialidadeFiltro || ''}
+                        label="Especialidade"
+                        onChange={handleEspecialidadeChange}
+                        sx={{ fontSize: '0.75rem', height: '28px', bgcolor: '#fff', '& .MuiSelect-select': { py: 0.5 } }}
+                    >
+                        <MenuItem value="" sx={{ fontSize: '0.75rem' }}><em>Todas as Especialidades</em></MenuItem>
+                        {especialidades.map(e => (
+                            <MenuItem key={e.id} value={e.id} sx={{ fontSize: '0.75rem' }}>
+                                {e.nome}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Box>
+
+            {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
                 <FullCalendar
-    ref={calendarRef}
-    plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
-    initialView="resourceTimeGridDay"
-    locale="pt-br"
-    // --- ADICIONE/AJUSTE ESTAS LINHAS ---
-    buttonText={{
-        today: 'Hoje',
-        month: 'Mês',
-        week: 'Semana',
-        day: 'Dia'
-    }}
-    headerToolbar={{
-        left: 'prev,next today',
-        center: 'title',
-        right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth'
-    }}
-    // ------------------------------------
-    height="100%"
+                    ref={calendarRef}
+                    plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    initialView="resourceTimeGridDay"
+                    locale="pt-br"
+                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
+                    headerToolbar={{ left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' }}
+                    height="100%"
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
-                    
                     dateClick={onDateClick}
-                    eventClick={handleCalendarEventClick} // <--- Alterado aqui
-                    
+                    eventClick={handleCalendarEventClick} 
                     slotMinTime="07:00:00" 
                     slotMaxTime="20:00:00"
                     allDaySlot={false}
                     nowIndicator={true}
-                    // ... (Seus outros configs de headerToolbar, etc)
                     slotDuration="00:15:00"
                     eventMinHeight={28}
                     eventContent={(arg) => {
@@ -289,93 +347,32 @@ export default function AgendaPrincipal({
 
                         return (
                             <Box sx={{ 
-                                display: 'flex', 
-                                flexDirection: 'row', /* FORÇA A FICAR TUDO EM UMA LINHA */
-                                alignItems: 'center',
-                                justifyContent: 'space-between', /* EMPURRA O CONTEÚDO PARA AS BORDAS */
-                                width: '100%', 
-                                height: '100%',
-                                borderLeft: `3px solid ${borderLeftColor}`,
-                                padding: '0 2px 0 4px',
-                                overflow: 'hidden'
+                                display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+                                width: '100%', height: '100%', borderLeft: `3px solid ${borderLeftColor}`, padding: '0 2px 0 4px', overflow: 'hidden'
                             }}>
-                                {/* LADO ESQUERDO: Hora e Nome do Paciente espremidos */}
-                                <Box sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '4px', 
-                                    overflow: 'hidden', 
-                                    whiteSpace: 'nowrap',
-                                    flexGrow: 1 /* Permite que o nome ocupe o espaço máximo disponível */
-                                }}>
-                                    <span style={{ fontWeight: 900, fontSize: '0.7em', opacity: 0.8 }}>
-                                        {arg.timeText.replace(/:\d{2}$/, '')} {/* Tira os zeros dos segundos se houver */}
-                                    </span>
-                                    <span style={{ 
-                                        fontWeight: 'bold', 
-                                        fontSize: '0.75em', 
-                                        textOverflow: 'ellipsis', 
-                                        overflow: 'hidden', 
-                                        textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none',
-                                        color: dados.status === 'Cancelado' ? '#999' : '#fff'
-                                    }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', whiteSpace: 'nowrap', flexGrow: 1 }}>
+                                    <span style={{ fontWeight: 900, fontSize: '0.7em', opacity: 0.8 }}>{arg.timeText.replace(/:\d{2}$/, '')}</span>
+                                    <span style={{ fontWeight: 'bold', fontSize: '0.75em', textOverflow: 'ellipsis', overflow: 'hidden', textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none', color: dados.status === 'Cancelado' ? '#999' : '#fff' }}>
                                         {arg.event.title}
                                     </span>
                                 </Box>
-
-                                {/* LADO DIREITO: Emojis travados no final */}
-                                <Box sx={{ 
-                                    fontSize: '0.8em', 
-                                    flexShrink: 0, /* IMPEDE QUE O NOME ESMAGUE OS EMOJIS */
-                                    paddingLeft: '2px',
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                }}>
-                                    {emojis}
-                                </Box>
+                                <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center' }}>{emojis}</Box>
                             </Box>
                         );
                     }}
-                        
                 />
             </StyledCalendarWrapper>
 
             {/* --- MENU DE OPÇÕES (FLUTUANTE) --- */}
-            <Menu
-                anchorEl={anchorEl}
-                open={openMenu}
-                onClose={handleCloseMenu}
-                PaperProps={{ elevation: 3, sx: { minWidth: 200 } }}
-            >
+            <Menu anchorEl={anchorEl} open={openMenu} onClose={handleCloseMenu} PaperProps={{ elevation: 3, sx: { minWidth: 200 } }}>
                 <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
-                    <div style={{fontWeight: 'bold', fontSize: '14px', color:'#1C2E4A'}}>
-                        {selectedEvent?.title || 'Agendamento'}
-                    </div>
+                    <div style={{fontWeight: 'bold', fontSize: '14px', color:'#1C2E4A'}}>{selectedEvent?.title || 'Agendamento'}</div>
                     <div style={{fontSize: '11px', color:'#666'}}>Selecione uma ação:</div>
                 </Box>
-
-                <MenuItem onClick={handleActionEditar}>
-                    <ListItemIcon><FaEdit fontSize="small" /></ListItemIcon>
-                    <ListItemText>Editar Agendamento</ListItemText>
-                </MenuItem>
-
+                <MenuItem onClick={handleActionEditar}><ListItemIcon><FaEdit fontSize="small" /></ListItemIcon><ListItemText>Editar Agendamento</ListItemText></MenuItem>
                 <Divider />
-
-                <MenuItem 
-                    onClick={handleActionLaudo} 
-                    disabled={!selectedEvent?.extendedProps?.paciente_id}
-                >
-                    <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32"/></ListItemIcon>
-                    <ListItemText>Realizar Laudo</ListItemText>
-                </MenuItem>
-
-                <MenuItem 
-                    onClick={handleActionConsulta}
-                    disabled={!selectedEvent?.extendedProps?.paciente_id} 
-                >
-                    <ListItemIcon><FaStethoscope fontSize="small" color="#1976d2"/></ListItemIcon>
-                    <ListItemText>Iniciar Atendimento</ListItemText>
-                </MenuItem>
+                <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}><ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32"/></ListItemIcon><ListItemText>Realizar Laudo</ListItemText></MenuItem>
+                <MenuItem onClick={handleActionConsulta} disabled={!selectedEvent?.extendedProps?.paciente_id}><ListItemIcon><FaStethoscope fontSize="small" color="#1976d2"/></ListItemIcon><ListItemText>Iniciar Atendimento</ListItemText></MenuItem>
             </Menu>
         </Paper>
     );
