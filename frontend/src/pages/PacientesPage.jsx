@@ -1,237 +1,193 @@
-// src/pages/PacientesPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import apiClient from '../api/axiosConfig';
-import { useAuth } from '../hooks/useAuth';
+// src/pages/PainelRecepcaoPage.jsx
+import React, { useState, useEffect } from 'react';
+import { Box, Drawer, Typography, Paper, CircularProgress, Stack, Divider } from '@mui/material';
+import { agendamentoService } from '../services/agendamentoService';
+
+// Componentes
+import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
+import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
+import ListaEspera from '../components/painel/ListaEspera';
+import ControlesAgenda from '../components/painel/ControlesAgenda';
+import BarraIconesLateral from '../components/painel/BarraIconesLateral';
+import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
+
+// Modais
 import PacienteModal from '../components/PacienteModal';
-import {
-  Box, Typography, Paper, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, CircularProgress, IconButton, Button, TextField
-} from '@mui/material';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import LinkIcon from '@mui/icons-material/Link';
-import WhatsAppIcon from '@mui/icons-material/WhatsApp'; // Opcional: ícone visual
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'; // --- NOVO: Ícone para os laudos
+import AgendamentoModal from '../components/AgendamentoModal';
+import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal';
 
-import { useSnackbar } from '../contexts/SnackbarContext';
-import ModalVincularExame from '../components/prontuario/ModalVincularExame';
-// --- NOVO: Import do Modal de Histórico de Laudos ---
-// Certifique-se que o caminho está correto conforme onde você criou o arquivo
-import HistoricoLaudosModal from '../components/laudos/HistoricoLaudosModal';
+export default function PainelRecepcaoPage() {
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [salas, setSalas] = useState([]);
+    
+    // Estados de Filtro (Passados para a Agenda)
+    const [medicoFiltro, setMedicoFiltro] = useState('');
+    const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
 
-// Função auxiliar para formatar data (YYYY-MM-DD -> DD/MM/YYYY)
-const formatData = (dataString) => {
-    if (!dataString) return '-';
-    // Evita problemas de timezone fazendo split direto na string
-    const partes = dataString.split('-'); 
-    if(partes.length < 3) return dataString;
-    return `${partes[2]}/${partes[1]}/${partes[0]}`; 
-};
+    const [kpis, setKpis] = useState({ hoje: 0, novos: 0, confirmar: 0 });
+    const [loadingKpis, setLoadingKpis] = useState(true);
 
-export default function PacientesPage() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { showSnackbar } = useSnackbar();
-  
-  // --- ESTADOS ---
-  const [pacientes, setPacientes] = useState([]);
-  const [filteredPacientes, setFilteredPacientes] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Estados Modal Edição/Criação
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pacienteParaEditar, setPacienteParaEditar] = useState(null);
-  
-  // Estados Busca
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Estados Modal Vincular Exame
-  const [modalVincularOpen, setModalVincularOpen] = useState(false);
-  const [pacienteParaVincular, setPacienteParaVincular] = useState(null);
+    const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
+    const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
+    const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
+    const [isDispoOpen, setIsDispoOpen] = useState(false);
 
-  // --- NOVO: Estados Modal Histórico de Laudos (Recepção) ---
-  const [modalHistoricoOpen, setModalHistoricoOpen] = useState(false);
-  const [pacienteParaHistorico, setPacienteParaHistorico] = useState(null);
+    const [editingEvent, setEditingEvent] = useState(null);
+    const [initialData, setInitialData] = useState(null);
 
-  // --- HANDLERS ---
-  const handleOpenVincular = (paciente) => {
-      setPacienteParaVincular(paciente);
-      setModalVincularOpen(true);
-  };
-  // --- NOVO: Abre o modal de laudos ---
-  const handleOpenHistorico = (paciente) => {
-      setPacienteParaHistorico(paciente);
-      setModalHistoricoOpen(true);
-  };
+    useEffect(() => {
+        agendamentoService.getSalas().then(res => setSalas(res.data));
+    }, []);
 
-  const fetchPacientes = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await apiClient.get('/pacientes/');
-      
-      const dadosOrdenados = response.data.sort((a, b) => 
-        a.nome_completo.localeCompare(b.nome_completo, 'pt-BR', { sensitivity: 'base' })
-      );
+    useEffect(() => {
+        setLoadingKpis(true);
+        agendamentoService.getDashboardKPIs()
+            .then(res => setKpis(res.data))
+            .finally(() => setLoadingKpis(false));
+    }, [refreshTrigger]);
 
-      setPacientes(dadosOrdenados);
-      setFilteredPacientes(dadosOrdenados); 
-    } catch (error) {
-      console.error("Erro ao buscar pacientes:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); 
-  
-  useEffect(() => {
-    fetchPacientes();
-  }, [fetchPacientes]);
+    const forceRefresh = () => setRefreshTrigger(prev => prev + 1);
 
-  useEffect(() => {
-    if (!pacientes) return;
-    const lowercasedFilter = searchTerm.toLowerCase();
-    const filteredData = pacientes.filter(item =>
-      (item.nome_completo && item.nome_completo.toLowerCase().includes(lowercasedFilter)) ||
-      (item.cpf && item.cpf.includes(lowercasedFilter))
-    );
-    setFilteredPacientes(filteredData);
-  }, [searchTerm, pacientes]);
+    const handleCloseAgendamentoModal = () => { setIsAgendamentoModalOpen(false); setEditingEvent(null); setInitialData(null); };
+    const handleAgendamentoSave = () => { handleCloseAgendamentoModal(); forceRefresh(); };
+    
+    const handleDateClick = (arg) => { 
+        setEditingEvent(null); 
+        setInitialData({ start: arg.date, resource: arg.resource }); 
+        setIsAgendamentoModalOpen(true); 
+    };
+    
+    const handleEventClick = (clickInfo) => { 
+        setInitialData(null); 
+        setEditingEvent(clickInfo.event || clickInfo); 
+        setIsAgendamentoModalOpen(true); 
+    };
 
-  const handleOpenProntuario = (pacienteId) => {
-    navigate(`/pacientes/${pacienteId}/prontuario`);
-  };
+    const handleFiltroChange = (filtros) => { 
+        setMedicoFiltro(filtros.medicoId); 
+        setEspecialidadeFiltro(filtros.especialidadeId); 
+    };
 
-  const handleEdit = (paciente) => {
-    setPacienteParaEditar(paciente);
-    setIsModalOpen(true);
-  };
+    const handleSlotSelect = (slotInfo) => {
+        setIsDispoOpen(false);
+        setInitialData({
+             start: slotInfo.data_hora_inicio.toDate(),
+             medicoId: slotInfo.medico?.id,
+             especialidadeId: slotInfo.especialidade?.id
+        });
+        setIsAgendamentoModalOpen(true);
+    };
 
-  const handleDelete = async (pacienteId) => {
-    if (window.confirm('Tem certeza que deseja deletar este paciente?')) {
-      try {
-        await apiClient.delete(`/pacientes/${pacienteId}/`);
-        showSnackbar('Paciente deletado com sucesso!', 'success');
-        fetchPacientes();
-      } catch (error) {
-        console.error("Erro ao deletar paciente:", error);
-        showSnackbar('Erro ao deletar paciente.', 'error');
-      }
-    }
-  };
+    return (
+        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 1, gap: 1, backgroundColor: '#f4f6f8', overflow: 'hidden' }}>
+            
+            {/* ESQUERDA */}
+            <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
+                <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
+                    <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
+                </Box>
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
+                </Box>
+            </Box>
 
-  const handleOpenNewModal = () => {
-    setPacienteParaEditar(null);
-    setIsModalOpen(true);
-  };
+            {/* DIREITA (PRINCIPAL) */}
+            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, overflow: 'hidden' }}>
+                
+                {/* === BARRA SUPERIOR (Horizontal, Fina e Unificada) === */}
+                <Paper variant="outlined" sx={{ 
+                    px: 2, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    bgcolor: '#fff', 
+                    flexShrink: 0,
+                    height: '48px', // Altura fixa fina
+                    borderRadius: '8px',
+                    border: 'none',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}>
+                    
+                    {/* 1. KPIs */}
+                    <Stack direction="row" spacing={3} alignItems="center" sx={{ minWidth: 'fit-content' }}>
+                         <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.6rem', display:'block'}}>HOJE</Typography>
+                            {loadingKpis ? <CircularProgress size={12} /> : <Typography sx={{fontWeight: 800, color: '#1C2E4A', fontSize: '0.9rem', lineHeight: 1}}>{kpis.hoje}</Typography>}
+                         </Box>
+                         <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.6rem', display:'block'}}>NOVOS</Typography>
+                             {loadingKpis ? <CircularProgress size={12} /> : <Typography sx={{fontWeight: 800, color: 'secondary.main', fontSize: '0.9rem', lineHeight: 1}}>{kpis.novos}</Typography>}
+                         </Box>
+                         <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.6rem', display:'block'}}>CONFIRM.</Typography>
+                             {loadingKpis ? <CircularProgress size={12} /> : <Typography sx={{fontWeight: 800, color: 'warning.main', fontSize: '0.9rem', lineHeight: 1}}>{kpis.confirmar}</Typography>}
+                         </Box>
+                    </Stack>
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setPacienteParaEditar(null);
-  };
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
 
-  return (
-    <Paper sx={{ p: 2, margin: 'auto' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5">Gestão de Pacientes</Typography>
-        <Button variant="contained" color="primary" onClick={handleOpenNewModal}>
-          Novo Paciente
-        </Button>
-      </Box>
+                    {/* 2. BOTÕES (Forçando Horizontalidade e Tamanho) */}
+                    <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'row', // GARANTE HORIZONTAL
+                        alignItems: 'center', 
+                        gap: 1,
+                        flexGrow: 1,
+                        justifyContent: 'center',
+                        
+                        // ESTILO FORÇADO PARA OS BOTÕES DO CONTROLES AGENDA
+                        '& button': { 
+                            height: '32px !important', // Altura fina fixa
+                            minHeight: '32px !important',
+                            fontSize: '0.8rem !important',
+                            padding: '0 16px !important',
+                            whiteSpace: 'nowrap'
+                        },
+                        // Oculta qualquer input de filtro que exista dentro do componente antigo
+                        '& .MuiTextField-root, & .MuiFormControl-root': {
+                            display: 'none !important'
+                        }
+                    }}>
+                        <ControlesAgenda 
+                            onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
+                            onCaixaClick={() => setIsCaixaModalOpen(true)}
+                            onVerificarDispoClick={() => setIsDispoOpen(true)}
+                            // Não passamos onFiltroChange aqui para evitar renderizar filtros duplicados se o componente tiver lógica interna
+                        />
+                    </Box>
 
-      <Box sx={{ mb: 2 }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          label="Buscar paciente por nome ou CPF..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </Box>
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
 
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
+                    {/* 3. ÍCONES */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 'fit-content' }}>
+                         <BarraIconesLateral />
+                    </Box>
+
+                </Paper>
+
+                {/* === AGENDA COM FILTRO INTEGRADO === */}
+                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#fff' }}>
+                    <AgendaPrincipal 
+                        medicoFiltro={medicoFiltro} 
+                        especialidadeFiltro={especialidadeFiltro} 
+                        onDateClick={handleDateClick} 
+                        onEventClick={handleEventClick} 
+                        salas={salas}
+                        refreshTrigger={refreshTrigger}
+                        onFiltroChange={handleFiltroChange} 
+                    />
+                </Box>
+            </Box>
+            
+            {/* Modais */}
+            <Drawer anchor="left" open={isDispoOpen} onClose={() => setIsDispoOpen(false)}>
+                <Box sx={{ width: 350, p: 2, height: '100%', bgcolor: '#f5f5f5' }}>
+                    <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
+                </Box>
+            </Drawer>
+            <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }} pacienteParaEditar={null} />
+            <AgendamentoModal open={isAgendamentoModalOpen} onClose={handleCloseAgendamentoModal} onSave={handleAgendamentoSave} initialData={initialData} editingEvent={editingEvent} />
+            <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} />
         </Box>
-      ) : (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{fontWeight: 'bold'}}>Nome Completo</TableCell>
-                <TableCell sx={{fontWeight: 'bold'}}>Telefone / WhatsApp</TableCell> {/* NOVA COLUNA */}
-                <TableCell sx={{fontWeight: 'bold'}}>Nascimento</TableCell> {/* NOVA COLUNA */}
-                <TableCell sx={{fontWeight: 'bold'}}>Email</TableCell>
-                <TableCell align="right" sx={{fontWeight: 'bold'}}>Ações</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredPacientes.map((paciente) => (
-                <TableRow key={paciente.id} hover>
-                  <TableCell>{paciente.nome_completo}</TableCell>
-                  
-                  {/* --- NOVAS COLUNAS --- */}
-                  <TableCell>
-                      {paciente.telefone_celular ? (
-                          <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5}}>
-                              <WhatsAppIcon sx={{fontSize: 16, color: '#25D366'}} />
-                              {paciente.telefone_celular}
-                          </Box>
-                      ) : '-'}
-                  </TableCell>
-                  <TableCell>{formatData(paciente.data_nascimento)}</TableCell>
-                  
-                  <TableCell>{paciente.email || '-'}</TableCell>
-                  
-                  <TableCell align="right">
-                    {/* --- NOVO: Botão de Ver Laudos (Recepção) --- */}
-                    <IconButton 
-                        onClick={() => handleOpenHistorico(paciente)} 
-                        title="Ver Laudos e Resultados"
-                    >
-                        <PictureAsPdfIcon color="error" /> {/* Ícone Vermelho para destacar PDF */}
-                    </IconButton>
-                    <IconButton onClick={() => handleOpenVincular(paciente)} title="Vincular Exame Solto"><LinkIcon color="primary" /></IconButton>
-                    <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
-                    <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
-                    {user && user.isAdmin && (
-                        <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente">
-                            <DeleteIcon color="error" />
-                        </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredPacientes.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} align="center">Nenhum paciente encontrado.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-      
-      <PacienteModal 
-        open={isModalOpen}
-        onClose={handleCloseModal}
-        onSave={fetchPacientes}
-        pacienteParaEditar={pacienteParaEditar}
-      />
-      <ModalVincularExame 
-        open={modalVincularOpen}
-        onClose={() => setModalVincularOpen(false)}
-        paciente={pacienteParaVincular}
-        onSuccess={() => showSnackbar('Exame vinculado com sucesso!', 'success')}
-      />
-      {/* --- NOVO: Modal de Histórico de Laudos --- */}
-      <HistoricoLaudosModal 
-          open={modalHistoricoOpen}
-          onClose={() => setModalHistoricoOpen(false)}
-          pacienteId={pacienteParaHistorico?.id}
-          pacienteNome={pacienteParaHistorico?.nome_completo}
-      />
-
-    </Paper>
-  );
+    );
 }
