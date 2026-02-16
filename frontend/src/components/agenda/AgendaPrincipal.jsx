@@ -103,6 +103,14 @@ export default function AgendaPrincipal({
 
     useEffect(() => { if (calendarRef.current) calendarRef.current.getApi().refetchEvents(); }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
 
+    // --- FUNÇÃO QUE FALTAVA ---
+    const handleCalendarEventClick = (clickInfo) => {
+        clickInfo.jsEvent.preventDefault(); // Impede comportamento padrão
+        setAnchorEl(clickInfo.el); // Define o elemento onde o menu vai "ancorar" (abrir ao lado)
+        setSelectedEvent(clickInfo.event); // Salva o evento clicado no estado para saber qual editar/atender
+    };
+    // --------------------------
+
     const handleAction = (action) => {
         const dados = selectedEvent?.extendedProps;
         if (!dados) return;
