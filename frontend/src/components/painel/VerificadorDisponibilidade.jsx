@@ -6,11 +6,10 @@ import {
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-
-// --- CORREÇÃO DO IMPORT AQUI ---
-// Em versões novas do date-fns, importamos assim:
-import { ptBR } from 'date-fns/locale'; 
+// MUDANÇA: Usando AdapterDayjs para evitar erros de versão do date-fns
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import 'dayjs/locale/pt-br'; // Importação do idioma é simples e direta
+import dayjs from 'dayjs';
 
 import SearchIcon from '@mui/icons-material/Search';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -20,7 +19,8 @@ import { agendamentoService } from '../../services/agendamentoService';
 
 export default function VerificadorDisponibilidade({ onSlotSelect }) {
     // ESTADOS
-    const [dataSelecionada, setDataSelecionada] = useState(new Date());
+    // Inicializa com dayjs() em vez de new Date()
+    const [dataSelecionada, setDataSelecionada] = useState(dayjs());
     const [medicos, setMedicos] = useState([]);
     const [medicoSelecionado, setMedicoSelecionado] = useState(null);
     
@@ -36,7 +36,6 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
             .catch(err => console.error("Erro médicos", err));
     }, []);
 
-    // --- A MÁGICA: CALCULA HORÁRIOS LIVRES NO FRONTEND ---
     const buscarDisponibilidade = async () => {
         if (!medicoSelecionado) {
             setFeedback("Por favor, selecione um médico.");
@@ -52,10 +51,12 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
             const res = await agendamentoService.getAgendamentos(medicoSelecionado.id, '');
             const agendamentos = res.data || [];
 
-            // 2. Filtra agendamentos DO DIA escolhido (ignorando cancelados)
-            const diaAlvoStr = dataSelecionada.toISOString().split('T')[0]; // YYYY-MM-DD
+            // 2. Filtra agendamentos DO DIA escolhido
+            // dayjs facilita a formatação: YYYY-MM-DD
+            const diaAlvoStr = dataSelecionada.format('YYYY-MM-DD'); 
             
             const ocupados = agendamentos.filter(ag => {
+                // A API geralmente retorna YYYY-MM-DDTHH:mm:ss
                 const dataAg = ag.data_hora_inicio.split('T')[0];
                 return dataAg === diaAlvoStr && ag.status !== 'Cancelado';
             });
@@ -64,31 +65,33 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
             const slotsLivres = [];
             let hora = 8; 
             let min = 0;
-            const fimHora = 18; // Até as 18:00
+            const fimHora = 18; 
+
+            // Vamos manipular um objeto dayjs para calcular os slots
+            // .startOf('day') zera a hora para 00:00, depois setamos 8h
+            let currentSlot = dataSelecionada.hour(8).minute(0).second(0);
 
             while (hora < fimHora) {
-                // Cria objeto Date para esse slot
-                const slotDate = new Date(dataSelecionada);
-                slotDate.setHours(hora, min, 0, 0);
-
-                // Verifica se colide com algum agendamento existente
-                // (Colisão simples: se o horário de inicio é igual)
+                // Verifica colisão
                 const isOcupado = ocupados.some(ag => {
+                    // Converte string da API para objeto Date para pegar hora/min
                     const agDate = new Date(ag.data_hora_inicio);
+                    // Como estamos em fuso local, cuidado. Mas assumindo consistência:
                     return agDate.getHours() === hora && agDate.getMinutes() === min;
                 });
 
                 if (!isOcupado) {
-                    const horaFormatada = `${String(hora).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
                     slotsLivres.push({
-                        label: horaFormatada,
-                        date: slotDate
+                        label: currentSlot.format('HH:mm'), // Ex: "08:30"
+                        // .toDate() converte para JS Date padrão para passar pro onSlotSelect
+                        date: currentSlot.toDate() 
                     });
                 }
 
                 // Incrementa 30 min
-                min += 30;
-                if (min === 60) { min = 0; hora++; }
+                currentSlot = currentSlot.add(30, 'minute');
+                hora = currentSlot.hour();
+                min = currentSlot.minute();
             }
 
             setHorariosLivres(slotsLivres);
@@ -104,21 +107,23 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
     };
 
     return (
-        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
                 
-                {/* Título */}
                 <Typography variant="h6" sx={{ color: '#1C2E4A', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <SearchIcon /> Buscar Horário
                 </Typography>
                 <Divider />
 
-                {/* Formulário Compacto (Vertical) */}
                 <Stack spacing={2}>
                     <DatePicker
                         label="Data"
                         value={dataSelecionada}
-                        onChange={(d) => { setDataSelecionada(d); setHorariosLivres([]); setFeedback("Clique em buscar."); }}
+                        onChange={(newValue) => { 
+                            setDataSelecionada(newValue); 
+                            setHorariosLivres([]); 
+                            setFeedback("Clique em buscar."); 
+                        }}
                         slotProps={{ textField: { size: 'small', fullWidth: true } }}
                     />
 
@@ -144,7 +149,6 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
 
                 <Divider sx={{ my: 1 }} />
 
-                {/* Área de Resultados (Chips) */}
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     {horariosLivres.length > 0 ? (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -154,9 +158,10 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
                                     label={slot.label}
                                     icon={<AccessTimeIcon fontSize="small"/>}
                                     onClick={() => onSlotSelect({
-                                        data_hora_inicio: { toDate: () => slot.date }, // Formato compatível com o modal
+                                        // Mock para compatibilidade com o formato do modal existente
+                                        data_hora_inicio: { toDate: () => slot.date }, 
                                         medico: medicoSelecionado,
-                                        especialidade: null // Opcional
+                                        especialidade: null 
                                     })}
                                     color="primary"
                                     variant="outlined"
