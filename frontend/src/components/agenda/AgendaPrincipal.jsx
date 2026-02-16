@@ -166,31 +166,58 @@ export default function AgendaPrincipal({
                 </FormControl>
             </Box>
 
-            {/* === CALENDÁRIO === */}
+            {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     initialView="resourceTimeGridDay"
                     locale="pt-br"
+                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
                     headerToolbar={{ left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' }}
                     height="100%"
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     dateClick={onDateClick}
-                    eventClick={(info) => { info.jsEvent.preventDefault(); setAnchorEl(info.el); setSelectedEvent(info.event); }}
+                    eventClick={handleCalendarEventClick} 
                     slotMinTime="07:00:00" 
                     slotMaxTime="20:00:00"
                     allDaySlot={false}
                     nowIndicator={true}
                     slotDuration="00:15:00"
-                    eventContent={(arg) => (
-                        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%', pl: 0.5, overflow: 'hidden', borderLeft: '3px solid rgba(0,0,0,0.2)' }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.75em', whiteSpace: 'nowrap' }}>
-                                {arg.timeText.replace(/:\d{2}$/, '')} {arg.event.title}
-                            </div>
-                        </Box>
-                    )}
+                    eventMinHeight={28}
+                    eventContent={(arg) => {
+                        const dados = arg.event.extendedProps;
+                        
+                        let emojis = "";
+                        if (dados.pagamento_status === 'Pendente' && dados.status !== 'Cancelado') emojis += " 🔴";
+                        if (dados.primeira_consulta) emojis += " ⭐";
+                        else if (dados.tipo_visita === 'Retorno') emojis += " 🔄";
+                        if (dados.status === 'Confirmado') emojis += " ✅";
+                        if (dados.status === 'Cancelado') emojis += " ❌";
+                        if (dados.status === 'Realizado') emojis += " 🏁";
+
+                        const tipo = (dados.tipo_procedimento || '').toLowerCase();
+                        let borderLeftColor = 'transparent';
+                        if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) borderLeftColor = '#e91e63';
+                        else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) borderLeftColor = '#ff9800';
+                        else if (tipo.includes('consulta')) borderLeftColor = '#2196f3';
+
+                        return (
+                            <Box sx={{ 
+                                display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+                                width: '100%', height: '100%', borderLeft: `3px solid ${borderLeftColor}`, padding: '0 2px 0 4px', overflow: 'hidden'
+                            }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', whiteSpace: 'nowrap', flexGrow: 1 }}>
+                                    <span style={{ fontWeight: 900, fontSize: '0.7em', opacity: 0.8 }}>{arg.timeText.replace(/:\d{2}$/, '')}</span>
+                                    <span style={{ fontWeight: 'bold', fontSize: '0.75em', textOverflow: 'ellipsis', overflow: 'hidden', textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none', color: dados.status === 'Cancelado' ? '#999' : '#fff' }}>
+                                        {arg.event.title}
+                                    </span>
+                                </Box>
+                                <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center' }}>{emojis}</Box>
+                            </Box>
+                        );
+                    }}
                 />
             </StyledCalendarWrapper>
 

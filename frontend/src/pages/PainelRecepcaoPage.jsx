@@ -1,33 +1,39 @@
-// src/pages/PainelRecepcaoPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Drawer, Typography, Paper, CircularProgress, Stack, Divider, Button } from '@mui/material';
+import { Box, Drawer, Typography, Paper, CircularProgress, Stack, Divider, Button, IconButton, Tooltip } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
 
-// Componentes do Painel
+// --- ÍCONES (Trazidos dos seus arquivos originais) ---
+import PersonAddIcon from '@mui/icons-material/PersonAdd';       // Novo Paciente
+import AddCardIcon from '@mui/icons-material/AddCard';           // Caixa
+import EventAvailableIcon from '@mui/icons-material/EventAvailable'; // Buscar Horário
+import CakeIcon from '@mui/icons-material/Cake';                 // Aniversariantes
+import TodayIcon from '@mui/icons-material/Today';               // Agendas do dia
+import SmartToyIcon from '@mui/icons-material/SmartToy';         // Chatbot
+
+// --- COMPONENTES ---
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import ListaEspera from '../components/painel/ListaEspera';
-import ControlesAgenda from '../components/painel/ControlesAgenda';
-import BarraIconesLateral from '../components/painel/BarraIconesLateral';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
 
-// Modais
+// --- MODAIS ---
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
 import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal';
 
 export default function PainelRecepcaoPage() {
-    // ESTADOS GERAIS
+    // --- ESTADOS ---
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [salas, setSalas] = useState([]);
+    
+    // Filtros que a página segura para passar para a Agenda
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
 
-    // ESTADO DOS KPIS (ESTATÍSTICAS)
     const [kpis, setKpis] = useState({ hoje: 0, novos: 0, confirmar: 0 });
     const [loadingKpis, setLoadingKpis] = useState(true);
 
-    // ESTADOS DOS MODAIS E DRAWER
+    // Modais
     const [isPacienteModalOpen, setIsPacienteModalOpen] = useState(false);
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
@@ -36,27 +42,21 @@ export default function PainelRecepcaoPage() {
     const [editingEvent, setEditingEvent] = useState(null);
     const [initialData, setInitialData] = useState(null);
 
-    // Carrega SALAS
+    // --- CARREGAMENTO DE DADOS ---
     useEffect(() => {
-        agendamentoService.getSalas()
-            .then(res => setSalas(res.data))
-            .catch(err => console.error("Falha ao buscar salas", err));
+        agendamentoService.getSalas().then(res => setSalas(res.data));
     }, []);
 
-    // Carrega KPIs (Números do Topo)
     useEffect(() => {
         setLoadingKpis(true);
         agendamentoService.getDashboardKPIs()
-            .then(res => {
-                setKpis(res.data);
-            })
-            .catch(err => console.error("Erro ao carregar KPIs:", err))
+            .then(res => setKpis(res.data)) // A API retorna { agendamentos_hoje_count, etc... }
             .finally(() => setLoadingKpis(false));
-    }, [refreshTrigger]); // Recarrega quando algo muda na agenda
+    }, [refreshTrigger]);
 
     const forceRefresh = () => setRefreshTrigger(prev => prev + 1);
 
-    // Handlers
+    // --- HANDLERS ---
     const handleCloseAgendamentoModal = () => { setIsAgendamentoModalOpen(false); setEditingEvent(null); setInitialData(null); };
     const handleAgendamentoSave = () => { handleCloseAgendamentoModal(); forceRefresh(); };
     
@@ -72,8 +72,7 @@ export default function PainelRecepcaoPage() {
         setIsAgendamentoModalOpen(true); 
     };
 
-    // A AgendaPrincipal vai chamar isso quando mudar o filtro interno dela,
-    // ou se você quiser controlar tudo por aqui.
+    // Handler vindo da AgendaPrincipal
     const handleFiltroChange = (filtros) => { 
         setMedicoFiltro(filtros.medicoId); 
         setEspecialidadeFiltro(filtros.especialidadeId); 
@@ -92,7 +91,7 @@ export default function PainelRecepcaoPage() {
     return (
         <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', p: 1, gap: 1, backgroundColor: '#f4f6f8', overflow: 'hidden' }}>
             
-            {/* --- COLUNA ESQUERDA --- */}
+            {/* --- LATERAL ESQUERDA (Listas) --- */}
             <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
                 <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
                     <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
@@ -102,60 +101,112 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Box>
 
-
-            {/* --- ÁREA DIREITA (PRINCIPAL) --- */}
+            {/* --- ÁREA PRINCIPAL --- */}
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, overflow: 'hidden' }}>
                 
-                {/* === BARRA SUPERIOR UNIFICADA === 
-                    Altura fixa, flexbox limpo, botões alinhados.
+                {/* ================================================================================
+                    BARRA SUPERIOR UNIFICADA (KPIs + BOTÕES + ÍCONES)
+                    ================================================================================
                 */}
                 <Paper variant="outlined" sx={{ 
-                    px: 2, py: 1,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                    bgcolor: '#fff', flexShrink: 0, height: '54px', borderRadius: '8px', border: 'none',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                    px: 2, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    bgcolor: '#fff', 
+                    flexShrink: 0,
+                    height: '50px', // Altura fina fixa
+                    borderRadius: '8px',
+                    border: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                 }}>
                     
-                    {/* 1. KPIs */}
+                    {/* 1. KPIs (Extraídos do seu KpiCards.jsx mas em linha) */}
                     <Stack direction="row" spacing={3} alignItems="center">
-                        <Box>
-                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem'}}>HOJE</Typography>
-                            {loadingKpis ? <CircularProgress size={14} /> : <Typography sx={{fontWeight: 800, color: '#1C2E4A', lineHeight: 1}}>{kpis.hoje}</Typography>}
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem'}}>NOVOS</Typography>
-                            {loadingKpis ? <CircularProgress size={14} /> : <Typography sx={{fontWeight: 800, color: 'secondary.main', lineHeight: 1}}>{kpis.novos}</Typography>}
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem'}}>A CONFIRM.</Typography>
-                            {loadingKpis ? <CircularProgress size={14} /> : <Typography sx={{fontWeight: 800, color: 'warning.main', lineHeight: 1}}>{kpis.confirmar}</Typography>}
-                        </Box>
+                         <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem', display:'block', lineHeight: 1}}>HOJE</Typography>
+                            {loadingKpis ? <CircularProgress size={14} /> : 
+                                <Typography sx={{fontWeight: 800, color: '#1C2E4A', fontSize: '0.95rem', lineHeight: 1}}>
+                                    {kpis.agendamentos_hoje_count || 0}
+                                </Typography>
+                            }
+                         </Box>
+                         <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem', display:'block', lineHeight: 1}}>NOVOS</Typography>
+                             {loadingKpis ? <CircularProgress size={14} /> : 
+                                <Typography sx={{fontWeight: 800, color: 'secondary.main', fontSize: '0.95rem', lineHeight: 1}}>
+                                    {kpis.pacientes_novos_mes_count || 0}
+                                </Typography>
+                            }
+                         </Box>
+                         <Box sx={{ textAlign: 'center' }}>
+                            <Typography variant="caption" sx={{fontWeight: 700, color: '#999', fontSize: '0.65rem', display:'block', lineHeight: 1}}>CONFIRM.</Typography>
+                             {loadingKpis ? <CircularProgress size={14} /> : 
+                                <Typography sx={{fontWeight: 800, color: 'warning.main', fontSize: '0.95rem', lineHeight: 1}}>
+                                    {kpis.consultas_a_confirmar_count || 0}
+                                </Typography>
+                            }
+                         </Box>
                     </Stack>
 
-                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%' }} />
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
 
-                    {/* 2. BOTÕES DE AÇÃO (Usando Stack para alinhar perfeitamente) */}
-                    <Stack direction="row" spacing={1} sx={{ flexGrow: 1, justifyContent: 'center' }}>
-                         {/* Passando as funções para o componente filho ou renderizando botões diretos se preferir */}
-                         <ControlesAgenda 
-                            onNovoPacienteClick={() => setIsPacienteModalOpen(true)}
-                            onCaixaClick={() => setIsCaixaModalOpen(true)}
-                            onVerificarDispoClick={() => setIsDispoOpen(true)}
-                            onFiltroChange={() => {}} // Filtros foram movidos para baixo
-                        />
+                    {/* 2. BOTÕES DE AÇÃO (Extraídos do seu ControlesAgenda.jsx mas em linha) */}
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexGrow: 1, justifyContent: 'center' }}>
+                        
+                        <Button 
+                            variant="contained" 
+                            startIcon={<PersonAddIcon fontSize="small" />}
+                            onClick={() => setIsPacienteModalOpen(true)}
+                            sx={{ bgcolor: '#1C2E4A', height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600 }}
+                        >
+                            Novo Paciente
+                        </Button>
+
+                        <Button 
+                            variant="outlined" 
+                            startIcon={<AddCardIcon fontSize="small" />}
+                            onClick={() => setIsCaixaModalOpen(true)}
+                            sx={{ height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600, color: '#546E7A', borderColor: '#CFD8DC' }}
+                        >
+                            Caixa
+                        </Button>
+
+                        <Button 
+                            variant="outlined" color="info"
+                            startIcon={<EventAvailableIcon fontSize="small" />}
+                            onClick={() => setIsDispoOpen(true)}
+                            sx={{ height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600 }}
+                        >
+                            Buscar Horário
+                        </Button>
+
                     </Stack>
 
-                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%' }} />
+                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
 
-                    {/* 3. ÍCONES LATERAIS */}
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                         <BarraIconesLateral />
-                    </Box>
+                    {/* 3. ÍCONES (Extraídos do seu BarraIconesLateral.jsx mas em linha) */}
+                    <Stack direction="row" spacing={0.5}>
+                        <Tooltip title="Aniversariantes do Mês">
+                            <IconButton size="small" sx={{color: '#546E7A'}}> <CakeIcon fontSize="small"/> </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Agendas do Dia">
+                            <IconButton size="small" sx={{color: '#546E7A'}}> <TodayIcon fontSize="small"/> </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Chatbot">
+                            <IconButton size="small" sx={{color: '#546E7A'}}> <SmartToyIcon fontSize="small"/> </IconButton>
+                        </Tooltip>
+                    </Stack>
 
                 </Paper>
 
-                {/* --- AGENDA (Ocupa todo o resto) --- */}
-                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+                {/* ================================================================================
+                    AGENDA (Com filtro interno)
+                    ================================================================================
+                */}
+                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#fff' }}>
                     <AgendaPrincipal 
                         medicoFiltro={medicoFiltro} 
                         especialidadeFiltro={especialidadeFiltro} 
@@ -168,7 +219,7 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Box>
             
-            {/* --- MODAIS --- */}
+            {/* --- MODAIS INVISÍVEIS --- */}
             <Drawer anchor="left" open={isDispoOpen} onClose={() => setIsDispoOpen(false)}>
                 <Box sx={{ width: 350, p: 2, height: '100%', bgcolor: '#f5f5f5' }}>
                     <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
