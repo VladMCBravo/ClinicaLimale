@@ -48,15 +48,17 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
 
     return (
         <Paper variant="outlined" sx={{ p: 2, height: '100%', overflowY: 'auto', bgcolor: '#fafafa' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1C2E4A' }}>
-                Agenda de Hoje
-            </Typography>
-            
-            {/* LEGENDA RÁPIDA */}
-            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                <Chip icon={<StarIcon sx={{ color: '#fbc02d' }}/>} label="1ª Vez" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }}/>
-                <Chip icon={<AssignmentReturnIcon sx={{ color: '#1976d2' }}/>} label="Retorno" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }}/>
-                <Chip icon={<MonetizationOnIcon sx={{ color: '#d32f2f' }}/>} label="Deve" size="small" variant="outlined" sx={{ fontSize: '0.65rem', borderColor: '#d32f2f' }}/>
+            {/* CABEÇALHO COMPACTO: Título e Legenda na mesma linha */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, pb: 1, borderBottom: '1px solid #eee' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: '900', color: '#1C2E4A', lineHeight: 1 }}>
+                    Hoje
+                </Typography>
+                {/* LEGENDA RÁPIDA */}
+                <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                    <Chip icon={<StarIcon sx={{ color: '#fbc02d' }}/>} label="1ª Vez" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }}/>
+                    <Chip icon={<AssignmentReturnIcon sx={{ color: '#1976d2' }}/>} label="Retorno" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }}/>
+                    <Chip icon={<MonetizationOnIcon sx={{ color: '#d32f2f' }}/>} label="Deve" size="small" variant="outlined" sx={{ fontSize: '0.65rem', borderColor: '#d32f2f' }}/>
+                </Box>
             </Box>
 
             {isLoading ? <CircularProgress size={24} sx={{ display: 'block', margin: 'auto', mt: 2 }} /> : (

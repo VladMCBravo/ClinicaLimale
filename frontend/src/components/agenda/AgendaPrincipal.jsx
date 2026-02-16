@@ -273,76 +273,66 @@ export default function AgendaPrincipal({
                     eventContent={(arg) => {
                         const dados = arg.event.extendedProps;
                         
-                        // Lógica de Emojis/Ícones visuais baseados nos dados do backend
                         let emojis = "";
-                        
-                        // 1. Status Financeiro
-                        if (dados.pagamento_status === 'Pendente' && dados.status !== 'Cancelado') {
-                            emojis += " 🔴"; // Bolinha vermelha chama mais atenção que o triângulo amarelo
-                        }
-                        
-                        // 2. Tipo de Consulta
-                        if (dados.primeira_consulta) {
-                            emojis += " ⭐"; // Estrela para paciente novo
-                        } else if (dados.tipo_visita === 'Retorno') {
-                            emojis += " 🔄"; // Seta de retorno
-                        }
-                        
-                        // 3. Status do Agendamento
+                        if (dados.pagamento_status === 'Pendente' && dados.status !== 'Cancelado') emojis += " 🔴";
+                        if (dados.primeira_consulta) emojis += " ⭐";
+                        else if (dados.tipo_visita === 'Retorno') emojis += " 🔄";
                         if (dados.status === 'Confirmado') emojis += " ✅";
                         if (dados.status === 'Cancelado') emojis += " ❌";
                         if (dados.status === 'Realizado') emojis += " 🏁";
 
-                        // Cores de Borda por tipo de procedimento (Exemplo visual)
                         const tipo = (dados.tipo_procedimento || '').toLowerCase();
                         let borderLeftColor = 'transparent';
-                        if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) {
-                            borderLeftColor = '#e91e63'; // Rosa para saúde da mulher/gestação
-                        } else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) {
-                            borderLeftColor = '#ff9800'; // Laranja para coração
-                        } else if (tipo.includes('consulta')) {
-                            borderLeftColor = '#2196f3'; // Azul para consulta normal
-                        }
+                        if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) borderLeftColor = '#e91e63';
+                        else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) borderLeftColor = '#ff9800';
+                        else if (tipo.includes('consulta')) borderLeftColor = '#2196f3';
 
                         return (
                             <Box sx={{ 
                                 display: 'flex', 
-                                flexDirection: 'column', 
+                                flexDirection: 'row', /* FORÇA A FICAR TUDO EM UMA LINHA */
+                                alignItems: 'center',
+                                justifyContent: 'space-between', /* EMPURRA O CONTEÚDO PARA AS BORDAS */
                                 width: '100%', 
                                 height: '100%',
-                                borderLeft: `4px solid ${borderLeftColor}`, // Borda lateral colorida!
-                                paddingLeft: '4px'
+                                borderLeft: `3px solid ${borderLeftColor}`,
+                                padding: '0 2px 0 4px',
+                                overflow: 'hidden'
                             }}>
-                                {/* Linha 1: Hora + Emojis de Alerta */}
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 800, fontSize: '0.85em', letterSpacing: '-0.5px' }}>
-                                        {arg.timeText}
-                                    </span>
-                                    <span style={{ fontSize: '0.9em' }}>{emojis}</span>
-                                </Box>
-                                
-                                {/* Linha 2: Nome do Paciente (Maior destaque) */}
-                                <span style={{ 
-                                    fontWeight: 'bold', 
-                                    textOverflow: 'ellipsis', 
+                                {/* LADO ESQUERDO: Hora e Nome do Paciente espremidos */}
+                                <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '4px', 
                                     overflow: 'hidden', 
                                     whiteSpace: 'nowrap',
-                                    textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none',
-                                    opacity: dados.status === 'Cancelado' ? 0.6 : 1
+                                    flexGrow: 1 /* Permite que o nome ocupe o espaço máximo disponível */
                                 }}>
-                                    {arg.event.title}
-                                </span>
-                                
-                                {/* Linha 3: Procedimento (Apenas se houver espaço/tamanho do card) */}
-                                <span style={{ 
-                                    fontSize: '0.7em', 
-                                    opacity: 0.8,
-                                    textOverflow: 'ellipsis', 
-                                    overflow: 'hidden', 
-                                    whiteSpace: 'nowrap'
+                                    <span style={{ fontWeight: 900, fontSize: '0.7em', opacity: 0.8 }}>
+                                        {arg.timeText.replace(/:\d{2}$/, '')} {/* Tira os zeros dos segundos se houver */}
+                                    </span>
+                                    <span style={{ 
+                                        fontWeight: 'bold', 
+                                        fontSize: '0.75em', 
+                                        textOverflow: 'ellipsis', 
+                                        overflow: 'hidden', 
+                                        textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none',
+                                        color: dados.status === 'Cancelado' ? '#999' : '#fff'
+                                    }}>
+                                        {arg.event.title}
+                                    </span>
+                                </Box>
+
+                                {/* LADO DIREITO: Emojis travados no final */}
+                                <Box sx={{ 
+                                    fontSize: '0.8em', 
+                                    flexShrink: 0, /* IMPEDE QUE O NOME ESMAGUE OS EMOJIS */
+                                    paddingLeft: '2px',
+                                    display: 'flex',
+                                    alignItems: 'center'
                                 }}>
-                                    {dados.procedimento || dados.tipo_procedimento}
-                                </span>
+                                    {emojis}
+                                </Box>
                             </Box>
                         );
                     }}
