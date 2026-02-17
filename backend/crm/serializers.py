@@ -106,9 +106,6 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         LÓGICA DA TABELA MESTRA (PDF)
         Define qual exame oferecer baseado na DUM.
         """
-        if obj.tipo != 'GESTACAO':
-            return None
-
         dum = obj.paciente.dum if obj.paciente else None
         if not dum: dum = getattr(obj, 'data_dum', None)
         

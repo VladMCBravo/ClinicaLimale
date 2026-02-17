@@ -212,13 +212,6 @@ export default function CRMKanbanPage() {
                     </Box>
                 )}
                 
-                {/* Fallback caso não tenha alerta, mas tenha idade_gestacional simples */}
-                {!ciclo.alerta_clinico && ciclo.idade_gestacional && (
-                    <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, display: 'inline-flex', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        <Typography variant="inherit">{ciclo.idade_gestacional}</Typography>
-                    </Box>
-                )}
-
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, color: '#666' }}>
                   {ciclo.dados_agendamento ? (
                     <>
