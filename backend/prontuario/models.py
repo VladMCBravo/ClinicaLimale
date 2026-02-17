@@ -620,76 +620,60 @@ class Laudo(models.Model):
     
     def sincronizar_crm(self):
         """
-        Lê o laudo e injeta a DUM (Real ou Virtual) no CRM.
-        Agora suporta extração de 'X semanas e Y dias' se a DUM faltar.
+        Extrai a IG do feto1 e converte em DUM Virtual para alimentar o CRM.
+        Baseado na estrutura do seu useObstetricoForm.js.
         """
         try:
+            # 1. ACESSA OS DADOS DO FETO 1 (ONDE MORA A DATAÇÃO)
             dados = self.dados_estruturados
-            if isinstance(dados, str):
-                dados = json.loads(dados)
+            if isinstance(dados, str): dados = json.loads(dados)
+            
+            feto1 = dados.get('feto1', {})
+            if not feto1: return # Se não for obstétrico, ignora.
 
-            # 1. TENTA EXTRAIR DUM REAL (Prioridade 1)
-            def buscar_data(d):
-                if isinstance(d, dict):
-                    for k, v in d.items():
-                        if k.lower() in ['dum', 'data_dum'] and isinstance(v, str) and len(v) >= 10:
-                            return v[:10]
-                        res = buscar_data(v)
-                        if res: return res
-                return None
-
-            dum_str = buscar_data(dados)
+            # 2. BUSCA O MELHOR DADO DISPONÍVEL (ORDEM DE PREFERÊNCIA)
+            # igVeredito é o resultado final do seu motor de cálculos do front
+            ig_texto = feto1.get('igVeredito') or feto1.get('igBiometria') or feto1.get('igDum')
             dum_final = None
 
-            if dum_str:
-                dum_final = datetime.strptime(dum_str, "%Y-%m-%d").date()
+            # 3. TENTA A DUM REAL PRIMEIRO
+            dum_real = feto1.get('dum')
+            if dum_real and len(dum_real) >= 10:
+                dum_final = datetime.strptime(dum_real[:10], "%Y-%m-%d").date()
             
-            # 2. SE NÃO TEM DUM, BUSCA IG (DUM REVERSA - Prioridade 2)
-            if not dum_final:
-                def buscar_ig(d):
-                    keys_ig = ['ig', 'idade_gestacional', 'ig_biometria', 'ig_atual']
-                    if isinstance(d, dict):
-                        for k, v in d.items():
-                            if k.lower() in keys_ig and isinstance(v, str):
-                                return v
-                            res = buscar_ig(v)
-                            if res: return res
-                    return None
+            # 4. SE NÃO TEM DUM, FAZ A DUM REVERSA PELO TEXTO (Ex: "31s + 3d")
+            if not dum_final and ig_texto:
+                nums = re.findall(r'(\d+)', str(ig_texto))
+                if len(nums) >= 1:
+                    semanas = int(nums[0])
+                    dias = int(nums[1]) if len(nums) > 1 else 0
+                    
+                    # Usa a data do exame como referência para o cálculo
+                    ref_date = self.data_criacao.date()
+                    if self.agendamento:
+                        ref_date = self.agendamento.data_hora_inicio.date()
+                    
+                    # Cálculo: Data do Exame - Tempo de Gestação
+                    dum_final = ref_date - timedelta(weeks=semanas, days=dias)
 
-                ig_texto = buscar_ig(dados)
-                if ig_texto:
-                    # Tenta extrair números de padrões como "31 semanas e 3 dias" ou "31s 3d"
-                    nums = re.findall(r'(\d+)', ig_texto)
-                    if len(nums) >= 1:
-                        semanas = int(nums[0])
-                        dias = int(nums[1]) if len(nums) > 1 else 0
-                        
-                        # Data de referência: data do agendamento ou criação do laudo
-                        ref_date = self.data_criacao.date()
-                        if self.agendamento:
-                            ref_date = self.agendamento.data_hora_inicio.date()
-                        
-                        # Cálculo da DUM Virtual: Data - (Semanas*7 + Dias)
-                        dum_final = ref_date - timedelta(weeks=semanas, days=dias)
-
-            # 3. ATUALIZA O CRM
+            # 5. GRAVA NO CRM E NO PACIENTE
             if dum_final:
+                # Atualiza CRM
                 ciclo, _ = Ciclo.objects.get_or_create(
-                    paciente=self.paciente,
-                    tipo='GESTACAO',
-                    status='ativo'
+                    paciente=self.paciente, tipo='GESTACAO', status='ativo'
                 )
                 if ciclo.data_dum != dum_final:
                     ciclo.data_dum = dum_final
                     ciclo.save(update_fields=['data_dum'])
-                    # Também salva no cadastro principal da paciente para segurança
-                    if not self.paciente.dum:
-                        self.paciente.dum = dum_final
-                        self.paciente.save(update_fields=['dum'])
+                
+                # Atualiza Cadastro da Paciente (Fonte da Verdade)
+                if not self.paciente.dum or self.paciente.dum != dum_final:
+                    self.paciente.dum = dum_final
+                    self.paciente.save(update_fields=['dum'])
                     
         except Exception as e:
-            print(f"Erro ao sincronizar CRM: {e}")
-
+            print(f"Erro na sincronia inteligente: {e}")
+            
     # Métodos auxiliares pertencentes a ESTE modelo
     def gerar_codigo_unico(self):
         prefixo = "PCT"
