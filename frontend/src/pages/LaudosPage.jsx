@@ -484,7 +484,7 @@ const LaudosPage = () => {
                     <input 
                         style={styles.inputCompact}
                         placeholder="Buscar Paciente..."
-                        value={paciente ? paciente.nome_completo : termoBusca}
+                        value={paciente ? `${paciente.id}_${paciente.nome_completo}` : termoBusca}
                         onChange={(e) => { 
                             if (paciente) setPaciente(null); 
                             handleBuscaPacienteChange(e); 
@@ -497,7 +497,7 @@ const LaudosPage = () => {
                             : null}
                     </div>
                 </div>
-
+                {/* LISTA SUSPENSA COM O ID EM DESTAQUE */}
                 {!paciente && pacientesEncontrados.length > 0 && (
                     <div style={styles.dropdownList}>
                         {pacientesEncontrados.map(p => (
@@ -508,7 +508,18 @@ const LaudosPage = () => {
                                     if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null);
                                 } catch (e) { console.log("Sem credencial."); }
                             }}>
-                                <span style={{fontWeight:'bold', display:'block'}}>{p.nome_completo}</span>
+                                <span style={{fontWeight:'bold', display:'flex', alignItems: 'center', gap: '8px'}}>
+                                    <span style={{
+                                        background: '#1C2E4A', 
+                                        color: '#FFF', 
+                                        padding: '2px 6px', 
+                                        borderRadius: '4px', 
+                                        fontSize: '10px'
+                                    }}>
+                                        ID: {p.id}
+                                    </span>
+                                    {p.nome_completo}
+                                </span>
                             </div>
                         ))}
                     </div>
