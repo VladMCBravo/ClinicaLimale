@@ -109,7 +109,6 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         if obj.tipo != 'GESTACAO':
             return None
 
-        # --- REPETIR A LÓGICA DE BUSCAR A DUM CERTA ---
         dum = obj.paciente.dum if obj.paciente else None
         if not dum: dum = getattr(obj, 'data_dum', None)
         
@@ -119,36 +118,42 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         from datetime import date
         hoje = date.today()
         dias_totais = (hoje - dum).days
+        
         semanas = dias_totais // 7
-        # ----------------------------------------------
+        dias = dias_totais % 7 
         
         sugestao = ""
-        prioridade = "normal" # normal, alta, urgente
+        prioridade = "normal" 
 
-        # Regras extraídas do PDF
+        # Regras atualizadas exatamente conforme o PDF da Tabela Mestra
         if semanas < 6:
-            sugestao = "Fase Inicial: Orientação (Exame precoce)"
+            sugestao = "1 Orientação (Fase inicial)"
         elif 6 <= semanas <= 10:
-            sugestao = "Ideal: Obstétrico Simples (Datação)"
-        elif 11 <= semanas < 14:
-            sugestao = "🚨 PRIORIDADE: Morfológico 1º Trimestre"
+            sugestao = "1 Obstétrico simples"
+        elif 11 <= semanas <= 13: # Cobre 11 a 13+6
+            sugestao = "🚨 1 Morfológico 1º Tri"
             prioridade = "alta"
-        elif 14 <= semanas < 20:
-            sugestao = "Pós-Morfo: Obstétrico Simples"
-        elif 20 <= semanas <= 24:
-            sugestao = "🚨 URGENTE: Morfológico 2º Trimestre"
+        elif 14 <= semanas <= 19:
+            sugestao = "1 Obstétrico simples (Pós-Morfo)"
+        elif 20 <= semanas <= 23:
+            sugestao = "🚨 1 Morfológico 2º Tri"
+            prioridade = "urgente"
+        elif semanas == 24:
+            sugestao = "🚨 1 Morfo 2º Tri | 2 Eco Fetal"
             prioridade = "urgente"
         elif 25 <= semanas <= 28:
-            sugestao = "Transição: Morfo 2T (se não fez) ou Eco Fetal"
+            # Texto compactado para caber no layout sem quebrar o card
+            sugestao = "Morfo 2T (se faltar) OU Obst. c/ Doppler | 2 Eco | 3 US 4D"
             prioridade = "alta"
-        elif 29 <= semanas < 34:
-            sugestao = "Seguimento: Obstétrico com Doppler"
-        elif 34 <= semanas:
-            sugestao = "Reta Final: Doppler Quinzenal/Semanal"
+        elif 29 <= semanas <= 33: # O PDF vai de 29-32 e pula pra >=34. Cobrimos a 33 aqui.
+            sugestao = "1 Obst. c/ Doppler | 2 Eco (se faltar) | 3 US 4D"
+        elif semanas >= 34:
+            sugestao = "1 Obstétrico c/ Doppler (15d ou semanal)"
             prioridade = "alta"
 
         return {
             "semanas": semanas,
+            "dias": dias,
             "texto": sugestao,
             "prioridade": prioridade
         }

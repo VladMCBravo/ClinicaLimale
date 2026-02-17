@@ -161,12 +161,44 @@ export default function CRMKanbanPage() {
                   </IconButton>
                 </Box>
 
-                {/* TAG DE GESTAÇÃO */}
-                {ciclo.alerta_clinico && (
-                    <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        <Typography variant="inherit">{ciclo.alerta_clinico.semanas} sem</Typography>
-                        {ciclo.alerta_clinico.texto && <Typography variant="inherit" noWrap>• {ciclo.alerta_clinico.texto}</Typography>}
-                    </Box>
+                {/* TAG DE GESTAÇÃO UNIFICADA */}
+                {(ciclo.alerta_clinico || ciclo.idade_gestacional) && (
+                  <Box sx={{ 
+                    bgcolor: '#fff3e0', 
+                    color: '#e65100', 
+                    borderRadius: 1, 
+                    px: 0.8, 
+                    py: 0.4, 
+                    mb: 1, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 0.5, 
+                    fontSize: '0.7rem', 
+                    fontWeight: 'bold',
+                    flexWrap: 'wrap' // Permite quebrar linha se o texto for grande
+                  }}>
+                      {/* Caso 1: Temos o objeto alerta_clinico (Gestação com DUM válida) */}
+                      {ciclo.alerta_clinico ? (
+                        <>
+                          <Typography variant="inherit">
+                            {ciclo.alerta_clinico.semanas}s 
+                            {ciclo.alerta_clinico.dias > 0 && ` + ${ciclo.alerta_clinico.dias}d`}
+                          </Typography>
+                          
+                          {ciclo.alerta_clinico.texto && (
+                            <>
+                              <Typography variant="inherit" sx={{ mx: 0.5 }}>•</Typography>
+                              <Typography variant="inherit" noWrap sx={{ maxWidth: '140px' }}>
+                                {ciclo.alerta_clinico.texto}
+                              </Typography>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        /* Caso 2: Fallback (Não é gestação ou calculou só a string) */
+                        <Typography variant="inherit">{ciclo.idade_gestacional}</Typography>
+                      )}
+                  </Box>
                 )}
 
                 {/* --- NOVO: TAG DE RETORNO AUTOMÁTICA --- */}
