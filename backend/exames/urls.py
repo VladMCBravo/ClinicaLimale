@@ -2,11 +2,12 @@ from django.urls import path
 from .views import (
     UploadExameView, 
     AcessarResultadosView, 
-    ListarExamesPendentesView, # <--- Novo
+    ListarExamesPendentesView, # <---
     ListarExamesDoPacienteView, # <--- VERIFIQUE SE ESTÁ IMPORTADO
-    VincularPacienteView,       # <--- Novo
+    VincularPacienteView,       # <--- 
     AcessarResultadosView,
-    ResgatarPorNomeView         # <--- Novo
+    ResgatarPorNomeView,         # <--- 
+    UltimosExamesEnviadosView    # <--- 
 )
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
     # Verifique se esta linha existe:
     path('exames-paciente/', ListarExamesDoPacienteView.as_view(), name='exames_paciente'),
     path('resgatar-nome/<int:exame_id>/', ResgatarPorNomeView.as_view(), name='resgatar_por_nome'),
-] 
+    path('recentes/', UltimosExamesEnviadosView.as_view(), name='exames_recentes'),
+]

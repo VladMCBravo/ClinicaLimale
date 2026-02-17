@@ -314,3 +314,23 @@ class ResgatarPorNomeView(APIView):
             return Response({'msg': f'Resgatados {len(arquivos_encontrados)} arquivos!', 'arquivos': arquivos_encontrados})
         
         return Response({'msg': 'Nenhum arquivo novo encontrado.', 'locais_verificados': pastas_possiveis})
+    
+class UltimosExamesEnviadosView(APIView):
+    """ Retorna os últimos 10 exames enviados pelo robô para alimentar a luz verde no Front """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Pega os 10 exames mais recentes
+        ultimos_exames = Exame.objects.all().order_by('-criado_em')[:10]
+        
+        dados = []
+        for e in ultimos_exames:
+            dados.append({
+                'id': e.id,
+                'nome_pasta': e.nome_paciente_pasta,
+                'paciente': e.paciente.nome_completo if e.paciente else 'Desconhecido',
+                'data_envio': e.criado_em.strftime('%d/%m %H:%M'),
+                'status': e.status
+            })
+            
+        return Response(dados, status=status.HTTP_200_OK)

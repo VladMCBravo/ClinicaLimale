@@ -87,6 +87,13 @@
     font-size: 1.1rem;
 }
 
+/* --- NOVO: Animação da Luz Verde do Robô --- */
+@keyframes pulse-green {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
 /* Responsividade */
 @media (max-width: 1100px) {
     .main-nav a span {
