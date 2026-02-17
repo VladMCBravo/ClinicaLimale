@@ -16,7 +16,7 @@ def processar_pasta(caminho_pasta, nome_pasta):
     print(f"--> Processando: {nome_pasta}")
     
     # 1. Validação do Nome da Pasta (Regex)
-    # Padrão esperado: 26112025-1_NOME DO PACIENTE
+    # Padrão da Samsung V7: 26112025-1_NOME DO PACIENTE (ou ID_NOME)
     match = re.match(r"(\d{2})(\d{2})(\d{4})-(\d+)_(.*)", nome_pasta)
     
     if not match:
@@ -36,8 +36,8 @@ def processar_pasta(caminho_pasta, nome_pasta):
     for arquivo in os.listdir(caminho_pasta):
         caminho_arquivo = os.path.join(caminho_pasta, arquivo)
         
-        # Ignora arquivos de sistema e subpastas
-        if arquivo.startswith('.') or os.path.isdir(caminho_arquivo):
+        # Ignora arquivos de sistema, subpastas e scripts python
+        if arquivo.startswith('.') or os.path.isdir(caminho_arquivo) or arquivo.endswith('.py'):
             continue
             
         try:
@@ -49,25 +49,33 @@ def processar_pasta(caminho_pasta, nome_pasta):
 
     if not arquivos_para_enviar:
         print("    Pasta vazia. Pulando.")
+        for f in lista_arquivos_abertos: f.close()
         return False
 
     # 3. Enviar para a API
-    # ATENÇÃO: Adicionei o campo 'nome_pasta_original' aqui
     dados = {
         'nome_paciente': nome_paciente,
         'data_exame': data_formatada,
-        'nome_pasta_original': nome_pasta  # <--- NOVA INFORMAÇÃO PARA O SUPABASE
+        'nome_pasta_original': nome_pasta  
     }
 
     sucesso = False
     try:
-        print("    Enviando para a nuvem... aguarde...")
+        print(f"    Enviando {len(arquivos_para_enviar)} arquivos para a nuvem... aguarde...")
         # Timeout aumentado para 180s (3 min) para exames grandes
         resposta = requests.post(URL_API, data=dados, files=arquivos_para_enviar, timeout=180)
         
-        # Aceita 201 (Criado) e 200 (Atualizado/Bloqueado por duplicidade)
+        # Aceita 201 (Criado) e 200 (Atualizado/Anexado)
         if resposta.status_code in [200, 201]:
-            print("✅ Sucesso! Exame salvo na nuvem.")
+            # Tenta ler a resposta do Django para dar um feedback bonito na tela
+            try:
+                resp_json = resposta.json()
+                acao = resp_json.get('acao', 'processado')
+                novos = resp_json.get('arquivos_novos', 'todos')
+                print(f"✅ Sucesso! Status: {acao.upper()} | Arquivos adicionados: {novos}")
+            except:
+                print("✅ Sucesso! Exame salvo na nuvem.")
+            
             sucesso = True
         else:
             print(f"❌ Erro do Servidor: {resposta.status_code} - {resposta.text}")
@@ -112,6 +120,11 @@ def loop_monitoramento():
                             novo_nome = f"[ENVIADO] {item}"
                             novo_caminho = os.path.join(PASTA_ENTRADA, novo_nome)
                             
+                            # Previne erro do Windows se a pasta [ENVIADO] já existir
+                            if os.path.exists(novo_caminho):
+                                novo_nome = f"[ENVIADO] {item}_{int(time.time())}"
+                                novo_caminho = os.path.join(PASTA_ENTRADA, novo_nome)
+
                             os.rename(caminho_completo, novo_caminho)
                             print(f"    🏷️  Pasta renomeada para: {novo_nome}\n")
                         except Exception as e:

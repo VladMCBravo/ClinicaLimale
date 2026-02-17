@@ -50,6 +50,11 @@ class Exame(models.Model):
         related_name='exames_realizados'
     )
 
+    # --- ADICIONE ESTA CLASSE AQUI ---
+    class Meta:
+        # Garante que o banco nunca aceite dois exames iguais (mesma pasta, mesma data)
+        unique_together = ('nome_paciente_pasta', 'data_exame')
+
     def save(self, *args, **kwargs):
         if not self.codigo_acesso:
             self.codigo_acesso = 'EX-' + str(uuid.uuid4())[:4].upper()

@@ -24,48 +24,49 @@ class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     
     def post(self, request, *args, **kwargs):
-        # --- ALTERAÇÃO AQUI ---
-        # Tenta pegar o nome original da pasta (enviado pelo novo script), 
-        # se não vier, usa o nome do paciente como fallback.
-        nome_pasta = request.data.get('nome_pasta_original') or request.data.get('nome_paciente')
-        
+        # O script local envia essas 3 variáveis
+        nome_pasta = request.data.get('nome_pasta_original')
+        nome_paciente_enviado = request.data.get('nome_paciente') # Ex: "RAFAELA" ou "145 RAFAELA"
         data_str = request.data.get('data_exame') 
         files = request.FILES.getlist('arquivos') 
 
-        if not nome_pasta or not data_str:
+        if not nome_pasta or not data_str or not nome_paciente_enviado:
             return Response({'erro': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. BUSCA INTELIGENTE DA PACIENTE
+        # 1. BUSCA INTELIGENTE DA PACIENTE (Com suporte a ID)
         paciente_encontrado = None
-        # NOVO: Remove os números e traços do início (ex: "11022026-5_ARAUJO" vira "ARAUJO")
-        nome_limpo = re.sub(r'^[0-9-]+\s*_?', '', nome_pasta).replace('_', ' ').strip()
         
-        # Tenta busca exata
-        pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
-        
-        if not pacientes.exists():
-            # Tenta busca por partes do nome (Primeiro e Último)
-            termos = nome_limpo.split()
-            if len(termos) >= 1:
-                query = Paciente.objects.filter(nome_completo__icontains=termos[0])
-                if len(termos) > 1:
-                    query = query.filter(nome_completo__icontains=termos[-1])
-                pacientes = query
+        # A) Tenta achar o ID no começo do nome enviado (Ex: "145 RAFAELA" -> Pega o 145)
+        id_match = re.search(r'^(\d+)[\s_]', nome_paciente_enviado)
+        if id_match:
+            paciente_encontrado = Paciente.objects.filter(id=id_match.group(1)).first()
 
-        if pacientes.exists():
-            paciente_encontrado = pacientes.first()
+        # B) Se não usaram ID na máquina, faz a busca pelo texto normal (Fallback)
+        if not paciente_encontrado:
+            nome_limpo = re.sub(r'^[0-9-]+\s*_?', '', nome_paciente_enviado).replace('_', ' ').strip()
+            pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
+            
+            if not pacientes.exists():
+                termos = nome_limpo.split()
+                if len(termos) >= 1:
+                    query = Paciente.objects.filter(nome_completo__icontains=termos[0])
+                    if len(termos) > 1:
+                        query = query.filter(nome_completo__icontains=termos[-1])
+                    pacientes = query
+            
+            if pacientes.exists():
+                paciente_encontrado = pacientes.first()
 
-        # 2. BUSCA DO CICLO ATIVO NO CRM (O Segredo do Pré-Natal)
+        # 2. BUSCA DO CICLO ATIVO NO CRM
         ciclo_ativo = None
         if paciente_encontrado:
-            # Pega o ciclo ativo mais recente (Ex: Gestação atual)
+            from crm.models import Ciclo
             ciclo_ativo = Ciclo.objects.filter(
                 paciente=paciente_encontrado, 
                 status='ativo'
             ).order_by('-data_inicio').first()
 
         # 3. CRIAÇÃO OU RECUPERAÇÃO DO EXAME (Escudo Antiduplicação)
-        # Em vez de create(), usamos get_or_create para buscar a pasta primeiro
         exame, created = Exame.objects.get_or_create(
             nome_paciente_pasta=nome_pasta,
             data_exame=data_str,
@@ -75,16 +76,19 @@ class UploadExameView(APIView):
                 'ciclo': ciclo_ativo
             }
         )
-        # --- A PONTE MÁGICA PARA APARECER NO HISTÓRICO ---
+
+        # 4. VÍNCULO COM LAUDO (Escudo contra o IntegrityError)
         if paciente_encontrado:
-            Laudo.objects.create(
-                paciente=paciente_encontrado,
+            Laudo.objects.get_or_create(
                 exame=exame,
-                titulo_exame=f"Exames Anexados (Auto): {nome_limpo}",
-                status='FINALIZADO'
+                defaults={
+                    'paciente': paciente_encontrado,
+                    'titulo_exame': f"Exames Anexados (Auto): {paciente_encontrado.nome_completo}",
+                    'status': 'FINALIZADO'
+                }
             )
 
-        # 4. SALVAMENTO DOS ARQUIVOS SEM DUPLICAR
+        # 5. SALVAMENTO DOS ARQUIVOS SEM DUPLICAR
         count_imgs = 0
         for f in files:
             ext = f.name.lower().split('.')[-1]
@@ -92,19 +96,16 @@ class UploadExameView(APIView):
             if ext in ['mp4', 'avi', 'mov', 'mkv']: tipo = 'VIDEO'
             elif ext in ['pdf']: tipo = 'LAUDO'
             
-            # Verifica se essa imagem/arquivo já foi salva neste exame para não clonar
             if not ArquivoExame.objects.filter(exame=exame, arquivo__icontains=f.name).exists():
                 ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
                 count_imgs += 1
 
-        # Responde informando se criou um novo ou atualizou um existente
         return Response({
             'status': 'sucesso',
             'exame_id': exame.id,
             'acao': 'criado' if created else 'atualizado',
-            'arquivos_salvos_agora': count_imgs,
-            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO",
-            'crm_vinculado': f"Ciclo {ciclo_ativo.tipo}" if ciclo_ativo else "Sem ciclo ativo"
+            'arquivos_novos': count_imgs,
+            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO"
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 class AcessarResultadosView(APIView):
