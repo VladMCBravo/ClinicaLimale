@@ -5,6 +5,9 @@ import string
 from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
+import json, re
+from datetime import datetime, timedelta
+from crm.models import Ciclo
 
 class Evolucao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='evolucoes')
@@ -616,52 +619,76 @@ class Laudo(models.Model):
         self.sincronizar_crm()
     
     def sincronizar_crm(self):
-        """Lê o laudo que acabou de ser salvo e injeta a DUM no CRM"""
+        """
+        Lê o laudo e injeta a DUM (Real ou Virtual) no CRM.
+        Agora suporta extração de 'X semanas e Y dias' se a DUM faltar.
+        """
         try:
-            if not self.dados_estruturados:
-                return
-            
-            import json
-            from datetime import datetime
-            from crm.models import Ciclo # Importação local para evitar ciclo de imports
-            
             dados = self.dados_estruturados
             if isinstance(dados, str):
                 dados = json.loads(dados)
-                
-            # Função detetive interna
-            def extrair_dum(d):
+
+            # 1. TENTA EXTRAIR DUM REAL (Prioridade 1)
+            def buscar_data(d):
                 if isinstance(d, dict):
                     for k, v in d.items():
                         if k.lower() in ['dum', 'data_dum'] and isinstance(v, str) and len(v) >= 10:
                             return v[:10]
-                        if isinstance(v, (dict, list)):
-                            res = extrair_dum(v)
-                            if res: return res
-                elif isinstance(d, list):
-                    for item in d:
-                        res = extrair_dum(item)
+                        res = buscar_data(v)
                         if res: return res
                 return None
-                
-            dum_str = extrair_dum(dados)
-            
+
+            dum_str = buscar_data(dados)
+            dum_final = None
+
             if dum_str:
-                dum_date = datetime.strptime(dum_str, "%Y-%m-%d").date()
-                # Pega o Ciclo ativo ou cria um
-                ciclo, created = Ciclo.objects.get_or_create(
+                dum_final = datetime.strptime(dum_str, "%Y-%m-%d").date()
+            
+            # 2. SE NÃO TEM DUM, BUSCA IG (DUM REVERSA - Prioridade 2)
+            if not dum_final:
+                def buscar_ig(d):
+                    keys_ig = ['ig', 'idade_gestacional', 'ig_biometria', 'ig_atual']
+                    if isinstance(d, dict):
+                        for k, v in d.items():
+                            if k.lower() in keys_ig and isinstance(v, str):
+                                return v
+                            res = buscar_ig(v)
+                            if res: return res
+                    return None
+
+                ig_texto = buscar_ig(dados)
+                if ig_texto:
+                    # Tenta extrair números de padrões como "31 semanas e 3 dias" ou "31s 3d"
+                    nums = re.findall(r'(\d+)', ig_texto)
+                    if len(nums) >= 1:
+                        semanas = int(nums[0])
+                        dias = int(nums[1]) if len(nums) > 1 else 0
+                        
+                        # Data de referência: data do agendamento ou criação do laudo
+                        ref_date = self.data_criacao.date()
+                        if self.agendamento:
+                            ref_date = self.agendamento.data_hora_inicio.date()
+                        
+                        # Cálculo da DUM Virtual: Data - (Semanas*7 + Dias)
+                        dum_final = ref_date - timedelta(weeks=semanas, days=dias)
+
+            # 3. ATUALIZA O CRM
+            if dum_final:
+                ciclo, _ = Ciclo.objects.get_or_create(
                     paciente=self.paciente,
                     tipo='GESTACAO',
                     status='ativo'
                 )
-                # Atualiza só se estiver vazio ou mudou
-                if ciclo.data_dum != dum_date:
-                    ciclo.data_dum = dum_date
+                if ciclo.data_dum != dum_final:
+                    ciclo.data_dum = dum_final
                     ciclo.save(update_fields=['data_dum'])
+                    # Também salva no cadastro principal da paciente para segurança
+                    if not self.paciente.dum:
+                        self.paciente.dum = dum_final
+                        self.paciente.save(update_fields=['dum'])
                     
         except Exception as e:
-            # Se der erro no CRM, não impede o laudo de ser salvo para o médico
-            print(f"Erro ao sincronizar CRM silenciosamente: {e}")
+            print(f"Erro ao sincronizar CRM: {e}")
 
     # Métodos auxiliares pertencentes a ESTE modelo
     def gerar_codigo_unico(self):
