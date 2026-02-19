@@ -84,7 +84,8 @@ export default function DashboardExecutivoPage() {
                   innerRadius={60} outerRadius={100}
                   fill="#8884d8"
                   paddingAngle={5}
-                  dataKey="receita"
+                  dataKey="quantidade" // CORREÇÃO: Antes era "receita"
+                  nameKey="name"       // GARANTIA: Para a legenda funcionar perfeitamente
                 >
                   {graficos.origem_pie_chart.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

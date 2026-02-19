@@ -128,11 +128,33 @@ class AnaliseComportamental(models.Model):
         ('OUTRO', 'Outro'),
     ]
 
+    # --- NOVAS OPÇÕES DE ORIGEM ---
+    ORIGEM_CHOICES = [
+        ('GOOGLE', 'Google (Pesquisa/Meu Negócio)'),
+        ('INSTAGRAM', 'Instagram'),
+        ('INDICACAO', 'Indicação de Paciente/Amigo'),
+        ('MEDICO', 'Indicação Médica'),
+        ('CONVENIO', 'Convênio'),
+        ('OUTRO', 'Outro'),
+    ]
+
     paciente = models.OneToOneField(Paciente, on_delete=models.CASCADE, related_name='perfil_comportamental')
     perfil_emocional = models.CharField(max_length=20, choices=PERFIL_EMOCIONAL, default='INDEFINIDO')
     principal_objecao = models.CharField(max_length=20, choices=OBJECOES_COMUNS, blank=True, null=True)
     
-    # Notas livres para a equipe de atendimento ("Gosta de ser chamada de Beta", etc)
+    # --- NOVOS CAMPOS DE ENGAJAMENTO E MARKETING ---
+    origem_aquisicao = models.CharField(
+        max_length=20, 
+        choices=ORIGEM_CHOICES, 
+        blank=True, 
+        null=True,
+        verbose_name="Como conheceu a clínica?"
+    )
+    segue_instagram = models.BooleanField(default=False, verbose_name="Segue no Instagram?")
+    avaliou_google = models.BooleanField(default=False, verbose_name="Fez avaliação no Google?")
+    indicou_outros = models.BooleanField(default=False, verbose_name="Indicou alguém depois?")
+    
+    # Notas livres para a equipe de atendimento
     observacoes_internas = models.TextField(blank=True, help_text="Informações cruciais para a equipe de atendimento")
 
     def __str__(self):

@@ -184,10 +184,31 @@ class CRMService:
             'retencao': ciclos_ativos.filter(fase_atual='F4').count(),
         }
 
-        # 4. GRÁFICOS
-        # Evolução Receita (Últimos 6 meses)
-        # (Simplificado para o exemplo, idealmente usa TruncMonth em loop)
-        evolucao_data = [] # Preencher com lógica de loop se necessário
+        # 4. GRÁFICOS E INTELIGÊNCIA DE DADOS
+        # Evolução Receita (Últimos 6 meses - simplificado)
+        evolucao_data = [
+            {"data": "Jan", "receita": 1000},
+            {"data": "Fev", "receita": float(receita_mes)} 
+        ]
+
+        # --- NOVA LÓGICA DO GRÁFICO DE PIZZA (ORIGEM DE AQUISIÇÃO) ---
+        from .models import AnaliseComportamental
+        
+        # Agrupa os pacientes pela origem de aquisição e conta quantos tem em cada
+        origens_bd = AnaliseComportamental.objects.values('origem_aquisicao').annotate(total=Count('id'))
+        
+        origem_pie_chart = []
+        for item in origens_bd:
+            nome_origem = item['origem_aquisicao'] or "Não Informado"
+            origem_pie_chart.append({
+                "name": nome_origem,
+                "quantidade": item['total'] # Trocamos 'receita' por 'quantidade' para refletir volume real
+            })
+            
+        # Fallback caso o banco esteja vazio ainda
+        if not origem_pie_chart:
+            origem_pie_chart = [{"name": "Sem dados", "quantidade": 1}]
+        # -------------------------------------------------------------
 
         return {
             "kpis_financeiros": {
@@ -204,14 +225,7 @@ class CRMService:
             },
             "funil": funil_stats,
             "graficos": {
-                "evolucao_receita": [
-                    {"data": "Jan", "receita": 1000}, # Placeholder se não tiver dados
-                    {"data": "Fev", "receita": float(receita_mes)} 
-                ],
-                "origem_pie_chart": [
-                    {"name": "Instagram", "receita": 5000},
-                    {"name": "Google", "receita": 3000},
-                    {"name": "Indicação", "receita": 2000}
-                ]
+                "evolucao_receita": evolucao_data,
+                "origem_pie_chart": origem_pie_chart
             }
         }

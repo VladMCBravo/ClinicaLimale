@@ -340,4 +340,24 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
             instance.paciente.dum = nova_dum
             instance.paciente.save() 
         
+        # 3. SALVA OS DADOS DE ENGAJAMENTO/MARKETING
+        comportamento_data = self.initial_data.get('comportamento')
+        if comportamento_data and instance.paciente:
+            from .models import AnaliseComportamental
+            # Pega o perfil existente ou cria um novo se for um paciente antigo que não tinha
+            comp, created = AnaliseComportamental.objects.get_or_create(paciente=instance.paciente)
+            
+            # Atualiza apenas os campos que vieram no payload
+            if 'segue_instagram' in comportamento_data:
+                comp.segue_instagram = comportamento_data['segue_instagram']
+            if 'avaliou_google' in comportamento_data:
+                comp.avaliou_google = comportamento_data['avaliou_google']
+            if 'indicou_outros' in comportamento_data:
+                comp.indicou_outros = comportamento_data['indicou_outros']
+            if 'origem_aquisicao' in comportamento_data:
+                comp.origem_aquisicao = comportamento_data['origem_aquisicao']
+            
+            comp.save()
+            print(f"📈 Dados de engajamento atualizados para: {instance.paciente.nome_completo}")
+        
         return instance

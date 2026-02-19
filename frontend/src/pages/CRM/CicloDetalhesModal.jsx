@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, Button, 
   TextField, Box, Typography, List, ListItem, ListItemText, 
-  Chip, Divider, IconButton, CircularProgress, Tabs, Tab
+  Chip, Divider, IconButton, CircularProgress, Tabs, Tab,
+  Switch, FormControlLabel, FormGroup, Grid, MenuItem
 } from '@mui/material';
-import { FaCheckCircle, FaTimes, FaSave, FaHistory, FaTasks } from 'react-icons/fa';
+import { FaCheckCircle, FaTimes, FaSave, FaHistory, FaTasks, FaBullhorn } from 'react-icons/fa';
 import apiClient from '../../api/axiosConfig';
 import { crmService } from '../../services/crmService';
 
@@ -15,6 +16,10 @@ const DICAS_ACOES = [
   "Pesquisa de Satisfação"
 ];
 
+const ORIGENS = ['GOOGLE', 'INSTAGRAM', 'INDICACAO', 'MEDICO', 'CONVENIO', 'OUTRO'];
+const PERFIS = ['TRANQUILA', 'INSEGURA', 'ANSIOSA', 'DECIDIDA', 'INDEFINIDO'];
+const OBJECOES = ['PRECO', 'AGENDA', 'MEDICO', 'DISTANCIA', 'MEDO', 'OUTRO'];
+
 export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate }) {
   const [loading, setLoading] = useState(true);
   const [detalhes, setDetalhes] = useState(null);
@@ -22,6 +27,12 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   const [novaAcaoData, setNovaAcaoData] = useState(new Date().toISOString().split('T')[0]);
   const [dum, setDum] = useState('');
   const [tabIndex, setTabIndex] = useState(0);
+
+  // --- NOVO ESTADO: COMPORTAMENTO E MARKETING ---
+  const [comportamento, setComportamento] = useState({
+    origem_aquisicao: '', segue_instagram: false, avaliou_google: false, indicou_outros: false,
+    perfil_emocional: 'INDEFINIDO', principal_objecao: '', observacoes_internas: ''
+  });
 
   useEffect(() => {
     if (open && cicloId) {
@@ -48,6 +59,19 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
 
       setDetalhes(dadosFinais);
       setDum(dadosFinais.dum ? dadosFinais.dum.split('T')[0] : '');
+      
+      // Carrega os dados de comportamento se existirem (AMARRANDO A PONTA SOLTA)
+      if (dadosFinais.comportamento) {
+          setComportamento({
+              origem_aquisicao: dadosFinais.comportamento.origem_aquisicao || '',
+              segue_instagram: dadosFinais.comportamento.segue_instagram || false,
+              avaliou_google: dadosFinais.comportamento.avaliou_google || false,
+              indicou_outros: dadosFinais.comportamento.indicou_outros || false,
+              perfil_emocional: dadosFinais.comportamento.perfil_emocional || 'INDEFINIDO',
+              principal_objecao: dadosFinais.comportamento.principal_objecao || '',
+              observacoes_internas: dadosFinais.comportamento.observacoes_internas || ''
+          });
+      }
 
     } catch (error) {
         console.error("Erro ao carregar detalhes", error);
@@ -90,13 +114,29 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
     } catch (error) { console.error("Erro", error); }
   };
 
-  // --- CONSTRUTOR DE LINHA DO TEMPO (ERRO DO APPEND CORRIGIDO) ---
+  // --- NOVA FUNÇÃO: SALVAR MARKETING E PERFIL ---
+  const handleSalvarComportamento = async () => {
+      setLoading(true);
+      try {
+          await crmService.updateCiclo(cicloId, { comportamento });
+          await loadDetalhes();
+          if (onUpdate) onUpdate();
+      } catch (error) {
+          alert("Erro ao salvar perfil da paciente.");
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  const handleChangeComportamento = (campo, valor) => {
+      setComportamento(prev => ({ ...prev, [campo]: valor }));
+  };
+
   const renderTimeline = () => {
     if (!detalhes) return null;
-    let eventos = []; // Array do Javascript!
+    let eventos = []; 
 
     if (detalhes.data_inicio) {
-        // CORREÇÃO: push no lugar de append
         eventos.push({ data: detalhes.data_inicio, tipo: 'info', texto: 'Paciente ingressou no Funil CRM' });
     }
 
@@ -137,22 +177,23 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
           <IconButton onClick={onClose} size="small"><FaTimes size={16}/></IconButton>
         </Box>
         <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)} indicatorColor="primary" sx={{ minHeight: '36px' }}>
-            <Tab icon={<FaTasks size={14}/>} iconPosition="start" label="Gestão" sx={{ minHeight: '36px', py: 0 }} />
-            <Tab icon={<FaHistory size={14}/>} iconPosition="start" label="Histórico" sx={{ minHeight: '36px', py: 0 }} />
+            <Tab icon={<FaTasks size={14}/>} iconPosition="start" label="Gestão" sx={{ minHeight: '36px', py: 0, fontSize: '0.8rem' }} />
+            <Tab icon={<FaBullhorn size={14}/>} iconPosition="start" label="Perfil & Mkt" sx={{ minHeight: '36px', py: 0, fontSize: '0.8rem' }} />
+            <Tab icon={<FaHistory size={14}/>} iconPosition="start" label="Histórico" sx={{ minHeight: '36px', py: 0, fontSize: '0.8rem' }} />
         </Tabs>
       </DialogTitle>
       
-      <DialogContent dividers sx={{ minHeight: '350px', bgcolor: 'white', p: 2 }}>
+      <DialogContent dividers sx={{ minHeight: '400px', bgcolor: 'white', p: 2 }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
         ) : tabIndex === 0 ? (
+          // ABA 1: GESTÃO (Mantida igual, com DUM e Tarefas)
           <>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <Chip label={detalhes.fase_atual} color="primary" size="small" />
               <Chip label={detalhes.tipo} variant="outlined" size="small" />
             </Box>
 
-            {/* DUM E GESTAÇÃO - AGORA SEMPRE VISÍVEL (SEM TRAVA) */}
             <Box sx={{ backgroundColor: '#e3f2fd', p: 1.5, borderRadius: 2, mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 1 }}>
                     🤰 Calculadora Gestacional / DUM
@@ -169,17 +210,14 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                 </Box>
                 {detalhes.idade_gestacional && (
                     <Typography variant="body2" sx={{ mt: 1, color: '#0d47a1' }}>
-                        <strong>Idade Atual calculada pelo sistema:</strong> {detalhes.idade_gestacional}
+                        <strong>Idade Atual calculada:</strong> {detalhes.idade_gestacional}
                     </Typography>
                 )}
             </Box>
 
             <Divider sx={{ my: 1.5 }} />
 
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>
-              🎯 Adicionar Próxima Ação
-            </Typography>
-            
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>🎯 Adicionar Próxima Ação</Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
                 {DICAS_ACOES.map((dica, i) => (
                     <Chip key={i} label={`+ ${dica}`} size="small" variant="outlined" sx={{ fontSize: '0.65rem', cursor: 'pointer', '&:hover': {bgcolor: '#e3f2fd'} }} onClick={() => setNovaAcaoDesc(dica)} />
@@ -187,14 +225,8 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
             </Box>
 
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-              <TextField 
-                fullWidth size="small" placeholder="Ou digite uma ação..."
-                value={novaAcaoDesc} onChange={(e) => setNovaAcaoDesc(e.target.value)}
-              />
-              <TextField 
-                type="date" size="small" value={novaAcaoData} onChange={(e) => setNovaAcaoData(e.target.value)}
-                sx={{ width: '150px' }}
-              />
+              <TextField fullWidth size="small" placeholder="Ou digite uma ação..." value={novaAcaoDesc} onChange={(e) => setNovaAcaoDesc(e.target.value)} />
+              <TextField type="date" size="small" value={novaAcaoData} onChange={(e) => setNovaAcaoData(e.target.value)} sx={{ width: '150px' }} />
               <Button variant="contained" disableElevation onClick={handleSalvarAcao}>Agendar</Button>
             </Box>
 
@@ -213,8 +245,79 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
               )}
             </List>
           </>
+
+        ) : tabIndex === 1 ? (
+          // ABA 2: PERFIL & MARKETING (NOVA)
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            
+            {/* Bloco de Origem e Engajamento */}
+            <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#555', mb: 1.5 }}>Origem e Engajamento</Typography>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            select fullWidth size="small" label="Como conheceu a clínica?"
+                            value={comportamento.origem_aquisicao}
+                            onChange={(e) => handleChangeComportamento('origem_aquisicao', e.target.value)}
+                        >
+                            <MenuItem value="">Não informado</MenuItem>
+                            {ORIGENS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <FormGroup sx={{ gap: 0 }}>
+                            <FormControlLabel control={<Switch size="small" checked={comportamento.segue_instagram} onChange={(e) => handleChangeComportamento('segue_instagram', e.target.checked)} />} label={<Typography sx={{ fontSize: '0.8rem' }}>Segue no Instagram?</Typography>} />
+                            <FormControlLabel control={<Switch size="small" checked={comportamento.avaliou_google} onChange={(e) => handleChangeComportamento('avaliou_google', e.target.checked)} />} label={<Typography sx={{ fontSize: '0.8rem' }}>Avaliou no Google?</Typography>} />
+                            <FormControlLabel control={<Switch size="small" checked={comportamento.indicou_outros} onChange={(e) => handleChangeComportamento('indicou_outros', e.target.checked)} color="success" />} label={<Typography sx={{ fontSize: '0.8rem', fontWeight: comportamento.indicou_outros ? 'bold' : 'normal' }}>É uma Promotora? (Indicou alguém)</Typography>} />
+                        </FormGroup>
+                    </Grid>
+                </Grid>
+            </Box>
+
+            <Divider />
+
+            {/* Bloco de Perfil Comportamental (O resgate da ponta solta) */}
+            <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#555', mb: 1.5 }}>Comportamento Clínico</Typography>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            select fullWidth size="small" label="Perfil Emocional"
+                            value={comportamento.perfil_emocional}
+                            onChange={(e) => handleChangeComportamento('perfil_emocional', e.target.value)}
+                        >
+                            {PERFIS.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            select fullWidth size="small" label="Principal Objeção (Gargalo)"
+                            value={comportamento.principal_objecao}
+                            onChange={(e) => handleChangeComportamento('principal_objecao', e.target.value)}
+                        >
+                            <MenuItem value="">Nenhuma / Não mapeada</MenuItem>
+                            {OBJECOES.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth multiline rows={2} size="small" label="Observações de Atendimento (Ex: Prefere ser chamada de Beta)"
+                            value={comportamento.observacoes_internas}
+                            onChange={(e) => handleChangeComportamento('observacoes_internas', e.target.value)}
+                        />
+                    </Grid>
+                </Grid>
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                <Button variant="contained" disableElevation startIcon={<FaSave />} onClick={handleSalvarComportamento}>
+                    Salvar Perfil
+                </Button>
+            </Box>
+          </Box>
         ) : (
-            renderTimeline()
+          // ABA 3: HISTÓRICO
+          renderTimeline()
         )}
       </DialogContent>
     </Dialog>
