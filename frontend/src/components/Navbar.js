@@ -204,11 +204,10 @@ const Navbar = () => {
                         Olá, {formatarSaudacao(user)} {user.first_name || ''}
                     </span>
                     <div className="user-actions">
-                        {user.isAdmin && (
-                            <IconButton component={Link} to="/configuracoes" title="Configurações" className="icon-button" sx={{ color: '#ffffff' }}>
-                                <FaCog />
-                            </IconButton>
-                        )}
+                        {/* A engrenagem agora fica visível para TODOS os usuários */}
+                        <IconButton component={Link} to="/configuracoes" title="Configurações e Perfil" className="icon-button" sx={{ color: '#ffffff' }}>
+                            <FaCog />
+                        </IconButton>
 
                         <IconButton onClick={logout} className="icon-button" title="Sair" sx={{ color: '#ffffff' }}>
                             <FaSignOutAlt />
