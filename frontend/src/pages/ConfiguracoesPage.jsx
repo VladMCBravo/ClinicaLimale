@@ -7,6 +7,7 @@ import {
     People, Business, AttachMoney, AccessTime, Badge, 
     ListAlt, LocalHospital, MeetingRoom, CardMembership, AccountCircle
 } from '@mui/icons-material';
+import { useAuth } from '../hooks/useAuth';
 
 // Imports dos seus componentes
 import MeuPerfilTab from '../components/configuracoes/MeuPerfilTab'; // <-- NOSSO NOVO COMPONENTE
@@ -53,8 +54,8 @@ export default function ConfiguracoesPage() {
 
     // Lógica para pegar o cargo do usuário (Ajuste para como você salva no seu app)
     // Pode ser do localStorage, de um Context, etc. Assumindo que você grava no localStorage ao logar:
-    const userCargo = localStorage.getItem('cargo') || 'recepcao'; 
-    const isAdmin = userCargo === 'admin';
+    const { user } = useAuth(); 
+    const isAdmin = user?.isAdmin || false; // Puxa a propriedade isAdmin que você já tem no seu sistema
 
     // Se o usuário tentar acessar uma aba que não tem permissão via mudança de estado, resetamos
     useEffect(() => {
