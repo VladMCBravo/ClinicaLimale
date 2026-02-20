@@ -154,7 +154,7 @@ export default function AgendaPrincipal({
             textoFinal: '',
             dadosEstruturados: {}
         };
-        localStorage.setItem('laudos_rascunho_auto_save', JSON.stringify(draftLaudo));
+        sessionStorage.setItem('laudos_rascunho_auto_save', JSON.stringify(draftLaudo));
         handleCloseMenu();
         navigate('/laudos');
     };

@@ -7,7 +7,8 @@ from .views import (
     EspecialidadeViewSet,
     JornadaTrabalhoViewSet,
     UserMeView,
-    CertificadoUploadView
+    CertificadoUploadView,
+    VerificarCertificadoView,
 )
 
 # O Router é a forma padrão do Django Rest Framework de criar
@@ -23,5 +24,7 @@ urlpatterns = [
     # Ex: /api/usuarios/, /api/usuarios/<id>/, /api/especialidades/, etc.
     path('me/', UserMeView.as_view(), name='user-me'),
     path('me/certificado/', CertificadoUploadView.as_view(), name='user-certificado'), # <-- Nova rota aqui
+    path('me/certificado/verificar/', VerificarCertificadoView.as_view(), name='user-certificado-verificar'),
+    
     path('', include(router.urls)),
 ]

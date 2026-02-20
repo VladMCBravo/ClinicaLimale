@@ -22,9 +22,10 @@ export const acessarExame = async (codigo, senha) => {
   }
 };
 
-// Pega o token do usuário logado (Staff)
+// No arquivo exames.js
 const getAuthHeader = () => {
-  const token = localStorage.getItem('token'); // Ou onde você guarda o token
+  // MUDANÇA: troque localStorage por sessionStorage e 'token' por 'authToken'
+  const token = sessionStorage.getItem('authToken'); 
   return { headers: { Authorization: `Token ${token}` } };
 };
 

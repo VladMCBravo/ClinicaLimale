@@ -21,6 +21,7 @@ export default function MeuPerfilTab() {
     const [tab, setTab] = useState(0);
     const [loading, setLoading] = useState(true);
     const [savingInfo, setSavingInfo] = useState(false);
+    const [testingCert, setTestingCert] = useState(false);
     const [uploadingCert, setUploadingCert] = useState(false);
     const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
 
@@ -107,6 +108,20 @@ const handleSalvarPerfil = async (e) => {
     }
 };
 
+// E esta função de teste:
+const handleTestarAssinatura = async () => {
+    setTestingCert(true);
+    try {
+        const res = await apiClient.get('/usuarios/me/certificado/verificar/');
+        mostrarFeedback(res.data.detail, 'success');
+    } catch (error) {
+        const msg = error.response?.data?.detail || 'Erro ao validar certificado.';
+        mostrarFeedback(msg, 'error');
+    } finally {
+        setTestingCert(false);
+    }
+};
+
     const handleUploadCertificado = async (e) => {
         e.preventDefault();
         if (!certFile || !certSenha) return mostrarFeedback('Selecione arquivo e senha.', 'error');
@@ -178,8 +193,10 @@ const handleSalvarPerfil = async (e) => {
                 </form>
             </TabPanel>
 
+            {/* --- ABA 3: SEGURANÇA E ASSINATURA (SÓ PARA MÉDICOS) --- */}
             {perfil.cargo === 'medico' && (
                 <TabPanel value={tab} index={2}>
+                    {/* Quadro de Status Atual (Já existe) */}
                     <Box sx={{ p: 2, mb: 3, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: '#f8f9fa' }}>
                         <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Status da Assinatura Digital</Typography>
                         {certStatus?.possui_arquivo ? (
@@ -188,7 +205,31 @@ const handleSalvarPerfil = async (e) => {
                             </Box>
                         ) : <Typography variant="body2" color="text.secondary">Nenhum certificado configurado.</Typography>}
                     </Box>
+
+                    {/* >>> ADICIONE ESTE NOVO BLOCO DE TESTE AQUI <<< */}
+                    {certStatus?.possui_arquivo && (
+                        <Box sx={{ mb: 3, p: 2, border: '1px dashed #4CAF50', borderRadius: 2, textAlign: 'center', bgcolor: '#f1f8e9' }}>
+                            <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', fontWeight: 500 }}>
+                                Deseja confirmar se sua senha e arquivo estão prontos para uso?
+                            </Typography>
+                            <Button 
+                                variant="outlined" 
+                                color="success" 
+                                size="small"
+                                startIcon={testingCert ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
+                                onClick={handleTestarAssinatura}
+                                disabled={testingCert}
+                                sx={{ fontWeight: 'bold' }}
+                            >
+                                {testingCert ? 'Verificando...' : 'Testar Assinatura Agora'}
+                            </Button>
+                        </Box>
+                    )}
+                    {/* >>> FIM DO BLOCO DE TESTE <<< */}
+
                     <Divider sx={{ mb: 3 }} />
+
+                    {/* Formulário de Upload (Já existe abaixo) */}
                     <form onSubmit={handleUploadCertificado}>
                         <Grid container spacing={2} alignItems="center">
                             <Grid item xs={12} sm={6}>

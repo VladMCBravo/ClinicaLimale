@@ -191,3 +191,41 @@ class CertificadoUploadView(APIView):
                 {"detail": f"Erro interno ao processar certificado: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+# backend/usuarios/views.py
+
+class VerificarCertificadoView(APIView):
+    """
+    Tenta abrir o certificado salvo com a senha criptografada 
+    para garantir que a assinatura funcionará.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        try:
+            if not hasattr(user, 'certificado') or not user.certificado.arquivo_p12:
+                return Response({"detail": "Nenhum certificado encontrado."}, status=404)
+            
+            certificado = user.certificado
+            # 1. Recupera a senha descriptografada
+            senha = certificado.get_password()
+            
+            # 2. Lê os bytes do arquivo
+            with certificado.arquivo_p12.open('rb') as f:
+                p12_data = f.read()
+            
+            # 3. Tenta carregar o certificado
+            pkcs12.load_key_and_certificates(p12_data, senha.encode())
+            
+            return Response({
+                "status": "sucesso",
+                "detail": "Certificado pronto para uso. Assinatura validada!",
+                "expiracao": certificado.data_expiracao
+            })
+            
+        except Exception as e:
+            return Response({
+                "status": "erro",
+                "detail": f"Falha na validação: {str(e)}"
+            }, status=400)

@@ -1,3 +1,4 @@
+// src/pages/LaudosPage.jsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes } from 'react-icons/fa';
 import { FaWhatsapp, FaEnvelope, FaCheckCircle } from 'react-icons/fa';
@@ -13,12 +14,11 @@ import {
   Button, 
   Dialog,
   DialogActions,
-  Stack,      // <--- NOVO
-  Tooltip,    // <--- NOVO
-  IconButton, // <--- NOVO
-  Divider     // <--- NOVO
+  Stack,      
+  Tooltip,    
+  IconButton, 
+  Divider     
 } from '@mui/material';
-import { FaCloudDownloadAlt } from 'react-icons/fa';
 import '../components/laudos/Laudos.css';
 
 // Importação dos Formulários
@@ -147,20 +147,22 @@ const maskCRM = (value) => {
     .replace(/(-\d{2})\d+?$/, '$1'); 
 };
 
-const LaudosPage = () => {
-  const getInitialState = (key, fallback) => {
+const getInitialState = (key, fallback) => {
     try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        // MUDANÇA: troque localStorage por sessionStorage
+        const saved = sessionStorage.getItem(STORAGE_KEY); 
         if (saved) {
             const parsed = JSON.parse(saved);
             return parsed[key] !== undefined ? parsed[key] : fallback;
         }
-    } catch (e) {
-        console.error("Erro ao ler rascunho", e);
-    }
+    } catch (e) { console.error("Erro ao ler rascunho", e); }
     return fallback;
-  };
+};
 
+  // ==========================================================
+  // AQUI COMEÇA A DECLARAÇÃO DA PÁGINA (QUE ESTAVA FALTANDO)
+  // ==========================================================
+  const LaudosPage = () => {
   // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
@@ -277,26 +279,28 @@ const LaudosPage = () => {
       }, 300);
   };
 
-  // Auto-Save
-  useEffect(() => {
-    const dadosParaSalvar = {
-        laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens
-    };
-    const timeoutId = setTimeout(() => {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
-        } catch (e) {
-            const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(dadosSemImagens));
-        }
-    }, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
+    // --- CORREÇÃO DO AUTO-SAVE (sessionStorage) ---
+    useEffect(() => {
+        const dadosParaSalvar = {
+            laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens
+        };
+        const timeoutId = setTimeout(() => {
+            try {
+                // MUDANÇA: Agora salva na sessão temporária
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
+            } catch (e) {
+                const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosSemImagens));
+            }
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
 
   // --- 3. MANIPULADORES DO FORMULÁRIO ---
   const handleLimpar = () => {
     if (window.confirm("Limpar formulário? Rascunho será perdido.")) {
-        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(STORAGE_KEY);
         setLaudoId(null);
         setCredenciais(null);
         setTipoExame('OBSTETRICO');
