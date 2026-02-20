@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-    Button, IconButton, Switch 
+    Button, IconButton, Switch, FormControl, InputLabel, Select, MenuItem 
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import apiClient from '../../api/axiosConfig'; // Ajuste o caminho
