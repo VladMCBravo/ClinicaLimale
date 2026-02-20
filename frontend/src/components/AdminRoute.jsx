@@ -1,22 +1,16 @@
 // src/components/AdminRoute.jsx
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth'; // Usar o seu hook
 
 const AdminRoute = () => {
-  const userDataString = sessionStorage.getItem('userData');
-  let isAdmin = false;
+  const { user, loading } = useAuth(); // Puxa o usuário do contexto
 
-  if (userDataString) {
-    try {
-      const user = JSON.parse(userDataString);
-      // Verifica se a flag isAdmin existe ou se o cargo é admin
-      isAdmin = user.isAdmin === true || user.cargo === 'admin';
-    } catch (e) {
-      isAdmin = false;
-    }
-  }
+  if (loading) return null; // Evita redirecionar enquanto o login está sendo verificado
 
-  // Se for admin, mostra a página. Se não, joga para o painel principal (Recepção)
+  // Verifica a flag que você já usa no resto do sistema
+  const isAdmin = user?.isAdmin || user?.cargo === 'admin';
+
   return isAdmin ? <Outlet /> : <Navigate to="/painel" replace />;
 };
 

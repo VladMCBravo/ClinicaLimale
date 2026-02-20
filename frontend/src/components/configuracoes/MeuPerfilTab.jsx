@@ -35,7 +35,7 @@ export default function MeuPerfilTab() {
     const [certSenha, setCertSenha] = useState('');
     const [showSenha, setShowSenha] = useState(false);
 
-    const token = localStorage.getItem('token'); 
+    const token = sessionStorage.getItem('authToken'); // Troque localStorage por sessionStorage
     const API_URL = 'http://localhost:8000/api'; 
 
     useEffect(() => {
