@@ -35,7 +35,7 @@ class CertificadoMedico(models.Model):
     )
     arquivo_p12 = models.FileField(upload_to='certificados_digitais/')
     senha_criptografada = models.CharField(max_length=255)
-    
+    data_expiracao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Expiração")
     # Campo para checar se está válido
     data_upload = models.DateTimeField(auto_now_add=True)
 

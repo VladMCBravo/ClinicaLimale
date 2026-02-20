@@ -109,3 +109,17 @@ class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
             'intervalo_consulta', 'ativo'
         ]
         read_only_fields = ['medico_nome', 'dia_da_semana_display']
+
+class UserMeUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer estrito para o próprio usuário atualizar seu perfil.
+    Bloqueia intencionalmente campos sensíveis como cargo, cpf, crm, is_active.
+    """
+    class Meta:
+        model = CustomUser
+        fields = [
+            'first_name', 'last_name', 'genero', 'data_nascimento', 
+            'telefone', 'logradouro', 'numero', 'complemento', 
+            'bairro', 'cidade', 'uf', 'cep'
+        ]
+        # NENHUM campo de permissão, cargo ou documento oficial é incluído aqui.
