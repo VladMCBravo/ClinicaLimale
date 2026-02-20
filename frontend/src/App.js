@@ -50,27 +50,26 @@ function App() {
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   
-                  {/* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */}
+                  /* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */
                   <Route path="/" element={<PainelMedicoPage />} />
                   <Route path="/painel" element={<PainelRecepcaoPage />} /> 
-                  
+
                   <Route path="/laudos" element={<LaudosPage />} />
                   <Route path="/vincular" element={<VincularExames />} />
-                  
+
                   <Route path="/pacientes" element={<PacientesPage />} />
                   <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
-                  
-                  <Route path="/telemedicina" element={<TelemedicinaPage />} />
 
-                  {/* CRM Operacional (Acesso Geral para ver o funil) */}
+                  <Route path="/telemedicina" element={<TelemedicinaPage />} />
                   <Route path="/crm/kanban" element={<CRMKanbanPage />} />
-                  
-                  {/* --- ÁREA RESTRITA (ADMINISTRADOR) --- */}
+
+                  {/* MOVA A LINHA ABAIXO PARA CÁ (FORA DO ADMINROUTE) */}
+                  <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+
+                  /* --- ÁREA RESTRITA (ADMINISTRADOR) --- */
                   <Route element={<AdminRoute />}>
                       <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                      <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-                      
-                      {/* CRM Estratégico (Painel Bilionário) */}
+                      {/* REMOVA A LINHA DE CONFIGURAÇÕES DAQUI */}
                       <Route path="/crm/executivo" element={<DashboardExecutivoPage />} />
                   </Route>
 
