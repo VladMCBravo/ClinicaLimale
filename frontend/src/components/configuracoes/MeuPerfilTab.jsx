@@ -7,6 +7,7 @@ import {
 import { 
     Person, LocationOn, Security, Visibility, VisibilityOff, CloudUpload, CheckCircle
 } from '@mui/icons-material';
+import apiClient from '../../api/axiosConfig';
 
 function TabPanel({ children, value, index, ...other }) {
     return (
@@ -42,21 +43,16 @@ export default function MeuPerfilTab() {
     }, []);
 
     const carregarDadosPerfil = async () => {
-        try {
-            const res = await fetch(`${API_URL}/usuarios/me/`, {
-                headers: { 'Authorization': `Token ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setPerfil(prev => ({ ...prev, ...data }));
-                if (data.certificado_detalhes) setCertStatus(data.certificado_detalhes);
-            }
-        } catch (error) {
-            mostrarFeedback('Erro ao carregar dados do perfil.', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+        const res = await apiClient.get('/usuarios/me/'); // apiClient já cuida do Token
+        setPerfil(res.data);
+        if (res.data.certificado_detalhes) setCertStatus(res.data.certificado_detalhes);
+    } catch (error) {
+        mostrarFeedback('Erro ao carregar perfil.', 'error');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleChange = (e) => setPerfil({ ...perfil, [e.target.name]: e.target.value });
 
@@ -66,36 +62,50 @@ export default function MeuPerfilTab() {
     };
 
     const buscarCep = async () => {
-        const cepLimpo = perfil.cep.replace(/\D/g, '');
-        if (cepLimpo.length !== 8) return;
-        try {
-            const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-            const data = await res.json();
-            if (!data.erro) {
-                setPerfil(prev => ({ ...prev, logradouro: data.logradouro, bairro: data.bairro, cidade: data.localidade, uf: data.uf }));
-            }
-        } catch (error) { console.error("Erro ao buscar CEP", error); }
-    };
+    const cepLimpo = perfil.cep?.replace(/[^0-9]/g, '');
+    if (cepLimpo?.length !== 8) return;
+    
+    try {
+        const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+            setPerfil(prev => ({
+                ...prev,
+                logradouro: data.logradouro,
+                bairro: data.bairro,
+                cidade: data.localidade,
+                uf: data.uf
+            }));
+        }
+    } catch (error) { console.error("Erro no CEP"); }
+};
 
-    const handleSalvarPerfil = async (e) => {
-        e.preventDefault();
-        setSavingInfo(true);
-        try {
-            const payload = {
-                first_name: perfil.first_name, last_name: perfil.last_name, telefone: perfil.telefone,
-                logradouro: perfil.logradouro, numero: perfil.numero, complemento: perfil.complemento,
-                bairro: perfil.bairro, cidade: perfil.cidade, uf: perfil.uf, cep: perfil.cep
-            };
-            const res = await fetch(`${API_URL}/usuarios/me/`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) mostrarFeedback('Perfil atualizado com sucesso!');
-            else mostrarFeedback('Erro ao atualizar perfil.', 'error');
-        } catch (error) { mostrarFeedback('Erro de conexão.', 'error'); } 
-        finally { setSavingInfo(false); }
-    };
+// E o handleSalvarPerfil para usar o apiClient:
+const handleSalvarPerfil = async (e) => {
+    e.preventDefault();
+    setSavingInfo(true);
+    try {
+        const payload = {
+            first_name: perfil.first_name, 
+            last_name: perfil.last_name, 
+            telefone: perfil.telefone,
+            logradouro: perfil.logradouro, 
+            numero: perfil.numero, 
+            complemento: perfil.complemento,
+            bairro: perfil.bairro, 
+            cidade: perfil.cidade, 
+            uf: perfil.uf, 
+            cep: perfil.cep
+        };
+        // O apiClient já tem o Token e a BASE_URL configurados
+        await apiClient.patch('/usuarios/me/', payload);
+        mostrarFeedback('Perfil atualizado com sucesso!');
+    } catch (error) {
+        mostrarFeedback('Erro ao atualizar perfil.', 'error');
+    } finally {
+        setSavingInfo(false);
+    }
+};
 
     const handleUploadCertificado = async (e) => {
         e.preventDefault();

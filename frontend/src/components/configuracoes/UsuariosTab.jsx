@@ -15,15 +15,19 @@ export default function UsuariosTab() {
     const { showSnackbar } = useSnackbar();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
-    
+    const [filtroCargo, setFiltroCargo] = useState('');
+
     const fetchUsers = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await apiClient.get('/usuarios/usuarios/');
-            setUsers(response.data);
-        } catch (error) { showSnackbar('Erro ao carregar usuários.', 'error'); } 
-        finally { setIsLoading(false); }
-    }, [showSnackbar]);
+    setIsLoading(true);
+    try {
+        // Agora usa o parâmetro que o backend já aceita
+        const response = await apiClient.get('/usuarios/usuarios/', {
+            params: { cargo: filtroCargo }
+        });
+        setUsers(response.data);
+    } catch (error) { /* ... */ }
+    finally { setIsLoading(false); }
+}, [filtroCargo, showSnackbar]);
 
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -36,23 +40,33 @@ export default function UsuariosTab() {
     };
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button variant="contained" onClick={() => { setEditingUser(null); setIsModalOpen(true); }} sx={{bgcolor: '#1a233b'}}>
-                    Novo Usuário
-                </Button>
-            </Box>
-            <TableContainer component={Paper} variant="outlined">
-                <Table>
-                    <TableHead sx={{ bgcolor: '#f5f5f5' }}>
-                        <TableRow>
-                            <TableCell>Nome</TableCell>
-                            <TableCell>Login</TableCell>
-                            <TableCell>Cargo</TableCell>
-                            <TableCell align="center">Status</TableCell>
-                            <TableCell align="right">Ações</TableCell>
-                        </TableRow>
-                    </TableHead>
+    <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel>Filtrar por Cargo</InputLabel>
+                <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
+                    <MenuItem value="">Todos</MenuItem>
+                    <MenuItem value="admin">Administrador</MenuItem>
+                    <MenuItem value="medico">Médico</MenuItem>
+                    <MenuItem value="recepcao">Recepção</MenuItem>
+                </Select>
+            </FormControl>
+            <Button variant="contained" size="small" onClick={() => { setEditingUser(null); setIsModalOpen(true); }} sx={{bgcolor: '#1a233b'}}>
+                Novo Usuário
+            </Button>
+        </Box>
+        
+        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 400px)' }}>
+            <Table size="small" stickyHeader>
+                <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+                    <TableRow>
+                        <TableCell>Nome</TableCell>
+                        <TableCell>Login</TableCell>
+                        <TableCell>Cargo</TableCell>
+                        <TableCell align="center">Status</TableCell>
+                        <TableCell align="right">Ações</TableCell>
+                    </TableRow>
+                </TableHead>
                     <TableBody>
                         {users.map((user) => (
                             <TableRow key={user.id}>

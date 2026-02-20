@@ -64,49 +64,36 @@ export default function ConfiguracoesPage() {
         }
     }, [isAdmin, mainTab]);
 
-    return (
-        <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
-            
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a233b', letterSpacing: '-0.5px', fontSize: '1.5rem' }}>
-                        Configurações
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                        {isAdmin ? "Gestão unificada do sistema e do seu perfil." : "Gerencie suas informações pessoais e de acesso."}
-                    </Typography>
-                </Box>
+    // Substitua o bloco do return principal:
+return (
+    <Container maxWidth="xl" sx={{ mt: 1, mb: 1, height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ mb: 1.5 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a233b', fontSize: '1.3rem' }}>
+                Configurações
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+                {isAdmin ? "Gestão unificada do sistema e do seu perfil." : "Gerencie suas informações pessoais."}
+            </Typography>
+        </Box>
+        
+        <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}>
+                <Tabs value={mainTab} onChange={(e, v) => setMainTab(v)} textColor="primary" indicatorColor="primary">
+                    <Tab icon={<AccountCircle sx={{ fontSize: 20 }}/>} iconPosition="start" label="Meu Perfil" />
+                    {isAdmin && <Tab icon={<People sx={{ fontSize: 20 }}/>} iconPosition="start" label="Equipe" />}
+                    {isAdmin && <Tab icon={<Business sx={{ fontSize: 20 }}/>} iconPosition="start" label="Clínica" />}
+                    {isAdmin && <Tab icon={<AttachMoney sx={{ fontSize: 20 }}/>} iconPosition="start" label="Financeiro" />}
+                </Tabs>
             </Box>
-            
-            <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}>
-                    <Tabs 
-                        value={mainTab} onChange={(e, v) => setMainTab(v)} 
-                        textColor="primary" indicatorColor="primary"
-                        sx={{ 
-                            minHeight: 48,
-                            '& .MuiTab-root': { fontWeight: 600, minHeight: 48, textTransform: 'none', fontSize: '0.95rem', px: 3 } 
-                        }}
-                    >
-                        {/* A primeira aba SEMPRE é o perfil, visível para TODOS */}
-                        <Tab icon={<AccountCircle sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Meu Perfil" />
-                        
-                        {/* Abas exclusivas de Admin */}
-                        {isAdmin && <Tab icon={<People sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Equipe" />}
-                        {isAdmin && <Tab icon={<Business sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Clínica" />}
-                        {isAdmin && <Tab icon={<AttachMoney sx={{ fontSize: 20, mb: 0, mr: 1 }}/>} iconPosition="start" label="Financeiro" />}
-                    </Tabs>
-                </Box>
-
-                <Box sx={{ p: 2, minHeight: 400, bgcolor: '#fafafa' }}>
-                    
-                    {/* === ABA 0: MEU PERFIL (Visível para todos) === */}
-                    <TabPanel value={mainTab} index={0}>
-                        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
-                            <MeuPerfilTab />
-                        </Paper>
-                    </TabPanel>
-
+                {/* === ABA 0: MEU PERFIL (Visível para todos) === */}
+            <Box sx={{ p: 1.5, flexGrow: 1, overflowY: 'auto', bgcolor: '#fafafa' }}>
+                {/* O conteúdo das abas agora rola apenas dentro deste Box, mantendo o rodapé fixo no lugar */}
+                <TabPanel value={mainTab} index={0}>
+                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
+                        <MeuPerfilTab />
+                    </Paper>
+                </TabPanel>
+                     
                     {/* === ABAS DO ADMIN === */}
                     {isAdmin && (
                         <>
