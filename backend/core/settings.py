@@ -222,3 +222,7 @@ EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL')
 EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY')
 EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE_NAME')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+
+# Chave para criptografia do certificado digital (Mantenha em segredo!)
+# Você pode gerar uma nova com: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())
+FERNET_KEY = os.environ.get('FERNET_KEY', 'sua-chave-fernet-aqui')

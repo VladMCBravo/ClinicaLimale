@@ -40,16 +40,25 @@ class CertificadoMedico(models.Model):
     data_upload = models.DateTimeField(auto_now_add=True)
 
     def set_password(self, senha_raw):
-        # Gera uma chave baseada no SECRET_KEY do Django (para simplicidade)
-        # Em produção ideal, use uma variável de ambiente específica
+        """
+        Criptografa a senha antes de salvar no banco usando o SECRET_KEY.
+        """
+        # Garante uma chave de 32 bytes baseada no SECRET_KEY
         key = base64.urlsafe_b64encode(settings.SECRET_KEY[:32].encode().ljust(32, b'='))
         f = Fernet(key)
         self.senha_criptografada = f.encrypt(senha_raw.encode()).decode()
 
     def get_password(self):
-        key = base64.urlsafe_b64encode(settings.SECRET_KEY[:32].encode().ljust(32, b'='))
-        f = Fernet(key)
-        return f.decrypt(self.senha_criptografada.encode()).decode()
+        """
+        Descriptografa a senha para uso no serviço de assinatura.
+        """
+        try:
+            key = base64.urlsafe_b64encode(settings.SECRET_KEY[:32].encode().ljust(32, b'='))
+            f = Fernet(key)
+            return f.decrypt(self.senha_criptografada.encode()).decode()
+        except Exception as e:
+            print(f"Erro ao descriptografar senha: {e}")
+            return None
 
     def __str__(self):
         return f"Certificado de {self.medico.username}"
