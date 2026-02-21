@@ -6,8 +6,20 @@ from django.db import models
 from django.conf import settings
 from pacientes.models import Paciente
 import json, re
+import os
+import unicodedata
+from django.utils.text import slugify
 from datetime import datetime, timedelta
 from crm.models import Ciclo
+
+# COLE A FUNÇÃO AQUI, ANTES DE QUALQUER CLASSE (Evolucao, etc)
+def upload_laudo_pdf_path(instance, filename):
+    ext = filename.split('.')[-1]
+    nome_base = filename.rsplit('.', 1)[0]
+    nome_sem_acento = unicodedata.normalize('NFKD', nome_base).encode('ASCII', 'ignore').decode('utf-8')
+    nome_seguro = slugify(nome_sem_acento)
+    hoje = datetime.now()
+    return f'laudos_assinados/{hoje.strftime("%Y/%m")}/{nome_seguro}.{ext}'
 
 class Evolucao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='evolucoes')
@@ -586,7 +598,7 @@ class Laudo(models.Model):
     data_atualizacao = models.DateTimeField(auto_now=True)
 
     # Arquivo PDF (Legado ou 2ª via estática)
-    arquivo_pdf = models.FileField(upload_to='laudos_assinados/%Y/%m/', null=True, blank=True)
+    arquivo_pdf = models.FileField(upload_to=upload_laudo_pdf_path, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         # --- SISTEMA DE SENHA ÚNICA (PORTAL DO PACIENTE) ---
@@ -697,3 +709,4 @@ class ImagemLaudo(models.Model):
 
     def __str__(self):
         return f"Imagem do laudo {self.laudo.id}"
+    
