@@ -3,6 +3,9 @@ from django.db import models
 from pacientes.models import Paciente
 import uuid
 import re
+import os
+import unicodedata
+from django.utils.text import slugify
 from datetime import datetime # <--- IMPORTANTE: Faltava isso para o fallback
 
 # --- CORREÇÃO: Função segura para diretório ---
@@ -77,3 +80,20 @@ class ArquivoExame(models.Model):
 
     def __str__(self):
         return f"Arquivo do exame {self.exame.id}"
+
+def upload_laudo_pdf_path(instance, filename):
+    # Pega a extensão do arquivo (ex: .pdf)
+    ext = filename.split('.')[-1]
+    
+    # Pega o nome sem a extensão
+    nome_base = filename.rsplit('.', 1)[0]
+    
+    # Remove os acentos (Fátima -> Fatima)
+    nome_sem_acento = unicodedata.normalize('NFKD', nome_base).encode('ASCII', 'ignore').decode('utf-8')
+    
+    # Garante que seja uma string segura (Laudo_Maria_de_Fatima -> laudo-maria-de-fatima)
+    nome_seguro = slugify(nome_sem_acento)
+    
+    # Mantém a organização por ano e mês que você já usava
+    hoje = datetime.now()
+    return f'laudos_assinados/{hoje.strftime("%Y/%m")}/{nome_seguro}.{ext}'
