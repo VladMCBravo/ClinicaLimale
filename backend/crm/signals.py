@@ -1,10 +1,11 @@
 # backend/crm/signals.py
 
+import re
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.apps import apps
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 from .services import CRMService
 
 # 1. GATILHO: PACIENTE (Gera o Lead no CRM)
@@ -122,3 +123,86 @@ def atualizar_receita_ciclo(sender, instance, **kwargs):
         # Chama a função que já existe no seu model Ciclo
         instance.agendamento.ciclo.calcular_ltv()
         print(f"[CRM] LTV Atualizado para o Ciclo {instance.agendamento.ciclo.id} (Paciente: {instance.agendamento.paciente.nome_completo})")
+
+# =========================================================
+# GATILHO 5: LAUDO (Engenharia Reversa da Idade Gestacional)
+# =========================================================
+@receiver(post_save, sender='prontuario.Laudo')
+def atualizar_dum_crm_via_laudo(sender, instance, created, **kwargs):
+    """
+    Escuta toda vez que um Laudo é salvo. 
+    Se a ajudante não preencheu a DUM, o sistema lê a Biometria Fetal,
+    volta no tempo e salva a DUM matemática no CRM.
+    """
+    # 1. Ignora laudos fantasmas ou da máquina
+    if instance.titulo_exame and "Exames Anexados" in instance.titulo_exame:
+        return
+
+    dados = instance.dados_estruturados
+    paciente = instance.paciente
+
+    if not paciente or not dados:
+        return
+
+    feto1 = dados.get('feto1', {})
+    if not isinstance(feto1, dict):
+        return
+
+    # Descobre a data base do exame
+    data_referencia = instance.data_criacao.date()
+    if instance.exame and instance.exame.data_exame:
+        data_referencia = instance.exame.data_exame
+
+    dum_data = None
+
+    # TENTATIVA 1: DUM preenchida explicitamente no laudo
+    dum_str = feto1.get('dum', '')
+    if dum_str and isinstance(dum_str, str) and len(dum_str) >= 10:
+        try:
+            dum_data = datetime.strptime(dum_str[:10], '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    # TENTATIVA 2: Engenharia Reversa pela Biometria
+    if not dum_data:
+        padrao_ig = re.compile(r'(?i)(\d+)\s*(?:semanas?|sem|s|w)(?:\s*e\s*|\s+)?(?:(\d+)\s*(?:dias?|d))?')
+        campos_ig = [
+            feto1.get('igVeredito', ''),
+            feto1.get('igBiometria', ''),
+            feto1.get('igIgCorrigidaCalculada', ''),
+            feto1.get('resIgCcn', ''),
+            feto1.get('resIgSg', '')
+        ]
+
+        for campo in campos_ig:
+            if campo and isinstance(campo, str):
+                match = re.search(padrao_ig, campo)
+                if match:
+                    semanas = int(match.group(1))
+                    dias = int(match.group(2)) if match.group(2) else 0
+                    
+                    # Volta no calendário
+                    dias_totais = (semanas * 7) + dias
+                    dum_data = data_referencia - timedelta(days=dias_totais)
+                    break
+
+    # 3. Salva a descoberta no Paciente e no CRM
+    if dum_data:
+        Ciclo = apps.get_model('crm', 'Ciclo')
+        atualizou = False
+        
+        # Salva no paciente (se ele não tiver DUM)
+        if not paciente.dum:
+            paciente.dum = dum_data
+            paciente.save(update_fields=['dum'])
+            atualizou = True
+            
+        # Salva no Ciclo Ativo do CRM
+        ciclo = Ciclo.objects.filter(paciente=paciente, status='ativo').first()
+        if ciclo and not getattr(ciclo, 'data_dum', None):
+            ciclo.data_dum = dum_data
+            ciclo.save(update_fields=['data_dum'])
+            atualizou = True
+
+        if atualizou:
+            print(f"🤖 [CRM AUTOMAÇÃO] Engenharia Reversa aplicada para {paciente.nome_completo}: DUM Calculada -> {dum_data}")
