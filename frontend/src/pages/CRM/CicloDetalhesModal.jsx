@@ -26,6 +26,11 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   const [novaAcaoDesc, setNovaAcaoDesc] = useState('');
   const [novaAcaoData, setNovaAcaoData] = useState(new Date().toISOString().split('T')[0]);
   const [dum, setDum] = useState('');
+  // --- NOVOS ESTADOS PARA ENGENHARIA REVERSA MANUAL ---
+  const [semanas, setSemanas] = useState('');
+  const [dias, setDias] = useState('');
+  const [dataRef, setDataRef] = useState(new Date().toISOString().split('T')[0]);
+  // ---------------------------------------------------
   const [tabIndex, setTabIndex] = useState(0);
 
   // --- NOVO ESTADO: COMPORTAMENTO E MARKETING ---
@@ -80,18 +85,39 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
     }
   };
 
-  const handleSalvarDum = async () => {
-    if (!dum) return alert("Selecione uma data para a DUM.");
+  // Função base unificada para não repetir código
+  const executarSalvamentoDum = async (valorDum) => {
+    if (!valorDum) return alert("Data inválida.");
     setLoading(true); 
     try {
-      await crmService.updateCiclo(cicloId, { dum: dum });
-      let pacienteId = detalhes.paciente?.id || detalhes.paciente;
-      if (pacienteId) await apiClient.patch(`/pacientes/${pacienteId}/`, { dum: dum });
+      await crmService.updateCiclo(cicloId, { dum: valorDum });
+      let pacienteId = detalhes?.paciente?.id || detalhes?.paciente;
+      if (pacienteId) await apiClient.patch(`/pacientes/${pacienteId}/`, { dum: valorDum });
       
       await loadDetalhes(); 
       if (onUpdate) onUpdate(); 
     } catch (error) { alert("Erro ao salvar DUM."); } 
     finally { setLoading(false); }
+  };
+
+  // Salva pela DUM digitada manualmente
+  const handleSalvarDum = () => executarSalvamentoDum(dum);
+
+  // A MÁGICA: Calcula a DUM por Engenharia Reversa no Frontend
+  const handleCalcularReversa = () => {
+    if (!semanas || !dataRef) return alert("Preencha as semanas e a data do exame.");
+    
+    // Força o horário para meio-dia para evitar bugs de fuso horário (-3h)
+    const dateObj = new Date(dataRef + 'T12:00:00'); 
+    const diasTotais = (parseInt(semanas) * 7) + (parseInt(dias || 0));
+    
+    // Volta no calendário
+    dateObj.setDate(dateObj.getDate() - diasTotais);
+    
+    const dumCalculada = dateObj.toISOString().split('T')[0];
+    
+    // Salva a DUM descoberta no banco
+    executarSalvamentoDum(dumCalculada);
   };
 
   const handleSalvarAcao = async () => {
@@ -196,20 +222,45 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
 
             <Box sx={{ backgroundColor: '#e3f2fd', p: 1.5, borderRadius: 2, mb: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 1 }}>
-                    🤰 Calculadora Gestacional / DUM
+                    🤰 Datação da Gestação
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                
+                {/* OPÇÃO 1: Pela DUM Clássica */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1.5 }}>
                     <TextField 
-                        label="DUM (Data Última Menstruação)" type="date" size="small" fullWidth
+                        label="Inserir pela DUM" type="date" size="small" fullWidth
                         InputLabelProps={{ shrink: true }} value={dum} onChange={(e) => setDum(e.target.value)}
                         sx={{ bgcolor: 'white' }}
                     />
-                    <Button variant="contained" size="medium" sx={{ minWidth: '40px', px: 2 }} onClick={handleSalvarDum}>
-                        <FaSave />
+                    <Button variant="contained" size="medium" sx={{ minWidth: '80px' }} onClick={handleSalvarDum}>
+                        <FaSave style={{ marginRight: '5px' }} /> DUM
                     </Button>
                 </Box>
+
+                <Divider sx={{ my: 1, borderColor: '#bbdefb' }}><Typography variant="caption" sx={{ color: '#1976d2', fontWeight: 'bold' }}>OU PELA BIOMETRIA (LAUDO)</Typography></Divider>
+
+                {/* OPÇÃO 2: Engenharia Reversa pela Máquina */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <TextField 
+                        label="Sem." type="number" size="small" sx={{ width: '80px', bgcolor: 'white' }}
+                        value={semanas} onChange={(e) => setSemanas(e.target.value)} placeholder="Ex: 31"
+                    />
+                    <TextField 
+                        label="Dias" type="number" size="small" sx={{ width: '80px', bgcolor: 'white' }}
+                        value={dias} onChange={(e) => setDias(e.target.value)} placeholder="Ex: 2"
+                    />
+                    <TextField 
+                        label="Data do Exame" type="date" size="small" fullWidth
+                        InputLabelProps={{ shrink: true }} value={dataRef} onChange={(e) => setDataRef(e.target.value)}
+                        sx={{ bgcolor: 'white' }}
+                    />
+                    <Button variant="contained" color="secondary" size="medium" sx={{ minWidth: '80px' }} onClick={handleCalcularReversa}>
+                        <FaSave style={{ marginRight: '5px' }} /> Calc
+                    </Button>
+                </Box>
+
                 {detalhes.idade_gestacional && (
-                    <Typography variant="body2" sx={{ mt: 1, color: '#0d47a1' }}>
+                    <Typography variant="body2" sx={{ mt: 1.5, color: '#0d47a1', textAlign: 'center', p: 0.5, bgcolor: '#bbdefb', borderRadius: 1 }}>
                         <strong>Idade Atual calculada:</strong> {detalhes.idade_gestacional}
                     </Typography>
                 )}
