@@ -785,112 +785,130 @@ class ListarExamesDoPacienteView(generics.ListAPIView):
             return Exame.objects.filter(paciente_id=paciente_id).order_by('-data_exame')
         return Exame.objects.none()
 
+# --- BLINDAGEM 1: CRIAÇÃO DO LAUDO (POST) ---
 class LaudoListCreateView(generics.ListCreateAPIView):
     serializer_class = LaudoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Filtra laudos por paciente se passado na URL, ou retorna todos se for admin
         paciente_id = self.request.query_params.get('paciente')
         if paciente_id:
             return Laudo.objects.filter(paciente__id=paciente_id).order_by('-data_criacao')
         return Laudo.objects.all().order_by('-data_criacao')
 
     def perform_create(self, serializer):
-        # 1. Salva o Laudo Básico
+        # 1. Salva o Laudo Básico 
         paciente_id = self.request.data.get('paciente')
         paciente = get_object_or_404(Paciente, id=paciente_id)
         
         laudo = serializer.save(
             medico=self.request.user, 
             paciente=paciente,
-            tipo_exame=self.request.data.get('titulo_exame', 'EXAME') # Fallback
+            tipo_exame=self.request.data.get('titulo', 'EXAME') 
         )
 
         # 2. Processamento das Imagens Base64
-        # O frontend envia: "imagens_anexas": ["data:image/png;base64,.....", ...]
         imagens_base64 = self.request.data.get('imagens_anexas', [])
-        
         if imagens_base64 and isinstance(imagens_base64, list):
+            import base64
+            from django.core.files.base import ContentFile
             for index, img_str in enumerate(imagens_base64):
                 try:
-                    # Separar o header (data:image/png;base64,) do conteúdo
                     if ";base64," in img_str:
                         format, imgstr = img_str.split(';base64,') 
-                        ext = format.split('/')[-1] # png, jpg, etc
+                        ext = format.split('/')[-1]
                     else:
                         imgstr = img_str
-                        ext = 'jpg' # default
+                        ext = 'jpg'
 
                     data = base64.b64decode(imgstr)
                     file_name = f"laudo_{laudo.id}_img_{index}.{ext}"
                     
-                    # Cria o objeto ImagemLaudo
                     ImagemLaudo.objects.create(
                         laudo=laudo,
                         arquivo=ContentFile(data, name=file_name)
                     )
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
-    
+
     def create(self, request, *args, **kwargs):
-        # 1. Salva o Laudo primeiro (lógica padrão do serializer)
+        # 1. Executa o salvamento básico (chama a perform_create acima)
         response = super().create(request, *args, **kwargs)
-        
-        # Recupera o ID do laudo recém-criado
-        laudo_id = response.data.get('id')
-        laudo = Laudo.objects.get(id=laudo_id)
+        laudo = Laudo.objects.get(id=response.data.get('id'))
+        paciente = laudo.paciente
+        titulo_base = laudo.titulo_exame
 
         try:
-            paciente_id = request.data.get('paciente')
-            paciente = Paciente.objects.get(id=paciente_id)
-            hoje = date.today()
+            # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE ---
+            historico_duplicatas = Laudo.objects.filter(
+                paciente=paciente, 
+                titulo_exame__icontains=titulo_base
+            ).exclude(id=laudo.id).count()
+
+            if historico_duplicatas > 0:
+                laudo.titulo_exame = f"{titulo_base} - REVISÃO {historico_duplicatas + 1}"
+
+            # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM IMAGENS (JANELA DE 15 DIAS) ---
+            from datetime import date, timedelta
+            exame = None
+            exame_id_front = request.data.get('exame')
+            if exame_id_front:
+                exame = Exame.objects.filter(id=exame_id_front).first()
             
-            # 2. Busca ou Cria o Exame (Imagens/Arquivos)
-            # Tenta achar um exame criado hoje para este paciente (upload feito pela recepcionista/máquina)
-            exame, created = Exame.objects.get_or_create(
-                paciente=paciente,
-                data_exame=hoje,
-                defaults={
-                    'nome_paciente_pasta': paciente.nome_completo,
-                    'status': 'PENDENTE'
-                }
-            )
+            if not exame:
+                limite_dias = date.today() - timedelta(days=15)
+                exame = Exame.objects.filter(
+                    paciente=paciente,
+                    data_exame__gte=limite_dias
+                ).order_by('-data_exame', '-criado_em').first()
             
-            # --- AQUI ESTÁ A CORREÇÃO (O PULO DO GATO) ---
-            # 3. Vincula Laudo -> Exame
+            if not exame:
+                exame = Exame.objects.create(
+                    paciente=paciente,
+                    data_exame=date.today(),
+                    nome_paciente_pasta=paciente.nome_completo,
+                    status='DISPONIVEL'
+                )
+
             laudo.exame = exame
             laudo.save()
 
-            # 4. ★★★ CORREÇÃO: SALVA O PDF GERADO PELO FRONTEND ★★★
+            # --- 🛡️ CAMADA 3: NOMENCLATURA BLINDADA DO PDF ---
             if 'arquivo_pdf' in request.FILES:
+                from django.utils.text import slugify
                 pdf_file = request.FILES['arquivo_pdf']
+                data_hoje_str = date.today().strftime("%d-%m-%Y")
                 
-                # Cria o registro do arquivo vinculado ao Exame
+                nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
+                nome_seguro = slugify(nome_base_arquivo).upper()
+                extensao = pdf_file.name.split('.')[-1]
+                pdf_file.name = f"{nome_seguro}.{extensao}"
+                
                 ArquivoExame.objects.create(
                     exame=exame,
                     arquivo=pdf_file,
                     tipo='LAUDO'
                 )
-                print(f"PDF do Laudo {laudo.id} salvo com sucesso no Exame {exame.id}")
 
-            # 5. Retorna credenciais e arquivos atualizados
+            if exame.status == 'PENDENTE':
+                exame.status = 'DISPONIVEL'
+                exame.save()
+
+            # --- PREPARANDO RESPOSTA PRO FRONTEND ---
+            response.data['titulo_exame'] = laudo.titulo_exame
             response.data['credenciais'] = {
                 'codigo': exame.codigo_acesso,
                 'senha': exame.senha_acesso,
                 'link': 'https://clinica-limale.vercel.app/resultados',
                 'exame_id': exame.id
             }
-                
-            # Atualiza a lista de arquivos na resposta para o front já ver "Gerado"
             from exames.serializers import ArquivoExameSerializer
             arquivos = exame.arquivos.all()
             if arquivos.exists():
                 response.data['arquivos_vinculados'] = ArquivoExameSerializer(arquivos, many=True).data
-                
+
         except Exception as e:
-            print(f"Erro crítico ao processar arquivos do laudo: {e}")
-            # Não quebra a requisição, mas loga o erro
+            print(f"Erro crítico na auditoria/vínculo do laudo: {e}")
 
         return response
 
@@ -934,13 +952,39 @@ class AssinarArquivoPDFView(APIView):
             print(f"Erro ao assinar upload: {e}")
             return Response({"error": "Falha técnica ao assinar o PDF."}, status=500)
 
-# --- ADICIONE ESTA CLASSE NO FINAL DO ARQUIVO ---
+# --- BLINDAGEM 2: EDIÇÃO DO LAUDO (PUT/PATCH) ---
 class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """
-    Permite Ler (GET), Atualizar (PUT/PATCH) e Deletar (DELETE) um laudo específico.
-    Necessário para o botão 'Salvar' funcionar na edição.
+    Permite Ler (GET), Atualizar (PUT/PATCH) e Deletar (DELETE) um laudo.
+    BLINDADA para garantir que o PDF seja re-salvo na edição.
     """
     queryset = Laudo.objects.all()
     serializer_class = LaudoSerializer
-    permission_classes = [IsAuthenticated] # Ou CanViewProntuario dependendo da sua regra
+    permission_classes = [IsAuthenticated] 
 
+    def update(self, request, *args, **kwargs):
+        # 1. Deixa o Django atualizar os textos e dados JSON
+        response = super().update(request, *args, **kwargs)
+        laudo = self.get_object()
+        
+        # 2. Se o frontend mandou um PDF novo por cima, salva com tag de Atualizado
+        if 'arquivo_pdf' in request.FILES and laudo.exame:
+            from datetime import date
+            from django.utils.text import slugify
+            
+            pdf_file = request.FILES['arquivo_pdf']
+            data_hoje_str = date.today().strftime("%d-%m-%Y")
+            
+            nome_base_arquivo = f"{laudo.titulo_exame}_{laudo.paciente.nome_completo}_{data_hoje_str}_ATUALIZADO"
+            nome_seguro = slugify(nome_base_arquivo).upper()
+            extensao = pdf_file.name.split('.')[-1]
+            pdf_file.name = f"{nome_seguro}.{extensao}"
+            
+            ArquivoExame.objects.create(
+                exame=laudo.exame,
+                arquivo=pdf_file,
+                tipo='LAUDO'
+            )
+            print(f"✅ PDF de Edição Salvo: {pdf_file.name}")
+            
+        return response
