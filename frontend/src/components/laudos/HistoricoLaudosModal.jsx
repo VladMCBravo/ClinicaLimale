@@ -89,24 +89,27 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const getLinkPDF = (laudo) => {
-        // 1. Tenta pegar o link direto do campo arquivo_pdf (Laudos de Importação)
-        if (laudo.arquivo_pdf && typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.includes('.pdf')) {
-            return laudo.arquivo_pdf;
-        }
-        
-        // 2. Tenta pegar do objeto aninhado (se existir)
-        if (laudo.arquivo_pdf && laudo.arquivo_pdf.url) {
-            return laudo.arquivo_pdf.url;
+        // 1. Tenta pegar a URL direta enviada pelo Django para arquivos importados
+        if (laudo.arquivo_pdf) {
+            // Se for string e tiver a extensão, é a URL
+            if (typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.toLowerCase().includes('.pdf')) {
+                return laudo.arquivo_pdf;
+            }
+            // Se vier como um objeto de arquivo do Django REST
+            if (typeof laudo.arquivo_pdf === 'object' && laudo.arquivo_pdf !== null && laudo.arquivo_pdf.url) {
+                return laudo.arquivo_pdf.url;
+            }
         }
 
-        // 3. Tenta pegar do array arquivos_exame (Laudos da Máquina Samsung)
-        if (laudo.arquivos_exame && laudo.arquivos_exame.length > 0) {
+        // 2. Tenta buscar no array de arquivos da máquina (Samsung)
+        if (laudo.arquivos_exame && Array.isArray(laudo.arquivos_exame) && laudo.arquivos_exame.length > 0) {
             const arquivoPdf = laudo.arquivos_exame.find(f => 
-                f.arquivo && f.arquivo.toLowerCase().endsWith('.pdf')
+                f.arquivo && typeof f.arquivo === 'string' && f.arquivo.toLowerCase().includes('.pdf')
             );
             if (arquivoPdf) return arquivoPdf.arquivo;
         }
         
+        // Se não achou de jeito nenhum, retorna nulo para mostrar o botão "2ª Via"
         return null;
     };
 
@@ -117,6 +120,12 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const handleGerar2Via = async (laudo) => {
+        // 🛡️ TRAVA DE SEGURANÇA: Bloqueia laudos importados
+        const tituloLaudo = laudo.titulo || laudo.titulo_exame || laudo.tipo_exame || '';
+        if (tituloLaudo.includes("Importação") || tituloLaudo.includes("Exames Anexados")) {
+            return alert("⚠️ O servidor ainda não processou o arquivo físico deste laudo antigo. Se você acabou de importar, atualize a página em alguns segundos.");
+        }
+
         setGerandoId(laudo.id);
         const pdfWindow = window.open('', '_blank');
         
@@ -143,9 +152,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
             }
 
-            // Fallback inteligente para o PDF:
-            // Se não tiver médico responsável salvo (antigo), usa o nome do login,
-            // mas na TABELA (visualização) mostraremos separado.
             const nomeMedicoParaPDF = laudo.medico_responsavel || laudo.medico_nome;
             const crmMedicoParaPDF = laudo.crm_medico || '';
 
@@ -153,7 +159,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 pacienteNome: pacienteNome || laudo.paciente_nome,
                 medicoNome: nomeMedicoParaPDF,
                 medicoCrm: crmMedicoParaPDF,
-                tituloExame: laudo.titulo || laudo.tipo_exame,
+                tituloExame: tituloLaudo,
                 textoLaudo: laudo.texto_laudo,
                 dadosEstruturados: dadosEstruturados,
                 imagensBase64: [], 
