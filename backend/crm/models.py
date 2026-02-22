@@ -23,6 +23,7 @@ class Ciclo(models.Model):
         ('F2', 'F2 - Conversão'),    # Agendou
         ('F3', 'F3 - Pós-Exame'),    # Fez o exame -> Onde mora o LTV
         ('F4', 'F4 - Retenção'),     # Retornou para novo exame
+        ('F5', 'F5 - Recuperação'),  # <--- NOVA LINHA (Pacientes que faltaram/cancelaram)
         ('ENCERRADO', 'Ciclo Encerrado'),
     ]
 

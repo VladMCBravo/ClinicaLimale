@@ -72,28 +72,25 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
         instance.tipo_visita = 'Primeira Consulta'
 
     # -------------------------------------------------------------
-    # MOVIMENTAÇÃO DO KANBAN
+    # MOVIMENTAÇÃO DO KANBAN (A REGRA DE FERRO DA RECEPÇÃO)
     # -------------------------------------------------------------
     nova_fase = ciclo.fase_atual
 
-    if instance.status in ['Agendado', 'Confirmado']:
-        if teve_sucesso_anterior:
-            nova_fase = 'F4' # É Retorno! Vai pra F4 (LTV)
+    # REGRA BÁSICA: Se estava no castigo da F1 e ganhou agendamento, vai para F2.
+    if nova_fase == 'F1':
+        nova_fase = 'F2'
+
+    # REGRAS DE STATUS
+    status_f3 = ['Confirmado', 'Aguardando', 'Em Atendimento', 'Laudando', 'Realizado']
+    status_f5 = ['Cancelado', 'Não Compareceu']
+
+    if instance.status in status_f5:
+        nova_fase = 'F5' # Paciente faltou, vai para recuperação
+    elif instance.status in status_f3:
+        if teve_sucesso_anterior and instance.status == 'Realizado':
+            nova_fase = 'F4' # É Retorno/Retenção!
         else:
-            nova_fase = 'F2' # Primeira Viagem. Vai pra F2 (Conversão)
-
-    elif instance.status in ['Aguardando', 'Em Atendimento', 'Laudando', 'Realizado']:
-        nova_fase = 'F3' # Pós-Atendimento
-        
-        if instance.status == 'Realizado':
-            CRMService.criar_acao(
-                ciclo=ciclo,
-                descricao=f"Pós-atendimento ({instance.tipo_visita})",
-                data_alvo=timezone.now().date() + timedelta(days=2)
-            )
-
-    elif instance.status in ['Cancelado', 'Não Compareceu']:
-        nova_fase = 'F5' # Recuperação
+            nova_fase = 'F3' # Pós-Exame / Confirmado
 
     # Aplica as mudanças no CRM
     if nova_fase != ciclo.fase_atual or novo_tipo != ciclo.tipo:
@@ -101,12 +98,12 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
 
 
 # 3. GATILHO: EXAMES (Move para Pós-Atendimento)
-@receiver(post_save, sender='exames.Exame')
-def acionar_crm_exame(sender, instance, created, **kwargs):
-    # Se o laudo/exame for anexado, o paciente vai para a F3 para a equipe avisar.
-    if instance.ciclo and instance.ciclo.fase_atual in ['F1', 'F2']:
-        Ciclo = apps.get_model('crm', 'Ciclo')
-        Ciclo.objects.filter(pk=instance.ciclo.pk).update(fase_atual='F3')
+# APAGUE ISTO DO SEU ARQUIVO:
+# @receiver(post_save, sender='exames.Exame')
+# def acionar_crm_exame(sender, instance, created, **kwargs):
+#     if instance.ciclo and instance.ciclo.fase_atual in ['F1', 'F2']:
+#         Ciclo = apps.get_model('crm', 'Ciclo')
+#         Ciclo.objects.filter(pk=instance.ciclo.pk).update(fase_atual='F3')
 
 # =========================================================
 # GATILHO 4: FATURAMENTO (Atualiza o LTV do Paciente no CRM)

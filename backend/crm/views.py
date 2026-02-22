@@ -59,9 +59,9 @@ class CicloViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         data_serializada = serializer.data
 
-        # Agrupa (Lógica visual movida para cá ou mantida aqui por ser puramente visual)
-        # Como é formatação de JSON para o front, pode ficar aqui ou num helper
-        kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "ENCERRADO": [] }
+        # Agrupa os dados para o Frontend
+        # --- AQUI ESTÁ A CORREÇÃO DA F5 ---
+        kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "F5": [], "ENCERRADO": [] }
         
         for item in data_serializada:
             fase = item.get('fase_atual', 'F1')
