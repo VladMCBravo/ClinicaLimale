@@ -189,7 +189,7 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
                 "dias_restantes": 0,
                 "exame_alvo": "Parto / Reta Final",
                 "tipo_alerta": "Mensagem de Apoio",
-                "mensagem": f"Olá {primeiro_nome}! Aqui é da equipe da Clínica Limalé. Vimos que você está entrando na reta final da gestação e viemos apenas mandar boas energias! Que você tenha uma boa hora e que o bebê venha com muita saúde. Estamos na torcida por vocês! ❤️"
+                "mensagem": f"Olá {primeiro_nome}! Aqui é da equipe da Clínica Limalé. Vimos que você está entrando na reta final da gestação e viemos apenas mandar boas energias! Que você tenha uma boa hora e que o bebê venha com muita saúde. Estamos na torcida por vocês! \u2764\ufe0f"
             }
         else:
             return None 

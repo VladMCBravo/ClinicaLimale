@@ -57,6 +57,29 @@ export default function CRMKanbanPage() {
     }
   };
 
+  // --- NOVA INTELIGÊNCIA DE BUSCA GLOBAL ---
+  // Observa o que você digita e pula para a coluna certa
+  useEffect(() => {
+    if (!searchTerm) return;
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    
+    for (const phase of PHASES) {
+      const cards = rawData[phase.id] || [];
+      const found = cards.some(c => 
+        c.paciente_nome?.toLowerCase().includes(lowerSearch) || 
+        c.tipo?.toLowerCase().includes(lowerSearch) ||
+        c.dados_agendamento?.procedimento?.toLowerCase().includes(lowerSearch)
+      );
+      
+      if (found) {
+        setActivePhase(phase.id);
+        break; // Achou o paciente, muda para a aba dele e para a busca
+      }
+    }
+  }, [searchTerm, rawData]);
+  // -----------------------------------------
+
   const handleOpenDetalhes = (cicloId) => { setSelectedCicloId(cicloId); setModalOpen(true); };
 
   const handleWhatsappClick = (e, numero, nome, mensagemCustomizada) => {
