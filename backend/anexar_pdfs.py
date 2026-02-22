@@ -1,6 +1,6 @@
 import os
 import django
-import uuid # <--- ADICIONE ISTO AQUI NO TOPO
+import uuid
 
 # Configuração do Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
@@ -26,7 +26,7 @@ def anexar_pdfs_ao_prontuario():
     for arquivo in arquivos:
         caminho_completo = os.path.join(pasta_pdfs, arquivo)
         
-        # Inteligência para pegar o ID no nome do arquivo
+        # Pega o ID no nome do arquivo (ex: "184_maria.pdf" -> 184)
         nome_sem_extensao = arquivo.replace('.pdf', '')
         paciente_id_str = nome_sem_extensao.split('_')[0]
         
@@ -37,53 +37,47 @@ def anexar_pdfs_ao_prontuario():
             print(f"⏭️ Ignorando '{arquivo}': Paciente não encontrado.")
             continue
 
-        # --- 🛡️ A REGRA DE SEPARAÇÃO: EVITAR DUPLICATAS ---
-        # Verifica se já existe um laudo de importação salvo para essa paciente
+        # Verifica se já tem o laudo de importação
         ja_anexado = Laudo.objects.filter(
             paciente=paciente, 
             titulo_exame="Exames Anexados (Importação)"
         ).exists()
         
         if ja_anexado:
-            print(f"⏭️ Ignorando '{arquivo}': O PDF de {paciente.nome_completo} JÁ ESTÁ anexado no prontuário.")
+            print(f"⏭️ Ignorando '{arquivo}': O PDF JÁ ESTÁ anexado.")
             ignorados += 1
             continue
-        # --------------------------------------------------
 
         try:
-            # 1. Abre o PDF fisicamente no disco do Mac
+            # 1. CRIA E SALVA O LAUDO PRIMEIRO (Para gerar um ID no banco)
+            codigo_unico = f"IMP-{uuid.uuid4().hex[:6].upper()}"
+            
+            novo_laudo = Laudo(
+                paciente=paciente,
+                titulo_exame="Exames Anexados (Importação)",
+                texto_laudo="Laudo antigo importado em lote para o prontuário eletrônico.",
+                codigo_acesso=codigo_unico
+            )
+            novo_laudo.save() # <--- SALVA PRIMEIRO! A mágica acontece aqui.
+
+            # 2. ABRE O ARQUIVO E SALVA DIRETAMENTE NO CAMPO arquivo_pdf
             with open(caminho_completo, 'rb') as f:
-                arquivo_django = File(f, name=arquivo)
-                
-                # 2. Cria o registro do Laudo no Prontuário
-                novo_laudo = Laudo(
-                    paciente=paciente,
-                    titulo_exame="Exames Anexados (Importação)",
-                    texto_laudo="Laudo antigo importado em lote para o prontuário eletrônico."
-                )
-                
-                # --- A CORREÇÃO DA LUANA: FORÇA UM CÓDIGO ÚNICO ---
-                # Gera um código aleatório como "IMP-8A4F12"
-                codigo_unico = f"IMP-{uuid.uuid4().hex[:6].upper()}"
-                novo_laudo.codigo_acesso = codigo_unico
-                # -------------------------------------------------
+                # O método .save() do campo FileField faz o upload físico e atualiza o banco
+                novo_laudo.arquivo_pdf.save(arquivo, File(f))
 
-                # ⚠️ Verifique se 'arquivo_pdf' é o nome exato do campo no seu models.py
-                novo_laudo.arquivo = arquivo_django 
-                
-                # 3. Salva no banco de dados
-                novo_laudo.save()
-
-                sucessos += 1
-                print(f"✅ Anexado com sucesso: Prontuário de {paciente.nome_completo}")
+            sucessos += 1
+            print(f"✅ Anexado com sucesso: Prontuário de {paciente.nome_completo}")
 
         except Exception as e:
+            # Se der erro ao subir o PDF, ele apaga o laudo que criamos para não sujar o sistema
+            if 'novo_laudo' in locals() and novo_laudo.id:
+                novo_laudo.delete()
             print(f"❌ Erro ao anexar '{arquivo}': {e}")
 
     print("\n" + "="*60)
     print(f"🎉 UPLOAD CONCLUÍDO!")
-    print(f"📍 Novos PDFs anexados: {sucessos}")
-    print(f"📍 Ignorados (Já estavam no sistema): {ignorados}")
+    print(f"📍 Novos PDFs anexados fisicamente: {sucessos}")
+    print(f"📍 Ignorados: {ignorados}")
     print("="*60 + "\n")
 
 if __name__ == '__main__':
