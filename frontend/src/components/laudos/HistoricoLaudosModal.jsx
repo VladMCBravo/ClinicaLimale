@@ -23,19 +23,21 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const carregarLaudos = async () => {
         setLoading(true);
         try {
-            // 1. Busca os laudos estruturados (digitados pela ajudante no sistema)
+            // 1. Busca os laudos estruturados (digitados pela ajudante)
             const resLaudos = await apiClient.get('/prontuario/laudos/', {
                 params: { paciente: pacienteId }
             });
-            const laudosEstruturados = resLaudos.data;
+            // Proteção contra paginação do Django
+            const laudosEstruturados = Array.isArray(resLaudos.data) ? resLaudos.data : resLaudos.data.results || [];
 
             // 2. Busca os exames/pastas (enviados pela Samsung V7)
             const resExames = await apiClient.get('/exames/exames-paciente/', {
                 params: { paciente_id: pacienteId }
             });
-            const exames = resExames.data;
+            // Proteção contra paginação do Django
+            const exames = Array.isArray(resExames.data) ? resExames.data : resExames.data.results || [];
 
-            // 3. Descobre quais exames já têm laudo digitado para não duplicar na tela
+            // 3. Descobre quais exames já têm laudo digitado para não duplicar
             const examesComLaudoDigitado = laudosEstruturados
                 .map(l => l.exame)
                 .filter(id => id != null);
@@ -44,18 +46,19 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             const pdfsExternos = exames.filter(ex => {
                 // Ignora se o exame já tem um laudo digitado conectado a ele
                 if (examesComLaudoDigitado.includes(ex.id)) return false;
-                // Só entra se houver algum arquivo PDF nessa pasta
-                return ex.arquivos && ex.arquivos.some(arq => arq.arquivo.toLowerCase().endsWith('.pdf'));
+                
+                // CORREÇÃO S3: Usa .includes('.pdf') em vez de endsWith, e checa se url existe
+                return ex.arquivos && ex.arquivos.some(arq => arq.arquivo && arq.arquivo.toLowerCase().includes('.pdf'));
             }).map(ex => {
-                const pdfObj = ex.arquivos.find(arq => arq.arquivo.toLowerCase().endsWith('.pdf'));
+                const pdfObj = ex.arquivos.find(arq => arq.arquivo && arq.arquivo.toLowerCase().includes('.pdf'));
                 return {
-                    id: `ex_${ex.id}`, // ID com prefixo para o React não confundir
-                    is_exame_externo: true, // Flag de segurança
+                    id: `ex_${ex.id}`, 
+                    is_exame_externo: true, 
                     data_criacao: ex.data_exame,
-                    titulo: "PDF Externo / Máquina",
+                    titulo: "PDF Original (Máquina)", // Deixei o título mais claro
                     tipo_exame: ex.nome_paciente_pasta,
                     medico_responsavel: "---", 
-                    medico_nome: "Enviado pela Máquina",
+                    medico_nome: "Enviado pelo Equipamento",
                     arquivo_pdf: pdfObj.arquivo, 
                     dados_estruturados: null
                 };
