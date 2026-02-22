@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Box, Typography, Card, CardContent, Chip, Avatar, LinearProgress, IconButton, 
-  Grid, TextField, InputAdornment, Paper, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, ToggleButton, ToggleButtonGroup
+  Box, Typography, LinearProgress, TextField, InputAdornment, Grid, Paper, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
-import { FaWhatsapp, FaExclamationTriangle, FaRegCalendarAlt, FaSearch, FaThLarge, FaListUl } from 'react-icons/fa';
+import { FaSearch, FaThLarge, FaListUl, FaChartBar } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
+
+// IMPORTANDO OS COMPONENTES FILHOS QUE ACABAMOS DE CRIAR
+import TableView from './TableView';
+import KanbanView from './KanbanView';
+import GraficosView from './GraficosView';
 
 const PHASES = [
   { id: 'F1', title: '1. Novos Leads', color: '#e3f2fd', border: '#90caf9' },
@@ -23,27 +26,22 @@ export default function CRMKanbanPage() {
   const [loading, setLoading] = useState(true);
   const [activePhase, setActivePhase] = useState('F2'); 
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // Padrão agora é Tabela
+  const [viewMode, setViewMode] = useState('table'); 
   
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCicloId, setSelectedCicloId] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
       const response = await crmService.getKanban();
-      const sortCronologico = (lista) => {
-        return lista.sort((a, b) => {
-          // ORDEM CRESCENTE: Mais antigos (ou datas mais próximas) no topo
+      const sortCronologico = (lista) => lista.sort((a, b) => {
           const dateA = a.dados_agendamento?.data ? new Date(a.dados_agendamento.data) : new Date(a.data_inicio || 0);
           const dateB = b.dados_agendamento?.data ? new Date(b.dados_agendamento.data) : new Date(b.data_inicio || 0);
           return dateA - dateB; 
-        });
-      };
+      });
 
       setRawData({
         F1: sortCronologico(response.data.F1 || []),
@@ -59,22 +57,15 @@ export default function CRMKanbanPage() {
     }
   };
 
-  const handleOpenDetalhes = (cicloId) => {
-    setSelectedCicloId(cicloId);
-    setModalOpen(true);
-  };
+  const handleOpenDetalhes = (cicloId) => { setSelectedCicloId(cicloId); setModalOpen(true); };
 
   const handleWhatsappClick = (e, numero, nome, mensagemCustomizada) => {
     e.stopPropagation();
     if (!numero) return alert("Paciente sem número cadastrado");
     const cleanNum = numero.replace(/\D/g, '');
-    
-    // Se o backend mandou a mensagem pronta (15/7 dias), usa ela. Se não, usa o padrão.
     const primeiroNome = nome.split(' ')[0];
     const textoBase = mensagemCustomizada || `Olá ${primeiroNome}, tudo bem? Aqui é da Clínica Limalé.`;
-    
-    const textoCodificado = encodeURIComponent(textoBase);
-    window.open(`https://wa.me/55${cleanNum}?text=${textoCodificado}`, '_blank');
+    window.open(`https://wa.me/55${cleanNum}?text=${encodeURIComponent(textoBase)}`, '_blank');
   };
 
   const displayedCards = useMemo(() => {
@@ -90,21 +81,26 @@ export default function CRMKanbanPage() {
 
   if (loading) return <LinearProgress />;
 
+  // Descobre a cor da borda da fase atual para passar para o Kanban
+  const activePhaseBorder = PHASES.find(p => p.id === activePhase)?.border || '#ccc';
+
   return (
     <Box sx={{ p: 1.5, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
       
+      {/* BARRA SUPERIOR DE CONTROLES */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333' }}>Gestão de Pacientes (CRM)</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <ToggleButtonGroup value={viewMode} exclusive onChange={(e, n) => n && setViewMode(n)} size="small" sx={{ bgcolor: 'white' }}>
             <ToggleButton value="table"><FaListUl style={{ marginRight: '5px' }} /> Tabela</ToggleButton>
             <ToggleButton value="kanban"><FaThLarge style={{ marginRight: '5px' }} /> Kanban</ToggleButton>
+            <ToggleButton value="graficos"><FaChartBar style={{ marginRight: '5px' }} /> Gráficos</ToggleButton>
           </ToggleButtonGroup>
           <TextField size="small" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ bgcolor: 'white', borderRadius: 1, width: '220px' }} InputProps={{ startAdornment: <InputAdornment position="start"><FaSearch size={12} /></InputAdornment> }} />
         </Box>
       </Box>
 
-      {/* Cabeçalho de Fases */}
+      {/* CABEÇALHOS DAS COLUNAS (O FUNIL) */}
       <Grid container spacing={1} sx={{ mb: 2 }}>
         {PHASES.map((phase) => (
           <Grid item xs={12} sm={6} md={2.4} key={phase.id}>
@@ -117,139 +113,32 @@ export default function CRMKanbanPage() {
         ))}
       </Grid>
 
-      {viewMode === 'kanban' ? (
-        <Grid container spacing={1}>
-          {displayedCards.map((ciclo) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} xl={2.4} key={ciclo.id}>
-              <Card onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ borderRadius: 1, borderLeft: `4px solid ${PHASES.find(p=>p.id === activePhase).border}`, cursor: 'pointer', bgcolor: ciclo.proxima_acao_imediata?.atrasada ? '#fffbfa' : 'white' }}>
-                <CardContent sx={{ p: '8px !important' }}>
-                  {/* Cabeçalho do Card */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                    <Avatar sx={{ width: 22, height: 22, mr: 0.5, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
-                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', flexGrow: 1, fontSize: '0.75rem' }}>{ciclo.paciente_nome}</Typography>
-                    
-                    {/* O Ícone de WhatsApp que carrega a mensagem pronta */}
-                    <IconButton 
-                      size="small" 
-                      onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}
-                    >
-                      <FaWhatsapp color="#25D366" size={14} />
-                    </IconButton>
-                  </Box>
-
-                  {/* Alerta de Venda (15d / 7d) Aparece aqui! */}
-                  {ciclo.alerta_whatsapp && (
-                    <Box sx={{ bgcolor: '#e3f2fd', color: '#1565c0', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #90caf9' }}>
-                      🔔 Lembrete: {ciclo.alerta_whatsapp.tipo_alerta} para o {ciclo.alerta_whatsapp.exame_alvo}.
-                    </Box>
-                  )}
-                  {ciclo.alerta_clinico && (
-                    <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, fontSize: '0.7rem', fontWeight: 'bold' }}>
-                      {ciclo.alerta_clinico.semanas}s + {ciclo.alerta_clinico.dias}d • {ciclo.alerta_clinico.texto}
-                    </Box>
-                  )}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#666' }}>
-                    <span>{ciclo.dados_agendamento ? new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR') : 'Sem agendamento'}</span>
-                    <span style={{ fontWeight: 'bold' }}>{ciclo.dados_agendamento?.procedimento}</span>
-                  </Box>
-                  <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', display: 'flex', alignItems: 'center', gap: 0.5, color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>
-                    {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={10} />}
-                    <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 600 }}>{ciclo.proxima_acao_imediata?.descricao || "Definir ação"}</Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: 1 }}>
-          <Table size="small">
-            <TableHead sx={{ bgcolor: '#f8f9fa' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Data</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Paciente</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>IG & Alerta Clínico</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Procedimento</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Próxima Ação (CRM)</TableCell>
-                <TableCell align="right"></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {displayedCards.map((ciclo) => {
-                const isAtrasado = ciclo.proxima_acao_imediata?.atrasada;
-                
-                // --- LÓGICA DE CORES DA LINHA (FUNDO) ---
-                let rowBgColor = 'inherit';
-                if (ciclo.alerta_whatsapp?.tipo_alerta === '7 Dias') {
-                  rowBgColor = '#ffebee'; // Vermelho bem claro
-                } else if (ciclo.alerta_whatsapp?.tipo_alerta === '15 Dias') {
-                  rowBgColor = '#fff3e0'; // Laranja bem claro
-                } else if (isAtrasado) {
-                  rowBgColor = '#fff5f5'; // Vermelho sutil para atrasos antigos
-                }
-                // --- LÓGICA DE COR DO TEXTO DO ALERTA ---
-                const alertTextColor = ciclo.alerta_whatsapp?.tipo_alerta === '7 Dias' ? '#d32f2f' : '#ef6c00';
-
-                return (
-                  <TableRow 
-                    key={ciclo.id} 
-                    hover 
-                    onClick={() => handleOpenDetalhes(ciclo.id)} 
-                    sx={{ cursor: 'pointer', bgcolor: rowBgColor }}
-                  >
-                    {/* COLUNA 1: Data */}
-                    <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {ciclo.dados_agendamento ? new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR') : <span style={{ color: '#999', fontStyle: 'italic' }}>Sem agendamento</span>}
-                    </TableCell>
-                    
-                    {/* COLUNA 2: Paciente */}
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
-                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{ciclo.paciente_nome}</Typography>
-                      </Box>
-                    </TableCell>
-                    
-                    {/* COLUNA 3: IG e Alerta Clínico */}
-                    <TableCell>
-                      {ciclo.alerta_clinico ? (
-                        <Box sx={{ display: 'inline-flex', bgcolor: '#ffffff80', color: '#e65100', px: 1, borderRadius: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #ffcc80' }}>
-                          {ciclo.alerta_clinico.semanas}s + {ciclo.alerta_clinico.dias}d • {ciclo.alerta_clinico.texto}
-                        </Box>
-                      ) : '--'}
-                    </TableCell>
-                    
-                    {/* COLUNA 4: Procedimento (AQUI FICA O AVISO CORRETAMENTE) */}
-                    <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {ciclo.dados_agendamento?.procedimento || '--'}
-                      {ciclo.alerta_whatsapp && (
-                        <Box sx={{ display: 'block', mt: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
-                          🔔 {ciclo.alerta_whatsapp.tipo_alerta} para agendar
-                        </Box>
-                      )}
-                    </TableCell>
-                    
-                    {/* COLUNA 5: Próxima Ação */}
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
-                        {isAtrasado && <FaExclamationTriangle size={12} />}
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{ciclo.proxima_acao_imediata?.descricao || "Definir próxima ação"}</Typography>
-                      </Box>
-                    </TableCell>
-                    
-                    {/* COLUNA 6: Botão WhatsApp */}
-                    <TableCell align="right">
-                      <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}>
-                        <FaWhatsapp color="#25D366" size={16} />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      {/* O MAESTRO TRABALHANDO: Renderiza apenas a aba selecionada */}
+      {viewMode === 'table' && (
+        <TableView 
+          displayedCards={displayedCards} 
+          handleOpenDetalhes={handleOpenDetalhes} 
+          handleWhatsappClick={handleWhatsappClick} 
+        />
       )}
+
+      {viewMode === 'kanban' && (
+        <KanbanView 
+          displayedCards={displayedCards} 
+          activePhaseBorder={activePhaseBorder}
+          handleOpenDetalhes={handleOpenDetalhes} 
+          handleWhatsappClick={handleWhatsappClick} 
+        />
+      )}
+
+      {viewMode === 'graficos' && (
+        <GraficosView 
+          rawData={rawData} 
+          PHASES={PHASES} 
+        />
+      )}
+
+      {/* MODAL MANTIDO NO PAI */}
       <CicloDetalhesModal open={modalOpen} onClose={() => setModalOpen(false)} cicloId={selectedCicloId} onUpdate={loadData} />
     </Box>
   );
