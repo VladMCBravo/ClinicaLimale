@@ -30,11 +30,14 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             // Proteção contra paginação do Django
             const laudosEstruturados = Array.isArray(resLaudos.data) ? resLaudos.data : resLaudos.data.results || [];
 
+            // 🕵️‍♂️ LOG ESPIÃO 1: Vamos ver a lista crua que o Django enviou
+            console.log("=== 🕵️‍♂️ DADOS QUE CHEGARAM DO DJANGO ===");
+            console.log(laudosEstruturados);
+
             // 2. Busca os exames/pastas (enviados pela Samsung V7)
             const resExames = await apiClient.get('/exames/exames-paciente/', {
                 params: { paciente_id: pacienteId }
             });
-            // Proteção contra paginação do Django
             const exames = Array.isArray(resExames.data) ? resExames.data : resExames.data.results || [];
 
             // 3. Descobre quais exames já têm laudo digitado para não duplicar
@@ -44,10 +47,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             
             // 4. Filtra e formata os PDFs que vieram direto da máquina
             const pdfsExternos = exames.filter(ex => {
-                // Ignora se o exame já tem um laudo digitado conectado a ele
                 if (examesComLaudoDigitado.includes(ex.id)) return false;
-                
-                // CORREÇÃO S3: Usa .includes('.pdf') em vez de endsWith, e checa se url existe
                 return ex.arquivos && ex.arquivos.some(arq => arq.arquivo && arq.arquivo.toLowerCase().includes('.pdf'));
             }).map(ex => {
                 const pdfObj = ex.arquivos.find(arq => arq.arquivo && arq.arquivo.toLowerCase().includes('.pdf'));
@@ -55,7 +55,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                     id: `ex_${ex.id}`, 
                     is_exame_externo: true, 
                     data_criacao: ex.data_exame,
-                    titulo: "PDF Original (Máquina)", // Deixei o título mais claro
+                    titulo: "PDF Original (Máquina)", 
                     tipo_exame: ex.nome_paciente_pasta,
                     medico_responsavel: "---", 
                     medico_nome: "Enviado pelo Equipamento",
@@ -89,13 +89,18 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const getLinkPDF = (laudo) => {
+        // 🕵️‍♂️ LOG ESPIÃO 2: Analisa um laudo importado individualmente
+        if (laudo.titulo && laudo.titulo.includes("Importação")) {
+            console.log(`=== 🕵️‍♂️ LAUDO DA PACIENTE: ${pacienteNome} ===`);
+            console.log("Objeto Inteiro do Laudo:", laudo);
+            console.log("Conteúdo de arquivo_pdf:", laudo.arquivo_pdf);
+        }
+
         // 1. Tenta pegar a URL direta enviada pelo Django para arquivos importados
         if (laudo.arquivo_pdf) {
-            // Se for string e tiver a extensão, é a URL
             if (typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.toLowerCase().includes('.pdf')) {
                 return laudo.arquivo_pdf;
             }
-            // Se vier como um objeto de arquivo do Django REST
             if (typeof laudo.arquivo_pdf === 'object' && laudo.arquivo_pdf !== null && laudo.arquivo_pdf.url) {
                 return laudo.arquivo_pdf.url;
             }
@@ -109,7 +114,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             if (arquivoPdf) return arquivoPdf.arquivo;
         }
         
-        // Se não achou de jeito nenhum, retorna nulo para mostrar o botão "2ª Via"
         return null;
     };
 
