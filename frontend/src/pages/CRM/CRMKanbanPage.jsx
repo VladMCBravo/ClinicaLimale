@@ -177,44 +177,72 @@ export default function CRMKanbanPage() {
             <TableBody>
               {displayedCards.map((ciclo) => {
                 const isAtrasado = ciclo.proxima_acao_imediata?.atrasada;
+                
+                // --- LÓGICA DE CORES DA LINHA (FUNDO) ---
+                let rowBgColor = 'inherit';
+                if (ciclo.alerta_whatsapp?.tipo_alerta === '7 Dias') {
+                  rowBgColor = '#ffebee'; // Vermelho bem claro
+                } else if (ciclo.alerta_whatsapp?.tipo_alerta === '15 Dias') {
+                  rowBgColor = '#fff3e0'; // Laranja bem claro
+                } else if (isAtrasado) {
+                  rowBgColor = '#fff5f5'; // Vermelho sutil para atrasos antigos
+                }
+                // --- LÓGICA DE COR DO TEXTO DO ALERTA ---
+                const alertTextColor = ciclo.alerta_whatsapp?.tipo_alerta === '7 Dias' ? '#d32f2f' : '#ef6c00';
+
                 return (
-                  <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ cursor: 'pointer', bgcolor: isAtrasado ? '#fff5f5' : 'inherit' }}>
+                  <TableRow 
+                    key={ciclo.id} 
+                    hover 
+                    onClick={() => handleOpenDetalhes(ciclo.id)} 
+                    sx={{ cursor: 'pointer', bgcolor: rowBgColor }}
+                  >
+                    {/* COLUNA 1: Data */}
                     <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {ciclo.dados_agendamento?.procedimento || '--'}
-                      {ciclo.alerta_whatsapp && (
-                        <Box sx={{ display: 'block', mt: 0.5, color: '#1565c0', fontSize: '0.65rem', fontWeight: 'bold' }}>
-                          🔔 {ciclo.alerta_whatsapp.tipo_alerta} para agendar
-                        </Box>
-                      )}
+                      {ciclo.dados_agendamento ? new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR') : <span style={{ color: '#999', fontStyle: 'italic' }}>Sem agendamento</span>}
                     </TableCell>
+                    
+                    {/* COLUNA 2: Paciente */}
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
                         <Typography sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{ciclo.paciente_nome}</Typography>
                       </Box>
                     </TableCell>
+                    
+                    {/* COLUNA 3: IG e Alerta Clínico */}
                     <TableCell>
                       {ciclo.alerta_clinico ? (
-                        <Box sx={{ display: 'inline-flex', bgcolor: '#fff3e0', color: '#e65100', px: 1, borderRadius: 1, fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        <Box sx={{ display: 'inline-flex', bgcolor: '#ffffff80', color: '#e65100', px: 1, borderRadius: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #ffcc80' }}>
                           {ciclo.alerta_clinico.semanas}s + {ciclo.alerta_clinico.dias}d • {ciclo.alerta_clinico.texto}
                         </Box>
                       ) : '--'}
                     </TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem' }}>{ciclo.dados_agendamento?.procedimento || '--'}</TableCell>
+                    
+                    {/* COLUNA 4: Procedimento (AQUI FICA O AVISO CORRETAMENTE) */}
+                    <TableCell sx={{ fontSize: '0.75rem' }}>
+                      {ciclo.dados_agendamento?.procedimento || '--'}
+                      {ciclo.alerta_whatsapp && (
+                        <Box sx={{ display: 'block', mt: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
+                          🔔 {ciclo.alerta_whatsapp.tipo_alerta} para agendar
+                        </Box>
+                      )}
+                    </TableCell>
+                    
+                    {/* COLUNA 5: Próxima Ação */}
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
                         {isAtrasado && <FaExclamationTriangle size={12} />}
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{ciclo.proxima_acao_imediata?.descricao || "Definir próxima ação"}</Typography>
                       </Box>
                     </TableCell>
+                    
+                    {/* COLUNA 6: Botão WhatsApp */}
                     <TableCell align="right">
-                    <IconButton 
-                      size="small" 
-                      onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}
-                    >
-                      <FaWhatsapp color="#25D366" size={16} />
-                    </IconButton>
-                  </TableCell>
+                      <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}>
+                        <FaWhatsapp color="#25D366" size={16} />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 );
               })}
