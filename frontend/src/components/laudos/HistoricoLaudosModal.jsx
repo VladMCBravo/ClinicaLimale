@@ -23,13 +23,52 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const carregarLaudos = async () => {
         setLoading(true);
         try {
-            const res = await apiClient.get('/prontuario/laudos/', {
+            // 1. Busca os laudos estruturados (digitados pela ajudante no sistema)
+            const resLaudos = await apiClient.get('/prontuario/laudos/', {
                 params: { paciente: pacienteId }
             });
-            console.log("🔥 LAUDOS:", res.data); 
-            setLaudos(res.data);
+            const laudosEstruturados = resLaudos.data;
+
+            // 2. Busca os exames/pastas (enviados pela Samsung V7)
+            const resExames = await apiClient.get('/exames/exames-paciente/', {
+                params: { paciente_id: pacienteId }
+            });
+            const exames = resExames.data;
+
+            // 3. Descobre quais exames já têm laudo digitado para não duplicar na tela
+            const examesComLaudoDigitado = laudosEstruturados
+                .map(l => l.exame)
+                .filter(id => id != null);
+            
+            // 4. Filtra e formata os PDFs que vieram direto da máquina
+            const pdfsExternos = exames.filter(ex => {
+                // Ignora se o exame já tem um laudo digitado conectado a ele
+                if (examesComLaudoDigitado.includes(ex.id)) return false;
+                // Só entra se houver algum arquivo PDF nessa pasta
+                return ex.arquivos && ex.arquivos.some(arq => arq.arquivo.toLowerCase().endsWith('.pdf'));
+            }).map(ex => {
+                const pdfObj = ex.arquivos.find(arq => arq.arquivo.toLowerCase().endsWith('.pdf'));
+                return {
+                    id: `ex_${ex.id}`, // ID com prefixo para o React não confundir
+                    is_exame_externo: true, // Flag de segurança
+                    data_criacao: ex.data_exame,
+                    titulo: "PDF Externo / Máquina",
+                    tipo_exame: ex.nome_paciente_pasta,
+                    medico_responsavel: "---", 
+                    medico_nome: "Enviado pela Máquina",
+                    arquivo_pdf: pdfObj.arquivo, 
+                    dados_estruturados: null
+                };
+            });
+
+            // 5. Junta tudo na mesma lista e ordena por data
+            const listaUnificada = [...laudosEstruturados, ...pdfsExternos];
+            listaUnificada.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
+
+            setLaudos(listaUnificada);
+            
         } catch (error) {
-            console.error("Erro ao buscar laudos", error);
+            console.error("Erro ao buscar histórico unificado:", error);
         } finally {
             setLoading(false);
         }
@@ -240,14 +279,24 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                             </TableCell>
 
                                             <TableCell align="center">
-                                                <IconButton 
-                                                    size="small" 
-                                                    color="default" 
-                                                    onClick={() => handleDelete(laudo.id)}
-                                                    sx={{ '&:hover': { color: 'red' } }}
-                                                >
-                                                    <FaTrash size={14} />
-                                                </IconButton>
+                                                {laudo.is_exame_externo ? (
+                                                    <Tooltip title="Protegido: Arquivo original da máquina">
+                                                        <span>
+                                                            <IconButton size="small" disabled sx={{ color: '#eee' }}>
+                                                                <FaTrash size={14} />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                ) : (
+                                                    <IconButton 
+                                                        size="small" 
+                                                        color="default" 
+                                                        onClick={() => handleDelete(laudo.id)}
+                                                        sx={{ '&:hover': { color: 'red' } }}
+                                                    >
+                                                        <FaTrash size={14} />
+                                                    </IconButton>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     );
