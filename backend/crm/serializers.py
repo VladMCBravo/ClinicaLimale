@@ -52,6 +52,7 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     # NOVOS CAMPOS PARA O ALERTA
     idade_gestacional = serializers.SerializerMethodField()
     alerta_clinico = serializers.SerializerMethodField()
+    alerta_whatsapp = serializers.SerializerMethodField()
     
     class Meta:
         model = Ciclo
@@ -68,7 +69,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             'proxima_acao_imediata',
             'dados_agendamento',
             'idade_gestacional',
-            'alerta_clinico'
+            'alerta_clinico',
+            'alerta_whatsapp' # <--- ADICIONE ESTA LINHA
         ]
 
     def get_paciente_foto(self, obj):
@@ -143,6 +145,70 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             "dias": dias,
             "texto": sugestao,
             "prioridade": prioridade
+        }
+        
+    def get_alerta_whatsapp(self, obj):
+        dados = obj.get_dados_gestacionais()
+        if not dados: return None
+
+        # Pega a DUM calculada ou preenchida
+        dum = obj.paciente.dum if obj.paciente and hasattr(obj.paciente, 'dum') and obj.paciente.dum else getattr(obj, 'data_dum', None)
+        if not dum or dum.year < 2000: return None
+
+        from datetime import date, timedelta
+        hoje = date.today()
+        semanas_atuais = dados['semanas']
+
+        proximo_exame = ""
+        semana_alvo = 0
+
+        # --- A MATEMÁTICA BASEADA NA TABELA MESTRA ---
+        if semanas_atuais < 11:
+            proximo_exame = "Morfológico de 1º Trimestre"
+            semana_alvo = 12 # Ponto ótimo entre 11 e 13+6
+        elif 11 <= semanas_atuais < 14: 
+            proximo_exame = "Obstétrico Simples (Avaliação Pós-Morfo)"
+            semana_alvo = 16 
+        elif 14 <= semanas_atuais < 20:
+            proximo_exame = "Morfológico de 2º Trimestre"
+            semana_alvo = 22 # Ponto ótimo entre 20 e 23
+        elif 20 <= semanas_atuais < 24:
+            proximo_exame = "Ecocardiograma Fetal e Doppler"
+            semana_alvo = 26 # Ponto ótimo entre 25 e 28
+        elif 24 <= semanas_atuais < 29:
+            proximo_exame = "Obstétrico com Doppler e Ultrassom 4D"
+            semana_alvo = 30 # Ponto ótimo entre 29 e 32
+        elif 29 <= semanas_atuais < 34:
+            proximo_exame = "Obstétrico com Doppler (Reta Final)"
+            semana_alvo = 35 # A partir de 34 semanas
+        else:
+            return None # Fim da gestação, monitoramento médico direto
+
+        # Calcula o dia exato em que ela fará a "Semana Alvo"
+        data_ideal = dum + timedelta(weeks=semana_alvo)
+        dias_para_ideal = (data_ideal - hoje).days
+
+        # Verifica se estamos nas janelas de disparo de marketing
+        # Usamos uma margem de +/- 1 dia para não perder o alerta se ninguém abrir o sistema no final de semana
+        tipo_alerta = None
+        if 13 <= dias_para_ideal <= 16:
+            tipo_alerta = "15 Dias"
+        elif 5 <= dias_para_ideal <= 8:
+            tipo_alerta = "7 Dias"
+
+        if not tipo_alerta:
+            return None # Fica oculto se não estiver na janela
+
+        primeiro_nome = obj.paciente.nome_completo.split(' ')[0]
+        
+        # A mensagem pronta baseada em Neuromarketing
+        msg = f"Olá {primeiro_nome}, tudo bem? Aqui é da Clínica Limalé. Cuidando da sua gestação de perto, vimos que daqui a pouco você entra na fase ideal para realizar o seu {proximo_exame}. Como a agenda das doutoras costuma lotar, viemos te avisar com antecedência! Quer deixar o melhor horário garantido?"
+
+        return {
+            "dias_restantes": dias_para_ideal,
+            "exame_alvo": proximo_exame,
+            "tipo_alerta": tipo_alerta,
+            "mensagem": msg
         }
 
     def get_proxima_acao_imediata(self, obj):

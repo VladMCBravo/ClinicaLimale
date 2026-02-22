@@ -64,11 +64,17 @@ export default function CRMKanbanPage() {
     setModalOpen(true);
   };
 
-  const handleWhatsappClick = (e, numero, nome) => {
+  const handleWhatsappClick = (e, numero, nome, mensagemCustomizada) => {
     e.stopPropagation();
     if (!numero) return alert("Paciente sem número cadastrado");
     const cleanNum = numero.replace(/\D/g, '');
-    window.open(`https://wa.me/55${cleanNum}?text=Olá ${nome}, tudo bem? Falamos da Clínica Limalé.`, '_blank');
+    
+    // Se o backend mandou a mensagem pronta (15/7 dias), usa ela. Se não, usa o padrão.
+    const primeiroNome = nome.split(' ')[0];
+    const textoBase = mensagemCustomizada || `Olá ${primeiroNome}, tudo bem? Aqui é da Clínica Limalé.`;
+    
+    const textoCodificado = encodeURIComponent(textoBase);
+    window.open(`https://wa.me/55${cleanNum}?text=${textoCodificado}`, '_blank');
   };
 
   const displayedCards = useMemo(() => {
@@ -117,11 +123,26 @@ export default function CRMKanbanPage() {
             <Grid item xs={12} sm={6} md={4} lg={3} xl={2.4} key={ciclo.id}>
               <Card onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ borderRadius: 1, borderLeft: `4px solid ${PHASES.find(p=>p.id === activePhase).border}`, cursor: 'pointer', bgcolor: ciclo.proxima_acao_imediata?.atrasada ? '#fffbfa' : 'white' }}>
                 <CardContent sx={{ p: '8px !important' }}>
+                  {/* Cabeçalho do Card */}
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                     <Avatar sx={{ width: 22, height: 22, mr: 0.5, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
                     <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold', flexGrow: 1, fontSize: '0.75rem' }}>{ciclo.paciente_nome}</Typography>
-                    <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}><FaWhatsapp color="#25D366" size={12} /></IconButton>
+                    
+                    {/* O Ícone de WhatsApp que carrega a mensagem pronta */}
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}
+                    >
+                      <FaWhatsapp color="#25D366" size={14} />
+                    </IconButton>
                   </Box>
+
+                  {/* Alerta de Venda (15d / 7d) Aparece aqui! */}
+                  {ciclo.alerta_whatsapp && (
+                    <Box sx={{ bgcolor: '#e3f2fd', color: '#1565c0', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #90caf9' }}>
+                      🔔 Lembrete: {ciclo.alerta_whatsapp.tipo_alerta} para o {ciclo.alerta_whatsapp.exame_alvo}.
+                    </Box>
+                  )}
                   {ciclo.alerta_clinico && (
                     <Box sx={{ bgcolor: '#fff3e0', color: '#e65100', borderRadius: 1, px: 0.8, py: 0.4, mb: 1, fontSize: '0.7rem', fontWeight: 'bold' }}>
                       {ciclo.alerta_clinico.semanas}s + {ciclo.alerta_clinico.dias}d • {ciclo.alerta_clinico.texto}
@@ -159,7 +180,12 @@ export default function CRMKanbanPage() {
                 return (
                   <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ cursor: 'pointer', bgcolor: isAtrasado ? '#fff5f5' : 'inherit' }}>
                     <TableCell sx={{ fontSize: '0.75rem' }}>
-                      {ciclo.dados_agendamento ? new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR') : <span style={{ color: '#999', fontStyle: 'italic' }}>Sem agendamento</span>}
+                      {ciclo.dados_agendamento?.procedimento || '--'}
+                      {ciclo.alerta_whatsapp && (
+                        <Box sx={{ display: 'block', mt: 0.5, color: '#1565c0', fontSize: '0.65rem', fontWeight: 'bold' }}>
+                          🔔 {ciclo.alerta_whatsapp.tipo_alerta} para agendar
+                        </Box>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -182,8 +208,13 @@ export default function CRMKanbanPage() {
                       </Box>
                     </TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome)}><FaWhatsapp color="#25D366" size={16} /></IconButton>
-                    </TableCell>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}
+                    >
+                      <FaWhatsapp color="#25D366" size={16} />
+                    </IconButton>
+                  </TableCell>
                   </TableRow>
                 );
               })}
