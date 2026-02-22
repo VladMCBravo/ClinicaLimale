@@ -72,17 +72,29 @@ class Ciclo(models.Model):
         help_text="Essencial para o cálculo automático de exames previstos"
     )
 
-    def calcular_idade_gestacional(self):
-        """Retorna uma tupla (semanas, dias) ou None"""
-        if not self.data_dum:
+    def get_dados_gestacionais(self):
+        """Centraliza o cálculo da IG para ser usado no Kanban, Detalhe e Alertas"""
+        try:
+            # 1. Busca a DUM (Prioridade: Paciente > Ciclo)
+            dum = self.paciente.dum if self.paciente and hasattr(self.paciente, 'dum') and self.paciente.dum else self.data_dum
+            
+            if not dum or dum.year < 2000:
+                return None
+                
+            from datetime import date
+            dias_totais = (date.today() - dum).days
+            
+            if dias_totais < 0:
+                return None
+                
+            return {
+                'semanas': dias_totais // 7,
+                'dias': dias_totais % 7,
+                'total_dias': dias_totais
+            }
+        except Exception as e:
+            print(f"Erro ao calcular IG do Ciclo {self.id}: {e}")
             return None
-        
-        dias_totais = (timezone.now().date() - self.data_dum).days
-        if dias_totais < 0: return (0, 0) # Data futura
-        
-        semanas = dias_totais // 7
-        dias = dias_totais % 7
-        return semanas, dias
 
     class Meta:
         ordering = ['-data_inicio']

@@ -102,25 +102,15 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         
     # 2. CORREÇÃO DO ALERTA (Morfologico, etc) NO CARD
     def get_alerta_clinico(self, obj):
-        """
-        LÓGICA DA TABELA MESTRA (PDF)
-        Define qual exame oferecer baseado na DUM.
-        """
-        dum = obj.paciente.dum if obj.paciente else None
-        if not dum: dum = getattr(obj, 'data_dum', None)
-        
-        if not dum or dum.year < 2000:
+        dados = obj.get_dados_gestacionais()
+        if not dados:
             return None
-        
-        from datetime import date
-        hoje = date.today()
-        dias_totais = (hoje - dum).days
-        
-        semanas = dias_totais // 7
-        dias = dias_totais % 7 
+            
+        semanas = dados['semanas']
+        dias = dados['dias']
         
         sugestao = ""
-        prioridade = "normal" 
+        prioridade = "normal"
 
         # Regras atualizadas exatamente conforme o PDF da Tabela Mestra
         if semanas < 6:
@@ -267,38 +257,15 @@ class CicloDetalheSerializer(serializers.ModelSerializer):
 
     # --- O CÁLCULO REAL E SEGURO DA IDADE GESTACIONAL ---
     def get_idade_gestacional(self, obj):
-        try:
-            # 1. Prioridade Total: DUM do Paciente (Fonte da Verdade)
-            dum = obj.paciente.dum if obj.paciente else None
-            
-            # 2. Fallback: Se não tiver no paciente, tenta do Ciclo
-            if not dum:
-                dum = getattr(obj, 'data_dum', None)
-
-            # 3. Se não tiver data, retorna vazio
-            if not dum:
-                return None
-
-            # 4. Proteção contra datas antigas (Bug de 1529)
-            if dum.year < 2000:
-                return "Data Inválida (Antiga)"
-
-            # 5. O Cálculo Matemático
-            from datetime import date
-            hoje = date.today()
-            dias_totais = (hoje - dum).days
-            
-            if dias_totais < 0:
-                return "Data Futura"
-
-            semanas = dias_totais // 7
-            dias_restantes = dias_totais % 7
-            
-            return f"{semanas} semanas + {dias_restantes} dias"
-
-        except Exception as e:
-            print(f"[ERRO SERIALIZER] Calculo IG: {e}")
+        dados = obj.get_dados_gestacionais()
+        if not dados:
+            # Retorna as mensagens de aviso caso não tenha data
+            dum = obj.paciente.dum if obj.paciente and hasattr(obj.paciente, 'dum') else getattr(obj, 'data_dum', None)
+            if dum and dum.year < 2000: return "Data Inválida (Antiga)"
+            if dum and (date.today() - dum).days < 0: return "Data Futura"
             return None
+            
+        return f"{dados['semanas']} semanas + {dados['dias']} dias"
     # ----------------------------
     
     def get_comportamento(self, obj):

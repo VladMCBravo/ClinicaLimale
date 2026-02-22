@@ -106,3 +106,19 @@ def acionar_crm_exame(sender, instance, created, **kwargs):
     if instance.ciclo and instance.ciclo.fase_atual in ['F1', 'F2']:
         Ciclo = apps.get_model('crm', 'Ciclo')
         Ciclo.objects.filter(pk=instance.ciclo.pk).update(fase_atual='F3')
+
+# =========================================================
+# GATILHO 4: FATURAMENTO (Atualiza o LTV do Paciente no CRM)
+# =========================================================
+@receiver(post_save, sender='faturamento.Pagamento')
+def atualizar_receita_ciclo(sender, instance, **kwargs):
+    """
+    Sempre que a recepção der baixa em um pagamento, 
+    o CRM escuta, procura a qual ciclo esse agendamento pertence
+    e recalcula a receita total (LTV).
+    """
+    # Verifica se o pagamento foi concluído e se ele está ligado a um ciclo
+    if instance.status == 'Pago' and instance.agendamento and instance.agendamento.ciclo:
+        # Chama a função que já existe no seu model Ciclo
+        instance.agendamento.ciclo.calcular_ltv()
+        print(f"[CRM] LTV Atualizado para o Ciclo {instance.agendamento.ciclo.id} (Paciente: {instance.agendamento.paciente.nome_completo})")

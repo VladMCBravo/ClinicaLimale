@@ -633,7 +633,32 @@ const getInitialState = (key, fallback) => {
         Atestado
     </Button>
                     <Button size="small" onClick={() => setModalDeclaracaoOpen(true)} sx={{ color: '#7E57C2', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Declaração</Button>
-                    <Button variant="contained" size="small" onClick={() => setModalRevisaoOpen(true)} endIcon={<FaSave size={12}/>} sx={{ background: '#1C2E4A', textTransform: 'none', fontWeight: 'bold', fontSize: '11px', padding: '4px 12px', minWidth: 'auto', marginLeft: '4px !important', '&:hover': { background: '#2C3E50' } }}>Finalizar</Button>
+                    <Button 
+                        variant="contained" 
+                        size="small" 
+                        onClick={() => {
+                            // --- 🛡️ TRAVA DE SEGURANÇA ---
+                            if (!textoFinal || textoFinal.trim() === '') {
+                                alert("⚠️ O texto do laudo está vazio!\nPor favor, preencha as medidas e certifique-se de que o texto apareceu na tela de Prévia antes de finalizar.");
+                                return; // Interrompe o clique e não abre o modal
+                            }
+                            // Se estiver tudo certo, segue o fluxo normal:
+                            setModalRevisaoOpen(true);
+                        }} 
+                        endIcon={<FaSave size={12}/>} 
+                        sx={{ 
+                            background: '#1C2E4A', 
+                            textTransform: 'none', 
+                            fontWeight: 'bold', 
+                            fontSize: '11px', 
+                            padding: '4px 12px', 
+                            minWidth: 'auto', 
+                            marginLeft: '4px !important', 
+                            '&:hover': { background: '#2C3E50' } 
+                        }}
+                    >
+                        Finalizar
+                    </Button>
                  </Stack>
              </Box>
              

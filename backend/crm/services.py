@@ -1,7 +1,7 @@
 # backend/crm/services.py
 
 from django.db import transaction
-from django.db.models import Sum, Q
+from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
 from datetime import timedelta
 
@@ -23,13 +23,20 @@ class CRMService:
         ciclo.fase_atual = nova_fase
         ciclo.save()
         
+        # --- 🧹 NOVO: ELIMINADOR DE TAREFAS ZUMBIS ---
+        if nova_fase == 'ENCERRADO':
+            # Pega todas as ações pendentes deste ciclo e cancela de uma vez
+            tarefas_canceladas = ciclo.acoes.filter(status='PENDENTE').update(status='CANCELADA')
+            print(f"[CRM] {tarefas_canceladas} tarefas pendentes foram canceladas porque o Ciclo {ciclo.id} foi encerrado.")
+            return ciclo # Retorna cedo, não precisa rodar o resto
+
         # --- AUTOMAÇÃO: ALERTA DE QUEDA ---
         # Se moveu para F2 (Conversão), mas não tem agendamento futuro, cria alerta.
         if nova_fase == 'F2':
             Agendamento = apps.get_model('agendamentos', 'Agendamento')
             
             tem_agendamento_futuro = Agendamento.objects.filter(
-                ciclo=ciclo, # <--- Usa seu novo campo!
+                ciclo=ciclo,
                 status__in=['Agendado', 'Confirmado'],
                 data_hora_inicio__gte=timezone.now()
             ).exists()
@@ -159,11 +166,18 @@ class CRMService:
         margem_percentual = round((lucro / float(receita_mes) * 100), 1) if receita_mes > 0 else 0
 
         # 2. ESTRATÉGICO (CAC e LTV)
-        # CAC Simplificado: Total Despesas Marketing / Novos Ciclos no Mês
-        # (Assumindo que você tem uma categoria de despesa chamada 'Marketing')
+        # CAC: Total Despesas Marketing / Novos Ciclos no Mês
+        
+        # --- 🛡️ NOVO: BUSCA INTELIGENTE DE DESPESAS DE AQUISIÇÃO ---
         marketing = Despesa.objects.filter(
-            categoria__nome__icontains='Marketing',
-            data_pagamento__month=mes_atual
+            Q(categoria__nome__icontains='Marketing') | 
+            Q(categoria__nome__icontains='Anúncio') | 
+            Q(categoria__nome__icontains='Tráfego') |
+            Q(categoria__nome__icontains='Ads') |
+            Q(categoria__nome__icontains='Google') |
+            Q(categoria__nome__icontains='Instagram'),
+            data_pagamento__month=mes_atual,
+            pago=True # Importante: só contabilizar o que realmente saiu do caixa
         ).aggregate(total=Sum('valor'))['total'] or 0.00
         
         novos_ciclos = Ciclo.objects.filter(
