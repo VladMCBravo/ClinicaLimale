@@ -9,6 +9,7 @@ import { assinarPdfRemotamente } from "../api/pdfService";
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 export const gerarPDFLaudo = async ({
+    pacienteId, // <--- 1. NOVO PARÂMETRO ADICIONADO
     pacienteNome, 
     medicoNome, 
     medicoCrm, 
@@ -366,32 +367,58 @@ export const gerarPDFLaudo = async ({
     
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 
-    // Se pedimos para retornar o Blob (para salvar no banco), não abrimos janela
+    // Se pedimos para retornar o Blob (para salvar no banco internamente)
     if (retornarBlob) {
-        return new Promise((resolve, reject) => {
-            pdfDocGenerator.getBlob((blob) => {
-                resolve(blob);
-            });
+        return new Promise((resolve) => {
+            pdfDocGenerator.getBlob((blob) => resolve(blob));
         });
     }
+
+    // --- 2. INTELIGÊNCIA DE NOMEAÇÃO DO ARQUIVO ---
+    const formatarNome = (texto) => {
+        if (!texto) return '';
+        return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    };
+    
+    const idStr = pacienteId || "S-ID";
+    const nomeLimpo = formatarNome(pacienteNome) || "Paciente";
+    const tipoLimpo = formatarNome(tituloExame) || "Exame";
+    const nomeArquivo = `${idStr}_${nomeLimpo}_${tipoLimpo}.pdf`;
+
+    // --- 3. FUNÇÃO QUE ABRE E BAIXA AO MESMO TEMPO ---
+    const forcarDownloadEAbrir = (blobUrl) => {
+        // 1. Abre na nova aba para visualização e impressão
+        window.open(blobUrl, '_blank');
+        
+        // 2. Cria um link fantasma e força o Download
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = nomeArquivo; // O nome padronizado entra aqui!
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
 
     if (usaAssinaturaDigital) {
         pdfDocGenerator.getBlob(async (blob) => {
             try {
-                const newWindow = window.open('', '_blank');
-                if(newWindow) newWindow.document.write('<h2>Aguarde, aplicando assinatura digital...</h2>');
-
+                // Removemos o "window.open" daqui para não dar bloqueio de pop-up duplo
                 const pdfAssinadoBlob = await assinarPdfRemotamente(blob);
-                
                 const fileURL = URL.createObjectURL(pdfAssinadoBlob);
-                if(newWindow) newWindow.location.href = fileURL;
                 
+                forcarDownloadEAbrir(fileURL);
+                setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
             } catch (error) {
                 console.error("Erro na assinatura:", error);
-                alert("Não foi possível assinar digitalmente. Verifique se seu certificado está válido no sistema.");
+                alert("Não foi possível assinar digitalmente. Verifique se seu certificado está válido.");
             }
         });
     } else {
-        pdfDocGenerator.open();
+        pdfDocGenerator.getBlob((blob) => {
+            const fileURL = URL.createObjectURL(blob);
+            forcarDownloadEAbrir(fileURL);
+            setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
+        });
     }
 };

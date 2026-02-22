@@ -383,8 +383,10 @@ const getInitialState = (key, fallback) => {
 
         // D. Abre PDF para impressão numa nova aba
         gerarPDFLaudo({
+            pacienteId: paciente.id, // <--- ENVIANDO O ID
             pacienteNome: paciente.nome_completo,
             medicoNome, medicoCrm, tituloExame,
+            tituloExame: tipoExame,  // <--- ENVIANDO O TIPO (OBSTETRICO, etc)
             textoLaudo: textoCorrigido,
             dadosEstruturados,
             imagensBase64: imagensFinais,

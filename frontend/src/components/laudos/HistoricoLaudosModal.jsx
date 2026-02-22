@@ -89,13 +89,24 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const getLinkPDF = (laudo) => {
-        if (laudo.arquivo_pdf) return laudo.arquivo_pdf;
+        // 1. Tenta pegar o link direto do campo arquivo_pdf (Laudos de Importação)
+        if (laudo.arquivo_pdf && typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.includes('.pdf')) {
+            return laudo.arquivo_pdf;
+        }
+        
+        // 2. Tenta pegar do objeto aninhado (se existir)
+        if (laudo.arquivo_pdf && laudo.arquivo_pdf.url) {
+            return laudo.arquivo_pdf.url;
+        }
+
+        // 3. Tenta pegar do array arquivos_exame (Laudos da Máquina Samsung)
         if (laudo.arquivos_exame && laudo.arquivos_exame.length > 0) {
             const arquivoPdf = laudo.arquivos_exame.find(f => 
                 f.arquivo && f.arquivo.toLowerCase().endsWith('.pdf')
             );
             if (arquivoPdf) return arquivoPdf.arquivo;
         }
+        
         return null;
     };
 
