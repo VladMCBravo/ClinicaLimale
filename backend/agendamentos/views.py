@@ -359,7 +359,7 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         agendamentos_conflitantes = Agendamento.objects.filter(
             data_hora_inicio__lt=fim, 
             data_hora_fim__gt=inicio,
-        ).exclude(status='Cancelado')
+        ).exclude(status__in=['Cancelado', 'Não Compareceu']) # <--- ALTERAÇÃO AQUI
 
         qtd_consultas = agendamentos_conflitantes.filter(tipo_agendamento='Consulta').count()
         qtd_procedimentos = agendamentos_conflitantes.filter(tipo_agendamento='Procedimento').count()

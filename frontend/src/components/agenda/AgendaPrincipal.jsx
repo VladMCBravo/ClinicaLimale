@@ -84,23 +84,33 @@ export default function AgendaPrincipal({
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
             .then(response => {
                 const eventosFormatados = response.data
-                    .filter(ag => ag.status !== 'Cancelado' && ag.sala)
-                    .map(ag => ({
-                        id: ag.id,
-                        title: ag.paciente_nome, 
-                        start: ag.data_hora_inicio,
-                        end: ag.data_hora_fim,
-                        extendedProps: { 
-                            ...ag,
-                            tipo_procedimento: ag.tipo_exame || 'CONSULTA', 
-                            paciente_id: ag.paciente, 
-                            medico_nome: ag.medico_nome,
-                            medico_crm: ag.medico_crm
-                        },
-                        resourceId: String(ag.sala),
-                        backgroundColor: getColorForSala(ag.sala),
-                        textColor: '#fff'
-                    }));
+                    // MUDANÇA 1: Removemos a restrição de "Cancelado", queremos exibir todos na tela
+                    .filter(ag => ag.sala) 
+                    .map(ag => {
+                        // Verifica se é um evento inativo (fantasma)
+                        const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
+
+                        return {
+                            id: ag.id,
+                            title: ag.paciente_nome, 
+                            start: ag.data_hora_inicio,
+                            end: ag.data_hora_fim,
+                            extendedProps: { 
+                                ...ag,
+                                tipo_procedimento: ag.tipo_exame || 'CONSULTA', 
+                                paciente_id: ag.paciente, 
+                                medico_nome: ag.medico_nome,
+                                medico_crm: ag.medico_crm
+                            },
+                            resourceId: String(ag.sala),
+                            // MUDANÇA 2: Estilo condicional para o fundo e borda
+                            backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
+                            borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
+                            textColor: isInativo ? '#666' : '#fff',
+                            // Opcional: Adiciona uma classe CSS para facilitar ajustes globais
+                            classNames: isInativo ? ['evento-inativo'] : []
+                        };
+                    });
                 successCallback(eventosFormatados);
             })
             .catch(error => failureCallback(error));
@@ -201,22 +211,37 @@ export default function AgendaPrincipal({
                     nowIndicator={true}
                     slotDuration="00:15:00"
                     eventMinHeight={28}
+                    // MUDANÇA 3: Permitir sobreposição visual
+                    slotEventOverlap={true}
+                    eventOverlap={true}
+
                     eventContent={(arg) => {
                         const dados = arg.event.extendedProps;
+                        const isInativo = dados.status === 'Cancelado' || dados.status === 'Não Compareceu';
                         
                         let emojis = "";
-                        if (dados.pagamento_status === 'Pendente' && dados.status !== 'Cancelado') emojis += " 🔴";
-                        if (dados.primeira_consulta) emojis += " ⭐";
-                        else if (dados.tipo_visita === 'Retorno') emojis += " 🔄";
+                        if (dados.pagamento_status === 'Pendente' && !isInativo) emojis += " 🔴";
+                        if (dados.primeira_consulta && !isInativo) emojis += " ⭐";
+                        else if (dados.tipo_visita === 'Retorno' && !isInativo) emojis += " 🔄";
                         if (dados.status === 'Confirmado') emojis += " ✅";
                         if (dados.status === 'Cancelado') emojis += " ❌";
+                        if (dados.status === 'Não Compareceu') emojis += " 👻"; // Sugestão para não compareceu
                         if (dados.status === 'Realizado') emojis += " 🏁";
 
+                        // MUDANÇA 4: Ajuste da borda lateral e cores internas
                         const tipo = (dados.tipo_procedimento || '').toLowerCase();
                         let borderLeftColor = 'transparent';
-                        if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) borderLeftColor = '#e91e63';
-                        else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) borderLeftColor = '#ff9800';
-                        else if (tipo.includes('consulta')) borderLeftColor = '#2196f3';
+                        
+                        // Se estiver inativo, a borda lateral fica cinza claro. Senão, usa as cores normais.
+                        if (isInativo) {
+                             borderLeftColor = '#ccc';
+                        } else if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) {
+                            borderLeftColor = '#e91e63';
+                        } else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) {
+                            borderLeftColor = '#ff9800';
+                        } else if (tipo.includes('consulta')) {
+                            borderLeftColor = '#2196f3';
+                        }
 
                         return (
                             <Box sx={{ 
@@ -224,12 +249,28 @@ export default function AgendaPrincipal({
                                 width: '100%', height: '100%', borderLeft: `3px solid ${borderLeftColor}`, padding: '0 2px 0 4px', overflow: 'hidden'
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', whiteSpace: 'nowrap', flexGrow: 1 }}>
-                                    <span style={{ fontWeight: 900, fontSize: '0.7em', opacity: 0.8 }}>{arg.timeText.replace(/:\d{2}$/, '')}</span>
-                                    <span style={{ fontWeight: 'bold', fontSize: '0.75em', textOverflow: 'ellipsis', overflow: 'hidden', textDecoration: dados.status === 'Cancelado' ? 'line-through' : 'none', color: dados.status === 'Cancelado' ? '#999' : '#fff' }}>
+                                    <span style={{ 
+                                        fontWeight: 900, 
+                                        fontSize: '0.7em', 
+                                        opacity: isInativo ? 0.5 : 0.8, // Mais transparente se inativo
+                                        color: arg.textColor // Usa a cor do texto definida lá em cima
+                                    }}>
+                                        {arg.timeText.replace(/:\d{2}$/, '')}
+                                    </span>
+                                    <span style={{ 
+                                        fontWeight: isInativo ? 'normal' : 'bold', // Tira o negrito se inativo
+                                        fontSize: '0.75em', 
+                                        textOverflow: 'ellipsis', 
+                                        overflow: 'hidden', 
+                                        textDecoration: isInativo ? 'line-through' : 'none', 
+                                        color: arg.textColor // Usa a cor do texto definida lá em cima (#666 para inativos, #fff para ativos)
+                                    }}>
                                         {arg.event.title}
                                     </span>
                                 </Box>
-                                <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center' }}>{emojis}</Box>
+                                <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center', opacity: isInativo ? 0.6 : 1 }}>
+                                    {emojis}
+                                </Box>
                             </Box>
                         );
                     }}

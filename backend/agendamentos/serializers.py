@@ -101,7 +101,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                 sala=sala_selecionada,
                 data_hora_inicio__lt=fim,
                 data_hora_fim__gt=inicio
-            ).exclude(status='Cancelado')
+            ).exclude(status__in=['Cancelado', 'Não Compareceu']) # <--- ALTERAÇÃO AQUI
 
             if agendamento_id: 
                 conflito_sala = conflito_sala.exclude(pk=agendamento_id)
@@ -114,7 +114,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             data_hora_inicio__lt=fim,
             data_hora_fim__gt=inicio,
             tipo_agendamento=tipo_agendamento
-        ).exclude(status='Cancelado')
+        ).exclude(status__in=['Cancelado', 'Não Compareceu']) # <--- ALTERAÇÃO AQUI
 
         if agendamento_id: 
             conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)

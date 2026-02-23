@@ -456,11 +456,26 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     
     const valorExibido = useMemo(() => {
         if (formData.tipo_atendimento === 'Particular') {
-            if (tipoAgendamento === 'Consulta' && formData.especialidade?.valor_consulta) return `Valor (Particular): R$ ${formData.especialidade.valor_consulta}`;
-            if (tipoAgendamento === 'Procedimento' && formData.procedimento?.valor_particular) return `Valor (Particular): R$ ${formData.procedimento.valor_particular}`;
+            if (tipoAgendamento === 'Consulta' && formData.especialidade?.valor_consulta) {
+                return `Valor (Particular): R$ ${formData.especialidade.valor_consulta}`;
+            }
+            if (tipoAgendamento === 'Procedimento') {
+                // NOVA LÓGICA: Soma todos os procedimentos do array
+                if (formData.procedimentos && formData.procedimentos.length > 0) {
+                    const total = formData.procedimentos.reduce((acumulador, procAtual) => {
+                        return acumulador + (parseFloat(procAtual.valor_particular) || 0);
+                    }, 0);
+                    return `Valor Total (Particular): R$ ${total.toFixed(2).replace('.', ',')}`;
+                } 
+                // Fallback de segurança para o modo singular legado
+                else if (formData.procedimento?.valor_particular) {
+                    return `Valor (Particular): R$ ${parseFloat(formData.procedimento.valor_particular).toFixed(2).replace('.', ',')}`;
+                }
+            }
         }
         return null;
-    }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.tipo_atendimento]);
+    // IMPORTANTE: Adicionamos formData.procedimentos na lista de dependências abaixo
+    }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.procedimentos, formData.tipo_atendimento]);
 
     const renderCapacidadeInfo = () => {
         let visualConsultas = capacidade.consultas;
