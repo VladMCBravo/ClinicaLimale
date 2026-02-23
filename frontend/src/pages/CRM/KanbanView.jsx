@@ -39,10 +39,24 @@ export default function KanbanView({ displayedCards, activePhaseBorder, handleOp
                 </span>
                 <span style={{ fontWeight: 'bold' }}>{ciclo.dados_agendamento?.procedimento}</span>
               </Box>
-              <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', display: 'flex', alignItems: 'center', gap: 0.5, color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>
-                {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={10} />}
-                <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 600 }}>{ciclo.proxima_acao_imediata?.descricao || "Definir ação"}</Typography>
-              </Box>
+              {/* NOVO: ALERTA OPERACIONAL DO SISTEMA (Acima da tarefa manual) */}
+              {ciclo.alerta_operacional && (
+                <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', display: 'flex', alignItems: 'center', gap: 0.5, color: ciclo.alerta_operacional.cor }}>
+                  <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 700 }}>
+                    {ciclo.alerta_operacional.icone} {ciclo.alerta_operacional.texto}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* TAREFA MANUAL EXISTENTE */}
+              {ciclo.proxima_acao_imediata?.descricao && (
+                  <Box sx={{ mt: ciclo.alerta_operacional ? 0 : 0.5, pt: ciclo.alerta_operacional ? 0.2 : 0.5, borderTop: ciclo.alerta_operacional ? 'none' : '1px dashed #ddd', display: 'flex', alignItems: 'center', gap: 0.5, color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>
+                    {ciclo.proxima_acao_imediata?.atrasada && <FaExclamationTriangle size={10} />}
+                    <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                      {ciclo.proxima_acao_imediata.descricao}
+                    </Typography>
+                  </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>

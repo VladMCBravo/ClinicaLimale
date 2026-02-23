@@ -107,21 +107,30 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                       <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>--</span>
                   )}
                 </TableCell>
-                <TableCell>
-                  {/* 1. ALERTA INTELIGENTE DO SISTEMA */}
+                  <TableCell>
+                  {/* ALERTA CLÍNICO / WHATSAPP EXISTENTE */}
                   {ciclo.alerta_whatsapp && (
                     <Box sx={{ mb: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
                       🔔 {ciclo.alerta_whatsapp.tipo_alerta}
                     </Box>
                   )}
 
-                  {/* 2. TAREFA MANUAL DA RECEPÇÃO */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
-                    {isAtrasado && <FaExclamationTriangle size={12} />}
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                      {ciclo.proxima_acao_imediata?.descricao || "Definir próxima ação"}
-                    </Typography>
-                  </Box>
+                  {/* NOVO: ALERTA OPERACIONAL DO SISTEMA */}
+                  {ciclo.alerta_operacional && (
+                    <Box sx={{ mb: 0.5, color: ciclo.alerta_operacional.cor, fontSize: '0.65rem', fontWeight: 'bold' }}>
+                      {ciclo.alerta_operacional.icone} {ciclo.alerta_operacional.texto}
+                    </Box>
+                  )}
+
+                  {/* TAREFA MANUAL DA RECEPÇÃO */}
+                  {ciclo.proxima_acao_imediata?.descricao && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
+                      {isAtrasado && <FaExclamationTriangle size={12} />}
+                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                        {ciclo.proxima_acao_imediata.descricao}
+                      </Typography>
+                    </Box>
+                  )}
                 </TableCell>
                 <TableCell align="right">
                   <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}>

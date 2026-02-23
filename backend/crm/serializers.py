@@ -53,7 +53,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     idade_gestacional = serializers.SerializerMethodField()
     alerta_clinico = serializers.SerializerMethodField()
     alerta_whatsapp = serializers.SerializerMethodField()
-    
+    alerta_operacional = serializers.SerializerMethodField()
+
     class Meta:
         model = Ciclo
         fields = [
@@ -101,7 +102,34 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             
         except:
             return None
+
+    def get_alerta_operacional(self, obj):
+        from django.utils import timezone
         
+        # 1. ALERTA DE DUM FALTANTE (Prioridade Máxima para Gestantes)
+        if obj.tipo == 'GESTACAO':
+            dum = obj.paciente.dum if obj.paciente and hasattr(obj.paciente, 'dum') and obj.paciente.dum else getattr(obj, 'data_dum', None)
+            
+            if not dum:
+                return {"cor": "#d32f2f", "icone": "🚨", "texto": "Pedir DUM urgente!"}
+            
+            # 4. ALERTA DE NASCIMENTO (Se passou de 40 semanas)
+            from datetime import date
+            if (date.today() - dum).days >= 280:
+                return {"cor": "#9c27b0", "icone": "👶", "texto": "Nasceu? Parabenizar e encerrar!"}
+
+        # 2. ALERTA DE RESGATE (F5)
+        if obj.fase_atual == 'F5':
+            return {"cor": "#ef6c00", "icone": "🔄", "texto": "Tentar Reagendamento hoje"}
+
+        # 3. ALERTA DE LEAD FRIO (F1 parado há muito tempo)
+        if obj.fase_atual == 'F1':
+            dias_na_base = (timezone.now() - obj.data_inicio).days
+            if dias_na_base >= 2:
+                return {"cor": "#0288d1", "icone": "❄️", "texto": f"Lead Frio ({dias_na_base} dias). Puxar conversa!"}
+
+        return None
+
     # 2. CORREÇÃO DO ALERTA (Morfologico, etc) NO CARD
     def get_alerta_clinico(self, obj):
         dados = obj.get_dados_gestacionais()
