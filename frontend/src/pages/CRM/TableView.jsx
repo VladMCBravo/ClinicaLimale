@@ -106,16 +106,21 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                   ) : (
                       <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>--</span>
                   )}
-                  {ciclo.alerta_whatsapp && (
-                    <Box sx={{ mt: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
-                      🔔 {ciclo.alerta_whatsapp.tipo_alerta} para agendar
-                    </Box>
-                  )}
                 </TableCell>
                 <TableCell>
+                  {/* 1. ALERTA INTELIGENTE DO SISTEMA */}
+                  {ciclo.alerta_whatsapp && (
+                    <Box sx={{ mb: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
+                      🔔 {ciclo.alerta_whatsapp.tipo_alerta}
+                    </Box>
+                  )}
+
+                  {/* 2. TAREFA MANUAL DA RECEPÇÃO */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
                     {isAtrasado && <FaExclamationTriangle size={12} />}
-                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{ciclo.proxima_acao_imediata?.descricao || "Definir próxima ação"}</Typography>
+                    <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      {ciclo.proxima_acao_imediata?.descricao || "Definir próxima ação"}
+                    </Typography>
                   </Box>
                 </TableCell>
                 <TableCell align="right">
