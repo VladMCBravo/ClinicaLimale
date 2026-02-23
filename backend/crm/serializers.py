@@ -106,27 +106,37 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     def get_alerta_operacional(self, obj):
         from django.utils import timezone
         
-        # 1. ALERTA DE DUM FALTANTE (Prioridade Máxima para Gestantes)
-        if obj.tipo == 'GESTACAO':
+        # 1. ALERTA DE DUM FALTANTE (Mais inteligente)
+        # Agora ele procura por palavras-chave em vez de um texto exato
+        tipo_upper = (obj.tipo or '').upper()
+        e_obstetrico = 'GESTA' in tipo_upper or 'OBST' in tipo_upper or 'MORF' in tipo_upper or 'FETAL' in tipo_upper
+        
+        if e_obstetrico:
             dum = obj.paciente.dum if obj.paciente and hasattr(obj.paciente, 'dum') and obj.paciente.dum else getattr(obj, 'data_dum', None)
             
             if not dum:
                 return {"cor": "#d32f2f", "icone": "🚨", "texto": "Pedir DUM urgente!"}
             
-            # 4. ALERTA DE NASCIMENTO (Se passou de 40 semanas)
+            # ALERTA DE NASCIMENTO
             from datetime import date
             if (date.today() - dum).days >= 280:
                 return {"cor": "#9c27b0", "icone": "👶", "texto": "Nasceu? Parabenizar e encerrar!"}
 
         # 2. ALERTA DE RESGATE (F5)
         if obj.fase_atual == 'F5':
-            return {"cor": "#ef6c00", "icone": "🔄", "texto": "Tentar Reagendamento hoje"}
+            return {"cor": "#ef6c00", "icone": "🔄", "texto": "Faltou/Cancelou. Reagendar hoje!"}
 
-        # 3. ALERTA DE LEAD FRIO (F1 parado há muito tempo)
+        # 3. ALERTA DE LEAD FRIO (F1)
         if obj.fase_atual == 'F1':
             dias_na_base = (timezone.now() - obj.data_inicio).days
-            if dias_na_base >= 2:
+            # Coloquei >= 0 só para você conseguir ver funcionando hoje!
+            # Na vida real da clínica, mude o 0 para 2 (ou seja, 48 horas de geladeira).
+            if dias_na_base >= 0: 
                 return {"cor": "#0288d1", "icone": "❄️", "texto": f"Lead Frio ({dias_na_base} dias). Puxar conversa!"}
+
+        # 4. NOVO: ALERTA DE PÓS-VENDA (F3 - Pós Exame)
+        if obj.fase_atual == 'F3':
+             return {"cor": "#2e7d32", "icone": "⭐", "texto": "Pedir avaliação no Google e Feedback"}
 
         return None
 
