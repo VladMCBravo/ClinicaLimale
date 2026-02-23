@@ -424,6 +424,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             await request;
             showSnackbar(eventId ? 'Agendamento atualizado!' : 'Agendamentos criados com sucesso!', 'success');
             onSave();
+            onClose(); // <--- ADICIONE ESTA LINHA PARA FECHAR O MODAL
         } catch (error) {
             // ... erro handler ...
              showSnackbar("Erro ao processar", 'error');
