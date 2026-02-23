@@ -71,7 +71,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             'dados_agendamento',
             'idade_gestacional',
             'alerta_clinico',
-            'alerta_whatsapp' # <--- ADICIONE ESTA LINHA
+            'alerta_whatsapp',
+            'alerta_operacional' 
         ]
 
     def get_paciente_foto(self, obj):
