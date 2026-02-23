@@ -30,7 +30,13 @@ export default function KanbanView({ displayedCards, activePhaseBorder, handleOp
                 </Box>
               )}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#666' }}>
-                <span>{ciclo.dados_agendamento ? new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR') : 'Sem agendamento'}</span>
+                <span>
+                  {ciclo.dados_agendamento ? (
+                    new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')
+                  ) : (
+                    <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>sem agendamento</span>
+                  )}
+                </span>
                 <span style={{ fontWeight: 'bold' }}>{ciclo.dados_agendamento?.procedimento}</span>
               </Box>
               <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', display: 'flex', alignItems: 'center', gap: 0.5, color: ciclo.proxima_acao_imediata?.atrasada ? '#d32f2f' : '#1976d2' }}>

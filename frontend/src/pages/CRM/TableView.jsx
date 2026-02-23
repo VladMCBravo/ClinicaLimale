@@ -80,7 +80,13 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
 
             return (
               <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ cursor: 'pointer', bgcolor: rowBgColor }}>
-                <TableCell sx={{ fontSize: '0.75rem' }}>{ciclo.dados_agendamento ? new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR') : '--'}</TableCell>
+                <TableCell sx={{ fontSize: '0.75rem' }}>
+                  {ciclo.dados_agendamento ? (
+                    new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')
+                  ) : (
+                    <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>sem agendamento</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
@@ -95,7 +101,11 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                   ) : '--'}
                 </TableCell>
                 <TableCell sx={{ fontSize: '0.75rem' }}>
-                  {ciclo.dados_agendamento?.procedimento || '--'}
+                  {ciclo.dados_agendamento?.procedimento ? (
+                      ciclo.dados_agendamento.procedimento
+                  ) : (
+                      <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>--</span>
+                  )}
                   {ciclo.alerta_whatsapp && (
                     <Box sx={{ mt: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
                       🔔 {ciclo.alerta_whatsapp.tipo_alerta} para agendar
