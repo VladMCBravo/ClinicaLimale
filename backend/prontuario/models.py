@@ -602,23 +602,10 @@ class Laudo(models.Model):
 
     def save(self, *args, **kwargs):
         # --- SISTEMA DE SENHA ÚNICA (PORTAL DO PACIENTE) ---
-        # Só executa essa lógica se o laudo atual ainda não tiver um código
+        # Gera sempre um código e senha novos para CADA laudo criado.
         if not self.codigo_acesso:
-            
-            # 1. Procura no banco se este paciente já tem algum laudo antigo com código gerado
-            laudo_anterior = Laudo.objects.filter(
-                paciente=self.paciente, 
-                codigo_acesso__isnull=False
-            ).exclude(codigo_acesso='').first()
-            
-            if laudo_anterior:
-                # 2. PACIENTE RECORRENTE: Copia o login e senha antigos!
-                self.codigo_acesso = laudo_anterior.codigo_acesso
-                self.senha_acesso = laudo_anterior.senha_acesso
-            else:
-                # 3. PACIENTE NOVO: É o primeiro exame da vida dele, gera uma senha nova.
-                self.codigo_acesso = self.gerar_codigo_unico()
-                self.senha_acesso = self.gerar_senha_simples()
+            self.codigo_acesso = self.gerar_codigo_unico()
+            self.senha_acesso = self.gerar_senha_simples()
         
         # Fallback de segurança caso a senha venha vazia por algum erro
         if not self.senha_acesso:
