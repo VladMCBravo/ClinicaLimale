@@ -20,7 +20,8 @@ from .models import (
     MarcoDNPM,
     VacinaPaciente,
     TemplateRelatorio, 
-    RelatorioSalvo
+    RelatorioSalvo,
+    Laudo
 )
 
 # --- Inlines (Mostra itens dentro do pai) ---
@@ -135,3 +136,11 @@ class TemplateRelatorioAdmin(admin.ModelAdmin):
 class RelatorioSalvoAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'paciente', 'medico', 'data_criacao')
     readonly_fields = ('conteudo_final',)
+
+# --- Laudos (Adicionado para ver as senhas) ---
+
+@admin.register(Laudo)
+class LaudoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'paciente', 'data_criacao', 'codigo_acesso', 'senha_acesso', 'status')
+    search_fields = ('paciente__nome_completo', 'codigo_acesso')
+    list_filter = ('status', 'data_criacao')
