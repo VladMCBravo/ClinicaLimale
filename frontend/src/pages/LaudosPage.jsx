@@ -499,7 +499,13 @@ const getInitialState = (key, fallback) => {
                     <div style={{position:'absolute', right:'8px', cursor:'pointer'}}>
                         {loadingBusca ? <FaSpinner className="spin" color="#999"/> : 
                         (paciente || termoBusca.length > 0) ? 
-                            <FaTimes color="#C62828" onClick={() => { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); }}/> 
+                            <FaTimes color="#C62828" onClick={() => { 
+                                setPaciente(null); 
+                                setTermoBusca(''); 
+                                setPacientesEncontrados([]); 
+                                setLaudoId(null); // <--- ADICIONE ISSO
+                                sessionStorage.removeItem('laudos_rascunho_auto_save'); // <--- ADICIONE ISSO
+                            }}/> 
                             : null}
                     </div>
                 </div>
@@ -508,7 +514,16 @@ const getInitialState = (key, fallback) => {
                     <div style={styles.dropdownList}>
                         {pacientesEncontrados.map(p => (
                             <div key={p.id} style={styles.dropdownItem} onClick={async () => {
-                                setPaciente(p); setTermoBusca(''); setPacientesEncontrados([]);
+                                setPaciente(p); 
+                                setTermoBusca(''); 
+                                setPacientesEncontrados([]);
+                                
+                                // --- CORREÇÃO CRÍTICA AQUI ---
+                                // Garante que o sistema crie um laudo NOVO e não sobrescreva o paciente anterior!
+                                setLaudoId(null); 
+                                sessionStorage.removeItem('laudos_rascunho_auto_save');
+                                // -----------------------------
+
                                 try {
                                     const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`);
                                     if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null);
