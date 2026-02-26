@@ -27,15 +27,26 @@ class WhatsAppBotHandler:
             return
             
         url = f"{settings.EVOLUTION_API_URL}/message/sendText/{settings.EVOLUTION_INSTANCE}"
+        
+        # --- MUDANÇA AQUI: Formato atualizado para Evolution API V2 ---
         payload = {
             "number": self.phone, 
-            "textMessage": {"text": texto}
+            "text": texto  # Antes estava "textMessage": {"text": texto}
         }
-        headers = {"apikey": settings.EVOLUTION_API_KEY}
+        
+        headers = {
+            "apikey": settings.EVOLUTION_API_KEY,
+            "Content-Type": "application/json"
+        }
         
         try:
-            # verify=False contorna o erro [SSL: TLSV1_UNRECOGNIZED_NAME] visto nos testes
             response = requests.post(url, json=payload, headers=headers, verify=False, timeout=10)
+            
+            # --- DEBUG PODEROSO: Se der erro, printa a fofoca toda ---
+            if not response.ok:
+                print(f"\n[ERRO EVOLUTION] Status: {response.status_code}")
+                print(f"[ERRO EVOLUTION] Detalhes: {response.text}\n")
+                
             response.raise_for_status()
             return response
         except Exception as e:
