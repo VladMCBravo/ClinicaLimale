@@ -43,28 +43,7 @@ class WhatsAppBotHandler:
             return None
 
     def processar_fluxo(self, texto):
-        """Orquestra entre acolhimento de Pré-Natal ou Agendamento Geral"""
-        msg_lower = texto.lower()
-        
-        # Identifica interesse em gestação para abrir o Ciclo automaticamente
-        palavras_prenatal = ['grávida', 'gravida', 'gestante', 'pré-natal', 'pre-natal', 'dum']
-        if not self.ciclo_ativo and any(p in msg_lower for p in palavras_prenatal):
-            return self.iniciar_acolhimento_gestante()
-
-        # Para todos os outros casos (FAQ, Agendamento, Preço), usa a lógica da IA
+        """Orquestra o recebimento de mensagens e repassa diretamente ao bot_logic"""
         resultado = processar_mensagem_bot(self.phone, texto)
         return resultado.get("response_message")
 
-    def iniciar_acolhimento_gestante(self):
-        """Cria o ciclo de GESTACAO e move para Fase F1"""
-        Ciclo.objects.create(
-            paciente=self.paciente, 
-            tipo='GESTACAO', 
-            fase_atual='F1', 
-            status='ativo'
-        )
-        return (
-            "Parabéns por esse momento especial! 🌸 Sou o assistente da Clínica Limale.\n\n"
-            "Identifiquei seu interesse em nosso Pré-Natal. Para começarmos seu acompanhamento, "
-            "qual foi a data da sua última menstruação (DUM)?"
-        )

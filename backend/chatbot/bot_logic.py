@@ -63,6 +63,144 @@ MAPA_ESTADOS_INPUT = {
 }
 # --- FIM DA NÓVA SEÇÃO ---
 
+def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual):
+    """Gerencia o funil de captação focado em exames de gestação logo na saudação."""
+    import re
+    from datetime import date, timedelta, datetime
+    from pacientes.models import Paciente
+    from agendamentos.models import Agendamento
+    from usuarios.models import CustomUser
+    from faturamento.models import Procedimento
+    from .services import buscar_precos_servicos
+    from django.utils.timezone import make_aware
+
+    # ESCAPE: Se a pessoa disser que não está grávida ou quiser cancelar, manda para a IA normal
+    if any(palavra in user_message.lower() for palavra in ['não estou', 'nao estou', 'cancelar', 'outro exame', 'consulta', 'ginecologista']):
+        return {"response_message": "Ah, entendi! Como posso te ajudar hoje na clínica então?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+
+    if estado_atual == 'inicio':
+        return {
+            "response_message": "Bom dia 🤍\nSou o Leônidas, da Clínica Limalé.\n\nVocê está com quantas semanas hoje?\nJá verifico a fase ideal e os horários disponíveis para você 😊",
+            "new_state": 'aguardando_semanas_gestacao',
+            "memory_data": memoria_atual
+        }
+
+    elif estado_atual == 'aguardando_semanas_gestacao':
+        match = re.search(r'\d+', user_message)
+        if match:
+            semanas = int(match.group())
+            
+            # 1. Determina exame
+            if semanas <= 10: exame = "Ultrassom Transvaginal"
+            elif 11 <= 14: exame = "Morfológico de 1º Trimestre"
+            elif 15 <= 19: exame = "Ultrassom Obstétrico"
+            elif 20 <= 24: exame = "Morfológico de 2º Trimestre"
+            else: exame = "Ultrassom Obstétrico com Doppler"
+            
+            # 2. Busca preço
+            preco_info = buscar_precos_servicos(exame)
+            valor_str = preco_info['valor'] if preco_info else "sob consulta"
+            
+            # 3. Gera Datas Fixas (Quarta e Sábado)
+            hoje = date.today()
+            dias_quarta = (2 - hoje.weekday()) % 7
+            if dias_quarta == 0: dias_quarta = 7
+            dias_sabado = (5 - hoje.weekday()) % 7
+            if dias_sabado == 0: dias_sabado = 7
+            
+            opcoes = [
+                {"dia_semana": "Quarta-feira", "data": (hoje + timedelta(days=dias_quarta)).strftime('%d/%m/%Y'), "hora": "14:00"},
+                {"dia_semana": "Sábado", "data": (hoje + timedelta(days=dias_sabado)).strftime('%d/%m/%Y'), "hora": "09:00"}
+            ]
+            
+            memoria_atual['exame_indicado'] = exame
+            memoria_atual['opcoes_horario'] = opcoes
+            
+            msg = (f"Com {semanas} semanas, o exame ideal agora é o *{exame}*.\n"
+                   f"O valor deste exame é R$ {valor_str}.\n\n"
+                   f"Temos estas duas opções de horários mais próximos:\n"
+                   f"1️⃣ {opcoes[0]['dia_semana']} ({opcoes[0]['data']}) às {opcoes[0]['hora']}\n"
+                   f"2️⃣ {opcoes[1]['dia_semana']} ({opcoes[1]['data']}) às {opcoes[1]['hora']}\n\n"
+                   f"Qual das opções fica melhor para você? (Digite 1 ou 2)")
+            
+            return {"response_message": msg, "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": memoria_atual}
+        else:
+            return {"response_message": "Não consegui identificar o número de semanas. Pode digitar apenas o número? Ex: 12", "new_state": 'aguardando_semanas_gestacao', "memory_data": memoria_atual}
+
+    elif estado_atual == 'aguardando_escolha_horario_gestacao':
+        if '1' in user_message or 'quarta' in user_message.lower():
+            memoria_atual['horario_escolhido'] = memoria_atual['opcoes_horario'][0]
+            return {"response_message": "Excelente escolha! Para registrarmos o seu agendamento, qual é o seu nome completo?", "new_state": 'aguardando_nome_cadastro', "memory_data": memoria_atual}
+        elif '2' in user_message or 'sabado' in user_message.lower() or 'sábado' in user_message.lower():
+            memoria_atual['horario_escolhido'] = memoria_atual['opcoes_horario'][1]
+            return {"response_message": "Excelente escolha! Para registrarmos o seu agendamento, qual é o seu nome completo?", "new_state": 'aguardando_nome_cadastro', "memory_data": memoria_atual}
+        else:
+            return {"response_message": "Por favor, responda com 1 ou 2 para escolher o melhor horário.", "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": memoria_atual}
+
+    elif estado_atual == 'aguardando_nome_cadastro':
+        if len(user_message.split()) < 2:
+            return {"response_message": "Por favor, digite seu nome e sobrenome para o prontuário:", "new_state": 'aguardando_nome_cadastro', "memory_data": memoria_atual}
+        else:
+            memoria_atual['nome_usuario'] = user_message.title()
+            return {"response_message": f"Prazer, {memoria_atual['nome_usuario']}! E qual é o seu melhor e-mail para enviarmos a confirmação?", "new_state": 'aguardando_email_cadastro', "memory_data": memoria_atual}
+
+    elif estado_atual == 'aguardando_email_cadastro':
+        if '@' not in user_message:
+            return {"response_message": "Esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'aguardando_email_cadastro', "memory_data": memoria_atual}
+        else:
+            memoria_atual['email_usuario'] = user_message.lower().strip()
+            
+            # --- INTEGRAÇÃO COM O BANCO DE DADOS ---
+            # 1. Cria ou atualiza Paciente
+            telefone = ''.join(filter(str.isdigit, session_id)) # limpa formatação do número
+            paciente, criado = Paciente.objects.get_or_create(
+                telefone_celular=telefone,
+                defaults={
+                    'nome_completo': memoria_atual['nome_usuario'],
+                    'email': memoria_atual['email_usuario'],
+                    'data_nascimento': '1900-01-01' # default provisório exigido pelo model
+                }
+            )
+            if not criado:
+                paciente.nome_completo = memoria_atual['nome_usuario']
+                paciente.email = memoria_atual['email_usuario']
+                paciente.save()
+            
+            # 2. Busca Procedimento no Banco
+            exame_nome = memoria_atual.get('exame_indicado', 'Consulta')
+            procedimento = Procedimento.objects.filter(descricao__icontains=exame_nome, ativo=True).first()
+            
+            # 3. Médico e Horário
+            medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
+            data_str = memoria_atual['horario_escolhido']['data'] 
+            hora_str = memoria_atual['horario_escolhido']['hora'] 
+            data_hora_inicio = datetime.strptime(f"{data_str} {hora_str}", "%d/%m/%Y %H:%M")
+            
+            # 4. Cria Agendamento
+            try:
+                data_hora_inicio_aware = make_aware(data_hora_inicio)
+                Agendamento.objects.create(
+                    paciente=paciente,
+                    medico=medico,
+                    procedimento=procedimento,
+                    data_hora_inicio=data_hora_inicio_aware,
+                    data_hora_fim=data_hora_inicio_aware + timedelta(minutes=30),
+                    status='Agendado', 
+                    observacoes=f"Agendado via Bot WhatsApp. Exame: {exame_nome}."
+                )
+                msg_final = (f"Tudo certo, {memoria_atual['nome_usuario']}! 🎉\n\n"
+                             f"Seu exame de *{exame_nome}* está agendado para:\n"
+                             f"📅 *{memoria_atual['horario_escolhido']['dia_semana']}, {data_str} às {hora_str}*\n\n"
+                             f"Agradecemos por escolher a Clínica Limalé 🤍. Mais perto da data, enviaremos as orientações!")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Erro ao salvar agendamento via bot: {e}")
+                msg_final = "Seu cadastro foi feito, mas ocorreu uma instabilidade na agenda. Uma atendente confirmará o horário em instantes com você! 🤍"
+
+            return {"response_message": msg_final, "new_state": 'identificando_demanda', "memory_data": memoria_atual}
+
+    return {}
+
 def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
     memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
@@ -104,71 +242,24 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         return resultado
 
     # --- NÍVEL 0: ONBOARDING (COLETA DO NOME) ---
-    if not nome_usuario:
-        if estado_atual != 'aguardando_nome':
-             resultado = {"response_message": "Olá, seja bem-vindo à Clínica Limalé. Sou o Leônidas, e vou dar sequência no seu atendimento. Para começarmos, qual o seu nome?", "new_state": 'aguardando_nome', "memory_data": {}}
-        else:
-             # --- LÓGICA DE EXTRAÇÃO DE NOME MELHORADA ---
-             nome_candidato = None
-             msg_lower = user_message.lower().strip()
-             
-             padroes = [
-                 r"me chamo (\w+)", 
-                 r"meu nome é (\w+)", 
-                 r"sou o? (\w+)"
-             ]
-             import re
-             for padrao in padroes:
-                 match = re.search(padrao, msg_lower)
-                 if match:
-                     nome_candidato = match.group(1).title()
-                     break
-             
-             if not nome_candidato:
-                  partes = user_message.strip().title().split(' ')
-                  if partes:
-                      nome_candidato = partes[-1]
+    # ==================================================================
+    # --- NOVO NÍVEL 0: FUNIL AUTOMÁTICO DA GESTANTE ---
+    # ==================================================================
+    ESTADOS_FUNIL_GESTANTE = [
+        'inicio', 
+        'aguardando_semanas_gestacao', 
+        'aguardando_escolha_horario_gestacao', 
+        'aguardando_nome_cadastro', 
+        'aguardando_email_cadastro'
+    ]
 
-             if nome_candidato and len(nome_candidato) >= 3 and nome_candidato.isalpha():
-                 memoria_atual['nome_usuario'] = nome_candidato
-                 
-                 # --- [NOVO] CRIAÇÃO DO PACIENTE E DO CICLO APÓS DESCOBRIR O NOME ---
-                 from pacientes.models import Paciente
-                 from crm.models import Ciclo
-                 from datetime import date
-                 
-                 # Cria o paciente (usando uma data 'fantasma' temporária para passar pela validação do banco)
-                 # Usamos 1900-01-01 como padrão. Você pode pedir a data real depois em outro fluxo.
-                 paciente, criado = Paciente.objects.get_or_create(
-                     telefone_celular=session_id, # Assumindo que session_id é o telefone
-                     defaults={
-                         'nome_completo': nome_candidato,
-                         'data_nascimento': date(1900, 1, 1) # <--- Data de nascimento temporária "fantasma"
-                     }
-                 )
-                 
-                 # Atualiza o nome se o paciente já existia com outro nome
-                 if not criado and paciente.nome_completo != nome_candidato:
-                     paciente.nome_completo = nome_candidato
-                     paciente.save()
-
-                 # Cria o Ciclo Inicial (F1 - Entrada) atrelado a este paciente
-                 ciclo, _ = Ciclo.objects.get_or_create(
-                     paciente=paciente,
-                     status='ativo',
-                     defaults={'tipo': 'OUTRO', 'fase_atual': 'F1'}
-                 )
-                 # ------------------------------------------------------------------
-
-                 resultado = {"response_message": f"Prazer, {nome_candidato}! Como posso te direcionar ao melhor cuidado hoje?", "new_state": 'identificando_demanda', "memory_data": memoria_atual}
-             else:
-                 resultado = {"response_message": "Não entendi bem. Por favor, qual o seu primeiro nome?", "new_state": 'aguardando_nome', "memory_data": {}}
-             # --- FIM DA LÓGICA MELHORADA ---
+    if estado_atual in ESTADOS_FUNIL_GESTANTE:
+        resultado = processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual)
     else:
         # ==================================================================
-        # --- HIERARQUIA DE PROCESSAMENTO (ESTRUTURA CORRIGIDA) ---
+        # --- HIERARQUIA DE PROCESSAMENTO NORMAL (Sua Inteligência Artificial) ---
         # ==================================================================
-        
+                
         # MODIFICADO: Usamos as chaves do MAPA como a lista de estados de fluxo
         estados_de_fluxo = list(MAPA_ESTADOS_INPUT.keys())
         # ADICIONADO: Também incluímos estados que não esperam input mas são parte de um fluxo
