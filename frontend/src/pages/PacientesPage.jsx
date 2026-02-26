@@ -132,17 +132,24 @@ export default function PacientesPage() {
 
   // --- NOVO: Enviar Credenciais por WhatsApp ---
   const handleEnviarWhatsApp = async (paciente) => {
+      console.log("=== INICIANDO ENVIO WHATSAPP ===");
+      console.log("1. Paciente clicado:", paciente.id, paciente.nome_completo);
+      
       try {
-          // 1. Busca a senha nova do paciente no banco
-          const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${paciente.id}`);
-          const credenciais = res.data;
+          const url = `/prontuario/credenciais-ativas/?paciente_id=${paciente.id}`;
+          console.log("2. Chamando a API no endereço:", url);
+          
+          const res = await apiClient.get(url);
+          console.log("3. Resposta recebida da API (Sucesso):", res.data);
 
+          const credenciais = res.data;
+          
           if (!credenciais || !credenciais.codigo) {
-              alert("Este paciente ainda não possui nenhum laudo finalizado com credenciais.");
+              console.warn("4. A API respondeu, mas não trouxe as chaves de acesso.");
+              alert("Este paciente não possui credenciais válidas.");
               return;
           }
 
-          // 2. Monta a mensagem (Adaptada para a atualização de segurança)
           const cod = credenciais.codigo;
           const pass = credenciais.senha;
           const link = credenciais.link || "https://clinica-limale.vercel.app/resultados";
@@ -150,7 +157,6 @@ export default function PacientesPage() {
 
           const texto = `Olá, *${nomePct}*! \n\nPor motivos de segurança, atualizamos o sistema de laudos e suas credenciais de acesso foram renovadas.\n\nAcesse seus resultados e imagens no link abaixo:\n${link}\n\n*SEUS NOVOS DADOS DE ACESSO:*\nUsuário: *${cod}*\nSenha: *${pass}*\n\nAtt, Clínica Limalé`;
 
-          // 3. Formata o telefone e abre o WhatsApp
           const telefoneRaw = paciente.telefone_celular || paciente.telefone || "";
           const apenasNumeros = telefoneRaw.replace(/\D/g, "");
           
@@ -158,11 +164,16 @@ export default function PacientesPage() {
               ? `https://wa.me/55${apenasNumeros}?text=${encodeURIComponent(texto)}`
               : `https://wa.me/?text=${encodeURIComponent(texto)}`;
 
+          console.log("5. Abrindo WhatsApp Web...");
           window.open(urlWhats, '_blank');
 
       } catch (error) {
-          console.error("Erro ao buscar credenciais:", error);
-          alert("Erro ao buscar as credenciais atualizadas do paciente.");
+          console.error("ERRO GRAVE NA CHAMADA:", error.response || error);
+          if (error.response && error.response.status === 404) {
+              alert("Nenhum laudo com senha encontrado para este paciente no banco de dados.");
+          } else {
+              alert("A API falhou ou a rota não foi encontrada (veja o console F12).");
+          }
       }
   };
 

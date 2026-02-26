@@ -994,23 +994,32 @@ class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def buscar_credenciais_ativas(request):
-    """ Busca o laudo mais recente do paciente para extrair o código e a nova senha """
     paciente_id = request.query_params.get('paciente_id')
     
+    # LOG 1: Vendo se o ID chegou no servidor
+    print(f"\n[DEBUG] === BUSCA DE CREDENCIAIS INICIADA ===")
+    print(f"[DEBUG] ID do paciente recebido: {paciente_id}")
+    
     if not paciente_id:
+        print("[DEBUG] Falha: Nenhum ID de paciente fornecido.")
         return Response({'erro': 'ID do paciente não fornecido'}, status=400)
     
-    # Busca o laudo mais recente desse paciente
+    # LOG 2: Vendo quantos laudos esse paciente tem (mesmo sem senha)
+    total_laudos = Laudo.objects.filter(paciente_id=paciente_id).count()
+    print(f"[DEBUG] Total de laudos encontrados no banco para o paciente {paciente_id}: {total_laudos}")
+    
+    # Tenta achar o laudo com código válido
     laudo = Laudo.objects.filter(
         paciente_id=paciente_id
     ).exclude(codigo_acesso='').exclude(codigo_acesso__isnull=True).order_by('-data_criacao').first()
     
     if laudo:
+        print(f"[DEBUG] Sucesso! Laudo ID {laudo.id} selecionado. Código: {laudo.codigo_acesso}")
         return Response({
             'codigo': laudo.codigo_acesso,
             'senha': laudo.senha_acesso,
             'link': 'https://clinica-limale.vercel.app/resultados'
         })
     else:
-        # Se não achar, retorna 404 para o React saber que realmente não tem
-        return Response({'erro': 'Nenhum laudo encontrado para este paciente'}, status=404)
+        print("[DEBUG] Falha: Paciente tem laudos, mas nenhum possui 'codigo_acesso' preenchido.")
+        return Response({'erro': 'Nenhum laudo encontrado com código de acesso'}, status=404)
