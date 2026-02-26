@@ -3,6 +3,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import buscar_credenciais_ativas
 
 router = DefaultRouter()
 router.register(r'documentos', views.DocumentoPacienteViewSet, basename='documento-paciente')
@@ -49,6 +50,9 @@ urlpatterns = [
     # 2. Rota para listar as credenciais ativas (aba Credenciais/Impressão)
     # Usamos a mesma view pois ela retorna a lista de exames com código/senha
     path('credenciais-ativas/', views.ListarExamesDoPacienteView.as_view(), name='credenciais-ativas'),
+
+    # --- NOVO: Rota para o botão de WhatsApp ---
+    path('credenciais-ativas/', buscar_credenciais_ativas, name='credenciais-ativas'),
 
     path('', include(router.urls)),
 ]

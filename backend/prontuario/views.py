@@ -7,6 +7,7 @@ from django.contrib.staticfiles import finders
 from django.http import HttpResponse
 from django.template.loader import get_template
 from rest_framework import generics, status, viewsets
+from rest_framework.decorators import api_view, permission_classes
 from xhtml2pdf import pisa
 from rest_framework.generics import ListAPIView # <--- Verifique se ListAPIView está importado
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -25,6 +26,7 @@ from core.services_assinatura import assinar_pdf_digitalmente
 import base64
 from django.core.files.base import ContentFile
 from .models import Laudo, ImagemLaudo
+from prontuario.models import Laudo
 from exames.models import Exame, ArquivoExame
 from exames.serializers import ExameSerializer
 from .serializers import LaudoSerializer
@@ -988,3 +990,27 @@ class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
             print(f"✅ PDF de Edição Salvo: {pdf_file.name}")
             
         return response
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def buscar_credenciais_ativas(request):
+    """ Busca o laudo mais recente do paciente para extrair o código e a nova senha """
+    paciente_id = request.query_params.get('paciente_id')
+    
+    if not paciente_id:
+        return Response({'erro': 'ID do paciente não fornecido'}, status=400)
+    
+    # Busca o laudo mais recente desse paciente
+    laudo = Laudo.objects.filter(
+        paciente_id=paciente_id
+    ).exclude(codigo_acesso='').exclude(codigo_acesso__isnull=True).order_by('-data_criacao').first()
+    
+    if laudo:
+        return Response({
+            'codigo': laudo.codigo_acesso,
+            'senha': laudo.senha_acesso,
+            'link': 'https://clinica-limale.vercel.app/resultados'
+        })
+    else:
+        # Se não achar, retorna 404 para o React saber que realmente não tem
+        return Response({'erro': 'Nenhum laudo encontrado para este paciente'}, status=404)
