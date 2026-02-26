@@ -220,7 +220,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
 
 EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL')
 EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY')
-EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE_NAME')
+EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE', 'crm_oficial')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
 # Chave para criptografia do certificado digital (Mantenha em segredo!)
