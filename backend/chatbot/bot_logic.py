@@ -59,17 +59,16 @@ MAPA_ESTADOS_INPUT = {
 def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual):
     """Gerencia o funil de captação focado em exames de gestação logo na saudação."""
     import re
-    from datetime import date, timedelta, datetime
+    from datetime import datetime, timedelta
     from pacientes.models import Paciente
     from agendamentos.models import Agendamento
     from usuarios.models import CustomUser
     from faturamento.models import Procedimento
-    from .services import buscar_precos_servicos
+    from agendamentos.services import buscar_proximo_horario_procedimento # <--- IMPORTA A AGENDA REAL
     from django.utils.timezone import make_aware
 
     # ESCAPE: Se a pessoa disser que não está grávida ou quiser cancelar
     if any(palavra in user_message.lower() for palavra in ['não estou', 'nao estou', 'cancelar', 'outro exame', 'consulta', 'ginecologista']):
-        # Manda ela para o estado "ia_roteadora_livre" para a LangChain assumir
         return {"response_message": "Ah, entendi! Como posso te ajudar hoje na clínica então?", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
 
     if estado_atual == 'inicio':
@@ -84,45 +83,66 @@ def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atu
         if match:
             semanas = int(match.group())
             
-            if semanas <= 10: exame = "Ultrassom Transvaginal"
-            elif 11 <= 14: exame = "Morfológico de 1º Trimestre"
-            elif 15 <= 19: exame = "Ultrassom Obstétrico"
-            elif 20 <= 24: exame = "Morfológico de 2º Trimestre"
-            else: exame = "Ultrassom Obstétrico com Doppler"
+            # 1. Determina exame com o NOME EXATO do banco de dados
+            if semanas <= 10: exame = "US Transvaginal"
+            elif 11 <= 14: exame = "Morfológico 1 Trimestre essencial"
+            elif 15 <= 19: exame = "Obstétrico essencial"
+            elif 20 <= 24: exame = "Morfológico 2 Trimestre essencial"
+            else: exame = "Obstétrico com Doppler"
             
-            preco_info = buscar_precos_servicos(exame)
-            valor_str = preco_info['valor'] if preco_info else "sob consulta"
+            # 2. Busca o procedimento REAL no banco de dados para pegar preço e ID
+            procedimento = Procedimento.objects.filter(descricao__icontains=exame, ativo=True).first()
             
-            hoje = date.today()
-            dias_quarta = (2 - hoje.weekday()) % 7
-            if dias_quarta == 0: dias_quarta = 7
-            dias_sabado = (5 - hoje.weekday()) % 7
-            if dias_sabado == 0: dias_sabado = 7
-            
-            opcoes = [
-                {"dia_semana": "Quarta-feira", "data": (hoje + timedelta(days=dias_quarta)).strftime('%d/%m/%Y'), "hora": "14:00"},
-                {"dia_semana": "Sábado", "data": (hoje + timedelta(days=dias_sabado)).strftime('%d/%m/%Y'), "hora": "09:00"}
-            ]
-            
-            memoria_atual['exame_indicado'] = exame
-            memoria_atual['opcoes_horario'] = opcoes
-            
-            msg = (f"Com {semanas} semanas, o exame ideal agora é o *{exame}*.\n"
-                   f"O valor deste exame é R$ {valor_str}.\n\n"
-                   f"Temos estas duas opções de horários mais próximos:\n"
-                   f"1️⃣ {opcoes[0]['dia_semana']} ({opcoes[0]['data']}) às {opcoes[0]['hora']}\n"
-                   f"2️⃣ {opcoes[1]['dia_semana']} ({opcoes[1]['data']}) às {opcoes[1]['hora']}\n\n"
-                   f"Qual das opções fica melhor para você? (Digite 1 ou 2)")
-            
-            return {"response_message": msg, "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": memoria_atual}
+            if procedimento:
+                valor_str = f"{procedimento.valor_particular:.2f}".replace('.', ',') if procedimento.valor_particular else "sob consulta"
+                
+                # 3. BUSCA NA AGENDA REAL
+                horarios = buscar_proximo_horario_procedimento(procedimento.id)
+                
+                if horarios and horarios.get('horarios_disponiveis'):
+                    data_obj = datetime.strptime(horarios['data'], '%Y-%m-%d')
+                    data_formatada = data_obj.strftime('%d/%m/%Y')
+                    
+                    # Pega os 2 primeiros horários reais do dia encontrado
+                    slots = horarios['horarios_disponiveis'][:2]
+                    opcoes = []
+                    
+                    for i, slot in enumerate(slots):
+                        opcoes.append({
+                            "opcao": str(i+1),
+                            "dia_semana": "Disponível", 
+                            "data_iso": horarios['data'],
+                            "data": data_formatada,
+                            "hora": slot
+                        })
+                    
+                    memoria_atual['exame_indicado'] = procedimento.descricao
+                    memoria_atual['opcoes_horario'] = opcoes
+                    
+                    msg = (f"Com {semanas} semanas, o exame ideal agora é o *{procedimento.descricao}*.\n"
+                           f"O valor deste exame é R$ {valor_str}.\n\n"
+                           f"Encontrei estes horários livres na nossa agenda:\n")
+                    
+                    for op in opcoes:
+                        msg += f"{op['opcao']}️⃣ Dia {op['data']} às {op['hora']}\n"
+                        
+                    msg += f"\nQual das opções fica melhor para você? (Digite 1 ou 2)"
+                    
+                    return {"response_message": msg, "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": memoria_atual}
+                else:
+                    return {"response_message": f"Com {semanas} semanas, o exame indicado é o *{procedimento.descricao}* (R$ {valor_str}). Porém, nossas agendas estão lotadas no momento. Quer que eu peça para uma atendente verificar um encaixe?", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
+            else:
+                 # Se ele não achar a palavra escrita exatamente igual no banco
+                 return {"response_message": f"Com {semanas} semanas, o exame ideal seria o *{exame}*. Vou pedir para uma de nossas atendentes te passar os horários e valores exatos. Um momento!", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
+
         else:
             return {"response_message": "Não consegui identificar o número de semanas. Pode digitar apenas o número? Ex: 12", "new_state": 'aguardando_semanas_gestacao', "memory_data": memoria_atual}
 
     elif estado_atual == 'aguardando_escolha_horario_gestacao':
-        if '1' in user_message or 'quarta' in user_message.lower():
+        if '1' in user_message or 'primeir' in user_message.lower():
             memoria_atual['horario_escolhido'] = memoria_atual['opcoes_horario'][0]
             return {"response_message": "Excelente escolha! Para registrarmos o seu agendamento, qual é o seu nome completo?", "new_state": 'aguardando_nome_cadastro', "memory_data": memoria_atual}
-        elif '2' in user_message or 'sabado' in user_message.lower() or 'sábado' in user_message.lower():
+        elif '2' in user_message or 'segund' in user_message.lower():
             memoria_atual['horario_escolhido'] = memoria_atual['opcoes_horario'][1]
             return {"response_message": "Excelente escolha! Para registrarmos o seu agendamento, qual é o seu nome completo?", "new_state": 'aguardando_nome_cadastro', "memory_data": memoria_atual}
         else:
@@ -156,12 +176,16 @@ def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atu
                 paciente.email = memoria_atual['email_usuario']
                 paciente.save()
             
-            exame_nome = memoria_atual.get('exame_indicado', 'Consulta')
-            procedimento = Procedimento.objects.filter(descricao__icontains=exame_nome, ativo=True).first()
+            exame_nome = memoria_atual.get('exame_indicado')
+            procedimento = Procedimento.objects.filter(descricao=exame_nome, ativo=True).first()
             medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
-            data_str = memoria_atual['horario_escolhido']['data'] 
+            
+            data_iso = memoria_atual['horario_escolhido']['data_iso'] 
             hora_str = memoria_atual['horario_escolhido']['hora'] 
-            data_hora_inicio = datetime.strptime(f"{data_str} {hora_str}", "%d/%m/%Y %H:%M")
+            data_formatada_br = memoria_atual['horario_escolhido']['data']
+            
+            # Aqui juntamos a data YYYY-MM-DD com a hora HH:MM para salvar no banco
+            data_hora_inicio = datetime.strptime(f"{data_iso} {hora_str}", "%Y-%m-%d %H:%M")
             
             try:
                 data_hora_inicio_aware = make_aware(data_hora_inicio)
@@ -169,6 +193,7 @@ def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atu
                     paciente=paciente,
                     medico=medico,
                     procedimento=procedimento,
+                    tipo_agendamento='Procedimento',
                     data_hora_inicio=data_hora_inicio_aware,
                     data_hora_fim=data_hora_inicio_aware + timedelta(minutes=30),
                     status='Agendado', 
@@ -176,10 +201,11 @@ def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atu
                 )
                 msg_final = (f"Tudo certo, {memoria_atual['nome_usuario']}! 🎉\n\n"
                              f"Seu exame de *{exame_nome}* está agendado para:\n"
-                             f"📅 *{memoria_atual['horario_escolhido']['dia_semana']}, {data_str} às {hora_str}*\n\n"
+                             f"📅 *Dia {data_formatada_br} às {hora_str}*\n\n"
                              f"Agradecemos por escolher a Clínica Limalé 🤍. Mais perto da data, enviaremos as orientações!")
             except Exception as e:
-                logger.error(f"Erro ao salvar agendamento via bot: {e}")
+                import logging
+                logging.getLogger(__name__).error(f"Erro ao salvar agendamento via bot: {e}")
                 msg_final = "Seu cadastro foi feito, mas ocorreu uma instabilidade na agenda. Uma atendente confirmará o horário em instantes com você! 🤍"
 
             return {"response_message": msg_final, "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
