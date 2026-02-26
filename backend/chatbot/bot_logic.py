@@ -56,6 +56,31 @@ MAPA_ESTADOS_INPUT = {
     'awaiting_inactivity_response': "Uma confirmação ('Sim' ou 'Não') se deseja continuar o atendimento após pausa.",
 }
 
+def notificar_recepcao_whatsapp(session_id, nome_paciente):
+    """Envia um alerta para o celular da recepção."""
+    from .whatsapp_service import WhatsAppBotHandler
+    import os
+    
+    # ⚠️ MUDE AQUI: Coloque o número do celular da sua recepcionista (com 55 e DDD)
+    NUMERO_RECEPCAO = os.environ.get("TELEFONE_RECEPCAO", "5511941041657")
+    
+    # Prepara o link para a recepcionista clicar e já abrir a conversa
+    telefone_paciente = ''.join(filter(str.isdigit, session_id))
+    nome = nome_paciente if nome_paciente else "Uma paciente"
+    
+    mensagem = (
+        f"🚨 *ALERTA DE ATENDIMENTO* 🚨\n\n"
+        f"*{nome}* pediu para falar com a recepção!\n\n"
+        f"📲 *Clique no link abaixo para assumir a conversa:*\n"
+        f"https://wa.me/{telefone_paciente}"
+    )
+    
+    try:
+        bot = WhatsAppBotHandler(NUMERO_RECEPCAO)
+        bot.enviar_mensagem(mensagem)
+    except Exception as e:
+        logger.error(f"Erro ao enviar alerta para recepção: {e}")
+
 def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual):
     """Gerencia o funil de captação focado em exames de gestação logo na saudação."""
     import re
@@ -248,6 +273,54 @@ def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atu
 
     return {}
 
+def verificar_resposta_lembrete(session_id, user_message, memoria_atual):
+    """Verifica se a mensagem é uma confirmação (SIM) ou cancelamento (NÃO) de um exame próximo."""
+    from agendamentos.models import Agendamento
+    from django.utils import timezone
+    
+    msg_limpa = user_message.strip().lower()
+    
+    # Define as intenções básicas de resposta curta
+    is_confirmacao = msg_limpa in ['sim', 'confirmo', 'confirmado', 'com certeza', 'vou', 'vou sim']
+    is_cancelamento = msg_limpa in ['não', 'nao', 'cancelar', 'não vou', 'nao vou', 'desmarcar']
+    
+    # Só processa se for uma resposta curta e exata
+    if (is_confirmacao or is_cancelamento) and len(msg_limpa.split()) <= 3:
+        telefone = ''.join(filter(str.isdigit, session_id))
+        hoje = timezone.localtime(timezone.now()).date()
+        
+        # Procura se existe algum agendamento pendente (a partir de hoje) para este telefone
+        agendamentos = Agendamento.objects.filter(
+            paciente__telefone_celular__contains=telefone,
+            status='Agendado',
+            data_hora_inicio__date__gte=hoje
+        ).order_by('data_hora_inicio')
+        
+        if agendamentos.exists():
+            agendamento = agendamentos.first()
+            exame_nome = agendamento.procedimento.descricao if agendamento.procedimento else "exame"
+            data_formatada = timezone.localtime(agendamento.data_hora_inicio).strftime('%d/%m às %H:%M')
+            
+            if is_confirmacao:
+                agendamento.status = 'Confirmado'
+                agendamento.save()
+                return {
+                    "response_message": f"Que maravilha! A sua presença para o *{exame_nome}* no dia {data_formatada} está **Confirmada**! 🤍\nEstamos à sua espera.",
+                    "new_state": 'ia_roteadora_livre',
+                    "handled": True
+                }
+                
+            elif is_cancelamento:
+                agendamento.status = 'Cancelado'
+                agendamento.save()
+                return {
+                    "response_message": f"Entendido. O seu agendamento para o *{exame_nome}* foi cancelado.\nSe quiser reagendar para outra data, é só dizer!",
+                    "new_state": 'ia_roteadora_livre',
+                    "handled": True
+                }
+                
+    return {"handled": False}
+
 def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
     memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
@@ -256,6 +329,15 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     resultado = {}
 
     logger.info(f"Processando | Session: {session_id} | Estado: '{estado_atual}' | Msg: '{user_message}'")
+
+    # --- NOVO: INTERCETOR DE CONFIRMAÇÃO DE LEMBRETE ---
+    resultado_lembrete = verificar_resposta_lembrete(session_id, user_message, memoria_atual)
+    if resultado_lembrete.get("handled"):
+        resultado_lembrete.pop("handled") # Remove a flag de controlo
+        memoria_obj.state = resultado_lembrete.get("new_state")
+        memoria_obj.save()
+        return resultado_lembrete
+    # ---------------------------------------------------
 
     # Verifica comandos de controle
     comando = ConversationManager.detectar_comando(user_message)
@@ -274,6 +356,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         memoria_obj.transferencia_solicitada = True
         memoria_obj.memory_data = resultado.get("memory_data")
         memoria_obj.save()
+        notificar_recepcao_whatsapp(session_id, nome_usuario) # <--- ADICIONE ESTA LINHA AQUI
         return resultado
     
     # Verifica se usuário quer encerrar naturalmente
@@ -401,6 +484,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             elif intent_triagem == 'transferencia_humano':
                  resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
                  memoria_obj.transferencia_solicitada = True
+                 notificar_recepcao_whatsapp(session_id, nome_usuario) # <--- E AQUI
 
         # NÍVEL 2: IA Roteadora (Se não está no Funil e não está em fluxo)
         else:
@@ -455,6 +539,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 elif intent == "transferencia_humano":
                     resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
                     memoria_obj.transferencia_solicitada = True
+                    notificar_recepcao_whatsapp(session_id, nome_usuario) # <--- E AQUI TAMBÉM
 
                 elif intent == "encerrar_conversa":
                     resultado = ConversationManager.processar_encerramento(session_id, memoria_atual)
