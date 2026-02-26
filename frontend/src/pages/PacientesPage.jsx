@@ -136,7 +136,8 @@ export default function PacientesPage() {
       console.log("1. Paciente clicado:", paciente.id, paciente.nome_completo);
       
       try {
-          const url = `/prontuario/credenciais-ativas/?paciente_id=${paciente.id}`;
+          // MUDANÇA AQUI: Apontando para o endereço novo e exclusivo
+          const url = `/prontuario/buscar-senha-paciente/?paciente_id=${paciente.id}`;
           console.log("2. Chamando a API no endereço:", url);
           
           const res = await apiClient.get(url);

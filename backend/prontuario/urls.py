@@ -51,8 +51,8 @@ urlpatterns = [
     # Usamos a mesma view pois ela retorna a lista de exames com código/senha
     path('credenciais-ativas/', views.ListarExamesDoPacienteView.as_view(), name='credenciais-ativas'),
 
-    # --- NOVO: Rota para o botão de WhatsApp ---
-    path('credenciais-ativas/', buscar_credenciais_ativas, name='credenciais-ativas'),
+    # MUDANÇA AQUI: Renomeando a URL para não ter conflito
+    path('buscar-senha-paciente/', buscar_credenciais_ativas, name='buscar-senha-paciente'),
 
     path('', include(router.urls)),
 ]
