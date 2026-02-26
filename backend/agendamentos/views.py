@@ -20,6 +20,7 @@ import os
 from . import services
 from rest_framework_api_key.permissions import HasAPIKey
 from .management.commands.cancelar_agendamentos_expirados import Command as CancelarAgendamentosCommand
+from chatbot.whatsapp_service import WhatsAppBotHandler # Importa o disparador do Evolution
 
 # --- VIEW PARA LISTAR AS SALAS (Usada pelo Modal para popular o Dropdown) ---
 class SalaListView(generics.ListAPIView):
@@ -259,34 +260,70 @@ class ListaEsperaListView(generics.ListAPIView):
         ).order_by('data_hora_inicio')
 
 
+# Não esqueça de garantir que esta importação esteja no topo do seu views.py:
+# from chatbot.whatsapp_service import WhatsAppBotHandler
+
 class EnviarLembretesCronView(APIView):
+    # Mantivemos a sua segurança original (exige API Key)
     permission_classes = [HasAPIKey]
 
     def get(self, request, *args, **kwargs):
         agora = timezone.localtime(timezone.now())
         amanha = agora.date() + datetime.timedelta(days=1)
-        inicio = timezone.make_aware(datetime.datetime.combine(amanha, datetime.time.min))
-        fim = timezone.make_aware(datetime.datetime.combine(amanha, datetime.time.max))
-
+        
+        # Simplifiquei a busca: pega todo mundo marcado para amanhã que está Agendado ou Confirmado
         agendamentos = Agendamento.objects.filter(
-            data_hora_inicio__gte=inicio, data_hora_inicio__lte=fim, status='Confirmado'
-        ).select_related('paciente')
+            data_hora_inicio__date=amanha, 
+            status__in=['Agendado', 'Confirmado']
+        ).select_related('paciente', 'procedimento')
 
-        enviados = 0
+        enviados_wpp = 0
+        enviados_email = 0
+
         for ag in agendamentos:
+            # Pega o primeiro nome para ficar mais amigável
+            nome_paciente = ag.paciente.nome_completo.split()[0].title()
+            hora = timezone.localtime(ag.data_hora_inicio).strftime('%H:%M')
+            exame = ag.procedimento.descricao if ag.procedimento else "seu exame"
+
+            # 1. DISPARO DO WHATSAPP (A Mágica Nova)
+            if ag.paciente.telefone_celular:
+                telefone = ''.join(filter(str.isdigit, ag.paciente.telefone_celular))
+                
+                mensagem_wpp = (
+                    f"Olá, {nome_paciente}! 🤍 Passando para lembrar do nosso encontro amanhã!\n\n"
+                    f"📅 Seu agendamento para *{exame}* está marcado para às *{hora}*.\n\n"
+                    f"📍 Lembre-se de chegar com 10 minutos de antecedência.\n\n"
+                    f"Para me ajudar na organização, você poderia responder com um *SIM* para confirmar sua presença? 😊"
+                )
+                
+                try:
+                    bot = WhatsAppBotHandler(telefone)
+                    bot.enviar_mensagem(mensagem_wpp)
+                    enviados_wpp += 1
+                except Exception as e:
+                    print(f"Erro ao enviar WhatsApp para {nome_paciente}: {e}")
+
+            # 2. DISPARO DO E-MAIL (Mantido o seu original)
             if ag.paciente.email:
                 try:
                     send_mail(
-                        subject="Lembrete de Consulta - Clínica Limalé",
-                        message=f"Olá {ag.paciente.nome_completo}, lembramos da sua consulta amanhã às {timezone.localtime(ag.data_hora_inicio).strftime('%H:%M')}.",
+                        subject="Lembrete de Exame - Clínica Limalé",
+                        message=f"Olá {nome_paciente}, lembramos do seu agendamento de {exame} amanhã às {hora}.",
                         from_email=None,
                         recipient_list=[ag.paciente.email],
                         fail_silently=False,
                     )
-                    enviados += 1
-                except Exception: pass
+                    enviados_email += 1
+                except Exception: 
+                    pass
         
-        return Response({'status': f'{enviados} lembretes enviados.'})
+        return Response({
+            'status': 'Processamento concluído',
+            'data_alvo': amanha.strftime('%d/%m/%Y'),
+            'lembretes_whatsapp': enviados_wpp,
+            'lembretes_email': enviados_email
+        })
 
 
 class CriarSalaTelemedicinaView(APIView):
