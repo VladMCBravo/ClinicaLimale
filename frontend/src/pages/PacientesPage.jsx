@@ -130,6 +130,42 @@ export default function PacientesPage() {
     setPacienteParaEditar(null);
   };
 
+  // --- NOVO: Enviar Credenciais por WhatsApp ---
+  const handleEnviarWhatsApp = async (paciente) => {
+      try {
+          // 1. Busca a senha nova do paciente no banco
+          const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${paciente.id}`);
+          const credenciais = res.data;
+
+          if (!credenciais || !credenciais.codigo) {
+              alert("Este paciente ainda não possui nenhum laudo finalizado com credenciais.");
+              return;
+          }
+
+          // 2. Monta a mensagem (Adaptada para a atualização de segurança)
+          const cod = credenciais.codigo;
+          const pass = credenciais.senha;
+          const link = credenciais.link || "https://clinica-limale.vercel.app/resultados";
+          const nomePct = paciente.nome_completo.split(' ')[0];
+
+          const texto = `Olá, *${nomePct}*! \n\nPor motivos de segurança, atualizamos o sistema de laudos e suas credenciais de acesso foram renovadas.\n\nAcesse seus resultados e imagens no link abaixo:\n${link}\n\n*SEUS NOVOS DADOS DE ACESSO:*\nUsuário: *${cod}*\nSenha: *${pass}*\n\nAtt, Clínica Limalé`;
+
+          // 3. Formata o telefone e abre o WhatsApp
+          const telefoneRaw = paciente.telefone_celular || paciente.telefone || "";
+          const apenasNumeros = telefoneRaw.replace(/\D/g, "");
+          
+          let urlWhats = apenasNumeros.length >= 10 
+              ? `https://wa.me/55${apenasNumeros}?text=${encodeURIComponent(texto)}`
+              : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+
+          window.open(urlWhats, '_blank');
+
+      } catch (error) {
+          console.error("Erro ao buscar credenciais:", error);
+          alert("Erro ao buscar as credenciais atualizadas do paciente.");
+      }
+  };
+
   return (
     <Paper sx={{ p: 2, margin: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -184,6 +220,13 @@ export default function PacientesPage() {
                   <TableCell>{paciente.email || '-'}</TableCell>
                   
                   <TableCell align="right">
+                    {/* --- NOVO: Botão de Enviar WhatsApp --- */}
+                    <IconButton 
+                        onClick={() => handleEnviarWhatsApp(paciente)} 
+                        title="Enviar nova senha pelo WhatsApp"
+                    >
+                        <WhatsAppIcon sx={{ color: '#25D366' }} /> 
+                    </IconButton>
                     {/* --- NOVO: Botão de Ver Laudos (Recepção) --- */}
                     <IconButton 
                         onClick={() => handleOpenHistorico(paciente)} 
