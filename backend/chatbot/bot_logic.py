@@ -59,7 +59,7 @@ MAPA_ESTADOS_INPUT = {
 def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual):
     """Gerencia o funil de captação focado em exames de gestação logo na saudação."""
     import re
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, date
     from pacientes.models import Paciente
     from agendamentos.models import Agendamento
     from usuarios.models import CustomUser
@@ -83,56 +83,92 @@ def processar_funil_gestante(session_id, user_message, estado_atual, memoria_atu
         if match:
             semanas = int(match.group())
             
-            # 1. Determina exame com o NOME EXATO do banco de dados
+            # 1. Determina exame
             if semanas <= 10: exame = "US Transvaginal"
             elif 11 <= 14: exame = "Morfológico 1 Trimestre essencial"
             elif 15 <= 19: exame = "Obstétrico essencial"
             elif 20 <= 24: exame = "Morfológico 2 Trimestre essencial"
             else: exame = "Obstétrico com Doppler"
             
-            # 2. Busca o procedimento REAL no banco de dados para pegar preço e ID
+            # 2. Busca o procedimento
             procedimento = Procedimento.objects.filter(descricao__icontains=exame, ativo=True).first()
+            medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
             
-            if procedimento:
+            if procedimento and medico:
                 valor_str = f"{procedimento.valor_particular:.2f}".replace('.', ',') if procedimento.valor_particular else "sob consulta"
                 
-                # 3. BUSCA NA AGENDA REAL
-                horarios = buscar_proximo_horario_procedimento(procedimento.id)
+                # --- NOVO SCANNER DE AGENDA (Quarta e Sábado) ---
+                hoje = date.today()
                 
-                if horarios and horarios.get('horarios_disponiveis'):
-                    data_obj = datetime.strptime(horarios['data'], '%Y-%m-%d')
-                    data_formatada = data_obj.strftime('%d/%m/%Y')
+                # Calcula próxima Quarta
+                dias_quarta = (2 - hoje.weekday()) % 7
+                if dias_quarta == 0: dias_quarta = 7
+                data_quarta = hoje + timedelta(days=dias_quarta)
+                
+                # Calcula próximo Sábado
+                dias_sabado = (5 - hoje.weekday()) % 7
+                if dias_sabado == 0: dias_sabado = 7
+                data_sabado = hoje + timedelta(days=dias_sabado)
+
+                def encontrar_horario_livre(data_alvo, lista_horarios):
+                    """Testa horários no banco para achar um buraco livre de 30 min"""
+                    for h in lista_horarios:
+                        dt_alvo = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
+                        # Verifica se existe agendamento que conflita com esse horário
+                        ocupado = Agendamento.objects.filter(
+                            medico=medico, 
+                            data_hora_inicio__lt=dt_alvo + timedelta(minutes=30),
+                            data_hora_fim__gt=dt_alvo,
+                            status__in=['Agendado', 'Confirmado']
+                        ).exists()
+                        if not ocupado:
+                            return h
+                    return None
+
+                # Grade de horários que o bot vai tentar achar vaga (ajuste se quiser)
+                horarios_quarta = ['14:00', '14:30', '15:00', '15:30', '16:00', '09:00', '09:30', '10:00']
+                horarios_sabado = ['09:00', '09:30', '10:00', '10:30', '11:00', '08:00', '08:30']
+
+                hora_quarta = encontrar_horario_livre(data_quarta, horarios_quarta)
+                hora_sabado = encontrar_horario_livre(data_sabado, horarios_sabado)
+
+                opcoes = []
+                if hora_quarta:
+                    opcoes.append({
+                        "opcao": str(len(opcoes)+1),
+                        "dia_semana": "Quarta-feira",
+                        "data_iso": data_quarta.strftime('%Y-%m-%d'),
+                        "data": data_quarta.strftime('%d/%m/%Y'),
+                        "hora": hora_quarta
+                    })
+                if hora_sabado:
+                    opcoes.append({
+                        "opcao": str(len(opcoes)+1),
+                        "dia_semana": "Sábado",
+                        "data_iso": data_sabado.strftime('%Y-%m-%d'),
+                        "data": data_sabado.strftime('%d/%m/%Y'),
+                        "hora": hora_sabado
+                    })
+                
+                if not opcoes:
+                    # Se lotou quarta E sábado, joga pra atendente
+                    return {"response_message": f"Com {semanas} semanas, o exame indicado é o *{procedimento.descricao}* (R$ {valor_str}). Porém, nossas agendas de Quarta e Sábado estão lotadas. Quer que eu peça para uma atendente verificar um encaixe?", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
+
+                memoria_atual['exame_indicado'] = procedimento.descricao
+                memoria_atual['opcoes_horario'] = opcoes
+                
+                msg = (f"Com {semanas} semanas, o exame ideal agora é o *{procedimento.descricao}*.\n"
+                       f"O valor deste exame é R$ {valor_str}.\n\n"
+                       f"Temos estas opções de horários mais próximos:\n")
+                
+                for op in opcoes:
+                    msg += f"{op['opcao']}️⃣ {op['dia_semana']} ({op['data']}) às {op['hora']}\n"
                     
-                    # Pega os 2 primeiros horários reais do dia encontrado
-                    slots = horarios['horarios_disponiveis'][:2]
-                    opcoes = []
-                    
-                    for i, slot in enumerate(slots):
-                        opcoes.append({
-                            "opcao": str(i+1),
-                            "dia_semana": "Disponível", 
-                            "data_iso": horarios['data'],
-                            "data": data_formatada,
-                            "hora": slot
-                        })
-                    
-                    memoria_atual['exame_indicado'] = procedimento.descricao
-                    memoria_atual['opcoes_horario'] = opcoes
-                    
-                    msg = (f"Com {semanas} semanas, o exame ideal agora é o *{procedimento.descricao}*.\n"
-                           f"O valor deste exame é R$ {valor_str}.\n\n"
-                           f"Encontrei estes horários livres na nossa agenda:\n")
-                    
-                    for op in opcoes:
-                        msg += f"{op['opcao']}️⃣ Dia {op['data']} às {op['hora']}\n"
-                        
-                    msg += f"\nQual das opções fica melhor para você? (Digite 1 ou 2)"
-                    
-                    return {"response_message": msg, "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": memoria_atual}
-                else:
-                    return {"response_message": f"Com {semanas} semanas, o exame indicado é o *{procedimento.descricao}* (R$ {valor_str}). Porém, nossas agendas estão lotadas no momento. Quer que eu peça para uma atendente verificar um encaixe?", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
+                msg += f"\nQual das opções fica melhor para você? (Digite 1 ou 2)"
+                
+                return {"response_message": msg, "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": memoria_atual}
+            
             else:
-                 # Se ele não achar a palavra escrita exatamente igual no banco
                  return {"response_message": f"Com {semanas} semanas, o exame ideal seria o *{exame}*. Vou pedir para uma de nossas atendentes te passar os horários e valores exatos. Um momento!", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
 
         else:
