@@ -17,43 +17,80 @@ const SecaoDadosMaternos1Tri = ({ data, handleChange }) => {
         <div className="laudo-section">
             <div className="header-base header-purple">Útero</div>
             <div className="laudo-section-body">
-                <div className="laudo-row" style={{marginBottom: '10px'}}>
-                    <div style={{flex: 1}}>
-                        <label className="laudo-checkbox-label" style={{fontWeight:'bold', marginBottom:'5px'}}>
-                            <input type="checkbox" name="citarUteroMedidas" checked={data.citarUteroMedidas} onChange={handleChange} />
-                            citar medidas:
-                        </label>
-                        <div className="laudo-row">
-                             <input type="number" name="ut1" value={data.ut1} onChange={handleChange} className="laudo-input" style={{width:'45px'}} disabled={!data.citarUteroMedidas}/> x
-                             <input type="number" name="ut2" value={data.ut2} onChange={handleChange} className="laudo-input" style={{width:'45px'}} disabled={!data.citarUteroMedidas}/> x
-                             <input type="number" name="ut3" value={data.ut3} onChange={handleChange} className="laudo-input" style={{width:'45px'}} disabled={!data.citarUteroMedidas}/> mm
+                <div className="laudo-row" style={{marginBottom: '10px', alignItems: 'flex-start'}}>
+                    
+                    {/* Bloco de Medidas do Útero */}
+                    <div style={{flex: 1, background: '#f9f9f9', padding: '10px', borderRadius: '4px', border: '1px solid #eee'}}>
+                        <div className="laudo-row" style={{justifyContent: 'space-between', marginBottom: '8px'}}>
+                            <label className="laudo-checkbox-label" style={{fontWeight:'bold', color: '#303F9F'}}>
+                                <input type="checkbox" name="citarUteroMedidas" checked={data.citarUteroMedidas} onChange={handleChange} />
+                                Descrever Medidas do Útero
+                            </label>
+                            
+                            {/* Nova opção de Posição do Útero */}
+                            <div className="laudo-row" style={{fontSize: '11px'}}>
+                                <span style={{marginRight: '5px'}}>Posição:</span>
+                                <select name="posicaoUtero" value={data.posicaoUtero || 'AVF'} onChange={handleChange} disabled={!data.citarUteroMedidas} className="laudo-select" style={{width: '60px'}}>
+                                    <option value="AVF">AVF</option>
+                                    <option value="RVF">RVF</option>
+                                    <option value="médio-vertido">Médio-vertido</option>
+                                </select>
+                            </div>
                         </div>
+
+                        <div className="laudo-row">
+                             <input type="number" placeholder="L" name="ut1" value={data.ut1} onChange={handleChange} className="laudo-input" style={{width:'45px'}} disabled={!data.citarUteroMedidas}/> x
+                             <input type="number" placeholder="AP" name="ut2" value={data.ut2} onChange={handleChange} className="laudo-input" style={{width:'45px'}} disabled={!data.citarUteroMedidas}/> x
+                             <input type="number" placeholder="T" name="ut3" value={data.ut3} onChange={handleChange} className="laudo-input" style={{width:'45px'}} disabled={!data.citarUteroMedidas}/> mm
+                        </div>
+                        
+                        {/* NOVO: Exibição do Volume Uterino */}
+                        {data.utVol && data.citarUteroMedidas && (
+                            <div className="animate-fade-in" style={{marginTop: '5px', fontSize: '11px', color: '#1565C0', fontWeight: 'bold'}}>
+                                Volume Uterino: {data.utVol} cm³
+                            </div>
+                        )}
                     </div>
-                    {/* Aviso visual igual ao print */}
-                    <div style={{flex: 1, background: '#f5f5f5', padding: '5px', border: '1px solid #ddd', fontSize: '10px', color: '#666'}}>
-                        Obs: os itens referentes ao COLO UTERINO estão em uma caixa separada, abaixo desta.
+
+                    {/* Aviso visual das caixas */}
+                    <div style={{flex: 1, marginLeft: '10px', background: '#FFF3E0', padding: '8px', borderRadius: '4px', border: '1px solid #FFE0B2', fontSize: '11px', color: '#E65100'}}>
+                        <strong>Aviso:</strong> Os itens referentes ao COLO UTERINO estão na caixa separada abaixo desta.
                     </div>
                 </div>
 
-                {/* Mioma / Nódulo */}
-                <div>
+                {/* Mioma / Nódulo (Melhorado visualmente) */}
+                <div style={{paddingTop: '10px', borderTop: '1px dashed #ccc'}}>
                      <div className="laudo-row">
                         <label className="laudo-checkbox-label">
                             <input type="checkbox" name="citarNodulo" checked={data.citarNodulo} onChange={handleChange} />
-                            nódulo miometrial medindo
+                            Presença de nódulo miometrial
                         </label>
-                        <input type="number" name="nod1" value={data.nod1} onChange={handleChange} disabled={!data.citarNodulo} className="laudo-input" style={{width:'40px', margin:'0 5px'}} /> x
-                        <input type="number" name="nod2" value={data.nod2} onChange={handleChange} disabled={!data.citarNodulo} className="laudo-input" style={{width:'40px', margin:'0 5px'}} /> mm,
-                        <select name="nodTipo" value={data.nodTipo} onChange={handleChange} disabled={!data.citarNodulo} className="laudo-select" style={{marginLeft:'5px'}}>
-                             <option>subseroso</option><option>intramural</option><option>submucoso</option>
-                        </select>
                      </div>
-                     <div className="laudo-row" style={{marginTop:'5px', paddingLeft:'20px'}}>
-                        <span style={{color: '#999'}}>em localização</span>
-                        <select name="nodLocal" value={data.nodLocal} onChange={handleChange} disabled={!data.citarNodulo} className="laudo-select">
-                             <option>fúndica</option><option>corporal anterior</option><option>corporal posterior</option><option>lateral direita</option><option>lateral esquerda</option>
-                        </select>
-                     </div>
+                     
+                     {/* Campos do Mioma só aparecem se marcar o checkbox */}
+                     {data.citarNodulo && (
+                         <div className="laudo-row animate-fade-in" style={{marginTop:'8px', paddingLeft:'22px', gap: '5px', flexWrap: 'wrap'}}>
+                            <span style={{color: '#666', fontSize: '11px'}}>Medindo:</span>
+                            <input type="number" name="nod1" value={data.nod1} onChange={handleChange} className="laudo-input" style={{width:'45px'}} /> x
+                            <input type="number" name="nod2" value={data.nod2} onChange={handleChange} className="laudo-input" style={{width:'45px'}} /> mm
+                            
+                            <span style={{color: '#666', fontSize: '11px', marginLeft: '5px'}}>Tipo:</span>
+                            <select name="nodTipo" value={data.nodTipo} onChange={handleChange} className="laudo-select">
+                                 <option value="subseroso">Subseroso</option>
+                                 <option value="intramural">Intramural</option>
+                                 <option value="submucoso">Submucoso</option>
+                            </select>
+
+                            <span style={{color: '#666', fontSize: '11px', marginLeft: '5px'}}>Parede:</span>
+                            <select name="nodLocal" value={data.nodLocal} onChange={handleChange} className="laudo-select">
+                                 <option value="fúndica">Fúndica</option>
+                                 <option value="corporal anterior">Corporal Anterior</option>
+                                 <option value="corporal posterior">Corporal Posterior</option>
+                                 <option value="lateral direita">Lateral Direita</option>
+                                 <option value="lateral esquerda">Lateral Esquerda</option>
+                            </select>
+                         </div>
+                     )}
                 </div>
             </div>
         </div>

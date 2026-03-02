@@ -42,8 +42,11 @@ const montarTextoUtero = (d) => {
 
     // Se o usuário marcou para citar medidas (Novo Painel)
     if (d.citarUteroMedidas && d.ut1 && d.ut2 && d.ut3) {
-         t += `Útero em AVF, de contornos regulares e ecotextura homogênea, medindo ${d.ut1} x ${d.ut2} x ${d.ut3} mm.\n`;
-    } 
+         const pos = d.posicaoUtero || 'AVF';
+         t += `Útero em ${pos}, de contornos regulares e ecotextura homogênea, medindo ${d.ut1} x ${d.ut2} x ${d.ut3} mm`;
+         if (d.utVol) t += ` (Volume: ${d.utVol} cm³)`;
+         t += `.\n`;
+    }
     // Lógica Antiga (Select)
     else if (d.utero) {
          t += `Útero ${d.utero === 'globoso' ? 'globoso, aumentado de volume, de contornos regulares e miométrio homogêneo' : d.utero}.\n`;

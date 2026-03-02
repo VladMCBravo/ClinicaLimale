@@ -23,6 +23,8 @@ export const initialState = {
     bcf: '', movFetal: false, 
     degluticao: false, 
     estomagoVisualizado: false, bexigaVisualizada: false,
+    utVol: '', 
+    posicaoUtero: 'AVF',
 
     // --- PLACENTA E LÍQUIDO ---
     placentaLocalizacao: '', placentaGrau: '', placentaEspessura: '',

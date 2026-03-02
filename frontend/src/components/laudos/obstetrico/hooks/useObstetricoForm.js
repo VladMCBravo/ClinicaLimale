@@ -151,6 +151,10 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
             }
 
             // H. CÁLCULO DE VOLUMES OVARIANOS (Novo)
+            // (A fórmula do elipsoide é a mesma, usamos a função existente)
+            const volUt = calcularVolumeOvario(prev.ut1, prev.ut2, prev.ut3);
+            if (prev.utVol !== volUt) { newState.utVol = volUt; mudou = true; }
+
             // Importe a função calcularVolumeOvario lá em cima no arquivo!
             const volOD = calcularVolumeOvario(prev.od1, prev.od2, prev.od3);
             if (prev.odVol !== volOD) { newState.odVol = volOD; mudou = true; }
@@ -169,7 +173,8 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
         data.igAnteriorDias,
         data.od1, data.od2, data.od3, data.oe1, data.oe2, data.oe3,
         // Importante: Reagir se mudar o método de prioridade
-        data.metodoDatacao 
+        data.metodoDatacao,
+        data.ut1, data.ut2, data.ut3, data.posicaoUtero, 
     ]);
 
     // =========================================================================
