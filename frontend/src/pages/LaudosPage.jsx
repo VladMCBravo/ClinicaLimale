@@ -503,8 +503,15 @@ const getInitialState = (key, fallback) => {
                                 setPaciente(null); 
                                 setTermoBusca(''); 
                                 setPacientesEncontrados([]); 
-                                setLaudoId(null); // <--- ADICIONE ISSO
-                                sessionStorage.removeItem('laudos_rascunho_auto_save'); // <--- ADICIONE ISSO
+                                // Limpeza profunda completa
+                                setLaudoId(null); 
+                                setCredenciais(null); // <-- Faltou
+                                setTextoFinal(''); 
+                                setDadosEstruturados({}); 
+                                setImagens([]);       // <-- Faltou
+                                setTituloExame('');   // <-- Faltou
+                                
+                                sessionStorage.removeItem('laudos_rascunho_auto_save'); 
                             }}/> 
                             : null}
                     </div>
@@ -514,16 +521,23 @@ const getInitialState = (key, fallback) => {
                     <div style={styles.dropdownList}>
                         {pacientesEncontrados.map(p => (
                             <div key={p.id} style={styles.dropdownItem} onClick={async () => {
+                                // 1. Limpeza Profunda do Estado
+                                setLaudoId(null);
+                                setCredenciais(null);
+                                setTextoFinal('');
+                                setDadosEstruturados({});
+                                setImagens([]);
+                                setTituloExame('');
+                                
+                                // 2. Limpeza do Cache/Rascunho
+                                sessionStorage.removeItem('laudos_rascunho_auto_save');
+
+                                // 3. Define o novo paciente
                                 setPaciente(p); 
                                 setTermoBusca(''); 
                                 setPacientesEncontrados([]);
-                                
-                                // --- CORREÇÃO CRÍTICA AQUI ---
-                                // Garante que o sistema crie um laudo NOVO e não sobrescreva o paciente anterior!
-                                setLaudoId(null); 
-                                sessionStorage.removeItem('laudos_rascunho_auto_save');
-                                // -----------------------------
 
+                                // 4. Busca credenciais do novo paciente
                                 try {
                                     const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`);
                                     if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null);
@@ -607,10 +621,37 @@ const getInitialState = (key, fallback) => {
 
         {/* 2. ÁREA DO FORMULÁRIO DINÂMICO */}
         <div style={{flex: 1, overflowY: 'auto', paddingRight: '5px'}}> 
-            {tipoExame === 'OBSTETRICO' && <FormObstetrico onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
-            {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
-            {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
-            {tipoExame === 'DOPPLER_CAROTIDAS' && <FormDopplerCarotidas onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
+            {tipoExame === 'OBSTETRICO' && (
+                <FormObstetrico 
+                    key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+                    onUpdate={handleFormUpdate} 
+                    initialValues={dadosEstruturados} 
+                />
+            )}
+            
+            {tipoExame === 'TRANSVAGINAL' && (
+                <FormTransvaginal 
+                    key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+                    onUpdate={handleFormUpdate} 
+                    initialValues={dadosEstruturados} 
+                />
+            )}
+            
+            {tipoExame === 'ECOCARDIOGRAMA' && (
+                <FormEcocardiograma 
+                    key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+                    onUpdate={handleFormUpdate} 
+                    initialValues={dadosEstruturados} 
+                />
+            )}
+            
+            {tipoExame === 'DOPPLER_CAROTIDAS' && (
+                <FormDopplerCarotidas 
+                    key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+                    onUpdate={handleFormUpdate} 
+                    initialValues={dadosEstruturados} 
+                />
+            )}
         </div>
 
       </div> 
