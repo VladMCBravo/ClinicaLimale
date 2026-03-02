@@ -73,39 +73,99 @@ const SecaoSacoGestacional = ({ data, handleChange }) => {
 
                     <hr style={{margin: '10px 0', border: 0, borderTop: '1px solid #eee'}}/>
 
-                    {/* BLOCO 2: EMBRIÃO (NOVO CAMPO SELECT) */}
-                    <div style={{marginBottom:'15px'}}>
-                        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                            <span style={{fontWeight:'bold', color:'#333', fontSize:'12px'}}>Embrião / Conteúdo:</span>
-                            <select 
-                                name="embriaoStatus" 
-                                value={data.embriaoStatus} 
-                                onChange={handleChange} 
-                                className="laudo-select" 
-                                style={{width:'200px', fontWeight:'bold', color: data.embriaoStatus === 'presente' ? 'green' : '#333'}}
-                            >
-                                <option value="">Selecione...</option>
-                                <option value="presente">Embrião Presente</option>
-                                <option value="ausente">Vesícula Vitelina (Sem embrião)</option>
-                                <option value="anembrionada">Gestação Anembrionada (Vazio)</option>
-                            </select>
+                    {/* BLOCO 2: CONTEÚDO DO SACO GESTACIONAL (DESACOPLADO) */}
+                    <div style={{marginBottom:'15px', background:'#f9f9f9', padding:'10px', borderRadius:'6px', border:'1px solid #e0e0e0'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px'}}>
+                            <span style={{fontWeight:'bold', color:'#333', fontSize:'13px'}}>Conteúdo do Saco Gestacional:</span>
+                            
+                            {/* Checkbox Rápido para Anembrionada */}
+                            <label className="laudo-checkbox-label" style={{color:'#D32F2F', fontSize:'11px', background:'#FFEBEE', padding:'4px 8px', borderRadius:'4px'}}>
+                                <input type="checkbox" name="sgGestacaoAnembrionada" checked={data.sgGestacaoAnembrionada} onChange={handleChange} />
+                                Gestação Anembrionada (Vazio)
+                            </label>
                         </div>
 
-                        {/* SUB-CAMPOS QUE SÓ APARECEM SE TIVER EMBRIÃO */}
-                        {data.embriaoStatus === 'presente' && (
-                            <div className="animate-fade-in" style={{marginTop:'10px', marginLeft:'10px', padding:'8px', background:'#E8F5E9', borderRadius:'4px', borderLeft:'3px solid #4CAF50'}}>
-                                <div className="laudo-grid-2">
-                                    <div className="laudo-row">
-                                        <FaHeartbeat color="#C62828"/>
-                                        <span className="label-pequeno">BCF (bpm):</span>
-                                        <input type="number" name="bcf" value={data.bcf} onChange={handleChange} className="laudo-input" style={{width:'60px'}} placeholder="000"/>
+                        {/* Oculta os detalhes se for anembrionada */}
+                        {!data.sgGestacaoAnembrionada && (
+                            <div className="laudo-grid-2">
+                                
+                                {/* LADO A: VESÍCULA VITELINA */}
+                                <div style={{padding:'8px', background:'#FFF8E1', borderRadius:'4px', borderLeft:'3px solid #FFC107'}}>
+                                    <div className="laudo-row" style={{marginBottom:'8px'}}>
+                                        <span className="label-pequeno" style={{fontWeight:'bold'}}>Vesícula Vitelina:</span>
+                                        <select name="vvStatus" value={data.vvStatus} onChange={handleChange} className="laudo-select" style={{width:'120px'}}>
+                                            <option value="">Selecione...</option>
+                                            <option value="presente">Visualizada</option>
+                                            <option value="ausente">Não visualizada</option>
+                                        </select>
                                     </div>
-                                    <div className="laudo-row">
-                                        <span className="label-pequeno">CCN (mm):</span>
-                                        <input type="number" name="ccn" value={data.ccn} onChange={handleChange} className="laudo-input" style={{width:'60px'}} placeholder="mm"/>
-                                        {data.resIgCcn && <span style={{fontSize:'10px', color:'#2E7D32', marginLeft:'5px'}}>({data.resIgCcn})</span>}
-                                    </div>
+
+                                    {data.vvStatus === 'presente' && (
+                                        <div className="laudo-col animate-fade-in" style={{gap:'5px', marginTop:'5px'}}>
+                                            <div className="laudo-row">
+                                                <span className="label-pequeno">Medida:</span>
+                                                <input type="number" name="vvMedida" value={data.vvMedida} onChange={handleChange} className="laudo-input" style={{width:'60px'}} placeholder="mm"/> mm
+                                            </div>
+                                            <div className="laudo-row">
+                                                <span className="label-pequeno">Aspecto:</span>
+                                                <select name="vvAspecto" value={data.vvAspecto} onChange={handleChange} className="laudo-select full-width">
+                                                    <option value="habitual">Habitual</option>
+                                                    <option value="irregular">Irregular</option>
+                                                    <option value="hidrópica">Hidrópica / Aumentada</option>
+                                                    <option value="ecogênica">Ecogênica</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
+
+                                {/* LADO B: EMBRIÃO */}
+                                <div style={{padding:'8px', background:'#E8F5E9', borderRadius:'4px', borderLeft:'3px solid #4CAF50'}}>
+                                    <div className="laudo-row" style={{marginBottom:'8px'}}>
+                                        <span className="label-pequeno" style={{fontWeight:'bold'}}>Embrião:</span>
+                                        <select name="embriaoStatus" value={data.embriaoStatus} onChange={handleChange} className="laudo-select" style={{width:'120px'}}>
+                                            <option value="">Selecione...</option>
+                                            <option value="presente">Visualizado</option>
+                                            <option value="ausente">Não visualizado</option>
+                                        </select>
+                                    </div>
+
+                                    {data.embriaoStatus === 'presente' && (
+                                        <div className="laudo-col animate-fade-in" style={{gap:'5px', marginTop:'5px'}}>
+                                            <div className="laudo-row">
+                                                <FaHeartbeat color="#C62828"/>
+                                                <span className="label-pequeno">BCF:</span>
+                                                <input type="number" name="bcf" value={data.bcf} onChange={handleChange} className="laudo-input" style={{width:'60px'}} placeholder="bpm"/>
+                                            </div>
+                                            <div className="laudo-row">
+                                                <span className="label-pequeno">CCN:</span>
+                                                <input type="number" name="ccn" value={data.ccn} onChange={handleChange} className="laudo-input" style={{width:'60px'}} placeholder="mm"/>
+                                                {data.resIgCcn && <span style={{fontSize:'10px', color:'#2E7D32', marginLeft:'5px'}}>({data.resIgCcn})</span>}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                {/* LADO C: CAVIDADE AMNIÓTICA (NOVO) */}
+                            <div style={{marginTop:'10px', padding:'8px', background:'#E3F2FD', borderRadius:'4px', borderLeft:'3px solid #2196F3'}}>
+                                <div className="laudo-row" style={{marginBottom:'8px'}}>
+                                    <span className="label-pequeno" style={{fontWeight:'bold'}}>Cavidade Amniótica:</span>
+                                    <select name="caStatus" value={data.caStatus} onChange={handleChange} className="laudo-select" style={{width:'150px'}}>
+                                        <option value="">Selecione...</option>
+                                        <option value="presente">Visualizada</option>
+                                        <option value="ausente">Não visualizada</option>
+                                    </select>
+                                </div>
+
+                                {data.caStatus === 'presente' && (
+                                    <div className="laudo-col animate-fade-in" style={{gap:'5px', marginTop:'5px'}}>
+                                        <div className="laudo-row">
+                                            <span className="label-pequeno">Medida (Opcional):</span>
+                                            <input type="number" name="caMedida" value={data.caMedida} onChange={handleChange} className="laudo-input" style={{width:'60px'}} placeholder="mm"/> mm
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             </div>
                         )}
                     </div>

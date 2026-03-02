@@ -237,33 +237,51 @@ export const gerarRelatorioFeto = (d) => {
             
             texto += `.\n`; // Fecha frase do SG
 
-            // === EMBRIÃO E CONTEÚDO (Baseado no Select) ===
-            if (d.embriaoStatus === 'presente') {
-                 texto += `Visualiza-se embrião único, com batimentos cardíacos presentes`;
-                 if(d.bcf) texto += ` (${d.bcf} BPM)`;
-                 if(d.ccn) texto += `, medindo ${d.ccn} mm de CCN`;
-                 texto += `.\n`;
-            } 
-            else if (d.embriaoStatus === 'ausente') {
-                 // Vesícula Vitelina
-                 texto += `Vesícula vitelina visualizada. Embrião não caracterizado no momento.\n`;
-            }
-            else if (d.embriaoStatus === 'anembrionada') {
-                 texto += `Ausência de embrião ou vesícula vitelina (Gestação anembrionada).\n`;
-            }
-            else if (d.embriaoNaoVisualizado) { // Fallback antigo
-                 texto += `Embrião não caracterizado.\n`;
+            // === CONTEÚDO DO SACO GESTACIONAL (DESACOPLADO) ===
+            
+            if (d.sgGestacaoAnembrionada) {
+                texto += `Ausência de embrião ou vesícula vitelina no interior do saco gestacional no presente estudo (Gestação anembrionada).\n`;
+            } else {
+                
+                // 1. Vesícula Vitelina
+                if (d.vvStatus === 'presente') {
+                    texto += `Presença de vesícula vitelina com aspecto ${d.vvAspecto || 'habitual'}`;
+                    if (d.vvMedida) texto += `, medindo ${d.vvMedida} mm`;
+                    texto += `.\n`;
+                } else if (d.vvStatus === 'ausente') {
+                    texto += `Vesícula vitelina não visibilizada.\n`;
+                }
+
+                // 2. CAVIDADE AMNIÓTICA (NOVO) ===
+                if (d.caStatus === 'presente') {
+                    texto += `Cavidade amniótica visibilizada`;
+                    if (d.caMedida) texto += `, medindo ${d.caMedida} mm`;
+                    texto += `.\n`;
+                } else if (d.caStatus === 'ausente') {
+                    texto += `Cavidade amniótica não visibilizada no momento.\n`;
+                }
+                
+                // 3. Embrião
+                if (d.embriaoStatus === 'presente') {
+                    texto += `Visualiza-se embrião único, com batimentos cardíacos presentes`;
+                    if(d.bcf) texto += ` (${d.bcf} BPM)`;
+                    if(d.ccn) texto += `, medindo ${d.ccn} mm de comprimento cabeça-nádega (CCN)`;
+                    texto += `.\n`;
+                } else if (d.embriaoStatus === 'ausente') {
+                    texto += `Embrião não caracterizado no momento.\n`;
+                }
             }
 
-            // === TROFOBLASTO (Só aparece se selecionado) ===
+            // === TROFOBLASTO (Recuperado) ===
             if(d.trofoblasto && d.trofoblasto !== '') {
                 texto += `As vilosidades placentárias tem inserção ${d.trofoblasto}.\n`;
             }
             
-            // Hematomas / Descolamentos
+            // === HEMATOMAS / DESCOLAMENTOS (Recuperado) ===
             if(d.sgComDescolamento) texto += `OBS: Hematoma subcoriônico medindo ${d.desc1} x ${d.desc2} mm.\n`;
             else if (d.sgSemDescolamento) texto += `Não se observa coágulo intra uterino.\n`;
-        }
+
+        } // <--- ESTA ERA A CHAVE QUE FALTAVA (Fecha o if do d.citarSg)
 
         // --- ANEXOS (USANDO HELPER) ---
         texto += montarTextoAnexos(d);

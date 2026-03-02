@@ -79,11 +79,24 @@ export const initialState = {
     sg1: '', sg2: '', sg3: '', resDmsg: '', resIgSg: '',
     // TROFOBLASTO AGORA VAZIO
     trofoblasto: '', 
+
+    // === NOVOS CONTROLES SEPARADOS ===
+    sgGestacaoAnembrionada: false, // Força o texto de "Anembrionada"
+    
+    // Vesícula Vitelina
+    vvStatus: '', // 'presente', 'ausente'
+    vvMedida: '',
+    vvAspecto: 'habitual', // 'habitual', 'irregular', 'hidrópica', 'ecogênica'
+
+    // === NOVO: Cavidade Amniótica ===
+    caStatus: '', // 'presente', 'ausente'
+    caMedida: '',
+    // ================================
     
     // NOVO CONTROLE DE EMBRIÃO
     embriaoStatus: '', // 'presente', 'ausente', 'demarcado'
     
-    ccn: '', resIgCcn: '',
+    ccn: '', resIgCcn: '', bcf: '',
     embriaoNaoVisualizado: false,
     vesiculaVitelina: false, citarVv: false,
     trofoblasto: '',
