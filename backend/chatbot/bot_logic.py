@@ -3,6 +3,7 @@
 import logging
 from .models import ChatMemory
 from .agendamento_flow import AgendamentoManager
+from .agente_recepcionista import AgenteRecepcionista
 from .chains import (
     chain_roteadora, chain_sintomas, chain_faq, faq_base_de_conhecimento,
     chain_triagem, chain_classifica_modalidade
@@ -368,31 +369,60 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         return resultado
 
     # ==================================================================
-    # --- ROTEAMENTO SOBERANO: O FUNIL OBSTÉTRICO ---
+    # --- FASE 1: A RECEPCIONISTA E O ROTEAMENTO ---
     # ==================================================================
-    ESTADOS_FUNIL_GESTANTE = [
-        'inicio', 
-        'aguardando_semanas_gestacao', 
-        'aguardando_escolha_horario_gestacao', 
-        'aguardando_nome_cadastro', 
-        'aguardando_email_cadastro'
-    ]
-
     msg_limpa = user_message.strip().lower()
     saudacoes = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'menu']
-    
-    # ESTADOS PROTEGIDOS: A IA não vai resetar o fluxo se o usuário estiver nestes estados
     estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + ['aguardando_atendente_humano', 'encerrado']
-
-    # Só força para o funil gestante se for uma saudação E não estiver no meio de um fluxo protegido
-    if (msg_limpa in saudacoes or estado_atual == 'identificando_demanda') and estado_atual not in estados_protegidos:
-        estado_atual = 'inicio'
-
+    
     # Unificação de estado de handoff (se vinha legado como 'humano', forçamos o novo padrão)
     if estado_atual == 'humano':
         estado_atual = 'aguardando_atendente_humano'
 
-    if estado_atual in ESTADOS_FUNIL_GESTANTE:
+    # 1. DELEGAÇÃO PARA A RECEPCIONISTA (Boas-vindas)
+    if (msg_limpa in saudacoes and estado_atual not in estados_protegidos) or estado_atual in ['identificando_demanda', 'ia_roteadora_livre', None]:
+        recepcionista = AgenteRecepcionista(session_id, memoria_atual)
+        resultado = recepcionista.processar_saudacao(user_message)
+        
+    # 2. CAPTURA DO NOME (Novo Lead)
+    elif estado_atual == 'recepcionista_aguardando_nome':
+        recepcionista = AgenteRecepcionista(session_id, memoria_atual)
+        resultado = recepcionista.processar_nome(user_message)
+        
+    # 3. ROTEAMENTO BASEADO NA INTENÇÃO (O Menu Principal)
+    elif estado_atual == 'recepcionista_aguardando_intencao':
+        if '1' in user_message or 'exame' in msg_limpa or 'ultrassom' in msg_limpa:
+            # Vai para o funil de exames/obstétrico que você já tem
+            resultado = {
+                "response_message": "Perfeito! Vou transferir para a nossa especialista em Exames para verificarmos o melhor para si.", 
+                "new_state": "inicio", # 'inicio' é o estado que dispara o processar_funil_gestante no seu código atual
+                "memory_data": memoria_atual
+            }
+        elif '2' in user_message or 'consulta' in msg_limpa:
+            # Vai para o fluxo de consultas médicas
+            memoria_atual['tipo_agendamento'] = 'Consulta'
+            resultado = {
+                "response_message": "Ótimo. Para qual especialidade médica deseja a consulta?", 
+                "new_state": "agendamento_awaiting_specialty", 
+                "memory_data": memoria_atual
+            }
+        elif '3' in user_message or 'recepção' in msg_limpa or 'recepcao' in msg_limpa or 'humano' in msg_limpa:
+            # Transbordo direto para a equipa humana
+            resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
+            memoria_obj.transferencia_solicitada = True
+            notificar_recepcao_whatsapp(session_id, nome_usuario)
+        else:
+            # Se a pessoa ignorar os números e escrever uma frase solta, 
+            # a IA roteadora antiga tenta adivinhar a intenção
+            estado_atual = 'ia_roteadora_livre'
+            resultado = None # Deixa o código seguir para o "NÍVEL 2: IA Roteadora" do seu ficheiro original
+
+    # ==================================================================
+    # --- FASE 2: OS AGENTES ESPECIALISTAS (EXAMES E CONSULTAS) ---
+    # ==================================================================
+    
+    # Aqui mantemos o seu funil obstétrico (futuro Agente de Procedimentos)
+    elif estado_atual in ['inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao', 'aguardando_nome_cadastro', 'aguardando_email_cadastro']:
         resultado = processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual)
     
     # ==================================================================
