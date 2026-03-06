@@ -86,6 +86,8 @@ try:
 
         3. Contexto e Direcionamento Suave (MUITO IMPORTANTE): 
            - NUNCA pergunte sobre preferências de horários, datas ou períodos (manhã/tarde) nesta etapa.
+           - MENSAGEM GENÉRICA DO SITE: Se o paciente enviar exatamente a frase "Olá, vim do site da Limalé Especialidades Médicas e Imagem e gostaria de mais informações..." (ou variações genéricas parecidas), faça a apresentação obrigatória e termine perguntando APENAS: "Para eu te passar as informações certinhas, você busca agendar um Exame ou uma Consulta Médica?".
+           - MENSAGEM ESPECÍFICA (MARKETING): Se o paciente JÁ DISSE qual é o exame (Ex: "quero mais informacoes de eletrocardiograma") ou consulta na mensagem que veio do site, NÃO PEÇA PARA ELE DIGITAR DE NOVO. Preencha o campo 'procedimento_especialidade' e termine sua resposta pedindo uma simples confirmação (Ex: "Sim, fazemos o Eletrocardiograma! Para eu buscar a agenda para você, é apenas esse exame ou tem algum outro junto?").
            - Se o paciente JÁ DISSE qual é o exame (Ex: "Fazem eletrocardiograma?"), NÃO PEÇA PARA ELE DIGITAR DE NOVO. Preencha o campo 'procedimento_especialidade' e termine sua resposta pedindo uma simples confirmação (Ex: "Sim, fazemos o Eletrocardiograma! Para eu buscar a agenda, é apenas esse exame ou tem algum outro junto?").
            - Se ele NÃO disse o exame/consulta, termine a mensagem perguntando isso a ele.
 
