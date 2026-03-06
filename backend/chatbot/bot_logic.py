@@ -372,15 +372,21 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # --- FASE 1: A RECEPCIONISTA E O ROTEAMENTO ---
     # ==================================================================
     msg_limpa = user_message.strip().lower()
-    saudacoes = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'menu']
     estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + ['aguardando_atendente_humano', 'encerrado']
     
-    # Unificação de estado de handoff (se vinha legado como 'humano', forçamos o novo padrão)
     if estado_atual == 'humano':
         estado_atual = 'aguardando_atendente_humano'
 
-    # 1. DELEGAÇÃO PARA A RECEPCIONISTA (Boas-vindas)
-    if (msg_limpa in saudacoes and estado_atual not in estados_protegidos) or estado_atual in ['identificando_demanda', 'ia_roteadora_livre', None]:
+    # CORREÇÃO 1: Procura a saudação dentro do "textão" (any..in)
+    tem_saudacao = any(s in msg_limpa for s in ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'menu'])
+    
+    # CORREÇÃO 2: Descobre se é o primeiro contato do paciente burlando o estado 'inicio' do banco
+    historico = memoria_atual.get('historico_conversa', [])
+    is_conversa_nova = len(historico) == 0
+
+    # 1. DELEGAÇÃO PARA A RECEPCIONISTA (Boas-vindas e IA Ativa)
+    # Se a conversa é nova, se tem saudação, ou se a IA antiga estava livre -> Recepcionista assume!
+    if is_conversa_nova or (tem_saudacao and estado_atual not in estados_protegidos) or estado_atual in ['identificando_demanda', 'ia_roteadora_livre', None]:
         recepcionista = AgenteRecepcionista(session_id, memoria_atual)
         resultado = recepcionista.processar_saudacao(user_message)
         
@@ -392,14 +398,13 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # 3. ROTEAMENTO BASEADO NA INTENÇÃO (O Menu Principal)
     elif estado_atual == 'recepcionista_aguardando_intencao':
         if '1' in user_message or 'exame' in msg_limpa or 'ultrassom' in msg_limpa:
-            # Vai para o funil de exames/obstétrico que você já tem
+            # Vai para o funil de exames/obstétrico 
             resultado = {
                 "response_message": "Perfeito! Vou transferir para a nossa especialista em Exames para verificarmos o melhor para si.", 
-                "new_state": "inicio", # 'inicio' é o estado que dispara o processar_funil_gestante no seu código atual
+                "new_state": "inicio", # <-- É AQUI QUE ELE ENTRA NO FUNIL OBSTETRICO DE FATO
                 "memory_data": memoria_atual
             }
         elif '2' in user_message or 'consulta' in msg_limpa:
-            # Vai para o fluxo de consultas médicas
             memoria_atual['tipo_agendamento'] = 'Consulta'
             resultado = {
                 "response_message": "Ótimo. Para qual especialidade médica deseja a consulta?", 
@@ -407,21 +412,18 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 "memory_data": memoria_atual
             }
         elif '3' in user_message or 'recepção' in msg_limpa or 'recepcao' in msg_limpa or 'humano' in msg_limpa:
-            # Transbordo direto para a equipa humana
             resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
             memoria_obj.transferencia_solicitada = True
             notificar_recepcao_whatsapp(session_id, nome_usuario)
         else:
-            # Se a pessoa ignorar os números e escrever uma frase solta, 
-            # a IA roteadora antiga tenta adivinhar a intenção
             estado_atual = 'ia_roteadora_livre'
-            resultado = None # Deixa o código seguir para o "NÍVEL 2: IA Roteadora" do seu ficheiro original
+            resultado = None 
 
     # ==================================================================
     # --- FASE 2: OS AGENTES ESPECIALISTAS (EXAMES E CONSULTAS) ---
     # ==================================================================
     
-    # Aqui mantemos o seu funil obstétrico (futuro Agente de Procedimentos)
+    # Só entra no funil obstétrico se a recepcionista mandou ele pra cá
     elif estado_atual in ['inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao', 'aguardando_nome_cadastro', 'aguardando_email_cadastro']:
         resultado = processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual)
     
