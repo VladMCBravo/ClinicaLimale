@@ -245,30 +245,44 @@ class CRMService:
         }
     
     @staticmethod
-    def registrar_abandono_chatbot(telefone, motivo_abandono="silêncio pós-proposta"):
+    def registrar_abandono_chatbot(telefone, motivo_abandono="silêncio pós-proposta", nome_lead="Lead (Bot)"):
         """
-        Invocado pelo Chatbot (Recovery Manager) quando um lead esfria.
+        Invocado pelo Chatbot quando um lead esfria.
         Move para F5 e anota a objeção para acionar a cadência comercial.
         """
         from pacientes.models import Paciente
         from .models import Ciclo, AnaliseComportamental
+        from django.utils import timezone
+        from datetime import timedelta
         
         telefone_limpo = ''.join(filter(str.isdigit, str(telefone)))
-        paciente = Paciente.objects.filter(telefone_celular=telefone_limpo).first()
         
+        # 1. Busca o paciente ou CRIA UM NOVO (Isso salva leads que abandonaram no meio do funil!)
+        paciente = Paciente.objects.filter(telefone_celular=telefone_limpo).first()
         if not paciente:
-            return False
+            paciente = Paciente.objects.create(
+                nome_completo=nome_lead,
+                telefone_celular=telefone_limpo,
+                data_nascimento='1900-01-01' # Data padrão do sistema
+            )
+            print(f"👤 Novo Lead criado pelo resgate do Bot: {nome_lead}")
             
+        # 2. Busca o ciclo ativo ou CRIA UM NOVO
         ciclo = Ciclo.objects.filter(paciente=paciente, status='ativo').first()
         if not ciclo:
-            return False
+            ciclo = Ciclo.objects.create(
+                paciente=paciente,
+                tipo='OUTRO',
+                fase_atual='F1',
+                status='ativo'
+            )
             
-        # 1. Atualiza a análise comportamental com o motivo da perda
+        # 3. Atualiza a análise comportamental
         comp, _ = AnaliseComportamental.objects.get_or_create(paciente=paciente)
         
-        if "agenda" in motivo_abandono.lower():
+        if "agenda" in motivo_abandono.lower() or "horário" in motivo_abandono.lower():
             comp.principal_objecao = 'AGENDA'
-        elif "preço" in motivo_abandono.lower() or "preco" in motivo_abandono.lower():
+        elif "preço" in motivo_abandono.lower() or "valor" in motivo_abandono.lower():
             comp.principal_objecao = 'PRECO'
         else:
             comp.principal_objecao = 'OUTRO'
@@ -276,9 +290,10 @@ class CRMService:
         comp.observacoes_internas = f"Abandono no Bot: {motivo_abandono}"
         comp.save()
         
-        # 2. Move para Recuperação (F5) e dispara a automação
+        # 4. Move para Recuperação (F5) e dispara a automação
         if ciclo.fase_atual != 'F5':
-            CRMService.mover_fase(ciclo.id, 'F5', ciclo.responsavel)
+            # Usa o método existente para mover a fase de forma segura
+            CRMService.mover_fase(ciclo.id, 'F5', getattr(ciclo, 'responsavel', None))
             
             # Cria a cadência orientada ao motivo
             hoje = timezone.now().date()

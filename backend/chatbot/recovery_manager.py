@@ -178,8 +178,14 @@ class ConversationRecoveryManager:
                     motivo = "Objeção de preço/condição de pagamento"
                 elif estado in ['agendamento_awaiting_type', 'agendamento_awaiting_modality', 'agendamento_awaiting_specialty', 'agendamento_awaiting_procedure']:
                     motivo = "Parou na qualificação inicial"
-                elif 'cadastro' in estado:
+                elif 'cadastro' in estado or estado == 'aguardando_nome_cadastro':
                     motivo = "Fricção no cadastro de dados"
+
+                # NOVO: Pega o nome que o LLM extraiu para não chamarmos de "Desconhecido"
+                nome_lead = memoria.memory_data.get('nome_usuario', 'Lead Abandonado (Bot)')
+
+                # Avisa o CRM e passa o nome!
+                sucesso = CRMService.registrar_abandono_chatbot(memoria.session_id, motivo, nome_lead)
 
                 # Avisa o CRM para mover o card para F5 e armar a cadência D0/D1/D3
                 sucesso = CRMService.registrar_abandono_chatbot(memoria.session_id, motivo)
