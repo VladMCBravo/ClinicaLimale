@@ -50,17 +50,24 @@ class AgenteRecepcionista:
         # Se for só um "oi", "bom dia" curto, segue o fluxo normal de menu:
         if self.paciente:
             msg = (
-                f"Olá, {nome_memoria}! Que bom ter você de volta na Clínica Limalé. 🤍\n\n"
-                f"Como posso cuidar de você hoje?\n"
-                f"Pode digitar o que precisa ou escolher:\n"
+                f"Olá, {nome_memoria}! 🤍\n\n"
+                f"Sou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                f"Que bom ter você de volta! Será um prazer te atender.\n"
+                f"Em que posso ajudar? Digite o que precisa ou escolha uma opção:\n\n"
                 f"1️⃣ Agendar Exame\n"
                 f"2️⃣ Agendar Consulta\n"
                 f"3️⃣ Falar com a recepção"
             )
             return {"response_message": msg, "new_state": "recepcionista_aguardando_intencao", "memory_data": self.memoria_atual}
 
+        # CENÁRIO: Mensagem curta (Paciente Novo)
         if not nome_memoria:
-            msg = "Olá! 🤍 Sou o Leônidas, assistente da Clínica Limalé.\n\nPara eu te atender melhor, como gostaria de ser chamado(a)?"
+            msg = (
+                "Olá 🤍\n\n"
+                "Sou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                "Será um prazer te atender.\n"
+                "Para continuarmos, como você gostaria de ser chamado(a)?"
+            )
             return {"response_message": msg, "new_state": "recepcionista_aguardando_nome", "memory_data": self.memoria_atual}
 
         return self.perguntar_intencao(nome_memoria)
@@ -79,11 +86,19 @@ class AgenteRecepcionista:
             
             # O LLM nos devolve o nome (se encontrou) e a intenção
             nome_extraido = analise.get("nome_extraido")
-            intencao = analise.get("intencao") # 'exame', 'consulta', 'informacao_geral', 'humano'
+            intencao = analise.get("intencao") 
             resposta_ia = analise.get("resposta_humanizada")
+            procedimento = analise.get("procedimento_especialidade")
 
             if nome_extraido and not nome_conhecido:
                 self.memoria_atual['nome_usuario'] = nome_extraido.title()
+            
+            # NOVO: Salva a extração na memória
+            if procedimento:
+                if intencao == 'exame':
+                    self.memoria_atual['ultimo_exame_citado'] = procedimento
+                elif intencao == 'consulta':
+                    self.memoria_atual['especialidade_indicada'] = procedimento
 
             # Mapeia a intenção descoberta pelo LLM para os estados do seu bot
             if intencao == 'exame':
