@@ -57,9 +57,10 @@ class AgenteConsultas:
         tem_especialidade = any(esp.lower() in especialidade_pedida.lower() for esp in especialidades_atendidas)
         
         if not tem_especialidade:
+            # CORREÇÃO: Mantém no mesmo estado e dá a opção clara de chamar humano sem quebrar o fluxo
             return {
-                "response_message": f"Poxa, no momento não temos horários abertos para {especialidade_pedida}. Quer que eu peça para a recepção verificar se há alguma previsão de agenda? (Sim/Não)",
-                "new_state": "ia_roteadora_livre",
+                "response_message": f"Poxa, não encontrei '{especialidade_pedida}' nas nossas agendas abertas.\n\nPor favor, digite outra especialidade ou digite *'Falar com a recepção'* para eu transferir você para uma de nossas atendentes! 🤍",
+                "new_state": "agendamento_awaiting_specialty", 
                 "memory_data": self.memoria_atual
             }
 
