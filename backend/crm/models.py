@@ -189,7 +189,6 @@ class ProximaAcao(models.Model):
     descricao = models.CharField(max_length=255, help_text="Ex: Ligar para agendar Morfológico")
     data_alvo = models.DateField(help_text="Quando essa ação deve acontecer?")
     
-    # Se a ação for um agendamento já marcado, vinculamos aqui
     agendamento_vinculado = models.ForeignKey(
         'agendamentos.Agendamento', 
         on_delete=models.SET_NULL, 
@@ -201,6 +200,17 @@ class ProximaAcao(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_ACAO, default='PENDENTE')
     criado_em = models.DateTimeField(auto_now_add=True)
     realizado_em = models.DateTimeField(null=True, blank=True)
+    
+    # --- CAMPOS ADICIONADOS PARA CORRIGIR O CONTRATO ---
+    responsavel = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Quem deve executar esta ação"
+    )
+    atualizado_em = models.DateTimeField(auto_now=True)
+    # ---------------------------------------------------
 
     def __str__(self):
         return f"{self.descricao} - {self.data_alvo}"

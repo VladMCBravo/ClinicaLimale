@@ -378,13 +378,19 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         'aguardando_email_cadastro'
     ]
 
-    # SE A MENSAGEM FOR UMA SAUDAÇÃO BÁSICA, REINICIA O FUNIL
     msg_limpa = user_message.strip().lower()
     saudacoes = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'menu']
     
-    # FORÇA A PESSOA PARA O FUNIL DA GESTANTE SE ELA MANDAR SAUDAÇÃO OU ESTIVER "SOLTA"
-    if msg_limpa in saudacoes or estado_atual == 'identificando_demanda':
+    # ESTADOS PROTEGIDOS: A IA não vai resetar o fluxo se o usuário estiver nestes estados
+    estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + ['aguardando_atendente_humano', 'encerrado']
+
+    # Só força para o funil gestante se for uma saudação E não estiver no meio de um fluxo protegido
+    if (msg_limpa in saudacoes or estado_atual == 'identificando_demanda') and estado_atual not in estados_protegidos:
         estado_atual = 'inicio'
+
+    # Unificação de estado de handoff (se vinha legado como 'humano', forçamos o novo padrão)
+    if estado_atual == 'humano':
+        estado_atual = 'aguardando_atendente_humano'
 
     if estado_atual in ESTADOS_FUNIL_GESTANTE:
         resultado = processar_funil_gestante(session_id, user_message, estado_atual, memoria_atual)

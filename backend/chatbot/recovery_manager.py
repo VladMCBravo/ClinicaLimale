@@ -141,3 +141,60 @@ class ConversationRecoveryManager:
             logger = logging.getLogger(__name__)
             logger.error(f"Erro ao limpar conversas antigas: {e}")
             return 0
+    
+    @classmethod
+    def registrar_abandonos_no_crm(cls):
+        """
+        Varre as conversas paradas há mais de 2 horas e avisa o CRM
+        para disparar a cadência D0/D1/D3.
+        """
+        try:
+            # Importação local para evitar import circular
+            from crm.services import CRMService 
+            from .models import ChatMemory
+            
+            agora = timezone.now()
+            # Define a janela de abandono: parou entre 2h e 24h atrás
+            duas_horas_atras = agora - timedelta(hours=2)
+            um_dia_atras = agora - timedelta(days=1)
+
+            # Busca quem sumiu (não pediu humano e não encerrou a conversa)
+            abandonos = ChatMemory.objects.filter(
+                updated_at__gte=um_dia_atras,
+                updated_at__lte=duas_horas_atras,
+                conversa_encerrada=False,
+                transferencia_solicitada=False
+            )
+
+            count = 0
+            for memoria in abandonos:
+                estado = memoria.state
+                
+                # Heurística para descobrir ONDE o lead esfriou
+                motivo = "Silêncio genérico"
+                if estado in ['agendamento_awaiting_slot_choice', 'agendamento_awaiting_slot_confirmation', 'aguardando_escolha_horario_gestacao']:
+                    motivo = "Incompatibilidade de agenda (Não escolheu horário)"
+                elif estado in ['agendamento_awaiting_payment_choice', 'agendamento_awaiting_installments']:
+                    motivo = "Objeção de preço/condição de pagamento"
+                elif estado in ['agendamento_awaiting_type', 'agendamento_awaiting_modality', 'agendamento_awaiting_specialty', 'agendamento_awaiting_procedure']:
+                    motivo = "Parou na qualificação inicial"
+                elif 'cadastro' in estado:
+                    motivo = "Fricção no cadastro de dados"
+
+                # Avisa o CRM para mover o card para F5 e armar a cadência D0/D1/D3
+                sucesso = CRMService.registrar_abandono_chatbot(memoria.session_id, motivo)
+                
+                if sucesso:
+                    # Marca como encerrada para o bot não ficar mandando o lead pro CRM repetidas vezes
+                    memoria.conversa_encerrada = True
+                    memoria.save(update_fields=['conversa_encerrada'])
+                    count += 1
+                    
+            print(f"🧹 [RECOVERY] Varredura concluída. {count} leads esfriaram e foram enviados ao CRM para resgate.")
+            return count
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Erro ao processar abandonos para o CRM: {e}")
+            return 0

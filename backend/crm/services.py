@@ -112,7 +112,6 @@ class CRMService:
         """
         Retorna os dados já agrupados para o Frontend.
         """
-        # Importação local para evitar circular se views chamar services
         from .serializers import CicloKanbanSerializer
         
         queryset = Ciclo.objects.filter(status='ativo').select_related('paciente').order_by('-data_inicio')
@@ -123,7 +122,8 @@ class CRMService:
         serializer = CicloKanbanSerializer(queryset, many=True)
         data = serializer.data
         
-        kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "ENCERRADO": [] }
+        # --- CORREÇÃO: F5 INCLUÍDA NO CONTRATO DO KANBAN ---
+        kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "F5": [], "ENCERRADO": [] }
         
         for item in data:
             fase = item.get('fase_atual', 'F1')
@@ -243,3 +243,50 @@ class CRMService:
                 "origem_pie_chart": origem_pie_chart
             }
         }
+    
+    @staticmethod
+    def registrar_abandono_chatbot(telefone, motivo_abandono="silêncio pós-proposta"):
+        """
+        Invocado pelo Chatbot (Recovery Manager) quando um lead esfria.
+        Move para F5 e anota a objeção para acionar a cadência comercial.
+        """
+        from pacientes.models import Paciente
+        from .models import Ciclo, AnaliseComportamental
+        
+        telefone_limpo = ''.join(filter(str.isdigit, str(telefone)))
+        paciente = Paciente.objects.filter(telefone_celular=telefone_limpo).first()
+        
+        if not paciente:
+            return False
+            
+        ciclo = Ciclo.objects.filter(paciente=paciente, status='ativo').first()
+        if not ciclo:
+            return False
+            
+        # 1. Atualiza a análise comportamental com o motivo da perda
+        comp, _ = AnaliseComportamental.objects.get_or_create(paciente=paciente)
+        
+        if "agenda" in motivo_abandono.lower():
+            comp.principal_objecao = 'AGENDA'
+        elif "preço" in motivo_abandono.lower() or "preco" in motivo_abandono.lower():
+            comp.principal_objecao = 'PRECO'
+        else:
+            comp.principal_objecao = 'OUTRO'
+            
+        comp.observacoes_internas = f"Abandono no Bot: {motivo_abandono}"
+        comp.save()
+        
+        # 2. Move para Recuperação (F5) e dispara a automação
+        if ciclo.fase_atual != 'F5':
+            CRMService.mover_fase(ciclo.id, 'F5', ciclo.responsavel)
+            
+            # Cria a cadência orientada ao motivo
+            hoje = timezone.now().date()
+            CRMService.criar_acao(ciclo, f"D0 (Bot): Lead parou de responder por {motivo_abandono}. Puxar conversa!", hoje)
+            CRMService.criar_acao(ciclo, f"D1 (Bot): Mandar áudio curto ou gatilho de escassez.", hoje + timedelta(days=1))
+            CRMService.criar_acao(ciclo, f"D3 (Bot): Fechar a porta de forma educada (Quebra de padrão).", hoje + timedelta(days=3))
+            
+            print(f"🤖 [CRM] Abandono de bot registrado para {paciente.nome_completo}. Cadência armada.")
+            return True
+            
+        return False

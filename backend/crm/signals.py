@@ -85,7 +85,37 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
     status_f5 = ['Cancelado', 'Não Compareceu']
 
     if instance.status in status_f5:
-        nova_fase = 'F5' # Paciente faltou, vai para recuperação
+        nova_fase = 'F5' # Paciente faltou ou cancelou, vai para recuperação
+        
+        # --- NOVA AUTOMAÇÃO: CADÊNCIA D0 / D1 / D3 ---
+        # Só disparamos se o ciclo estiver entrando na F5 agora (evita duplicar tarefas)
+        if ciclo.fase_atual != 'F5':
+            from .services import CRMService
+            hoje = timezone.now().date()
+            
+            # Descobre se foi cancelamento ou falta para contextualizar a tarefa
+            motivo = "Falta" if instance.status == 'Não Compareceu' else "Cancelamento"
+            
+            # D0: Imediato (Resgate quente)
+            CRMService.criar_acao(
+                ciclo=ciclo, 
+                descricao=f"D0 ({motivo}): Mandar mensagem de resgate imediata. Aconteceu algo?", 
+                data_alvo=hoje
+            )
+            # D1: Dia Seguinte (Contorno de objeção)
+            CRMService.criar_acao(
+                ciclo=ciclo, 
+                descricao=f"D1 ({motivo}): Oferecer nova opção de agenda ou contornar objeção.", 
+                data_alvo=hoje + timedelta(days=1)
+            )
+            # D3: Última tentativa
+            CRMService.criar_acao(
+                ciclo=ciclo, 
+                descricao=f"D3 ({motivo}): Quebra de gelo / Última tentativa de reativar.", 
+                data_alvo=hoje + timedelta(days=3)
+            )
+            print(f"🔄 [CRM] Cadência D0/D1/D3 armada para o Ciclo {ciclo.id} ({motivo})")
+
     elif instance.status in status_f3:
         if teve_sucesso_anterior and instance.status == 'Realizado':
             nova_fase = 'F4' # É Retorno/Retenção!
