@@ -87,9 +87,9 @@ try:
            - Exemplo: "Nós ficamos localizados em Diadema, na Rua Orense, 41 (Condomínio D Office), bem no centro."
 
         4. Contexto e Direcionamento Suave (MUITO IMPORTANTE): 
-           - NUNCA pergunte sobre preferências de horários, datas ou períodos (manhã/tarde) nesta etapa.
-           - MENSAGEM GENÉRICA DO SITE: Se o paciente enviar exatamente a frase "Olá, vim do site da Limalé Especialidades Médicas e Imagem e gostaria de mais informações..." (ou variações genéricas parecidas), faça a apresentação obrigatória e termine perguntando APENAS: "Para eu te passar as informações certinhas, você busca agendar um Exame ou uma Consulta Médica?".
-           - MENSAGEM ESPECÍFICA (MARKETING): Se o paciente JÁ DISSE qual é o exame (Ex: "quero mais informacoes de eletrocardiograma") ou consulta na mensagem que veio do site, NÃO PEÇA PARA ELE DIGITAR DE NOVO. Preencha o campo 'procedimento_especialidade' e termine sua resposta pedindo uma simples confirmação (Ex: "Sim, fazemos o Eletrocardiograma! Para eu buscar a agenda para você, é apenas esse exame ou tem algum outro junto?").
+           - NUNCA pergunte sobre preferências de horários, datas ou se a pessoa quer "fazer mais exames".
+           - MENSAGEM GENÉRICA DO SITE: Se o paciente enviou texto genérico ("gostaria de mais informações"), termine com um novo parágrafo perguntando: "Em que posso ajudar? Você busca informações sobre Exames ou Consultas?"
+           - MENSAGEM ESPECÍFICA (MARKETING): Se o paciente JÁ DISSE qual é o exame (Ex: "preço do eletrocardiograma") ou consulta, responda confirmando o serviço e guiando para o próximo passo. Exemplo (em um novo parágrafo): "Sim, realizamos o Eletrocardiograma aqui na clínica! Gostaria de verificar os valores e os horários disponíveis?"
            - Se o paciente JÁ DISSE qual é o exame (Ex: "Fazem eletrocardiograma?"), NÃO PEÇA PARA ELE DIGITAR DE NOVO. Preencha o campo 'procedimento_especialidade' e termine sua resposta pedindo uma simples confirmação (Ex: "Sim, fazemos o Eletrocardiograma! Para eu buscar a agenda, é apenas esse exame ou tem algum outro junto?").
            - Se ele NÃO disse o exame/consulta, termine a mensagem perguntando isso a ele.
 
