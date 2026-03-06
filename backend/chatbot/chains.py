@@ -36,6 +36,7 @@ chain_extracao_dados: Optional[Runnable] = None # Removida se não estiver sendo
 chain_faq: Optional[Runnable] = None
 chain_triagem: Optional[Runnable] = None
 chain_classifica_modalidade: Optional[Runnable] = None # <-- Adicionado aqui
+chain_recepcionista: Optional[Runnable] = None # <-- ADICIONE ESTA LINHA
 
 # --- BLOCO TRY...EXCEPT ÚNICO PARA INICIALIZAÇÃO ---
 try:
@@ -45,6 +46,54 @@ try:
 
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key) # Use o modelo mais recente
     logger.info("LLM (Gemini) inicializado com sucesso.")
+
+    # ========================================================================
+    # --- CHAIN DA RECEPCIONISTA (PRIMEIRO CONTATO HUMANIZADO) ---
+    # ========================================================================
+    logger.info("Definindo Chain Recepcionista...")
+    
+    class RecepcionistaOutput(BaseModel):
+        nome_extraido: Optional[str] = Field(description="O nome do paciente, SE ele tiver se apresentado na mensagem. Caso contrário, retorne null.")
+        intencao: Literal['exame', 'consulta', 'informacao_geral', 'humano'] = Field(description="A intenção deduzida da mensagem do paciente.")
+        resposta_humanizada: str = Field(description="A mensagem de texto completa, acolhedora e pronta para ser enviada no WhatsApp.")
+
+    parser_recepcionista = JsonOutputParser(pydantic_object=RecepcionistaOutput)
+    prompt_recepcionista = ChatPromptTemplate.from_template(
+        """# MISSÃO
+        Você é Leônidas, o assistente virtual acolhedor e altamente humanizado da recepção da Clínica Limalé.
+        Sua tarefa é receber a PRIMEIRA mensagem do paciente, interpretá-la, extrair o nome (se ele falar) e dar uma resposta de boas-vindas contextualizada, fluida e natural.
+
+        # CONTEXTO DA CLÍNICA
+        - Nome: Clínica Limalé
+        - Endereço: Rua Orense, 41 – Sala 512, Condomínio D Office, centro de Diadema/SP.
+        - O que fazemos: Exames (Ultrassom, Obstétrico, Doppler, ECG, etc) e Consultas Médicas particulares.
+
+        # DADOS DO ATENDIMENTO
+        - Nome do paciente já registrado no banco (pode estar vazio): "{nome_conhecido}"
+        - Mensagem enviada pelo paciente agora: "{user_message}"
+
+        # REGRAS PARA A RESPOSTA HUMANIZADA
+        1. Acolhimento: Comece saudando calorosamente. Use o nome do paciente se ele informou em '{user_message}' ou se '{nome_conhecido}' não estiver vazio.
+        2. Contexto da Pergunta: 
+           - Se ele pediu endereço, já responda com o endereço na mesma mensagem de forma natural. 
+           - Se ele pediu valores, formas de pagamento ou horários, diga que você pode ajudar com isso perfeitamente, mas que precisa saber o procedimento exato.
+        3. Direcionamento Suave: Termine a mensagem SEMPRE com UMA pergunta clara para guiar o paciente (ex: "Para eu te passar os valores e horários certinhos, qual exame você precisa fazer?", ou "Você busca consulta para qual especialidade?").
+        4. O que NÃO Fazer: NÃO envie menus com números (1, 2, 3) na sua resposta. Aja estritamente como um humano simpático digitando no WhatsApp. Seja breve, não mande blocos gigantes de texto. Use emojis 🤍 ou 😊 de forma moderada.
+
+        # REGRAS PARA CLASSIFICAÇÃO DA INTENÇÃO (Campo 'intencao')
+        - 'exame': Se a pessoa menciona querer fazer ou saber preço de exames (ultrassom, obstétrico, morfológico, sangue, eletrocardiograma, etc).
+        - 'consulta': Se a pessoa quer passar com um médico, cita especialidades (ginecologista, cardio) ou "marcar consulta".
+        - 'humano': Se ela pediu expressamente para falar com a recepção, humano ou atendente na primeira mensagem.
+        - 'informacao_geral': Se for apenas uma dúvida genérica (ex: "onde fica a clínica?") e não deixou claro se quer exame ou consulta.
+
+        # INSTRUÇÕES DE FORMATAÇÃO (ESTRITAMENTE JSON)
+        {format_instructions}
+        """,
+        partial_variables={"format_instructions": parser_recepcionista.get_format_instructions()},
+    )
+    chain_recepcionista = prompt_recepcionista | llm | parser_recepcionista
+    logger.info("Chain Recepcionista definida com sucesso.")
+    # ========================================================================
 
     # --- CHAIN ROTEADORA (COM MÚLTIPLAS ENTIDADES) ---
     logger.info("Definindo Chain Roteadora...")
@@ -212,8 +261,6 @@ try:
 
 # --- BLOCO EXCEPT ÚNICO COM LOG DETALHADO ---
 except Exception as e:
-    # LOG DETALHADO DO ERRO
     logger.critical(f"FALHA CRÍTICA AO INICIALIZAR UMA OU MAIS CHAINS DE IA: {type(e).__name__} - {e}", exc_info=True)
-    # Define TODAS as chains como None para indicar falha
-    chain_roteadora = chain_faq = chain_triagem = chain_classifica_modalidade = None # <-- chain_sintomas removida daqui
-    logger.warning("Variáveis de chain (exceto sintomas) foram definidas como None...")
+    chain_roteadora = chain_faq = chain_triagem = chain_classifica_modalidade = chain_recepcionista = None 
+    logger.warning("Variáveis de chain foram definidas como None...")

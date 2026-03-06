@@ -1,18 +1,18 @@
-# chatbot/agente_recepcionista.py
+## chatbot/agente_recepcionista.py
 
 import logging
 from pacientes.models import Paciente
 from chatbot.models import ChatMemory
 from django.utils import timezone
 from datetime import timedelta
+# Você precisará importar a chain da recepcionista que vamos criar no chains.py
+from chatbot.chains import chain_recepcionista 
 
 logger = logging.getLogger(__name__)
 
 class AgenteRecepcionista:
     """
-    Agente responsável pelo Primeiro Contato, Boas-vindas e Roteamento Inicial.
-    A ÚNICA responsabilidade dela é acolher, pegar o nome e descobrir com qual 
-    agente o paciente precisa falar (Consulta, Procedimento ou Humano).
+    Agente de Primeiro Contato com Inteligência Ativa.
     """
 
     def __init__(self, session_id, memoria_atual):
@@ -22,18 +22,12 @@ class AgenteRecepcionista:
         self.paciente = Paciente.objects.filter(telefone_celular=self.telefone_limpo).first()
 
     def processar_saudacao(self, user_message: str) -> dict:
-        """
-        Ponto de entrada do agente. Avalia o contexto e devolve a mensagem correta.
-        """
         nome_memoria = self.memoria_atual.get('nome_usuario')
         
-        # 1. Tenta recuperar o nome do banco se não estiver na memória
         if not nome_memoria and self.paciente:
-            # Pega só o primeiro nome para ficar mais amigável
             nome_memoria = self.paciente.nome_completo.split()[0].title()
             self.memoria_atual['nome_usuario'] = nome_memoria
 
-        # 2. CENÁRIO C: Retomada de Conversa (Lead que ficou em silêncio pouco tempo)
         if self._is_retomada_recente():
             estado_anterior = self.memoria_atual.get('previous_state', 'seu atendimento')
             msg = (
@@ -47,38 +41,69 @@ class AgenteRecepcionista:
                 "memory_data": self.memoria_atual
             }
 
-        # 3. CENÁRIO B: Paciente Conhecido (Já está no CRM/Banco)
+        # --- A GRANDE MUDANÇA: DETECÇÃO DE MENSAGEM COMPLEXA ---
+        # Se a pessoa mandou mais de 4 palavras, ela não está só dando "oi".
+        # Ela está explicando o que quer (Ex: "Bom dia me chamo Vladmir e quero saber preços")
+        if len(user_message.split()) > 4:
+            return self.processar_mensagem_complexa(user_message, nome_memoria)
+
+        # Se for só um "oi", "bom dia" curto, segue o fluxo normal de menu:
         if self.paciente:
             msg = (
                 f"Olá, {nome_memoria}! Que bom ter você de volta na Clínica Limalé. 🤍\n\n"
                 f"Como posso cuidar de você hoje?\n"
-                f"Pode digitar o que precisa (Ex: 'marcar ultrassom', 'agendar consulta', etc) "
-                f"ou escolher uma opção:\n\n"
+                f"Pode digitar o que precisa ou escolher:\n"
                 f"1️⃣ Agendar Exame\n"
                 f"2️⃣ Agendar Consulta\n"
                 f"3️⃣ Falar com a recepção"
             )
-            return {
-                "response_message": msg,
-                "new_state": "recepcionista_aguardando_intencao",
-                "memory_data": self.memoria_atual
-            }
+            return {"response_message": msg, "new_state": "recepcionista_aguardando_intencao", "memory_data": self.memoria_atual}
 
-        # 4. CENÁRIO A: Novo Contato (Lead Desconhecido)
-        # Se chegou aqui, não tem paciente no banco e não tem nome na memória
         if not nome_memoria:
-            msg = (
-                "Olá! 🤍 Sou o Leônidas, o assistente virtual da Clínica Limalé.\n\n"
-                "Para eu te atender de forma mais rápida e personalizada, **como você gostaria de ser chamado(a)?**"
-            )
+            msg = "Olá! 🤍 Sou o Leônidas, assistente da Clínica Limalé.\n\nPara eu te atender melhor, como gostaria de ser chamado(a)?"
+            return {"response_message": msg, "new_state": "recepcionista_aguardando_nome", "memory_data": self.memoria_atual}
+
+        return self.perguntar_intencao(nome_memoria)
+
+    def processar_mensagem_complexa(self, user_message: str, nome_conhecido: str) -> dict:
+        """
+        Usa o LLM para ler a mensagem inicial do paciente, extrair o nome (se ele disser)
+        e já dar uma resposta humanizada roteando para o lugar certo.
+        """
+        try:
+            # Chama o LLM para interpretar o textão do paciente
+            analise = chain_recepcionista.invoke({
+                "user_message": user_message,
+                "nome_conhecido": nome_conhecido or ""
+            })
+            
+            # O LLM nos devolve o nome (se encontrou) e a intenção
+            nome_extraido = analise.get("nome_extraido")
+            intencao = analise.get("intencao") # 'exame', 'consulta', 'informacao_geral', 'humano'
+            resposta_ia = analise.get("resposta_humanizada")
+
+            if nome_extraido and not nome_conhecido:
+                self.memoria_atual['nome_usuario'] = nome_extraido.title()
+
+            # Mapeia a intenção descoberta pelo LLM para os estados do seu bot
+            if intencao == 'exame':
+                novo_estado = 'inicio' # Joga pro funil obstétrico/exames
+            elif intencao == 'consulta':
+                novo_estado = 'agendamento_awaiting_specialty'
+                self.memoria_atual['tipo_agendamento'] = 'Consulta'
+            else:
+                novo_estado = 'ia_roteadora_livre' # Deixa a IA responder dúvidas gerais
+
             return {
-                "response_message": msg,
-                "new_state": "recepcionista_aguardando_nome",
+                "response_message": resposta_ia,
+                "new_state": novo_estado,
                 "memory_data": self.memoria_atual
             }
 
-        # Fallback de segurança (Se já pegou o nome mas a intenção não foi capturada ainda)
-        return self.perguntar_intencao(nome_memoria)
+        except Exception as e:
+            logger.error(f"Erro na IA da Recepcionista: {e}")
+            # Fallback seguro caso a API da OpenAI/Google falhe
+            return self.perguntar_intencao(nome_conhecido or "paciente")
 
     def processar_nome(self, user_message: str) -> dict:
         """
