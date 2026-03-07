@@ -85,30 +85,52 @@ class AgenteMedicinaFetal:
 
         explicacao = EXPLICACOES_FETAIS.get(exame, "Esse exame é essencial para acompanharmos o desenvolvimento saudável do bebê.")
 
-        # Busca de Agenda (Exatamente 2 opções escassas)
+        # ====================================================
+        # BUSCA DE AGENDA INTELIGENTE (REGRAS DA CLÍNICA)
+        # ====================================================
         hoje = date.today()
-        dias_quarta = (2 - hoje.weekday()) % 7 or 7
-        data_quarta = hoje + timedelta(days=dias_quarta)
         
-        dias_quinta = (3 - hoje.weekday()) % 7 or 7 # Mudei para quinta para bater com seu exemplo
-        data_quinta = hoje + timedelta(days=dias_quinta)
+        # Regra 1: Tanto Fetal quanto Eco Fetal são de QUARTA-FEIRA (weekday == 2)
+        dias_quarta = (2 - hoje.weekday()) % 7
+        if dias_quarta == 0: dias_quarta = 7 # Pega a próxima quarta
+        data_quarta = hoje + timedelta(days=dias_quarta)
 
-        def encontrar_horario_livre(data_alvo, lista_horarios):
+        # Regra 2: Separa os horários dependendo se é Eco ou Fetal padrão
+        if exame == "Ecocardiograma Fetal":
+            # Eco Fetal: Quartas das 19h as 22h
+            horarios_possiveis = ['19:00', '19:15','19:30','19:45', '20:00', '20:15', '20:30','20:45', '21:00','21:15', '21:30']
+        else:
+            # Medicina Fetal: Quartas das 08h as 15h
+            horarios_possiveis = ['08:00', '08:15', '08:30', '08:45', '09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30', '14:45']
+
+        def encontrar_horarios_livres(data_alvo, lista_horarios, limite=2):
+            livres = []
             for h in lista_horarios:
+                if len(livres) >= limite:
+                    break
                 dt_alvo = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
+                # Verifica se já tem agendamento neste horário
                 ocupado = Agendamento.objects.filter(
-                    medico=medico, data_hora_inicio__lt=dt_alvo + timedelta(minutes=30),
-                    data_hora_fim__gt=dt_alvo, status__in=['Agendado', 'Confirmado']
+                    medico=medico, 
+                    data_hora_inicio__lt=dt_alvo + timedelta(minutes=30),
+                    data_hora_fim__gt=dt_alvo, 
+                    status__in=['Agendado', 'Confirmado']
                 ).exists()
-                if not ocupado: return h
-            return None
+                if not ocupado: 
+                    livres.append(h)
+            return livres
 
-        hora_opcao1 = encontrar_horario_livre(data_quarta, ['19:40', '15:00', '16:00'])
-        hora_opcao2 = encontrar_horario_livre(data_quinta, ['20:10', '09:00', '10:00'])
-
+        # Tenta achar 2 horários livres na próxima quarta
+        horarios_livres = encontrar_horarios_livres(data_quarta, horarios_possiveis, limite=2)
+        
         opcoes = []
-        if hora_opcao1: opcoes.append({"opcao": "1", "dia_semana": "quarta", "data_iso": data_quarta.strftime('%Y-%m-%d'), "hora": hora_opcao1})
-        if hora_opcao2: opcoes.append({"opcao": "2", "dia_semana": "quinta", "data_iso": data_quinta.strftime('%Y-%m-%d'), "hora": hora_opcao2})
+        for idx, hora in enumerate(horarios_livres):
+            opcoes.append({
+                "opcao": str(idx + 1), 
+                "dia_semana": "quarta-feira", 
+                "data_iso": data_quarta.strftime('%Y-%m-%d'), 
+                "hora": hora
+            })
         
         if len(opcoes) == 0:
             return {"response_message": f"{nome_usuario}, nossas agendas para esta semana lotaram. Vou transferir para uma atendente tentar um encaixe para o {procedimento.descricao}! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
