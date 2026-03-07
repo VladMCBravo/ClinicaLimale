@@ -93,18 +93,20 @@ class AgenteRecepcionista:
             if nome_extraido and not nome_conhecido:
                 self.memoria_atual['nome_usuario'] = nome_extraido.title()
             
-            # NOVO: Salva a extração na memória
+            # NOVO: Salva a extração na memória (separando os novos tipos)
             if procedimento:
-                if intencao == 'exame':
+                if intencao in ['exame_fetal', 'exame_geral']:
                     self.memoria_atual['ultimo_exame_citado'] = procedimento
                 elif intencao == 'consulta':
                     self.memoria_atual['especialidade_indicada'] = procedimento
 
             # Mapeia a intenção descoberta pelo LLM para os estados do seu bot
-            if intencao == 'exame':
-                novo_estado = 'inicio' # Joga pro funil obstétrico/exames
+            if intencao == 'exame_fetal':
+                novo_estado = 'exame_fetal' 
+            elif intencao == 'exame_geral':
+                novo_estado = 'exame_geral'
             elif intencao == 'consulta':
-                novo_estado = 'agendamento_awaiting_specialty'
+                novo_estado = 'consulta'
                 self.memoria_atual['tipo_agendamento'] = 'Consulta'
             else:
                 novo_estado = 'ia_roteadora_livre' # Deixa a IA responder dúvidas gerais
@@ -138,7 +140,7 @@ class AgenteRecepcionista:
         Apresenta o menu principal após pegar o nome do novo lead.
         """
         msg = (
-            f"Prazer, {nome}! Como posso cuidar de você hoje?\n\n"
+            f"Prazer, {nome}! Como posso ajudar você hoje?\n\n"
             f"Digite o que precisa ou escolha uma opção abaixo:\n\n"
             f"1️⃣ Agendar Exame (Ultrassom, Doppler, etc)\n"
             f"2️⃣ Agendar Consulta Médica\n"

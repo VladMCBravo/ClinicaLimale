@@ -12,6 +12,7 @@ from .services import get_resposta_preco
 from .human_transfer import HumanTransferManager
 from .conversation_manager import ConversationManager
 from .agente_exames import AgenteExames
+from .agente_medicina_fetal import AgenteMedicinaFetal
 from .agente_consultas import AgenteConsultas
 
 logger = logging.getLogger(__name__)
@@ -206,23 +207,32 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         recepcionista = AgenteRecepcionista(session_id, memoria_atual)
         resultado = recepcionista.processar_nome(user_message)
         
-    # 3. ROTEAMENTO BASEADO NA INTENÇÃO (O Menu Principal)
-    elif estado_atual == 'recepcionista_aguardando_intencao':
-        if '1' in user_message or 'exame' in msg_limpa or 'ultrassom' in msg_limpa:
-            # Vai para o funil de exames/obstétrico 
+    # 3. Mapeamento de Intenções da Recepcionista (após a chain rodar)
+    elif estado_atual == 'recepcionista_aguardando_intencao' or estado_atual in ['inicio', 'exame_fetal', 'exame_geral']:
+        # Se a pessoa mandou 1, 2, 3 no menu estático ou se a IA já definiu o estado lá no agente_recepcionista:
+        
+        if '1' in user_message or estado_atual == 'exame_fetal' or 'obstetrico' in msg_limpa or 'morfologico' in msg_limpa or 'gestante' in msg_limpa:
+            # Rota de Luxo: Medicina Fetal
             resultado = {
-                "response_message": "Perfeito! Vou transferir para a nossa especialista em Exames para verificarmos o melhor para si.", 
-                "new_state": "inicio", # <-- É AQUI QUE ELE ENTRA NO FUNIL OBSTETRICO DE FATO
+                "response_message": f"Perfeito, {nome_usuario}! Vou transferir para a nossa especialista em Medicina Fetal.", 
+                "new_state": "inicio_fetal", 
                 "memory_data": memoria_atual
             }
-        elif '2' in user_message or 'consulta' in msg_limpa:
+        elif estado_atual == 'exame_geral' or 'eletrocardiograma' in msg_limpa:
+             # Mantém no antigo AgenteExames para exames gerais
+             resultado = {
+                "response_message": f"Excelente, {nome_usuario}. Vou verificar a agenda para esse exame.", 
+                "new_state": "inicio", 
+                "memory_data": memoria_atual
+            }
+        elif '2' in user_message or estado_atual == 'consulta' or 'consulta' in msg_limpa:
             memoria_atual['tipo_agendamento'] = 'Consulta'
             resultado = {
-                "response_message": "Ótimo. Para qual especialidade médica deseja a consulta?", 
+                "response_message": f"Ótimo, {nome_usuario}. Para qual especialidade médica deseja a consulta?", 
                 "new_state": "agendamento_awaiting_specialty", 
                 "memory_data": memoria_atual
             }
-        elif '3' in user_message or 'recepção' in msg_limpa or 'recepcao' in msg_limpa or 'humano' in msg_limpa:
+        elif '3' in user_message or estado_atual == 'humano' or 'recepção' in msg_limpa:
             resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
             memoria_obj.transferencia_solicitada = True
             notificar_recepcao_whatsapp(session_id, nome_usuario)
@@ -231,15 +241,20 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             resultado = None 
 
     # ==================================================================
-    # --- FASE 2: OS AGENTES ESPECIALISTAS (EXAMES E CONSULTAS) ---
+    # --- FASE 2: OS AGENTES ESPECIALISTAS ---
     # ==================================================================
     
-    # 2.A: O Agente de Exames (Funil Obstétrico e Ultrassons)
+    # 2.A: NOVO Agente de Medicina Fetal (Ultrassons Obstétricos)
+    elif estado_atual in ['inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario']:
+        agente_fetal = AgenteMedicinaFetal(session_id, memoria_atual)
+        resultado = agente_fetal.processar(user_message, estado_atual)
+        
+    # 2.B: O Agente de Exames Gerais (ECG, Sangue, etc)
     elif estado_atual in ['inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao', 'aguardando_nome_cadastro', 'aguardando_email_cadastro']:
         agente_exames = AgenteExames(session_id, memoria_atual)
         resultado = agente_exames.processar(user_message, estado_atual)
 
-    # 2.B: O Agente de Consultas Médicas
+    # 2.C: O Agente de Consultas Médicas
     elif estado_atual in ['agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice']:
         agente_consultas = AgenteConsultas(session_id, memoria_atual)
         resultado = agente_consultas.processar(user_message, estado_atual)
