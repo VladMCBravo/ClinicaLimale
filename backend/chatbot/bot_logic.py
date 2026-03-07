@@ -207,38 +207,35 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         recepcionista = AgenteRecepcionista(session_id, memoria_atual)
         resultado = recepcionista.processar_nome(user_message)
         
-    # 3. Mapeamento de Intenções da Recepcionista (após a chain rodar)
-    elif estado_atual == 'recepcionista_aguardando_intencao' or estado_atual in ['inicio', 'exame_fetal', 'exame_geral']:
-        # Se a pessoa mandou 1, 2, 3 no menu estático ou se a IA já definiu o estado lá no agente_recepcionista:
-        
-        if '1' in user_message or estado_atual == 'exame_fetal' or 'obstetrico' in msg_limpa or 'morfologico' in msg_limpa or 'gestante' in msg_limpa:
-            # Rota de Luxo: Medicina Fetal
+    # 3. ROTEAMENTO DO MENU PRINCIPAL (Opções 1, 2, 3)
+    elif estado_atual == 'recepcionista_aguardando_intencao':
+        if '1' in user_message or 'exame' in msg_limpa or 'ultrassom' in msg_limpa:
+            # CORREÇÃO TESTE 1: Pergunta o tipo de exame para a IA poder classificar depois!
             resultado = {
-                "response_message": f"Perfeito, {nome_usuario}! Vou transferir para a nossa especialista em Medicina Fetal.", 
-                "new_state": "inicio_fetal", 
+                "response_message": f"Perfeito, {nome_usuario}! Para eu verificar a agenda correta, me diga qual exame você procura? (Ex: Morfológico, Ultrassom, Eletrocardiograma, etc.)", 
+                "new_state": "aguardando_tipo_exame_menu", 
                 "memory_data": memoria_atual
             }
-        elif estado_atual == 'exame_geral' or 'eletrocardiograma' in msg_limpa:
-             # Mantém no antigo AgenteExames para exames gerais
-             resultado = {
-                "response_message": f"Excelente, {nome_usuario}. Vou verificar a agenda para esse exame.", 
-                "new_state": "inicio", 
-                "memory_data": memoria_atual
-            }
-        elif '2' in user_message or estado_atual == 'consulta' or 'consulta' in msg_limpa:
+        elif '2' in user_message or 'consulta' in msg_limpa:
             memoria_atual['tipo_agendamento'] = 'Consulta'
             resultado = {
                 "response_message": f"Ótimo, {nome_usuario}. Para qual especialidade médica deseja a consulta?", 
                 "new_state": "agendamento_awaiting_specialty", 
                 "memory_data": memoria_atual
             }
-        elif '3' in user_message or estado_atual == 'humano' or 'recepção' in msg_limpa:
+        elif '3' in user_message or 'recepção' in msg_limpa or 'humano' in msg_limpa:
             resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
             memoria_obj.transferencia_solicitada = True
             notificar_recepcao_whatsapp(session_id, nome_usuario)
         else:
             estado_atual = 'ia_roteadora_livre'
             resultado = None 
+
+    # 4. CAPTURA DO TIPO DE EXAME APÓS OPÇÃO 1
+    elif estado_atual == 'aguardando_tipo_exame_menu':
+        # Manda o nome do exame que o paciente digitou pro "Cérebro" LLM classificar (Fetal vs Geral) e dar a resposta humanizada!
+        recepcionista = AgenteRecepcionista(session_id, memoria_atual)
+        resultado = recepcionista.processar_mensagem_complexa(user_message, nome_usuario) 
 
     # ==================================================================
     # --- FASE 2: OS AGENTES ESPECIALISTAS ---

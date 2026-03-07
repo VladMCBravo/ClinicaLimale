@@ -92,6 +92,7 @@ class AgenteRecepcionista:
 
             if nome_extraido and not nome_conhecido:
                 self.memoria_atual['nome_usuario'] = nome_extraido.title()
+                nome_conhecido = nome_extraido.title()
             
             # NOVO: Salva a extração na memória (separando os novos tipos)
             if procedimento:
@@ -100,16 +101,21 @@ class AgenteRecepcionista:
                 elif intencao == 'consulta':
                     self.memoria_atual['especialidade_indicada'] = procedimento
 
-            # Mapeia a intenção descoberta pelo LLM para os estados do seu bot
-            if intencao == 'exame_fetal':
-                novo_estado = 'exame_fetal' 
-            elif intencao == 'exame_geral':
-                novo_estado = 'exame_geral'
-            elif intencao == 'consulta':
-                novo_estado = 'consulta'
-                self.memoria_atual['tipo_agendamento'] = 'Consulta'
+            # A CORREÇÃO MESTRA DO ESTADO ESTÁ AQUI
+            if not nome_conhecido:
+                # CORREÇÃO TESTE 2: Se não temos o nome, o único estado possível é aguardar o nome.
+                novo_estado = 'recepcionista_aguardando_nome'
             else:
-                novo_estado = 'ia_roteadora_livre' # Deixa a IA responder dúvidas gerais
+                if intencao == 'exame_fetal':
+                    # CORREÇÃO TESTE 3: Pula direto para o Agente de Medicina Fetal processar as semanas!
+                    novo_estado = 'mf_aguardando_semanas' 
+                elif intencao == 'exame_geral':
+                    novo_estado = 'inicio' # Deixa o AgenteExames antigo avaliar
+                elif intencao == 'consulta':
+                    novo_estado = 'agendamento_awaiting_specialty'
+                    self.memoria_atual['tipo_agendamento'] = 'Consulta'
+                else:
+                    novo_estado = 'ia_roteadora_livre'
 
             return {
                 "response_message": resposta_ia,
@@ -119,7 +125,6 @@ class AgenteRecepcionista:
 
         except Exception as e:
             logger.error(f"Erro na IA da Recepcionista: {e}")
-            # Fallback seguro caso a API da OpenAI/Google falhe
             return self.perguntar_intencao(nome_conhecido or "paciente")
 
     def processar_nome(self, user_message: str) -> dict:
