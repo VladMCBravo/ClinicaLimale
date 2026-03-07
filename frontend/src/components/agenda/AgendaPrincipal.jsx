@@ -205,8 +205,8 @@ export default function AgendaPrincipal({
                     // CORREÇÃO FINAL AQUI:
                     eventClick={handleCalendarEventClick}
                     
-                    slotMinTime="07:00:00" 
-                    slotMaxTime="20:00:00"
+                    slotMinTime="08:00:00" 
+                    slotMaxTime="22:30:00"
                     allDaySlot={false}
                     nowIndicator={true}
                     slotDuration="00:15:00"
