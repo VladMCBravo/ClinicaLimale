@@ -86,8 +86,9 @@ class AgenteMedicinaFetal:
         explicacao = EXPLICACOES_FETAIS.get(exame, "Esse exame é essencial para acompanharmos o desenvolvimento saudável do bebê.")
 
         # ====================================================
-        # BUSCA DE AGENDA INTELIGENTE (REGRAS DA CLÍNICA)
+        # BUSCA DE AGENDA INTELIGENTE (REGRAS DA CLÍNICA + SALAS)
         # ====================================================
+        from agendamentos.models import Sala
         hoje = date.today()
         
         # Regra 1: Tanto Fetal quanto Eco Fetal são de QUARTA-FEIRA (weekday == 2)
@@ -103,20 +104,38 @@ class AgenteMedicinaFetal:
             # Medicina Fetal: Quartas das 08h as 15h
             horarios_possiveis = ['08:00', '08:15', '08:30', '08:45', '09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30', '14:45']
 
+        # O SEGREDO DAS SALAS: Pega a sala exclusiva de exames (Consultório 1)
+        sala_exame = Sala.objects.filter(e_sala_exame=True).first()
+
         def encontrar_horarios_livres(data_alvo, lista_horarios, limite=2):
             livres = []
             for h in lista_horarios:
                 if len(livres) >= limite:
                     break
-                dt_alvo = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
-                # Verifica se já tem agendamento neste horário
-                ocupado = Agendamento.objects.filter(
-                    medico=medico, 
-                    data_hora_inicio__lt=dt_alvo + timedelta(minutes=30),
-                    data_hora_fim__gt=dt_alvo, 
-                    status__in=['Agendado', 'Confirmado']
+                
+                dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
+                dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=30)
+                
+                # 1. Verifica se o MÉDICO já tem algo agendado neste horário (em qualquer sala)
+                medico_ocupado = Agendamento.objects.filter(
+                    medico=medico,
+                    data_hora_inicio__lt=dt_alvo_fim,
+                    data_hora_fim__gt=dt_alvo_inicio,
+                    status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']
                 ).exists()
-                if not ocupado: 
+                
+                # 2. Verifica se a SALA DE EXAMES está ocupada (mesmo que por outro médico)
+                sala_ocupada = False
+                if sala_exame:
+                    sala_ocupada = Agendamento.objects.filter(
+                        sala=sala_exame,
+                        data_hora_inicio__lt=dt_alvo_fim,
+                        data_hora_fim__gt=dt_alvo_inicio,
+                        status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']
+                    ).exists()
+                
+                # O horário só está livre se o MÉDICO e a SALA DE EXAMES estiverem livres!
+                if not medico_ocupado and not sala_ocupada: 
                     livres.append(h)
             return livres
 
@@ -129,6 +148,7 @@ class AgenteMedicinaFetal:
                 "opcao": str(idx + 1), 
                 "dia_semana": "quarta-feira", 
                 "data_iso": data_quarta.strftime('%Y-%m-%d'), 
+                "data_formatada": data_quarta.strftime('%d/%m/%Y'),
                 "hora": hora
             })
         
@@ -138,18 +158,18 @@ class AgenteMedicinaFetal:
         self.memoria_atual['exame_indicado'] = procedimento.descricao
         self.memoria_atual['opcoes_horario'] = opcoes
         
-        # O Copywriter Perfeito (Nova Ordem)
+        # O Copywriter Perfeito (Nova Ordem com Data Bonita)
         msg = f"{nome_usuario}, para {semanas} semanas o exame ideal é o *{procedimento.descricao}*.\n\n"
         msg += f"{explicacao}\n\n"
         
-        # Ajuste fino: se for 1x, diz "à vista", senão "em até Xx sem juros"
         texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
         msg += f"O investimento é de R$ {valor_str}, {texto_parcela}.\n\n"
         
         msg += f"Nesta semana ainda temos apenas {len(opcoes)} vagas disponíveis para o exame:\n\n"
         
         for op in opcoes:
-            msg += f"{op['opcao']}️⃣ {op['dia_semana']} às {op['hora']}\n"
+            # EXIBIÇÃO DA DATA: 1️⃣ Dia 11/03/2026 (quarta-feira) às 08:00
+            msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
             
         msg += f"\nPosso reservar um desses horários para você? (Responda 1 ou 2)"
         
@@ -185,10 +205,26 @@ class AgenteMedicinaFetal:
         horario = self.memoria_atual['horario_escolhido']
         
         try:
+            from agendamentos.models import Sala
+            # Garante que o agendamento cai na sala de exames
+            sala_exame = Sala.objects.filter(e_sala_exame=True).first()
+            
             data_hora = make_aware(datetime.strptime(f"{horario['data_iso']} {horario['hora']}", "%Y-%m-%d %H:%M"))
-            Agendamento.objects.create(paciente=paciente, medico=medico, procedimento=procedimento, tipo_agendamento='Procedimento', data_hora_inicio=data_hora, data_hora_fim=data_hora + timedelta(minutes=30), status='Agendado', observacoes=f"Bot WhatsApp. Exame: {exame_nome}.")
-            msg_final = f"Tudo certo, {nome_usuario}! 🎉\n\nSeu exame de *{exame_nome}* está agendado para *{horario['dia_semana']} às {horario['hora']}*.\n\nAgradecemos por escolher a Clínica Limalé 🤍!"
-        except Exception:
+            
+            Agendamento.objects.create(
+                paciente=paciente, 
+                medico=medico, 
+                sala=sala_exame, # <--- AQUI ESTÁ A MÁGICA DE ALOCAÇÃO DE SALA
+                procedimento=procedimento, 
+                tipo_agendamento='Procedimento', 
+                data_hora_inicio=data_hora, 
+                data_hora_fim=data_hora + timedelta(minutes=30), 
+                status='Agendado', 
+                observacoes=f"Bot WhatsApp. Exame: {exame_nome}."
+            )
+            msg_final = f"Tudo certo, {nome_usuario}! 🎉\n\nSeu exame de *{exame_nome}* está agendado para *dia {horario['data_formatada']} às {horario['hora']}*.\n\nAgradecemos por escolher a Clínica Limalé 🤍!"
+        except Exception as e:
+            logger.error(f"Erro ao salvar agendamento MF: {e}")
             msg_final = f"{nome_usuario}, ocorreu uma instabilidade na agenda. Uma atendente confirmará o horário em instantes com você! 🤍"
 
         return {"response_message": msg_final, "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
