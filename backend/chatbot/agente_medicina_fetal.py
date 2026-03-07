@@ -114,7 +114,7 @@ class AgenteMedicinaFetal:
                     break
                 
                 dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
-                dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=30)
+                dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15) # Cada exame tem duração de 15 minutos
                 
                 # 1. Verifica se o MÉDICO já tem algo agendado neste horário (em qualquer sala)
                 medico_ocupado = Agendamento.objects.filter(
@@ -187,26 +187,66 @@ class AgenteMedicinaFetal:
         else:
             return {"response_message": f"{nome_usuario}, por favor, me confirme com o número 1 ou 2 qual horário prefere.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
         
-        return {"response_message": f"Horário bloqueado para você, {nome_usuario}! ✅\nPara finalizarmos o seu prontuário e enviarmos as orientações de preparo, qual é o seu melhor e-mail?", "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
+        # Inicia a sequência de cadastro real
+        msg = f"Horário pré-reservado, {nome_usuario}! ✅\nPara finalizarmos o seu prontuário, preciso de mais alguns dados.\n\nQual é o seu *nome completo*?"
+        return {"response_message": msg, "new_state": 'mf_aguardando_nome_completo', "memory_data": self.memoria_atual}
+
+    def _processar_nome_completo(self, user_message: str) -> dict:
+        if len(user_message.split()) < 2:
+            return {"response_message": "Por favor, digite seu nome e sobrenome:", "new_state": 'mf_aguardando_nome_completo', "memory_data": self.memoria_atual}
+        
+        self.memoria_atual['nome_completo_paciente'] = user_message.title().strip()
+        msg = "Obrigado! Qual é a sua *data de nascimento*? (Ex: 25/05/1990)"
+        return {"response_message": msg, "new_state": 'mf_aguardando_nascimento', "memory_data": self.memoria_atual}
+
+    def _processar_nascimento(self, user_message: str) -> dict:
+        self.memoria_atual['data_nascimento_paciente'] = user_message.strip()
+        msg = "Perfeito. Por último, qual é o seu *melhor e-mail* para enviarmos as orientações de preparo?"
+        return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
 
     def _processar_email_e_finalizar(self, user_message: str) -> dict:
         nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
-        if '@' not in user_message: return {"response_message": f"{nome_usuario}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
+        if '@' not in user_message: 
+            return {"response_message": f"{nome_usuario}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
         
         self.memoria_atual['email_usuario'] = user_message.lower().strip()
+        
+        # --- MONTAGEM DOS DADOS PARA O BANCO ---
         telefone = ''.join(filter(str.isdigit, self.session_id))
-        nome_completo = self.memoria_atual.get('nome_completo', nome_usuario)
+        nome_completo = self.memoria_atual.get('nome_completo_paciente', nome_usuario)
+        data_nasc_str = self.memoria_atual.get('data_nascimento_paciente', '')
         
-        paciente, _ = Paciente.objects.get_or_create(telefone_celular=telefone, defaults={'nome_completo': nome_completo, 'email': self.memoria_atual['email_usuario'], 'data_nascimento': '1900-01-01'})
+        # Conversão de DD/MM/YYYY para YYYY-MM-DD exigida pelo Django
+        try:
+            dia, mes, ano = data_nasc_str.replace('-', '/').split('/')
+            data_nascimento_db = f"{ano}-{mes}-{dia}"
+        except Exception:
+            data_nascimento_db = '1900-01-01'
         
+        # 1. Cria ou Atualiza o Paciente
+        paciente, criado = Paciente.objects.get_or_create(
+            telefone_celular=telefone, 
+            defaults={
+                'nome_completo': nome_completo, 
+                'email': self.memoria_atual['email_usuario'], 
+                'data_nascimento': data_nascimento_db
+            }
+        )
+        if not criado:
+            paciente.nome_completo = nome_completo
+            paciente.email = self.memoria_atual['email_usuario']
+            if data_nascimento_db != '1900-01-01':
+                paciente.data_nascimento = data_nascimento_db
+            paciente.save()
+            
         exame_nome = self.memoria_atual.get('exame_indicado')
         procedimento = Procedimento.objects.filter(descricao=exame_nome, ativo=True).first()
         medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
         horario = self.memoria_atual['horario_escolhido']
         
+        # 2. Criação do Agendamento com Proteção
         try:
             from agendamentos.models import Sala
-            # Garante que o agendamento cai na sala de exames
             sala_exame = Sala.objects.filter(e_sala_exame=True).first()
             
             data_hora = make_aware(datetime.strptime(f"{horario['data_iso']} {horario['hora']}", "%Y-%m-%d %H:%M"))
@@ -214,7 +254,7 @@ class AgenteMedicinaFetal:
             Agendamento.objects.create(
                 paciente=paciente, 
                 medico=medico, 
-                sala=sala_exame, # <--- AQUI ESTÁ A MÁGICA DE ALOCAÇÃO DE SALA
+                sala=sala_exame,
                 procedimento=procedimento, 
                 tipo_agendamento='Procedimento', 
                 data_hora_inicio=data_hora, 
@@ -223,8 +263,14 @@ class AgenteMedicinaFetal:
                 observacoes=f"Bot WhatsApp. Exame: {exame_nome}."
             )
             msg_final = f"Tudo certo, {nome_usuario}! 🎉\n\nSeu exame de *{exame_nome}* está agendado para *dia {horario['data_formatada']} às {horario['hora']}*.\n\nAgradecemos por escolher a Clínica Limalé 🤍!"
+        
         except Exception as e:
             logger.error(f"Erro ao salvar agendamento MF: {e}")
-            msg_final = f"{nome_usuario}, ocorreu uma instabilidade na agenda. Uma atendente confirmará o horário em instantes com você! 🤍"
+            
+            # --- CORREÇÃO DO ALERTA: Agora ele realmente avisa a recepcionista! ---
+            from chatbot.bot_logic import notificar_recepcao_whatsapp
+            notificar_recepcao_whatsapp(self.session_id, nome_usuario)
+            
+            msg_final = f"{nome_usuario}, ocorreu uma pequena instabilidade na nossa agenda ao salvar os seus dados. Já acionei a equipe técnica e uma atendente confirmará o seu horário em instantes por aqui! 🤍"
 
         return {"response_message": msg_final, "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
