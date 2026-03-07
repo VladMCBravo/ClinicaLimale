@@ -116,9 +116,14 @@ class AgenteMedicinaFetal:
         self.memoria_atual['exame_indicado'] = procedimento.descricao
         self.memoria_atual['opcoes_horario'] = opcoes
         
-        # O Copywriter Perfeito
-        msg = f"{nome_usuario}, o *{procedimento.descricao}* tem o investimento de R$ {valor_str}, podendo ser dividido em até {max_parcelas}x sem juros.\n\n"
+        # O Copywriter Perfeito (Nova Ordem)
+        msg = f"{nome_usuario}, para {semanas} semanas o exame ideal é o *{procedimento.descricao}*.\n\n"
         msg += f"{explicacao}\n\n"
+        
+        # Ajuste fino: se for 1x, diz "à vista", senão "em até Xx sem juros"
+        texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+        msg += f"O investimento é de R$ {valor_str}, {texto_parcela}.\n\n"
+        
         msg += f"Nesta semana ainda temos apenas {len(opcoes)} vagas disponíveis para o exame:\n\n"
         
         for op in opcoes:
