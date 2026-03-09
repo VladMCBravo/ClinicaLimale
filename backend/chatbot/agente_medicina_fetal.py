@@ -27,8 +27,16 @@ class AgenteMedicinaFetal:
         self.memoria_atual = memoria_atual
 
     def processar(self, user_message: str, estado_atual: str) -> dict:
-        if any(p in user_message.lower() for p in ['cancelar', 'não quero', 'deixa pra lá', 'ginecologista']):
-            return {"response_message": "Entendido! Como posso te ajudar hoje na clínica então?", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+        msg_lower = user_message.lower()
+        
+        # --- ROTA DE FUGA CLARA (Se a pessoa realmente não quer) ---
+        palavras_fuga = ['cancelar', 'não quero', 'nao quero', 'deixa pra lá', 'ginecologista', 'obrigado', 'obrigada', 'encerrar', 'desisto']
+        if any(p in msg_lower for p in palavras_fuga) and len(msg_lower.split()) < 10:
+            return {
+                "response_message": "Entendido! Agradeço pelo contato. Se precisar de mais alguma coisa ou mudar de ideia, a Clínica Limalé está de portas abertas para você! 🤍", 
+                "new_state": 'ia_roteadora_livre', 
+                "memory_data": self.memoria_atual
+            }
 
         if estado_atual == 'inicio_fetal':
             return self._pedir_semanas()
@@ -166,21 +174,29 @@ class AgenteMedicinaFetal:
     def _processar_escolha_horario(self, user_message: str) -> dict:
         msg_lower = user_message.lower()
         
-        # --- DETECÇÃO DE OBJEÇÕES DO PDF ---
-        if any(palavra in msg_lower for palavra in ['caro', 'valor', 'preço', 'condição']):
-            msg = "Entendo 😊\n\nO ecocardiograma fetal é um exame especializado para avaliação detalhada do coração do bebê durante a gestação, por isso exige uma análise bastante cuidadosa durante o atendimento.\n\nComo ainda temos duas vagas disponíveis para essa semana, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
-            msg += self._formatar_opcoes_repescagem()
-            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
-            
-        elif any(palavra in msg_lower for palavra in ['marido', 'espos', 'parceir', 'junto', 'falar com']):
-            msg = "Claro 😊\n\nO ecocardiograma fetal é um exame importante para avaliar o coração do bebê durante a gestação, então é normal querer decidir juntos com calma.\n\nSe preferir, posso deixar um dos horários provisoriamente reservado para você enquanto conversam, assim você não corre o risco de perder a vaga.\n\n"
-            msg += self._formatar_opcoes_repescagem()
-            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
-            
-        elif any(palavra in msg_lower for palavra in ['pensar', 'ver', 'depois', 'vou decidir']):
-            msg = "Claro 😊\n\nO ecocardiograma fetal permite avaliar de forma bastante detalhada a estrutura e o funcionamento do coração do bebê, por isso muitas gestantes preferem realizar o exame dentro dessa fase da gestação.\n\nSe desejar, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
-            msg += self._formatar_opcoes_repescagem()
-            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+        # --- CONTROLE DE INSISTÊNCIA ---
+        # Verifica se o bot já tentou contornar uma objeção nesta sessão
+        ja_tentou_contornar = self.memoria_atual.get('tentativa_contorno_objecao', False)
+        
+        # Só tenta contornar se AINDA NÃO tiver tentado
+        if not ja_tentou_contornar:
+            if any(palavra in msg_lower for palavra in ['caro', 'valor', 'preço', 'condição']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = "Entendo 😊\n\nO ecocardiograma fetal é um exame especializado para avaliação detalhada do coração do bebê durante a gestação, por isso exige uma análise bastante cuidadosa durante o atendimento.\n\nComo ainda temos duas vagas disponíveis para essa semana, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+                
+            elif any(palavra in msg_lower for palavra in ['marido', 'espos', 'parceir', 'junto', 'falar com']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = "Claro 😊\n\nO ecocardiograma fetal é um exame importante para avaliar o coração do bebê durante a gestação, então é normal querer decidir juntos com calma.\n\nSe preferir, posso deixar um dos horários provisoriamente reservado para você enquanto conversam, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+                
+            elif any(palavra in msg_lower for palavra in ['pensar', 'ver', 'depois', 'vou decidir']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = "Claro 😊\n\nO ecocardiograma fetal permite avaliar de forma bastante detalhada a estrutura e o funcionamento do coração do bebê, por isso muitas gestantes preferem realizar o exame dentro dessa fase da gestação.\n\nSe desejar, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
         # --- FLUXO DE ESCOLHA DE HORÁRIO ---
         opcoes = self.memoria_atual.get('opcoes_horario', [])
@@ -193,10 +209,11 @@ class AgenteMedicinaFetal:
             escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
                 
         if not escolha:
-            return {"response_message": "Por favor, me confirme qual horário prefere (Ex: 19:30 ou 20:20).", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+            # Se ele deu uma resposta estranha e não foi uma objeção catalogada (ou já esgotou as objeções)
+            return {"response_message": "Por favor, me confirme qual horário prefere, ou digite *'não quero'* se preferir deixar para outra hora.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
             
         self.memoria_atual['horario_escolhido'] = escolha
-        msg = f"Perfeito 😊\n\nJá vou deixar pré-reservado para você {escolha['dia_semana']} ({escolha['data_formatada']}) às {escolha['hora']}.\n\nPoderia me informar seu nome completo e data de nascimento, por favor?"
+        msg = f"Perfeito 😊\n\nJá vou deixar pré-reservado para você {escolha['dia_semana']} ({escolha['data_formatada']}) às {escolha['hora']}.\n\nPoderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
         return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
         
     def _formatar_opcoes_repescagem(self) -> str:

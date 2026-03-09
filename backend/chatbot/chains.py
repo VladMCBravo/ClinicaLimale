@@ -104,7 +104,7 @@ try:
         - 'exame_geral': Eletrocardiograma, sangue, exames não relacionados à gravidez.
         - 'consulta': Se a pessoa quer passar com um médico, cita especialidades (ginecologista, cardio) ou "marcar consulta".
         - 'informacao_geral': Dúvida genérica ("onde fica a clínica?") sem deixar claro se quer exame ou consulta.
-        - 'humano': Se pediu expressamente para falar com a recepção ou atendente.
+        - 'humano': Se pediu para falar com recepção, atendente, ou mencionou "outros assuntos".
 
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}

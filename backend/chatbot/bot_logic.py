@@ -235,10 +235,11 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 "new_state": "agendamento_awaiting_specialty", 
                 "memory_data": memoria_atual
             }
-        elif '3' in user_message or 'recepção' in msg_limpa or 'humano' in msg_limpa:
+        elif '3' in user_message or 'recepção' in msg_limpa or 'humano' in msg_limpa or 'outro' in msg_limpa or 'assunto' in msg_limpa:
             resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
             memoria_obj.transferencia_solicitada = True
             notificar_recepcao_whatsapp(session_id, nome_usuario)
+            
         else:
             estado_atual = 'ia_roteadora_livre'
             resultado = None 
