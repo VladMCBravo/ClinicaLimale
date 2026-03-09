@@ -47,16 +47,13 @@ class AgenteRecepcionista:
         if len(user_message.split()) > 4:
             return self.processar_mensagem_complexa(user_message, nome_memoria)
 
-        # Se for só um "oi", "bom dia" curto, segue o fluxo normal de menu:
+        # Se for só um "oi", "bom dia" curto, segue o fluxo humanizado sem menu:
         if self.paciente:
             msg = (
                 f"Olá, {nome_memoria}! 🤍\n\n"
                 f"Sou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
                 f"Que bom ter você de volta! Será um prazer te atender.\n"
-                f"Em que posso ajudar? Digite o que precisa ou escolha uma opção:\n\n"
-                f"1️⃣ Agendar Exame\n"
-                f"2️⃣ Agendar Consulta\n"
-                f"3️⃣ Outros assuntos\n"
+                f"Em que posso ajudar você hoje?"
             )
             return {"response_message": msg, "new_state": "recepcionista_aguardando_intencao", "memory_data": self.memoria_atual}
 
@@ -182,15 +179,9 @@ class AgenteRecepcionista:
 
     def perguntar_intencao(self, nome: str) -> dict:
         """
-        Apresenta o menu principal após pegar o nome do novo lead.
+        Apresenta a pergunta aberta após pegar o nome do novo lead.
         """
-        msg = (
-            f"Prazer, {nome}! Como posso ajudar você hoje?\n\n"
-            f"Digite o que precisa ou escolha uma opção abaixo:\n\n"
-            f"1️⃣ Agendar Exame (Ultrassom, Doppler, etc)\n"
-            f"2️⃣ Agendar Consulta Médica\n"
-            f"3️⃣ Outros assuntos\n"
-        )
+        msg = f"Prazer, {nome}! Como posso ajudar você hoje?"
         return {
             "response_message": msg,
             "new_state": "recepcionista_aguardando_intencao",
