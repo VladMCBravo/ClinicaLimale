@@ -130,6 +130,7 @@ class AgenteRecepcionista:
     def processar_nome(self, user_message: str) -> dict:
         """
         Processa a resposta do usuário quando ele informa o nome pela primeira vez.
+        Se ele já tinha pedido um exame antes de dar o nome, retoma o fluxo!
         """
         # Limpeza básica do nome (pega a primeira ou duas primeiras palavras)
         nome_limpo = user_message.strip().title()
@@ -138,6 +139,36 @@ class AgenteRecepcionista:
             
         self.memoria_atual['nome_usuario'] = nome_limpo
         
+        # --- O PULO DO GATO: Verifica se ele já tinha pedido algo antes! ---
+        ultimo_exame = self.memoria_atual.get('ultimo_exame_citado')
+        especialidade = self.memoria_atual.get('especialidade_indicada')
+        
+        # Se ele pediu exame fetal antes de dar o nome (ex: "quero eco fetal")
+        if ultimo_exame and 'exame_fetal' in str(self.memoria_atual.values()):
+            return {
+                "response_message": f"Muito prazer, {nome_limpo}! 🤍\n\nO ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação. Para te orientar corretamente, poderia me informar de quantas semanas de gestação você está hoje, por favor?",
+                "new_state": "mf_aguardando_semanas",
+                "memory_data": self.memoria_atual
+            }
+            
+        # Se ele pediu exame geral (ex: "quero eletrocardiograma")
+        elif ultimo_exame:
+            return {
+                "response_message": f"Muito prazer, {nome_limpo}! 🤍\n\nSim, realizamos o {ultimo_exame} aqui na clínica! Gostaria de verificar os valores e os horários disponíveis?",
+                "new_state": "inicio",
+                "memory_data": self.memoria_atual
+            }
+            
+        # Se ele pediu consulta (ex: "quero pediatra")
+        elif especialidade:
+            self.memoria_atual['tipo_agendamento'] = 'Consulta'
+            return {
+                "response_message": f"Muito prazer, {nome_limpo}! 🤍\n\nPara eu verificar a agenda correta da nossa equipe, qual especialidade médica você procura? (Ex: {especialidade})",
+                "new_state": "agendamento_awaiting_specialty",
+                "memory_data": self.memoria_atual
+            }
+
+        # Se ele só deu o nome e não tinha pedido nada (Ex: começou mandando só "Oi")
         return self.perguntar_intencao(nome_limpo)
 
     def perguntar_intencao(self, nome: str) -> dict:
