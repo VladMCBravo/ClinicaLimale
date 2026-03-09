@@ -56,7 +56,7 @@ class AgenteRecepcionista:
                 f"Em que posso ajudar? Digite o que precisa ou escolha uma opção:\n\n"
                 f"1️⃣ Agendar Exame\n"
                 f"2️⃣ Agendar Consulta\n"
-                f"3️⃣ Falar com a recepção"
+                f"3️⃣ Outros assuntos\n"
             )
             return {"response_message": msg, "new_state": "recepcionista_aguardando_intencao", "memory_data": self.memoria_atual}
 
@@ -149,7 +149,7 @@ class AgenteRecepcionista:
             f"Digite o que precisa ou escolha uma opção abaixo:\n\n"
             f"1️⃣ Agendar Exame (Ultrassom, Doppler, etc)\n"
             f"2️⃣ Agendar Consulta Médica\n"
-            f"3️⃣ Falar com a recepção"
+            f"3️⃣ Outros assuntos\n"
         )
         return {
             "response_message": msg,

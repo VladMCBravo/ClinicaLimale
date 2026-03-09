@@ -270,14 +270,14 @@ class AgenteMedicinaFetal:
             
             Agendamento.objects.create(paciente=paciente, medico=medico, sala=sala_exame, procedimento=procedimento, tipo_agendamento='Procedimento', data_hora_inicio=data_hora, data_hora_fim=data_hora + timedelta(minutes=15), status='Agendado', observacoes=f"Bot WhatsApp. Exame: {exame_nome}.")
             
-            # --- O FECHAMENTO DO PDF ---
+            # --- O FECHAMENTO DO PDF COM EMOJIS E NEGRITO ---
             msg_final = f"Perfeito, {nome_curto} 😊\n\n"
-            msg_final += f"Seu {exame_nome.lower()} ficou reservado para {horario['dia_semana']} ({horario['data_formatada']}) às {horario['hora']}.\n\n"
-            msg_final += f"Endereço da clínica\n"
-            msg_final += f"Rua Orense, 41 - Sala 512\nCentro\nDiadema\n(próximo ao Shopping Praça da Moça e ao Quarteirão da Saúde)\n\n"
-            msg_final += f"☑ Pedimos apenas que chegue 15 minutos antes do horário.\n"
-            msg_final += f"☐ Caso possua ultrassons anteriores ou pedido médico, pode trazê-los no dia.\n\n"
-            msg_final += f"Será um prazer cuidar de você e do seu bebê nesse momento tão especial da gestação."
+            msg_final += f"Seu *{exame_nome.lower()}* ficou reservado para *{horario['dia_semana']} ({horario['data_formatada']}) às {horario['hora']}*.\n\n"
+            msg_final += f"📍 *Endereço da clínica*\n"
+            msg_final += f"Rua Orense, 41 - Sala 512\nCentro - Diadema\n(próximo ao Shopping Praça da Moça e ao Quarteirão da Saúde)\n\n"
+            msg_final += f"☑️ Pedimos apenas que chegue 15 minutos antes do horário.\n"
+            msg_final += f"📋 Caso possua ultrassons anteriores ou pedido médico, pode trazê-los no dia.\n\n"
+            msg_final += f"Será um prazer cuidar de você e do seu bebê nesse momento tão especial da gestação 🤍"
         
         except Exception as e:
             logger.error(f"Erro ao salvar agendamento MF: {e}")
