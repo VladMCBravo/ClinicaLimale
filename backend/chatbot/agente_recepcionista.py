@@ -139,14 +139,23 @@ class AgenteRecepcionista:
             
         self.memoria_atual['nome_usuario'] = nome_limpo
         
-        # --- O PULO DO GATO: Verifica se ele já tinha pedido algo antes! ---
-        ultimo_exame = self.memoria_atual.get('ultimo_exame_citado')
+        ultimo_exame = self.memoria_atual.get('ultimo_exame_citado', '')
         especialidade = self.memoria_atual.get('especialidade_indicada')
         
+        # NOVA REGRA: Verifica diretamente no nome do exame se é obstétrico/fetal
+        exames_fetais = ['eco', 'fetal', 'morfológico', 'morfologico', 'obstétrico', 'obstetrico', 'transvaginal', 'gestação']
+        is_fetal = ultimo_exame and any(p in ultimo_exame.lower() for p in exames_fetais)
+        
         # Se ele pediu exame fetal antes de dar o nome (ex: "quero eco fetal")
-        if ultimo_exame and 'exame_fetal' in str(self.memoria_atual.values()):
+        if is_fetal:
+            # Personaliza a mensagem dependendo se é Eco Fetal ou Morfológico
+            if 'eco' in ultimo_exame.lower() or 'cardio' in ultimo_exame.lower():
+                msg = f"Muito prazer, {nome_limpo}! 🤍\n\nO ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação. Para te orientar corretamente, poderia me informar de quantas semanas de gestação você está hoje, por favor?"
+            else:
+                msg = f"Muito prazer, {nome_limpo}! 🤍\n\nPara te orientar corretamente sobre o {ultimo_exame}, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                
             return {
-                "response_message": f"Muito prazer, {nome_limpo}! 🤍\n\nO ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação. Para te orientar corretamente, poderia me informar de quantas semanas de gestação você está hoje, por favor?",
+                "response_message": msg,
                 "new_state": "mf_aguardando_semanas",
                 "memory_data": self.memoria_atual
             }
