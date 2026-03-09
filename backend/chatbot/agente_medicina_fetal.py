@@ -84,17 +84,34 @@ class AgenteMedicinaFetal:
 
         explicacao = EXPLICACOES_FETAIS.get(exame, "Esse exame é essencial para acompanharmos o desenvolvimento saudável do bebê.")
 
-        # BUSCA DE AGENDA (Mantida a sua lógica perfeita)
+        # ====================================================
+        # BUSCA DE AGENDA INTELIGENTE (GERADOR AUTOMÁTICO)
+        # ====================================================
         from agendamentos.models import Sala
+        from django.utils import timezone
         hoje = date.today()
+        agora = timezone.now()
+        
+        def gerar_horarios(hora_inicio, hora_fim, intervalo=15):
+            lista = []
+            atual = datetime.strptime(hora_inicio, '%H:%M')
+            fim = datetime.strptime(hora_fim, '%H:%M')
+            while atual < fim:
+                lista.append(atual.strftime('%H:%M'))
+                atual += timedelta(minutes=intervalo)
+            return lista
+
+        # Regra da Clínica: Quartas-feiras
         dias_quarta = (2 - hoje.weekday()) % 7
         if dias_quarta == 0: dias_quarta = 7
         data_quarta = hoje + timedelta(days=dias_quarta)
 
         if exame == "Ecocardiograma Fetal":
-            horarios_possiveis = ['19:00', '19:15','19:30','19:45', '20:00', '20:15', '20:30','20:45', '21:00','21:15', '21:30']
+            # Eco Fetal: Quarta 19h as 22h
+            horarios_possiveis = gerar_horarios('19:00', '22:00')
         else:
-            horarios_possiveis = ['08:00', '08:15', '08:30', '08:45', '09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30', '14:45']
+            # Medicina Fetal: Quarta 08h as 15h
+            horarios_possiveis = gerar_horarios('08:00', '15:00')
 
         sala_exame = Sala.objects.filter(e_sala_exame=True).first()
 
@@ -103,9 +120,11 @@ class AgenteMedicinaFetal:
             for h in lista_horarios:
                 if len(livres) >= limite: break
                 dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
-                dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15)
+                dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15) # Duração de 15 min
                 
-                medico_ocupado = Agendamento.objects.filter(medico=medico, data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
+                if dt_alvo_inicio < agora: continue
+                
+                medico_ocupado = Agendamento.objects.filter(data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
                 sala_ocupada = False
                 if sala_exame:
                     sala_ocupada = Agendamento.objects.filter(sala=sala_exame, data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()

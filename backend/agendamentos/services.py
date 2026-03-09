@@ -30,7 +30,7 @@ def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
             "motivo": "O profissional selecionado não foi encontrado."
         }
 
-    DURACAO_CONSULTA_MINUTOS = 30
+    DURACAO_CONSULTA_MINUTOS = 15
     
     dia_da_semana = data_selecionada.weekday()
     jornadas_do_dia = JornadaDeTrabalho.objects.filter(medico=medico, dia_da_semana=dia_da_semana)
@@ -105,14 +105,14 @@ def buscar_proximo_horario_procedimento(procedimento_id: int):
                     conflito_sala = Agendamento.objects.filter(
                         sala=sala_procedimentos,
                         status__in=['Agendado', 'Confirmado', 'Realizado'],
-                        data_hora_inicio__lt=timezone.make_aware(slot_atual + timedelta(minutes=50)),
+                        data_hora_inicio__lt=timezone.make_aware(slot_atual + timedelta(minutes=15)),
                         data_hora_fim__gt=timezone.make_aware(slot_atual)
                     ).exists()
                     
                     if not conflito_sala:
                         horarios_disponiveis.append(slot_atual.strftime('%H:%M'))
 
-                slot_atual += timedelta(minutes=30)
+                slot_atual += timedelta(minutes=15)
 
             if horarios_disponiveis:
                 return {
@@ -218,8 +218,8 @@ def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None)
                 data_atual += timedelta(days=1)
                 continue
 
-            # Gera horários possíveis (a cada 30 min)
-            intervalo_minutos = 30
+            # Gera horários possíveis (a cada 15 min)
+            intervalo_minutos = 15
             horarios_possiveis = []
             try:
                  hora_corrente_dt = datetime.combine(data_atual, jornada_do_dia.hora_inicio)
@@ -259,7 +259,7 @@ def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None)
 
             # Cria um conjunto de slots ocupados (considerando duração de 50 min para agendamentos)
             slots_ocupados = set()
-            duracao_consulta = timedelta(minutes=50) # Duração padrão
+            duracao_consulta = timedelta(minutes=15) # Duração padrão
             # Adiciona slots ocupados por agendamentos
             for inicio, fim in agendamentos_dia:
                  slot = inicio

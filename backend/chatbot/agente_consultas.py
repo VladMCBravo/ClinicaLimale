@@ -49,59 +49,78 @@ class AgenteConsultas:
 
     def _processar_especialidade(self, user_message: str) -> dict:
         especialidade_pedida = user_message.strip().title()
-        
-        # Aqui, na vida real, você buscaria no banco se a clínica atende essa especialidade.
-        # Exemplo simples:
         especialidades_atendidas = ['Ginecologista', 'Ginecologia', 'Obstetra', 'Obstetrícia', 'Pediatra', 'Pediatria', 'Cardiologista', 'Cardiologia', 'Clinico Geral', 'Clínico Geral']
         
-        tem_especialidade = any(esp.lower() in especialidade_pedida.lower() for esp in especialidades_atendidas)
-        
-        if not tem_especialidade:
-            # CORREÇÃO: Mantém no mesmo estado e dá a opção clara de chamar humano sem quebrar o fluxo
-            return {
-                "response_message": f"Poxa, não encontrei '{especialidade_pedida}' nas nossas agendas abertas.\n\nPor favor, digite outra especialidade ou digite *'Falar com a recepção'* para eu transferir você para uma de nossas atendentes! 🤍",
-                "new_state": "agendamento_awaiting_specialty", 
-                "memory_data": self.memoria_atual
-            }
+        if not any(esp.lower() in especialidade_pedida.lower() for esp in especialidades_atendidas):
+            return {"response_message": f"Poxa, não encontrei '{especialidade_pedida}' nas nossas agendas. Por favor, digite outra especialidade ou *'Falar com a recepção'*! 🤍", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria_atual}
 
         self.memoria_atual['especialidade_indicada'] = especialidade_pedida
-        
-        # --- BUSCA DE AGENDA MOCKADA PARA TESTE (Igual ao de exames) ---
         medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
-        hoje = date.today()
+        from django.utils import timezone
         
-        # Procura horários para os próximos 2 dias úteis
-        dia1 = hoje + timedelta(days=1 if hoje.weekday() < 4 else 3) 
-        dia2 = dia1 + timedelta(days=1)
+        def gerar_horarios(hora_inicio, hora_fim, intervalo=15):
+            lista = []
+            atual = datetime.strptime(hora_inicio, '%H:%M')
+            fim = datetime.strptime(hora_fim, '%H:%M')
+            while atual < fim:
+                lista.append(atual.strftime('%H:%M'))
+                atual += timedelta(minutes=intervalo)
+            return lista
 
-        horarios_dia1 = ['09:00', '10:30', '14:00']
-        horarios_dia2 = ['11:00', '15:30', '16:00']
+        # --- REGRAS DE CONSULTA DA CLÍNICA ---
+        msg_lower = especialidade_pedida.lower()
+        if 'pediatr' in msg_lower:
+            regras_dias = {
+                0: gerar_horarios('09:00', '12:00') + gerar_horarios('15:00', '17:00'), # Segunda
+                1: gerar_horarios('14:00', '16:00'),                                    # Terça
+                4: gerar_horarios('10:00', '12:00') + gerar_horarios('15:00', '17:00')  # Sexta
+            }
+        elif 'cardio' in msg_lower:
+            regras_dias = {
+                1: gerar_horarios('08:00', '12:00'), # Terça
+                5: gerar_horarios('08:00', '11:00')  # Sábado
+            }
+        else:
+            regras_dias = {0: gerar_horarios('08:00', '18:00'), 1: gerar_horarios('08:00', '18:00'), 2: gerar_horarios('08:00', '18:00'), 3: gerar_horarios('08:00', '18:00'), 4: gerar_horarios('08:00', '18:00')}
 
+        hoje = date.today()
+        agora = timezone.now()
         opcoes = []
-        opcoes.append({
-            "opcao": "1", "dia_semana": "Amanhã" if dia1 == hoje + timedelta(days=1) else "Próximo dia útil",
-            "data_iso": dia1.strftime('%Y-%m-%d'), "data": dia1.strftime('%d/%m/%Y'), "hora": horarios_dia1[0]
-        })
-        opcoes.append({
-            "opcao": "2", "dia_semana": "Outra opção",
-            "data_iso": dia2.strftime('%Y-%m-%d'), "data": dia2.strftime('%d/%m/%Y'), "hora": horarios_dia2[0]
-        })
+        dias_pt = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
+
+        # Varre os próximos 15 dias buscando 2 horários
+        for i in range(15):
+            if len(opcoes) >= 2: break
+            data_alvo = hoje + timedelta(days=i)
+            dia_semana = data_alvo.weekday()
+            
+            if dia_semana in regras_dias:
+                for h in regras_dias[dia_semana]:
+                    if len(opcoes) >= 2: break
+                    
+                    dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
+                    dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15)
+                    
+                    if dt_alvo_inicio < agora: continue
+                        
+                    ocupado = Agendamento.objects.filter(
+                        data_hora_inicio__lt=dt_alvo_fim, 
+                        data_hora_fim__gt=dt_alvo_inicio, 
+                        status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']
+                    ).exists()
+                    
+                    if not ocupado:
+                        opcoes.append({"opcao": str(len(opcoes) + 1), "dia_semana": dias_pt[dia_semana], "data_iso": data_alvo.strftime('%Y-%m-%d'), "data_formatada": data_alvo.strftime('%d/%m/%Y'), "hora": h})
+
+        if not opcoes:
+            return {"response_message": f"Poxa, nossas agendas para {especialidade_pedida} estão lotadas nos próximos dias. Vou transferir para uma atendente verificar um encaixe para você! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
 
         self.memoria_atual['opcoes_horario'] = opcoes
+        msg = f"Ótimo! Temos atendimento para *{especialidade_pedida}* com nossa equipe médica.\n\nAqui estão os horários mais próximos que encontrei:\n\n"
+        for op in opcoes: msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
+        msg += f"\nQual dessas opções fica melhor para você? (Responda 1 ou 2)"
         
-        msg = (f"Ótimo! Temos atendimento para *{especialidade_pedida}* com nossa equipe médica.\n\n"
-               f"Aqui estão os horários mais próximos que encontrei:\n")
-        
-        for op in opcoes:
-            msg += f"{op['opcao']}️⃣ {op['data']} às {op['hora']}\n"
-            
-        msg += f"\nQual dessas opções fica melhor para você? (Digite 1 ou 2)"
-        
-        return {
-            "response_message": msg, 
-            "new_state": 'agendamento_awaiting_slot_choice', 
-            "memory_data": self.memoria_atual
-        }
+        return {"response_message": msg, "new_state": 'agendamento_awaiting_slot_choice', "memory_data": self.memoria_atual}
 
     def _processar_escolha_horario(self, user_message: str) -> dict:
         if '1' in user_message or 'primeir' in user_message.lower():

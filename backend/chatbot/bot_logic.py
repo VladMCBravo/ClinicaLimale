@@ -184,13 +184,25 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # --- FASE 1: A RECEPCIONISTA E O ROTEAMENTO ---
     # ==================================================================
     msg_limpa = user_message.strip().lower()
-    estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + ['aguardando_atendente_humano', 'encerrado']
+    
+    # BLINDAGEM MÁXIMA: Impede a Recepcionista de interromper os Agentes Especialistas!
+    estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + [
+        'aguardando_atendente_humano', 'encerrado',
+        'inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 
+        'mf_aguardando_nome_completo', 'mf_aguardando_nascimento', 'mf_aguardando_email',
+        'inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao',
+        'aguardando_nome_cadastro', 'aguardando_email_cadastro',
+        'agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice',
+        'aguardando_tipo_exame_menu'
+    ]
     
     if estado_atual == 'humano':
         estado_atual = 'aguardando_atendente_humano'
 
-    # CORREÇÃO 1: Procura a saudação dentro do "textão" (any..in)
-    tem_saudacao = any(s in msg_limpa for s in ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'menu'])
+    # CORREÇÃO DO "OI": Procura palavras soltas para não confundir "depois" com "oi"
+    palavras_msg = msg_limpa.replace(',', ' ').replace('!', ' ').replace('?', ' ').split()
+    tem_saudacao = any(s in palavras_msg for s in ['oi', 'olá', 'ola', 'menu']) or \
+                   any(s in msg_limpa for s in ['bom dia', 'boa tarde', 'boa noite', 'tudo bem'])
     
     # CORREÇÃO 2: Descobre se é o primeiro contato do paciente burlando o estado 'inicio' do banco
     historico = memoria_atual.get('historico_conversa', [])

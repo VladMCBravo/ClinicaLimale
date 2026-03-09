@@ -60,51 +60,70 @@ class AgenteExames:
             return self._buscar_agenda(exame_alvo)
 
     def _buscar_agenda(self, nome_procedimento: str) -> dict:
-        """Função unificada de busca de agenda de exames."""
         procedimento = Procedimento.objects.filter(descricao__icontains=nome_procedimento, ativo=True).first()
         medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
         
         if not procedimento or not medico:
-             return {"response_message": f"Não encontrei horários abertos para *{nome_procedimento}* no sistema. Vou pedir para a nossa equipe verificar um encaixe para você! Um momento 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+             return {"response_message": f"Não encontrei horários para *{nome_procedimento}* no sistema. Vou transferir para uma atendente! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
              
         valor_str = f"{procedimento.valor_particular:.2f}".replace('.', ',') if procedimento.valor_particular else "sob consulta"
         
+        from django.utils import timezone
+        from agendamentos.models import Sala
         hoje = date.today()
-        dias_quarta = (2 - hoje.weekday()) % 7
-        if dias_quarta == 0: dias_quarta = 7
-        data_quarta = hoje + timedelta(days=dias_quarta)
+        agora = timezone.now()
         
-        dias_sabado = (5 - hoje.weekday()) % 7
-        if dias_sabado == 0: dias_sabado = 7
-        data_sabado = hoje + timedelta(days=dias_sabado)
+        def gerar_horarios(hora_inicio, hora_fim, intervalo=15):
+            lista = []
+            atual = datetime.strptime(hora_inicio, '%H:%M')
+            fim = datetime.strptime(hora_fim, '%H:%M')
+            while atual < fim:
+                lista.append(atual.strftime('%H:%M'))
+                atual += timedelta(minutes=intervalo)
+            return lista
 
-        def encontrar_horario_livre(data_alvo, lista_horarios):
-            for h in lista_horarios:
-                dt_alvo = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
-                ocupado = Agendamento.objects.filter(
-                    medico=medico, data_hora_inicio__lt=dt_alvo + timedelta(minutes=30),
-                    data_hora_fim__gt=dt_alvo, status__in=['Agendado', 'Confirmado']
-                ).exists()
-                if not ocupado: return h
-            return None
-
-        hora_quarta = encontrar_horario_livre(data_quarta, ['14:00', '14:30', '15:00', '15:30', '16:00', '09:00', '09:30', '10:00'])
-        hora_sabado = encontrar_horario_livre(data_sabado, ['09:00', '09:30', '10:00', '10:30', '11:00', '08:00', '08:30'])
+        # --- REGRAS DE EXAME DA CLÍNICA ---
+        msg_lower = nome_procedimento.lower()
+        if 'eco' in msg_lower or 'cardio' in msg_lower:
+            # Eco Adulto e Pediátrico: Quartas das 19h às 22h
+            regras_dias = { 2: gerar_horarios('19:00', '22:00') } # 2 = Quarta
+        else:
+            regras_dias = {0: gerar_horarios('08:00', '18:00'), 1: gerar_horarios('08:00', '18:00'), 2: gerar_horarios('08:00', '18:00'), 3: gerar_horarios('08:00', '18:00'), 4: gerar_horarios('08:00', '18:00')}
 
         opcoes = []
-        if hora_quarta: opcoes.append({"opcao": str(len(opcoes)+1), "dia_semana": "Quarta-feira", "data_iso": data_quarta.strftime('%Y-%m-%d'), "data": data_quarta.strftime('%d/%m/%Y'), "hora": hora_quarta})
-        if hora_sabado: opcoes.append({"opcao": str(len(opcoes)+1), "dia_semana": "Sábado", "data_iso": data_sabado.strftime('%Y-%m-%d'), "data": data_sabado.strftime('%d/%m/%Y'), "hora": hora_sabado})
-        
+        dias_pt = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
+        sala_exame = Sala.objects.filter(e_sala_exame=True).first()
+
+        for i in range(15):
+            if len(opcoes) >= 2: break
+            data_alvo = hoje + timedelta(days=i)
+            dia_semana = data_alvo.weekday()
+            
+            if dia_semana in regras_dias:
+                for h in regras_dias[dia_semana]:
+                    if len(opcoes) >= 2: break
+                    
+                    dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
+                    dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15)
+                    
+                    if dt_alvo_inicio < agora: continue
+                        
+                    medico_ocupado = Agendamento.objects.filter(data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
+                    sala_ocupada = False
+                    if sala_exame:
+                        sala_ocupada = Agendamento.objects.filter(sala=sala_exame, data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
+                    
+                    if not medico_ocupado and not sala_ocupada:
+                        opcoes.append({"opcao": str(len(opcoes) + 1), "dia_semana": dias_pt[dia_semana], "data_iso": data_alvo.strftime('%Y-%m-%d'), "data_formatada": data_alvo.strftime('%d/%m/%Y'), "hora": h})
+
         if not opcoes:
             return {"response_message": f"O *{procedimento.descricao}* está R$ {valor_str}. Porém, nossas agendas estão lotadas. Quer que eu peça para uma atendente verificar um encaixe?", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
 
         self.memoria_atual['exame_indicado'] = procedimento.descricao
         self.memoria_atual['opcoes_horario'] = opcoes
         
-        msg = (f"Ótimo! O valor para o *{procedimento.descricao}* é R$ {valor_str}.\n\n"
-               f"Encontrei estas opções de horários mais próximos:\n")
-        for op in opcoes:
-            msg += f"{op['opcao']}️⃣ {op['dia_semana']} ({op['data']}) às {op['hora']}\n"
+        msg = f"Ótimo! O valor para o *{procedimento.descricao}* é R$ {valor_str}.\n\nEncontrei estas opções de horários mais próximos:\n\n"
+        for op in opcoes: msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
         msg += f"\nQual das opções fica melhor para você? (Digite 1 ou 2)"
         
         return {"response_message": msg, "new_state": 'aguardando_escolha_horario_gestacao', "memory_data": self.memoria_atual}
@@ -171,7 +190,7 @@ class AgenteExames:
         
         try:
             data_hora = make_aware(datetime.strptime(f"{horario['data_iso']} {horario['hora']}", "%Y-%m-%d %H:%M"))
-            Agendamento.objects.create(paciente=paciente, medico=medico, procedimento=procedimento, tipo_agendamento='Procedimento', data_hora_inicio=data_hora, data_hora_fim=data_hora + timedelta(minutes=30), status='Agendado', observacoes=f"Bot WhatsApp. Exame: {exame_nome}.")
+            Agendamento.objects.create(paciente=paciente, medico=medico, procedimento=procedimento, tipo_agendamento='Procedimento', data_hora_inicio=data_hora, data_hora_fim=data_hora + timedelta(minutes=15), status='Agendado', observacoes=f"Bot WhatsApp. Exame: {exame_nome}.")
             nome_curto = nome_completo.split()[0]
             msg_final = f"Tudo certo, {nome_curto}! 🎉\n\nSeu exame de *{exame_nome}* está agendado para:\n📅 *Dia {horario['data']} às {horario['hora']}*\n\nAgradecemos por escolher a Clínica Limalé 🤍!"
         except Exception:
