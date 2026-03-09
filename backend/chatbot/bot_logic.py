@@ -242,7 +242,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # ==================================================================
     
     # 2.A: NOVO Agente de Medicina Fetal (Ultrassons Obstétricos)
-    elif estado_atual in ['inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 'mf_aguardando_nome_completo', 'mf_aguardando_nascimento', 'mf_aguardando_email']:
+    elif estado_atual in ['inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 'mf_aguardando_dados_pessoais', 'mf_aguardando_email']:
         agente_fetal = AgenteMedicinaFetal(session_id, memoria_atual)
         resultado = agente_fetal.processar(user_message, estado_atual)
         
