@@ -45,43 +45,34 @@ class AgenteRecepcionista:
         # Se a pessoa mandou mais de 4 palavras, ela não está só dando "oi".
         # Ela está explicando o que quer (Ex: "Bom dia me chamo Vladmir e quero saber preços")
         if len(user_message.split()) > 4:
-            return self.processar_mensagem_complexa(user_message, nome_memoria)
+            ja_tem_nome = bool(nome_memoria)
+            tem_historico = len(self.memoria_atual.get('historico_conversa', [])) > 0
+            # Se já tem nome e não é a primeira mensagem da vida dele, pula a saudação longa
+            pular = ja_tem_nome and tem_historico
+            return self.processar_mensagem_complexa(user_message, nome_memoria, pular_saudacao=pular)
 
-        # Se for só um "oi", "bom dia" curto, segue o fluxo humanizado sem menu:
+        # Se for só um "oi", "bom dia" curto para paciente conhecido:
         if self.paciente:
-            msg = (
-                f"Olá, {nome_memoria}! 🤍\n\n"
-                f"Sou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
-                f"Que bom ter você de volta! Será um prazer te atender.\n"
-                f"Em que posso ajudar você hoje?"
-            )
+            msg = (f"Olá, {nome_memoria}! 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                   f"Que bom ter você de volta! Será um prazer te atender.\nComo posso ajudar você hoje?")
             return {"response_message": msg, "new_state": "recepcionista_aguardando_intencao", "memory_data": self.memoria_atual}
 
         # CENÁRIO: Mensagem curta (Paciente Novo)
         if not nome_memoria:
-            msg = (
-                "Olá 🤍\n\n"
-                "Sou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
-                "Será um prazer te atender.\n"
-                "Para continuarmos, como você gostaria de ser chamado(a)?"
-            )
+            msg = ("Olá 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                   "Será um prazer te atender.\nPara continuarmos, como você gostaria de ser chamado(a)?")
             return {"response_message": msg, "new_state": "recepcionista_aguardando_nome", "memory_data": self.memoria_atual}
 
         return self.perguntar_intencao(nome_memoria)
 
-    def processar_mensagem_complexa(self, user_message: str, nome_conhecido: str) -> dict:
-        """
-        Usa o LLM para ler a mensagem inicial do paciente, extrair o nome (se ele disser)
-        e já dar uma resposta humanizada roteando para o lugar certo.
-        """
+    def processar_mensagem_complexa(self, user_message: str, nome_conhecido: str, pular_saudacao: bool = False) -> dict:
         try:
-            # Chama o LLM para interpretar o textão do paciente
             analise = chain_recepcionista.invoke({
                 "user_message": user_message,
-                "nome_conhecido": nome_conhecido or ""
+                "nome_conhecido": nome_conhecido or "",
+                "pular_saudacao": "SIM" if pular_saudacao else "NAO"
             })
             
-            # O LLM nos devolve o nome (se encontrou) e a intenção
             nome_extraido = analise.get("nome_extraido")
             intencao = analise.get("intencao") 
             resposta_ia = analise.get("resposta_humanizada")
@@ -91,26 +82,51 @@ class AgenteRecepcionista:
                 self.memoria_atual['nome_usuario'] = nome_extraido.title()
                 nome_conhecido = nome_extraido.title()
             
-            # NOVO: Salva a extração na memória (separando os novos tipos)
             if procedimento:
                 if intencao in ['exame_fetal', 'exame_geral']:
                     self.memoria_atual['ultimo_exame_citado'] = procedimento
                 elif intencao == 'consulta':
                     self.memoria_atual['especialidade_indicada'] = procedimento
 
-            # A CORREÇÃO MESTRA DO ESTADO ESTÁ AQUI
+            # ================================================================
+            # BLINDAGEM DE ROTEIRO (Evita que a IA fuja do funil)
+            # ================================================================
             if not nome_conhecido:
-                # CORREÇÃO TESTE 2: Se não temos o nome, o único estado possível é aguardar o nome.
                 novo_estado = 'recepcionista_aguardando_nome'
+                # BLINDAGEM 1: Se não temos o nome, PROIBIMOS a IA de falar de exames.
+                # Forçamos a saudação padrão que pede APENAS o nome.
+                resposta_ia = (
+                    "Olá! 🤍\n\n"
+                    "Sou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                    "Seja muito bem-vindo(a)! Será um prazer te atender.\n\n"
+                    "Para continuarmos de forma mais próxima, como você gostaria de ser chamado(a)?"
+                )
             else:
                 if intencao == 'exame_fetal':
-                    # CORREÇÃO TESTE 3: Pula direto para o Agente de Medicina Fetal processar as semanas!
                     novo_estado = 'mf_aguardando_semanas' 
+                    # BLINDAGEM 2: Se sabemos que é Medicina Fetal, a IA não pode inventar perguntas sobre trimestres.
+                    # Forçamos o roteiro validado.
+                    if 'eco' in (procedimento or '').lower() or 'cardio' in (procedimento or '').lower():
+                        texto_exame = "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
+                    else:
+                        texto_exame = f"Sim, o exame {procedimento or 'morfológico'} é uma de nossas especialidades!"
+                        
+                    if pular_saudacao:
+                        resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                    else:
+                        resposta_ia = f"Olá, {nome_conhecido}! 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\nQue bom ter você por aqui! {texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                
                 elif intencao == 'exame_geral':
-                    novo_estado = 'inicio' # Deixa o AgenteExames antigo avaliar
+                    novo_estado = 'inicio'
                 elif intencao == 'consulta':
                     novo_estado = 'agendamento_awaiting_specialty'
                     self.memoria_atual['tipo_agendamento'] = 'Consulta'
+                elif intencao == 'humano':
+                    from chatbot.human_transfer import HumanTransferManager
+                    from chatbot.bot_logic import notificar_recepcao_whatsapp
+                    resultado_transf = HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
+                    notificar_recepcao_whatsapp(self.session_id, nome_conhecido)
+                    return resultado_transf
                 else:
                     novo_estado = 'ia_roteadora_livre'
 

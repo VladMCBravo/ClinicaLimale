@@ -219,36 +219,12 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         recepcionista = AgenteRecepcionista(session_id, memoria_atual)
         resultado = recepcionista.processar_nome(user_message)
         
-    # 3. ROTEAMENTO DO MENU PRINCIPAL (Opções 1, 2, 3)
+    # 3. CAPTURA DA INTENÇÃO (A pessoa respondeu ao "Como posso ajudar você hoje?")
     elif estado_atual == 'recepcionista_aguardando_intencao':
-        if '1' in user_message or 'exame' in msg_limpa or 'ultrassom' in msg_limpa:
-            # CORREÇÃO TESTE 1: Pergunta o tipo de exame para a IA poder classificar depois!
-            resultado = {
-                "response_message": f"Perfeito, {nome_usuario}! Para eu verificar a agenda correta, me diga qual exame você procura? (Ex: Morfológico, Ultrassom, Eletrocardiograma, etc.)", 
-                "new_state": "aguardando_tipo_exame_menu", 
-                "memory_data": memoria_atual
-            }
-        elif '2' in user_message or 'consulta' in msg_limpa:
-            memoria_atual['tipo_agendamento'] = 'Consulta'
-            resultado = {
-                "response_message": f"Ótimo, {nome_usuario}. Para qual especialidade médica deseja a consulta?", 
-                "new_state": "agendamento_awaiting_specialty", 
-                "memory_data": memoria_atual
-            }
-        elif '3' in user_message or 'recepção' in msg_limpa or 'humano' in msg_limpa or 'outro' in msg_limpa or 'assunto' in msg_limpa:
-            resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
-            memoria_obj.transferencia_solicitada = True
-            notificar_recepcao_whatsapp(session_id, nome_usuario)
-            
-        else:
-            estado_atual = 'ia_roteadora_livre'
-            resultado = None 
-
-    # 4. CAPTURA DO TIPO DE EXAME APÓS OPÇÃO 1
-    elif estado_atual == 'aguardando_tipo_exame_menu':
-        # Manda o nome do exame que o paciente digitou pro "Cérebro" LLM classificar (Fetal vs Geral) e dar a resposta humanizada!
         recepcionista = AgenteRecepcionista(session_id, memoria_atual)
-        resultado = recepcionista.processar_mensagem_complexa(user_message, nome_usuario) 
+        # Passa pela IA para interpretar o que a pessoa digitou. 
+        # O "pular_saudacao=True" proíbe o LLM de dizer "Sou o Leônidas" de novo!
+        resultado = recepcionista.processar_mensagem_complexa(user_message, nome_usuario, pular_saudacao=True)
 
     # ==================================================================
     # --- FASE 2: OS AGENTES ESPECIALISTAS ---
