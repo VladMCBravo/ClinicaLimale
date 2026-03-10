@@ -60,127 +60,163 @@ class AgenteMedicinaFetal:
         }
 
     def _sugerir_exame_e_horarios(self, user_message: str) -> dict:
-        nome_usuario = self.memoria_atual.get('nome_usuario', '')
-        match = re.search(r'\d+', user_message)
-        if not match:
-            return {"response_message": f"{nome_usuario}, não consegui identificar o número de semanas. Pode digitar apenas o número? Ex: 28", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+            nome_usuario = self.memoria_atual.get('nome_usuario', '')
+            match = re.search(r'\d+', user_message)
+            if not match:
+                return {"response_message": f"{nome_usuario}, não consegui identificar o número de semanas. Pode digitar apenas o número? Ex: 28", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
 
-        semanas = int(match.group())
-        
-        if semanas <= 10: exame = "US Transvaginal"
-        elif 11 <= semanas <= 14: exame = "Morfológico 1 Trimestre essencial"
-        elif 15 <= semanas <= 19: exame = "Obstétrico essencial"
-        elif 20 <= semanas <= 24: exame = "Morfológico 2 Trimestre essencial"
-        else: exame = "Obstétrico com Doppler"
-        
-        ultimo_citado = self.memoria_atual.get('ultimo_exame_citado', '').lower()
-        if 'eco' in ultimo_citado or 'cardio' in ultimo_citado:
-            exame = "Ecocardiograma Fetal"
+            semanas = int(match.group())
+            
+            if semanas <= 10: exame = "US Transvaginal"
+            elif 11 <= semanas <= 14: exame = "Morfológico 1 Trimestre essencial"
+            elif 15 <= semanas <= 19: exame = "Obstétrico essencial"
+            elif 20 <= semanas <= 24: exame = "Morfológico 2 Trimestre essencial"
+            else: exame = "Obstétrico com Doppler"
+            
+            ultimo_citado = self.memoria_atual.get('ultimo_exame_citado', '').lower()
+            if 'eco' in ultimo_citado or 'cardio' in ultimo_citado:
+                exame = "Ecocardiograma Fetal"
 
-        procedimento = Procedimento.objects.filter(descricao__icontains=exame, ativo=True).first()
-        medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
-        
-        if not procedimento or not medico:
-             return {"response_message": f"{nome_usuario}, vou pedir para a nossa equipe verificar o melhor horário para o seu exame. Um momento! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
-             
-        valor_float = float(procedimento.valor_particular) if procedimento.valor_particular else 0.0
-        valor_str = f"{valor_float:.2f}".replace('.', ',') if valor_float > 0 else "sob consulta"
-        
-        max_parcelas = 1
-        if valor_float > 0:
-            max_parcelas = max(1, min(4, int(valor_float // 100)))
-
-        explicacao = EXPLICACOES_FETAIS.get(exame, "Esse exame é essencial para acompanharmos o desenvolvimento saudável do bebê.")
-
-        # ====================================================
-        # BUSCA DE AGENDA INTELIGENTE (GERADOR AUTOMÁTICO)
-        # ====================================================
-        from agendamentos.models import Sala
-        from django.utils import timezone
-        hoje = date.today()
-        agora = timezone.now()
-        
-        def gerar_horarios(hora_inicio, hora_fim, intervalo=15):
-            lista = []
-            atual = datetime.strptime(hora_inicio, '%H:%M')
-            fim = datetime.strptime(hora_fim, '%H:%M')
-            while atual < fim:
-                lista.append(atual.strftime('%H:%M'))
-                atual += timedelta(minutes=intervalo)
-            return lista
-
-        # Regra da Clínica: Quartas-feiras
-        dias_quarta = (2 - hoje.weekday()) % 7
-        if dias_quarta == 0: dias_quarta = 7
-        data_quarta = hoje + timedelta(days=dias_quarta)
-
-        if exame == "Ecocardiograma Fetal":
-            # Eco Fetal: Quarta 19h as 22h
-            horarios_possiveis = gerar_horarios('19:00', '22:00')
-        else:
-            # Medicina Fetal: Quarta 08h as 15h
-            horarios_possiveis = gerar_horarios('08:00', '15:00')
-
-        sala_exame = Sala.objects.filter(e_sala_exame=True).first()
-
-        def encontrar_horarios_livres(data_alvo, lista_horarios, limite=2):
-            livres = []
-            for h in lista_horarios:
-                if len(livres) >= limite: break
-                dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
-                dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15) # Duração de 15 min
+            procedimento = Procedimento.objects.filter(descricao__icontains=exame, ativo=True).first()
+            medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
+            
+            if not procedimento or not medico:
+                return {"response_message": f"{nome_usuario}, vou pedir para a nossa equipe verificar o melhor horário para o seu exame. Um momento! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
                 
-                if dt_alvo_inicio < agora: continue
-                
-                medico_ocupado = Agendamento.objects.filter(data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
-                sala_ocupada = False
-                if sala_exame:
-                    sala_ocupada = Agendamento.objects.filter(sala=sala_exame, data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
-                
-                if not medico_ocupado and not sala_ocupada: livres.append(h)
-            return livres
+            valor_float = float(procedimento.valor_particular) if procedimento.valor_particular else 0.0
+            valor_str = f"{valor_float:.2f}".replace('.', ',') if valor_float > 0 else "sob consulta"
+            
+            max_parcelas = 1
+            if valor_float > 0:
+                max_parcelas = max(1, min(4, int(valor_float // 100)))
 
-        horarios_livres = encontrar_horarios_livres(data_quarta, horarios_possiveis, limite=2)
-        opcoes = [{"opcao": str(idx + 1), "dia_semana": "quarta-feira", "data_iso": data_quarta.strftime('%Y-%m-%d'), "data_formatada": data_quarta.strftime('%d/%m/%Y'), "hora": hora} for idx, hora in enumerate(horarios_livres)]
-        
-        if len(opcoes) == 0:
-            return {"response_message": f"{nome_usuario}, nossas agendas lotaram. Vou transferir para tentar um encaixe para o {procedimento.descricao}! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+            explicacao = EXPLICACOES_FETAIS.get(exame, "Esse exame é essencial para acompanharmos o desenvolvimento saudável do bebê.")
 
-        self.memoria_atual['exame_indicado'] = procedimento.descricao
-        self.memoria_atual['opcoes_horario'] = opcoes
-        
-        # --- O COPYWRITER DO PDF ---
-        texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            # ====================================================
+            # BUSCA DE AGENDA INTELIGENTE (GERADOR AUTOMÁTICO)
+            # ====================================================
+            from agendamentos.models import Sala
+            from django.utils import timezone
+            hoje = date.today()
+            agora = timezone.now()
+            
+            def gerar_horarios(hora_inicio, hora_fim, intervalo=15):
+                lista = []
+                atual = datetime.strptime(hora_inicio, '%H:%M')
+                fim = datetime.strptime(hora_fim, '%H:%M')
+                while atual < fim:
+                    lista.append(atual.strftime('%H:%M'))
+                    atual += timedelta(minutes=intervalo)
+                return lista
 
-        if exame == "Ecocardiograma Fetal":
-             msg = f"☑ Perfeito\n\nCom {semanas} semanas você está em uma fase muito boa para realizar o ecocardiograma fetal, exame realizado com Doppler e tecnologia de ultrassom de alta resolução e padrão hospitalar, que permite avaliar de forma bastante detalhada a estrutura e o funcionamento do coração do bebê durante a gestação.\n\n"
-             msg += f"O investimento para o exame é de R$ {valor_str}, {texto_parcela}.\n\n"
-             if len(opcoes) >= 2:
-                 msg += f"Para essa semana ainda temos as duas últimas vagas disponíveis na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\n"
-             else:
-                 msg += f"Para essa semana ainda temos uma vaga disponível na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']}.\n\n"
-             msg += f"Qual desses horários ficaria melhor para você?"
-        else:
-             msg = f"☑ Perfeito\n\nPara {semanas} semanas o exame ideal é o *{procedimento.descricao}*.\n\n"
-             msg += f"{explicacao}\n\n"
-             msg += f"O investimento é de R$ {valor_str}, {texto_parcela}.\n\n"
-             msg += f"Nesta semana ainda temos apenas {len(opcoes)} vagas disponíveis para o exame:\n\n"
-             for op in opcoes:
-                 msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
-             msg += f"\nPosso reservar um desses horários para você? (Responda 1 ou 2)"
-        
-        return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+            # Regra da Clínica: Quartas-feiras
+            dias_quarta = (2 - hoje.weekday()) % 7
+            if dias_quarta == 0: dias_quarta = 7
+            data_quarta = hoje + timedelta(days=dias_quarta)
+
+            if exame == "Ecocardiograma Fetal":
+                # Eco Fetal: Quarta 19h as 22h
+                horarios_possiveis = gerar_horarios('19:00', '22:00')
+            else:
+                # Medicina Fetal: Quarta 08h as 15h
+                horarios_possiveis = gerar_horarios('08:00', '15:00')
+
+            sala_exame = Sala.objects.filter(e_sala_exame=True).first()
+
+            def encontrar_horarios_livres(data_alvo, lista_horarios, limite=2):
+                livres = []
+                for h in lista_horarios:
+                    if len(livres) >= limite: break
+                    dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
+                    dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15) # Duração de 15 min
+                    
+                    if dt_alvo_inicio < agora: continue
+                    
+                    medico_ocupado = Agendamento.objects.filter(data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
+                    sala_ocupada = False
+                    if sala_exame:
+                        sala_ocupada = Agendamento.objects.filter(sala=sala_exame, data_hora_inicio__lt=dt_alvo_fim, data_hora_fim__gt=dt_alvo_inicio, status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']).exists()
+                    
+                    if not medico_ocupado and not sala_ocupada: livres.append(h)
+                return livres
+
+            horarios_livres = encontrar_horarios_livres(data_quarta, horarios_possiveis, limite=2)
+            opcoes = [{"opcao": str(idx + 1), "dia_semana": "quarta-feira", "data_iso": data_quarta.strftime('%Y-%m-%d'), "data_formatada": data_quarta.strftime('%d/%m/%Y'), "hora": hora} for idx, hora in enumerate(horarios_livres)]
+            
+            if len(opcoes) == 0:
+                return {"response_message": f"{nome_usuario}, nossas agendas lotaram. Vou transferir para tentar um encaixe para o {procedimento.descricao}! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+
+            self.memoria_atual['exame_indicado'] = procedimento.descricao
+            self.memoria_atual['opcoes_horario'] = opcoes
+            
+            # --- NOVO: SALVANDO O PREÇO E EXPLICAÇÃO NA MEMÓRIA INVISÍVEL ---
+            self.memoria_atual['valor_str'] = valor_str
+            self.memoria_atual['max_parcelas'] = max_parcelas
+            self.memoria_atual['explicacao'] = explicacao
+            self.memoria_atual['preco_informado'] = False  # Flag para avisar que ainda não falamos de dinheiro
+
+            # --- A NOVA MENSAGEM CURTA (ESCONDENDO O PREÇO E A EXPLICAÇÃO LONGA) ---
+            if exame == "Ecocardiograma Fetal":
+                msg = f"☑ Perfeito\n\nCom {semanas} semanas você está em uma fase muito boa para realizar o ecocardiograma fetal.\n\n"
+                if len(opcoes) >= 2:
+                    msg += f"Para essa semana ainda temos as duas últimas vagas disponíveis na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\n"
+                else:
+                    msg += f"Para essa semana ainda temos uma vaga disponível na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']}.\n\n"
+                msg += f"Qual desses horários ficaria melhor para você?"
+            else:
+                msg = f"☑ Perfeito\n\nPara {semanas} semanas o exame ideal é o *{procedimento.descricao}*.\n\n"
+                msg += f"Nesta semana ainda temos apenas {len(opcoes)} vagas disponíveis para o exame:\n\n"
+                for op in opcoes:
+                    msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
+                msg += f"\nQual desses horários ficaria melhor para você? (Responda 1 ou 2)"
+            
+            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
     def _processar_escolha_horario(self, user_message: str) -> dict:
         msg_lower = user_message.lower()
         
-        # --- CONTROLE DE INSISTÊNCIA ---
-        # Verifica se o bot já tentou contornar uma objeção nesta sessão
+        # --- 1. INTERCEPTAÇÃO: SE A PESSOA PERGUNTAR O PREÇO (O NOVO PASSO 2) ---
+        preco_informado = self.memoria_atual.get('preco_informado', False)
+        
+        if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
+            self.memoria_atual['preco_informado'] = True # Marca que o dinheiro já foi falado
+            
+            exame_nome = self.memoria_atual.get('exame_indicado', 'exame')
+            valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            explicacao = self.memoria_atual.get('explicacao', '')
+            opcoes = self.memoria_atual.get('opcoes_horario', [])
+            
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            
+            # Soltando o Copywriter de Autoridade + Preço
+            if "Ecocardiograma Fetal" in exame_nome:
+                msg = "☑ Perfeito\n\nO ecocardiograma fetal é um exame realizado com Doppler e tecnologia de ultrassom de alta resolução e padrão hospitalar, que permite avaliar de forma bastante detalhada a estrutura e o funcionamento do coração do bebê durante a gestação.\n\n"
+            else:
+                msg = f"☑ Perfeito\n\nSobre o *{exame_nome}*: {explicacao}\n\n"
+                
+            msg += f"O investimento para o exame é de R$ {valor_str}, {texto_parcela}.\n\n"
+            
+            # Reforça a escassez das opções que já havíamos gerado
+            if "Ecocardiograma Fetal" in exame_nome:
+                if len(opcoes) >= 2:
+                    msg += f"Para essa semana ainda temos as duas últimas vagas disponíveis na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\n"
+                elif len(opcoes) == 1:
+                    msg += f"Para essa semana ainda temos uma vaga disponível na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']}.\n\n"
+                msg += "Qual desses horários ficaria melhor para você?"
+            else:
+                msg += f"Nesta semana ainda temos vagas disponíveis para o exame:\n\n"
+                for op in opcoes:
+                    msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
+                msg += f"\nQual desses horários ficaria melhor para você? (Responda 1 ou 2)"
+            
+            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES ---
         ja_tentou_contornar = self.memoria_atual.get('tentativa_contorno_objecao', False)
         
-        # Só tenta contornar se AINDA NÃO tiver tentado
         if not ja_tentou_contornar:
-            if any(palavra in msg_lower for palavra in ['caro', 'valor', 'preço', 'condição']):
+            if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto']):
                 self.memoria_atual['tentativa_contorno_objecao'] = True
                 msg = "Entendo 😊\n\nO ecocardiograma fetal é um exame especializado para avaliação detalhada do coração do bebê durante a gestação, por isso exige uma análise bastante cuidadosa durante o atendimento.\n\nComo ainda temos duas vagas disponíveis para essa semana, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
                 msg += self._formatar_opcoes_repescagem()
@@ -198,24 +234,22 @@ class AgenteMedicinaFetal:
                 msg += self._formatar_opcoes_repescagem()
                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
-        # --- FLUXO DE ESCOLHA DE HORÁRIO ---
+        # --- 3. FLUXO DE ESCOLHA DE HORÁRIO ---
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         escolha = None
         
-        # Reconhece "19:30" ou "1"
         if '1' in msg_lower or 'primeir' in msg_lower or (len(opcoes) > 0 and opcoes[0]['hora'] in msg_lower):
             escolha = opcoes[0]
         elif '2' in msg_lower or 'segund' in msg_lower or (len(opcoes) > 1 and opcoes[1]['hora'] in msg_lower):
             escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
                 
         if not escolha:
-            # Se ele deu uma resposta estranha e não foi uma objeção catalogada (ou já esgotou as objeções)
             return {"response_message": "Por favor, me confirme qual horário prefere, ou digite *'não quero'* se preferir deixar para outra hora.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
             
         self.memoria_atual['horario_escolhido'] = escolha
         msg = f"Perfeito 😊\n\nJá vou deixar pré-reservado para você {escolha['dia_semana']} ({escolha['data_formatada']}) às {escolha['hora']}.\n\nPoderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
         return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
-        
+    
     def _formatar_opcoes_repescagem(self) -> str:
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         if len(opcoes) >= 2:
