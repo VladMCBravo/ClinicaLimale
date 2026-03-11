@@ -154,7 +154,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
         } else if (initialData) {
             const startTime = dayjs(initialData.start);
-            const endTime = startTime.add(50, 'minute');
+            const endTime = startTime.add(15, 'minute');
             
             setFormData(prev => ({ 
                 ...prev, 
@@ -226,7 +226,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                         const minutosTotais = prev.procedimentos.length * 15;
                         novaDataFim = novaDataInicio.add(minutosTotais, 'minute');
                     } else {
-                        novaDataFim = novaDataInicio.add(50, 'minute'); // Padrão consulta
+                        novaDataFim = novaDataInicio.add(15, 'minute'); // Padrão consulta
                     }
                     
                     novosDados.data_hora_fim = novaDataFim;
@@ -269,7 +269,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             /// Recalcula FIM se tiver INÍCIO
             if (prev.data_hora_inicio && prev.data_hora_inicio.isValid()) {
                 const minutosTotais = values.length * 15;
-                const novoFim = prev.data_hora_inicio.add(minutosTotais || 30, 'minute');
+                const novoFim = prev.data_hora_inicio.add(minutosTotais || 15, 'minute');
                 novoState.data_hora_fim = novoFim;
                 setDataFimVisual(novoFim.format('DD/MM/YYYY HH:mm'));
             }
