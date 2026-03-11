@@ -29,6 +29,13 @@ class AgenteMedicinaFetal:
     def processar(self, user_message: str, estado_atual: str) -> dict:
         msg_lower = user_message.lower()
         
+        # --- ROTA DE TRANSFERÊNCIA HUMANA (Se pedir atendente no meio do fluxo) ---
+        if any(p in msg_lower for p in ['recepção', 'recepcao', 'atendente', 'humano', 'falar com pessoa']):
+            from chatbot.human_transfer import HumanTransferManager
+            from chatbot.bot_logic import notificar_recepcao_whatsapp
+            notificar_recepcao_whatsapp(self.session_id, self.memoria_atual.get('nome_usuario', 'Paciente'))
+            return HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
+
         # --- ROTA DE FUGA CLARA (Se a pessoa realmente não quer) ---
         palavras_fuga = ['cancelar', 'não quero', 'nao quero', 'deixa pra lá', 'ginecologista', 'obrigado', 'obrigada', 'encerrar', 'desisto']
         if any(p in msg_lower for p in palavras_fuga) and len(msg_lower.split()) < 10:
@@ -264,7 +271,7 @@ class AgenteMedicinaFetal:
         msg_lower = user_message.lower()
         nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
         
-        # --- INTERCEPTADOR: SE A PESSOA PERGUNTAR O PREÇO FORA DE HORA ---
+        # --- INTERCEPTADOR 1: PREÇO FORA DE HORA ---
         if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
             valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
             max_parcelas = self.memoria_atual.get('max_parcelas', 1)
@@ -273,7 +280,24 @@ class AgenteMedicinaFetal:
             msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nAgora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
             return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
 
-        # Tenta extrair a data (DD/MM/AAAA ou variações) usando Regex Inteligente
+        # --- INTERCEPTADOR 2: MUDANÇA DE DATA OU DÚVIDA SOBRE A AGENDA ---
+        if any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"{nome_usuario}, eu já deixei a sua vaga do dia {data_fmt} às {hora} pré-reservada no sistema para garantir! 😊\n\n"
+                   f"Se precisarmos buscar uma data diferente, eu posso transferir você para uma de nossas atendentes verificar a agenda completa com calma.\n\n"
+                   f"O que prefere: manter o horário atual (bastando digitar o seu nome e data de nascimento) ou falar com a recepção?")
+            return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+            
+        # --- INTERCEPTADOR 3: CONVÊNIO ---
+        if any(palavra in msg_lower for palavra in ['convênio', 'convenio', 'plano', 'amil', 'unimed', 'sulamerica', 'bradesco']):
+            msg = (f"{nome_usuario}, no momento nossos atendimentos são apenas particulares, mas emitimos a nota fiscal para você solicitar o reembolso junto ao seu plano de saúde! 😊\n\n"
+                   f"Podemos manter a sua reserva? (Basta digitar o seu nome e data de nascimento, ou digitar 'cancelar')")
+            return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+
+        # --- FLUXO NORMAL: Tenta extrair a data de nascimento ---
         match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', user_message)
         
         if not match_data:
@@ -300,7 +324,7 @@ class AgenteMedicinaFetal:
         nome_completo = self.memoria_atual.get('nome_completo_paciente', 'Paciente')
         nome_curto = nome_completo.split()[0].title()
         
-        # --- INTERCEPTADOR: SE A PESSOA PERGUNTAR O PREÇO NO E-MAIL ---
+        # --- INTERCEPTADOR 1: PREÇO ---
         if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
             valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
             max_parcelas = self.memoria_atual.get('max_parcelas', 1)
@@ -309,6 +333,24 @@ class AgenteMedicinaFetal:
             msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nPara enviarmos as orientações de preparo e finalizarmos o seu agendamento, qual é o seu melhor e-mail?"
             return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
 
+        # --- INTERCEPTADOR 2: MUDANÇA DE DATA OU DÚVIDA SOBRE A AGENDA ---
+        if any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"{nome_curto}, eu já deixei a sua vaga do dia {data_fmt} às {hora} pré-reservada no sistema para garantir! 😊\n\n"
+                   f"Se precisarmos buscar uma data diferente, eu posso transferir você para uma de nossas atendentes verificar a agenda completa com calma.\n\n"
+                   f"O que prefere: manter o horário atual (bastando digitar o seu e-mail) ou falar com a recepção?")
+            return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
+            
+        # --- INTERCEPTADOR 3: CONVÊNIO ---
+        if any(palavra in msg_lower for palavra in ['convênio', 'convenio', 'plano', 'amil', 'unimed', 'sulamerica', 'bradesco']):
+            msg = (f"{nome_curto}, no momento nossos atendimentos são apenas particulares, mas emitimos a nota fiscal para você solicitar o reembolso junto ao seu plano de saúde! 😊\n\n"
+                   f"Podemos manter a sua reserva? (Basta digitar o seu e-mail, ou 'cancelar')")
+            return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
+
+        # --- VALIDAÇÃO REAL DO E-MAIL ---
         if '@' not in user_message: 
             return {"response_message": f"{nome_curto}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
         
