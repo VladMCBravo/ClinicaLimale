@@ -128,9 +128,9 @@ class Agendamento(models.Model):
                         print(f"AVISO: Agendamento criado em sala sem {config.equipamento_obrigatorio}")
 
             except Exception:
-                # Fallback seguro: se não tiver config ou der erro, usa 30 min padrão
+                # Fallback seguro: se não tiver config ou der erro, usa 15 min padrão
                 if self.data_hora_inicio:
-                    self.data_hora_fim = self.data_hora_inicio + timedelta(minutes=30)
+                    self.data_hora_fim = self.data_hora_inicio + timedelta(minutes=15)
                 
         super().save(*args, **kwargs)
 
