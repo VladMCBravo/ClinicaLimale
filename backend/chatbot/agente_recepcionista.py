@@ -41,10 +41,12 @@ class AgenteRecepcionista:
                 "memory_data": self.memoria_atual
             }
 
-        # --- A GRANDE MUDANÇA: DETECÇÃO DE MENSAGEM COMPLEXA ---
-        # Se a pessoa mandou mais de 4 palavras, ela não está só dando "oi".
-        # Ela está explicando o que quer (Ex: "Bom dia me chamo Vladmir e quero saber preços")
-        if len(user_message.split()) > 4:
+        # --- DETECÇÃO DE MENSAGEM COMPLEXA ---
+        msg_lower = user_message.lower()
+        palavras_chave = ['exame', 'consulta', 'obstétrico', 'obstetrico', 'morfológico', 'morfologico', 'agendar', 'marcar', 'fazer', 'eco', 'ultrassom', 'valor', 'preço', 'preco', 'quero']
+        
+        # Se tiver mais de 3 palavras OU tiver alguma palavra-chave de intenção, joga para a IA:
+        if len(user_message.split()) > 3 or any(p in msg_lower for p in palavras_chave):
             ja_tem_nome = bool(nome_memoria)
             tem_historico = len(self.memoria_atual.get('historico_conversa', [])) > 0
             # Se já tem nome e não é a primeira mensagem da vida dele, pula a saudação longa

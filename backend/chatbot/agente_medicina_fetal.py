@@ -261,8 +261,18 @@ class AgenteMedicinaFetal:
         return ""
 
     def _processar_dados_pessoais(self, user_message: str) -> dict:
+        msg_lower = user_message.lower()
         nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
         
+        # --- INTERCEPTADOR: SE A PESSOA PERGUNTAR O PREÇO FORA DE HORA ---
+        if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
+            valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            
+            msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nAgora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
+            return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+
         # Tenta extrair a data (DD/MM/AAAA ou variações) usando Regex Inteligente
         match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', user_message)
         
@@ -282,18 +292,28 @@ class AgenteMedicinaFetal:
         self.memoria_atual['nome_completo_paciente'] = nome.title()
         nome_curto = nome.split()[0].title() if nome else nome_usuario
         
-        msg = f"Perfeito, {nome_curto}\n\nPor último, qual é o seu melhor e-mail para enviarmos as orientações de preparo?"
+        msg = f"Perfeito, {nome_curto} 😊\n\nPor último, qual é o seu melhor e-mail para enviarmos as orientações de preparo?"
         return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
 
     def _processar_email_e_finalizar(self, user_message: str) -> dict:
+        msg_lower = user_message.lower()
         nome_completo = self.memoria_atual.get('nome_completo_paciente', 'Paciente')
         nome_curto = nome_completo.split()[0].title()
         
+        # --- INTERCEPTADOR: SE A PESSOA PERGUNTAR O PREÇO NO E-MAIL ---
+        if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
+            valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            
+            msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nPara enviarmos as orientações de preparo e finalizarmos o seu agendamento, qual é o seu melhor e-mail?"
+            return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
+
         if '@' not in user_message: 
             return {"response_message": f"{nome_curto}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
         
         self.memoria_atual['email_usuario'] = user_message.lower().strip()
-        
+                
         # --- MONTAGEM E SALVAMENTO NO BANCO ---
         telefone = ''.join(filter(str.isdigit, self.session_id))
         data_nasc_str = self.memoria_atual.get('data_nascimento_paciente', '')
