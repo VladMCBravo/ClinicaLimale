@@ -23,6 +23,7 @@ import '../components/laudos/Laudos.css';
 
 // Importação dos Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
+import FormAbdome from '../components/laudos/abdome/FormAbdome'; // Ajuste o caminho da pasta
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
@@ -628,6 +629,14 @@ const getInitialState = (key, fallback) => {
                     initialValues={dadosEstruturados} 
                 />
             )}
+
+            {tipoExame === 'ABDOME' && (
+    <FormAbdome 
+        key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+        onUpdate={handleFormUpdate} 
+        initialValues={dadosEstruturados} 
+    />
+)}
             
             {tipoExame === 'TRANSVAGINAL' && (
                 <FormTransvaginal 
