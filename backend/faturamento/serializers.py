@@ -5,7 +5,7 @@ from .models import (
     TransacaoFinanceira, Pagamento, CategoriaDespesa, Despesa, Convenio, 
     PlanoConvenio, Procedimento, ValorProcedimentoConvenio # 1. Importe o novo modelo
 )
-from agendamentos.models import Agendamento
+from agendamentos.models import Agendamento, ConfiguracaoExame, DiaFuncionamentoExame
 
 # --- O NOVO SERIALIZER UNIFICADO ---
 class TransacaoFinanceiraSerializer(serializers.ModelSerializer):
@@ -202,19 +202,41 @@ class ValorProcedimentoConvenioSerializer(serializers.ModelSerializer):
         model = ValorProcedimentoConvenio
         fields = ['id', 'plano_convenio', 'plano_convenio_id', 'valor']
 
-# 3. ATUALIZADO: O serializer principal de Procedimento
+# 3. NOVOS SERIALIZERS PARA A AGENDA (Leitura)
+class DiaFuncionamentoExameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiaFuncionamentoExame
+        fields = ['dia_semana', 'hora_inicio', 'hora_fim']
+
+class ConfiguracaoExameSerializer(serializers.ModelSerializer):
+    dias_funcionamento = DiaFuncionamentoExameSerializer(many=True, read_only=True)
+    duracao_minutos = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ConfiguracaoExame
+        fields = ['equipamento_obrigatorio', 'duracao_minutos', 'dias_funcionamento']
+
+    def get_duracao_minutos(self, obj):
+        # Converte o DurationField (timedelta) do banco para um número inteiro pro React
+        if obj.duracao_padrao:
+            return int(obj.duracao_padrao.total_seconds() / 60)
+        return 15
+
+# 4. ATUALIZADO: O serializer principal de Procedimento
 class ProcedimentoSerializer(serializers.ModelSerializer):
-    # A mágica está aqui: mostramos todos os preços de convênios associados
     valores_convenio = ValorProcedimentoConvenioSerializer(many=True, read_only=True)
+    # Adicionamos a configuração aqui para o Modal do React ler!
+    configuracao_clinica = ConfiguracaoExameSerializer(read_only=True) 
 
     class Meta:
         model = Procedimento
         fields = [
             'id', 
             'codigo_tuss', 
-            'categoria',        # <--- ADICIONE ESTA LINHA AQUI
+            'categoria',        
             'descricao', 
             'valor_particular', 
             'ativo', 
-            'valores_convenio'
+            'valores_convenio',
+            'configuracao_clinica' # <--- ADICIONE ESTA LINHA AQUI
         ]

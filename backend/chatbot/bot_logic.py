@@ -236,8 +236,8 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         agente_fetal = AgenteMedicinaFetal(session_id, memoria_atual)
         resultado = agente_fetal.processar(user_message, estado_atual)
         
-    # 2.B: O Agente de Exames Gerais (ECG, Sangue, etc)
-    elif estado_atual in ['inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao', 'aguardando_nome_cadastro', 'aguardando_email_cadastro']:
+    # 2.B: O Agente de Exames Gerais (ECG, Sangue, Ultrassom Geral etc)
+    elif estado_atual in ['inicio', 'exame_aguardando_horario', 'exame_aguardando_dados_pessoais', 'exame_aguardando_email']:
         agente_exames = AgenteExames(session_id, memoria_atual)
         resultado = agente_exames.processar(user_message, estado_atual)
 

@@ -3,7 +3,7 @@
 import logging
 logger = logging.getLogger(__name__)
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta # <--- ADICIONE ESTE IMPORT AQUI
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
@@ -28,7 +28,7 @@ from .serializers import (
     PlanoConvenioSerializer, ProcedimentoSerializer, CobrancaPendenteSerializer
 )
 from agendamentos.serializers import AgendamentoSerializer
-from agendamentos.models import Agendamento, Sala
+from agendamentos.models import Agendamento, Sala, ConfiguracaoExame, DiaFuncionamentoExame
 
 # IMPORTANTE: Se rules_faturamento não existir, comente esta linha
 try:
@@ -689,6 +689,72 @@ class ProcedimentoViewSet(viewsets.ModelViewSet):
     queryset = Procedimento.objects.filter(ativo=True)
     serializer_class = ProcedimentoSerializer
     
+    def _salvar_configuracao_agenda(self, procedimento, config_data):
+        """Função privada para processar a aba de regras de agenda que vem do React"""
+        if not config_data:
+            return
+            
+        duracao_minutos = int(config_data.get('duracao_padrao', 15))
+        equipamento = config_data.get('equipamento_obrigatorio', '')
+        dias_dados = config_data.get('dias_funcionamento', [])
+
+        # 1. Salva ou Atualiza a Configuração Principal
+        config, created = ConfiguracaoExame.objects.get_or_create(
+            procedimento=procedimento,
+            defaults={
+                'duracao_padrao': timedelta(minutes=duracao_minutos),
+                'equipamento_obrigatorio': equipamento
+            }
+        )
+        if not created:
+            config.duracao_padrao = timedelta(minutes=duracao_minutos)
+            config.equipamento_obrigatorio = equipamento
+            config.save()
+
+        # 2. Recria os dias de funcionamento (apaga os antigos e cria novos limpos)
+        config.dias_funcionamento.all().delete()
+        
+        novos_dias = []
+        for dia in dias_dados:
+            novos_dias.append(DiaFuncionamentoExame(
+                configuracao=config,
+                dia_semana=dia.get('dia_semana'),
+                hora_inicio=dia.get('hora_inicio', '08:00'),
+                hora_fim=dia.get('hora_fim', '18:00')
+            ))
+        
+        # Salva todos de uma vez em bloco para otimizar o banco de dados
+        if novos_dias:
+            DiaFuncionamentoExame.objects.bulk_create(novos_dias)
+
+    # Intercepta a CRIAÇÃO
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        # Pega a aba de regras da requisição
+        config_data = request.data.get('configuracao_clinica', None)
+        
+        # Deixa o Django criar o Exame primeiro
+        response = super().create(request, *args, **kwargs)
+        
+        # Agora salva as regras vinculadas a ele
+        procedimento = Procedimento.objects.get(id=response.data['id'])
+        self._salvar_configuracao_agenda(procedimento, config_data)
+        
+        return response
+
+    # Intercepta a ATUALIZAÇÃO (Edição)
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        config_data = request.data.get('configuracao_clinica', None)
+        
+        response = super().update(request, *args, **kwargs)
+        
+        procedimento = self.get_object()
+        self._salvar_configuracao_agenda(procedimento, config_data)
+        
+        return response
+
+    # Mantém a sua função de salvar convênios
     @action(detail=True, methods=['post'], url_path='definir-preco-convenio')
     def definir_preco(self, request, pk=None):
         proc = self.get_object()
