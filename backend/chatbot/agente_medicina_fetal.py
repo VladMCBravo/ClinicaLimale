@@ -282,8 +282,8 @@ class AgenteMedicinaFetal:
                 msg += "\nQual desses horários ficaria melhor para você?"
                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
-        # Regra 2: Se o paciente pedir outro horário (Mais tarde)
-        if any(p in msg_lower for p in ['mais tarde', 'final da agenda', 'outro horário', 'outro horario']):
+        # Regra 2: Se o paciente pedir outro horário (Mais tarde ou Último)
+        if any(p in msg_lower for p in ['mais tarde', 'final da agenda', 'outro horário', 'outro horario', 'último', 'ultimo']):
             dia_alvo = dias_disponiveis[idx_focado]
             ultimo_horario = dia_alvo['horarios_disponiveis'][-1]
             
@@ -295,8 +295,8 @@ class AgenteMedicinaFetal:
             msg = f"Temos sim\n\nAlém desses horários, também temos um horário no final da agenda às {ultimo_horario}.\n\nPosso reservar para você para não perder a vaga?"
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
-        # Regra 3: Se o paciente pedir mais cedo
-        if any(p in msg_lower for p in ['mais cedo', 'início', 'inicio da agenda', 'cedo']):
+        # Regra 3: Se o paciente pedir mais cedo ou o Primeiro da agenda
+        if any(p in msg_lower for p in ['mais cedo', 'início', 'inicio da agenda', 'cedo', 'primeiro horário', 'primeiro horario', 'algum antes']):
             dia_alvo = dias_disponiveis[idx_focado]
             primeiro_horario = dia_alvo['horarios_disponiveis'][0] 
             
