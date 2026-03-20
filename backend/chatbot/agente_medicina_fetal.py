@@ -155,7 +155,7 @@ class AgenteMedicinaFetal:
         idx_focado = self.memoria_atual.get('dia_focado_index', 0)
         from datetime import datetime
         
-        # --- INTERCEPTAÇÃO: PREÇO ---
+        # --- 1. INTERCEPTAÇÃO: PREÇO ---
         preco_informado = self.memoria_atual.get('preco_informado', False)
         if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto']):
             self.memoria_atual['preco_informado'] = True 
@@ -164,9 +164,34 @@ class AgenteMedicinaFetal:
             opcoes = self.memoria_atual.get('opcoes_horario', [])
             if len(opcoes) >= 2:
                 msg += f"Ainda temos vagas na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\nQual desses horários ficaria melhor para você?"
+            else:
+                 msg += f"Ainda temos uma vaga na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']}.\nFicaria bom para você?"
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
-        # --- REGRAS DO PDF (NAVEGAÇÃO DE AGENDA) ---
+        # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES (RESTAURADO) ---
+        ja_tentou_contornar = self.memoria_atual.get('tentativa_contorno_objecao', False)
+        
+        # Só tenta contornar se ainda não tentou antes e se não for uma resposta de data (Regra 5 do PDF)
+        if not ja_tentou_contornar and not self.memoria_atual.get('esperando_escolha_data'):
+            if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = f"Entendo, {nome_usuario} 😊\n\nEsse exame é essencial para a avaliação detalhada do bebê durante a gestação, por isso exige uma análise bastante cuidadosa durante o atendimento.\n\nComo nossas vagas preenchem rápido, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+                
+            elif any(palavra in msg_lower for palavra in ['marido', 'espos', 'parceir', 'junto', 'falar com']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = f"Claro, {nome_usuario} 😊\n\nO acompanhamento da gestação é um momento importante, então é normal querer decidir juntos com calma.\n\nSe preferir, posso deixar um dos horários provisoriamente reservado para você enquanto conversam, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+                
+            elif any(palavra in msg_lower for palavra in ['pensar', 'ver', 'depois', 'vou decidir']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = f"Claro, {nome_usuario} 😊\n\nEsse exame permite avaliar de forma bastante detalhada a saúde do bebê, por isso é super importante realizar dentro dessa fase da gestação.\n\nSe desejar, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # --- 3. REGRAS DO PDF (NAVEGAÇÃO DE AGENDA) ---
 
         # Regra 6: Nenhum desses horários dá
         if any(p in msg_lower for p in ['nenhum', 'ruim', 'não dá', 'nao da', 'não gostei']):
@@ -240,7 +265,7 @@ class AgenteMedicinaFetal:
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
 
-        # --- FECHAMENTO PADRÃO (Regra 9) ---
+        # --- 4. FECHAMENTO PADRÃO (Regra 9) ---
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         escolha = None
         
@@ -260,8 +285,9 @@ class AgenteMedicinaFetal:
         msg += "Para confirmar o agendamento e garantir a vaga, poderia me informar por gentileza:\n- nome completo\n- data de nascimento"
         
         return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
-    
+
     def _formatar_opcoes_repescagem(self) -> str:
+        """Função auxiliar para montar a mensagem de escassez quando há objeção"""
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         if len(opcoes) >= 2:
             return f"Temos {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\nQual deles você prefere que eu deixe pré-reservado para você?"
