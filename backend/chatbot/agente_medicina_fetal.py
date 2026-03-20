@@ -184,6 +184,21 @@ class AgenteMedicinaFetal:
                  msg += f"Ainda temos uma vaga na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']}.\nFicaria bom para você?"
                  
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+        
+        # --- INTERCEPTAÇÃO 1.B: FORMAS DE PAGAMENTO E PIX ---
+        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'forma de pagamento', 'aceita', 'aceitam']):
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n\n"
+                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto** no valor do exame!\n\n")
+            
+            opcoes = self.memoria_atual.get('opcoes_horario', [])
+            if len(opcoes) >= 2:
+                msg += f"Para garantirmos a sua vaga, você prefere a {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}?"
+            elif len(opcoes) == 1:
+                 msg += f"Posso reservar a vaga da {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} para você?"
+                 
+            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
         # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES (RESTAURADO) ---
         ja_tentou_contornar = self.memoria_atual.get('tentativa_contorno_objecao', False)
@@ -340,6 +355,15 @@ class AgenteMedicinaFetal:
             
             msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nAgora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
             return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+        
+        # --- INTERCEPTADOR EXTRA: FORMAS DE PAGAMENTO ---
+        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'forma de pagamento', 'aceita', 'aceitam']):
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
+                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
+                   f"Agora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)")
+            return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
 
         # --- INTERCEPTADOR 2: MUDANÇA DE DATA OU DÚVIDA SOBRE A AGENDA ---
         if any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã']):
@@ -404,6 +428,15 @@ class AgenteMedicinaFetal:
             texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
             
             msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nPara enviarmos as orientações de preparo e finalizarmos o seu agendamento, qual é o seu melhor e-mail?"
+            return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
+        
+        # --- INTERCEPTADOR EXTRA: FORMAS DE PAGAMENTO ---
+        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'forma de pagamento', 'aceita', 'aceitam']):
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
+                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
+                   f"Para enviarmos as orientações de preparo e finalizarmos o seu agendamento, qual é o seu melhor e-mail?")
             return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
 
         # --- INTERCEPTADOR 2: MUDANÇA DE DATA OU DÚVIDA SOBRE A AGENDA ---
