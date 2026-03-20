@@ -298,10 +298,13 @@ class AgenteMedicinaFetal:
             hora_1 = opcoes[0]['hora']
             hora_2 = opcoes[1]['hora'] if len(opcoes) > 1 else "---"
             
-            # Checa pela HORA exata ou pela opção 2 primeiro, para evitar que "10:45" caia na regra do número "1"
+            # Checa pela HORA exata ou pela opção 2 primeiro
             if hora_2 in msg_lower or msg_lower.strip() in ['2', '2.', 'dois'] or 'segund' in msg_lower:
                 escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
-            elif hora_1 in msg_lower or msg_lower.strip() in ['1', '1.', 'um', 'sim', 'ok'] or 'primeir' in msg_lower:
+            elif hora_1 in msg_lower or msg_lower.strip() in ['1', '1.', 'um'] or 'primeir' in msg_lower:
+                escolha = opcoes[0]
+            # Se só tem 1 opção (ex: "Posso reservar?"), aceita "sim", "pode", "quero", etc.
+            elif len(opcoes) == 1 and any(p in msg_lower for p in ['sim', 'pode', 'ok', 'quero', 'marcar', 'certeza']):
                 escolha = opcoes[0]
                 
         if not escolha:
@@ -355,6 +358,18 @@ class AgenteMedicinaFetal:
                    f"Podemos manter a sua reserva? (Basta digitar o seu nome e data de nascimento, ou digitar 'cancelar')")
             return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
 
+        # --- INTERCEPTADOR 4: OBJEÇÕES (CARO, MARIDO, PENSAR) ---
+        if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto', 'marido', 'espos', 'parceir', 'junto', 'falar com', 'pensar', 'ver', 'depois', 'vou decidir']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"Compreendo perfeitamente, {nome_usuario} 😊\n\n"
+                   f"O acompanhamento da gestação é um momento muito importante e é natural querer decidir com calma.\n\n"
+                   f"Como nossas vagas são limitadas, eu vou manter o horário do dia {data_fmt} às {hora} *provisoriamente pré-reservado* para você não correr o risco de perder a vaga enquanto decide.\n\n"
+                   f"Assim que tiver a confirmação, é só digitar o seu nome completo e data de nascimento aqui para validarmos, ou digitar 'cancelar' caso não vá mais realizar o exame. Tudo bem?")
+            return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+        
         # --- FLUXO NORMAL: Tenta extrair a data de nascimento ---
         match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', user_message)
         
@@ -408,8 +423,20 @@ class AgenteMedicinaFetal:
                    f"Podemos manter a sua reserva? (Basta digitar o seu e-mail, ou 'cancelar')")
             return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
 
+        # --- INTERCEPTADOR 4: OBJEÇÕES (CARO, MARIDO, PENSAR) ---
+        if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto', 'marido', 'espos', 'parceir', 'junto', 'falar com', 'pensar', 'ver', 'depois', 'vou decidir']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"Compreendo perfeitamente, {nome_curto} 😊\n\n"
+                   f"O acompanhamento da gestação é um momento muito importante e é natural querer decidir com calma.\n\n"
+                   f"Como nossas vagas são limitadas, eu vou manter o horário do dia {data_fmt} às {hora} *provisoriamente pré-reservado* para você não correr o risco de perder a vaga enquanto decide.\n\n"
+                   f"Assim que tiver a confirmação, é só digitar o seu e-mail aqui para validarmos o agendamento, ou digitar 'cancelar' caso mude de ideia. Tudo bem?")
+            return {"response_message": msg, "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
+
         # --- VALIDAÇÃO REAL DO E-MAIL ---
-        if '@' not in user_message: 
+        if '@' not in user_message:
             return {"response_message": f"{nome_curto}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'mf_aguardando_email', "memory_data": self.memoria_atual}
         
         self.memoria_atual['email_usuario'] = user_message.lower().strip()
