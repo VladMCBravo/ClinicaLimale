@@ -401,7 +401,9 @@ class AgenteMedicinaFetal:
         
         self.memoria_atual['email_usuario'] = user_message.lower().strip()
                 
-        # --- MONTAGEM E SALVAMENTO NO BANCO ---
+        # ================================================================
+        # MONTAGEM E SALVAMENTO NO BANCO (COM BLINDAGEM ANTI-DUPLICIDADE)
+        # ================================================================
         telefone = ''.join(filter(str.isdigit, self.session_id))
         data_nasc_str = self.memoria_atual.get('data_nascimento_paciente', '')
         
@@ -412,11 +414,34 @@ class AgenteMedicinaFetal:
         except Exception:
             data_nascimento_db = '1900-01-01'
         
-        paciente, _ = Paciente.objects.get_or_create(telefone_celular=telefone, defaults={'nome_completo': nome_completo, 'email': self.memoria_atual['email_usuario'], 'data_nascimento': data_nascimento_db})
+        email_digitado = self.memoria_atual['email_usuario']
+        
+        # 1. Busca pelo telefone primeiro
+        paciente = Paciente.objects.filter(telefone_celular=telefone).first()
+        
+        if not paciente:
+            # 2. Se não achou por telefone, tenta achar alguém com esse e-mail 
+            paciente_por_email = Paciente.objects.filter(email=email_digitado).first()
+            if paciente_por_email:
+                paciente = paciente_por_email
+                paciente.telefone_celular = telefone # Atualiza o telefone do paciente antigo
+            else:
+                # 3. É um paciente 100% novo
+                paciente = Paciente(telefone_celular=telefone)
+
+        # Atualiza os dados pessoais
         paciente.nome_completo = nome_completo
-        paciente.email = self.memoria_atual['email_usuario']
-        if data_nascimento_db != '1900-01-01': paciente.data_nascimento = data_nascimento_db
+        if data_nascimento_db != '1900-01-01': 
+            paciente.data_nascimento = data_nascimento_db
+            
+        # 4. BLINDAGEM MÁXIMA: Só altera o e-mail se não for causar erro no banco
+        if paciente.email != email_digitado:
+            if not Paciente.objects.filter(email=email_digitado).exclude(id=paciente.id).exists():
+                paciente.email = email_digitado
+                
         paciente.save()
+            
+        # --- FIM DA BLINDAGEM ---
             
         exame_nome = self.memoria_atual.get('exame_indicado')
         procedimento = Procedimento.objects.filter(descricao=exame_nome, ativo=True).first()
