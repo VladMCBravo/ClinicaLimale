@@ -107,11 +107,12 @@ class AgenteRecepcionista:
                 if intencao == 'exame_fetal':
                     novo_estado = 'mf_aguardando_semanas' 
                     # BLINDAGEM 2: Se sabemos que é Medicina Fetal, a IA não pode inventar perguntas sobre trimestres.
-                    # Forçamos o roteiro validado.
+                    # --- CORREÇÃO DA NOMENCLATURA DO EXAME ---
                     if 'eco' in (procedimento or '').lower() or 'cardio' in (procedimento or '').lower():
                         texto_exame = "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
                     else:
-                        texto_exame = f"Sim, o exame {procedimento or 'morfológico'} é uma de nossas especialidades!"
+                        # Resposta genérica, elegante e infalível, não importa o que o paciente digitou
+                        texto_exame = "Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade!"
                         
                     if pular_saudacao:
                         resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"

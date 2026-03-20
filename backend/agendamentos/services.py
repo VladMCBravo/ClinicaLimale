@@ -74,6 +74,8 @@ def buscar_proximo_horario_procedimento(procedimento_id: int, limite_dias_retorn
             sala_procedimentos = Sala.objects.filter(e_sala_exame=True).first()
             
         if not sala_procedimentos:
+            # ---> ADICIONE ESTA LINHA <---
+            logger.warning(f"SALA NÃO ENCONTRADA: O exame exige a tag '{config_exame.equipamento_obrigatorio}', mas nenhuma sala de exame possui essa tag.")
             return []
 
         agora = timezone.localtime(timezone.now())
