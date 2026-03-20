@@ -89,6 +89,10 @@ class AgenteRecepcionista:
                     self.memoria_atual['ultimo_exame_citado'] = procedimento
                 elif intencao == 'consulta':
                     self.memoria_atual['especialidade_indicada'] = procedimento
+            
+            # SALVA A INTENÇÃO PARA NÃO ESQUECER DEPOIS DE PEDIR O NOME
+            if intencao and intencao != 'indefinida':
+                self.memoria_atual['intencao_salva'] = intencao
 
             # ================================================================
             # BLINDAGEM DE ROTEIRO (Evita que a IA fuja do funil)
@@ -111,13 +115,14 @@ class AgenteRecepcionista:
                     if 'eco' in (procedimento or '').lower() or 'cardio' in (procedimento or '').lower():
                         texto_exame = "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
                     else:
-                        # Resposta genérica, elegante e infalível, não importa o que o paciente digitou
-                        texto_exame = "Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade!"
+                        # Resposta genérica listando o cardápio de exames de autoridade
+                        texto_exame = ("Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade! 👶\n\n"
+                                       "Realizamos o Transvaginal, Morfológicos de 1º e 2º Trimestre, Obstétrico com ou sem Doppler, e Ecocardiograma Fetal.")
                         
                     if pular_saudacao:
-                        resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                        resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente sobre o melhor exame, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
                     else:
-                        resposta_ia = f"Olá, {nome_conhecido}! 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\nQue bom ter você por aqui! {texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                        resposta_ia = f"Olá, {nome_conhecido}! 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\nQue bom ter você por aqui!\n\n{texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
                 
                 elif intencao == 'exame_geral':
                     novo_estado = 'inicio'
@@ -157,18 +162,22 @@ class AgenteRecepcionista:
         
         ultimo_exame = self.memoria_atual.get('ultimo_exame_citado', '')
         especialidade = self.memoria_atual.get('especialidade_indicada')
+        intencao_salva = self.memoria_atual.get('intencao_salva')
         
-        # NOVA REGRA: Verifica diretamente no nome do exame se é obstétrico/fetal
-        exames_fetais = ['eco', 'fetal', 'morfológico', 'morfologico', 'obstétrico', 'obstetrico', 'transvaginal', 'gestação']
-        is_fetal = ultimo_exame and any(p in ultimo_exame.lower() for p in exames_fetais)
+        # NOVA REGRA: Verifica pela IA ou pelas palavras se é medicina fetal (agora blindado para a palavra "pré-natal")
+        exames_fetais = ['eco', 'fetal', 'morfológico', 'morfologico', 'obstétrico', 'obstetrico', 'transvaginal', 'gestação', 'pré', 'pre', 'natal', 'bebê', 'bebe', 'gravidez']
         
-        # Se ele pediu exame fetal antes de dar o nome (ex: "quero eco fetal")
+        is_fetal = (intencao_salva == 'exame_fetal') or (ultimo_exame and any(p in ultimo_exame.lower() for p in exames_fetais))
+        
+        # Se ele pediu exame fetal antes de dar o nome
         if is_fetal:
-            # Personaliza a mensagem dependendo se é Eco Fetal ou Morfológico
             if 'eco' in ultimo_exame.lower() or 'cardio' in ultimo_exame.lower():
-                msg = f"Muito prazer, {nome_limpo}! 🤍\n\nO ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação. Para te orientar corretamente, poderia me informar de quantas semanas de gestação você está hoje, por favor?"
+                msg = f"Muito prazer, {nome_limpo}! 🤍\n\nO ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação.\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
             else:
-                msg = f"Muito prazer, {nome_limpo}! 🤍\n\nPara te orientar corretamente sobre o {ultimo_exame}, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                msg = (f"Muito prazer, {nome_limpo}! 🤍\n\n"
+                       f"Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade! 👶\n\n"
+                       f"Realizamos o Transvaginal, Morfológicos de 1º e 2º Trimestre, Obstétrico com ou sem Doppler, e Ecocardiograma Fetal.\n\n"
+                       f"Para te orientar corretamente sobre o exame ideal para você, poderia me informar com quantas semanas de gestação você está hoje, por favor?")
                 
             return {
                 "response_message": msg,
