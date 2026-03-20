@@ -41,7 +41,7 @@ class AgendamentoAdmin(admin.ModelAdmin):
         'data_formatada',
         'horario_formatado',
         'tipo_agendamento',
-        'medico',
+        'quem_agendou',
         'sala',
         'status',
     )
@@ -100,6 +100,26 @@ class AgendamentoAdmin(admin.ModelAdmin):
         return "N/A"
     horario_formatado.admin_order_field = 'data_hora_inicio'
     horario_formatado.short_description = 'Horário'
+
+    def quem_agendou(self, obj):
+        # 1. Verifica se foi o Chatbot lendo a assinatura invisível nas observações
+        if obj.observacoes and 'Bot WhatsApp' in obj.observacoes:
+            return '🤖 Chatbot Leônidas'
+        
+        # 2. Descobre quem estava logado no painel através do vínculo financeiro
+        try:
+            # O hasattr evita erro caso a consulta não tenha gerado cobrança
+            if hasattr(obj, 'pagamento') and obj.pagamento and obj.pagamento.registrado_por:
+                usuario = obj.pagamento.registrado_por
+                nome = usuario.first_name or usuario.username
+                return f"💻 Painel ({nome.title()})"
+        except Exception:
+            pass
+            
+        # 3. Fallback caso seja um agendamento importado/legado sem financeiro
+        return '💻 Sistema'
+    
+    quem_agendou.short_description = 'Quem Agendou?'
 
 # --- 4. ADMIN DE BLOQUEIOS (ADICIONADO TAMBÉM) ---
 @admin.register(BloqueioAgenda)
