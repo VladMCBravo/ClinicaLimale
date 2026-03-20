@@ -36,9 +36,15 @@ class AgenteMedicinaFetal:
             notificar_recepcao_whatsapp(self.session_id, self.memoria_atual.get('nome_usuario', 'Paciente'))
             return HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
 
-        # --- ROTA DE FUGA CLARA (Se a pessoa realmente não quer) ---
-        palavras_fuga = ['cancelar', 'não quero', 'nao quero', 'deixa pra lá', 'ginecologista', 'obrigado', 'obrigada', 'encerrar', 'desisto']
-        if any(p in msg_lower for p in palavras_fuga) and len(msg_lower.split()) < 10:
+        # --- ROTA DE FUGA CLARA (À prova de falsos positivos como "bebê") ---
+        # Cria uma lista das palavras exatas digitadas para evitar o erro do "obrigado" dentro de "bebê"
+        palavras_digitadas = set(re.findall(r'\b\w+\b', msg_lower))
+        palavras_fuga_isoladas = {'cancelar', 'ginecologista', 'obrigado', 'obrigada', 'encerrar', 'desisto'}
+        frases_fuga = ['não quero', 'nao quero', 'deixa pra lá']
+        
+        quer_fugir = bool(palavras_fuga_isoladas.intersection(palavras_digitadas)) or any(f in msg_lower for f in frases_fuga)
+        
+        if quer_fugir and len(palavras_digitadas) < 10:
             return {
                 "response_message": "Entendido! Agradeço pelo contato. Se precisar de mais alguma coisa ou mudar de ideia, a Clínica Limalé está de portas abertas para você! 🤍", 
                 "new_state": 'ia_roteadora_livre', 
