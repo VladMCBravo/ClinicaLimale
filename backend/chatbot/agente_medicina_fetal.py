@@ -267,7 +267,11 @@ class AgenteMedicinaFetal:
         if any(p in msg_lower for p in ['mais tarde', 'final da agenda', 'outro horário', 'outro horario']):
             dia_alvo = dias_disponiveis[idx_focado]
             ultimo_horario = dia_alvo['horarios_disponiveis'][-1]
-            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": "dia", "data_iso": dia_alvo['data'], "data_formatada": "dia", "hora": ultimo_horario}]
+            
+            data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+            dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+            
+            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": ultimo_horario}]
             
             msg = f"Temos sim\n\nAlém desses horários, também temos um horário no final da agenda às {ultimo_horario}.\n\nPosso reservar para você para não perder a vaga?"
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
@@ -276,7 +280,11 @@ class AgenteMedicinaFetal:
         if any(p in msg_lower for p in ['mais cedo', 'início', 'inicio da agenda', 'cedo']):
             dia_alvo = dias_disponiveis[idx_focado]
             primeiro_horario = dia_alvo['horarios_disponiveis'][0] 
-            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": "dia", "data_iso": dia_alvo['data'], "data_formatada": "dia", "hora": primeiro_horario}]
+            
+            data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+            dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+            
+            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": primeiro_horario}]
             
             msg = f"Temos sim\n\nNeste dia ainda temos um último horário disponível logo no início da agenda às {primeiro_horario}.\n\nEsse horário ficaria melhor para você?"
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
@@ -450,10 +458,25 @@ class AgenteMedicinaFetal:
         
         try:
             from agendamentos.models import Sala
+            # A importação do criar_agendamento_e_pagamento_pendente foi removida daqui!
+            
             sala_exame = Sala.objects.filter(e_sala_exame=True).first()
             data_hora = make_aware(datetime.strptime(f"{horario['data_iso']} {horario['hora']}", "%Y-%m-%d %H:%M"))
             
-            Agendamento.objects.create(paciente=paciente, medico=medico, sala=sala_exame, procedimento=procedimento, tipo_agendamento='Procedimento', data_hora_inicio=data_hora, data_hora_fim=data_hora + timedelta(minutes=15), status='Agendado', observacoes=f"Bot WhatsApp. Exame: {exame_nome}.")
+            # 1. O Bot Apenas Cria a Consulta Médica. 
+            # A mágica financeira agora acontece invisivelmente pelo 'signals.py'!
+            agendamento = Agendamento.objects.create(
+                paciente=paciente, 
+                medico=medico, 
+                sala=sala_exame, 
+                procedimento=procedimento, 
+                tipo_agendamento='Procedimento', 
+                data_hora_inicio=data_hora, 
+                data_hora_fim=data_hora + timedelta(minutes=15), 
+                status='Agendado', 
+                observacoes=f"Bot WhatsApp. Exame: {exame_nome}."
+            )
+            # A chamada manual do motor financeiro foi apagada daqui!
             
             # --- O FECHAMENTO DO PDF COM EMOJIS E NEGRITO ---
             msg_final = f"Perfeito, {nome_curto} 😊\n\n"
