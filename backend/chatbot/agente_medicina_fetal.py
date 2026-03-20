@@ -155,17 +155,34 @@ class AgenteMedicinaFetal:
         idx_focado = self.memoria_atual.get('dia_focado_index', 0)
         from datetime import datetime
         
-        # --- 1. INTERCEPTAÇÃO: PREÇO ---
+        # --- 1. INTERCEPTAÇÃO: PREÇO (RESTAURADO COM AQUECIMENTO DE VENDAS) ---
         preco_informado = self.memoria_atual.get('preco_informado', False)
-        if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto']):
+        if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
             self.memoria_atual['preco_informado'] = True 
+            
+            exame_nome = self.memoria_atual.get('exame_indicado', 'exame')
             valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
-            msg = f"O investimento para esse exame é de R$ {valor_str} 😊\n\nMas me diga, para podermos continuar...\n\n"
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            
+            # Puxa a explicação do exame ou usa uma frase carinhosa de segurança
+            explicacao = self.memoria_atual.get('explicacao', 'Esse exame é essencial para acompanharmos o desenvolvimento saudável do bebê.')
+            
+            # O texto de ancoragem de autoridade antes do preço:
+            if "Ecocardiograma Fetal" in exame_nome:
+                msg = f"✅ Claro, {nome_usuario} 😊\n\nO ecocardiograma fetal é um exame realizado com Doppler e tecnologia de ultrassom de alta resolução e padrão hospitalar, que permite avaliar de forma bastante detalhada a estrutura e o funcionamento do coração do bebê durante a gestação.\n\n"
+            else:
+                msg = f"✅ Claro, {nome_usuario} 😊\n\nSobre o *{exame_nome}*: {explicacao}\n\n"
+                
+            msg += f"O investimento para o exame é de R$ {valor_str}, {texto_parcela}.\n\n"
+            
+            # Reforça a escassez
             opcoes = self.memoria_atual.get('opcoes_horario', [])
             if len(opcoes) >= 2:
                 msg += f"Ainda temos vagas na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\nQual desses horários ficaria melhor para você?"
-            else:
+            elif len(opcoes) == 1:
                  msg += f"Ainda temos uma vaga na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']}.\nFicaria bom para você?"
+                 
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
         # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES (RESTAURADO) ---
