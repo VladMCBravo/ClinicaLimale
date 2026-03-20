@@ -327,6 +327,43 @@ class AgenteMedicinaFetal:
             # Se só tem 1 opção (ex: "Posso reservar?"), aceita "sim", "pode", "quero", etc.
             elif len(opcoes) == 1 and any(p in msg_lower for p in ['sim', 'pode', 'ok', 'quero', 'marcar', 'certeza']):
                 escolha = opcoes[0]
+
+        # --- REPESCAGEM DE HORÁRIO ESPECÍFICO (Se o paciente pedir uma hora que já passou na tela) ---
+        if not escolha:
+            match_hora = re.search(r'(\d{2}:\d{2})', msg_lower)
+            if match_hora:
+                hora_digitada = match_hora.group(1)
+                dia_alvo = dias_disponiveis[idx_focado]
+                # Se a hora que ele digitou realmente existe livre naquele dia
+                if hora_digitada in dia_alvo['horarios_disponiveis']:
+                    data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+                    dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+                    escolha = {"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": hora_digitada}
+                    self.memoria_atual['opcoes_horario'] = [escolha]
+
+        # --- INTERCEPTADOR PARA "QUAIS HORÁRIOS VOCÊ TEM?" ---
+        if not escolha:
+            if any(p in msg_lower for p in ['quais', 'que horário', 'que horario', 'opções', 'opcoes', 'quais sao', 'disponível', 'disponivel', 'tem outro']):
+                dia_alvo = dias_disponiveis[idx_focado]
+                horarios_lista = dia_alvo['horarios_disponiveis']
+                data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+                dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()].capitalize()
+                
+                opcoes_novas = []
+                if len(horarios_lista) >= 2:
+                    opcoes_novas.append({"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": horarios_lista[0]})
+                    opcoes_novas.append({"opcao": "2", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": horarios_lista[len(horarios_lista)//2]})
+                else:
+                    opcoes_novas.append({"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": horarios_lista[0]})
+                
+                self.memoria_atual['opcoes_horario'] = opcoes_novas
+                
+                msg = f"Para {dia_semana_aux} ({data_obj_aux.strftime('%d/%m')}), nós temos as seguintes vagas:\n\n"
+                for op in opcoes_novas:
+                    msg += f"{op['opcao']}️⃣ {op['hora']}\n"
+                msg += "\nAlgum desses fica melhor para você?"
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
                 
         if not escolha:
             return {"response_message": f"{nome_usuario}, por favor, me confirme qual horário prefere, ou digite *'cancelar'* se preferir deixar para depois.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
@@ -339,7 +376,7 @@ class AgenteMedicinaFetal:
         msg += "Para confirmar o agendamento e garantir a vaga, poderia me informar por gentileza:\n- nome completo\n- data de nascimento"
         
         return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
-
+    
     def _formatar_opcoes_repescagem(self) -> str:
         """Função auxiliar para montar a mensagem de escassez quando há objeção"""
         opcoes = self.memoria_atual.get('opcoes_horario', [])
