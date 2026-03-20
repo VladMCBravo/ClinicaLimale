@@ -294,10 +294,15 @@ class AgenteMedicinaFetal:
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         escolha = None
         
-        if '1' in msg_lower or 'primeir' in msg_lower or 'sim' in msg_lower or (len(opcoes) > 0 and opcoes[0]['hora'] in msg_lower):
-            escolha = opcoes[0]
-        elif '2' in msg_lower or 'segund' in msg_lower or (len(opcoes) > 1 and opcoes[1]['hora'] in msg_lower):
-            escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
+        if len(opcoes) > 0:
+            hora_1 = opcoes[0]['hora']
+            hora_2 = opcoes[1]['hora'] if len(opcoes) > 1 else "---"
+            
+            # Checa pela HORA exata ou pela opção 2 primeiro, para evitar que "10:45" caia na regra do número "1"
+            if hora_2 in msg_lower or msg_lower.strip() in ['2', '2.', 'dois'] or 'segund' in msg_lower:
+                escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
+            elif hora_1 in msg_lower or msg_lower.strip() in ['1', '1.', 'um', 'sim', 'ok'] or 'primeir' in msg_lower:
+                escolha = opcoes[0]
                 
         if not escolha:
             return {"response_message": f"{nome_usuario}, por favor, me confirme qual horário prefere, ou digite *'cancelar'* se preferir deixar para depois.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}

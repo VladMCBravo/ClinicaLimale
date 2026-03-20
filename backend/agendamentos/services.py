@@ -142,8 +142,12 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
             valor_do_pagamento = agendamento.procedimento.valor_particular
     
     pagamento = Pagamento.objects.create(
-        agendamento=agendamento, paciente=agendamento.paciente, valor=valor_do_pagamento,
-        status='Pendente', registrado_por=usuario_logado
+        agendamento=agendamento, 
+        paciente=agendamento.paciente, 
+        valor=valor_do_pagamento,
+        status='Pendente', 
+        registrado_por=usuario_logado,
+        data_vencimento=agendamento.data_hora_inicio.date() # <--- ADICIONE APENAS ESTA LINHA AQUI!
     )
     
     gerar_pagamento = False
