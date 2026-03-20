@@ -209,25 +209,20 @@ class AgenteMedicinaFetal:
                      
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
-        # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES (RESTAURADO) ---
-        ja_tentou_contornar = self.memoria_atual.get('tentativa_contorno_objecao', False)
-        
-        # Só tenta contornar se ainda não tentou antes e se não for uma resposta de data (Regra 5 do PDF)
-        if not ja_tentou_contornar and not self.memoria_atual.get('esperando_escolha_data'):
+        # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES (RESTAURADO E MELHORADO) ---
+        # Removida a trava de "tentativa única" para que o bot saiba lidar com múltiplas objeções seguidas
+        if not self.memoria_atual.get('esperando_escolha_data'):
             if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto']):
-                self.memoria_atual['tentativa_contorno_objecao'] = True
                 msg = f"Entendo, {nome_usuario} 😊\n\nEsse exame é essencial para a avaliação detalhada do bebê durante a gestação, por isso exige uma análise bastante cuidadosa durante o atendimento.\n\nComo nossas vagas preenchem rápido, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
                 msg += self._formatar_opcoes_repescagem()
                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
                 
-            elif any(palavra in msg_lower for palavra in ['marido', 'espos', 'parceir', 'junto', 'falar com']):
-                self.memoria_atual['tentativa_contorno_objecao'] = True
+            elif any(palavra in msg_lower for palavra in ['marido', 'espos', 'parceir', 'junto', 'falar com', 'mulher', 'ver com']):
                 msg = f"Claro, {nome_usuario} 😊\n\nO acompanhamento da gestação é um momento importante, então é normal querer decidir juntos com calma.\n\nSe preferir, posso deixar um dos horários provisoriamente reservado para você enquanto conversam, assim você não corre o risco de perder a vaga.\n\n"
                 msg += self._formatar_opcoes_repescagem()
                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
                 
-            elif any(palavra in msg_lower for palavra in ['pensar', 'ver', 'depois', 'vou decidir']):
-                self.memoria_atual['tentativa_contorno_objecao'] = True
+            elif any(palavra in msg_lower for palavra in ['pensar', 'ver', 'depois', 'vou decidir', 'decidir']):
                 msg = f"Claro, {nome_usuario} 😊\n\nEsse exame permite avaliar de forma bastante detalhada a saúde do bebê, por isso é super importante realizar dentro dessa fase da gestação.\n\nSe desejar, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
                 msg += self._formatar_opcoes_repescagem()
                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
