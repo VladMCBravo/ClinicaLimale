@@ -1,21 +1,20 @@
 # chatbot/agente_consultas.py
 
+import re
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from django.utils.timezone import make_aware
 
 from pacientes.models import Paciente
 from agendamentos.models import Agendamento
 from usuarios.models import CustomUser
-# Se você tiver um model de Especialidade, importe-o aqui. 
-# Caso contrário, usaremos o cargo/especialidade do CustomUser.
 
 logger = logging.getLogger(__name__)
 
 class AgenteConsultas:
     """
     Agente especialista em Consultas Médicas.
-    Cruza a dor/especialidade do paciente com a agenda dos médicos disponíveis.
+    Cruza a especialidade do paciente com a agenda real do médico (Jornadas e Bloqueios).
     """
 
     def __init__(self, session_id, memoria_atual):
@@ -23,177 +22,242 @@ class AgenteConsultas:
         self.memoria_atual = memoria_atual
 
     def processar(self, user_message: str, estado_atual: str) -> dict:
-        """Roteador interno das fases de agendamento de consulta."""
+        msg_lower = user_message.lower()
         
-        # ESCAPE: Se a pessoa quiser cancelar ou mudar de ideia
-        if any(palavra in user_message.lower() for palavra in ['cancelar', 'não quero', 'deixa pra lá', 'exame', 'ultrassom']):
+        # --- ROTA DE TRANSFERÊNCIA HUMANA ---
+        if any(p in msg_lower for p in ['recepção', 'recepcao', 'atendente', 'humano', 'falar com pessoa']):
+            from chatbot.human_transfer import HumanTransferManager
+            from chatbot.bot_logic import notificar_recepcao_whatsapp
+            notificar_recepcao_whatsapp(self.session_id, self.memoria_atual.get('nome_usuario', 'Paciente'))
+            return HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
+
+        # --- ROTA DE FUGA CLARA ---
+        palavras_fuga = ['cancelar', 'não quero', 'nao quero', 'deixa pra lá', 'exame', 'ultrassom', 'obrigado', 'obrigada', 'encerrar', 'desisto']
+        if any(p in msg_lower for p in palavras_fuga) and len(msg_lower.split()) < 10:
             return {
-                "response_message": "Sem problemas! Como posso te ajudar hoje na clínica então?", 
+                "response_message": "Entendido! Agradeço pelo contato. Se precisar de mais alguma coisa ou mudar de ideia, a Clínica Limalé está de portas abertas para você! 🤍", 
                 "new_state": 'ia_roteadora_livre', 
                 "memory_data": self.memoria_atual
             }
 
         if estado_atual == 'agendamento_awaiting_specialty':
             return self._processar_especialidade(user_message)
-            
         elif estado_atual == 'agendamento_awaiting_slot_choice':
             return self._processar_escolha_horario(user_message)
-            
-        elif estado_atual == 'aguardando_nome_cadastro':
-            return self._processar_nome(user_message)
-            
+        elif estado_atual == 'aguardando_dados_pessoais':
+            return self._processar_dados_pessoais(user_message)
         elif estado_atual == 'aguardando_email_cadastro':
             return self._processar_email_e_finalizar(user_message)
 
         return {}
 
     def _processar_especialidade(self, user_message: str) -> dict:
+        nome_usuario = self.memoria_atual.get('nome_usuario', '')
         especialidade_pedida = user_message.strip().title()
+        
+        # Filtro básico (pode ser expandido para buscar no banco futuramente)
         especialidades_atendidas = ['Ginecologista', 'Ginecologia', 'Obstetra', 'Obstetrícia', 'Pediatra', 'Pediatria', 'Cardiologista', 'Cardiologia', 'Clinico Geral', 'Clínico Geral']
         
         if not any(esp.lower() in especialidade_pedida.lower() for esp in especialidades_atendidas):
-            return {"response_message": f"Poxa, não encontrei '{especialidade_pedida}' nas nossas agendas. Por favor, digite outra especialidade ou *'Falar com a recepção'*! 🤍", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria_atual}
+            return {"response_message": f"{nome_usuario}, não encontrei '{especialidade_pedida}' nas nossas agendas. Por favor, digite outra especialidade ou digite *'recepção'* para falar com nossa equipe! 🤍", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria_atual}
 
         self.memoria_atual['especialidade_indicada'] = especialidade_pedida
-        medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
-        from django.utils import timezone
         
-        def gerar_horarios(hora_inicio, hora_fim, intervalo=15):
-            lista = []
-            atual = datetime.strptime(hora_inicio, '%H:%M')
-            fim = datetime.strptime(hora_fim, '%H:%M')
-            while atual < fim:
-                lista.append(atual.strftime('%H:%M'))
-                atual += timedelta(minutes=intervalo)
-            return lista
+        # Busca o primeiro médico ativo (No futuro, você pode cruzar com o modelo de Especialidades)
+        medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
+        
+        if not medico:
+             return {"response_message": f"{nome_usuario}, vou pedir para a nossa equipe verificar a agenda de {especialidade_pedida} para você. Um momento! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
 
-        # --- REGRAS DE CONSULTA DA CLÍNICA ---
-        msg_lower = especialidade_pedida.lower()
-        if 'pediatr' in msg_lower:
-            regras_dias = {
-                0: gerar_horarios('09:00', '12:00') + gerar_horarios('15:00', '17:00'), # Segunda
-                1: gerar_horarios('14:00', '16:00'),                                    # Terça
-                4: gerar_horarios('10:00', '12:00') + gerar_horarios('15:00', '17:00')  # Sexta
-            }
-        elif 'cardio' in msg_lower:
-            regras_dias = {
-                1: gerar_horarios('08:00', '12:00'), # Terça
-                5: gerar_horarios('08:00', '11:00')  # Sábado
-            }
-        else:
-            regras_dias = {0: gerar_horarios('08:00', '18:00'), 1: gerar_horarios('08:00', '18:00'), 2: gerar_horarios('08:00', '18:00'), 3: gerar_horarios('08:00', '18:00'), 4: gerar_horarios('08:00', '18:00')}
-
-        hoje = date.today()
-        agora = timezone.now()
+        # ====================================================
+        # NOVA BUSCA DE AGENDA INTELIGENTE (VIA SERVICE)
+        # ====================================================
+        from agendamentos.services import buscar_proximo_horario_disponivel
+        
+        resultado_agenda = buscar_proximo_horario_disponivel(medico.id)
         opcoes = []
-        dias_pt = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
 
-        # Varre os próximos 15 dias buscando 2 horários
-        for i in range(15):
-            if len(opcoes) >= 2: break
-            data_alvo = hoje + timedelta(days=i)
-            dia_semana = data_alvo.weekday()
+        if resultado_agenda:
+            data_iso = resultado_agenda['data']
+            horarios_livres = resultado_agenda['horarios_disponiveis'][:2] # Máximo 2 vagas
             
-            if dia_semana in regras_dias:
-                for h in regras_dias[dia_semana]:
-                    if len(opcoes) >= 2: break
-                    
-                    dt_alvo_inicio = make_aware(datetime.strptime(f"{data_alvo.strftime('%Y-%m-%d')} {h}", "%Y-%m-%d %H:%M"))
-                    dt_alvo_fim = dt_alvo_inicio + timedelta(minutes=15)
-                    
-                    if dt_alvo_inicio < agora: continue
-                        
-                    ocupado = Agendamento.objects.filter(
-                        data_hora_inicio__lt=dt_alvo_fim, 
-                        data_hora_fim__gt=dt_alvo_inicio, 
-                        status__in=['Agendado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Realizado']
-                    ).exists()
-                    
-                    if not ocupado:
-                        opcoes.append({"opcao": str(len(opcoes) + 1), "dia_semana": dias_pt[dia_semana], "data_iso": data_alvo.strftime('%Y-%m-%d'), "data_formatada": data_alvo.strftime('%d/%m/%Y'), "hora": h})
+            data_obj = datetime.strptime(data_iso, '%Y-%m-%d')
+            dias_pt = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
+            dia_semana_str = dias_pt[data_obj.weekday()]
+            data_formatada = data_obj.strftime('%d/%m/%Y')
 
-        if not opcoes:
-            return {"response_message": f"Poxa, nossas agendas para {especialidade_pedida} estão lotadas nos próximos dias. Vou transferir para uma atendente verificar um encaixe para você! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+            for idx, hora in enumerate(horarios_livres):
+                opcoes.append({
+                    "opcao": str(idx + 1), 
+                    "dia_semana": dia_semana_str, 
+                    "data_iso": data_iso, 
+                    "data_formatada": data_formatada, 
+                    "hora": hora
+                })
+
+        if len(opcoes) == 0:
+            return {"response_message": f"{nome_usuario}, nossas agendas para {especialidade_pedida} estão lotadas nos próximos dias. Vou transferir para uma atendente verificar um encaixe para você! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
 
         self.memoria_atual['opcoes_horario'] = opcoes
-        msg = f"Ótimo! Temos atendimento para *{especialidade_pedida}* com nossa equipe médica.\n\nAqui estão os horários mais próximos que encontrei:\n\n"
-        for op in opcoes: msg += f"{op['opcao']}️⃣ Dia {op['data_formatada']} ({op['dia_semana']}) às {op['hora']}\n"
-        msg += f"\nQual dessas opções fica melhor para você? (Responda 1 ou 2)"
+        self.memoria_atual['medico_selecionado_id'] = medico.id
+        self.memoria_atual['preco_informado'] = False 
+
+        msg = f"✅ Ótimo, {nome_usuario} 😊\n\nTemos atendimento para *{especialidade_pedida}* com nossa equipe médica.\n\n"
+        
+        if len(opcoes) >= 2:
+            msg += f"Os horários mais próximos que encontrei são na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\n"
+        else:
+             msg += f"A última vaga mais próxima que encontrei é na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']}.\n\n"
+        
+        msg += f"Qual desses horários ficaria melhor para você?"
         
         return {"response_message": msg, "new_state": 'agendamento_awaiting_slot_choice', "memory_data": self.memoria_atual}
 
     def _processar_escolha_horario(self, user_message: str) -> dict:
-        if '1' in user_message or 'primeir' in user_message.lower():
-            self.memoria_atual['horario_escolhido'] = self.memoria_atual['opcoes_horario'][0]
-        elif '2' in user_message or 'segund' in user_message.lower():
-            if len(self.memoria_atual['opcoes_horario']) > 1:
-                self.memoria_atual['horario_escolhido'] = self.memoria_atual['opcoes_horario'][1]
-        else:
-            return {"response_message": "Por favor, responda com o número 1 ou 2 para escolher o melhor horário.", "new_state": 'agendamento_awaiting_slot_choice', "memory_data": self.memoria_atual}
-
-        # Se a recepcionista já pegou o nome lá no início, pulamos a etapa de perguntar o nome de novo!
-        nome_ja_cadastrado = self.memoria_atual.get('nome_usuario')
-        if nome_ja_cadastrado:
-            self.memoria_atual['nome_completo'] = nome_ja_cadastrado
-            return {
-                "response_message": f"Excelente escolha, {nome_ja_cadastrado}! Para finalizarmos e eu te mandar a confirmação, qual é o seu melhor e-mail?", 
-                "new_state": 'aguardando_email_cadastro', 
-                "memory_data": self.memoria_atual
-            }
-        else:
-            return {
-                "response_message": "Excelente escolha! Para registrarmos a sua consulta, qual é o seu nome completo?", 
-                "new_state": 'aguardando_nome_cadastro', 
-                "memory_data": self.memoria_atual
-            }
-
-    def _processar_nome(self, user_message: str) -> dict:
-        if len(user_message.split()) < 2:
-            return {"response_message": "Por favor, digite seu nome e sobrenome para o prontuário:", "new_state": 'aguardando_nome_cadastro', "memory_data": self.memoria_atual}
+        msg_lower = user_message.lower()
+        nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
+        especialidade = self.memoria_atual.get('especialidade_indicada', 'consulta')
         
-        self.memoria_atual['nome_completo'] = user_message.title()
-        nome_curto = self.memoria_atual['nome_completo'].split()[0]
+        # --- 1. INTERCEPTAÇÃO: PREÇO ---
+        preco_informado = self.memoria_atual.get('preco_informado', False)
         
-        return {"response_message": f"Prazer, {nome_curto}! E qual é o seu melhor e-mail para enviarmos a confirmação?", "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
+        if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
+            self.memoria_atual['preco_informado'] = True 
+            opcoes = self.memoria_atual.get('opcoes_horario', [])
+            
+            # Valor placeholder - idealmente viria do modelo Especialidade
+            msg = f"✅ Claro, {nome_usuario} 😊\n\nO investimento para a consulta de {especialidade} é de R$ 350,00, podendo ser dividido em até 3x sem juros.\n\n"
+            
+            if len(opcoes) >= 2:
+                msg += f"Para nossa agenda mais próxima, temos vagas na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\n"
+            elif len(opcoes) == 1:
+                msg += f"Para nossa agenda mais próxima, temos uma vaga na {opcoes[0]['dia_semana']} ({opcoes[0]['data_formatada']}), às {opcoes[0]['hora']}.\n\n"
+            msg += "Qual desses horários ficaria melhor para você?"
+            
+            return {"response_message": msg, "new_state": 'agendamento_awaiting_slot_choice', "memory_data": self.memoria_atual}
+
+        # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES ---
+        ja_tentou_contornar = self.memoria_atual.get('tentativa_contorno_objecao', False)
+        
+        if not ja_tentou_contornar:
+            if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto', 'marido', 'espos', 'parceir', 'pensar', 'ver', 'depois']):
+                self.memoria_atual['tentativa_contorno_objecao'] = True
+                msg = f"Entendo perfeitamente, {nome_usuario} 😊\n\nO acompanhamento com a equipe de {especialidade} é muito importante para garantir a melhor conduta para a sua saúde.\n\nSe preferir, posso deixar um dos horários provisoriamente pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                
+                opcoes = self.memoria_atual.get('opcoes_horario', [])
+                if len(opcoes) >= 2:
+                    msg += f"Temos {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\nQual deles você prefere que eu deixe reservado?"
+                elif len(opcoes) == 1:
+                    msg += f"Temos {opcoes[0]['dia_semana']} às {opcoes[0]['hora']}.\nPosso deixar esse pré-reservado para você?"
+                return {"response_message": msg, "new_state": 'agendamento_awaiting_slot_choice', "memory_data": self.memoria_atual}
+
+        # --- 3. FLUXO DE ESCOLHA DE HORÁRIO ---
+        opcoes = self.memoria_atual.get('opcoes_horario', [])
+        escolha = None
+        
+        if '1' in msg_lower or 'primeir' in msg_lower or (len(opcoes) > 0 and opcoes[0]['hora'] in msg_lower):
+            escolha = opcoes[0]
+        elif '2' in msg_lower or 'segund' in msg_lower or (len(opcoes) > 1 and opcoes[1]['hora'] in msg_lower):
+            escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
+                
+        if not escolha:
+            return {"response_message": f"{nome_usuario}, por favor, me confirme qual horário prefere, ou digite *'não quero'* se preferir deixar para outra hora.", "new_state": 'agendamento_awaiting_slot_choice', "memory_data": self.memoria_atual}
+            
+        self.memoria_atual['horario_escolhido'] = escolha
+        msg = f"Perfeito, {nome_usuario} 😊\n\nJá vou deixar pré-reservado para você {escolha['dia_semana']} ({escolha['data_formatada']}) às {escolha['hora']}.\n\nPoderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
+        return {"response_message": msg, "new_state": 'aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+
+    def _processar_dados_pessoais(self, user_message: str) -> dict:
+        msg_lower = user_message.lower()
+        nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
+        
+        # --- INTERCEPTADOR: MUDANÇA DE DATA OU DÚVIDA SOBRE A AGENDA ---
+        if any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"{nome_usuario}, eu já deixei a sua vaga do dia {data_fmt} às {hora} pré-reservada no sistema para garantir! 😊\n\n"
+                   f"Se precisarmos buscar uma data diferente, eu posso transferir você para uma de nossas atendentes verificar a agenda completa com calma.\n\n"
+                   f"O que prefere: manter o horário atual (bastando digitar o seu nome e data de nascimento) ou falar com a recepção?")
+            return {"response_message": msg, "new_state": 'aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+
+        # --- FLUXO NORMAL: Extrair data e nome ---
+        match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', user_message)
+        
+        if not match_data:
+            return {"response_message": "Não consegui identificar a data de nascimento. Pode digitar seu nome completo e a data (ex: 12/05/1994)?", "new_state": 'aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+            
+        data_nasc_str = match_data.group(1).replace('-', '/')
+        self.memoria_atual['data_nascimento_paciente'] = data_nasc_str
+        
+        nome = user_message.replace(match_data.group(1), '').strip()
+        nome = re.sub(r'[^\w\s]', '', nome).strip()
+        
+        if len(nome.split()) < 2:
+             nome = nome_usuario 
+             
+        self.memoria_atual['nome_completo_paciente'] = nome.title()
+        nome_curto = nome.split()[0].title() if nome else nome_usuario
+        
+        msg = f"Prazer, {nome_curto} 😊\n\nPor último, qual é o seu melhor e-mail para enviarmos as orientações e a confirmação?"
+        return {"response_message": msg, "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
 
     def _processar_email_e_finalizar(self, user_message: str) -> dict:
-        if '@' not in user_message:
-            return {"response_message": "Esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
+        nome_completo = self.memoria_atual.get('nome_completo_paciente', 'Paciente')
+        nome_curto = nome_completo.split()[0].title()
+        
+        if '@' not in user_message: 
+            return {"response_message": f"{nome_curto}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
         
         self.memoria_atual['email_usuario'] = user_message.lower().strip()
+                
+        # --- MONTAGEM E SALVAMENTO ---
         telefone = ''.join(filter(str.isdigit, self.session_id))
-        nome_completo = self.memoria_atual.get('nome_completo', self.memoria_atual.get('nome_usuario', 'Paciente'))
-        especialidade = self.memoria_atual.get('especialidade_indicada', 'Consulta Médica')
-        
-        # Integração Banco de Dados
-        paciente, criado = Paciente.objects.get_or_create(
-            telefone_celular=telefone,
-            defaults={'nome_completo': nome_completo, 'email': self.memoria_atual['email_usuario'], 'data_nascimento': '1900-01-01'}
-        )
-        if not criado:
-            paciente.nome_completo = nome_completo
-            paciente.email = self.memoria_atual['email_usuario']
-            paciente.save()
-        
-        medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
-        horario = self.memoria_atual['horario_escolhido']
-        data_hora_inicio = datetime.strptime(f"{horario['data_iso']} {horario['hora']}", "%Y-%m-%d %H:%M")
+        data_nasc_str = self.memoria_atual.get('data_nascimento_paciente', '')
         
         try:
-            data_hora_inicio_aware = make_aware(data_hora_inicio)
-            # SALVANDO A CONSULTA: Isso dispara o signals.py e move o CRM para F2!
+            dia, mes, ano = data_nasc_str.split('/')
+            if len(ano) == 2: ano = "19" + ano if int(ano) > 25 else "20" + ano
+            data_nascimento_db = f"{ano}-{mes}-{dia}"
+        except Exception:
+            data_nascimento_db = '1900-01-01'
+        
+        paciente, _ = Paciente.objects.get_or_create(telefone_celular=telefone, defaults={'nome_completo': nome_completo, 'email': self.memoria_atual['email_usuario'], 'data_nascimento': data_nascimento_db})
+        paciente.nome_completo = nome_completo
+        paciente.email = self.memoria_atual['email_usuario']
+        if data_nascimento_db != '1900-01-01': paciente.data_nascimento = data_nascimento_db
+        paciente.save()
+            
+        especialidade = self.memoria_atual.get('especialidade_indicada', 'Consulta Médica')
+        medico_id = self.memoria_atual.get('medico_selecionado_id')
+        medico = CustomUser.objects.filter(id=medico_id).first() if medico_id else CustomUser.objects.filter(cargo='medico', is_active=True).first()
+        horario = self.memoria_atual['horario_escolhido']
+        
+        try:
+            data_hora = make_aware(datetime.strptime(f"{horario['data_iso']} {horario['hora']}", "%Y-%m-%d %H:%M"))
+            
             Agendamento.objects.create(
-                paciente=paciente, medico=medico, tipo_agendamento='Consulta',
-                data_hora_inicio=data_hora_inicio_aware, data_hora_fim=data_hora_inicio_aware + timedelta(minutes=30),
-                status='Agendado', observacoes=f"Agendado via Bot WhatsApp. Especialidade: {especialidade}."
+                paciente=paciente, 
+                medico=medico, 
+                tipo_agendamento='Consulta', 
+                data_hora_inicio=data_hora, 
+                data_hora_fim=data_hora + timedelta(minutes=15), 
+                status='Agendado', 
+                observacoes=f"Bot WhatsApp. Especialidade: {especialidade}."
             )
-            nome_curto = nome_completo.split()[0]
-            msg_final = (f"Tudo certo, {nome_curto}! 🎉\n\n"
-                         f"Sua consulta de *{especialidade}* está confirmada para:\n"
-                         f"📅 *Dia {horario['data']} às {horario['hora']}*\n\n"
-                         f"Um dia antes, enviaremos um lembrete. Agradecemos por escolher a Clínica Limalé 🤍!")
+            
+            msg_final = f"Tudo certo, {nome_curto} 😊\n\n"
+            msg_final += f"Sua consulta de *{especialidade}* ficou reservada para *{horario['dia_semana']} ({horario['data_formatada']}) às {horario['hora']}*.\n\n"
+            msg_final += f"📍 *Endereço da clínica*\n"
+            msg_final += f"Rua Orense, 41 - Sala 512\nCentro - Diadema\n(próximo ao Shopping Praça da Moça e ao Quarteirão da Saúde)\n\n"
+            msg_final += f"☑️ Pedimos apenas que chegue 15 minutos antes do horário para o preenchimento da ficha.\n\n"
+            msg_final += f"A Clínica Limalé agradece a confiança. Será um prazer cuidar da sua saúde 🤍"
+        
         except Exception as e:
-            logger.error(f"Erro ao salvar agendamento de consulta via bot: {e}")
-            msg_final = "Ocorreu uma instabilidade na nossa agenda. Uma atendente confirmará o horário com você em instantes! 🤍"
+            logger.error(f"Erro ao salvar consulta médica: {e}")
+            from chatbot.bot_logic import notificar_recepcao_whatsapp
+            notificar_recepcao_whatsapp(self.session_id, nome_curto)
+            msg_final = f"{nome_curto}, ocorreu uma instabilidade na nossa agenda. Uma atendente confirmará o seu horário em instantes por aqui! 🤍"
 
         return {"response_message": msg_final, "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}

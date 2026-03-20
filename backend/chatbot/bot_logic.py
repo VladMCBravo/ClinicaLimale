@@ -189,10 +189,11 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + [
         'aguardando_atendente_humano', 'encerrado',
         'inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 
-        'mf_aguardando_nome_completo', 'mf_aguardando_nascimento', 'mf_aguardando_email',
+        'mf_aguardando_dados_pessoais', 'mf_aguardando_email', # (Atualizei o nome dos dados pessoais do fetal aqui também)
         'inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao',
-        'aguardando_nome_cadastro', 'aguardando_email_cadastro',
+        'aguardando_dados_pessoais_exames', 'aguardando_email_cadastro_exames', # <-- OS NOVOS AQUI
         'agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice',
+        'aguardando_dados_pessoais', 'aguardando_email_cadastro', # (Os das consultas)
         'aguardando_tipo_exame_menu'
     ]
     
