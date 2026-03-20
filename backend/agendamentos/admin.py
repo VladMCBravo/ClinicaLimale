@@ -1,7 +1,7 @@
 # backend/agendamentos/admin.py - VERSÃO FINAL UNIFICADA (COM EXAMES)
 
 from django.contrib import admin
-from .models import Agendamento, Sala, BloqueioAgenda, ConfiguracaoExame # <-- Adicionei os novos models
+from .models import Agendamento, Sala, BloqueioAgenda, ConfiguracaoExame, DiaFuncionamentoExame
 from django.utils import timezone
 
 # --- 1. ADMIN DE SALA (ATUALIZADO PARA EXAMES) ---
@@ -13,15 +13,21 @@ class SalaAdmin(admin.ModelAdmin):
     list_filter = ('e_sala_exame',)
     ordering = ('nome',)
 
-# --- 2. ADMIN DE CONFIGURAÇÃO (NOVO - O "CÉREBRO") ---
+# --- 2. ADMIN DE CONFIGURAÇÃO (O "CÉREBRO") ---
+
+# A. Tabela embutida para os dias
+class DiaFuncionamentoExameInline(admin.TabularInline):
+    model = DiaFuncionamentoExame
+    extra = 1 # Deixa uma linha em branco para facilitar
+
 @admin.register(ConfiguracaoExame)
 class ConfiguracaoExameAdmin(admin.ModelAdmin):
-    """
-    Aqui vinculamos o Procedimento (Financeiro) à Regra (Equipamento/Tempo).
-    """
     list_display = ('get_procedimento_nome', 'duracao_padrao', 'equipamento_obrigatorio')
     search_fields = ('procedimento__descricao', 'equipamento_obrigatorio')
     autocomplete_fields = ['procedimento', 'modelo_laudo_padrao']
+    
+    # B. Acoplamos a tabela de dias aqui dentro
+    inlines = [DiaFuncionamentoExameInline] 
 
     def get_procedimento_nome(self, obj):
         return obj.procedimento.descricao

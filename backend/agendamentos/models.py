@@ -56,6 +56,31 @@ class ConfiguracaoExame(models.Model):
 
     def __str__(self):
         return f"Regra Clínica: {self.procedimento.descricao}"
+
+class DiaFuncionamentoExame(models.Model):
+    """Define em quais dias e horários um exame ou procedimento pode ser realizado."""
+    DIAS_SEMANA = [
+        (0, 'Segunda-feira'), (1, 'Terça-feira'), (2, 'Quarta-feira'),
+        (3, 'Quinta-feira'), (4, 'Sexta-feira'), (5, 'Sábado'), (6, 'Domingo')
+    ]
+    
+    configuracao = models.ForeignKey(
+        'ConfiguracaoExame', 
+        on_delete=models.CASCADE, 
+        related_name='dias_funcionamento'
+    )
+    dia_semana = models.IntegerField(choices=DIAS_SEMANA, verbose_name="Dia da Semana")
+    hora_inicio = models.TimeField(default="08:00", verbose_name="Hora de Início")
+    hora_fim = models.TimeField(default="18:00", verbose_name="Hora de Fim")
+    
+    class Meta:
+        verbose_name = "Dia de Funcionamento"
+        verbose_name_plural = "Dias de Funcionamento"
+        # Garante que não teremos duas "Segundas-feiras" cadastradas para o mesmo exame
+        unique_together = ('configuracao', 'dia_semana') 
+
+    def __str__(self):
+        return f"{self.get_dia_semana_display()} ({self.hora_inicio.strftime('%H:%M')} às {self.hora_fim.strftime('%H:%M')})"
     
 class Agendamento(models.Model):
     TIPO_ATENDIMENTO_CHOICES = [('Convenio', 'Convênio'), ('Particular', 'Particular')]

@@ -6,7 +6,7 @@ from datetime import date,datetime,timedelta,time
 from django.utils import timezone
 from dateutil.parser import parse
 from django.db.models import Q # Necessário para bloqueios
-from .models import Agendamento, Sala
+from .models import Sala, Agendamento, ConfiguracaoExame, BloqueioAgenda, DiaFuncionamentoExame # <-- Adicione os imports
 from usuarios.models import CustomUser, JornadaDeTrabalho
 from agendamentos.models import Agendamento, BloqueioAgenda
 from faturamento.models import Pagamento
@@ -77,48 +77,84 @@ def buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id):
 
 def buscar_proximo_horario_procedimento(procedimento_id: int):
     """
-    Busca horários livres na SALA DE PROCEDIMENTOS (Dinâmica).
+    Busca horários livres baseando-se nas Regras de Funcionamento do Exame
+    (dias dinâmicos cadastrados no Admin) e na disponibilidade da Sala.
     """
     try:
-        # --- CORREÇÃO: Busca dinâmica da sala ---
-        # Pega a primeira sala marcada como 'e_sala_exame' ou qualquer uma disponível
-        sala_procedimentos = Sala.objects.filter(e_sala_exame=True).first()
+        # 1. Busca as regras do Exame no Banco de Dados
+        config_exame = ConfiguracaoExame.objects.filter(procedimento_id=procedimento_id).first()
         
-        if not sala_procedimentos:
-            sala_procedimentos = Sala.objects.first()
-            if not sala_procedimentos:
-                logger.warning("Nenhuma sala cadastrada para buscar horários.")
-                return None
+        if not config_exame:
+            logger.warning(f"Procedimento {procedimento_id} não possui ConfiguracaoExame cadastrada no Admin.")
+            return None
+            
+        dias_permitidos = config_exame.dias_funcionamento.all()
+        
+        if not dias_permitidos.exists():
+            logger.warning(f"Procedimento {procedimento_id} não tem dias de funcionamento cadastrados (ex: Segunda, Quarta).")
+            return None
 
-        jornada_sala = {'hora_inicio': time(8, 0), 'hora_fim': time(18, 0)}
+        # 2. Busca a Sala (Filtrando pela Tag do equipamento, se a regra exigir)
+        if config_exame.equipamento_obrigatorio:
+            sala_procedimentos = Sala.objects.filter(
+                e_sala_exame=True, 
+                equipamentos__icontains=config_exame.equipamento_obrigatorio
+            ).first()
+        else:
+            sala_procedimentos = Sala.objects.filter(e_sala_exame=True).first()
+            
+        if not sala_procedimentos:
+            logger.warning("Nenhuma sala compatível com a exigência do exame foi encontrada.")
+            return None
+
+        # 3. Varredura Inteligente
         agora = timezone.localtime(timezone.now())
+        
+        # Converte a duração padrão (timedelta) para minutos inteiros para o loop
+        duracao_minutos = int(config_exame.duracao_padrao.total_seconds() / 60)
+        if duracao_minutos <= 0:
+            duracao_minutos = 15 # Valor de segurança padrão
 
         for i in range(90): 
             data_atual = agora.date() + timedelta(days=i)
-            if data_atual.weekday() == 6: continue # Ignora domingos
+            # No Python, segunda é 0 e domingo é 6, o que bate com o CHOICES do nosso modelo
+            dia_semana_atual = data_atual.weekday() 
             
+            # O Exame ocorre neste dia da semana?
+            regra_do_dia = dias_permitidos.filter(dia_semana=dia_semana_atual).first()
+            if not regra_do_dia:
+                continue # Se não for um dia configurado, pula para o próximo dia
+                
             horarios_disponiveis = []
-            slot_atual = datetime.combine(data_atual, jornada_sala['hora_inicio'])
+            slot_atual = datetime.combine(data_atual, regra_do_dia.hora_inicio)
+            hora_fim_limite = datetime.combine(data_atual, regra_do_dia.hora_fim)
 
-            while slot_atual.time() < jornada_sala['hora_fim']:
-                if timezone.make_aware(slot_atual) > agora:
+            # Gera os slots baseados no horário de funcionamento específico DESTE exame
+            while slot_atual < hora_fim_limite:
+                slot_aware = timezone.make_aware(slot_atual)
+                fim_slot_aware = slot_aware + timedelta(minutes=duracao_minutos)
+                
+                if slot_aware > agora:
+                    # Verifica conflito na SALA (A sala já está reservada para outro exame nesse horário?)
                     conflito_sala = Agendamento.objects.filter(
                         sala=sala_procedimentos,
-                        status__in=['Agendado', 'Confirmado', 'Realizado'],
-                        data_hora_inicio__lt=timezone.make_aware(slot_atual + timedelta(minutes=15)),
-                        data_hora_fim__gt=timezone.make_aware(slot_atual)
+                        status__in=['Agendado', 'Confirmado', 'Realizado', 'Em Atendimento', 'Laudando'],
+                        data_hora_inicio__lt=fim_slot_aware,
+                        data_hora_fim__gt=slot_aware
                     ).exists()
                     
                     if not conflito_sala:
                         horarios_disponiveis.append(slot_atual.strftime('%H:%M'))
 
-                slot_atual += timedelta(minutes=15)
+                slot_atual += timedelta(minutes=duracao_minutos)
 
+            # Se encontrou horários neste dia, retorna!
             if horarios_disponiveis:
                 return {
                     "data": data_atual.strftime('%Y-%m-%d'),
                     "horarios_disponiveis": horarios_disponiveis
                 }
+                
         return None
 
     except Exception as e:
