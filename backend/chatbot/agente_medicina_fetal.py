@@ -77,12 +77,57 @@ class AgenteMedicinaFetal:
 
     def _sugerir_exame_e_horarios(self, user_message: str) -> dict:
         nome_usuario = self.memoria_atual.get('nome_usuario', '')
+        msg_lower = user_message.lower()
         match = re.search(r'\d+', user_message)
         if not match:
             return {"response_message": f"{nome_usuario}, não consegui identificar o número de semanas. Pode digitar apenas o número? Ex: 28", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
 
         semanas = int(match.group())
-        
+
+        # --- CENÁRIO 1: Quer saber se está grávida ---
+        if not self.memoria_atual.get('assumir_transvaginal') and any(p in msg_lower for p in ['saber se estou', 'teste', 'suspeita', 'descobrir se', 'grávida', 'gravida']):
+            self.memoria_atual['assumir_transvaginal'] = True
+            msg = (f"Que momento especial, {nome_usuario}! 🤍 Aqui na Limalé nós realizamos o *Ultrassom Transvaginal*, que é o exame de imagem usado para confirmar a gestação e ouvir o coraçãozinho.\n\n"
+                   f"Porém, o ultrassom só consegue visualizar o bebê a partir de um atraso menstrual de cerca de 2 a 3 semanas (ou 5 semanas de gestação).\n\n"
+                   f"Você já tem um exame de farmácia ou sangue positivo, ou gostaria de agendar o ultrassom mesmo assim? (Basta digitar 'agendar' ou 'falar com atendente')")
+            return {"response_message": msg, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+
+        # Resposta ao Cenário 1 (se ela disser que quer agendar mesmo assim)
+        if self.memoria_atual.get('assumir_transvaginal') and any(p in msg_lower for p in ['agendar', 'sim', 'já', 'ja', 'positivo', 'quero']):
+            semanas = 5 # Assume 5 semanas para forçar o sistema a oferecer o Transvaginal
+            self.memoria_atual.pop('assumir_transvaginal', None)
+        else:
+            # --- CENÁRIO 2.A: A paciente enviou a DUM (Data da Última Menstruação) ---
+            match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', msg_lower)
+            if match_data:
+                dum_str = match_data.group(1).replace('-', '/')
+                try:
+                    dia, mes, ano = dum_str.split('/')
+                    if len(ano) == 2: ano = "19" + ano if int(ano) > 25 else "20" + ano
+                    dum_date = datetime.strptime(f"{dia}/{mes}/{ano}", '%d/%m/%Y').date()
+                    
+                    hoje = date.today()
+                    dias_gestacao = (hoje - dum_date).days
+                    semanas = max(1, dias_gestacao // 7) # Calcula as semanas e impede que seja zero
+                    
+                    self.memoria_atual['msg_calculo'] = f"Prontinho! Pelas minhas contas baseadas na sua última menstruação, você está com aproximadamente *{semanas} semanas*. 🎉\n\n"
+                except ValueError:
+                    return {"response_message": f"{nome_usuario}, essa data parece inválida. Pode digitar novamente? (Ex: 10/02/2026)", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+            else:
+                # Busca o número de semanas normal
+                match = re.search(r'\d+', user_message)
+                if match:
+                    semanas = int(match.group())
+                else:
+                    # --- CENÁRIO 2.B: A paciente "Não sabe" as semanas ---
+                    if any(p in msg_lower for p in ['não sei', 'nao sei', 'esqueci', 'certeza', 'dúvida', 'duvida', 'como calcular']):
+                        msg = (f"Não se preocupe, isso é super comum! 😊\n\n"
+                               f"Nós podemos descobrir isso rapidinho. Você se lembra qual foi o primeiro dia da sua última menstruação? Se sim, pode digitar a data aqui (ex: 10/02/2026).\n\n"
+                               f"Ou, se preferir, posso te transferir para uma de nossas especialistas te ajudar com isso. O que acha melhor?")
+                        return {"response_message": msg, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+                    
+                    return {"response_message": f"{nome_usuario}, não consegui identificar o número de semanas. Pode digitar apenas o número (ex: 12) ou a data da sua última menstruação?", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+
         if semanas <= 10: exame = "US Transvaginal"
         elif 11 <= semanas <= 14: exame = "Morfológico 1 Trimestre essencial"
         elif 15 <= semanas <= 19: exame = "Obstétrico essencial"
@@ -145,11 +190,19 @@ class AgenteMedicinaFetal:
         self.memoria_atual['preco_informado'] = False 
 
         # TEXTOS EXATOS DO PDF (Regras 1 e 7)
+        msg_calculo = self.memoria_atual.pop('msg_calculo', '')
+        
         if len(opcoes) == 1:
-            msg = f"Perfeito, {nome_usuario}\n\nPara {semanas} semanas o exame indicado é o {procedimento.descricao}.\n\n"
+            msg = f"Perfeito, {nome_usuario}\n\n"
+            if msg_calculo:
+                msg += f"{msg_calculo}"
+            msg += f"Para {semanas} semanas o exame indicado é o {procedimento.descricao}.\n\n"
             msg += f"Para esse exame temos apenas um horário disponível nesta data:\n{dia_semana_str} - {data_curta} às {opcoes[0]['hora']}.\n\nPosso reservar esse horário para você?"
         else:
-            msg = f"Perfeito, {nome_usuario}\n\nPara {semanas} semanas o exame indicado é o {procedimento.descricao}.\n\n"
+            msg = f"Perfeito, {nome_usuario}\n\n"
+            if msg_calculo:
+                msg += f"{msg_calculo}"
+            msg += f"Para {semanas} semanas o exame indicado é o {procedimento.descricao}.\n\n"
             msg += f"Nesta semana ainda temos duas vagas disponíveis para o exame:\n\n"
             for op in opcoes:
                 msg += f"{op['opcao']}️⃣ {op['dia_semana']} - {op['data_formatada']} às {op['hora']}\n"
@@ -163,6 +216,16 @@ class AgenteMedicinaFetal:
         dias_disponiveis = self.memoria_atual.get('dias_disponiveis', [])
         idx_focado = self.memoria_atual.get('dia_focado_index', 0)
         from datetime import datetime
+        
+        # ---> NOVO: CENÁRIO 3 - DISCORDÂNCIA DO EXAME / PEDIDO MÉDICO DIFERENTE <---
+        if any(palavra in msg_lower for palavra in ['médico pediu', 'medico pediu', 'não é esse', 'nao é esse', 'quero fazer outro', 'quero fazer o', 'outro exame', 'tá errado', 'ta errado']):
+            msg = (f"Entendo perfeitamente, {nome_usuario}! 🤍\n\n"
+                   f"Como cada gestação é única e o seu médico pode ter feito um pedido específico para o seu acompanhamento, é super importante seguirmos a orientação dele.\n\n"
+                   f"Para garantir que vamos agendar exatamente o exame que está na sua guia, vou transferir o seu atendimento para uma de nossas especialistas na recepção. Ela já vai falar com você em instantes!")
+            
+            from chatbot.bot_logic import notificar_recepcao_whatsapp
+            notificar_recepcao_whatsapp(self.session_id, nome_usuario)
+            return {"response_message": msg, "new_state": 'aguardando_atendente_humano', "memory_data": self.memoria_atual}
         
         # --- 1. INTERCEPTAÇÃO: PREÇO (RESTAURADO COM AQUECIMENTO DE VENDAS) ---
         preco_informado = self.memoria_atual.get('preco_informado', False)
