@@ -78,12 +78,7 @@ class AgenteMedicinaFetal:
     def _sugerir_exame_e_horarios(self, user_message: str) -> dict:
         nome_usuario = self.memoria_atual.get('nome_usuario', '')
         msg_lower = user_message.lower()
-        match = re.search(r'\d+', user_message)
-        if not match:
-            return {"response_message": f"{nome_usuario}, não consegui identificar o número de semanas. Pode digitar apenas o número? Ex: 28", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
-
-        semanas = int(match.group())
-
+        
         # --- CENÁRIO 1: Quer saber se está grávida ---
         if not self.memoria_atual.get('assumir_transvaginal') and any(p in msg_lower for p in ['saber se estou', 'teste', 'suspeita', 'descobrir se', 'grávida', 'gravida']):
             self.memoria_atual['assumir_transvaginal'] = True
@@ -114,18 +109,18 @@ class AgenteMedicinaFetal:
                 except ValueError:
                     return {"response_message": f"{nome_usuario}, essa data parece inválida. Pode digitar novamente? (Ex: 10/02/2026)", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
             else:
-                # Busca o número de semanas normal
+                # --- CENÁRIO 2.B: A paciente "Não sabe" as semanas ---
+                if any(p in msg_lower for p in ['não sei', 'nao sei', 'esqueci', 'certeza', 'dúvida', 'duvida', 'como calcular']):
+                    msg = (f"Não se preocupe, isso é super comum! 😊\n\n"
+                           f"Nós podemos descobrir isso rapidinho. Você se lembra qual foi o primeiro dia da sua última menstruação? Se sim, pode digitar a data aqui (ex: 10/02/2026).\n\n"
+                           f"Ou, se preferir, posso te transferir para uma de nossas especialistas te ajudar com isso. O que acha melhor?")
+                    return {"response_message": msg, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+                
+                # --- FLUXO NORMAL (Com proteção se não houver número) ---
                 match = re.search(r'\d+', user_message)
                 if match:
                     semanas = int(match.group())
                 else:
-                    # --- CENÁRIO 2.B: A paciente "Não sabe" as semanas ---
-                    if any(p in msg_lower for p in ['não sei', 'nao sei', 'esqueci', 'certeza', 'dúvida', 'duvida', 'como calcular']):
-                        msg = (f"Não se preocupe, isso é super comum! 😊\n\n"
-                               f"Nós podemos descobrir isso rapidinho. Você se lembra qual foi o primeiro dia da sua última menstruação? Se sim, pode digitar a data aqui (ex: 10/02/2026).\n\n"
-                               f"Ou, se preferir, posso te transferir para uma de nossas especialistas te ajudar com isso. O que acha melhor?")
-                        return {"response_message": msg, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
-                    
                     return {"response_message": f"{nome_usuario}, não consegui identificar o número de semanas. Pode digitar apenas o número (ex: 12) ou a data da sua última menstruação?", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
 
         if semanas <= 10: exame = "US Transvaginal"
