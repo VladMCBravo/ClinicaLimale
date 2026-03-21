@@ -187,9 +187,6 @@ class ConversationRecoveryManager:
                 # Avisa o CRM e passa o nome!
                 sucesso = CRMService.registrar_abandono_chatbot(memoria.session_id, motivo, nome_lead)
 
-                # Avisa o CRM para mover o card para F5 e armar a cadência D0/D1/D3
-                sucesso = CRMService.registrar_abandono_chatbot(memoria.session_id, motivo)
-                
                 if sucesso:
                     # Marca como encerrada para o bot não ficar mandando o lead pro CRM repetidas vezes
                     memoria.conversa_encerrada = True
