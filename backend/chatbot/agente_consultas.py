@@ -7,7 +7,7 @@ from django.utils.timezone import make_aware
 
 from pacientes.models import Paciente
 from agendamentos.models import Agendamento
-from usuarios.models import CustomUser
+from usuarios.models import CustomUser, Especialidade
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,25 @@ class AgenteConsultas:
         if not any(esp.lower() in especialidade_pedida.lower() for esp in especialidades_atendidas):
             return {"response_message": f"{nome_usuario}, não encontrei '{especialidade_pedida}' nas nossas agendas. Por favor, digite outra especialidade ou digite *'recepção'* para falar com nossa equipe! 🤍", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria_atual}
 
-        self.memoria_atual['especialidade_indicada'] = especialidade_pedida
-        
+        # Busca o valor da especialidade no banco de dados (Configurações)
+        especialidade_obj = Especialidade.objects.filter(nome__icontains=especialidade_pedida).first()
+        if not especialidade_obj:
+            # Tenta buscar pela raiz da palavra (ex: Cardio para Cardiologista)
+            raiz = especialidade_pedida[:5]
+            especialidade_obj = Especialidade.objects.filter(nome__icontains=raiz).first()
+            
+        if especialidade_obj and especialidade_obj.valor_consulta:
+            valor_float = float(especialidade_obj.valor_consulta)
+        else:
+            valor_float = 350.00 # Fallback de segurança se o preço estiver vazio no BD
+            
+        valor_str = f"{valor_float:.2f}".replace('.', ',')
+        max_parcelas = max(1, min(3, int(valor_float // 100))) if valor_float > 0 else 1
+
+        self.memoria_atual['especialidade_indicada'] = especialidade_obj.nome if especialidade_obj else especialidade_pedida
+        self.memoria_atual['valor_str_consulta'] = valor_str
+        self.memoria_atual['max_parcelas_consulta'] = max_parcelas
+
         # Busca o primeiro médico ativo (No futuro, você pode cruzar com o modelo de Especialidades)
         medico = CustomUser.objects.filter(cargo='medico', is_active=True).first()
         
@@ -150,9 +167,12 @@ class AgenteConsultas:
         if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
             self.memoria_atual['preco_informado'] = True 
             opcoes = self.memoria_atual.get('opcoes_horario', [])
+            valor_str = self.memoria_atual.get('valor_str_consulta', '350,00')
+            max_parcelas = self.memoria_atual.get('max_parcelas_consulta', 3)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
             
             msg = f"✅ Claro, {nome_usuario} 😊\n\nO acompanhamento com a equipe de {especialidade} é feito de forma humanizada e detalhada, para garantir a melhor conduta para a sua saúde.\n\n"
-            msg += f"O investimento para a consulta é de R$ 350,00, podendo ser dividido em até 3x sem juros.\n\n"
+            msg += f"O investimento para a consulta é de R$ {valor_str}, {texto_parcela}.\n\n"
             
             if len(opcoes) >= 2:
                 msg += f"Para nossa agenda mais próxima, temos vagas na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\n"
@@ -164,7 +184,8 @@ class AgenteConsultas:
 
         # --- INTERCEPTAÇÃO 1.B: FORMAS DE PAGAMENTO E PIX ---
         if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam']):
-            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até 3x sem juros) e PIX. 😊\n\n"
+            max_parcelas = self.memoria_atual.get('max_parcelas_consulta', 3)
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n\n"
                    f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto** no valor da consulta!\n\n")
             
             if self.memoria_atual.get('esperando_escolha_data'):
@@ -322,11 +343,15 @@ class AgenteConsultas:
         
         # --- INTERCEPTADOR 1: PREÇO FORA DE HORA E PAGAMENTO ---
         if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'investimento']):
-            msg = f"O investimento para a consulta é de R$ 350,00, podendo ser dividido em até 3x sem juros 😊\n\nAgora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
+            valor_str = self.memoria_atual.get('valor_str_consulta', '350,00')
+            max_parcelas = self.memoria_atual.get('max_parcelas_consulta', 3)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            msg = f"O investimento para a consulta é de R$ {valor_str}, {texto_parcela} 😊\n\nAgora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
             return {"response_message": msg, "new_state": 'aguardando_dados_pessoais', "memory_data": self.memoria_atual}
         
         if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam']):
-            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até 3x sem juros) e PIX. 😊\n"
+            max_parcelas = self.memoria_atual.get('max_parcelas_consulta', 3)
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
                    f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
                    f"Agora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)")
             return {"response_message": msg, "new_state": 'aguardando_dados_pessoais', "memory_data": self.memoria_atual}
@@ -388,11 +413,15 @@ class AgenteConsultas:
         
         # --- INTERCEPTADORES FINAIS ---
         if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
-            msg = f"O investimento para a consulta é de R$ 350,00, podendo ser dividido em até 3x sem juros 😊\n\nPara enviarmos as orientações e finalizarmos o seu agendamento, qual é o seu melhor e-mail?"
+            valor_str = self.memoria_atual.get('valor_str_consulta', '350,00')
+            max_parcelas = self.memoria_atual.get('max_parcelas_consulta', 3)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            msg = f"O investimento para a consulta é de R$ {valor_str}, {texto_parcela} 😊\n\nPara enviarmos as orientações e finalizarmos o seu agendamento, qual é o seu melhor e-mail?"
             return {"response_message": msg, "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}
         
         if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam']):
-            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até 3x sem juros) e PIX. 😊\n"
+            max_parcelas = self.memoria_atual.get('max_parcelas_consulta', 3)
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
                    f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
                    f"Para enviarmos as orientações e finalizarmos o seu agendamento, qual é o seu melhor e-mail?")
             return {"response_message": msg, "new_state": 'aguardando_email_cadastro', "memory_data": self.memoria_atual}

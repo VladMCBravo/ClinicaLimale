@@ -186,15 +186,14 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     msg_limpa = user_message.strip().lower()
     
     # BLINDAGEM MÁXIMA: Impede a Recepcionista de interromper os Agentes Especialistas!
-    estados_protegidos = list(MAPA_ESTADOS_INPUT.keys()) + [
+    estados_protegidos = [
         'aguardando_atendente_humano', 'encerrado',
         'inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 
-        'mf_aguardando_dados_pessoais', 'mf_aguardando_email', # (Atualizei o nome dos dados pessoais do fetal aqui também)
-        'inicio', 'aguardando_semanas_gestacao', 'aguardando_escolha_horario_gestacao',
-        'aguardando_dados_pessoais_exames', 'aguardando_email_cadastro_exames', # <-- OS NOVOS AQUI
+        'mf_aguardando_dados_pessoais', 'mf_aguardando_email',
+        'inicio', 'exame_aguardando_horario', 'exame_aguardando_dados_pessoais', 'exame_aguardando_email',
         'agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice',
-        'aguardando_dados_pessoais', 'aguardando_email_cadastro', # (Os das consultas)
-        'aguardando_tipo_exame_menu'
+        'aguardando_dados_pessoais', 'aguardando_email_cadastro',
+        'inicio_cancelamento', 'aguardando_escolha_cancelamento'
     ]
     
     if estado_atual == 'humano':
