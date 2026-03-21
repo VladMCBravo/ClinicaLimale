@@ -2,63 +2,16 @@
 
 import logging
 from .models import ChatMemory
-from .agendamento_flow import AgendamentoManager
 from .agente_recepcionista import AgenteRecepcionista
-from .chains import (
-    chain_roteadora, chain_sintomas, chain_faq, faq_base_de_conhecimento,
-    chain_triagem, chain_classifica_modalidade
-)
-from .services import get_resposta_preco
+from .chains import chain_faq, faq_base_de_conhecimento
 from .human_transfer import HumanTransferManager
 from .conversation_manager import ConversationManager
 from .agente_exames import AgenteExames
 from .agente_medicina_fetal import AgenteMedicinaFetal
 from .agente_consultas import AgenteConsultas
+from .agente_cancelamento import AgenteCancelamento
 
 logger = logging.getLogger(__name__)
-
-def get_reprompt_message(state: str, memory: dict) -> str:
-    nome_usuario = memory.get('nome_usuario', '')
-    prompts = {
-        'agendamento_awaiting_type': f"Perfeito, {nome_usuario}! O agendamento será para uma *Consulta* ou *Procedimento*?",
-        'agendamento_awaiting_modality': "Prefere *Telemedicina* ou *Presencial*?",
-        'agendamento_awaiting_specialty': "Qual das nossas especialidades você deseja?",
-        'agendamento_awaiting_slot_confirmation': "Confirma o horário pré-reservado? (Sim/Não)",
-        'cadastro_awaiting_cpf': "Por favor, me informe o seu *CPF*.",
-        'agendamento_awaiting_payment_choice': "Como prefere pagar? (PIX ou Cartão)",
-        'agendamento_awaiting_procedure': "Qual procedimento deseja agendar?",
-        'agendamento_awaiting_slot_choice': "Qual horário prefere?",
-        'cadastro_awaiting_missing_field': f"Qual {memory.get('missing_field', 'dado solicitado')}?",
-        'cancelamento_awaiting_cpf': "Por favor, informe seu CPF para cancelamento.",
-        'cancelamento_awaiting_choice': "Qual o número do agendamento a cancelar?",
-        'cancelamento_awaiting_confirmation': "Confirma o cancelamento? (Sim/Não)",
-        'awaiting_schedule_confirmation': "Gostaria de agendar/continuar? (Sim/Não)",
-    }
-    if state == 'agendamento_awaiting_slot_choice':
-        horarios = memory.get('horarios_ofertados', {})
-        data_formatada = horarios.get('data', 'uma data próxima')
-        return f"Encontrei alguns horários para o dia *{data_formatada}*. Qual deles prefere?"
-    if state == 'identificando_demanda' or state == 'ia_roteadora_livre':
-        return f"Como posso te direcionar ao melhor cuidado hoje, {nome_usuario}?"
-    return prompts.get(state, f"Como posso te ajudar, {nome_usuario}?")
-
-MAPA_ESTADOS_INPUT = {
-    'agendamento_awaiting_type': "O tipo de agendamento ('Consulta' ou 'Procedimento').",
-    'agendamento_awaiting_modality': "A modalidade ('Telemedicina' ou 'Presencial').",
-    'agendamento_awaiting_specialty': "O nome de uma especialidade médica da lista.",
-    'agendamento_awaiting_procedure': "O nome de um procedimento da lista.",
-    'agendamento_awaiting_slot_choice': "A escolha de um horário da lista OU um pedido por 'outra data'.",
-    'agendamento_awaiting_slot_confirmation': "Uma confirmação ('Sim' ou 'Não').",
-    'cadastro_awaiting_cpf': "O número do CPF (11 dígitos).",
-    'cadastro_awaiting_missing_field': "A informação de cadastro solicitada (nome completo, data nascimento DD/MM/AAAA, telefone com DDD, email).",
-    'agendamento_awaiting_payment_choice': "A escolha de pagamento ('PIX' ou 'Cartão', ou '1' ou '2').",
-    'agendamento_awaiting_installments': "A escolha de parcelas (à vista, 2x ou 3x).",
-    'cancelamento_awaiting_cpf': "O número do CPF para localizar agendamentos.",
-    'cancelamento_awaiting_choice': "O número do agendamento que deseja cancelar (da lista apresentada).",
-    'cancelamento_awaiting_confirmation': "Uma confirmação ('Sim' ou 'Não') para o cancelamento.",
-    'awaiting_schedule_confirmation': "Uma confirmação ('Sim' ou 'Não') se deseja iniciar/continuar o agendamento.",
-    'awaiting_inactivity_response': "Uma confirmação ('Sim' ou 'Não') se deseja continuar o atendimento após pausa.",
-}
 
 def notificar_recepcao_whatsapp(session_id, nome_paciente):
     """Envia um alerta para o celular da recepção."""
@@ -241,179 +194,31 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
         resultado = agente_exames.processar(user_message, estado_atual)
 
     # 2.C: O Agente de Consultas Médicas
-    elif estado_atual in ['agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice']:
+    elif estado_atual in ['agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice', 'aguardando_dados_pessoais', 'aguardando_email_cadastro']:
         agente_consultas = AgenteConsultas(session_id, memoria_atual)
         resultado = agente_consultas.processar(user_message, estado_atual)
+        
+    # 2.D: O Agente de Cancelamentos
+    elif estado_atual in ['inicio_cancelamento', 'aguardando_escolha_cancelamento']:
+        agente_cancelamento = AgenteCancelamento(session_id, memoria_atual)
+        resultado = agente_cancelamento.processar(user_message, estado_atual)
     
     # ==================================================================
-    # --- IA EM STAND-BY (SÓ ATUA SE A PESSOA ESCAPAR DO FUNIL OBSTÉTRICO) ---
+    # --- FASE 3: FAQ E FALLBACK FINAL ---
     # ==================================================================
     else:
-        estados_de_fluxo = list(MAPA_ESTADOS_INPUT.keys())
-        estados_de_fluxo.extend(['aguardando_atendente_humano'])
-
-        historico = memoria_atual.get('historico_conversa', [])
-        historico_formatado = "\n".join(historico[-4:])
-
-        # NÍVEL 1: Verifica se estamos EM UM FLUXO AVANÇADO.
-        if estado_atual in estados_de_fluxo:
-            if estado_atual in MAPA_ESTADOS_INPUT:
-                try:
-                    input_esperado = MAPA_ESTADOS_INPUT.get(estado_atual, "Uma resposta específica do usuário.")
-                    triagem_data = chain_triagem.invoke({
-                        "estado_atual": estado_atual,
-                        "input_esperado": input_esperado,
-                        "historico_conversa": historico_formatado,
-                        "user_message": user_message
-                    })
-                    intent_triagem = triagem_data.get("intent")
-                    entity_triagem = triagem_data.get("entity")
-                except Exception as e:
-                    intent_triagem = 'continuacao'
-                    entity_triagem = None
-            else:
-                intent_triagem = 'continuacao'
-                entity_triagem = None
-
-            if intent_triagem == 'continuacao':
-                if estado_atual == 'aguardando_atendente_humano':
-                     if 'continuar' in user_message.lower():
-                         memoria_obj.transferencia_solicitada = False
-                         resultado = {"response_message": f"Perfeito, {nome_usuario}! Vamos continuar nosso atendimento. Como posso te ajudar?", "new_state": "ia_roteadora_livre", "memory_data": memoria_atual}
-                     else:
-                         resultado = {"response_message": f"Entendido, {nome_usuario}. Nossa equipe entrará em contato em breve. Aguarde um momento.", "new_state": "aguardando_atendente_humano", "memory_data": memoria_atual}
-
-                elif estado_atual == 'awaiting_inactivity_response':
-                     if 'sim' in user_message.lower():
-                         memoria_atual.pop('tipo_agendamento', None); memoria_atual.pop('lista_procedimentos', None);
-                         resultado = {"response_message": f"Que bom que voltou, {nome_usuario}! Como posso te ajudar agora?", "new_state": "ia_roteadora_livre", "memory_data": memoria_atual}
-                     else:
-                         memoria_obj.conversa_encerrada = True
-                         resultado = {"response_message": "Entendido. Quando precisar, é só chamar!", "new_state": 'encerrado', "memory_data": {'nome_usuario': nome_usuario}}
-
-                elif estado_atual == 'awaiting_schedule_confirmation':
-                    nome_usuario = memoria_atual.get('nome_usuario', '') 
-                    if 'sim' in user_message.lower():
-                        if 'previous_state' in memoria_atual:
-                            estado_anterior = memoria_atual.pop('previous_state')
-                            reprompt = get_reprompt_message(estado_anterior, memoria_atual)
-                            resultado = {"response_message": f"Ótimo! Continuando de onde paramos:\n\n{reprompt}", "new_state": estado_anterior, "memory_data": memoria_atual}
-                        elif 'entidade_agendar' in memoria_atual:
-                            entidade = memoria_atual.pop('entidade_agendar') 
-                            memoria_atual['entidade_inicial_agendamento'] = entidade 
-                            manager = AgendamentoManager(session_id, memoria_atual, "")
-                            resultado = manager.processar("iniciar com entidade", 'agendamento_inicio') 
-                        else:
-                            resultado = {"response_message": f"Entendido, {nome_usuario}. Como posso te ajudar agora?", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
-                    else:
-                         memoria_atual.pop('previous_state', None)
-                         memoria_atual.pop('entidade_agendar', None)
-                         resultado = {"response_message": "Tudo bem. Se mudar de ideia ou precisar de outra coisa, é só me dizer!", "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
-
-                elif estado_atual in MAPA_ESTADOS_INPUT:
-                    manager = AgendamentoManager(session_id, memoria_atual, "")
-                    resultado = manager.processar(user_message, estado_atual)
-                else:
-                    resultado = {"response_message": f"Me desculpe, {nome_usuario}, me perdi um pouco. Pode me dizer novamente como posso te ajudar?", "new_state": "ia_roteadora_livre", "memory_data": memoria_atual}
-
-            elif intent_triagem == 'interrupcao_preco':
-                memoria_atual['previous_state'] = estado_atual
-                resposta_base = get_resposta_preco(entity_triagem, memoria_atual)
-                resposta_final = f"{resposta_base}\n\nPodemos continuar com o agendamento de onde paramos, {nome_usuario}? (Sim/Não)"
-                resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
-
-            elif intent_triagem == 'interrupcao_pergunta':
-                memoria_atual['previous_state'] = estado_atual
-                faq_data = chain_faq.invoke({
-                    "pergunta_do_usuario": user_message,
-                    "faq": faq_base_de_conhecimento,
-                    "nome_usuario": nome_usuario
-                })
-                resposta_faq = faq_data.get("resposta", f"Desculpe {nome_usuario}, não encontrei essa informação.")
-                resposta_final = f"{resposta_faq}\n\nPodemos continuar com o processo anterior, {nome_usuario}? (Sim/Não)"
-                resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
-
-            elif intent_triagem == 'interrupcao_cancelamento_fluxo':
-                manager = AgendamentoManager(session_id, memoria_atual, "")
-                resultado = manager.processar("cancelar fluxo", estado_atual)
-
-            elif intent_triagem == 'transferencia_humano':
-                 resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
-                 memoria_obj.transferencia_solicitada = True
-                 notificar_recepcao_whatsapp(session_id, nome_usuario) # <--- E AQUI
-
-        # NÍVEL 2: IA Roteadora (Se não está no Funil e não está em fluxo)
-        else:
-            try:
-                historico = memoria_atual.get('historico_conversa', [])
-                historico_formatado_roteador = "\n".join(historico[-4:]) 
-
-                intent_data = chain_roteadora.invoke({
-                    "user_message": user_message,
-                    "historico_conversa": historico_formatado_roteador
-                })
-
-                intent = intent_data.get("intent")
-                entity = intent_data.get("entity")
-
-                memoria_atual['entidade_inicial_agendamento'] = entity
-                modalidade = intent_data.get("modalidade")
-                medico = intent_data.get("medico_preferencia")
-                dia = intent_data.get("dia_preferencia")
-                hora = intent_data.get("hora_preferencia")
-
-                if modalidade: memoria_atual['modalidade'] = modalidade
-                if medico: memoria_atual['medico_preferencia'] = medico
-                if dia: memoria_atual['dia_preferencia'] = dia
-                if hora: memoria_atual['hora_preferencia'] = hora
-
-                if intent == "buscar_preco":
-                    resposta_base = get_resposta_preco(entity, memoria_atual)
-                    resposta_final = f"{resposta_base}\n\nQue tal aproveitarmos para já verificar os próximos horários disponíveis para {entity}, {nome_usuario}? (Sim/Não)"
-                    memoria_atual['entidade_agendar'] = entity
-                    resultado = {"response_message": resposta_final, "new_state": 'awaiting_schedule_confirmation', "memory_data": memoria_atual}
-
-                elif intent == "iniciar_agendamento":
-                    manager = AgendamentoManager(session_id, memoria_atual, "")
-                    resultado = manager.processar(user_message, 'agendamento_inicio')
-
-                elif intent == "cancelar_agendamento":
-                    manager = AgendamentoManager(session_id, memoria_atual, "")
-                    resultado = manager.processar(user_message, 'cancelamento_inicio')
-
-                elif intent == "triagem_sintomas":
-                    if not chain_sintomas: raise ValueError("Chain de Sintomas não inicializada.")
-                    sintomas_data = chain_sintomas.invoke({"sintomas_do_usuario": user_message})
-                    especialidade = sintomas_data.get("especialidade_sugerida", "Clínico Geral")
-                    entidade_para_agendar = especialidade if especialidade != 'Nenhuma' else "Clínico Geral"
-                    msg = (f"Entendo seus sintomas, {nome_usuario}. "
-                           f"A especialidade mais indicada parece ser *{entidade_para_agendar}*. "
-                           f"Gostaria de verificar os horários disponíveis? (Sim/Não)")
-                    memoria_atual['entidade_agendar'] = entidade_para_agendar
-                    resultado = {"response_message": msg, "new_state": "awaiting_schedule_confirmation", "memory_data": memoria_atual}
-
-                elif intent == "transferencia_humano":
-                    resultado = HumanTransferManager.processar_transferencia(session_id, memoria_atual)
-                    memoria_obj.transferencia_solicitada = True
-                    notificar_recepcao_whatsapp(session_id, nome_usuario) # <--- E AQUI TAMBÉM
-
-                elif intent == "encerrar_conversa":
-                    resultado = ConversationManager.processar_encerramento(session_id, memoria_atual)
-                    memoria_obj.conversa_encerrada = True
-
-                else:
-                    if not chain_faq: raise ValueError("Chain FAQ não inicializada.")
-                    faq_data = chain_faq.invoke({
-                        "pergunta_do_usuario": user_message,
-                        "faq": faq_base_de_conhecimento,
-                        "nome_usuario": nome_usuario
-                    })
-                    resposta = faq_data.get("resposta", f"Desculpe {nome_usuario}, não encontrei informações sobre isso.")
-                    resultado = {"response_message": resposta, "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
-
-            except Exception as e:
-                logger.error(f"Erro na IA Roteadora no Nível 2: {e}", exc_info=True)
-                resultado = {"response_message": f"Desculpe, {nome_usuario}, tive um problema para entender sua solicitação. Poderia tentar de outra forma?", "new_state": "ia_roteadora_livre", "memory_data": memoria_atual}
+        try:
+            faq_data = chain_faq.invoke({
+                "pergunta_do_usuario": user_message,
+                "faq": faq_base_de_conhecimento,
+                "nome_usuario": nome_usuario
+            })
+            resposta = faq_data.get("resposta", f"Desculpe {nome_usuario}, não encontrei essa informação.")
+            resultado = {"response_message": resposta, "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
+            
+        except Exception as e:
+            logger.error(f"Erro na FAQ: {e}", exc_info=True)
+            resultado = {"response_message": f"Desculpe, {nome_usuario}, tive um problema para entender sua solicitação. Posso te transferir para a recepção?", "new_state": "ia_roteadora_livre", "memory_data": memoria_atual}
 
     # PONTO DE SAÍDA E HISTÓRICO
     if not resultado:
