@@ -110,18 +110,27 @@ class AgenteRecepcionista:
             else:
                 if intencao == 'exame_fetal':
                     novo_estado = 'mf_aguardando_semanas' 
+                    msg_lower = user_message.lower()
+                    
+                    # --- NOVA BLINDAGEM: INTERCEPTAR SUSPEITA DE GRAVIDEZ NA RECEPÇÃO ---
+                    if any(p in msg_lower for p in ['saber se estou', 'teste', 'suspeita', 'descobrir se', 'grávida', 'gravida']):
+                        self.memoria_atual['assumir_transvaginal'] = True
+                        resposta_ia = (f"Que momento especial, {nome_conhecido}! 🤍 Aqui na Limalé nós realizamos o *Ultrassom Transvaginal*, que é o exame de imagem usado para confirmar a gestação e ouvir o coraçãozinho.\n\n"
+                                       f"Porém, o ultrassom só consegue visualizar o bebê a partir de um atraso menstrual de cerca de 2 a 3 semanas (ou 5 semanas de gestação).\n\n"
+                                       f"Você já tem um exame de farmácia ou sangue positivo, ou gostaria de agendar o ultrassom mesmo assim? (Basta digitar 'agendar' ou 'falar com atendente')")
+                    else:
                     # BLINDAGEM 2: Se sabemos que é Medicina Fetal, a IA não pode inventar perguntas sobre trimestres.
                     # --- CORREÇÃO DA NOMENCLATURA DO EXAME ---
-                    if 'eco' in (procedimento or '').lower() or 'cardio' in (procedimento or '').lower():
-                        texto_exame = "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
-                    else:
-                        # Resposta genérica listando o cardápio de exames de autoridade
-                        texto_exame = ("Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade! 👶\n\n")
-                        
-                    if pular_saudacao:
-                        resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente sobre o melhor exame, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
-                    else:
-                        resposta_ia = f"Olá, {nome_conhecido}! 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\nQue bom ter você por aqui!\n\n{texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                        if 'eco' in (procedimento or '').lower() or 'cardio' in (procedimento or '').lower():
+                            texto_exame = "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
+                        else:
+                            # Resposta genérica listando o cardápio de exames de autoridade
+                            texto_exame = ("Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade! 👶\n\n")
+                            
+                        if pular_saudacao:
+                            resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente sobre o melhor exame, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
+                        else:
+                            resposta_ia = f"Olá, {nome_conhecido}! 🤍\n\nSou o Leônidas, assistente da Clínica Limalé — centro de referência em gestação, ultrassom fetal e cardiologia avançada.\n\nQue bom ter você por aqui!\n\n{texto_exame}\n\nPara te orientar corretamente, poderia me informar com quantas semanas de gestação você está hoje, por favor?"
                 
                 elif intencao == 'exame_geral':
                     novo_estado = 'inicio'
