@@ -116,8 +116,7 @@ class AgenteRecepcionista:
                         texto_exame = "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
                     else:
                         # Resposta genérica listando o cardápio de exames de autoridade
-                        texto_exame = ("Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade! 👶\n\n"
-                                       "Realizamos o Transvaginal, Morfológicos de 1º e 2º Trimestre, Obstétrico com ou sem Doppler, e Ecocardiograma Fetal.")
+                        texto_exame = ("Sim, os exames obstétricos e ultrassons para o acompanhamento do bebê são a nossa principal especialidade! 👶\n\n")
                         
                     if pular_saudacao:
                         resposta_ia = f"{texto_exame}\n\nPara te orientar corretamente sobre o melhor exame, poderia me informar com quantas semanas de gestação você está hoje, por favor?"

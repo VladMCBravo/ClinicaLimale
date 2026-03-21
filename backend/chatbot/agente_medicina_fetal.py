@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 EXPLICACOES_FETAIS = {
     "US Transvaginal": "Esse exame permite confirmar a gestação, descartar gravidez ectópica e ouvir os primeiros batimentos do coraçãozinho do bebê.",
     "Morfológico 1 Trimestre essencial": "Esse exame é fundamental para avaliar o risco de síndromes genéticas e analisar a anatomia inicial do bebê de forma bem detalhada.",
+    "Morfológico 1 Trimestre com Doppler": "O morfológico do 1º trimestre com Doppler é um exame mais completo, realizado entre 11 e 14 semanas, que além de avaliar a formação inicial do bebê e os principais rastreios dessa fase, inclui o estudo da circulação, proporcionando uma avaliação mais precoce, detalhada e segura da gestação.",
     "Obstétrico essencial": "Esse exame nos permite acompanhar o crescimento, o peso e a vitalidade do bebê de forma muito precisa.",
-    "Morfológico 2 Trimestre essencial": "É o exame mais completo da gestação! Ele avalia minuciosamente todos os órgãos e estruturas do bebê, da cabeça aos pés.",
+    "Morfológico 2 Trimestre essencial": "O morfológico do 2º trimestre é o exame mais importante da gestação, realizado entre 20 e 24 semanas, onde avaliamos todos os órgãos do bebê de forma detalhada e fazemos o rastreio de possíveis alterações, garantindo uma avaliação completa e segura.",
+    "Morfológico 2 Trimestre com Doppler": "O morfológico do 2º trimestre com Doppler é o exame mais completo da gestação, onde avaliamos todos os órgãos do bebê e também a circulação entre o bebê e a placenta, permitindo uma análise mais completa, precisa e segura.",
+    "Morfológico com Doppler": "O morfológico com Doppler é o exame mais completo da gestação, pois além da avaliação detalhada de todos os órgãos do bebê, também inclui o estudo da circulação, proporcionando uma análise mais completa, precisa e segura.",
     "Obstétrico com Doppler": "Esse exame avalia o fluxo sanguíneo da mãe para o bebê, garantindo que ele está recebendo oxigênio e nutrientes perfeitamente.",
     "Ecocardiograma Fetal": "O ecocardiograma fetal é o exame específico para avaliar a estrutura e o funcionamento do coração do bebê durante a gestação."
 }
