@@ -32,7 +32,13 @@ class AgenteExames:
             return HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
 
         # --- ROTA DE FUGA CLARA ---
-        if any(palavra in msg_lower for palavra in ['não estou', 'nao estou', 'cancelar', 'outro exame', 'consulta', 'desisto']):
+        palavras_digitadas = set(re.findall(r'\b\w+\b', msg_lower))
+        palavras_fuga = {'cancelar', 'obrigado', 'obrigada', 'encerrar', 'desisto'}
+        frases_fuga = ['não estou', 'nao estou', 'outro exame', 'consulta']
+        
+        quer_fugir = bool(palavras_fuga.intersection(palavras_digitadas)) or any(f in msg_lower for f in frases_fuga)
+
+        if quer_fugir and len(palavras_digitadas) < 10:
             return {"response_message": "Entendido! Agradeço pelo contato. Se precisar de mais alguma coisa, a Clínica Limalé está de portas abertas para você! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
 
         if estado_atual == 'inicio':
@@ -133,16 +139,68 @@ class AgenteExames:
         idx_focado = self.memoria_atual.get('dia_focado_index', 0)
         from datetime import datetime
         
-        # --- 1. INTERCEPTAÇÃO: PREÇO ---
+        # ---> NOVO: CENÁRIO DE DISCORDÂNCIA DO EXAME / PEDIDO MÉDICO DIFERENTE <---
+        if any(palavra in msg_lower for palavra in ['médico pediu', 'medico pediu', 'não é esse', 'nao é esse', 'quero fazer outro', 'quero fazer o', 'outro exame', 'tá errado', 'ta errado']):
+            msg = (f"Entendo perfeitamente, {nome_usuario}! 🤍\n\n"
+                   f"Como o seu médico pode ter feito um pedido específico para o seu acompanhamento, é super importante seguirmos a orientação dele.\n\n"
+                   f"Para garantir que vamos agendar exatamente o exame que está na sua guia, vou transferir o seu atendimento para uma de nossas especialistas na recepção. Ela já vai falar com você em instantes!")
+            
+            from chatbot.bot_logic import notificar_recepcao_whatsapp
+            notificar_recepcao_whatsapp(self.session_id, nome_usuario)
+            return {"response_message": msg, "new_state": 'aguardando_atendente_humano', "memory_data": self.memoria_atual}
+
+        # --- 1. INTERCEPTAÇÃO: PREÇO COM ANCORAGEM DE VALOR ---
         preco_informado = self.memoria_atual.get('preco_informado', False)
-        if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto']):
+        if not preco_informado and any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
             self.memoria_atual['preco_informado'] = True 
+            exame_nome = self.memoria_atual.get('exame_indicado', 'exame')
             valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
-            msg = f"O investimento para esse exame é de R$ {valor_str} 😊\n\nMas me diga...\n\n"
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+
+            msg = f"✅ Claro, {nome_usuario} 😊\n\nEsse exame é essencial para uma avaliação clínica precisa e detalhada, realizada com equipamentos de alta resolução.\n\n"
+            msg += f"O investimento para o {exame_nome} é de R$ {valor_str}, {texto_parcela}.\n\n"
+            
             opcoes = self.memoria_atual.get('opcoes_horario', [])
             if len(opcoes) >= 2:
                 msg += f"Ainda temos vagas na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\nQual desses horários ficaria melhor para você?"
+            elif len(opcoes) == 1:
+                msg += f"Ainda temos uma vaga na {opcoes[0]['dia_semana']} às {opcoes[0]['hora']}.\nFicaria bom para você?"
             return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # --- INTERCEPTAÇÃO 1.B: FORMAS DE PAGAMENTO E PIX ---
+        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam']):
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n\n"
+                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto** no valor do exame!\n\n")
+            
+            if self.memoria_atual.get('esperando_escolha_data'):
+                msg += "Qual daquelas datas que te passei ficaria melhor para você?"
+            else:
+                opcoes = self.memoria_atual.get('opcoes_horario', [])
+                if len(opcoes) >= 2:
+                    msg += f"Para garantirmos a sua vaga, você prefere a {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}?"
+                elif len(opcoes) == 1:
+                     msg += f"Posso reservar a vaga da {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} para você?"
+            return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # --- 2. CONTROLE DE INSISTÊNCIA E OBJEÇÕES ---
+        if not self.memoria_atual.get('esperando_escolha_data'):
+            if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto']):
+                msg = f"Entendo, {nome_usuario} 😊\n\nEsse exame é muito importante para uma avaliação cuidadosa da sua saúde.\n\nComo nossas vagas preenchem rápido, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
+                
+            elif any(palavra in msg_lower for palavra in ['marido', 'espos', 'parceir', 'junto', 'falar com', 'mulher', 'ver com']):
+                msg = f"Claro, {nome_usuario} 😊\n\nÉ normal querer decidir os detalhes com calma.\n\nSe preferir, posso deixar um dos horários provisoriamente reservado para você enquanto conversam, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
+                
+            elif any(palavra in msg_lower for palavra in ['pensar', 'ver', 'depois', 'vou decidir', 'decidir']):
+                msg = f"Claro, {nome_usuario} 😊\n\nEsse exame é essencial para a sua avaliação clínica.\n\nSe desejar, posso deixar um dos horários pré-reservado para você enquanto decide, assim você não corre o risco de perder a vaga.\n\n"
+                msg += self._formatar_opcoes_repescagem()
+                return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
 
         # --- REGRAS DO PDF (NAVEGAÇÃO DE AGENDA) ---
 
@@ -203,26 +261,73 @@ class AgenteExames:
         if any(p in msg_lower for p in ['mais tarde', 'final da agenda', 'outro horário', 'outro horario']):
             dia_alvo = dias_disponiveis[idx_focado]
             ultimo_horario = dia_alvo['horarios_disponiveis'][-1]
-            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": "dia", "data_iso": dia_alvo['data'], "data_formatada": "dia", "hora": ultimo_horario}]
+            data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+            dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+
+            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": ultimo_horario}]
             return {"response_message": f"Temos sim\n\nAlém desses horários, também temos um horário no final da agenda às {ultimo_horario}.\n\nPosso reservar para você para não perder a vaga?", "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
 
         # Regra 3: Mais cedo
         if any(p in msg_lower for p in ['mais cedo', 'início', 'inicio da agenda', 'cedo']):
             dia_alvo = dias_disponiveis[idx_focado]
             primeiro_horario = dia_alvo['horarios_disponiveis'][0] 
-            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": "dia", "data_iso": dia_alvo['data'], "data_formatada": "dia", "hora": primeiro_horario}]
+            data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+            dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+
+            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": primeiro_horario}]
             return {"response_message": f"Temos sim\n\nNeste dia ainda temos um último horário disponível logo no início da agenda às {primeiro_horario}.\n\nEsse horário ficaria melhor para você?", "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
 
 
-        # --- FECHAMENTO PADRÃO (Regra 9) ---
+        # --- FECHAMENTO PADRÃO E REPESCAGEM DE HORÁRIO ---
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         escolha = None
         
-        if '1' in msg_lower or 'primeir' in msg_lower or 'sim' in msg_lower or (len(opcoes) > 0 and opcoes[0]['hora'] in msg_lower):
-            escolha = opcoes[0]
-        elif '2' in msg_lower or 'segund' in msg_lower or (len(opcoes) > 1 and opcoes[1]['hora'] in msg_lower):
-            escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
+        # PRIORIDADE MÁXIMA: O paciente digitou um horário específico? (ex: "08:15")
+        match_hora = re.search(r'(\d{2}:\d{2})', msg_lower)
+        if match_hora:
+            hora_digitada = match_hora.group(1)
+            dia_alvo = dias_disponiveis[idx_focado]
+            if hora_digitada in dia_alvo['horarios_disponiveis']:
+                data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+                dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+                escolha = {"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": hora_digitada}
+                self.memoria_atual['opcoes_horario'] = [escolha]
+
+        # Se não digitou uma hora específica, avalia as opções da tela
+        if not escolha and len(opcoes) > 0:
+            hora_1 = opcoes[0]['hora']
+            hora_2 = opcoes[1]['hora'] if len(opcoes) > 1 else "---"
+            
+            if hora_2 in msg_lower or msg_lower.strip() in ['2', '2.', 'dois'] or 'segund' in msg_lower:
+                escolha = opcoes[1] if len(opcoes) > 1 else opcoes[0]
+            elif hora_1 in msg_lower or msg_lower.strip() in ['1', '1.', 'um'] or 'primeir' in msg_lower:
+                escolha = opcoes[0]
+            elif len(opcoes) == 1 and any(p in msg_lower for p in ['sim', 'pode', 'ok', 'quero', 'marcar', 'certeza', 'isso']):
+                escolha = opcoes[0]
+
+        # --- INTERCEPTADOR PARA "QUAIS HORÁRIOS VOCÊ TEM?" ---
+        if not escolha:
+            if any(p in msg_lower for p in ['quais', 'que horário', 'que horario', 'opções', 'opcoes', 'quais sao', 'disponível', 'disponivel', 'tem outro']):
+                dia_alvo = dias_disponiveis[idx_focado]
+                horarios_lista = dia_alvo['horarios_disponiveis']
+                data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+                dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()].capitalize()
                 
+                opcoes_novas = []
+                if len(horarios_lista) >= 2:
+                    opcoes_novas.append({"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": horarios_lista[0]})
+                    opcoes_novas.append({"opcao": "2", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": horarios_lista[len(horarios_lista)//2]})
+                else:
+                    opcoes_novas.append({"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": horarios_lista[0]})
+                
+                self.memoria_atual['opcoes_horario'] = opcoes_novas
+                
+                msg = f"Para {dia_semana_aux} ({data_obj_aux.strftime('%d/%m')}), nós temos as seguintes vagas:\n\n"
+                for op in opcoes_novas:
+                    msg += f"{op['opcao']}️⃣ {op['hora']}\n"
+                msg += "\nAlgum desses fica melhor para você?"
+                return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
+
         if not escolha:
             return {"response_message": f"{nome_usuario}, por favor, me confirme qual horário prefere, ou digite *'cancelar'*.", "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
             
@@ -235,20 +340,62 @@ class AgenteExames:
         
         return {"response_message": msg, "new_state": 'exame_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
 
+    def _formatar_opcoes_repescagem(self) -> str:
+        """Função auxiliar para montar a mensagem de escassez quando há objeção"""
+        opcoes = self.memoria_atual.get('opcoes_horario', [])
+        if len(opcoes) >= 2:
+            return f"Temos {opcoes[0]['dia_semana']} às {opcoes[0]['hora']} ou {opcoes[1]['hora']}.\n\nQual deles você prefere que eu deixe pré-reservado para você?"
+        elif len(opcoes) == 1:
+             return f"Temos {opcoes[0]['dia_semana']} às {opcoes[0]['hora']}.\n\nPosso deixar esse pré-reservado para você?"
+        return ""
+
     def _processar_dados_pessoais(self, user_message: str) -> dict:
         msg_lower = user_message.lower()
         nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
+
+        # --- INTERCEPTADOR 1: PREÇO FORA DE HORA E PAGAMENTO ---
+        if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'investimento']):
+            valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            
+            msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nAgora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)"
+            return {"response_message": msg, "new_state": 'exame_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
         
-        if any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã']):
+        # --- INTERCEPTADOR EXTRA: FORMAS DE PAGAMENTO ---
+        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam']):
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
+                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
+                   f"Agora, para garantirmos a sua vaga, poderia me informar seu nome completo e data de nascimento, por favor? (Ex: Maria Silva, 12/05/1994)")
+            return {"response_message": msg, "new_state": 'exame_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+
+        # --- INTERCEPTADOR 2: MUDANÇA DE DATA OU DÚVIDA SOBRE A AGENDA ---
+        match_hora = re.search(r'(\d{2}:\d{2})', msg_lower)
+        if match_hora or any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã', 'não, quero', 'nao, quero', 'errado']):
+            msg = (f"Entendi, {nome_usuario}. Parece que você deseja alterar o dia ou horário que reservamos, certo? 😊\n\n"
+                   f"Qual horário ou data você prefere para verificarmos novamente a disponibilidade na agenda?")
+            return {"response_message": msg, "new_state": 'exame_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # --- INTERCEPTADOR 3: CONVÊNIO ---
+        if any(palavra in msg_lower for palavra in ['convênio', 'convenio', 'plano', 'amil', 'unimed', 'sulamerica', 'bradesco']):
+            msg = (f"{nome_usuario}, no momento nossos atendimentos são apenas particulares, mas emitimos a nota fiscal para você solicitar o reembolso junto ao seu plano de saúde! 😊\n\n"
+                   f"Podemos manter a sua reserva? (Basta digitar o seu nome e data de nascimento, ou digitar 'cancelar')")
+            return {"response_message": msg, "new_state": 'exame_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
+
+        # --- INTERCEPTADOR 4: OBJEÇÕES (CARO, MARIDO, PENSAR) ---
+        if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto', 'marido', 'espos', 'parceir', 'junto', 'falar com', 'pensar', 'ver', 'depois', 'vou decidir']):
             horario = self.memoria_atual.get('horario_escolhido', {})
             data_fmt = horario.get('data_formatada', 'escolhido')
             hora = horario.get('hora', '')
             
-            msg = (f"{nome_usuario}, eu já deixei a sua vaga do dia {data_fmt} às {hora} pré-reservada no sistema para garantir! 😊\n\n"
-                   f"Se precisarmos buscar uma data diferente, eu posso transferir você para uma de nossas atendentes verificar a agenda com calma.\n\n"
-                   f"O que prefere: manter o horário atual (bastando digitar o seu nome e data de nascimento) ou falar com a recepção?")
+            msg = (f"Compreendo perfeitamente, {nome_usuario} 😊\n\n"
+                   f"A realização do exame é um passo muito importante e é natural querer decidir com calma.\n\n"
+                   f"Como nossas vagas são limitadas, eu vou manter o horário do dia {data_fmt} às {hora} *provisoriamente pré-reservado* para você não correr o risco de perder a vaga enquanto decide.\n\n"
+                   f"Assim que tiver a confirmação, é só digitar o seu nome completo e data de nascimento aqui para validarmos, ou digitar 'cancelar' caso não vá mais realizar o exame. Tudo bem?")
             return {"response_message": msg, "new_state": 'exame_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
 
+        # --- FLUXO NORMAL ---
         match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', user_message)
         
         if not match_data:
@@ -270,9 +417,52 @@ class AgenteExames:
         return {"response_message": msg, "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
 
     def _processar_email_e_finalizar(self, user_message: str) -> dict:
+        msg_lower = user_message.lower()
         nome_completo = self.memoria_atual.get('nome_completo_paciente', 'Paciente')
         nome_curto = nome_completo.split()[0].title()
+
+        # --- INTERCEPTADORES ---
+        if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pagamento', 'investimento']):
+            valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            texto_parcela = f"podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else "à vista"
+            
+            msg = f"O investimento para esse exame é de R$ {valor_str}, {texto_parcela} 😊\n\nPara enviarmos as orientações de preparo e finalizarmos o seu agendamento, qual é o seu melhor e-mail?"
+            return {"response_message": msg, "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
         
+        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam']):
+            max_parcelas = self.memoria_atual.get('max_parcelas', 1)
+            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
+                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
+                   f"Para enviarmos as orientações de preparo e finalizarmos o seu agendamento, qual é o seu melhor e-mail?")
+            return {"response_message": msg, "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
+
+        if any(palavra in msg_lower for palavra in ['dia', 'data', 'outro', 'mudar', 'horário', 'horario', 'teria', 'agenda', 'amanhã']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"{nome_curto}, eu já deixei a sua vaga do dia {data_fmt} às {hora} pré-reservada no sistema para garantir! 😊\n\n"
+                   f"Se precisarmos buscar uma data diferente, eu posso transferir você para uma de nossas atendentes verificar a agenda completa com calma.\n\n"
+                   f"O que prefere: manter o horário atual (bastando digitar o seu e-mail) ou falar com a recepção?")
+            return {"response_message": msg, "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
+            
+        if any(palavra in msg_lower for palavra in ['convênio', 'convenio', 'plano', 'amil', 'unimed', 'sulamerica', 'bradesco']):
+            msg = (f"{nome_curto}, no momento nossos atendimentos são apenas particulares, mas emitimos a nota fiscal para você solicitar o reembolso junto ao seu plano de saúde! 😊\n\n"
+                   f"Podemos manter a sua reserva? (Basta digitar o seu e-mail, ou 'cancelar')")
+            return {"response_message": msg, "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
+
+        if any(palavra in msg_lower for palavra in ['caro', 'condição', 'condicao', 'desconto', 'marido', 'espos', 'parceir', 'junto', 'falar com', 'pensar', 'ver', 'depois', 'vou decidir']):
+            horario = self.memoria_atual.get('horario_escolhido', {})
+            data_fmt = horario.get('data_formatada', 'escolhido')
+            hora = horario.get('hora', '')
+            
+            msg = (f"Compreendo perfeitamente, {nome_curto} 😊\n\n"
+                   f"Como nossas vagas são limitadas, eu vou manter o horário do dia {data_fmt} às {hora} *provisoriamente pré-reservado* para você não correr o risco de perder a vaga enquanto decide.\n\n"
+                   f"Assim que tiver a confirmação, é só digitar o seu e-mail aqui para validarmos o agendamento, ou digitar 'cancelar' caso mude de ideia. Tudo bem?")
+            return {"response_message": msg, "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
+
+        # --- FLUXO NORMAL ---
         if '@' not in user_message: 
             return {"response_message": f"{nome_curto}, esse e-mail não parece válido. Por favor, digite novamente:", "new_state": 'exame_aguardando_email', "memory_data": self.memoria_atual}
         

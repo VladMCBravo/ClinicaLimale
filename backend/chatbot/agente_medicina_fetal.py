@@ -79,6 +79,27 @@ class AgenteMedicinaFetal:
         nome_usuario = self.memoria_atual.get('nome_usuario', '')
         msg_lower = user_message.lower()
         
+        # --- NOVO: INTERCEPTADOR DE PREÇO ANTES DE SABER AS SEMANAS ---
+        if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'investimento']):
+            if self.memoria_atual.get('assumir_transvaginal'):
+                from faturamento.models import Procedimento
+                procedimento = Procedimento.objects.filter(descricao__icontains="US Transvaginal", ativo=True).first()
+                valor_str = "sob consulta"
+                texto_parcela = ""
+                if procedimento and procedimento.valor_particular:
+                    valor_float = float(procedimento.valor_particular)
+                    valor_str = f"{valor_float:.2f}".replace('.', ',')
+                    max_parcelas = max(1, min(4, int(valor_float // 100))) if valor_float > 0 else 1
+                    texto_parcela = f", podendo ser dividido em até {max_parcelas}x sem juros" if max_parcelas > 1 else " à vista"
+                
+                msg = (f"O investimento para o Ultrassom Transvaginal é de R$ {valor_str}{texto_parcela} 😊\n\n"
+                       f"Você gostaria de verificar os horários disponíveis para agendar? (Basta digitar 'agendar' ou 'falar com atendente')")
+                return {"response_message": msg, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+            else:
+                msg = (f"Claro, {nome_usuario}! 😊\n\nO valor varia dependendo do exame (Transvaginal, Morfológicos ou Obstétrico).\n\n"
+                       f"Para eu te passar o valor certinho do exame ideal para o seu momento, você sabe me dizer com quantas semanas de gestação está hoje (ou a data da sua última menstruação)?")
+                return {"response_message": msg, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+            
         # --- CENÁRIO 1: Quer saber se está grávida ---
         if not self.memoria_atual.get('assumir_transvaginal') and any(p in msg_lower for p in ['saber se estou', 'teste', 'suspeita', 'descobrir se', 'grávida', 'gravida']):
             self.memoria_atual['assumir_transvaginal'] = True
