@@ -8,10 +8,11 @@ from .models import Agendamento
 logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Agendamento)
-def gerar_financeiro_automatico(sender, instance, created, **kwargs):
+def gerenciar_financeiro_automatico(sender, instance, created, **kwargs):
     """
     Sempre que um Agendamento for salvo no banco, este gatilho é disparado.
-    Se for um agendamento NOVO (created = True), aciona o financeiro.
+    - Se NOVO (created = True), aciona a criação do financeiro.
+    - Se ATUALIZADO (created = False) e o status for Cancelado, cancela o financeiro.
     """
     if created:
         try:
@@ -39,3 +40,23 @@ def gerar_financeiro_automatico(sender, instance, created, **kwargs):
             # O erro é apenas logado. Não queremos que um erro no banco Inter 
             # impeça o paciente de ser agendado.
             logger.error(f"Erro ao gerar financeiro via Signal para Agendamento {instance.id}: {e}", exc_info=True)
+            
+    else:
+        # === NOVA LÓGICA DE CANCELAMENTO ===
+        try:
+            # Verifica se o status do agendamento mudou para Cancelado
+            # (Ajuste a string 'Cancelado' caso no seu banco o status seja diferente, ex: 'cancelado' ou 'C')
+            if instance.status == 'Cancelado':
+                
+                # Checa se existe um pagamento atrelado a esse agendamento
+                if hasattr(instance, 'pagamento') and instance.pagamento is not None:
+                    pagamento = instance.pagamento
+                    
+                    # Se o pagamento ainda não estiver cancelado, nós cancelamos ele
+                    if pagamento.status != 'Cancelado':
+                        pagamento.status = 'Cancelado'
+                        pagamento.save()
+                        logger.info(f"Pagamento {pagamento.id} cancelado automaticamente pois o Agendamento {instance.id} foi cancelado.")
+                        
+        except Exception as e:
+            logger.error(f"Erro ao cancelar financeiro via Signal para o Agendamento {instance.id}: {e}", exc_info=True)

@@ -55,7 +55,7 @@ try:
     class RecepcionistaOutput(BaseModel):
         nome_extraido: Optional[str] = Field(description="O nome do paciente, SE ele tiver se apresentado. Caso contrário, retorne null.")
         procedimento_especialidade: Optional[str] = Field(description="Se o paciente já informou O NOME do exame (ex: Eletrocardiograma) ou especialidade médica, extraia aqui. Senão, null.")
-        intencao: Literal['exame_geral', 'exame_fetal', 'consulta', 'informacao_geral', 'humano'] = Field(description="A intenção deduzida da mensagem.")
+        intencao: Literal['exame_geral', 'exame_fetal', 'consulta', 'informacao_geral', 'humano', 'cancelamento'] = Field(description="A intenção deduzida da mensagem.")
         resposta_humanizada: str = Field(description="A resposta completa pronta para ser enviada.")
 
     parser_recepcionista = JsonOutputParser(pydantic_object=RecepcionistaOutput)
@@ -105,6 +105,7 @@ try:
         - 'exame_geral': Eletrocardiograma, sangue, exames não relacionados à gravidez.
         - 'consulta': Se a pessoa quer passar com um médico, cita especialidades (ginecologista, cardio) ou "marcar consulta".
         - 'informacao_geral': Dúvida genérica ("onde fica a clínica?") sem deixar claro se quer exame ou consulta.
+        - 'cancelamento': Se o paciente deseja desmarcar, cancelar, reagendar ou diz que não poderá comparecer.
         - 'humano': Se pediu para falar com recepção, atendente, ou mencionou "outros assuntos".
 
         # INSTRUÇÕES DE FORMATAÇÃO

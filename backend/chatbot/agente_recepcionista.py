@@ -137,6 +137,14 @@ class AgenteRecepcionista:
                 elif intencao == 'consulta':
                     novo_estado = 'agendamento_awaiting_specialty'
                     self.memoria_atual['tipo_agendamento'] = 'Consulta'
+                # --- NOVA ROTA DE CANCELAMENTO ---
+                elif intencao == 'cancelamento':
+                    novo_estado = 'inicio_cancelamento'
+                    resposta_ia = (
+                        f"Compreendo, {nome_conhecido}. Para realizarmos o cancelamento com segurança e localizarmos o seu horário na agenda, "
+                        f"poderia me confirmar a sua data de nascimento, por favor? (Ex: 12/05/1994)"
+                    )
+                # ---------------------------------
                 elif intencao == 'humano':
                     from chatbot.human_transfer import HumanTransferManager
                     from chatbot.bot_logic import notificar_recepcao_whatsapp
