@@ -300,12 +300,10 @@ def cancelar_agendamento_service(agendamento_id):
     try:
         agendamento = Agendamento.objects.get(id=agendamento_id)
         agendamento.status = 'Cancelado'
-        agendamento.save()
         
-        if hasattr(agendamento, 'pagamento'):
-            pagamento = agendamento.pagamento
-            pagamento.status = 'Cancelado'
-            pagamento.save()
+        # O .save() vai acionar o signals.py automaticamente,
+        # que por sua vez vai cancelar o pagamento atrelado.
+        agendamento.save() 
             
         return {"status": "sucesso", "mensagem": "Agendamento cancelado com sucesso."}
     except Agendamento.DoesNotExist:

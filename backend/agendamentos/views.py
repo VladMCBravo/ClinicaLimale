@@ -118,25 +118,22 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         return Response(agendamentos_criados, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        # Mantém sua lógica original de pagamentos
+        # O .save() vai acionar o 'signals.py', que criará o Pagamento automaticamente.
         agendamento = serializer.save()
         
-        valor_inicial = 0
-        descricao_texto = "Consulta"
-
-        if agendamento.procedimento:
-            valor_inicial = agendamento.procedimento.valor_particular
-            descricao_texto = agendamento.procedimento.descricao 
-
-        Pagamento.objects.create(
-            agendamento=agendamento,
-            paciente=agendamento.paciente,
-            valor=valor_inicial,
-            descricao=descricao_texto, 
-            status='Pendente',
-            data_vencimento=agendamento.data_hora_inicio.date(),
-            registrado_por=self.request.user
-        )
+        # Como o Signal já criou o financeiro, nós NÃO usamos Pagamento.objects.create() aqui.
+        # Vamos apenas buscar esse pagamento recém-criado e atualizar quem foi o atendente
+        # e a descrição correta, mantendo o histórico de auditoria intacto.
+        
+        pagamento = Pagamento.objects.filter(agendamento=agendamento).first()
+        
+        if pagamento:
+            pagamento.registrado_por = self.request.user
+            
+            if agendamento.procedimento:
+                pagamento.descricao = agendamento.procedimento.descricao 
+                
+            pagamento.save()
 
 
 class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
