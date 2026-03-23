@@ -136,4 +136,5 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
 class SalaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sala
-        fields = ['id', 'nome', 'descricao']
+        # ADICIONADOS: 'e_sala_exame' e 'equipamentos'
+        fields = ['id', 'nome', 'descricao', 'e_sala_exame', 'equipamentos']
