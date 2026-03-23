@@ -364,7 +364,15 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             // VERIFICAÇÃO HÍBRIDA: Aceita Singular OU Plural
             const temProcedimento = formData.procedimento || (formData.procedimentos && formData.procedimentos.length > 0);
             
+            if (tipoAgendamento === 'Procedimento') {
+            const temProcedimento = formData.procedimento || (formData.procedimentos && formData.procedimentos.length > 0);
             if (!temProcedimento) return "Selecione pelo menos um procedimento.";
+            
+            // --- NOVA TRAVA DE SEGURANÇA AQUI ---
+            if (editingEvent && formData.procedimentos && formData.procedimentos.length > 1) {
+                return "Na edição, você só pode alterar o procedimento atual. Para adicionar novos, crie um agendamento separado.";
+            }
+        }
         }
 
         if (!isSlotAvailable) return "Não há capacidade disponível para este horário.";

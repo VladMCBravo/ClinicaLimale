@@ -323,7 +323,10 @@ class EnviarLembretesCronView(APIView):
         })
 
 
+# --- CORREÇÃO 1: Adicionado o permission_classes ---
 class CriarSalaTelemedicinaView(APIView):
+    permission_classes = [IsAuthenticated] # <--- BLINDAGEM AQUI
+
     def post(self, request, agendamento_id):
         try:
             agendamento = Agendamento.objects.get(pk=agendamento_id)
@@ -416,6 +419,7 @@ class MinhaAgendaView(generics.ListAPIView):
             status__in=['Agendado', 'Confirmado']
         ).order_by('data_hora_inicio')
 
+# --- CORREÇÃO 2: Excluindo os status cancelados ---
 class DashboardKPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -424,7 +428,12 @@ class DashboardKPIView(APIView):
         agora = timezone.now()
         inicio_mes = hoje.replace(day=1)
 
-        count_hoje = Agendamento.objects.filter(data_hora_inicio__date=hoje).count()
+        # Filtra tudo de hoje, EXCETO o que foi cancelado ou não compareceu
+        count_hoje = Agendamento.objects.filter(
+            data_hora_inicio__date=hoje
+        ).exclude(
+            status__in=['Cancelado', 'Não Compareceu']
+        ).count()
 
         count_confirmar = Agendamento.objects.filter(
             data_hora_inicio__gte=agora,
@@ -434,9 +443,7 @@ class DashboardKPIView(APIView):
         try:
             from pacientes.models import Paciente
             count_novos = Paciente.objects.filter(data_cadastro__gte=inicio_mes).count()
-        except AttributeError:
-            count_novos = 0
-        except Exception:
+        except (AttributeError, Exception):
             count_novos = 0
 
         return Response({
