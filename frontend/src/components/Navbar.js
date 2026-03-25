@@ -113,16 +113,15 @@ const Navbar = () => {
                             <FaUserFriends /> <span>Pacientes</span>
                         </NavLink>
 
-                        {/* CRM Operacional: Acessível para quem atende */}
-                        <NavLink to="/crm/kanban">
-                            <FaUserFriends /> <span>Funil CRM</span>
-                        </NavLink>
-
                         {/* Itens Exclusivos de Admin */}
                         {user.isAdmin && (
                             <>
                                 <NavLink to="/financeiro">
                                     <FaFileInvoiceDollar /> <span>Financeiro</span>
+                                </NavLink>
+                                
+                                <NavLink to="/crm/kanban">
+                                    <FaUserFriends /> <span>Funil CRM</span>
                                 </NavLink>
 
                                 <NavLink to="/crm/executivo">
