@@ -1,6 +1,7 @@
 // src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth'; // Ajuste o caminho se necessário
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
 // --- CONFIGURAÇÃO DE TEMA E DATA ---
@@ -34,6 +35,23 @@ import ConfiguracoesPage from './pages/ConfiguracoesPage';
 import CRMKanbanPage from './pages/CRM/CRMKanbanPage';
 import DashboardExecutivoPage from './pages/CRM/DashboardExecutivoPage';
 
+const RotaInicialDinamica = () => {
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (user.isAdmin || user.isRecepcao) {
+    return <Navigate to="/painel" replace />;
+  }
+  
+  if (user.isMedico) {
+    return <PainelMedicoPage />;
+  }
+
+  // Fallback caso o usuário não tenha cargo definido
+  return <Navigate to="/login" replace />;
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -51,8 +69,8 @@ function App() {
                 <Route element={<MainLayout />}>
                   
                   /* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */
-                  <Route path="/" element={<PainelMedicoPage />} />
-                  <Route path="/painel" element={<PainelRecepcaoPage />} /> 
+                  <Route path="/" element={<RotaInicialDinamica />} />
+                  <Route path="/painel" element={<PainelRecepcaoPage />} />
 
                   <Route path="/laudos" element={<LaudosPage />} />
                   <Route path="/vincular" element={<VincularExames />} />

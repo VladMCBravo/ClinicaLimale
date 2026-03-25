@@ -1,14 +1,16 @@
 // src/components/ProtectedRoute.jsx
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth'; // Importe o seu contexto
 
 const ProtectedRoute = () => {
-  // 1. Verifica se o token de autenticação existe no sessionStorage
-  const token = sessionStorage.getItem('authToken');
+  const { user, loading } = useAuth();
 
-  // 2. Se o token existir, renderiza o conteúdo da página (usando <Outlet />).
-  //    Se não existir, redireciona para a página de login.
-  return token ? <Outlet /> : <Navigate to="/login" replace />;
+  // 1. Segura a renderização enquanto o AuthContext valida o token na API
+  if (loading) return null; // (Você pode trocar por um <LoadingSpinner /> se preferir)
+
+  // 2. Só libera a rota se o objeto `user` existir e estiver validado
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

@@ -1,4 +1,4 @@
-// src/hooks/useAuth.js - VERSÃO CORRIGIDA COM REDIRECIONAMENTO DINÂMICO
+// src/hooks/useAuth.js
 
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,13 +7,11 @@ import apiClient from '../api/axiosConfig';
 const getUserFromStorage = () => {
     try {
         const userDataString = sessionStorage.getItem('userData');
-        console.log('[DEBUG] Dados do usuário no sessionStorage:', userDataString); // DEBUG
         if (userDataString && userDataString !== 'undefined') {
             const userData = JSON.parse(userDataString);
             userData.isAdmin = userData.cargo === 'admin';
             userData.isRecepcao = userData.cargo === 'recepcao';
             userData.isMedico = userData.cargo === 'medico';
-            console.log('[DEBUG] Objeto do usuário processado:', userData); // DEBUG
             return userData;
         }
     } catch (error) {
@@ -27,66 +25,56 @@ const getUserFromStorage = () => {
 export const useAuth = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState(getUserFromStorage());
+    // Adicionado: Estado de loading para as Rotas Protegidas usarem
+    const [loading, setLoading] = useState(false); 
 
     const memoizedUser = useMemo(() => user, [user]);
 
     const login = useCallback(async (username, password) => {
+        setLoading(true); // Inicia o loading
         try {
-            console.log('[DEBUG] Tentando fazer login com o usuário:', username); // DEBUG
             const response = await apiClient.post('/auth/login/', { username, password });
             const { token, user: userData } = response.data;
-            console.log('[DEBUG] Resposta da API de login:', response.data); // DEBUG
             
             if (token && userData) {
                 sessionStorage.setItem('authToken', token);
                 sessionStorage.setItem('userData', JSON.stringify(userData));
                 
-                // Atualiza o estado interno do hook para refletir o usuário logado
                 const loggedInUser = getUserFromStorage();
                 setUser(loggedInUser);
 
-                // --- CORREÇÃO APLICADA AQUI ---
-                // Verifica o cargo do usuário para decidir para onde navegar
-                if (loggedInUser.isMedico) {
-                    console.log('[DEBUG] Usuário é Médico. Redirecionando para /'); // DEBUG
-                    navigate('/'); // Navega para o Painel do Médico
-                } else {
-                    console.log(`[DEBUG] Usuário é ${loggedInUser.cargo}. Redirecionando para /painel`); // DEBUG
-                    navigate('/painel'); // Navega para o Painel da Recepção/Admin
-                }
-                // ▼▼▼ ADICIONE ESTA LINHA ▼▼▼
-                window.location.reload(); // Força o recarregamento da página
+                // O controlador de tráfego no App.js vai resolver o destino final!
+                navigate('/'); 
                 
-                return true; // Retorna sucesso
+                return true; 
             }
             return false;
         } catch (error) {
             console.error("Erro no login:", error);
             return false;
+        } finally {
+            setLoading(false); // Finaliza o loading
         }
     }, [navigate]);
 
-
     const logout = useCallback(async () => {
+        setLoading(true);
         try {
             await apiClient.post('/auth/logout/');
         } catch (error) {
             console.error("Erro no logout da API:", error);
         } finally {
-            // 1. Limpa dados da sessão (Login)
             sessionStorage.clear();
-            
-            // 2. ADICIONADO: Limpa o rascunho do laudo do LocalStorage
-            // Isso garante que o próximo usuário comece com o formulário limpo
             localStorage.removeItem('laudos_rascunho_auto_save');
-
             setUser(null);
             navigate('/login');
+            setLoading(false);
         }
     }, [navigate]);
 
     return {
         user: memoizedUser,
+        loading, // Adicionado ao retorno
         login,
         logout,
     };
