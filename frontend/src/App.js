@@ -61,8 +61,7 @@ function App() {
                   <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
 
                   <Route path="/telemedicina" element={<TelemedicinaPage />} />
-                  <Route path="/crm/kanban" element={<CRMKanbanPage />} />
-
+                  
                   {/* MOVA A LINHA ABAIXO PARA CÁ (FORA DO ADMINROUTE) */}
                   <Route path="/configuracoes" element={<ConfiguracoesPage />} />
 
@@ -70,6 +69,7 @@ function App() {
                   <Route element={<AdminRoute />}>
                       <Route path="/financeiro/*" element={<FinanceiroPage />} />
                       {/* REMOVA A LINHA DE CONFIGURAÇÕES DAQUI */}
+                      <Route path="/crm/kanban" element={<CRMKanbanPage />} />
                       <Route path="/crm/executivo" element={<DashboardExecutivoPage />} />
                   </Route>
 
