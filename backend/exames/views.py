@@ -321,7 +321,8 @@ class UltimosExamesEnviadosView(APIView):
 
     def get(self, request):
         # Pega os 10 exames mais recentes
-        ultimos_exames = Exame.objects.all().order_by('-criado_em')[:10]
+        # ADICIONADO select_related para matar o problema N+1
+        ultimos_exames = Exame.objects.select_related('paciente').all().order_by('-criado_em')[:10]
         
         dados = []
         for e in ultimos_exames:

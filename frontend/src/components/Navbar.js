@@ -35,35 +35,7 @@ const Navbar = () => {
     // Já buscamos do sessionStorage via useAuth ou manualmente aqui:
     const token = sessionStorage.getItem('authToken');
 
-    // --- ESTADOS DO ROBÔ DE SINCRONIZAÇÃO ---
-    const [roboHistory, setRoboHistory] = useState([]);
-    const [roboStatus, setRoboStatus] = useState('carregando'); // 'online', 'offline', 'ocioso'
-    const [anchorElRobo, setAnchorElRobo] = useState(null);
-
-    // --- VERIFICADOR DO ROBÔ (A CADA 15 SEGUNDOS) ---
-    useEffect(() => {
-        if (!user) return; // Só checa se estiver logado
-
-        const fetchRobo = async () => {
-            try {
-                const res = await apiClient.get('/exames/recentes/');
-                setRoboHistory(res.data);
-                
-                if (res.data.length > 0) {
-                    setRoboStatus('online'); 
-                } else {
-                    setRoboStatus('ocioso');
-                }
-            } catch (e) {
-                console.error("Erro ao checar robô", e);
-                setRoboStatus('offline');
-            }
-        };
-
-        fetchRobo();
-        const interval = setInterval(fetchRobo, 15000);
-        return () => clearInterval(interval);
-    }, [user]);
+    
 
     const renderPrincipalLink = () => {
         if (user.isRecepcao || user.isAdmin) {
