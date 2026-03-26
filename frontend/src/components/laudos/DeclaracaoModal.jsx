@@ -24,6 +24,10 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
     const [acompanhanteNome, setAcompanhanteNome] = useState('');
     const [horarioInicio, setHorarioInicio] = useState('');
     const [horarioFim, setHorarioFim] = useState('');
+    
+    // NOVO ESTADO: Data da declaração (inicia com a data de hoje formatada para o input)
+    const dataHoje = new Date().toISOString().split('T')[0];
+    const [dataDeclaracao, setDataDeclaracao] = useState(dataHoje);
 
     // Função auxiliar para trocar 14:00 por 14h00
     const formatHour = (timeStr) => {
@@ -42,8 +46,11 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
 
         // 2. Prepara os Dados
         const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-        const hoje = new Date();
-        const dataExtenso = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
+        
+        // Converte a data selecionada do input (YYYY-MM-DD) para um objeto Date
+        // O 'T12:00:00' evita problemas de fuso horário que poderiam subtrair 1 dia
+        const dataSelecionada = new Date(dataDeclaracao + 'T12:00:00');
+        const dataExtenso = `${dataSelecionada.getDate()} de ${meses[dataSelecionada.getMonth()]} de ${dataSelecionada.getFullYear()}`;
         
         const nomePaciente = paciente?.nome_completo || paciente?.nome || "PACIENTE";
         
@@ -70,7 +77,7 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
         // 3. Define o Documento PDF
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [60, 140, 60, 80], // Margens ajustadas para ficar elegante
+            pageMargins: [60, 140, 60, 80],
             
             // CABEÇALHO
             header: {
@@ -110,7 +117,7 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
             content: [
                 { text: 'DECLARAÇÃO DE COMPARECIMENTO', fontSize: 16, bold: true, color: '#1C2E4A', alignment: 'center', margin: [0, 0, 0, 50] },
                 
-                // Texto Principal (Justificado e com espaçamento de linha)
+                // Texto Principal
                 { text: textoPrincipal, fontSize: 12, alignment: 'justify', lineHeight: 1.6, margin: [0, 0, 0, 20] },
 
                 // Segundo Parágrafo
@@ -162,6 +169,16 @@ export default function DeclaracaoModal({ open, onClose, paciente, medico }) {
                             placeholder="Digite o nome completo"
                         />
                     )}
+
+                    {/* NOVA LINHA: Seleção de Data */}
+                    <TextField 
+                        label="Data da Declaração" 
+                        type="date" 
+                        value={dataDeclaracao} 
+                        onChange={(e) => setDataDeclaracao(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        fullWidth
+                    />
 
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <TextField 
