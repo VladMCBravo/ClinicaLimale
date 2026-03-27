@@ -67,7 +67,7 @@ export const gerarPdfAgendaDia = async (pacientes, dataFiltro) => {
     pacientes.forEach((ag) => {
         const horario = new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const tipoVisita = ag.primeira_consulta ? '1ª Vez' : (ag.tipo_visita || 'Retorno');
-        const procedimento = ag.procedimento || ag.especialidade || 'Consulta';
+        const procedimento = ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta';
 
         bodyTable.push([
             { text: horario, fontSize: 10, bold: true, color: '#1C2E4A', border: [false, false, false, true], margin: [0, 5] },

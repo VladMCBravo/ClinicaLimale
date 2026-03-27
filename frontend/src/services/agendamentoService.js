@@ -9,9 +9,16 @@ const getAgendamentos = (medicoId, especialidadeId) => {
     return apiClient.get(`/agendamentos/${queryString ? `?${queryString}` : ''}`);
 };
 
-const getAgendamentosHoje = (medicoId) => {
+const getAgendamentosHoje = (medicoId, dataSelecionada = null) => {
     const params = new URLSearchParams();
     if (medicoId) params.append('medico_id', medicoId);
+    
+    // NOVO: Converte a data selecionada para o formato do Django (YYYY-MM-DD)
+    if (dataSelecionada) {
+        const dataIso = new Date(dataSelecionada.getTime() - (dataSelecionada.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        params.append('data', dataIso);
+    }
+    
     const queryString = params.toString();
     return apiClient.get(`/agendamentos/hoje/${queryString ? `?${queryString}` : ''}`);
 };

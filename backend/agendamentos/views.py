@@ -208,11 +208,20 @@ class AgendamentosNaoPagosListAPIView(generics.ListAPIView):
 class AgendamentosHojeListView(generics.ListAPIView):
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
+    
     def get_queryset(self):
-        hoje = timezone.localtime(timezone.now()).date()
+        # 1. Verifica se o frontend enviou uma data específica
+        data_param = self.request.query_params.get('data')
+        
+        if data_param:
+            from django.utils.dateparse import parse_date
+            data_busca = parse_date(data_param)
+        else:
+            data_busca = timezone.localtime(timezone.now()).date()
+            
         queryset = Agendamento.objects.select_related(
             'paciente', 'medico', 'especialidade', 'sala', 'procedimento', 'plano_utilizado'
-        ).prefetch_related('pagamento').filter(data_hora_inicio__date=hoje).order_by('data_hora_inicio')
+        ).prefetch_related('pagamento').filter(data_hora_inicio__date=data_busca).order_by('data_hora_inicio')
         
         medico_id = self.request.query_params.get('medico_id')
         if medico_id:

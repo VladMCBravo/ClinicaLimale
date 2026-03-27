@@ -29,16 +29,25 @@ const statusMap = {
     'Não Compareceu': { icon: <PersonOffIcon />, color: '#9e9e9e', title: 'Não Compareceu' }
 };
 
-function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
+// Adicione a prop dataSelecionada aqui na declaração
+function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }) {
     const [pacientes, setPacientes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+    // Usa a data clicada ou o dia de hoje se não tiver nada
+    const dataExibicao = dataSelecionada || new Date();
+    
+    // Verifica se a data selecionada é hoje
+    const isHoje = dataExibicao.toDateString() === new Date().toDateString();
+    
+    // Formata visualmente: "Sex., 27 De Mar."
+    const dataFormatada = dataExibicao.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
 
     const fetchPacientesDoDia = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await agendamentoService.getAgendamentosHoje(medicoFiltro);
+            // Passamos a dataExibicao para o service
+            const response = await agendamentoService.getAgendamentosHoje(medicoFiltro, dataExibicao);
             const dadosOrdenados = response.data.sort((a, b) => 
                 new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
             );
@@ -49,20 +58,15 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
         } finally {
             setIsLoading(false);
         }
-    }, [medicoFiltro]);
+    }, [medicoFiltro, dataExibicao]); // <--- Incluir dataExibicao aqui
 
-    useEffect(() => {
-        fetchPacientesDoDia();
-    }, [fetchPacientesDoDia, refreshTrigger, medicoFiltro]);
-
-    // NOVA FUNÇÃO DE IMPRIMIR USANDO O PDFMAKE
+    // A função de imprimir usando a data correta:
     const handlePrint = async () => {
         if (pacientes.length === 0) {
-            alert("Não há pacientes para imprimir hoje.");
+            alert("Não há pacientes para imprimir neste dia.");
             return;
         }
-        // Se quiser, pode passar um estado de "data" aqui no lugar de null, se a barra lateral permitir mudar o dia
-        await gerarPdfAgendaDia(pacientes, null); 
+        await gerarPdfAgendaDia(pacientes, dataExibicao); 
     };
 
     return (
@@ -72,11 +76,12 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
             <Box sx={{ p: 1.5, borderBottom: '1px solid #eee', bgcolor: '#fff', borderRadius: '8px 8px 0 0' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Box>
+                        {/* <--- ADICIONADO AQUI: Título dinâmico */}
                         <Typography variant="subtitle1" sx={{ fontWeight: '800', color: '#1C2E4A', lineHeight: 1.2 }}>
-                            Agenda Hoje
+                            {isHoje ? 'Agenda Hoje' : 'Agenda do Dia'}
                         </Typography>
                         <Typography variant="caption" sx={{ color: '#666', textTransform: 'capitalize' }}>
-                            {hoje} • {pacientes.length} agendamentos
+                            {dataFormatada} • {pacientes.length} agendamentos
                         </Typography>
                     </Box>
                     <Tooltip title="Imprimir Relação do Dia">

@@ -25,7 +25,10 @@ export default function PainelRecepcaoPage() {
     // --- ESTADOS ---
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [salas, setSalas] = useState([]);
-    
+
+    // <--- ADICIONADO AQUI: Estado para guardar o dia clicado
+    const [dataSidebar, setDataSidebar] = useState(new Date());
+
     // Filtros que a página segura para passar para a Agenda
     const [medicoFiltro, setMedicoFiltro] = useState('');
     const [especialidadeFiltro, setEspecialidadeFiltro] = useState('');
@@ -72,13 +75,15 @@ export default function PainelRecepcaoPage() {
     const handleAgendamentoSave = () => { handleCloseAgendamentoModal(); forceRefresh(); };
     
     const handleDateClick = (arg) => { 
+        setDataSidebar(arg.date); // <--- ADICIONADO AQUI
         setEditingEvent(null); 
         setInitialData({ start: arg.date, resource: arg.resource }); 
         setIsAgendamentoModalOpen(true); 
     };
     
     // Este handler é chamado quando clicamos em "Editar" no menu do card
-    const handleEventClick = (clickInfo) => { 
+    const handleEventClick = (clickInfo) => {
+        setDataSidebar(event.start); // <--- ADICIONADO AQUI 
         setInitialData(null); 
         setEditingEvent(clickInfo.event || clickInfo); 
         setIsAgendamentoModalOpen(true); 
@@ -102,7 +107,8 @@ export default function PainelRecepcaoPage() {
             {/* --- LATERAL ESQUERDA (Listas) --- */}
             <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
                 <Box sx={{ flex: 1.5, minHeight: 0, overflow: 'hidden' }}>
-                    <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} />
+                    {/* <--- ADICIONADO AQUI: Passando a dataSidebar como prop */}
+                    <PacientesDoDiaSidebar refreshTrigger={refreshTrigger} medicoFiltro={medicoFiltro} dataSelecionada={dataSidebar} />
                 </Box>
                 <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <ListaEspera refreshTrigger={refreshTrigger} onAgendamentoSelect={handleEventClick} />
