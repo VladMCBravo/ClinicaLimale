@@ -81,16 +81,17 @@ export default function AgendaPrincipal({
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
 
-    const fetchEvents = useCallback((fetchInfo, successCallback, failureCallback) => {
+    // 1. NOVO ESTADO: Guarda os eventos na memória
+    const [eventos, setEventos] = useState([]);
+
+    // 2. BUSCA INTELIGENTE: Puxa do banco e salva no estado
+    const carregarEventos = useCallback(() => {
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
             .then(response => {
                 const eventosFormatados = response.data
-                    // MUDANÇA 1: Removemos a restrição de "Cancelado", queremos exibir todos na tela
                     .filter(ag => ag.sala) 
                     .map(ag => {
-                        // Verifica se é um evento inativo (fantasma)
                         const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
-
                         return {
                             id: ag.id,
                             title: ag.paciente_nome, 
@@ -104,24 +105,21 @@ export default function AgendaPrincipal({
                                 medico_crm: ag.medico_crm
                             },
                             resourceId: String(ag.sala),
-                            // MUDANÇA 2: Estilo condicional para o fundo e borda
                             backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
                             borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
                             textColor: isInativo ? '#666' : '#fff',
-                            // Opcional: Adiciona uma classe CSS para facilitar ajustes globais
                             classNames: isInativo ? ['evento-inativo'] : []
                         };
                     });
-                successCallback(eventosFormatados);
+                setEventos(eventosFormatados);
             })
-            .catch(error => failureCallback(error));
+            .catch(error => console.error("Erro ao carregar a agenda:", error));
     }, [medicoFiltro, especialidadeFiltro]);
 
+    // 3. GATILHO: Roda a busca apenas quando a tela abre ou um filtro/agendamento muda
     useEffect(() => {
-        if (calendarRef.current) {
-            calendarRef.current.getApi().refetchEvents();
-        }
-    }, [medicoFiltro, especialidadeFiltro, refreshTrigger]);
+        carregarEventos();
+    }, [carregarEventos, refreshTrigger]);
 
     // HANDLERS DO MENU
 
@@ -199,7 +197,7 @@ export default function AgendaPrincipal({
                     buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
                     headerToolbar={{ left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' }}
                     height="100%"
-                    events={fetchEvents}
+                    events={eventos}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     dateClick={onDateClick}
                     eventClick={handleCalendarEventClick}
