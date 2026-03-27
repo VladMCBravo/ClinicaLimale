@@ -140,7 +140,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro }) {
                                 <MedicalInformationIcon sx={{ fontSize: 13, color: '#78909c' }} />
                                 <Typography sx={{ fontSize: '0.65rem', color: '#546e7a', noWrap: true, textOverflow: 'ellipsis' }}>
                                     {/* AQUI: O frontend tenta ler o nome. Se não tiver, cai pro que tem (o ID 38) */}
-                                    {ag.procedimento_nome || ag.procedimento?.nome || ag.especialidade_nome || ag.procedimento || 'Consulta'}
+                                    {ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta'}
                                 </Typography>
                             </Box>
 
