@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Drawer, Typography, Paper, CircularProgress, Stack, Divider, Button, IconButton, Tooltip } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
 
@@ -92,11 +92,18 @@ export default function PainelRecepcaoPage() {
     setIsAgendamentoModalOpen(true); 
 };
 
-// NOVO HANDLER: Dispara quando o usuário usa as setas < > do calendário
-    const handleDatesSet = (dateInfo) => {
-        // Pega exatamente o dia que o calendário está mostrando na tela
-        setDataSidebar(dateInfo.view.currentStart);
-    };
+// NOVO HANDLER BLINDADO CONTRA LOOP INFINITO
+    const handleDatesSet = useCallback((dateInfo) => {
+        const novaData = dateInfo.view.currentStart;
+        
+        setDataSidebar((dataAntiga) => {
+            // O Freio: Se o dia for exatamente o mesmo, aborta a atualização!
+            if (dataAntiga.toDateString() === novaData.toDateString()) {
+                return dataAntiga; // Mantém o estado intacto, evitando re-render
+            }
+            return novaData; // Se mudou o dia, aí sim ele atualiza
+        });
+    }, []);
 
     const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
 
