@@ -82,12 +82,15 @@ export default function PainelRecepcaoPage() {
     };
     
     // Este handler é chamado quando clicamos em "Editar" no menu do card
-    const handleEventClick = (clickInfo) => {
-        setDataSidebar(event.start); // <--- ADICIONADO AQUI 
-        setInitialData(null); 
-        setEditingEvent(clickInfo.event || clickInfo); 
-        setIsAgendamentoModalOpen(true); 
-    };
+    const handleEventClick = (clickInfo) => { 
+    // Trocamos o nome da variável de "event" para "eventoSelecionado"
+    const eventoSelecionado = clickInfo.event || clickInfo;
+    
+    setDataSidebar(eventoSelecionado.start);
+    setInitialData(null); 
+    setEditingEvent(eventoSelecionado); 
+    setIsAgendamentoModalOpen(true); 
+};
 
     const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
 
