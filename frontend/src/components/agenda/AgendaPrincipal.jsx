@@ -68,7 +68,8 @@ export default function AgendaPrincipal({
     medicoFiltro, 
     especialidadeFiltro, 
     onDateClick, 
-    onEventClick, 
+    onEventClick,
+    onDatesSet, // <--- ADICIONE AQUI 
     salas = [],
     refreshTrigger
 }) {
@@ -201,10 +202,8 @@ export default function AgendaPrincipal({
                     events={fetchEvents}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     dateClick={onDateClick}
-                    
-                    // CORREÇÃO FINAL AQUI:
                     eventClick={handleCalendarEventClick}
-                    
+                    datesSet={onDatesSet}
                     slotMinTime="08:00:00" 
                     slotMaxTime="22:30:00"
                     allDaySlot={false}

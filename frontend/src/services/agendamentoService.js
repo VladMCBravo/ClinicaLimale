@@ -13,10 +13,25 @@ const getAgendamentosHoje = (medicoId, dataSelecionada = null) => {
     const params = new URLSearchParams();
     if (medicoId) params.append('medico_id', medicoId);
     
-    // NOVO: Converte a data selecionada para o formato do Django (YYYY-MM-DD)
+    // NOVO: Conversão blindada de data
     if (dataSelecionada) {
-        const dataIso = new Date(dataSelecionada.getTime() - (dataSelecionada.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        params.append('data', dataIso);
+        try {
+            // Garante que é um objeto Date válido, independente do que o FullCalendar mandou
+            const dateObj = new Date(dataSelecionada);
+            
+            // Verifica se a data é válida (não é "Invalid Date")
+            if (!isNaN(dateObj.getTime())) {
+                // Pega o YYYY-MM-DD usando métodos locais para evitar problemas de fuso horário
+                const ano = dateObj.getFullYear();
+                const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dia = String(dateObj.getDate()).padStart(2, '0');
+                
+                const dataFormatada = `${ano}-${mes}-${dia}`;
+                params.append('data', dataFormatada);
+            }
+        } catch (error) {
+            console.error("Erro ao formatar data:", error);
+        }
     }
     
     const queryString = params.toString();

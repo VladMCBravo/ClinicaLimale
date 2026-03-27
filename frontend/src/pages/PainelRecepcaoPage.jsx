@@ -92,6 +92,12 @@ export default function PainelRecepcaoPage() {
     setIsAgendamentoModalOpen(true); 
 };
 
+// NOVO HANDLER: Dispara quando o usuário usa as setas < > do calendário
+    const handleDatesSet = (dateInfo) => {
+        // Pega exatamente o dia que o calendário está mostrando na tela
+        setDataSidebar(dateInfo.view.currentStart);
+    };
+
     const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
 
     const handleSlotSelect = (slotInfo) => {
@@ -216,7 +222,8 @@ export default function PainelRecepcaoPage() {
                         medicoFiltro={medicoFiltro} 
                         especialidadeFiltro={especialidadeFiltro} 
                         onDateClick={handleDateClick} 
-                        onEventClick={handleEventClick} 
+                        onEventClick={handleEventClick}
+                        onDatesSet={handleDatesSet}  // <--- ADICIONE ESTA LINHA AQUI 
                         salas={salas}
                         refreshTrigger={refreshTrigger}
                         onFiltroChange={handleFiltroChange} 
