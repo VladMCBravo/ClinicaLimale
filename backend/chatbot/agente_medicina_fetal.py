@@ -194,13 +194,103 @@ class AgenteMedicinaFetal:
         idx_focado = self.memoria_atual.get('dia_focado_index', 0)
         opcoes = self.memoria_atual.get('opcoes_horario', [])
         nome_usuario = self.memoria_atual.get('nome_usuario', 'Paciente')
+        from datetime import datetime
         
-        # --- OBJEÇÕES (MANTIDAS DO CÓDIGO ANTIGO) ---
-        if any(palavra in msg_lower for palavra in ['pensar', 'marido', 'ver com', 'vou decidir', 'caro']):
-             msg = f"Claro! 😊\n\nComo nossas vagas preenchem rápido, posso deixar um dos horários provisoriamente reservado para você enquanto decide.\n\nQual deles prefere que eu deixe reservado?"
-             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+        # --- 1. OBJEÇÕES ---
+        if not self.memoria_atual.get('esperando_escolha_data'):
+            if any(palavra in msg_lower for palavra in ['pensar', 'marido', 'ver com', 'vou decidir', 'caro']):
+                 msg = f"Claro! 😊\n\nComo nossas vagas preenchem rápido, posso deixar um dos horários provisoriamente reservado para você enquanto decide.\n\nQual deles prefere que eu deixe reservado?"
+                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
+        # --- 2. NAVEGAÇÃO DE AGENDA (RESTAURADA) ---
+        
+        # Paciente recusa os horários oferecidos ("nenhum", "ruim")
+        if any(p in msg_lower for p in ['nenhum', 'ruim', 'não dá', 'nao da', 'não gostei']):
+            msg = f"Sem problema 😊\n\nPodemos verificar outras disponibilidades para você.\n\nVocê prefere:\n- tentar outro horário nesse mesmo dia\n- ou verificar outra data da agenda?"
+            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # Paciente pede outra data ("outro dia", "outra data")
+        if any(p in msg_lower for p in ['outra data', 'outro dia', 'dia diferente', 'verificar outra data', 'proxima data']):
+            if len(dias_disponiveis) > 1:
+                msg = "Temos sim 😊\n\nAlém dessa data, também temos agenda disponível:\n\n"
+                dias_pt = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo']
+                for i in range(1, len(dias_disponiveis)):
+                    data_obj = datetime.strptime(dias_disponiveis[i]['data'], '%Y-%m-%d')
+                    msg += f"• {dias_pt[data_obj.weekday()].capitalize()} - {data_obj.strftime('%d/%m')}\n"
+                msg += "\nQual dessas datas ficaria melhor para você?"
+                self.memoria_atual['esperando_escolha_data'] = True
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+            else:
+                 return {"response_message": "No momento nossa agenda para os próximos dias já está completa. Quer que eu tente um encaixe com uma atendente?", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+
+        # Paciente respondeu à escolha de outra data (Ex: "na segunda")
+        if self.memoria_atual.get('esperando_escolha_data'):
+            escolhida_idx = -1
+            dias_pt_curto = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
+            for i in range(1, len(dias_disponiveis)):
+                data_obj = datetime.strptime(dias_disponiveis[i]['data'], '%Y-%m-%d')
+                if data_obj.strftime('%d/%m') in msg_lower or dias_pt_curto[data_obj.weekday()] in msg_lower:
+                    escolhida_idx = i
+                    break
+            
+            if escolhida_idx != -1:
+                self.memoria_atual['esperando_escolha_data'] = False
+                self.memoria_atual['dia_focado_index'] = escolhida_idx
+                dia_alvo = dias_disponiveis[escolhida_idx]
+                horarios_lista = dia_alvo['horarios_disponiveis']
+                
+                data_obj = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+                dia_semana_str = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj.weekday()]
+                
+                opcoes_novas = []
+                if len(horarios_lista) >= 2:
+                    opcoes_novas.append({"opcao": "1", "dia_semana": dia_semana_str.capitalize(), "data_iso": dia_alvo['data'], "data_formatada": data_obj.strftime('%d/%m'), "hora": horarios_lista[0]})
+                    opcoes_novas.append({"opcao": "2", "dia_semana": dia_semana_str.capitalize(), "data_iso": dia_alvo['data'], "data_formatada": data_obj.strftime('%d/%m'), "hora": horarios_lista[1]})
+                else:
+                    opcoes_novas.append({"opcao": "1", "dia_semana": dia_semana_str.capitalize(), "data_iso": dia_alvo['data'], "data_formatada": data_obj.strftime('%d/%m'), "hora": horarios_lista[0]})
+                
+                self.memoria_atual['opcoes_horario'] = opcoes_novas
+                
+                msg = f"Perfeito.\n\nPara {dia_semana_str}, {data_obj.strftime('%d/%m')}, ainda temos vagas às:\n"
+                for op in opcoes_novas:
+                    msg += f"{op['opcao']}️⃣ {op['hora']}\n"
+                msg += "\nQual desses horários ficaria melhor para você? Posso deixar reservado."
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # Paciente pede outro horário no mesmo dia ("outro horário", "mais tarde")
+        if any(p in msg_lower for p in ['mais tarde', 'final da agenda', 'outro horário', 'outro horario', 'outros horários', 'outros horarios', 'último', 'ultimo', 'tem outro']):
+            dia_alvo = dias_disponiveis[idx_focado]
+            horarios_lista = dia_alvo['horarios_disponiveis']
+            
+            if len(horarios_lista) > 2: # Verifica se a agenda tem mais do que os 2 horários já mostrados
+                ultimo_horario = horarios_lista[-1]
+                data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+                dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+                
+                self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m'), "hora": ultimo_horario}]
+                
+                msg = f"Temos sim 😊\n\nAlém desses, também temos um horário mais para o final da agenda às {ultimo_horario}.\n\nPosso deixar esse horário reservado para você?"
+                return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+            else:
+                 msg = f"Esses são os únicos horários disponíveis para essa data. Gostaria de verificar para outro dia?"
+                 return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # Paciente pede horário mais cedo ("mais cedo", "primeiro horário")
+        if any(p in msg_lower for p in ['mais cedo', 'início', 'inicio da agenda', 'cedo', 'primeiro horário', 'primeiro horario', 'algum antes']):
+            dia_alvo = dias_disponiveis[idx_focado]
+            primeiro_horario = dia_alvo['horarios_disponiveis'][0] 
+            data_obj_aux = datetime.strptime(dia_alvo['data'], '%Y-%m-%d')
+            dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
+            
+            self.memoria_atual['opcoes_horario'] = [{"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m'), "hora": primeiro_horario}]
+            
+            msg = f"Temos sim 😊\n\nNeste dia ainda temos um horário disponível logo no início da agenda às {primeiro_horario}.\n\nEsse horário ficaria melhor para você?"
+            return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
+
+        # --- 3. VALIDAÇÃO DE ESCOLHA PADRÃO ---
         escolha = None
+        
+        # Pega a hora exata digitada (Ex: "08:15")
         match_hora = re.search(r'(\d{2}:\d{2})', msg_lower)
         if match_hora:
             hora_digitada = match_hora.group(1)
@@ -210,6 +300,7 @@ class AgenteMedicinaFetal:
                 dia_semana_aux = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado', 'domingo'][data_obj_aux.weekday()]
                 escolha = {"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": hora_digitada}
 
+        # Se não digitou hora, avalia opções rápidas na tela (1 ou 2)
         if not escolha and len(opcoes) > 0:
             if len(opcoes) > 1 and (opcoes[1]['hora'] in msg_lower or 'segundo' in msg_lower or '2' in msg_lower):
                 escolha = opcoes[1]
@@ -218,9 +309,11 @@ class AgenteMedicinaFetal:
             elif len(opcoes) == 1 and any(p in msg_lower for p in ['sim', 'pode', 'ok', 'quero', 'marcar']):
                 escolha = opcoes[0]
 
+        # Se o bot não entendeu o que a pessoa escolheu
         if not escolha:
             return {"response_message": "Por favor, me confirme qual horário prefere, ou digite 'cancelar'.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
             
+        # Tudo certo, segue pro fechamento!
         self.memoria_atual['horario_escolhido'] = escolha
         msg = f"Perfeito.\n\nVou deixar o horário das {escolha['hora']} reservado para você!\n\nPara confirmar, poderia me informar seu nome completo e data de nascimento? (Ex: Maria Silva, 12/05/1994)"
         return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
