@@ -22,6 +22,17 @@ EXPLICACOES_FETAIS = {
     "Experiência 4D": "A Experiência Gestacional Limalé é uma ultrassonografia focada na visualização do bebê em 4D.\n\nPermite observar com mais nitidez o rostinho, expressões e movimentos espontâneos, como sorrisos e gestos.\n\nÉ um momento especial de conexão, com registro em fotos e vídeos."
 }
 
+# O TRADUTOR: Converte o nome bonito para o nome exato que está no seu Banco de Dados
+NOMES_BANCO_DADOS = {
+    "US Transvaginal": "US Transvaginal",
+    "Obstétrico simples": "Obstétrico essencial", # Nome antigo do DB
+    "Morfológico 1º trimestre": "Morfológico 1 Trimestre essencial", # Nome antigo do DB
+    "Morfológico 2º trimestre": "Morfológico 2 Trimestre essencial", # Nome antigo do DB
+    "Obstétrico com Doppler": "Obstétrico com Doppler",
+    "Ecocardiograma Fetal": "Ecocardiograma Fetal",
+    "Experiência 4D": "4D" # Palavra-chave para achar a experiência
+}
+
 class AgenteMedicinaFetal:
     def __init__(self, session_id, memoria_atual):
         self.session_id = session_id
@@ -122,7 +133,9 @@ class AgenteMedicinaFetal:
         texto_exame = EXPLICACOES_FETAIS.get(exame, "")
         prefixo = self.memoria_atual.pop('msg_prefixo', "Perfeito.\n\n")
 
-        procedimento = Procedimento.objects.filter(descricao__icontains=exame, ativo=True).first()
+        # MÁGICA AQUI: Converte o nome pro que está no Banco de Dados
+        termo_busca = NOMES_BANCO_DADOS.get(exame, exame)
+        procedimento = Procedimento.objects.filter(descricao__icontains=termo_busca, ativo=True).first()
         
         valor_str = "sob consulta"
         max_parcelas = 1
