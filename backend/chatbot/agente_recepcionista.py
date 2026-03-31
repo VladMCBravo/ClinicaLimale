@@ -79,6 +79,69 @@ class AgenteRecepcionista:
 
     def processar_mensagem_complexa(self, user_message: str, nome_conhecido: str, pular_saudacao: bool = False) -> dict:
         try:
+            msg_lower = user_message.lower().strip()
+            
+            # ========================================================================
+            # 🛡️ BARREIRA FAST-TRACK: CUSTO ZERO (BYPASS DA IA)
+            # ========================================================================
+            
+            # 1. ATALHOS DE MENU E NÚMEROS
+            if msg_lower in ['1', 'opcao 1', 'opção 1', 'um', '1.']:
+                self.memoria_atual['intencao_salva'] = 'exame_fetal'
+                return {"response_message": "Perfeito.\n\nPara te orientar melhor, me informa com quantas semanas você está hoje, por favor.", "new_state": "mf_aguardando_semanas", "memory_data": self.memoria_atual}
+            
+            elif msg_lower in ['2', 'opcao 2', 'opção 2', 'dois', '2.', '3', 'opcao 3', 'opção 3', 'tres', 'três', '3.']:
+                self.memoria_atual['intencao_salva'] = 'exame_geral'
+                return {"response_message": "Perfeito.\n\nQual exame específico você gostaria de agendar?", "new_state": "inicio", "memory_data": self.memoria_atual}
+            
+            elif msg_lower in ['4', 'opcao 4', 'opção 4', 'quatro', '4.']:
+                self.memoria_atual['tipo_agendamento'] = 'Consulta'
+                self.memoria_atual['intencao_salva'] = 'consulta'
+                return {"response_message": "Perfeito.\n\nQual especialidade médica você procura?", "new_state": "agendamento_awaiting_specialty", "memory_data": self.memoria_atual}
+
+            # 2. PEDIDO EXPLÍCITO DE ATENDENTE / SOCORRO
+            palavras_humano = ['atendente', 'humano', 'recepção', 'recepcao', 'falar com alguem', 'ajuda', 'socorro', 'falar com pessoa']
+            if any(p in msg_lower for p in palavras_humano):
+                from chatbot.human_transfer import HumanTransferManager
+                from chatbot.bot_logic import notificar_recepcao_whatsapp
+                resultado_transf = HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
+                notificar_recepcao_whatsapp(self.session_id, nome_conhecido)
+                return resultado_transf
+
+            # 3. INTENÇÃO CLARA DE GRAVIDEZ / FETAL (Lendo as palavras que seu cliente mandou)
+            palavras_fetal = ['gravida', 'grávida', 'gestação', 'gestacao', 'morfológico', 'morfologico', 'obstétrico', 'obstetrico', 'transvaginal', 'eco fetal', '4d', 'ver o bebê', 'ver o bebe', 'ver meu bebe', 'descobri que']
+            if any(p in msg_lower for p in palavras_fetal):
+                self.memoria_atual['intencao_salva'] = 'exame_fetal'
+                
+                # Intercepta se for só suspeita (teste de farmácia)
+                if any(p in msg_lower for p in ['saber se estou', 'teste', 'suspeita', 'descobrir se', 'inicio', 'comeco']):
+                    self.memoria_atual['assumir_transvaginal'] = True
+                    msg_trans = (f"Que momento especial! 🤍 Aqui na Limalé nós realizamos o *Ultrassom Transvaginal*, que é o exame usado para confirmar a gestação.\n\n"
+                                 f"O ultrassom visualiza o bebê a partir de 5 semanas de gestação.\n\n"
+                                 f"Você já tem um exame positivo ou gostaria de agendar o ultrassom mesmo assim? (Digite 'agendar' ou 'falar com atendente')")
+                    return {"response_message": msg_trans, "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
+                
+                return {"response_message": "Perfeito.\n\nPara te orientar melhor, me informa com quantas semanas você está hoje, por favor.", "new_state": "mf_aguardando_semanas", "memory_data": self.memoria_atual}
+
+            # 4. SAUDAÇÕES CURTAS E PERGUNTAS DE PREÇO VAZIAS (Devolve o menu em vez de acionar IA)
+            palavras_saudacao = ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'tudo bem', 'valor', 'preço', 'preco', 'quanto custa', 'tem vaga', 'tem horário', 'agendar', 'marcar']
+            if len(msg_lower.split()) <= 6 and any(p in msg_lower for p in palavras_saudacao):
+                msg_menu = (
+                    f"Olá{', ' + nome_conhecido if nome_conhecido else ''} 😊\n\n"
+                    "Sou o Leônidas, assistente da Clínica Limalé — referência em gestação, medicina fetal e cardiologia avançada.\n\n"
+                    "Para te direcionar da melhor forma, me conta o que você precisa:\n\n"
+                    "1️⃣ Ultrassom na gestação\n"
+                    "2️⃣ Exames cardiológicos\n"
+                    "3️⃣ Ultrassonografia geral\n"
+                    "4️⃣ Especialidades médicas\n\n"
+                    "Se preferir, pode escrever diretamente."
+                )
+                return {"response_message": msg_menu, "new_state": "recepcionista_aguardando_intencao", "memory_data": self.memoria_atual}
+
+            # ========================================================================
+            # 🤖 ACIONAMENTO DA IA: APENAS SE TODAS AS BARREIRAS ACIMA FALHAREM
+            # ========================================================================
+            
             analise = chain_recepcionista.invoke({
                 "user_message": user_message,
                 "nome_conhecido": nome_conhecido or "",
@@ -103,19 +166,10 @@ class AgenteRecepcionista:
             if intencao and intencao != 'indefinida':
                 self.memoria_atual['intencao_salva'] = intencao
 
-            # BLINDAGEM E ROTEAMENTO
+            # BLINDAGEM DO ROTEAMENTO DA IA
             if intencao == 'exame_fetal':
                 novo_estado = 'mf_aguardando_semanas' 
-                msg_lower = user_message.lower()
-                
-                if any(p in msg_lower for p in ['saber se estou', 'teste', 'suspeita', 'descobrir se', 'grávida', 'gravida']):
-                    self.memoria_atual['assumir_transvaginal'] = True
-                    resposta_ia = (f"Que momento especial! 🤍 Aqui na Limalé nós realizamos o *Ultrassom Transvaginal*, que é o exame usado para confirmar a gestação.\n\n"
-                                   f"O ultrassom visualiza o bebê a partir de 5 semanas de gestação.\n\n"
-                                   f"Você já tem um exame positivo ou gostaria de agendar o ultrassom mesmo assim? (Digite 'agendar' ou 'falar com atendente')")
-                else:
-                    resposta_ia = "Perfeito.\n\nPara te orientar melhor, me informa com quantas semanas você está hoje, por favor."
-            
+                resposta_ia = "Perfeito.\n\nPara te orientar melhor, me informa com quantas semanas você está hoje, por favor."
             elif intencao == 'exame_geral':
                 novo_estado = 'inicio'
             elif intencao == 'consulta':

@@ -35,7 +35,7 @@ try:
     if not api_key:
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, google_api_key=api_key)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=api_key)
 
     class RecepcionistaOutput(BaseModel):
         nome_extraido: Optional[str] = Field(description="O nome do paciente, SE ele tiver se apresentado. Caso contrário, retorne null.")
