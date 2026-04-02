@@ -69,6 +69,9 @@ class TransacaoFinanceira(models.Model):
     observacoes = models.TextField(blank=True, null=True)
     criado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True)
     data_criacao = models.DateTimeField(auto_now_add=True)
+    # Adicione estas duas linhas nas classes TransacaoFinanceira e Pagamento
+    baixado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='baixas_%(class)s')
+    data_hora_baixa = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.descricao} | {self.get_status_display()} | R$ {self.valor}"
@@ -119,6 +122,9 @@ class Pagamento(models.Model):
     data_vencimento = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='Pendente')
     registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True) # Null=True para facilitar migração
+    # Adicione estas duas linhas nas classes TransacaoFinanceira e Pagamento
+    baixado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='baixas_%(class)s')
+    data_hora_baixa = models.DateTimeField(null=True, blank=True)
 
     # Campos PIX Legados
     inter_txid = models.CharField(max_length=50, blank=True, null=True, unique=True)

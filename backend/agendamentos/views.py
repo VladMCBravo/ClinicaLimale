@@ -129,6 +129,13 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         
         if pagamento:
             pagamento.registrado_por = self.request.user
+
+            # --- INÍCIO DA TRAVA DE SEGURANÇA ---
+            # Bloqueia qualquer tentativa do sistema ou frontend de criar a dívida como paga
+            pagamento.status = 'Pendente'
+            pagamento.data_pagamento = None
+            pagamento.forma_pagamento = None
+            # --- FIM DA TRAVA DE SEGURANÇA ---
             
             if agendamento.procedimento:
                 pagamento.descricao = agendamento.procedimento.descricao 

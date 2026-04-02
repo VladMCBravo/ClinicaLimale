@@ -10,38 +10,41 @@ from .models import (
 
 # --- INÍCIO DA NOVA CONFIGURAÇÃO DE PAGAMENTOS ---
 class PagamentoAdmin(admin.ModelAdmin):
-    # 1. Define as colunas exatas que aparecerão na tabela
-    list_display = ('id', 'get_paciente', 'get_data_agendamento', 'descricao', 'valor', 'status')
+    # 1. Adicionamos as colunas visuais aqui
+    list_display = ('id', 'get_paciente', 'descricao', 'valor', 'status', 'get_registrado_por', 'get_auditoria_baixa')
     
-    # 2. Adiciona filtros na barra lateral direita
-    list_filter = ('status',)
-    
-    # 3. Adiciona uma barra de pesquisa (busca por nome do paciente ou descrição)
+    list_filter = ('status', 'data_pagamento')
     search_fields = ('paciente__nome_completo', 'descricao')
-    
-    # 4. Melhora a performance ao carregar itens relacionados
-    raw_id_fields = ('paciente', 'agendamento')
+    raw_id_fields = ('paciente', 'agendamento', 'baixado_por', 'registrado_por')
 
-    # Métodos personalizados para puxar dados dos relacionamentos (Paciente e Agendamento)
     def get_paciente(self, obj):
-        return obj.paciente.nome_completo if obj.paciente else "Sem paciente vinculado"
+        return obj.paciente.nome_completo if obj.paciente else "Sem paciente"
     get_paciente.short_description = 'Paciente'
 
-    def get_data_agendamento(self, obj):
-        if getattr(obj, 'agendamento', None) and obj.agendamento.data_hora_inicio:
-            # Formata a data e hora para ficar bonito na tabela
-            return obj.agendamento.data_hora_inicio.strftime('%d/%m/%Y %H:%M')
-        return "Sem agendamento"
-    get_data_agendamento.short_description = 'Data do Agendamento'
-    
-    # 3. Novo método para buscar o nome de quem gerou o pagamento
     def get_registrado_por(self, obj):
         if obj.registrado_por:
-            # Tenta pegar o nome completo (ex: "Vladmir Bravo"). Se não tiver, pega o login (username)
             return obj.registrado_por.get_full_name() or obj.registrado_por.username
-        # Se for vazio, significa que foi gerado automaticamente pelo bot ou cronjob
         return "Sistema / Bot"
-    get_registrado_por.short_description = 'Registrado por'
+    get_registrado_por.short_description = 'Gerado por'
+
+    # 2. Nova coluna de Auditoria da Baixa
+    def get_auditoria_baixa(self, obj):
+        if obj.status != 'Pago':
+            return "-"
+            
+        # Se foi o banco Inter
+        if obj.inter_txid:
+            return "Bot (Inter)"
+            
+        if obj.baixado_por:
+            nome = obj.baixado_por.get_full_name() or obj.baixado_por.username
+            data = obj.data_hora_baixa.strftime('%d/%m %H:%M') if obj.data_hora_baixa else "?"
+            return f"{nome} ({data})"
+            
+        # Se nasceu pago pelo frontend avulso
+        return "Nasceu Pago / Sem registro"
+        
+    get_auditoria_baixa.short_description = 'Baixado por (Auditoria)'
 
 # --- FIM DA NOVA CONFIGURAÇÃO DE PAGAMENTOS ---
 

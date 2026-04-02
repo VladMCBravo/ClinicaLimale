@@ -166,6 +166,12 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             pagamento_original.status = 'Pago'
             pagamento_original.data_pagamento = data_pagamento
             pagamento_original.forma_pagamento = forma_pagamento
+            
+            # --- NOVAS LINHAS DE AUDITORIA AQUI ---
+            pagamento_original.baixado_por = request.user
+            pagamento_original.data_hora_baixa = timezone.now()
+            # -------------------------------------
+
             if desconto > 0:
                 pagamento_original.descricao += f" (Desc. {desconto})"
             pagamento_original.save()
