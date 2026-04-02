@@ -129,6 +129,25 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             return Response({"erro": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     # ---> FIM DO BLOCO ADICIONADO <---
     
+    # Adicione isso dentro do PagamentoViewSet
+    def perform_update(self, serializer):
+        # 1. Pega a versão atual da dívida no banco (ANTES de salvar)
+        instancia_antiga = self.get_object()
+        
+        # 2. Pega o novo status que o frontend está tentando enviar
+        novo_status = serializer.validated_data.get('status', instancia_antiga.status)
+        
+        # 3. A RATOEIRA: Se era Pendente (ou outro) e o frontend mandou virar Pago
+        if instancia_antiga.status != 'Pago' and novo_status == 'Pago':
+            # Salva no banco FORÇANDO o carimbo de auditoria
+            serializer.save(
+                baixado_por=self.request.user,
+                data_hora_baixa=timezone.now()
+            )
+        else:
+            # Se for apenas uma edição comum (ex: mudou a descrição), salva normal
+            serializer.save()
+            
     # === AÇÃO DE RECEBIMENTO (LÓGICA DE DATAS CORRIGIDA) ===
     @action(detail=True, methods=['post'], url_path='receber')
     @transaction.atomic

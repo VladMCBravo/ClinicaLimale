@@ -19,7 +19,6 @@ import VerificadorDisponibilidade from '../components/painel/VerificadorDisponib
 // --- MODAIS ---
 import PacienteModal from '../components/PacienteModal';
 import AgendamentoModal from '../components/AgendamentoModal';
-import LancamentoCaixaModal from '../components/financeiro/LancamentoCaixaModal';
 
 export default function PainelRecepcaoPage() {
     // --- ESTADOS ---
@@ -182,15 +181,6 @@ export default function PainelRecepcaoPage() {
                         </Button>
 
                         <Button 
-                            variant="outlined" 
-                            startIcon={<AddCardIcon fontSize="small" />}
-                            onClick={() => setIsCaixaModalOpen(true)}
-                            sx={{ height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600, color: '#546E7A', borderColor: '#CFD8DC' }}
-                        >
-                            Caixa
-                        </Button>
-
-                        <Button 
                             variant="outlined" color="info"
                             startIcon={<EventAvailableIcon fontSize="small" />}
                             onClick={() => setIsDispoOpen(true)}
@@ -246,7 +236,6 @@ export default function PainelRecepcaoPage() {
             </Drawer>
             <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }} pacienteParaEditar={null} />
             <AgendamentoModal open={isAgendamentoModalOpen} onClose={handleCloseAgendamentoModal} onSave={handleAgendamentoSave} initialData={initialData} editingEvent={editingEvent} />
-            <LancamentoCaixaModal open={isCaixaModalOpen} onClose={() => setIsCaixaModalOpen(false)} />
         </Box>
     );
 }
