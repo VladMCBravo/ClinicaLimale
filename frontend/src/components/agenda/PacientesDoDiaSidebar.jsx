@@ -140,6 +140,23 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                 <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', color: isCancelado ? '#999' : '#1C2E4A' }}>
                                     {new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                 </Typography>
+
+                                {/* --- ADICIONADO AQUI: Badge com o ID do paciente --- */}
+                                <Box component="span" sx={{
+                                    bgcolor: isCancelado ? '#999' : '#1C2E4A', // Fica cinza se cancelado, padrão caso contrário
+                                    color: '#FFF', 
+                                    px: 0.6, 
+                                    py: 0.3, 
+                                    borderRadius: '4px', 
+                                    fontSize: '0.6rem',
+                                    fontWeight: 'bold',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    flexShrink: 0 // Impede que o ID seja espremido se o nome do paciente for muito grande
+                                }}>
+                                    ID: {ag.paciente_id || ag.paciente}
+                                </Box>
+
                                 {/* O 'noWrap' impede que o nome quebre em duas linhas, economizando altura */}
                                 <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: isCancelado ? '#999' : '#333', noWrap: true, textOverflow: 'ellipsis' }}>
                                     {ag.paciente_nome}
