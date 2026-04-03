@@ -165,15 +165,14 @@ export default function ContasReceberView() {
                                                 {/* Só exibe se for um pagamento de paciente (tiver paciente_nome) e a informação de visita existir */}
                                                 {row.paciente_nome && (row.primeira_consulta !== undefined || row.tipo_visita) && (
                                                     <Chip 
-                                                        label={row.primeira_consulta ? '1ª Vez' : (row.tipo_visita || 'Retorno')} 
+                                                        label={row.primeira_consulta || row.tipo_visita === 'Primeira Consulta' ? '1ª Vez' : (row.tipo_visita || 'Retorno')} 
                                                         size="small" 
                                                         sx={{ 
                                                             height: '16px', 
                                                             fontSize: '0.6rem', 
-                                                            // Se for 1ª Vez fica laranjinha (igual na agenda), se for Retorno fica azulzinho
-                                                            bgcolor: row.primeira_consulta ? '#fff8e1' : '#e3f2fd', 
-                                                            color: row.primeira_consulta ? '#f57f17' : '#1565c0',
-                                                            border: `1px solid ${row.primeira_consulta ? '#ffe082' : '#90caf9'}`,
+                                                            bgcolor: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#fff8e1' : '#e3f2fd', 
+                                                            color: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#f57f17' : '#1565c0',
+                                                            border: `1px solid ${(row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#ffe082' : '#90caf9'}`,
                                                             '& .MuiChip-label': { px: 0.6, py: 0 }
                                                         }} 
                                                     />
