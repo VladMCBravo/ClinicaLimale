@@ -89,13 +89,17 @@ class PagamentoSerializer(serializers.ModelSerializer):
     agendamento_id = serializers.PrimaryKeyRelatedField(source='agendamento', read_only=True)
     agendamento_detalhes = AgendamentoInfoSerializer(source='agendamento', read_only=True)
 
+    # 👇 1. ADICIONE ESTAS DUAS LINHAS AQUI 👇
+    primeira_consulta = serializers.ReadOnlyField(source='agendamento.primeira_consulta')
+    tipo_visita = serializers.ReadOnlyField(source='agendamento.tipo_visita')
+
     class Meta:
         model = Pagamento
         fields = [
             'id', 'agendamento_id', 'agendamento_detalhes', 'paciente', 'paciente_nome', 'descricao',
             'descricao_visual', 'valor', 'status', 'status_display', 'forma_pagamento', 
             'forma_pagamento_display', 'data_pagamento', 'data_vencimento',
-            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em', 'link_pagamento'
+            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em', 'link_pagamento', 'primeira_consulta', 'tipo_visita'
         ]
         read_only_fields = ['registrado_por']
 
