@@ -71,7 +71,7 @@ export const gerarPdfAgendaDia = async (pacientes, dataFiltro) => {
 
         bodyTable.push([
             { text: horario, fontSize: 10, bold: true, color: '#1C2E4A', border: [false, false, false, true], margin: [0, 5] },
-            { text: ag.paciente_nome, fontSize: 10, color: '#333', border: [false, false, false, true], margin: [0, 5] },
+            { text: `ID: ${idPaciente} - ${ag.paciente_nome}`, fontSize: 10, color: '#333', border: [false, false, false, true], margin: [0, 5] },
             { text: tipoVisita, fontSize: 9, color: '#666', border: [false, false, false, true], margin: [0, 5] },
             { text: procedimento, fontSize: 9, color: '#666', border: [false, false, false, true], margin: [0, 5] },
             { text: ag.status, fontSize: 9, bold: true, color: '#555', border: [false, false, false, true], margin: [0, 5] }
