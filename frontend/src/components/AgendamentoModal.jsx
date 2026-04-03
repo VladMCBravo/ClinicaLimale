@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider, Chip, Grid
+  Box, Typography, Divider, Chip, Grid, Switch, FormControlLabel
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete'; // Importando ícone
 import { agendamentoService } from '../services/agendamentoService';
@@ -33,7 +33,9 @@ const getInitialFormData = () => ({
     // MUDANÇA: Agora suportamos lista
     procedimento: null, // Mantido para compatibilidade se editar 1 só
     procedimentos: [],  // Novo campo para múltiplos
-    sala: null
+    sala: null,
+    isento_cobranca: false, // <--- NOVO
+    motivo_isencao: ''      // <--- NOVO
 });
 
 // --- COMPONENTE DE MÁSCARA (DATA + HORA) ---
@@ -421,6 +423,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                  submissionData.procedimento = formData.procedimentos[0].id;
             }
         }
+        // --- NOVA LÓGICA: Injetar Isenção ---
+        if (formData.isento_cobranca) {
+            submissionData.isento_cobranca = true;
+            submissionData.motivo_isencao = formData.motivo_isencao;
+            
+            // Adiciona o motivo também na observação da agenda para o médico ver
+            const notaIsencao = `[ISENTO: ${formData.motivo_isencao}]`;
+            submissionData.observacoes = submissionData.observacoes 
+                ? `${submissionData.observacoes}\n${notaIsencao}` 
+                : notaIsencao;
+        }
 
         try {
             const eventId = editingEvent?.id;
@@ -569,6 +582,33 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth size="small"><InputLabel>Modalidade</InputLabel><Select name="modalidade" value={formData.modalidade} label="Modalidade" onChange={(e) => setFormData({...formData, modalidade: e.target.value})} ><MenuItem value="Presencial">Presencial (na clínica)</MenuItem><MenuItem value="Telemedicina">Telemedicina</MenuItem></Select></FormControl>
                                 <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem></Select></FormControl>
                                 {valorExibido && (<Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, mt: -1 }}><Typography variant="body2" color="primary.main" sx={{ fontWeight: 'bold' }}>{valorExibido}</Typography></Box>)}
+                                {/* --- NOVO: BOTÃO E MOTIVO DE ISENÇÃO --- */}
+                                <FormControlLabel
+                                    control={
+                                        <Switch 
+                                            checked={formData.isento_cobranca || false} 
+                                            onChange={(e) => setFormData({...formData, isento_cobranca: e.target.checked})} 
+                                            color="success" 
+                                            size="small"
+                                        />
+                                    }
+                                    label={<Typography variant="body2" fontWeight="bold">Isentar Cobrança</Typography>}
+                                    sx={{ mt: -1, ml: 0.5 }}
+                                />
+
+                                {formData.isento_cobranca && (
+                                    <TextField 
+                                        label="Motivo da Isenção *" 
+                                        size="small" 
+                                        fullWidth 
+                                        value={formData.motivo_isencao || ''}
+                                        onChange={(e) => setFormData({...formData, motivo_isencao: e.target.value})}
+                                        required={formData.isento_cobranca}
+                                        placeholder="Ex: Conclusão de Exame, Cortesia..."
+                                        sx={{ mb: 2 }}
+                                    />
+                                )}
+                                {/* -------------------------------------- */}
                                 <Divider sx={{ my: 1 }}><Chip label="Horário" size="small" /></Divider>
                                 <Grid container spacing={2}>
                                     <Grid item xs={12}>

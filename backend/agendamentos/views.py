@@ -118,28 +118,36 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         return Response(agendamentos_criados, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        # O .save() vai acionar o 'signals.py', que criará o Pagamento automaticamente.
+        # O .save() aciona o 'signals.py', que criará o Pagamento automaticamente.
         agendamento = serializer.save()
-        
-        # Como o Signal já criou o financeiro, nós NÃO usamos Pagamento.objects.create() aqui.
-        # Vamos apenas buscar esse pagamento recém-criado e atualizar quem foi o atendente
-        # e a descrição correta, mantendo o histórico de auditoria intacto.
-        
         pagamento = Pagamento.objects.filter(agendamento=agendamento).first()
         
         if pagamento:
             pagamento.registrado_por = self.request.user
-
-            # --- INÍCIO DA TRAVA DE SEGURANÇA ---
-            # Bloqueia qualquer tentativa do sistema ou frontend de criar a dívida como paga
-            pagamento.status = 'Pendente'
-            pagamento.data_pagamento = None
-            pagamento.forma_pagamento = None
-            # --- FIM DA TRAVA DE SEGURANÇA ---
             
-            if agendamento.procedimento:
-                pagamento.descricao = agendamento.procedimento.descricao 
+            # --- NOVA LÓGICA DE ISENÇÃO ---
+            isento = self.request.data.get('isento_cobranca')
+            
+            if str(isento).lower() in ['true', '1', 't']:
+                motivo = self.request.data.get('motivo_isencao', 'Retorno/Conclusão')
+                desc_base = agendamento.procedimento.descricao if agendamento.procedimento else "Consulta"
                 
+                # Zera o valor e anexa o motivo no financeiro
+                pagamento.valor = 0.00
+                pagamento.descricao = f"{desc_base} (ISENTO: {motivo})"
+                
+                # Já "Baixa" a conta zerada para não poluir a tela de pendências da recepção
+                pagamento.status = 'Pago'
+                pagamento.forma_pagamento = 'Outros'
+                pagamento.data_pagamento = timezone.now().date()
+            else:
+                # Fluxo Normal (Cobrança padrão)
+                pagamento.status = 'Pendente'
+                pagamento.data_pagamento = None
+                pagamento.forma_pagamento = None
+                if agendamento.procedimento:
+                    pagamento.descricao = agendamento.procedimento.descricao 
+                    
             pagamento.save()
 
 
@@ -167,6 +175,19 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         if not pagamento:
             print(f"[DEBUG-FIN] Nenhum pagamento encontrado para o Agendamento {agendamento.id}")
             return
+        
+        # --- ISENÇÃO NA EDIÇÃO ---
+        isento = self.request.data.get('isento_cobranca')
+        if str(isento).lower() in ['true', '1', 't'] and pagamento.status == 'Pendente':
+            motivo = self.request.data.get('motivo_isencao', 'Retorno/Conclusão')
+            desc_base = agendamento.procedimento.descricao if agendamento.procedimento else "Consulta"
+            pagamento.valor = 0.00
+            pagamento.descricao = f"{desc_base} (ISENTO: {motivo})"
+            pagamento.status = 'Pago'
+            pagamento.forma_pagamento = 'Outros'
+            pagamento.data_pagamento = timezone.now().date()
+            pagamento.save()
+            return # Sai da função para não aplicar as regras de status abaixo
 
         if agendamento.status == 'Não Compareceu':
             if pagamento.status == 'Pendente':
