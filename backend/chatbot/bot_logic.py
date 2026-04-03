@@ -139,9 +139,10 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     msg_limpa = user_message.strip().lower()
     
     # BLINDAGEM MÁXIMA: Impede a Recepcionista de interromper os Agentes Especialistas!
+    # ADICIONADO O ESTADO 'mf_aguardando_confirmacao_morfo2'
     estados_protegidos = [
         'aguardando_atendente_humano', 'encerrado',
-        'inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 
+        'inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_confirmacao_morfo2', 'mf_aguardando_horario', 
         'mf_aguardando_dados_pessoais', 'mf_aguardando_email',
         'inicio', 'exame_aguardando_horario', 'exame_aguardando_dados_pessoais', 'exame_aguardando_email',
         'agendamento_awaiting_specialty', 'agendamento_awaiting_slot_choice',
@@ -184,7 +185,8 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # ==================================================================
     
     # 2.A: NOVO Agente de Medicina Fetal (Ultrassons Obstétricos)
-    elif estado_atual in ['inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_horario', 'mf_aguardando_dados_pessoais', 'mf_aguardando_email']:
+    # ADICIONADO O ESTADO 'mf_aguardando_confirmacao_morfo2' AQUI TAMBÉM
+    elif estado_atual in ['inicio_fetal', 'mf_aguardando_semanas', 'mf_aguardando_confirmacao_morfo2', 'mf_aguardando_horario', 'mf_aguardando_dados_pessoais', 'mf_aguardando_email']:
         agente_fetal = AgenteMedicinaFetal(session_id, memoria_atual)
         resultado = agente_fetal.processar(user_message, estado_atual)
         
@@ -213,7 +215,9 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 "faq": faq_base_de_conhecimento,
                 "nome_usuario": nome_usuario
             })
-            resposta = faq_data.get("resposta", f"Desculpe {nome_usuario}, não encontrei essa informação.")
+            # Formatação ajustada para não ficar com vírgula sobrando se o nome for vazio
+            saudacao_erro = f", {nome_usuario}" if nome_usuario else ""
+            resposta = faq_data.get("resposta", f"Desculpe{saudacao_erro}, não encontrei essa informação.")
             resultado = {"response_message": resposta, "new_state": 'ia_roteadora_livre', "memory_data": memoria_atual}
             
         except Exception as e:
