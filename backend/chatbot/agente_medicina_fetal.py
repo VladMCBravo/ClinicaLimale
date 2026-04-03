@@ -175,12 +175,15 @@ class AgenteMedicinaFetal:
         
         self.memoria_atual['opcoes_horario'] = opcoes
 
-        # Montagem fiel ao design do cliente
+        # --- CORREÇÃO DO BUG DO PREÇO OCULTO ---
+        parcela_valor = f"{(float(valor_str.replace(',', '.')) / max_parcelas):.2f}".replace('.', ',')
+        texto_pagamento = f", podendo ser parcelado em até {max_parcelas}x de R$ {parcela_valor}" if max_parcelas > 1 else ""
+
         if "Nesse caso" in prefixo or "Ainda está em tempo" in prefixo:
-            msg = prefixo
+            # Mostra o prefixo, PULA a explicação, mas NÃO pula o valor!
+            msg = f"{prefixo}O valor é de R$ {valor_str}{texto_pagamento}.\n\n"
         else:
-            parcela_valor = f"{(float(valor_str.replace(',', '.')) / max_parcelas):.2f}".replace('.', ',')
-            texto_pagamento = f", podendo ser parcelado em até {max_parcelas}x de {parcela_valor}" if max_parcelas > 1 else ""
+            # Fluxo normal: Prefixo + Explicação + Valor
             msg = f"{prefixo}{texto_exame}\n\nO valor é de R$ {valor_str}{texto_pagamento}.\n\n"
             
         if len(opcoes) == 1:
@@ -199,12 +202,20 @@ class AgenteMedicinaFetal:
         from datetime import datetime
         
         # =====================================================================
-        # 1. INTERCEPTADOR: FORMAS DE PAGAMENTO E PIX (RESGATADO)
+        # 1. INTERCEPTADOR: VALORES E FORMAS DE PAGAMENTO (CORRIGIDO)
         # =====================================================================
-        if any(palavra in msg_lower for palavra in ['pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam', 'forma de pagamento']):
+        if any(palavra in msg_lower for palavra in ['valor', 'preço', 'preco', 'custa', 'quanto', 'pix', 'dinheiro', 'débito', 'debito', 'cartão', 'cartao', 'pagamento', 'aceita', 'aceitam', 'forma de pagamento']):
+            valor_str = self.memoria_atual.get('valor_str', 'sob consulta')
             max_parcelas = self.memoria_atual.get('max_parcelas', 1)
-            msg = (f"Aceitamos pagamentos em Dinheiro, Cartão de Débito, Cartão de Crédito (em até {max_parcelas}x sem juros) e PIX. 😊\n"
-                   f"🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto** no valor do exame!\n\n")
+            
+            msg = ""
+            if valor_str != "sob consulta":
+                parcela_valor = f"{(float(valor_str.replace(',', '.')) / max_parcelas):.2f}".replace('.', ',')
+                texto_pagamento = f", que pode ser parcelado em até {max_parcelas}x de R$ {parcela_valor}" if max_parcelas > 1 else ""
+                msg += f"O valor do exame é de R$ {valor_str}{texto_pagamento}.\n\n"
+            
+            msg += "Aceitamos pagamentos em Dinheiro, Cartão e PIX. 😊\n"
+            msg += "🎁 Inclusive, para pagamentos via PIX antecipado, nós oferecemos **5% de desconto**!\n\n"
             
             if self.memoria_atual.get('esperando_escolha_data'):
                 msg += "Qual daquelas datas que te passei ficaria melhor para você?"
