@@ -48,10 +48,12 @@ class AgenteMedicinaFetal:
             notificar_recepcao_whatsapp(self.session_id, self.memoria_atual.get('nome_usuario', 'Paciente'))
             return HumanTransferManager.processar_transferencia(self.session_id, self.memoria_atual)
 
-        # --- ROTA DE FUGA ---
+        # --- ROTA DE FUGA BLINDADA ---
+        # Adicionadas as recusas que travaram o seu teste
         palavras_digitadas = set(re.findall(r'\b\w+\b', msg_lower))
-        if bool({'cancelar', 'obrigado', 'obrigada', 'encerrar'}.intersection(palavras_digitadas)):
-            return {"response_message": "Entendido! A Clínica Limalé está de portas abertas para você! 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
+        if bool({'cancelar', 'obrigado', 'obrigada', 'encerrar', 'desisto'}.intersection(palavras_digitadas)) or \
+           any(p in msg_lower for p in ['não precisa', 'nao precisa', 'deixa pra lá', 'deixa pra la', 'não quero', 'nao quero', 'não vou querer', 'nao vou querer']):
+            return {"response_message": "Sem problemas! A Clínica Limalé está de portas abertas para você quando desejar. 🤍", "new_state": 'ia_roteadora_livre', "memory_data": self.memoria_atual}
 
         if estado_atual == 'inicio_fetal':
             return {"response_message": "Perfeito.\n\nPara te orientar melhor, me informa com quantas semanas você está hoje, por favor.", "new_state": 'mf_aguardando_semanas', "memory_data": self.memoria_atual}
@@ -319,7 +321,7 @@ class AgenteMedicinaFetal:
             return {"response_message": msg, "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
 
         # =====================================================================
-        # 4. VALIDAÇÃO DE ESCOLHA PADRÃO 
+        # 4. VALIDAÇÃO DE ESCOLHA PADRÃO COM FILTRO ANTI-FALSO POSITIVO
         # =====================================================================
         escolha = None
         
@@ -333,12 +335,16 @@ class AgenteMedicinaFetal:
                 escolha = {"opcao": "1", "dia_semana": dia_semana_aux, "data_iso": dia_alvo['data'], "data_formatada": data_obj_aux.strftime('%d/%m/%Y'), "hora": hora_digitada}
 
         if not escolha and len(opcoes) > 0:
-            if len(opcoes) > 1 and (opcoes[1]['hora'] in msg_lower or 'segundo' in msg_lower or '2' in msg_lower):
-                escolha = opcoes[1]
-            elif opcoes[0]['hora'] in msg_lower or 'primeiro' in msg_lower or '1' in msg_lower:
-                escolha = opcoes[0]
-            elif len(opcoes) == 1 and any(p in msg_lower for p in ['sim', 'pode', 'ok', 'quero', 'marcar']):
-                escolha = opcoes[0]
+            # Verifica primeiro se não existe uma palavra de negação na frase
+            tem_negacao = any(n in msg_lower for n in ['não', 'nao', 'nunca'])
+            
+            if not tem_negacao:
+                if len(opcoes) > 1 and (opcoes[1]['hora'] in msg_lower or 'segundo' in msg_lower or '2' in msg_lower):
+                    escolha = opcoes[1]
+                elif opcoes[0]['hora'] in msg_lower or 'primeiro' in msg_lower or '1' in msg_lower:
+                    escolha = opcoes[0]
+                elif len(opcoes) == 1 and any(p in msg_lower for p in ['sim', 'pode', 'ok', 'quero', 'marcar']):
+                    escolha = opcoes[0]
 
         if not escolha:
             return {"response_message": "Por favor, me confirme qual horário prefere, ou digite 'cancelar'.", "new_state": 'mf_aguardando_horario', "memory_data": self.memoria_atual}
@@ -348,7 +354,6 @@ class AgenteMedicinaFetal:
         return {"response_message": msg, "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
 
     def _processar_dados_pessoais(self, user_message: str) -> dict:
-        # Lógica original de captura de nome e data de nascimento preservada
         match_data = re.search(r'(\d{2}[/-]\d{2}[/-]\d{2,4})', user_message)
         if not match_data:
             return {"response_message": "Não consegui identificar a data de nascimento. Pode digitar seu nome completo e a data (ex: 12/05/1994)?", "new_state": 'mf_aguardando_dados_pessoais', "memory_data": self.memoria_atual}
@@ -369,7 +374,6 @@ class AgenteMedicinaFetal:
         
         self.memoria_atual['email_usuario'] = user_message.lower().strip()
                 
-        # --- CÓDIGO ORIGINAL DE SALVAMENTO NO BANCO MANTIDO INTACTO ---
         telefone = ''.join(filter(str.isdigit, self.session_id))
         data_nasc_str = self.memoria_atual.get('data_nascimento_paciente', '')
         
