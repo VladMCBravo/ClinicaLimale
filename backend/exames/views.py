@@ -15,6 +15,9 @@ import boto3
 from django.conf import settings
 from prontuario.models import Laudo
 import re  # Para ajudar a limpar os números do nome da pasta
+# --- NOVAS IMPORTAÇÕES PARA O WORKLIST ---
+from django.utils import timezone
+from agendamentos.models import Agendamento
 
 class UploadExameView(APIView):
     """
@@ -335,3 +338,35 @@ class UltimosExamesEnviadosView(APIView):
             })
             
         return Response(dados, status=status.HTTP_200_OK)
+
+# --- NOVA VIEW: ALIMENTAÇÃO DO DICOM WORKLIST ---
+class WorklistDataView(APIView):
+    """
+    Fornece os dados do dia para o script local (gerar_worklist.py)
+    criar a lista de pacientes no ultrassom (DICOM Worklist).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        hoje = timezone.now().date()
+        # Filtramos agendamentos de hoje (ajuste o filtro de status/especialidade se necessário)
+        agendamentos = Agendamento.objects.filter(
+            data_hora_inicio__date=hoje
+        ).select_related('paciente', 'especialidade', 'medico')
+
+        dados = []
+        for agn in agendamentos:
+            # Validação para não quebrar caso não exista médico vinculado
+            medico_nome = agn.medico.get_full_name() if agn.medico else ""
+            
+            dados.append({
+                "agendamento_id": agn.id,
+                "paciente_id": agn.paciente.id,
+                "paciente_nome": agn.paciente.nome_completo,
+                "paciente_nascimento": agn.paciente.data_nascimento.strftime('%Y%m%d') if agn.paciente.data_nascimento else "",
+                "paciente_sexo": agn.paciente.sexo,
+                "data_exame": agn.data_hora_inicio.strftime('%Y%m%d'),
+                "medico_nome": medico_nome
+            })
+        
+        return Response(dados)

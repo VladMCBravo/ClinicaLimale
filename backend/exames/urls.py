@@ -7,7 +7,8 @@ from .views import (
     VincularPacienteView,       # <--- 
     AcessarResultadosView,
     ResgatarPorNomeView,         # <--- 
-    UltimosExamesEnviadosView    # <--- 
+    UltimosExamesEnviadosView,    # <--- 
+    WorklistDataView   # <--- IMPORTAMOS A NOVA VIEW AQUI
 )
 
 urlpatterns = [
@@ -22,4 +23,6 @@ urlpatterns = [
     path('exames-paciente/', ListarExamesDoPacienteView.as_view(), name='exames_paciente'),
     path('resgatar-nome/<int:exame_id>/', ResgatarPorNomeView.as_view(), name='resgatar_por_nome'),
     path('recentes/', UltimosExamesEnviadosView.as_view(), name='exames_recentes'),
+    # --- ROTA DO SCRIPT DO ULTRASSOM ---
+    path('worklist-data/', WorklistDataView.as_view(), name='worklist_data'),
 ]
