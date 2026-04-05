@@ -9,6 +9,8 @@ from .views import (
     ResgatarPorNomeView,         # <--- 
     UltimosExamesEnviadosView,    # <--- 
     WorklistDataView,             # <--- 
+    HeartbeatView,
+    ReportErrorView
    )
 
 urlpatterns = [
@@ -25,4 +27,7 @@ urlpatterns = [
     path('recentes/', UltimosExamesEnviadosView.as_view(), name='exames_recentes'),
     # --- ROTA DO SCRIPT DO ULTRASSOM ---
     path('worklist-data/', WorklistDataView.as_view(), name='worklist_data'),
+    # --- NOVAS ROTAS DO ROBÔ ---
+    path('heartbeat/', HeartbeatView.as_view(), name='robo_heartbeat'),
+    path('report-error/', ReportErrorView.as_view(), name='robo_report_error'),
 ]

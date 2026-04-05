@@ -13,6 +13,7 @@ from rest_framework.generics import ListAPIView, UpdateAPIView
 from .serializers import ExameSerializer
 import boto3
 from django.conf import settings
+from django.core.cache import cache
 from prontuario.models import Laudo
 import re  # Para ajudar a limpar os números do nome da pasta
 # --- NOVAS IMPORTAÇÕES PARA O WORKLIST ---
@@ -370,3 +371,54 @@ class WorklistDataView(APIView):
             })
         
         return Response(dados)
+
+# --- NOVAS VIEWS PARA O ROBÔ DE SINCRONIZAÇÃO (HEARTBEAT E ERROS) ---
+
+class HeartbeatView(APIView):
+    """
+    Controla o status "Online/Offline" do Robô da Clínica.
+    POST: O script local bate aqui a cada 3 minutos para avisar que está vivo.
+    GET: O React bate aqui para checar se o robô respondeu nos últimos 5 minutos.
+    """
+    permission_classes = [AllowAny] # Permite o script bater sem token complexo
+
+    def post(self, request):
+        # Salva a data/hora atual no cache do Django
+        cache.set('robo_ultimo_heartbeat', timezone.now(), timeout=None)
+        return Response({'status': 'vivo'}, status=status.HTTP_200_OK)
+
+    def get(self, request):
+        ultimo_ping = cache.get('robo_ultimo_heartbeat')
+        
+        # Se nunca bateu ou o servidor reiniciou
+        if not ultimo_ping:
+            return Response({'online': False})
+        
+        # Calcula a diferença de tempo (Limite de tolerância: 5 minutos / 300 segundos)
+        diferenca_segundos = (timezone.now() - ultimo_ping).total_seconds()
+        
+        if diferenca_segundos > 300:
+            return Response({'online': False})
+            
+        return Response({'online': True})
+
+
+class ReportErrorView(APIView):
+    """
+    Recebe alertas de erro do script local quando uma pasta não consegue subir.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        nome_pasta = request.data.get('nome_pasta_original', 'Pasta Desconhecida')
+        # Limita o tamanho da mensagem para não quebrar o banco
+        erro_msg = request.data.get('erro_msg', 'Erro desconhecido')[:200] 
+
+        # Salva um registro no banco com status ERRO para o React mostrar
+        Exame.objects.create(
+            nome_paciente_pasta=f"{nome_pasta} | ERRO: {erro_msg}",
+            data_exame=timezone.now().date(),
+            status='ERRO'
+        )
+
+        return Response({'status': 'erro_registrado'}, status=status.HTTP_201_CREATED)
