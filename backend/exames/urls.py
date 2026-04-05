@@ -8,8 +8,8 @@ from .views import (
     AcessarResultadosView,
     ResgatarPorNomeView,         # <--- 
     UltimosExamesEnviadosView,    # <--- 
-    WorklistDataView   # <--- IMPORTAMOS A NOVA VIEW AQUI
-)
+    WorklistDataView,             # <--- 
+   )
 
 urlpatterns = [
     path('upload/', UploadExameView.as_view(), name='upload_exame'),

@@ -1,8 +1,7 @@
-// src/components/StatusRobo.jsx
 import React, { useState, useEffect } from 'react';
-import { FaRobot, FaCheckCircle } from 'react-icons/fa';
+import { FaRobot, FaCheckCircle, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { 
-    Badge, Popover, Box, Typography, List, ListItem, ListItemText, Divider 
+    Badge, Popover, Box, Typography, List, ListItem, ListItemText, Divider, Tooltip 
 } from '@mui/material';
 import apiClient from '../api/axiosConfig';
 
@@ -27,6 +26,34 @@ export default function StatusRobo() {
         return () => clearInterval(interval);
     }, []);
 
+    // Função auxiliar para definir Cor, Ícone e Mensagem do Tooltip
+    const getStatusConfig = (item) => {
+        // 1. Erro Crítico (Vermelho) - Exige ação técnica
+        if (item.status === 'ERRO') {
+            return {
+                color: '#d32f2f', // Vermelho
+                icon: FaTimesCircle,
+                tooltip: 'Falha na importação. Arquivos podem estar corrompidos ou a conexão caiu.',
+            };
+        }
+        // 2. Alerta de Vínculo (Laranja) - Exige ação da recepção
+        else if (item.paciente === 'Desconhecido' || item.status === 'PENDENTE') {
+            return {
+                color: '#ed6c02', // Laranja
+                icon: FaExclamationTriangle,
+                tooltip: 'Exame importado, mas paciente não identificado. Clique em "Vincular" no painel.',
+            };
+        }
+        // 3. Sucesso Absoluto (Verde) - Tudo certo
+        else {
+            return {
+                color: '#4CAF50', // Verde
+                icon: FaCheckCircle,
+                tooltip: 'Importado e vinculado ao paciente com sucesso.',
+            };
+        }
+    };
+
     return (
         <>
             <Box 
@@ -43,11 +70,17 @@ export default function StatusRobo() {
                     variant="dot"
                     sx={{ '& .MuiBadge-badge': { animation: roboStatus === 'online' ? 'pulse-green 1.5s infinite' : 'none' } }}
                 >
-                    <FaRobot size={16} color={roboStatus === 'online' ? '#4CAF50' : '#9e9e9e'} />
+                    <Tooltip title={roboStatus === 'offline' ? 'Servidor indisponível' : 'Robô operante'} arrow>
+                        <span>
+                            <FaRobot size={16} color={roboStatus === 'online' ? '#4CAF50' : '#9e9e9e'} />
+                        </span>
+                    </Tooltip>
                 </Badge>
                 <span style={{ fontSize: '0.75rem', color: '#e0e0e0', fontWeight: 600 }}>
                     {roboStatus === 'carregando' ? '...' : 
-                     roboStatus === 'online' && roboHistory.length > 0 ? `USG: ${roboHistory[0].paciente.split(' ')[0]}` : 'USG Ocioso'}
+                     roboStatus === 'online' && roboHistory.length > 0 
+                        ? `USG: ${roboHistory[0]?.paciente?.split(' ')[0] || 'Novo'}` 
+                        : 'USG Ocioso'}
                 </span>
             </Box>
 
@@ -56,21 +89,38 @@ export default function StatusRobo() {
                 onClose={() => setAnchorElRobo(null)}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-                <Box sx={{ p: 2, width: 320 }}>
+                <Box sx={{ p: 2, width: 350 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, color: '#1C2E4A', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <FaRobot /> Últimos Exames Enviados
+                        <FaRobot /> Últimos Exames Processados
                     </Typography>
                     <Divider sx={{ mb: 1 }} />
                     <List dense>
-                        {roboHistory.map((item, idx) => (
-                            <ListItem key={idx} sx={{ borderBottom: '1px solid #f0f0f0', px: 0 }}>
-                                <ListItemText 
-                                    primary={<span style={{fontSize: '11px', fontWeight: 'bold'}}>{item.paciente}</span>}
-                                    secondary={<span style={{fontSize: '10px'}}>{item.data_envio}</span>}
-                                />
-                                <FaCheckCircle color="#4CAF50" size={14} />
-                            </ListItem>
-                        ))}
+                        {roboHistory.map((item, idx) => {
+                            const config = getStatusConfig(item);
+                            const Icone = config.icon;
+
+                            return (
+                                <ListItem key={idx} sx={{ borderBottom: '1px solid #f0f0f0', px: 0 }}>
+                                    <ListItemText 
+                                        primary={
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: config.color }}>
+                                                {item.paciente}
+                                            </span>
+                                        }
+                                        secondary={
+                                            <span style={{ fontSize: '10px', color: '#757575' }}>
+                                                {item.data_envio} • Pasta: {item.nome_pasta}
+                                            </span>
+                                        }
+                                    />
+                                    <Tooltip title={config.tooltip} placement="left" arrow>
+                                        <div style={{ cursor: 'help', display: 'flex', alignItems: 'center', padding: '4px' }}>
+                                            <Icone color={config.color} size={16} />
+                                        </div>
+                                    </Tooltip>
+                                </ListItem>
+                            );
+                        })}
                     </List>
                 </Box>
             </Popover>
