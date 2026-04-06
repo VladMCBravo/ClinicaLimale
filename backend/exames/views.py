@@ -365,7 +365,7 @@ class WorklistDataView(APIView):
                 "paciente_id": agn.paciente.id,
                 "paciente_nome": agn.paciente.nome_completo,
                 "paciente_nascimento": agn.paciente.data_nascimento.strftime('%Y%m%d') if agn.paciente.data_nascimento else "",
-                "paciente_sexo": agn.paciente.sexo,
+                "paciente_sexo": getattr(agn.paciente, 'sexo', getattr(agn.paciente, 'genero', 'O')),
                 "data_exame": agn.data_hora_inicio.strftime('%Y%m%d'),
                 "medico_nome": medico_nome
             })
