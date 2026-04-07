@@ -81,45 +81,51 @@ export default function AgendaPrincipal({
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
 
-    // 1. NOVO ESTADO: Guarda os eventos na memória
-    const [eventos, setEventos] = useState([]);
+    // 1. Apague o [eventos, setEventos] e a função carregarEventos.
+    // 2. Crie esta nova função que o FullCalendar vai usar para buscar os dados sob demanda:
+    const fetchEventos = useCallback((fetchInfo, successCallback, failureCallback) => {
+    // O FullCalendar fornece automaticamente o startStr e endStr da tela atual!
+    const { startStr, endStr } = fetchInfo;
 
-    // 2. BUSCA INTELIGENTE: Puxa do banco e salva no estado
-    const carregarEventos = useCallback(() => {
-        agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro)
-            .then(response => {
-                const eventosFormatados = response.data
-                    .filter(ag => ag.sala) 
-                    .map(ag => {
-                        const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
-                        return {
-                            id: ag.id,
-                            title: ag.paciente_nome, 
-                            start: ag.data_hora_inicio,
-                            end: ag.data_hora_fim,
-                            extendedProps: { 
-                                ...ag,
-                                tipo_procedimento: ag.tipo_exame || 'CONSULTA', 
-                                paciente_id: ag.paciente, 
-                                medico_nome: ag.medico_nome,
-                                medico_crm: ag.medico_crm
-                            },
-                            resourceId: String(ag.sala),
-                            backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
-                            borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
-                            textColor: isInativo ? '#666' : '#fff',
-                            classNames: isInativo ? ['evento-inativo'] : []
-                        };
-                    });
-                setEventos(eventosFormatados);
-            })
-            .catch(error => console.error("Erro ao carregar a agenda:", error));
-    }, [medicoFiltro, especialidadeFiltro]);
+    agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro, startStr, endStr)
+        .then(response => {
+            const eventosFormatados = response.data
+                .filter(ag => ag.sala) 
+                .map(ag => {
+                    const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
+                    return {
+                        id: ag.id,
+                        title: ag.paciente_nome, 
+                        start: ag.data_hora_inicio,
+                        end: ag.data_hora_fim,
+                        extendedProps: { 
+                            ...ag,
+                            tipo_procedimento: ag.tipo_exame || 'CONSULTA', 
+                            paciente_id: ag.paciente, 
+                            medico_nome: ag.medico_nome,
+                            medico_crm: ag.medico_crm
+                        },
+                        resourceId: String(ag.sala),
+                        backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
+                        borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
+                        textColor: isInativo ? '#666' : '#fff',
+                        classNames: isInativo ? ['evento-inativo'] : []
+                    };
+                });
+            successCallback(eventosFormatados); // Entrega os dados pro FullCalendar
+        })
+        .catch(error => {
+            console.error("Erro ao carregar a agenda:", error);
+            failureCallback(error); // Avisa o FullCalendar que deu erro
+        });
+}, [medicoFiltro, especialidadeFiltro]);
 
-    // 3. GATILHO: Roda a busca apenas quando a tela abre ou um filtro/agendamento muda
-    useEffect(() => {
-        carregarEventos();
-    }, [carregarEventos, refreshTrigger]);
+    // 3. Atualize o useEffect para forçar o recarregamento quando salvar um agendamento novo
+useEffect(() => {
+    if (calendarRef.current) {
+        calendarRef.current.getApi().refetchEvents();
+    }
+    }, [refreshTrigger]);
 
     // HANDLERS DO MENU
 
@@ -199,7 +205,7 @@ export default function AgendaPrincipal({
                     buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
                     headerToolbar={{ left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' }}
                     height="100%"
-                    events={eventos}
+                    events={fetchEventos}
                     resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
                     dateClick={onDateClick}
                     eventClick={handleCalendarEventClick}

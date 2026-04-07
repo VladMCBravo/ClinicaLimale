@@ -46,7 +46,21 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         medico_id = self.request.query_params.get('medico_id')
         if medico_id:
             queryset = queryset.filter(medico_id=medico_id)
-            
+        
+        # --- A MÁGICA DA OTIMIZAÇÃO: FILTRO DE DATAS ---
+        start = self.request.query_params.get('start')
+        end = self.request.query_params.get('end')
+
+        if start:
+            start_date = parse_datetime(start)
+            if start_date:
+                queryset = queryset.filter(data_hora_inicio__gte=start_date)
+
+        if end:
+            end_date = parse_datetime(end)
+            if end_date:
+                queryset = queryset.filter(data_hora_inicio__lte=end_date)
+
         return queryset
 
     def get_serializer_class(self):

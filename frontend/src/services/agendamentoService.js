@@ -1,10 +1,13 @@
 // src/services/agendamentoService.js - VERSÃO REVISADA E CORRIGIDA
 import apiClient from '../api/axiosConfig';
 
-const getAgendamentos = (medicoId, especialidadeId) => {
+const getAgendamentos = (medicoId, especialidadeId, start = null, end = null) => {
     const params = new URLSearchParams();
     if (medicoId) params.append('medico_id', medicoId);
     if (especialidadeId) params.append('especialidade_id', especialidadeId);
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    
     const queryString = params.toString();
     return apiClient.get(`/agendamentos/${queryString ? `?${queryString}` : ''}`);
 };
