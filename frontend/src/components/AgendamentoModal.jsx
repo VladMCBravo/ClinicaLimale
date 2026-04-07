@@ -281,19 +281,20 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     
     // --- LÓGICA DE CAPACIDADE ATUALIZADA (COM BLINDAGEM) ---
     useEffect(() => {
-        // BLINDAGEM: Verifica se existe E se é uma data válida (isValid do dayjs)
         const inicioValido = formData.data_hora_inicio && formData.data_hora_inicio.isValid();
         const fimValido = formData.data_hora_fim && formData.data_hora_fim.isValid();
+        
+        // Extraímos a sala antes do IF
+        const salaId = formData.sala ? formData.sala.id : null;
 
-        if (open && inicioValido && fimValido) {
+        // A MÁGICA ESTÁ AQUI: Adicionamos o "&& salaId" na condição.
+        // O React agora vai "esperar" a sala ser selecionada/carregada antes de verificar!
+        if (open && inicioValido && fimValido && salaId) {
             setCapacidade(prev => ({ ...prev, loading: true }));
             
             const inicioISO = formData.data_hora_inicio.toISOString();
             const fimISO = formData.data_hora_fim.toISOString();
-            const salaId = formData.sala ? formData.sala.id : null;
             
-            // Nota: Se sua API aceitar salaId, passe aqui. Se não, mantenha como estava.
-            // Vou manter conforme seu código original que passava inicio e fim:
             agendamentoService.verificarCapacidade(inicioISO, fimISO, salaId)
                 .then(response => {
                     setCapacidade({ 
@@ -306,7 +307,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); 
                 });
         }
-    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]);
+    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]); // Mantemos o formData.sala aqui
 
     // Lógica de Bloqueio (CORRIGIDA)
     useEffect(() => {

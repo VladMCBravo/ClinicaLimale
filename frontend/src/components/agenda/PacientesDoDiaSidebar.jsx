@@ -45,12 +45,11 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
 
     const fetchPacientesDoDia = useCallback(async () => {
         setIsLoading(true);
-        console.log("[DEBUG] Iniciando busca de pacientes. Data:", dataExibicao); // <--- LOG 1
+        
         try {
             // Passamos a dataExibicao para o service
             const response = await agendamentoService.getAgendamentosHoje(medicoFiltro, dataExibicao);
-            console.log("[DEBUG] Retorno do backend:", response.data); // <--- LOG 2
-            
+                        
             const dadosOrdenados = response.data.sort((a, b) => 
                 new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
             );
@@ -66,7 +65,6 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     // =========================================================================
     // AQUI ESTÁ O CARA QUE FALTAVA PARA FAZER A BUSCA ACONTECER:
     useEffect(() => {
-        console.log("[DEBUG] Atualizando a Sidebar..."); // <--- LOG 3
         fetchPacientesDoDia();
     }, [fetchPacientesDoDia, refreshTrigger]); 
     // =========================================================================
