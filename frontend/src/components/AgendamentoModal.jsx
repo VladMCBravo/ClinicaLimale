@@ -6,6 +6,7 @@ import {
   Box, Typography, Divider, Chip, Grid, Switch, FormControlLabel
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete'; // Importando ícone
+import PersonAddIcon from '@mui/icons-material/PersonAdd'; // <--- ADICIONE ESTA LINHA
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -400,71 +401,73 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        const erroValidacao = validarFormulario();
-        if (erroValidacao) {
-            showSnackbar(erroValidacao, 'warning');
-            return;
-        }
+    e.preventDefault();
+    
+    const erroValidacao = validarFormulario();
+    if (erroValidacao) {
+        showSnackbar(erroValidacao, 'warning');
+        return;
+    }
 
-        setIsSubmitting(true);
-        
-        // Prepara objeto base
-        const submissionData = {
-          ...formData,
-          sala: formData.sala?.id || null,
-          tipo_agendamento: tipoAgendamento,
-          paciente: formData.paciente?.id || null,
-          medico: formData.medico?.id || null,
-          especialidade: formData.especialidade?.id || null,
-          data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
-          data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
-        };
-
-        // LÓGICA DE ENVIO HÍBRIDA
-        if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0 && !editingEvent) {
-            // Modo Criação Múltipla
-            submissionData.procedimentos_ids = formData.procedimentos.map(p => p.id);
-            delete submissionData.procedimento; // Remove o singular
-        } else {
-            // Modo Legado / Edição / Consulta / Single
-            submissionData.procedimento = formData.procedimento?.id || null;
-            if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0) {
-                 // Fallback caso usuário edite e selecione array, pegamos o primeiro
-                 submissionData.procedimento = formData.procedimentos[0].id;
-            }
-        }
-        // --- NOVA LÓGICA: Injetar Isenção ---
-        if (formData.isento_cobranca) {
-            submissionData.isento_cobranca = true;
-            submissionData.motivo_isencao = formData.motivo_isencao;
-            
-            // Adiciona o motivo também na observação da agenda para o médico ver
-            const notaIsencao = `[ISENTO: ${formData.motivo_isencao}]`;
-            submissionData.observacoes = submissionData.observacoes 
-                ? `${submissionData.observacoes}\n${notaIsencao}` 
-                : notaIsencao;
-        }
-
-        try {
-            const eventId = editingEvent?.id;
-            // Se for update, usa a rota antiga. Se for create, o backend novo detecta 'procedimentos_ids'
-            const request = eventId 
-                ? agendamentoService.updateAgendamento(eventId, submissionData) 
-                : agendamentoService.createAgendamento(submissionData);
-            
-            await request;
-            showSnackbar(eventId ? 'Agendamento atualizado!' : 'Agendamentos criados com sucesso!', 'success');
-            onSave();
-            onClose(); // <--- ADICIONE ESTA LINHA PARA FECHAR O MODAL
-        } catch (error) {
-            // ... erro handler ...
-             showSnackbar("Erro ao processar", 'error');
-        } finally {
-            setIsSubmitting(false);
-        }
+    setIsSubmitting(true);
+    
+    const submissionData = {
+        ...formData,
+        sala: formData.sala?.id || null,
+        tipo_agendamento: tipoAgendamento,
+        paciente: formData.paciente?.id || null,
+        medico: formData.medico?.id || null,
+        especialidade: formData.especialidade?.id || null,
+        data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
+        data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
     };
+
+    // --- A LIMPEZA CRUCIAL ---
+    // Removemos os arrays brutos para que o backend não recuse a requisição
+    delete submissionData.procedimentos;
+
+    // LÓGICA DE ENVIO HÍBRIDA
+    if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0 && !editingEvent) {
+        submissionData.procedimentos_ids = formData.procedimentos.map(p => p.id);
+        delete submissionData.procedimento; 
+    } else {
+        submissionData.procedimento = formData.procedimento?.id || null;
+        if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0) {
+                submissionData.procedimento = formData.procedimentos[0].id;
+        }
+    }
+    
+    // Injetar Isenção
+    if (formData.isento_cobranca) {
+        submissionData.isento_cobranca = true;
+        submissionData.motivo_isencao = formData.motivo_isencao;
+        const notaIsencao = `[ISENTO: ${formData.motivo_isencao}]`;
+        submissionData.observacoes = submissionData.observacoes 
+            ? `${submissionData.observacoes}\n${notaIsencao}` 
+            : notaIsencao;
+    }
+
+    try {
+        const eventId = editingEvent?.id;
+        const request = eventId 
+            ? agendamentoService.updateAgendamento(eventId, submissionData) 
+            : agendamentoService.createAgendamento(submissionData);
+        
+        await request;
+        showSnackbar(eventId ? 'Agendamento atualizado!' : 'Agendamentos criados com sucesso!', 'success');
+        onSave();
+        onClose(); 
+    } catch (error) {
+        // --- O NOVO DEDO-DURO DE ERROS ---
+        console.error("Erro detalhado do Backend:", error.response?.data);
+        const errorMsg = error.response?.data 
+            ? JSON.stringify(error.response.data).replace(/[\[\]"{}]/g, '') 
+            : "Erro ao processar no servidor.";
+        showSnackbar(errorMsg, 'error');
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
     // --- NOVA LÓGICA: Excluir Agendamento ---
     const handleDelete = async () => {
@@ -575,18 +578,42 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                             filterOptions={(options, params) => {
                                                                 const filtered = filter(options, params);
                                                                 const { inputValue } = params;
-                                                                const isExisting = options.some((option) => inputValue === option.nome_completo);
+                                                                const isExisting = options.some((option) => inputValue.toLowerCase() === option.nome_completo.toLowerCase());
                                                                 if (inputValue !== '' && !isExisting) {
                                                                     filtered.push({
                                                                         inputValue,
                                                                         nome_completo: `Adicionar "${inputValue}"`,
-                                                                        isNew: true
+                                                                        isNew: true // Marcador para o renderOption identificar
                                                                     });
                                                                 }
                                                                 return filtered;
                                                             }}
+                                                            // --- A MÁGICA VISUAL ACONTECE AQUI ---
+                                                            renderOption={(props, option) => {
+                                                                const { key, ...optionProps } = props;
+                                                                return (
+                                                                    <li key={key} {...optionProps} style={{ padding: 0 }}>
+                                                                        {option.isNew ? (
+                                                                            <Box sx={{ 
+                                                                                display: 'flex', alignItems: 'center', width: '100%', 
+                                                                                p: 1.5, color: 'primary.main', bgcolor: '#f0f7ff', 
+                                                                                fontWeight: 'bold', borderBottom: '1px solid #e0e0e0',
+                                                                                transition: '0.2s', '&:hover': { bgcolor: '#e3f2fd' }
+                                                                            }}>
+                                                                                <PersonAddIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                                                                                Cadastrar novo paciente: "{option.inputValue}"
+                                                                            </Box>
+                                                                        ) : (
+                                                                            <Box sx={{ p: 1.5, width: '100%' }}>
+                                                                                {option.nome_completo}
+                                                                            </Box>
+                                                                        )}
+                                                                    </li>
+                                                                );
+                                                            }}
+                                                            // -------------------------------------
                                                             renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" error={!formData.paciente} />)} 
-                                                            />
+                                                        />
                                                             </FormControl>
                                 {pacienteDetalhes?.plano_convenio_detalhes && (<Box sx={{ p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1 }}><Typography variant="body2" color="text.secondary">Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome}</strong></Typography></Box>)}
                                 {bloqueioCapacidade && (
