@@ -13,6 +13,7 @@ import { IMaskInput } from 'react-imask'; // Necessário para a máscara
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import 'dayjs/locale/pt-br';
+import { createFilterOptions } from '@mui/material/Autocomplete';
 
 // Configurações do Dayjs
 dayjs.extend(customParseFormat);
@@ -55,7 +56,9 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
   );
 });
 
-export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData }) {
+const filter = createFilterOptions();
+
+export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente }) {
     const { showSnackbar } = useSnackbar();
 
     // --- CONSTANTES DE CAPACIDADE (Definidas no escopo do componente) ---
@@ -76,6 +79,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
     const [salas, setSalas] = useState([]); 
+    const [isEncaixe, setIsEncaixe] = useState(false);
     
     // Dados filtrados/calculados
     const [salasFiltradas, setSalasFiltradas] = useState([]);
@@ -117,6 +121,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             setPacienteDetalhes(null);
             setDataInicioVisual('');
             setDataFimVisual('');
+            setIsEncaixe(false);
             return;
         }
 
@@ -384,6 +389,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (tipoAgendamento === 'Consulta') return "Limite de consultas simultâneas atingido.";
             if (tipoAgendamento === 'Procedimento') return "A sala de procedimentos já está ocupada.";
         }
+
+        // SE NÃO FOR ENCAIXE, ELE BLOQUEIA. SE FOR, ELE DEIXA PASSAR.
+        if (bloqueioCapacidade && !isEncaixe) {
+            if (tipoAgendamento === 'Consulta') return "Limite de consultas simultâneas atingido. Marque 'Forçar Encaixe' para ignorar.";
+            if (tipoAgendamento === 'Procedimento') return "A sala de procedimentos já está ocupada. Marque 'Forçar Encaixe' para ignorar.";
+        }
         
         return null;
     };
@@ -543,8 +554,56 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         noOptionsText="Nenhuma sala compatível"
                                     />
                                 </FormControl>
-                                <FormControl fullWidth><Autocomplete options={pacientes} getOptionLabel={(p) => p.nome_completo || ''} value={formData.paciente} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handlePacienteChange} renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" error={!formData.paciente} />)} /></FormControl>
+                                <FormControl fullWidth><Autocomplete 
+                                                            options={pacientes} 
+                                                            getOptionLabel={(p) => {
+                                                                if (typeof p === 'string') return p;
+                                                                if (p.inputValue) return p.inputValue;
+                                                                return p.nome_completo || '';
+                                                            }} 
+                                                            value={formData.paciente} 
+                                                            isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                                            onChange={(event, newValue) => {
+                                                                if (typeof newValue === 'string') {
+                                                                    if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue);
+                                                                } else if (newValue && newValue.isNew) {
+                                                                    if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue.inputValue);
+                                                                } else {
+                                                                    handlePacienteChange(event, newValue);
+                                                                }
+                                                            }} 
+                                                            filterOptions={(options, params) => {
+                                                                const filtered = filter(options, params);
+                                                                const { inputValue } = params;
+                                                                const isExisting = options.some((option) => inputValue === option.nome_completo);
+                                                                if (inputValue !== '' && !isExisting) {
+                                                                    filtered.push({
+                                                                        inputValue,
+                                                                        nome_completo: `Adicionar "${inputValue}"`,
+                                                                        isNew: true
+                                                                    });
+                                                                }
+                                                                return filtered;
+                                                            }}
+                                                            renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" error={!formData.paciente} />)} 
+                                                            />
+                                                            </FormControl>
                                 {pacienteDetalhes?.plano_convenio_detalhes && (<Box sx={{ p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1 }}><Typography variant="body2" color="text.secondary">Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome}</strong></Typography></Box>)}
+                                {bloqueioCapacidade && (
+                                    <Box sx={{ mt: 1, p: 1, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffcc80' }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch 
+                                                    checked={isEncaixe} 
+                                                    onChange={(e) => setIsEncaixe(e.target.checked)} 
+                                                    color="warning" 
+                                                    size="small"
+                                                />
+                                            }
+                                            label={<Typography variant="body2" color="warning.dark" fontWeight="bold">Forçar Encaixe (Ignorar limite de sala)</Typography>}
+                                        />
+                                    </Box>
+                                )}
                                 <Divider sx={{ my: 1 }}><Chip label="Detalhes" size="small" /></Divider>
                                 <FormControl fullWidth size="small"><InputLabel>Tipo</InputLabel><Select value={tipoAgendamento} label="Tipo" onChange={(e) => setTipoAgendamento(e.target.value)}><MenuItem value="Consulta">Consulta</MenuItem><MenuItem value="Procedimento">Procedimento</MenuItem></Select></FormControl>
                                 {tipoAgendamento === 'Consulta' ? (

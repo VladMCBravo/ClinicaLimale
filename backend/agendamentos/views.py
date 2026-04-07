@@ -436,34 +436,31 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         fim_str = request.query_params.get('fim')
         sala_id = request.query_params.get('sala_id')
         
-        # 1. LOG DE ENTRADA
-        print(f"\n[DEBUG CAPACIDADE] Verificando das {inicio_str} às {fim_str} para a Sala ID: {sala_id}")
-
         if not inicio_str or not fim_str:
             return Response({'detail': 'Dados insuficientes.'}, status=400)
 
         try:
-            inicio = parse_datetime(inicio_str)
-            fim = parse_datetime(fim_str)
+            inicio_exato = parse_datetime(inicio_str)
+            fim_exato = parse_datetime(fim_str)
+            
+            # --- A MÁGICA CONTRA OS MILISSEGUNDOS ---
+            # Adiciona 1 segundo de tolerância. 
+            # Assim, se o paciente anterior termina às 12:45:00.810, 
+            # o backend só vai considerar conflito se invadir 12:45:01!
+            inicio_tolerancia = inicio_exato + timedelta(seconds=1)
+            fim_tolerancia = fim_exato - timedelta(seconds=1)
+
         except ValueError:
             return Response({'detail': 'Data inválida.'}, status=400)
 
+        # Atualizamos a query para usar as datas com tolerância
         agendamentos_conflitantes = Agendamento.objects.filter(
-            data_hora_inicio__lt=fim, 
-            data_hora_fim__gt=inicio,
+            data_hora_inicio__lt=fim_tolerancia, 
+            data_hora_fim__gt=inicio_tolerancia,
         ).exclude(status__in=['Cancelado', 'Não Compareceu']) 
 
         if sala_id and str(sala_id).lower() != 'null':
             agendamentos_conflitantes = agendamentos_conflitantes.filter(sala_id=sala_id)
-
-        # --- 2. O DEBUG REVELADOR (DEDO-DURO) ---
-        print(f"[DEBUG CAPACIDADE] Encontrados {agendamentos_conflitantes.count()} conflitos na Sala {sala_id}.")
-        for ag in agendamentos_conflitantes:
-            paciente_nome = ag.paciente.nome_completo if ag.paciente else "Sem paciente"
-            print(f" -> Bloqueado por: {paciente_nome} | ID Agendamento: {ag.id}")
-            print(f"    Status: {ag.status} | Tipo: {ag.tipo_agendamento}")
-            print(f"    Horário gravado no banco: Das {ag.data_hora_inicio} às {ag.data_hora_fim}")
-        # ----------------------------------------
 
         qtd_consultas = agendamentos_conflitantes.filter(tipo_agendamento='Consulta').count()
         qtd_procedimentos = agendamentos_conflitantes.filter(tipo_agendamento='Procedimento').count()

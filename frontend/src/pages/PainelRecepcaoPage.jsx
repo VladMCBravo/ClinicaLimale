@@ -43,6 +43,7 @@ export default function PainelRecepcaoPage() {
 
     const [editingEvent, setEditingEvent] = useState(null);
     const [initialData, setInitialData] = useState(null);
+    const [nomeNovoPaciente, setNomeNovoPaciente] = useState('');
 
     // Carrega SALAS
     useEffect(() => {
@@ -120,6 +121,11 @@ export default function PainelRecepcaoPage() {
              especialidadeId: slotInfo.especialidade?.id
         });
         setIsAgendamentoModalOpen(true);
+    };
+
+    const handleAbrirNovoPaciente = (nomeDigitado) => {
+    setNomeNovoPaciente(nomeDigitado);
+    setIsPacienteModalOpen(true);
     };
 
     return (
@@ -241,7 +247,14 @@ export default function PainelRecepcaoPage() {
                 </Box>
             </Drawer>
             <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }} pacienteParaEditar={null} />
-            <AgendamentoModal open={isAgendamentoModalOpen} onClose={handleCloseAgendamentoModal} onSave={handleAgendamentoSave} initialData={initialData} editingEvent={editingEvent} />
+            <AgendamentoModal 
+                open={isAgendamentoModalOpen} 
+                onClose={handleCloseAgendamentoModal} 
+                onSave={handleAgendamentoSave} 
+                initialData={initialData} 
+                editingEvent={editingEvent}
+                onAbrirNovoPaciente={handleAbrirNovoPaciente} // <--- ADICIONE AQUI
+            />
         </Box>
     );
 }
