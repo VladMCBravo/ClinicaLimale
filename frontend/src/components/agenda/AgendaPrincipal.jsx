@@ -137,16 +137,18 @@ export default function AgendaPrincipal({
 
     // 2. Ação: Editar
     const handleActionEditar = () => {
-        if (selectedEvent) {
-            onEventClick({ 
-                event: { 
-                    id: selectedEvent.id, 
-                    ...selectedEvent.extendedProps 
-                } 
-            }); 
-        }
-        handleCloseMenu();
-    };
+    if (selectedEvent) {
+        onEventClick({ 
+            event: { 
+                id: selectedEvent.id, 
+                start: selectedEvent.start, // <--- ADICIONE ESTA LINHA
+                end: selectedEvent.end,     // <--- ADICIONE ESTA LINHA (boa prática)
+                ...selectedEvent.extendedProps 
+            } 
+        }); 
+    }
+    handleCloseMenu();
+};
 
     // 3. Ação: Laudo
     const handleActionLaudo = () => {

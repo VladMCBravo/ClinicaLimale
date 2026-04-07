@@ -85,7 +85,10 @@ export default function PainelRecepcaoPage() {
     // Trocamos o nome da variável de "event" para "eventoSelecionado"
     const eventoSelecionado = clickInfo.event || clickInfo;
     
-    setDataSidebar(eventoSelecionado.start);
+    // Fallback: Se não achar o start, tenta usar a string que vem da API, ou a data atual
+    const dataParaSidebar = eventoSelecionado.start || new Date(eventoSelecionado.data_hora_inicio || Date.now());
+    
+    setDataSidebar(dataParaSidebar);
     setInitialData(null); 
     setEditingEvent(eventoSelecionado); 
     setIsAgendamentoModalOpen(true); 
@@ -96,13 +99,16 @@ export default function PainelRecepcaoPage() {
         const novaData = dateInfo.view.currentStart;
         
         setDataSidebar((dataAntiga) => {
-            // O Freio: Se o dia for exatamente o mesmo, aborta a atualização!
-            if (dataAntiga.toDateString() === novaData.toDateString()) {
-                return dataAntiga; // Mantém o estado intacto, evitando re-render
-            }
-            return novaData; // Se mudou o dia, aí sim ele atualiza
-        });
-    }, []);
+        // --- NOVA BLINDAGEM: Se dataAntiga for null/undefined, apenas assume a nova data ---
+        if (!dataAntiga) return novaData;
+
+        // O Freio: Se o dia for exatamente o mesmo, aborta a atualização!
+        if (dataAntiga.toDateString() === novaData.toDateString()) {
+            return dataAntiga; // Mantém o estado intacto, evitando re-render
+        }
+        return novaData; // Se mudou o dia, aí sim ele atualiza
+    });
+}, []);
 
     const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
 
