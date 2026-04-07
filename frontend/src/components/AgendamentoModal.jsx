@@ -420,6 +420,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         especialidade: formData.especialidade?.id || null,
         data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
         data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
+        is_encaixe: isEncaixe
     };
 
     // --- A LIMPEZA CRUCIAL ---
