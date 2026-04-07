@@ -254,7 +254,7 @@ export default function AgendaPrincipal({
                                         opacity: isInativo ? 0.5 : 0.8, // Mais transparente se inativo
                                         color: arg.textColor // Usa a cor do texto definida lá em cima
                                     }}>
-                                        {arg.timeText.replace(/:\d{2}$/, '')}
+                                        {arg.timeText.split(' - ')[0]}
                                     </span>
                                     <span style={{ 
                                         fontWeight: isInativo ? 'normal' : 'bold', // Tira o negrito se inativo

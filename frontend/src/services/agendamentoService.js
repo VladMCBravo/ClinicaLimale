@@ -63,7 +63,7 @@ const deleteAgendamento = (id) => apiClient.delete(`/agendamentos/${id}/`);
 const verificarCapacidade = (inicio, fim, salaId = null) => {
     const params = new URLSearchParams({ inicio, fim });
     if (salaId) {
-        params.append('sala', salaId);
+        params.append('sala_id', salaId); // <--- Mude de 'sala' para 'sala_id'
     }
     return apiClient.get(`/agendamentos/verificar-capacidade/?${params.toString()}`);
 };

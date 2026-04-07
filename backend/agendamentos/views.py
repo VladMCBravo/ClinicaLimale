@@ -420,6 +420,7 @@ class VerificarCapacidadeHorarioAPIView(APIView):
     def get(self, request, *args, **kwargs):
         inicio_str = request.query_params.get('inicio')
         fim_str = request.query_params.get('fim')
+        sala_id = request.query_params.get('sala_id') # <--- 1. CAPTURAMOS O ID DA SALA
         
         if not inicio_str or not fim_str:
             return Response({'detail': 'Dados insuficientes.'}, status=400)
@@ -430,10 +431,15 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         except ValueError:
             return Response({'detail': 'Data inválida.'}, status=400)
 
+        # Busca conflitos no intervalo de tempo
         agendamentos_conflitantes = Agendamento.objects.filter(
             data_hora_inicio__lt=fim, 
             data_hora_fim__gt=inicio,
-        ).exclude(status__in=['Cancelado', 'Não Compareceu']) # <--- ALTERAÇÃO AQUI
+        ).exclude(status__in=['Cancelado', 'Não Compareceu']) 
+
+        # <--- 2. A MÁGICA ACONTECE AQUI: Filtra os conflitos APENAS para a sala selecionada
+        if sala_id and str(sala_id).lower() != 'null':
+            agendamentos_conflitantes = agendamentos_conflitantes.filter(sala_id=sala_id)
 
         qtd_consultas = agendamentos_conflitantes.filter(tipo_agendamento='Consulta').count()
         qtd_procedimentos = agendamentos_conflitantes.filter(tipo_agendamento='Procedimento').count()
@@ -441,7 +447,7 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         return Response({
             'consultas_agendadas': qtd_consultas,
             'procedimentos_agendados': qtd_procedimentos,
-            'verificacao_por_sala': False
+            'verificacao_por_sala': bool(sala_id) # Atualiza a flag indicando que filtrou por sala
         })
         
 
