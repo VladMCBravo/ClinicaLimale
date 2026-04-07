@@ -5,6 +5,7 @@ from .models import Agendamento, Sala
 from pacientes.models import Paciente
 from usuarios.models import CustomUser, Especialidade
 from faturamento.models import Procedimento
+from datetime import timedelta
 
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
@@ -71,7 +72,16 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         if not inicio or not fim:
             return data
 
-        # 2. Validação Básica de Campos (INDENTAÇÃO CORRIGIDA)
+        # --- A MÁGICA DOS MILISSEGUNDOS (Tolerância de 1 segundo) ---
+        inicio_tolerancia = inicio + timedelta(seconds=1)
+        fim_tolerancia = fim - timedelta(seconds=1)
+
+        # --- A MÁGICA DO ENCAIXE ---
+        # Verifica se o frontend mandou a ordem de forçar o encaixe
+        is_encaixe_req = self.initial_data.get('is_encaixe', False)
+        is_encaixe = str(is_encaixe_req).lower() in ['true', '1', 't']
+
+        # 2. Validação Básica de Campos
         if tipo_agendamento == 'Consulta':
             medico = data.get('medico', getattr(instance, 'medico', None))
             if not medico: 
@@ -95,41 +105,42 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                 else:
                     raise serializers.ValidationError({"sala": "Nenhuma sala de procedimentos encontrada."})
 
-        # 3. Validação de Conflito de Sala
-        if sala_selecionada:
+        # 3. Validação de Conflito de Sala (Ignora se for Encaixe)
+        if sala_selecionada and not is_encaixe:
             conflito_sala = Agendamento.objects.filter(
                 sala=sala_selecionada,
-                data_hora_inicio__lt=fim,
-                data_hora_fim__gt=inicio
-            ).exclude(status__in=['Cancelado', 'Não Compareceu']) # <--- ALTERAÇÃO AQUI
+                data_hora_inicio__lt=fim_tolerancia, # Usa a tolerância!
+                data_hora_fim__gt=inicio_tolerancia  # Usa a tolerância!
+            ).exclude(status__in=['Cancelado', 'Não Compareceu'])
 
             if agendamento_id: 
                 conflito_sala = conflito_sala.exclude(pk=agendamento_id)
 
             if conflito_sala.exists():
-                raise serializers.ValidationError({"sala": f"A sala '{sala_selecionada.nome}' já está ocupada."})
+                raise serializers.ValidationError({"sala": f"A sala '{sala_selecionada.nome}' já está ocupada. Marque 'Forçar Encaixe' se desejar sobrepor."})
 
-        # 4. Validação de Limite Global
-        conflitos_globais = Agendamento.objects.filter(
-            data_hora_inicio__lt=fim,
-            data_hora_fim__gt=inicio,
-            tipo_agendamento=tipo_agendamento
-        ).exclude(status__in=['Cancelado', 'Não Compareceu']) # <--- ALTERAÇÃO AQUI
+        # 4. Validação de Limite Global (Ignora se for Encaixe)
+        if not is_encaixe:
+            conflitos_globais = Agendamento.objects.filter(
+                data_hora_inicio__lt=fim_tolerancia, # Usa a tolerância!
+                data_hora_fim__gt=inicio_tolerancia, # Usa a tolerância!
+                tipo_agendamento=tipo_agendamento
+            ).exclude(status__in=['Cancelado', 'Não Compareceu'])
 
-        if agendamento_id: 
-            conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
+            if agendamento_id: 
+                conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
+            
+            qtd_existente = conflitos_globais.count()
+
+            if tipo_agendamento == 'Consulta' and qtd_existente >= LIMITE_GLOBAL_CONSULTAS:
+                raise serializers.ValidationError({
+                    "non_field_errors": f"Limite de consultas atingido ({LIMITE_GLOBAL_CONSULTAS})."
+                })
         
-        qtd_existente = conflitos_globais.count()
-
-        if tipo_agendamento == 'Consulta' and qtd_existente >= LIMITE_GLOBAL_CONSULTAS:
-            raise serializers.ValidationError({
-                "non_field_errors": f"Limite de consultas atingido ({LIMITE_GLOBAL_CONSULTAS})."
-            })
-    
-        elif tipo_agendamento == 'Procedimento' and qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS:
-            raise serializers.ValidationError({
-                "non_field_errors": f"A sala de procedimentos já está ocupada ({LIMITE_GLOBAL_PROCEDIMENTOS})."
-            })
+            elif tipo_agendamento == 'Procedimento' and qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS:
+                raise serializers.ValidationError({
+                    "non_field_errors": f"A sala de procedimentos já está ocupada ({LIMITE_GLOBAL_PROCEDIMENTOS})."
+                })
 
         return data
 

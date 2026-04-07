@@ -579,11 +579,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                                 const filtered = filter(options, params);
                                                                 const { inputValue } = params;
                                                                 const isExisting = options.some((option) => inputValue.toLowerCase() === option.nome_completo.toLowerCase());
+                                                                
                                                                 if (inputValue !== '' && !isExisting) {
-                                                                    filtered.push({
+                                                                    // A MÁGICA: unshift coloca o item no TOPO da lista!
+                                                                    filtered.unshift({ 
                                                                         inputValue,
                                                                         nome_completo: `Adicionar "${inputValue}"`,
-                                                                        isNew: true // Marcador para o renderOption identificar
+                                                                        isNew: true
                                                                     });
                                                                 }
                                                                 return filtered;
