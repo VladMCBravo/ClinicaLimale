@@ -28,25 +28,38 @@ class UploadExameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
     
     def post(self, request, *args, **kwargs):
-        # O script local envia essas 3 variáveis
+        # 1. RECEBE AS VARIÁVEIS (Agora incluindo o ID do Agendamento)
         nome_pasta = request.data.get('nome_pasta_original')
-        nome_paciente_enviado = request.data.get('nome_paciente') # Ex: "RAFAELA" ou "145 RAFAELA"
+        nome_paciente_enviado = request.data.get('nome_paciente') 
         data_str = request.data.get('data_exame') 
+        agendamento_id_enviado = request.data.get('agendamento_id') # <--- O NOVO PARÂMETRO SALVADOR
         files = request.FILES.getlist('arquivos') 
 
         if not nome_pasta or not data_str or not nome_paciente_enviado:
             return Response({'erro': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. BUSCA INTELIGENTE DA PACIENTE (Com suporte a ID)
+        # 2. BUSCA BLINDADA DA PACIENTE (Com Tripla Verificação)
         paciente_encontrado = None
         
-        # A) Tenta achar o ID no começo do nome enviado (Ex: "145 RAFAELA" -> Pega o 145)
-        id_match = re.search(r'^(\d+)[\s_]', nome_paciente_enviado)
-        if id_match:
-            paciente_encontrado = Paciente.objects.filter(id=id_match.group(1)).first()
+        # A) Busca Absoluta pelo ID do Agendamento (Perfeição do Worklist)
+        if agendamento_id_enviado:
+            try:
+                from agendamentos.models import Agendamento
+                # Procura a ficha de agendamento 344 e pega a paciente exata dela
+                agendamento = Agendamento.objects.select_related('paciente').filter(id=agendamento_id_enviado).first()
+                if agendamento and agendamento.paciente:
+                    paciente_encontrado = agendamento.paciente
+            except Exception as e:
+                print(f"Erro ao buscar agendamento: {e}")
 
-        # B) Se não usaram ID na máquina, faz a busca pelo texto normal (Fallback)
-        if not paciente_encontrado:
+        # B) Fallback: Tenta achar o ID digitado manualmente no nome (Ex: "145 RAFAELA")
+        if not paciente_encontrado and nome_paciente_enviado:
+            id_match = re.search(r'^(\d+)[\s_]', nome_paciente_enviado)
+            if id_match:
+                paciente_encontrado = Paciente.objects.filter(id=id_match.group(1)).first()
+
+        # C) Último Recurso: Busca por texto cega (O que causou o problema com a Naline)
+        if not paciente_encontrado and nome_paciente_enviado:
             nome_limpo = re.sub(r'^[0-9-]+\s*_?', '', nome_paciente_enviado).replace('_', ' ').strip()
             pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
             
