@@ -653,9 +653,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         renderInput={(params) => (
                                             <TextField 
                                                 {...params} 
-                                                label="Procedimentos (Selecione 1 ou mais) *" 
+                                                // --- A MÁGICA VISUAL DO CAMINHO A AQUI ---
+                                                label={editingEvent ? "Procedimento *" : "Procedimentos (Selecione 1 ou mais) *"} 
                                                 size="small" 
                                                 placeholder={formData.procedimentos.length > 0 ? "" : "Selecione..."}
+                                                helperText={editingEvent ? "Na edição, altere apenas o procedimento atual. Para novos, crie outro agendamento." : ""}
                                             />
                                         )} 
                                         renderTags={(value, getTagProps) =>

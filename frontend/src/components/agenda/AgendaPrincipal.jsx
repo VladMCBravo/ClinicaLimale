@@ -89,16 +89,10 @@ export default function AgendaPrincipal({
 
     agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro, startStr, endStr)
         .then(response => {
-            // =================================================================
-            // DEBUG: O DEDO-DURO DO FRONTEND
-            // =================================================================
-            console.log(`\n[DEBUG AGENDA] Buscando intervalo de ${startStr} a ${endStr}`);
-            console.log(`[DEBUG AGENDA] O backend devolveu ${response.data.length} agendamentos brutos.`);
-            
+                        
             response.data.forEach(ag => {
-                console.log(`👻 -> ID: ${ag.id} | Paciente: ${ag.paciente_nome} | Sala: ${ag.sala} | Início Banco: ${ag.data_hora_inicio} | Status: ${ag.status}`);
             });
-            // =================================================================
+            
 
             const eventosFormatados = response.data
                 // Atenção: Aqui nós estamos escondendo pacientes que não têm sala! (Isso pode ser um fantasma)
