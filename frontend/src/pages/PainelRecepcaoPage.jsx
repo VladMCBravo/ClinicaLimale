@@ -246,7 +246,16 @@ export default function PainelRecepcaoPage() {
                     <VerificadorDisponibilidade onSlotSelect={handleSlotSelect} />
                 </Box>
             </Drawer>
-            <PacienteModal open={isPacienteModalOpen} onClose={() => setIsPacienteModalOpen(false)} onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); }} pacienteParaEditar={null} />
+            <PacienteModal 
+                open={isPacienteModalOpen} 
+                onClose={() => {
+                    setIsPacienteModalOpen(false);
+                    setNomeNovoPaciente(''); // Limpa o nome ao fechar
+                }} 
+                onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); setNomeNovoPaciente(''); }} 
+                pacienteParaEditar={null} 
+                nomeInicial={nomeNovoPaciente} // <--- A MÁGICA AQUI
+            />
             <AgendamentoModal 
                 open={isAgendamentoModalOpen} 
                 onClose={handleCloseAgendamentoModal} 

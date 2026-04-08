@@ -38,7 +38,7 @@ const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
   );
 });
 
-export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar }) {
+export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar, nomeInicial }) {
   const { showSnackbar } = useSnackbar();
   
   // --- Estados ---
@@ -103,12 +103,16 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           telefone_responsavel: pacienteParaEditar.telefone_responsavel || '',
         });
       } else {
-        setFormData(initialState);
+        // --- ALTERAÇÃO AQUI: Se for paciente novo, mescla o estado inicial com o nome digitado ---
+        setFormData({
+            ...initialState,
+            nome_completo: nomeInicial || '' 
+        });
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
       }
     }
-  }, [pacienteParaEditar, open]);
+  }, [pacienteParaEditar, open, nomeInicial]); // <--- Não esqueça de adicionar nomeInicial aqui!
 
   // --- Lógica de Convênios ---
   useEffect(() => {
