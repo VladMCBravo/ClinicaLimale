@@ -382,18 +382,18 @@ const getInitialState = (key, fallback) => {
 
         if (response.data?.credenciais) setCredenciais(response.data.credenciais);
 
-        // D. Abre PDF FINAL (já com a máscara do Django) e FORÇA O DOWNLOAD
+        // D. Abre PDF FINAL (carimbado pelo Django) e FORÇA O DOWNLOAD
         if (response.data?.arquivos_vinculados && response.data.arquivos_vinculados.length > 0) {
             const arquivos = response.data.arquivos_vinculados;
             let urlPdfFinal = arquivos[arquivos.length - 1].arquivo;
             
-            // Tratamento de segurança: se a URL vier relativa, adiciona o domínio da API
+            // Garantia de segurança: se a URL vier quebrada, consertamos com o domínio principal
             if (urlPdfFinal.startsWith('/')) {
                 const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
                 urlPdfFinal = `${baseUrl}${urlPdfFinal}`;
             }
 
-            // Recria a sua inteligência de nomeação original
+            // Recria a inteligência de nomeação do seu código original
             const formatarNome = (texto) => {
                 if (!texto) return '';
                 return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
@@ -405,17 +405,16 @@ const getInitialState = (key, fallback) => {
             const nomeArquivo = `${idStr}_${nomeLimpo}_${tipoLimpo}.pdf`;
 
             try {
-                // Baixa o PDF timbrado do servidor silenciosamente
+                // Puxa o PDF silenciosamente do servidor
                 const fetchResponse = await fetch(urlPdfFinal);
                 if (!fetchResponse.ok) throw new Error("Falha ao puxar arquivo");
-                
                 const blobFinal = await fetchResponse.blob();
                 const blobUrl = URL.createObjectURL(blobFinal);
 
-                // 1. Abre a visualização em uma nova aba (igual ao original)
+                // 1. Abre na aba ao lado (Igual ao seu original)
                 window.open(blobUrl, '_blank');
 
-                // 2. Força o download no computador com o nome do paciente
+                // 2. Força o download no PC com o nome certinho (Igual ao seu original)
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = blobUrl;
@@ -427,7 +426,7 @@ const getInitialState = (key, fallback) => {
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
             } catch (err) {
                 console.error("Erro ao forçar download local:", err);
-                // Plano B: Se o navegador bloquear o download (ex: CORS), apenas abre a nova aba
+                // Se o navegador bloquear o download silencioso, abre a aba normal
                 window.open(urlPdfFinal, '_blank');
             }
         } else {

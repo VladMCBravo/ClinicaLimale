@@ -321,8 +321,7 @@ export const gerarPDFLaudo = async ({
     const docDefinition = {
         pageSize: 'A4', 
         pageMargins: pageMargins,
-        header: headerDefinition,
-        footer: footerDefinition,
+        // Removemos o header e footer para não travar o pdfMake
         content: content,
         styles: {
           mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },

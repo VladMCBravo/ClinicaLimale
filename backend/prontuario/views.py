@@ -951,11 +951,11 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             from exames.serializers import ArquivoExameSerializer
             arquivos = exame.arquivos.all()
             if arquivos.exists():
-                # O 'context' garante que a URL vá completa para o React
+                # O 'context' é VITAL para o Django enviar a URL com o "https://..." completo
                 response.data['arquivos_vinculados'] = ArquivoExameSerializer(
                     arquivos, 
                     many=True,
-                    context={'request': request} 
+                    context={'request': request}
                 ).data
 
         except Exception as e:
