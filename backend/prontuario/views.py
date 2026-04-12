@@ -951,7 +951,12 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             from exames.serializers import ArquivoExameSerializer
             arquivos = exame.arquivos.all()
             if arquivos.exists():
-                response.data['arquivos_vinculados'] = ArquivoExameSerializer(arquivos, many=True).data
+                # O 'context' garante que a URL vá completa para o React
+                response.data['arquivos_vinculados'] = ArquivoExameSerializer(
+                    arquivos, 
+                    many=True,
+                    context={'request': request} 
+                ).data
 
         except Exception as e:
             print(f"Erro crítico na auditoria/vínculo do laudo: {e}")

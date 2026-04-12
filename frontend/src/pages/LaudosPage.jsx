@@ -382,15 +382,18 @@ const getInitialState = (key, fallback) => {
 
         if (response.data?.credenciais) setCredenciais(response.data.credenciais);
 
-        // D. Abre PDF FINAL (já com a máscara do Django) numa nova aba e FORÇA DOWNLOAD
+        // D. Abre PDF FINAL (já com a máscara do Django) e FORÇA O DOWNLOAD
         if (response.data?.arquivos_vinculados && response.data.arquivos_vinculados.length > 0) {
             const arquivos = response.data.arquivos_vinculados;
-            const urlPdfFinal = arquivos[arquivos.length - 1].arquivo;
+            let urlPdfFinal = arquivos[arquivos.length - 1].arquivo;
             
-            // 1. Abre o PDF verdadeiro na aba ao lado (Igual ao original)
-            window.open(urlPdfFinal, '_blank');
+            // Tratamento de segurança: se a URL vier relativa, adiciona o domínio da API
+            if (urlPdfFinal.startsWith('/')) {
+                const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
+                urlPdfFinal = `${baseUrl}${urlPdfFinal}`;
+            }
 
-            // 2. Recria a inteligência de nomeação que você tinha no original
+            // Recria a sua inteligência de nomeação original
             const formatarNome = (texto) => {
                 if (!texto) return '';
                 return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
@@ -401,32 +404,32 @@ const getInitialState = (key, fallback) => {
             const tipoLimpo = formatarNome(tituloExame || tipoExame) || "Exame";
             const nomeArquivo = `${idStr}_${nomeLimpo}_${tipoLimpo}.pdf`;
 
-            // 3. Força o download automático para o computador do médico
             try {
-                // Fazemos um fetch rápido da URL do Django para transformar em Blob local
+                // Baixa o PDF timbrado do servidor silenciosamente
                 const fetchResponse = await fetch(urlPdfFinal);
+                if (!fetchResponse.ok) throw new Error("Falha ao puxar arquivo");
+                
                 const blobFinal = await fetchResponse.blob();
                 const blobUrl = URL.createObjectURL(blobFinal);
 
+                // 1. Abre a visualização em uma nova aba (igual ao original)
+                window.open(blobUrl, '_blank');
+
+                // 2. Força o download no computador com o nome do paciente
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = blobUrl;
-                a.download = nomeArquivo; // O nome padronizado entra aqui de volta!
+                a.download = nomeArquivo;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
             } catch (err) {
-                console.error("Erro ao forçar o download:", err);
-                // Fallback de segurança caso o fetch falhe
-                const a = document.createElement('a');
-                a.href = urlPdfFinal;
-                a.download = nomeArquivo;
-                a.target = '_blank';
-                a.click();
+                console.error("Erro ao forçar download local:", err);
+                // Plano B: Se o navegador bloquear o download (ex: CORS), apenas abre a nova aba
+                window.open(urlPdfFinal, '_blank');
             }
-
         } else {
             console.warn("URL do PDF final não foi retornada pela API.");
         }
