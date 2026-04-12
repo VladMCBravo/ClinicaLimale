@@ -861,17 +861,21 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             from datetime import date, timedelta
             exame = None
             exame_id_front = request.data.get('exame')
+            
+            # TÉCNICA BLINDADA: Pega uma lista com todos os IDs de exames que JÁ TÊM laudo
+            exames_usados_ids = Laudo.objects.filter(exame__isnull=False).values_list('exame_id', flat=True)
+
             if exame_id_front:
-                # Garante que o exame vindo do front não tenha laudo
-                exame = Exame.objects.filter(id=exame_id_front, laudo__isnull=True).first()
+                exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
             
             if not exame:
                 limite_dias = date.today() - timedelta(days=15)
-                # CRÍTICO: laudo__isnull=True impede que o sistema tente sobrescrever exames antigos!
+                # O 'exclude' garante que nunca vamos pegar um exame que já está na lista dos usados
                 exame = Exame.objects.filter(
                     paciente=paciente,
-                    data_exame__gte=limite_dias,
-                    laudo__isnull=True 
+                    data_exame__gte=limite_dias
+                ).exclude(
+                    id__in=exames_usados_ids
                 ).order_by('-data_exame', '-criado_em').first()
             
             if not exame:
