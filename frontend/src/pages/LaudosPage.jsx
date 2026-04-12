@@ -382,19 +382,17 @@ const getInitialState = (key, fallback) => {
 
         if (response.data?.credenciais) setCredenciais(response.data.credenciais);
 
-        // D. Abre PDF para impressão numa nova aba
-        gerarPDFLaudo({
-            pacienteId: paciente.id, // <--- ENVIANDO O ID
-            pacienteNome: paciente.nome_completo,
-            medicoNome, medicoCrm, tituloExame,
-            tituloExame: tipoExame,  // <--- ENVIANDO O TIPO (OBSTETRICO, etc)
-            textoLaudo: textoCorrigido,
-            dadosEstruturados,
-            imagensBase64: imagensFinais,
-            comTimbre: true,
-            usaAssinaturaDigital: usuarioTemCertificado,
-            retornarBlob: false 
-        });
+        // D. Abre PDF FINAL (já com a máscara do Django) numa nova aba
+        if (response.data?.arquivos_vinculados && response.data.arquivos_vinculados.length > 0) {
+            const arquivos = response.data.arquivos_vinculados;
+            // Pega a URL do último arquivo vinculado ao exame (o laudo que acabou de ser salvo e mascarado)
+            const urlPdfFinal = arquivos[arquivos.length - 1].arquivo;
+            
+            // Abre o PDF verdadeiro gerado pelo servidor
+            window.open(urlPdfFinal, '_blank');
+        } else {
+            console.warn("URL do PDF final não foi retornada pela API.");
+        }
 
         // E. Abre Modal de Sucesso
         setModalSucessoOpen(true);
