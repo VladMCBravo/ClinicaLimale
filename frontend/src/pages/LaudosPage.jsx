@@ -382,14 +382,51 @@ const getInitialState = (key, fallback) => {
 
         if (response.data?.credenciais) setCredenciais(response.data.credenciais);
 
-        // D. Abre PDF FINAL (já com a máscara do Django) numa nova aba
+        // D. Abre PDF FINAL (já com a máscara do Django) numa nova aba e FORÇA DOWNLOAD
         if (response.data?.arquivos_vinculados && response.data.arquivos_vinculados.length > 0) {
             const arquivos = response.data.arquivos_vinculados;
-            // Pega a URL do último arquivo vinculado ao exame (o laudo que acabou de ser salvo e mascarado)
             const urlPdfFinal = arquivos[arquivos.length - 1].arquivo;
             
-            // Abre o PDF verdadeiro gerado pelo servidor
+            // 1. Abre o PDF verdadeiro na aba ao lado (Igual ao original)
             window.open(urlPdfFinal, '_blank');
+
+            // 2. Recria a inteligência de nomeação que você tinha no original
+            const formatarNome = (texto) => {
+                if (!texto) return '';
+                return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            };
+            
+            const idStr = paciente.id || "S-ID";
+            const nomeLimpo = formatarNome(paciente.nome_completo) || "Paciente";
+            const tipoLimpo = formatarNome(tituloExame || tipoExame) || "Exame";
+            const nomeArquivo = `${idStr}_${nomeLimpo}_${tipoLimpo}.pdf`;
+
+            // 3. Força o download automático para o computador do médico
+            try {
+                // Fazemos um fetch rápido da URL do Django para transformar em Blob local
+                const fetchResponse = await fetch(urlPdfFinal);
+                const blobFinal = await fetchResponse.blob();
+                const blobUrl = URL.createObjectURL(blobFinal);
+
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = nomeArquivo; // O nome padronizado entra aqui de volta!
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+            } catch (err) {
+                console.error("Erro ao forçar o download:", err);
+                // Fallback de segurança caso o fetch falhe
+                const a = document.createElement('a');
+                a.href = urlPdfFinal;
+                a.download = nomeArquivo;
+                a.target = '_blank';
+                a.click();
+            }
+
         } else {
             console.warn("URL do PDF final não foi retornada pela API.");
         }
