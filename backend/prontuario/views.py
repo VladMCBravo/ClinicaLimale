@@ -858,19 +858,21 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 laudo.titulo_exame = f"{titulo_base} - REVISÃO {historico_duplicatas + 1}"
 
             # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM IMAGENS (JANELA DE 15 DIAS) ---
+            print(f"DEBUG [LAUDO]: Iniciando vínculo seguro para o paciente {paciente.nome_completo}")
             from datetime import date, timedelta
             exame = None
             exame_id_front = request.data.get('exame')
             
-            # TÉCNICA BLINDADA: Pega uma lista com todos os IDs de exames que JÁ TÊM laudo
+            # Pega uma lista com todos os IDs de exames que JÁ TÊM laudo
             exames_usados_ids = Laudo.objects.filter(exame__isnull=False).values_list('exame_id', flat=True)
 
             if exame_id_front:
+                print(f"DEBUG [LAUDO]: Front-end enviou Exame ID {exame_id_front}. Verificando disponibilidade...")
                 exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
             
             if not exame:
+                print("DEBUG [LAUDO]: Buscando exame disponível nos últimos 15 dias...")
                 limite_dias = date.today() - timedelta(days=15)
-                # O 'exclude' garante que nunca vamos pegar um exame que já está na lista dos usados
                 exame = Exame.objects.filter(
                     paciente=paciente,
                     data_exame__gte=limite_dias
@@ -879,32 +881,37 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 ).order_by('-data_exame', '-criado_em').first()
             
             if not exame:
+                print("DEBUG [LAUDO]: Nenhum exame livre encontrado. Criando um novo container (Exame)...")
+                # O SEGREDO ESTÁ AQUI: Adicionamos o ID do laudo ao nome da pasta para ser 100% único
+                nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
+                
                 exame = Exame.objects.create(
                     paciente=paciente,
                     data_exame=date.today(),
-                    nome_paciente_pasta=paciente.nome_completo,
+                    nome_paciente_pasta=nome_unico_pasta, # <--- Fura o bloqueio do banco de dados
                     status='DISPONIVEL'
                 )
+                print(f"DEBUG [LAUDO]: Novo Exame ID {exame.id} criado com sucesso com a pasta '{nome_unico_pasta}'.")
 
             laudo.exame = exame
             laudo.save()
+            print("DEBUG [LAUDO]: Laudo vinculado ao Exame com sucesso!")
 
             # --- 🛡️ CAMADA 3: NOMENCLATURA E APLICAÇÃO DA MÁSCARA ---
             if 'arquivo_pdf' in request.FILES:
+                print("DEBUG [LAUDO]: PDF recebido do Front-end. Iniciando processo da Máscara...")
                 from django.utils.text import slugify
                 pdf_file = request.FILES['arquivo_pdf']
                 
-                # --- NOVA LÓGICA: INTERCEPTAR E APLICAR A MÁSCARA ---
-                print("DEBUG [LAUDO]: Interceptando PDF do frontend para aplicar máscara.")
                 try:
                     pdf_bytes_front = pdf_file.read()
-                    
                     caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf') 
+                    
                     mascara_reader = PdfReader(caminho_mascara)
                     conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_front))
                     writer = PdfWriter()
 
-                    # Itera por todas as páginas geradas pelo laudo do React
+                    print(f"DEBUG [LAUDO]: Mesclando {len(conteudo_reader.pages)} páginas...")
                     for i in range(len(conteudo_reader.pages)):
                         pagina_conteudo = conteudo_reader.pages[i]
                         pagina_mascara = mascara_reader.pages[0]
@@ -914,23 +921,20 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     merged_result = io.BytesIO()
                     writer.write(merged_result)
                     pdf_bytes_finais = merged_result.getvalue()
-                    print("DEBUG [LAUDO]: Máscara aplicada com sucesso no laudo!")
+                    print("DEBUG [LAUDO]: Máscara (Receituario.pdf) aplicada com SUCESSO!")
 
-                    # Aplicar assinatura digital, se o médico tiver certificado
                     medico_logado = request.user
                     if hasattr(medico_logado, 'certificado') and medico_logado.certificado.arquivo_p12:
-                        print("DEBUG [LAUDO]: Assinando o laudo digitalmente...")
+                        print("DEBUG [LAUDO]: Aplicando assinatura digital ICP-Brasil...")
                         pdf_bytes_finais = assinar_pdf_digitalmente(pdf_bytes_finais, medico_logado)
 
-                    # Sobrescreve o arquivo recebido com a versão "carimbada"
                     pdf_file = ContentFile(pdf_bytes_finais, name=pdf_file.name)
                     
                 except Exception as e:
-                    print(f"DEBUG [LAUDO]: Falha ao aplicar máscara/assinatura: {e}")
-                    # Se falhar, segue com o PDF original do front para não travar
+                    print(f"DEBUG [LAUDO]: FALHA CRÍTICA na máscara ou assinatura: {e}")
+                    # Retorna o arquivo original para não quebrar o sistema
                     pdf_file.seek(0) 
 
-                # --- Continua com a lógica original de salvamento ---
                 data_hoje_str = date.today().strftime("%d-%m-%Y")
                 nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
                 nome_seguro = slugify(nome_base_arquivo).upper()
@@ -942,12 +946,14 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     arquivo=pdf_file,
                     tipo='LAUDO'
                 )
+                print(f"DEBUG [LAUDO]: Arquivo final salvo no disco como {pdf_file.name}")
 
             if exame.status == 'PENDENTE':
                 exame.status = 'DISPONIVEL'
                 exame.save()
 
             # --- PREPARANDO RESPOSTA PRO FRONTEND ---
+            print("DEBUG [LAUDO]: Preparando link final para devolver ao React...")
             response.data['titulo_exame'] = laudo.titulo_exame
             response.data['credenciais'] = {
                 'codigo': exame.codigo_acesso,
@@ -958,15 +964,15 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             from exames.serializers import ArquivoExameSerializer
             arquivos = exame.arquivos.all()
             if arquivos.exists():
-                # O 'context' é VITAL para o Django enviar a URL com o "https://..." completo
                 response.data['arquivos_vinculados'] = ArquivoExameSerializer(
                     arquivos, 
                     many=True,
-                    context={'request': request}
+                    context={'request': request} # <--- GARANTE A URL COMPLETA PRO DOWNLOAD
                 ).data
+                print("DEBUG [LAUDO]: Link enviado com sucesso. Operação concluída.")
 
         except Exception as e:
-            print(f"Erro crítico na auditoria/vínculo do laudo: {e}")
+            print(f"DEBUG [LAUDO]: Erro crítico geral: {e}")
 
         return response
 
