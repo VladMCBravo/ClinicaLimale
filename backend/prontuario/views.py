@@ -862,13 +862,16 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             exame = None
             exame_id_front = request.data.get('exame')
             if exame_id_front:
-                exame = Exame.objects.filter(id=exame_id_front).first()
+                # Garante que o exame vindo do front não tenha laudo
+                exame = Exame.objects.filter(id=exame_id_front, laudo__isnull=True).first()
             
             if not exame:
                 limite_dias = date.today() - timedelta(days=15)
+                # CRÍTICO: laudo__isnull=True impede que o sistema tente sobrescrever exames antigos!
                 exame = Exame.objects.filter(
                     paciente=paciente,
-                    data_exame__gte=limite_dias
+                    data_exame__gte=limite_dias,
+                    laudo__isnull=True 
                 ).order_by('-data_exame', '-criado_em').first()
             
             if not exame:
