@@ -1,6 +1,9 @@
 # backend/prontuario/views.py - VERSÃO FINAL COM PERMISSÕES CORRIGIDAS
 
 from io import BytesIO
+import io
+import os
+from pypdf import PdfReader, PdfWriter
 from django.db import models
 from django.conf import settings # <-- IMPORTAR SETTINGS
 from django.contrib.staticfiles import finders
@@ -277,56 +280,81 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     else:
         print("DEBUG: O médico NÃO possui certificado configurado no banco de dados.")
 
-    # 4. PREPARA O CONTEXTO VISUAL (CORREÇÃO DO NOME SUMIDO)
-    # Se o 'medico' não estava no contexto original, vamos forçar ele aqui
-    # para que o HTML consiga renderizar {{ medico.nome }} e {{ medico.crm }}
+    # ==========================================================
+    # === BLOCO QUE FALTAVA: DEFINIÇÃO DO full_context ===
+    # ==========================================================
     if 'medico' not in context and medico_assinante:
         context['medico'] = medico_assinante
 
     full_context = {
         'clinica': clinica_info,
-        'logo_path': logo_path,
         'anamnese': anamnese_obj,
-        'tem_assinatura_digital': tem_certificado_valido, # Flag visual
+        'tem_assinatura_digital': tem_certificado_valido, 
         **context
     }
-    
-    print(f"DEBUG: Flag 'tem_assinatura_digital' enviada ao HTML: {tem_certificado_valido}")
+    # ==========================================================
 
-    # 5. GERA O PDF
+    # 4. GERA O PDF DO CONTEÚDO (HTML -> PDF via xhtml2pdf)
     template = get_template(template_path)
     html = template.render(full_context)
     
-    result = BytesIO()
-    pdf = pisa.pisaDocument(
-        BytesIO(html.encode("UTF-8")), 
-        result, 
-        link_callback=lambda uri, rel: logo_path
-    )
+    result = io.BytesIO()
+    # Geramos o PDF do texto com fundo transparente
+    pdf = pisa.pisaDocument(io.BytesIO(html.encode("UTF-8")), result)
     
     if not pdf.err:
-        pdf_bytes = result.getvalue()
+        pdf_conteudo_bytes = result.getvalue()
 
-        # 6. APLICA A ASSINATURA CRIPTOGRÁFICA
-        if tem_certificado_valido:
-            print("DEBUG: Iniciando processo de assinatura criptográfica (PyHanko)...")
-            pdf_bytes_assinado = assinar_pdf_digitalmente(pdf_bytes, medico_assinante)
+        # ==========================================================
+        # 5. A MÁGICA DA MÁSCARA (MERGE COM pypdf)
+        # ==========================================================
+        try:
+            print("DEBUG: Aplicando máscara PDF da Clínica...")
+            # ATENÇÃO: Defina onde você vai salvar o arquivo Receituario.pdf da agência.
+            # Aqui estou assumindo que você colocou na raiz do projeto, numa pasta chamada 'static'
+            caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf') 
             
-            # Verificação simples se o tamanho mudou (assinatura adiciona bytes)
-            if len(pdf_bytes_assinado) > len(pdf_bytes):
-                print("DEBUG: PDF assinado com sucesso (tamanho do arquivo aumentou).")
-                pdf_bytes = pdf_bytes_assinado
-            else:
-                print("DEBUG: ERRO - O assinador retornou o PDF original (provável erro de senha ou arquivo).")
-        else:
-            print("DEBUG: Gerando PDF normal (sem assinatura digital) - Modo Manual.")
+            mascara_reader = PdfReader(caminho_mascara)
+            conteudo_reader = PdfReader(io.BytesIO(pdf_conteudo_bytes))
+            writer = PdfWriter()
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            # Itera por todas as páginas geradas pelo texto (caso o relatório tenha 3 páginas, por exemplo)
+            for i in range(len(conteudo_reader.pages)):
+                pagina_conteudo = conteudo_reader.pages[i]
+                
+                # Pega a primeira página do Receituario.pdf para usar como fundo sempre
+                pagina_mascara = mascara_reader.pages[0]
+                
+                # Mescla: A máscara fica no fundo, o texto do paciente por cima
+                pagina_mascara.merge_page(pagina_conteudo)
+                writer.add_page(pagina_mascara)
+
+            # Salva o resultado mesclado em bytes
+            merged_result = io.BytesIO()
+            writer.write(merged_result)
+            pdf_bytes_finais = merged_result.getvalue()
+            print("DEBUG: Máscara aplicada com sucesso!")
+
+        except Exception as e:
+            print(f"DEBUG: ERRO ao aplicar máscara: {e}")
+            print("DEBUG: Retornando PDF em branco por segurança.")
+            # Se a máscara não for encontrada ou der erro, devolve o PDF feinho só com texto
+            pdf_bytes_finais = pdf_conteudo_bytes
+
+        # ==========================================================
+        # 6. APLICA A ASSINATURA CRIPTOGRÁFICA (PyHanko)
+        # ==========================================================
+        if tem_certificado_valido:
+            print("DEBUG: Assinando digitalmente...")
+            pdf_bytes_assinado = assinar_pdf_digitalmente(pdf_bytes_finais, medico_assinante)
+            if len(pdf_bytes_assinado) > len(pdf_bytes_finais):
+                pdf_bytes_finais = pdf_bytes_assinado
+
+        # 7. DEVOLVE A RESPOSTA
+        response = HttpResponse(pdf_bytes_finais, content_type='application/pdf')
         response['Content-Disposition'] = f'filename="{filename_prefix}.pdf"'
-        print("--- FIM DA GERAÇÃO ---\n")
         return response
         
-    print("DEBUG: Erro Crítico ao gerar PDF com PISA (xhtml2pdf).")
     return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
 
 # --- Views de Geração de PDF (AGORA REATORADAS) ---
@@ -410,46 +438,25 @@ class GerarEvolucaoPDFView(APIView):
         
         # --- FIM DA LÓGICA CONDICIONAL ---
 
+        # 5. Monta o Contexto com todas as informações
         context = {
             'evolucao': evolucao,
             'paciente': paciente,
             'medico': evolucao.medico,
             'anamnese': anamnese,
-            'marcos': marcos,   # <-- Agora só é preenchido se for Pediatria
-            'vacinas': vacinas, # <-- Agora só é preenchido se for Pediatria
+            'marcos': marcos,   
+            'vacinas': vacinas, 
         }
         
         filename = f'evolucao_{paciente.nome_completo}_{evolucao.id}'
         
-        # A view de PDF genérica que você criou (generate_pdf_response)
-        # não pode ser usada aqui, pois esta view tem uma lógica de busca
-        # de dados muito mais complexa.
-        
-        # (Usando sua lógica original de renderização de PDF)
-        clinica_info = Clinica.get_instance()
-        logo_path = finders.find(clinica_info.logo) if clinica_info else None
-        full_context = {
-            'clinica': clinica_info,
-            'logo_path': logo_path,
-            **context
-        }
-        
-        template = get_template('pdfs/evolucao_template.html')
-        html = template.render(full_context)
-        
-        result = BytesIO()
-        pdf = pisa.pisaDocument(
-            BytesIO(html.encode("UTF-8")), 
-            result, 
-            link_callback=lambda uri, rel: logo_path
+        # 6. MÁGICA AQUI: Usamos a nossa nova função centralizada!
+        # Sem precisar definir "full_context", "template.render" ou "pisaDocument" manualmente.
+        return generate_pdf_response(
+            'pdfs/evolucao_template.html', 
+            context, 
+            filename
         )
-        
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            response['Content-Disposition'] = f'filename="{filename}.pdf"'
-            return response
-            
-        return HttpResponse('Ocorreu um erro ao gerar o PDF.', status=500)
 
 class OpcaoClinicaListView(generics.ListAPIView):
     """
