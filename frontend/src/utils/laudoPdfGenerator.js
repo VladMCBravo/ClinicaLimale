@@ -32,44 +32,14 @@ export const gerarPDFLaudo = async ({
         }
     }
     // Margens: [Esq, Top, Dir, Inf]
-    const pageMargins = [40, 130, 40, 80]; 
+    // Aumentamos o Top para 170 (equivalente a uns 6cm) e o Bottom para 85
+    const pageMargins = [40, 170, 40, 85]; 
 
     // --- 1. CABEÇALHO (HEADER) ---
-    const headerDefinition = comTimbre ? {
-        margin: [40, 20, 40, 0], 
-        stack: [
-            { 
-                image: logoBase64 ? logoBase64 : null, 
-                width: 140, 
-                alignment: 'center',
-                margin: [0, 0, 0, 10] 
-            },
-            { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 475, y2: 0, lineWidth: 1.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
-        ]
-    } : null;
+    const headerDefinition = null; // ZERAMOS O CABEÇALHO
 
     // --- 2. RODAPÉ (FOOTER) ---
-    const footerDefinition = comTimbre ? (currentPage, pageCount) => {
-        return {
-            margin: [40, 10, 40, 0],
-            stack: [
-                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: '#C6A87C' }], alignment: 'center', margin: [0, 5] },
-                { 
-                    text: [
-                        { text: 'Clínica Limalé', bold: true }, '  |  ', 'www.limale.com.br', '  |  ', '(11) 91951-1842'
-                    ], 
-                    style: 'footerText', alignment: 'center'
-                },
-                { 
-                    text: [
-                        'contato@limale.com.br', '  |  ', { text: '@clinicalimale', bold: true }
-                    ], 
-                    style: 'footerText', alignment: 'center', margin: [0, 2]
-                },
-                { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 7, color: '#999', margin: [0, 5, 0, 0] }
-            ]
-        };
-    } : null;
+    const footerDefinition = null; // ZERAMOS O RODAPÉ
 
     // --- FUNÇÕES AUXILIARES ---
     const processarTexto = (textoRaw) => {
@@ -415,10 +385,18 @@ export const gerarPDFLaudo = async ({
             }
         });
     } else {
-        pdfDocGenerator.getBlob((blob) => {
-            const fileURL = URL.createObjectURL(blob);
-            forcarDownloadEAbrir(fileURL);
-            setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
-        });
+        // Sempre gera o Blob limpo (pois o Django fará o merge da máscara e a assinatura se necessário)
+    pdfDocGenerator.getBlob((blob) => {
+        // Se retornarBlob for true, devolvemos pra salvar no banco (Fluxo de Finalizar)
+        if (retornarBlob) {
+            resolve(blob);
+            return;
+        }
+        
+        // Se for só pra imprimir na tela (Visualização prévia/WhatsApp), abre na hora
+        const fileURL = URL.createObjectURL(blob);
+        forcarDownloadEAbrir(fileURL);
+        setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
+    });
     }
 };

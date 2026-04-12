@@ -882,12 +882,49 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             laudo.exame = exame
             laudo.save()
 
-            # --- 🛡️ CAMADA 3: NOMENCLATURA BLINDADA DO PDF ---
+            # --- 🛡️ CAMADA 3: NOMENCLATURA E APLICAÇÃO DA MÁSCARA ---
             if 'arquivo_pdf' in request.FILES:
                 from django.utils.text import slugify
                 pdf_file = request.FILES['arquivo_pdf']
-                data_hoje_str = date.today().strftime("%d-%m-%Y")
                 
+                # --- NOVA LÓGICA: INTERCEPTAR E APLICAR A MÁSCARA ---
+                print("DEBUG [LAUDO]: Interceptando PDF do frontend para aplicar máscara.")
+                try:
+                    pdf_bytes_front = pdf_file.read()
+                    
+                    caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf') 
+                    mascara_reader = PdfReader(caminho_mascara)
+                    conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_front))
+                    writer = PdfWriter()
+
+                    # Itera por todas as páginas geradas pelo laudo do React
+                    for i in range(len(conteudo_reader.pages)):
+                        pagina_conteudo = conteudo_reader.pages[i]
+                        pagina_mascara = mascara_reader.pages[0]
+                        pagina_mascara.merge_page(pagina_conteudo)
+                        writer.add_page(pagina_mascara)
+
+                    merged_result = io.BytesIO()
+                    writer.write(merged_result)
+                    pdf_bytes_finais = merged_result.getvalue()
+                    print("DEBUG [LAUDO]: Máscara aplicada com sucesso no laudo!")
+
+                    # Aplicar assinatura digital, se o médico tiver certificado
+                    medico_logado = request.user
+                    if hasattr(medico_logado, 'certificado') and medico_logado.certificado.arquivo_p12:
+                        print("DEBUG [LAUDO]: Assinando o laudo digitalmente...")
+                        pdf_bytes_finais = assinar_pdf_digitalmente(pdf_bytes_finais, medico_logado)
+
+                    # Sobrescreve o arquivo recebido com a versão "carimbada"
+                    pdf_file = ContentFile(pdf_bytes_finais, name=pdf_file.name)
+                    
+                except Exception as e:
+                    print(f"DEBUG [LAUDO]: Falha ao aplicar máscara/assinatura: {e}")
+                    # Se falhar, segue com o PDF original do front para não travar
+                    pdf_file.seek(0) 
+
+                # --- Continua com a lógica original de salvamento ---
+                data_hoje_str = date.today().strftime("%d-%m-%Y")
                 nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
                 nome_seguro = slugify(nome_base_arquivo).upper()
                 extensao = pdf_file.name.split('.')[-1]

@@ -1,205 +1,144 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Evolução de Atendimento - {{ paciente.nome_completo }}</title>
-    <style>
-        @page {
-            size: a4 portrait;
-            /* * Aumenta a margem superior para 4cm (espaço para o timbrado)
-             * e a inferior para 2.5cm (espaço para o rodapé do timbrado).
-             * Ajuste esses valores conforme necessário.
-            */
-            margin-top: 4.5cm; /* Alterado de 4cm para 4.5cm */
-            margin-bottom: 2.5cm;
-            margin-left: 1.5cm;
-            margin-right: 1.5cm;
-        }
-        body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 10pt;
-            color: #333;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-        .logo {
-            max-width: 150px;
-            max-height: 80px;
-            float: left;
-            margin-right: 20px;
-        }
-        .clinica-info {
-            text-align: right;
-            font-size: 9pt;
-        }
-        .titulo {
-            text-align: center;
-            font-size: 14pt;
-            font-weight: bold;
-            margin: 20px 0;
-            text-transform: uppercase;
-        }
-        h2 {
-            font-size: 12pt;
-            font-weight: bold;
-            background-color: #f0f0f0;
-            padding: 8px;
-            margin-top: 15px;
-            border-top: 1px solid #ccc;
-        }
-        .info-paciente {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 15px;
-        }
-        .info-paciente p, .soap-section p {
-            margin: 4px 0;
-            line-height: 1.4;
-        }
-        .info-paciente strong, .soap-section strong {
-            color: #000;
-        }
-        .soap-section {
-            margin-bottom: 10px;
-            white-space: pre-wrap; /* Preserva quebras de linha do SOAP */
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 6px;
-            text-align: left;
-            font-size: 9pt;
-        }
-        th {
-            background-color: #f7f7f7;
-            font-weight: bold;
-        }
-        .footer {
-            text-align: center;
-            font-size: 9pt;
-            color: #777;
-            position: fixed;
-            bottom: 1cm;
-            left: 1.5cm;
-            right: 1.5cm;
-        }
-    </style>
-</head>
-<body>
+{% extends "pdfs/base_pdf.html" %}
 
-    <div class="titulo">Relatório de Atendimento Pediátrico</div>
+{% block title %}Evolução de Atendimento{% endblock %}
 
-    <div class="info-paciente">
-        <p><strong>Paciente:</strong> {{ paciente.nome_completo }}</p>
-        <p><strong>Data Nasc.:</strong> {{ paciente.data_nascimento|date:"d/m/Y" }}</p>
-        <p><strong>Médico:</strong> {{ medico.get_full_name }} (CRM: {{ medico.crm }})</p>
-        <p><strong>Data da Consulta:</strong> {{ evolucao.data_atendimento|date:"d/m/Y H:i" }}</p>
-    </div>
+{% block content %}
 
-    <h2>Consulta Atual (SOAP)</h2>
-    <div class="soap-section">
-        <strong>Subjetivo (S):</strong>
-        <p>{{ evolucao.notas_subjetivas|default:"N/A" }}</p>
-    </div>
-    <div class="soap-section">
-        <strong>Objetivo (O):</strong>
-        <p>{{ evolucao.notas_objetivas|default:"N/A" }}</p>
-    </div>
-    <div class="soap-section">
-        <strong>Avaliação (A):</strong>
-        <p>{{ evolucao.avaliacao|default:"N/A" }}</p>
-    </div>
-    <div class="soap-section">
-        <strong>Plano (P):</strong>
-        <p>{{ evolucao.plano|default:"N/A" }}</p>
+    <h1>RELATÓRIO DE ATENDIMENTO PEDIÁTRICO</h1>
+
+    <table class="info-grid">
+        <tr>
+            <td class="label">Paciente:</td>
+            <td>{{ paciente.nome_completo }}</td>
+            <td class="label">Data Nasc.:</td>
+            <td>{{ paciente.data_nascimento|date:"d/m/Y" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Médico(a):</td>
+            <td>{{ medico.get_full_name }} (CRM: {{ medico.crm|default:'N/A' }})</td>
+            <td class="label">Consulta:</td>
+            <td>{{ evolucao.data_atendimento|date:"d/m/Y H:i" }}</td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-title">Consulta Atual (SOAP)</div>
+        
+        <div class="content" style="margin-bottom: 10px;">
+            <strong>Subjetivo (S):</strong><br>
+            {{ evolucao.notas_subjetivas|default:"N/A" }}
+        </div>
+        <div class="content" style="margin-bottom: 10px;">
+            <strong>Objetivo (O):</strong><br>
+            {{ evolucao.notas_objetivas|default:"N/A" }}
+        </div>
+        <div class="content" style="margin-bottom: 10px;">
+            <strong>Avaliação (A):</strong><br>
+            {{ evolucao.avaliacao|default:"N/A" }}
+        </div>
+        <div class="content" style="margin-bottom: 10px;">
+            <strong>Plano (P):</strong><br>
+            {{ evolucao.plano|default:"N/A" }}
+        </div>
     </div>
 
     {% if anamnese and anamnese.pediatrica %}
-        <h2>Histórico Pediátrico (Cadastro Mestre)</h2>
-        <table>
+    <div class="section">
+        <div class="section-title">Histórico Pediátrico (Cadastro Mestre)</div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
             <tr>
-                <th>Tipo do Parto</th>
-                <td>{{ anamnese.pediatrica.tipo_parto|default:"N/I" }}</td>
-                <th>Idade Gestacional</th>
-                <td>{{ anamnese.pediatrica.idade_gestacional|default:"N/I" }}</td>
+                <td style="border: 1px solid #ddd; padding: 6px;"><strong>Tipo do Parto:</strong><br>{{ anamnese.pediatrica.tipo_parto|default:"N/I" }}</td>
+                <td style="border: 1px solid #ddd; padding: 6px;"><strong>Idade Gestacional:</strong><br>{{ anamnese.pediatrica.idade_gestacional|default:"N/I" }}</td>
             </tr>
             <tr>
-                <th>Peso ao Nascer</th>
-                <td>{{ anamnese.pediatrica.peso_nascimento|default:"N/I" }}</td>
-                <th>APGAR</th>
-                <td>{{ anamnese.pediatrica.apgar|default:"N/I" }}</td>
+                <td style="border: 1px solid #ddd; padding: 6px;"><strong>Peso ao Nascer:</strong><br>{{ anamnese.pediatrica.peso_nascimento|default:"N/I" }}</td>
+                <td style="border: 1px solid #ddd; padding: 6px;"><strong>APGAR:</strong><br>{{ anamnese.pediatrica.apgar|default:"N/I" }}</td>
             </tr>
             <tr>
-                <th colspan="4">Intercorrências Gestação/Parto</th>
+                <td colspan="2" style="border: 1px solid #ddd; padding: 6px;">
+                    <strong>Intercorrências Gestação/Parto:</strong><br>
+                    {{ anamnese.pediatrica.intercorrencias_gestacao_parto|default:"Nenhuma" }}
+                </td>
             </tr>
-            <tr>
-                <td colspan="4">{{ anamnese.pediatrica.intercorrencias_gestacao_parto|default:"Nenhuma" }}</td>
-            </tr>
-            </table>
+        </table>
+    </div>
     {% endif %}
 
-    <h2>Caderneta de Vacinação</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Idade</th>
-                <th>Vacina</th>
-                <th>Dose</th>
-                <th>Status</th>
-                <th>Data Aplicação</th>
-                <th>Obs.</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for vacina in vacinas %}
-            <tr>
-                <td>{{ vacina.idade_recomendada }}</td>
-                <td>{{ vacina.nome_vacina }}</td>
-                <td>{{ vacina.dose }}</td>
-                <td>{{ vacina.status }}</td>
-                <td>{{ vacina.data_aplicacao|date:"d/m/Y"|default:"--" }}</td>
-                <td>{{ vacina.observacao|default:"" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6">Nenhuma vacina registrada.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="section">
+        <div class="section-title">Caderneta de Vacinação</div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
+            <thead>
+                <tr style="background-color: #f7f7f7;">
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Idade</th>
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Vacina</th>
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Dose</th>
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Status</th>
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vacina in vacinas %}
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ vacina.idade_recomendada }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ vacina.nome_vacina }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ vacina.dose }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ vacina.status }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ vacina.data_aplicacao|date:"d/m/Y"|default:"--" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="border: 1px solid #ddd; padding: 6px; text-align: center;">Nenhuma vacina registrada.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-    <h2>Marcos do DNPM</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Idade</th>
-                <th>Marco</th>
-                <th>Status</th>
-                <th>Observação</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for marco in marcos %}
-            <tr>
-                <td>{{ marco.idade_marco }}</td>
-                <td>{{ marco.marco_descricao }}</td>
-                <td>{% if marco.alcançado %}Alcançado{% else %}Não Alcançado{% endif %}</td>
-                <td>{{ marco.observacao|default:"" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4">Nenhum marco de DNPM registrado.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+    <div class="section">
+        <div class="section-title">Marcos do DNPM</div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
+            <thead>
+                <tr style="background-color: #f7f7f7;">
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Idade</th>
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Marco</th>
+                    <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for marco in marcos %}
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ marco.idade_marco }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{{ marco.marco_descricao }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">{% if marco.alcançado %}Alcançado{% else %}Não Alcançado{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="border: 1px solid #ddd; padding: 6px; text-align: center;">Nenhum marco de DNPM registrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px;">
+    {% if tem_assinatura_digital %}
+        <div style="border: 1px solid #ccc; background-color: #f8f9fa; padding: 10px; display: inline-block; width: 60%;">
+            <p style="font-size: 10px; color: #555; margin-bottom: 2px;">DOCUMENTO ASSINADO DIGITALMENTE</p>
+            <p style="font-weight: bold; font-size: 12px; margin: 0; color: #000;">
+                Dr(a). {{ medico.get_full_name }}
+            </p>
+            <p style="font-size: 10px; margin: 0;">CRM: {{ medico.crm|default:'N/A' }}</p>
+            <br/>
+            <p style="font-size: 8px; color: #777; margin-top: 5px;">
+                Assinado eletronicamente conforme MP 2.200-2/2001 (ICP-Brasil).<br>
+                Valide este documento em: verificador.iti.gov.br
+            </p>
+        </div>
+    {% else %}
+        <p>___________________________________</p>
+        <p>Dr(a). {{ medico.get_full_name }}</p>
+        <p>CRM: {{ medico.crm|default:'N/A' }}</p>
+    {% endif %}
+    </div>
+
+{% endblock %}
