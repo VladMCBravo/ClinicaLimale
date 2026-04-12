@@ -385,18 +385,11 @@ export const gerarPDFLaudo = async ({
             }
         });
     } else {
-        // Sempre gera o Blob limpo (pois o Django fará o merge da máscara e a assinatura se necessário)
-    pdfDocGenerator.getBlob((blob) => {
-        // Se retornarBlob for true, devolvemos pra salvar no banco (Fluxo de Finalizar)
-        if (retornarBlob) {
-            resolve(blob);
-            return;
-        }
-        
-        // Se for só pra imprimir na tela (Visualização prévia/WhatsApp), abre na hora
-        const fileURL = URL.createObjectURL(blob);
-        forcarDownloadEAbrir(fileURL);
-        setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
-    });
+        // Como o retornarBlob já foi tratado no início, aqui é só o fluxo de abrir na tela.
+        pdfDocGenerator.getBlob((blob) => {
+            const fileURL = URL.createObjectURL(blob);
+            forcarDownloadEAbrir(fileURL);
+            setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
+        });
     }
 };
