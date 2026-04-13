@@ -19,6 +19,7 @@ import PrintIcon from '@mui/icons-material/Print';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import { gerarPdfAgendaDia } from '../../utils/agendaPdfGenerator';
+import apiClient from '../../api/axiosConfig';
 
 const statusMap = {
     'Agendado': { icon: <AccessTimeIcon />, color: '#1976d2', title: 'Agendado' },
@@ -75,7 +76,46 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
             alert("Não há pacientes para imprimir neste dia.");
             return;
         }
-        await gerarPdfAgendaDia(pacientes, dataExibicao); 
+        
+        // Colocamos um feedback visual simples para o usuário não clicar duas vezes
+        const btnPrint = document.getElementById('btn-imprimir-agenda');
+        if(btnPrint) btnPrint.style.opacity = '0.5';
+
+        // Chamamos o gerador passando uma função de callback que recebe o blob transparente
+        await gerarPdfAgendaDia(pacientes, dataExibicao, async (blobTransparente) => {
+            try {
+                // 1. Preparamos o arquivo para envio
+                const formData = new FormData();
+                formData.append('arquivo_pdf', blobTransparente, 'agenda_rascunho.pdf');
+
+                // 2. Enviamos para a nova rota do Django (Vamos criar ela já já)
+                const response = await apiClient.post('/prontuario/aplicar-mascara/', formData, {
+                    responseType: 'blob' // É vital pedir um blob de volta, pois o Django devolverá um arquivo PDF direto
+                });
+
+                // 3. Recebemos o PDF final carimbado e abrimos na tela
+                const blobFinal = new Blob([response.data], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blobFinal);
+                window.open(blobUrl, '_blank');
+                
+                // Opcional: Forçar download silencioso
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = `Agenda_Limale_${dataExibicao.toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+
+            } catch (error) {
+                console.error("Erro ao aplicar máscara na agenda:", error);
+                alert("Erro ao gerar o PDF com o timbre da clínica. Verifique a conexão.");
+            } finally {
+                if(btnPrint) btnPrint.style.opacity = '1';
+            }
+        }); 
     };
 
     return (
