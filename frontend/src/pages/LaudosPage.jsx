@@ -612,7 +612,7 @@ const getInitialState = (key, fallback) => {
                     <option value="OBSTETRICO">Medicina Fetal</option>
                     <option value="TRANSVAGINAL">Transvaginal</option>
                     <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
-                    <option value="ABDOME">Abdome Total</option>
+                    <option value="ABDOME">US Geral</option>
                     <option value="DOPPLER_CAROTIDAS">Carótidas</option> 
                 </select>
             </div>

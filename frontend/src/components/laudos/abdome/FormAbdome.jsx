@@ -112,7 +112,7 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
         onUpdate({
             texto: texto,
             dadosEstruturados: formState,
-            tituloExame: 'ULTRASSONOGRAFIA DO ABDOME TOTAL'
+            tituloExame: 'ULTRASSONOGRAFIA GERAL'
         });
 
     }, [formState, onUpdate]);
@@ -129,7 +129,7 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
             <div className="dashboard-panel" style={{borderLeft: '4px solid #333', marginBottom: '5px', background:'#fff', border: '1px solid #ddd', borderRadius:'6px'}}>
                 <div className="dashboard-panel-body" style={{padding:'10px'}}>
                     <h3 style={{margin: 0, fontSize: '14px', color: '#1C2E4A', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                        <FaNotesMedical /> Exame de Ultrassonografia Geral / Abdome Total
+                        <FaNotesMedical /> Exame de Ultrassonografia Geral
                     </h3>
                 </div>
             </div>
