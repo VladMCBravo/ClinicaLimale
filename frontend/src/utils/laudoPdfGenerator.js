@@ -2,14 +2,13 @@
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
-import logoImagemPath from '../assets/Logo-pdf.png';
-import { getBase64FromUrl } from "./imageHelper";
+// REMOVIDO: Não precisamos mais da logoImagemPath pois o Django fará a máscara
 import { assinarPdfRemotamente } from "../api/pdfService"; 
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 export const gerarPDFLaudo = async ({
-    pacienteId, // <--- 1. NOVO PARÂMETRO ADICIONADO
+    pacienteId, 
     pacienteNome, 
     medicoNome, 
     medicoCrm, 
@@ -19,27 +18,12 @@ export const gerarPDFLaudo = async ({
     imagensBase64,
     comTimbre = true,
     usaAssinaturaDigital = false,
-    retornarBlob = false // <--- NOVO PARÂMETRO
+    retornarBlob = false 
 }) => {
 
-    // --- CONVERSÃO AUTOMÁTICA DO LOGO ---
-    let logoBase64 = null;
-    if (comTimbre) {
-        try {
-            logoBase64 = await getBase64FromUrl(logoImagemPath);
-        } catch (error) {
-            console.error("Erro ao carregar o logo:", error);
-        }
-    }
     // Margens: [Esq, Top, Dir, Inf]
-    // Reduzimos o Bottom de 85 para 60 para dar mais espaço pras fotos
+    // Aumentamos o Top para 170 e diminuímos o fundo para 60 para caber 6 fotos perfeitamente
     const pageMargins = [40, 170, 40, 60]; 
-
-    // --- 1. CABEÇALHO (HEADER) ---
-    const headerDefinition = null; // ZERAMOS O CABEÇALHO
-
-    // --- 2. RODAPÉ (FOOTER) ---
-    const footerDefinition = null; // ZERAMOS O RODAPÉ
 
     // --- FUNÇÕES AUXILIARES ---
     const processarTexto = (textoRaw) => {
@@ -47,19 +31,12 @@ export const gerarPDFLaudo = async ({
         return textoRaw.split('\n').map(line => {
             if (line.trim() === '') return { text: '', margin: [0, 2] };
             
-            // Detecta títulos de seção para negrito e cor
             const titulosConhecidos = [
-                'CONCLUSÃO', 
-                'BIOMETRIA FETAL', 
-                'MORFOLOGIA FETAL', 
-                'RASTREAMENTO MORFOLÓGICO',
-                'ESTUDO DOPPLERFLUXOMÉTRICO',
-                'ANÁLISE MORFOLÓGICA',
-                'ESTUDO TRIDIMENSIONAL',
-                'AVALIAÇÃO DO COLO UTERINO'
+                'CONCLUSÃO', 'BIOMETRIA FETAL', 'MORFOLOGIA FETAL', 
+                'RASTREAMENTO MORFOLÓGICO', 'ESTUDO DOPPLERFLUXOMÉTRICO',
+                'ANÁLISE MORFOLÓGICA', 'ESTUDO TRIDIMENSIONAL', 'AVALIAÇÃO DO COLO UTERINO'
             ];
             
-            // Se a linha contém um desses títulos ou traços separadores
             if (line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t))) {
                 return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
             }
@@ -88,11 +65,8 @@ export const gerarPDFLaudo = async ({
         };
     };
 
-    // --- TABELA DE RISCOS (ATUALIZADA) ---
     const criarTabelaRiscos = (d) => {
-        // Verifica se tem dados de risco (Basal ou Corrigido)
         if (!d.riscoT21Basal && !d.riscoT21Corrigido) return null;
-
         return {
             stack: [
                 { text: 'CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS', style: 'sectionHeader', margin: [0, 15, 0, 5] },
@@ -130,7 +104,6 @@ export const gerarPDFLaudo = async ({
     // --- MONTAGEM DO CONTEÚDO ---
     const content = [];
 
-    // A. Dados do Paciente
     content.push({
         columns: [
             { 
@@ -149,37 +122,24 @@ export const gerarPDFLaudo = async ({
         margin: [0, 0, 0, 20]
     });
 
-    // B. Título
     content.push({ 
         text: tituloExame || 'RELATÓRIO MÉDICO', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 20] 
     });
 
-    // C. Processamento do Texto (COM LIMPEZA DA TABELA ANTIGA)
     let textoParaImprimir = textoLaudo || '';
-
-    // Verifica se há dados de risco para decidir se remove o texto duplicado
     const temRisco = dadosEstruturados?.riscoT21Basal || dadosEstruturados?.feto1?.riscoT21Basal;
-
     if (temRisco) {
-        // CORREÇÃO: Regex ajustado para o novo padrão "CÁLCULO DE RISCO (1:X)" gerado pelo relatorioGenerator.js
-        // Remove desde o título até o final das linhas de T13
         const regexRemoveTabela = /CÁLCULO DE RISCO \(1:X\)[\s\S]*?Corrigido 1\/.*?\n/g;
         textoParaImprimir = textoParaImprimir.replace(regexRemoveTabela, '');
     }
 
     const paragrafosTexto = processarTexto(textoParaImprimir);
-    
-    // Separa o último parágrafo para tentar manter junto da assinatura
     let ultimoParagrafo = null;
     if (paragrafosTexto.length > 0) {
         ultimoParagrafo = paragrafosTexto.pop(); 
     }
-
     content.push(...paragrafosTexto);
 
-    // D. Tabelas Especiais
-    
-    // 1. Tabelas de Risco (1º Tri) - Itera por todos os fetos possíveis
     const fetos = [
         { dados: dadosEstruturados.feto1 || dadosEstruturados, label: 'FETO 1' },
         { dados: dadosEstruturados.feto2, label: 'FETO 2' },
@@ -188,7 +148,6 @@ export const gerarPDFLaudo = async ({
 
     fetos.forEach(feto => {
         if (feto.dados && feto.dados.riscoT21Basal) {
-            // Se for gemelar, adiciona título indicando qual feto é
             if(dadosEstruturados.qtdFetos > 1) {
                 content.push({ text: `AVALIAÇÃO DE RISCO - ${feto.label}`, style: 'sectionHeader', margin: [0, 10, 0, 2] });
             }
@@ -197,12 +156,10 @@ export const gerarPDFLaudo = async ({
         }
     });
 
-    // Linha divisória se houve tabelas de risco
     if (dadosEstruturados?.feto1?.riscoT21Basal) {
         content.push({ canvas: [{ type: 'line', x1: 0, y1: 10, x2: 515, y2: 10, lineWidth: 0.5, lineColor: '#ccc' }], margin: [0, 5, 0, 15] });
     }
     
-    // 2. Tabelas de Biometria
     fetos.forEach(feto => {
         if (feto.dados && feto.dados.tabelaBiometria && feto.dados.tabelaBiometria.length > 0) {
             const titulo = dadosEstruturados.qtdFetos > 1 
@@ -212,33 +169,30 @@ export const gerarPDFLaudo = async ({
         }
     });
 
-    // E. Imagens (Layout 6 por página -> Grade 2x3)
-    if (imagensBase64 && imagensBase64.length > 0) {
-        // Quebra de página antes das fotos
+    // --- 🛡️ BLINDAGEM DE IMAGENS ---
+    // Só processa imagens que forem Base64 válidas. Descarta as quebradas para não travar o PDF.
+    const imagensValidas = (imagensBase64 || []).filter(img => typeof img === 'string' && img.startsWith('data:image/'));
+
+    if (imagensValidas.length > 0) {
         content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
         
-        // Define tamanho fixo para caber 3 linhas numa A4
-        // A4 altura útil ~700px. 3 linhas x 200px = 600px. Margens ok.
         const IMG_WIDTH = 230; 
         const IMG_HEIGHT = 160; 
 
-        for (let i = 0; i < imagensBase64.length; i += 2) {
-            const img1 = imagensBase64[i];
-            const img2 = imagensBase64[i + 1];
-
+        for (let i = 0; i < imagensValidas.length; i += 2) {
+            const img1 = imagensValidas[i];
+            const img2 = imagensValidas[i + 1];
             const columns = [];
             
-            // Coluna 1
             columns.push({
                 image: img1,
                 width: IMG_WIDTH,
                 height: IMG_HEIGHT,
                 fit: [IMG_WIDTH, IMG_HEIGHT],
                 alignment: 'center',
-                margin: [0, 0, 0, 10] // Margem inferior entre linhas
+                margin: [0, 0, 0, 10]
             });
 
-            // Coluna 2 (se existir)
             if (img2) {
                 columns.push({
                     image: img2,
@@ -249,20 +203,17 @@ export const gerarPDFLaudo = async ({
                     margin: [0, 0, 0, 10]
                 });
             } else {
-                // Coluna vazia para manter alinhamento se for impar
                 columns.push({ text: '', width: IMG_WIDTH });
             }
 
-            // Adiciona a linha (row) ao content
             content.push({
                 columns: columns,
                 columnGap: 10,
-                unbreakable: false // Permite quebrar página se passar de 3 linhas (6 fotos)
+                unbreakable: false 
             });
         }
     }
 
-    // --- ASSINATURA ---
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const isDra = primeiroNome.endsWith('a'); 
     const prefixoMedico = isDra ? 'Dra.' : 'Dr.';
@@ -317,33 +268,30 @@ export const gerarPDFLaudo = async ({
         unbreakable: true 
     });
 
-    // --- GERAÇÃO DO PDF ---
     const docDefinition = {
         pageSize: 'A4', 
         pageMargins: pageMargins,
-        // Removemos o header e footer para não travar o pdfMake
+        // Header e Footer removidos da configuração para não causar travamentos
         content: content,
         styles: {
           mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },
           sectionHeader: { fontSize: 11, bold: true, color: '#2E7D32', uppercase: true },
           tableHeader: { fontSize: 9, bold: true, color: '#555' },
-          // AJUSTE AQUI: O padrão é 1.2 ou 1.5. Tente reduzir para 1.15 ou 1.2
           footerText: { fontSize: 9, color: '#555', lineHeight: 1.1 } 
         },
-        // Adicione lineHeight aqui para o texto geral do corpo
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.2 } 
     };
     
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 
-    // Se pedimos para retornar o Blob (para salvar no banco internamente)
+    // FLUXO 1: Retorna apenas o Blob para o Django "carimbar" por cima (Usado ao Finalizar)
     if (retornarBlob) {
         return new Promise((resolve) => {
             pdfDocGenerator.getBlob((blob) => resolve(blob));
         });
     }
 
-    // --- 2. INTELIGÊNCIA DE NOMEAÇÃO DO ARQUIVO ---
+    // FLUXO 2: Visualização Local (Botões soltos e envio via WhatsApp direto)
     const formatarNome = (texto) => {
         if (!texto) return '';
         return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
@@ -354,16 +302,12 @@ export const gerarPDFLaudo = async ({
     const tipoLimpo = formatarNome(tituloExame) || "Exame";
     const nomeArquivo = `${idStr}_${nomeLimpo}_${tipoLimpo}.pdf`;
 
-    // --- 3. FUNÇÃO QUE ABRE E BAIXA AO MESMO TEMPO ---
     const forcarDownloadEAbrir = (blobUrl) => {
-        // 1. Abre na nova aba para visualização e impressão
         window.open(blobUrl, '_blank');
-        
-        // 2. Cria um link fantasma e força o Download
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = blobUrl;
-        a.download = nomeArquivo; // O nome padronizado entra aqui!
+        a.download = nomeArquivo; 
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -372,7 +316,6 @@ export const gerarPDFLaudo = async ({
     if (usaAssinaturaDigital) {
         pdfDocGenerator.getBlob(async (blob) => {
             try {
-                // Removemos o "window.open" daqui para não dar bloqueio de pop-up duplo
                 const pdfAssinadoBlob = await assinarPdfRemotamente(blob);
                 const fileURL = URL.createObjectURL(pdfAssinadoBlob);
                 
@@ -384,7 +327,6 @@ export const gerarPDFLaudo = async ({
             }
         });
     } else {
-        // Como o retornarBlob já foi tratado no início, aqui é só o fluxo de abrir na tela.
         pdfDocGenerator.getBlob((blob) => {
             const fileURL = URL.createObjectURL(blob);
             forcarDownloadEAbrir(fileURL);
