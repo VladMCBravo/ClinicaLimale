@@ -51,6 +51,9 @@ urlpatterns = [
     # Usamos a mesma view pois ela retorna a lista de exames com código/senha
     path('credenciais-ativas/', views.ListarExamesDoPacienteView.as_view(), name='credenciais-ativas'),
 
+    # --- ROTA UNIVERSAL DE MÁSCARA ---
+    path('aplicar-mascara/', views.AplicarMascaraPDFView.as_view(), name='aplicar-mascara-pdf'),
+
     # MUDANÇA AQUI: Renomeando a URL para não ter conflito
     path('buscar-senha-paciente/', buscar_credenciais_ativas, name='buscar-senha-paciente'),
 

@@ -1100,3 +1100,66 @@ def buscar_credenciais_ativas(request):
     else:
         print("[DEBUG] Falha: Paciente tem laudos, mas nenhum possui 'codigo_acesso' preenchido.")
         return Response({'erro': 'Nenhum laudo encontrado com código de acesso'}, status=404)
+
+class AplicarMascaraPDFView(APIView):
+    """
+    Recebe um PDF transparente gerado pelo React (como a Agenda),
+    aplica a máscara da clínica (Receituario.pdf) no fundo de todas as páginas,
+    e devolve o arquivo PDF final na mesma hora (sem salvar no banco).
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        if 'arquivo_pdf' not in request.FILES:
+            return Response({"error": "Nenhum arquivo PDF enviado."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        pdf_file = request.FILES['arquivo_pdf']
+        
+        try:
+            print("DEBUG [AGENDA]: Recebido PDF para aplicar máscara...")
+            # Rebobina a leitura do arquivo por segurança
+            pdf_file.seek(0)
+            pdf_bytes_front = pdf_file.read()
+            
+            if len(pdf_bytes_front) == 0:
+                raise Exception("O arquivo PDF do frontend chegou vazio.")
+            
+            # Caminho da nossa máscara oficial
+            caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf')
+            
+            conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_front))
+            writer = PdfWriter()
+            
+            print(f"DEBUG [AGENDA]: Mesclando {len(conteudo_reader.pages)} página(s)...")
+            
+            for i in range(len(conteudo_reader.pages)):
+                pagina_conteudo = conteudo_reader.pages[i]
+                
+                # Lemos a máscara do zero a cada volta para evitar a sobreposição!
+                mascara_reader_fresca = PdfReader(caminho_mascara)
+                pagina_mascara_limpa = mascara_reader_fresca.pages[0]
+                
+                # A máscara fica no fundo, a tabela da agenda por cima
+                pagina_mascara_limpa.merge_page(pagina_conteudo)
+                writer.add_page(pagina_mascara_limpa)
+                
+            merged_result = io.BytesIO()
+            writer.write(merged_result)
+            pdf_bytes_finais = merged_result.getvalue()
+            
+            print("DEBUG [AGENDA]: Máscara aplicada com SUCESSO!")
+            
+            # Devolve o PDF binário diretamente para o navegador abrir
+            response = HttpResponse(pdf_bytes_finais, content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="agenda_timbrada.pdf"'
+            return response
+            
+        except Exception as e:
+            print(f"DEBUG [AGENDA]: Falha ao aplicar máscara: {e}")
+            # Em caso de erro (ex: não achou o Receituario.pdf), 
+            # devolve o arquivo original transparente para não travar a recepção
+            pdf_file.seek(0)
+            response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="agenda_original.pdf"'
+            return response
