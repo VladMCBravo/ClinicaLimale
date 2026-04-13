@@ -32,8 +32,8 @@ export const gerarPDFLaudo = async ({
         }
     }
     // Margens: [Esq, Top, Dir, Inf]
-    // Aumentamos o Top para 170 (equivalente a uns 6cm) e o Bottom para 85
-    const pageMargins = [40, 170, 40, 85]; 
+    // Reduzimos o Bottom de 85 para 60 para dar mais espaço pras fotos
+    const pageMargins = [40, 170, 40, 60]; 
 
     // --- 1. CABEÇALHO (HEADER) ---
     const headerDefinition = null; // ZERAMOS O CABEÇALHO
@@ -220,7 +220,7 @@ export const gerarPDFLaudo = async ({
         // Define tamanho fixo para caber 3 linhas numa A4
         // A4 altura útil ~700px. 3 linhas x 200px = 600px. Margens ok.
         const IMG_WIDTH = 230; 
-        const IMG_HEIGHT = 170; 
+        const IMG_HEIGHT = 160; 
 
         for (let i = 0; i < imagensBase64.length; i += 2) {
             const img1 = imagensBase64[i];

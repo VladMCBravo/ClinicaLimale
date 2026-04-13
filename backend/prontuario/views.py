@@ -318,16 +318,18 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
             conteudo_reader = PdfReader(io.BytesIO(pdf_conteudo_bytes))
             writer = PdfWriter()
 
-            # Itera por todas as páginas geradas pelo texto (caso o relatório tenha 3 páginas, por exemplo)
+            # Itera por todas as páginas geradas pelo texto
             for i in range(len(conteudo_reader.pages)):
                 pagina_conteudo = conteudo_reader.pages[i]
                 
-                # Pega a primeira página do Receituario.pdf para usar como fundo sempre
-                pagina_mascara = mascara_reader.pages[0]
+                # A SOLUÇÃO: Lemos o arquivo da máscara DO ZERO para cada página.
+                # Isso garante que a página 2 não seja impressa em cima da página 1!
+                mascara_reader_fresca = PdfReader(caminho_mascara)
+                pagina_mascara_limpa = mascara_reader_fresca.pages[0]
                 
-                # Mescla: A máscara fica no fundo, o texto do paciente por cima
-                pagina_mascara.merge_page(pagina_conteudo)
-                writer.add_page(pagina_mascara)
+                # Mescla e adiciona
+                pagina_mascara_limpa.merge_page(pagina_conteudo)
+                writer.add_page(pagina_mascara_limpa)
 
             # Salva o resultado mesclado em bytes
             merged_result = io.BytesIO()
@@ -923,9 +925,13 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     print(f"DEBUG [LAUDO]: Mesclando {len(conteudo_reader.pages)} páginas...")
                     for i in range(len(conteudo_reader.pages)):
                         pagina_conteudo = conteudo_reader.pages[i]
-                        pagina_mascara = mascara_reader.pages[0]
-                        pagina_mascara.merge_page(pagina_conteudo)
-                        writer.add_page(pagina_mascara)
+                        
+                        # A SOLUÇÃO REPETIDA: Pegar uma máscara limpa a cada volta
+                        mascara_reader_fresca = PdfReader(caminho_mascara)
+                        pagina_mascara_limpa = mascara_reader_fresca.pages[0]
+                        
+                        pagina_mascara_limpa.merge_page(pagina_conteudo)
+                        writer.add_page(pagina_mascara_limpa)
 
                     merged_result = io.BytesIO()
                     writer.write(merged_result)
