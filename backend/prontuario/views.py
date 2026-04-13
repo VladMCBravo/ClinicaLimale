@@ -904,7 +904,16 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 pdf_file = request.FILES['arquivo_pdf']
                 
                 try:
+                    # =======================================================
+                    # CRÍTICO: "Rebobina" o arquivo para o início antes de ler
+                    pdf_file.seek(0) 
+                    # =======================================================
+                    
                     pdf_bytes_front = pdf_file.read()
+                    
+                    if len(pdf_bytes_front) == 0:
+                        raise Exception("Os bytes do PDF do React chegaram vazios.")
+                        
                     caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf') 
                     
                     mascara_reader = PdfReader(caminho_mascara)
@@ -933,7 +942,7 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 except Exception as e:
                     print(f"DEBUG [LAUDO]: FALHA CRÍTICA na máscara ou assinatura: {e}")
                     # Retorna o arquivo original para não quebrar o sistema
-                    pdf_file.seek(0) 
+                    pdf_file.seek(0)
 
                 data_hoje_str = date.today().strftime("%d-%m-%Y")
                 nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
