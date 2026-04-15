@@ -324,7 +324,7 @@ const getInitialState = (key, fallback) => {
   }, []);
 
   // Função para redimensionar e comprimir imagens Base64
-const otimizarImagemParaPDF = (base64Str, maxWidth = 900, qualidade = 0.85) => {
+const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
     return new Promise((resolve, reject) => {
         // Se já não for uma imagem válida, devolve como está para não quebrar
         if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) {
