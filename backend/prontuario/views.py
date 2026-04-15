@@ -314,7 +314,11 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
             # Aqui estou assumindo que você colocou na raiz do projeto, numa pasta chamada 'static'
             caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf') 
             
-            mascara_reader = PdfReader(caminho_mascara)
+            # --- NOVA SOLUÇÃO DE MEMÓRIA ---
+            # 1. Carrega o arquivo do HD para a memória RAM uma ÚNICA vez
+            with open(caminho_mascara, 'rb') as f_mascara:
+                mascara_bytes = f_mascara.read()
+
             conteudo_reader = PdfReader(io.BytesIO(pdf_conteudo_bytes))
             writer = PdfWriter()
 
@@ -322,9 +326,8 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
             for i in range(len(conteudo_reader.pages)):
                 pagina_conteudo = conteudo_reader.pages[i]
                 
-                # A SOLUÇÃO: Lemos o arquivo da máscara DO ZERO para cada página.
-                # Isso garante que a página 2 não seja impressa em cima da página 1!
-                mascara_reader_fresca = PdfReader(caminho_mascara)
+                # 2. Em vez de ler do HD (caminho_mascara), lê direto da RAM (mascara_bytes)
+                mascara_reader_fresca = PdfReader(io.BytesIO(mascara_bytes))
                 pagina_mascara_limpa = mascara_reader_fresca.pages[0]
                 
                 # Mescla e adiciona
@@ -918,7 +921,10 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                         
                     caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf') 
                     
-                    mascara_reader = PdfReader(caminho_mascara)
+                    # --- NOVA SOLUÇÃO DE MEMÓRIA ---
+                    with open(caminho_mascara, 'rb') as f_mascara:
+                        mascara_bytes = f_mascara.read()
+
                     conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_front))
                     writer = PdfWriter()
 
@@ -926,8 +932,8 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     for i in range(len(conteudo_reader.pages)):
                         pagina_conteudo = conteudo_reader.pages[i]
                         
-                        # A SOLUÇÃO REPETIDA: Pegar uma máscara limpa a cada volta
-                        mascara_reader_fresca = PdfReader(caminho_mascara)
+                        # Usa a versão carregada na RAM para não travar o Vercel
+                        mascara_reader_fresca = PdfReader(io.BytesIO(mascara_bytes))
                         pagina_mascara_limpa = mascara_reader_fresca.pages[0]
                         
                         pagina_mascara_limpa.merge_page(pagina_conteudo)
@@ -1128,6 +1134,10 @@ class AplicarMascaraPDFView(APIView):
             # Caminho da nossa máscara oficial
             caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf')
             
+            # --- NOVA SOLUÇÃO DE MEMÓRIA ---
+            with open(caminho_mascara, 'rb') as f_mascara:
+                mascara_bytes = f_mascara.read()
+
             conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_front))
             writer = PdfWriter()
             
@@ -1136,8 +1146,8 @@ class AplicarMascaraPDFView(APIView):
             for i in range(len(conteudo_reader.pages)):
                 pagina_conteudo = conteudo_reader.pages[i]
                 
-                # Lemos a máscara do zero a cada volta para evitar a sobreposição!
-                mascara_reader_fresca = PdfReader(caminho_mascara)
+                # Lemos direto da memória para alívio do servidor
+                mascara_reader_fresca = PdfReader(io.BytesIO(mascara_bytes))
                 pagina_mascara_limpa = mascara_reader_fresca.pages[0]
                 
                 # A máscara fica no fundo, a tabela da agenda por cima
