@@ -323,40 +323,81 @@ const getInitialState = (key, fallback) => {
       if (dados.tituloExame) setTituloExame(dados.tituloExame);
   }, []);
 
+  // Função para redimensionar e comprimir imagens Base64
+const otimizarImagemParaPDF = (base64Str, maxWidth = 900, qualidade = 0.85) => {
+    return new Promise((resolve, reject) => {
+        // Se já não for uma imagem válida, devolve como está para não quebrar
+        if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) {
+            resolve(base64Str);
+            return;
+        }
+
+        const img = new Image();
+        img.src = base64Str;
+        
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Só redimensiona se a imagem for muito grande
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Fundo branco caso a imagem original tenha transparência (ex: PNG)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Exporta FORÇANDO formato JPEG na qualidade 85%
+            const base64Otimizado = canvas.toDataURL('image/jpeg', qualidade);
+            resolve(base64Otimizado);
+        };
+        
+        img.onerror = (err) => reject(err);
+    });
+};
+
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
   const handleFinalizacaoCompleta = async (textoCorrigido, imagensFinais) => {
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
-    // --- AUDITORIA DE DADOS (ADICIONE ISSO) ---
-    console.log("=== AUDITORIA DE SALVAMENTO ===");
-    console.log("PACIENTE ID:", paciente.id);
-    console.log("NOME:", paciente.nome_completo);
-    console.log("DADOS ESTRUTURADOS:", dadosEstruturados);
-    // Verifique se no console aparece: { feto1: { dum: '...', ... } }
-    // -------------------------------------------
-
-    setModalRevisaoOpen(false); // Fecha o modal de revisão
+    setModalRevisaoOpen(false);
     setSaving(true);
     
-    // Atualiza estados locais
-    setTextoFinal(textoCorrigido);
-    setImagens(imagensFinais);
-
     try {
-        // A. Gera o Blob do PDF
+        // --- 1. A MÁGICA DA OTIMIZAÇÃO ACONTECE AQUI ---
+        // Comprime todas as imagens pesadas em paralelo antes de seguir
+        const imagensOtimizadas = await Promise.all(
+            imagensFinais.map(img => otimizarImagemParaPDF(img))
+        );
+
+        // Atualiza estados locais com as imagens LEVES
+        setTextoFinal(textoCorrigido);
+        setImagens(imagensOtimizadas);
+
+        // 2. Gera o Blob do PDF usando as imagens leves
         const blobPdf = await gerarPDFLaudo({
             pacienteNome: paciente.nome_completo,
             medicoNome, medicoCrm, tituloExame,
             textoLaudo: textoCorrigido,
             dadosEstruturados,
-            imagensBase64: imagensFinais,
+            imagensBase64: imagensOtimizadas, // <-- CORRIGIDO AQUI
             comTimbre: true, 
             usaAssinaturaDigital: usuarioTemCertificado,
             retornarBlob: true
         });
 
-        // B. Prepara upload
+        // 3. Prepara upload com os dados enxutos
         const formData = new FormData();
         formData.append('paciente', paciente.id);
         formData.append('tipo_exame', tipoExame);
@@ -366,7 +407,9 @@ const getInitialState = (key, fallback) => {
         formData.append('crm_medico', medicoCrm);
         formData.append('status', "FINALIZADO");
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
-        formData.append('imagens_anexas', JSON.stringify(imagensFinais)); 
+        
+        // Envia as imagens otimizadas para o backend
+        formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas)); // <-- CORRIGIDO AQUI
         
         const nomeArquivo = `Laudo_${paciente.nome_completo.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
         formData.append('arquivo_pdf', blobPdf, nomeArquivo);

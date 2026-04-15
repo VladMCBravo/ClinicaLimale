@@ -811,22 +811,52 @@ class LaudoListCreateView(generics.ListCreateAPIView):
         return Laudo.objects.all().order_by('-data_criacao')
 
     def perform_create(self, serializer):
-        # 1. Salva o Laudo Básico 
+        import json
+        import base64
+        from django.core.files.base import ContentFile
+        
         paciente_id = self.request.data.get('paciente')
         paciente = get_object_or_404(Paciente, id=paciente_id)
         
+        # 1. Tratar dados estruturados
+        dados_raw = self.request.data.get('dados_estruturados', '{}')
+        if isinstance(dados_raw, str):
+            try:
+                dados_dict = json.loads(dados_raw)
+            except json.JSONDecodeError:
+                dados_dict = {}
+        else:
+            dados_dict = dados_raw
+            
+        # Limpa imagens do JSON se vieram lá dentro por engano
+        imagens_do_json = dados_dict.pop('imagens', [])
+        
+        # 2. Salva o Laudo Básico com JSON leve
         laudo = serializer.save(
             medico=self.request.user, 
             paciente=paciente,
-            tipo_exame=self.request.data.get('titulo', 'EXAME') 
+            tipo_exame=self.request.data.get('titulo', 'EXAME'),
+            dados_estruturados=dados_dict
         )
 
-        # 2. Processamento das Imagens Base64
-        imagens_base64 = self.request.data.get('imagens_anexas', [])
-        if imagens_base64 and isinstance(imagens_base64, list):
-            import base64
-            from django.core.files.base import ContentFile
-            for index, img_str in enumerate(imagens_base64):
+        # 3. Tratar as imagens anexadas (Convertendo a String do FormData)
+        imagens_raw = self.request.data.get('imagens_anexas')
+        imagens_lista = []
+        
+        if imagens_raw:
+            if isinstance(imagens_raw, str):
+                try:
+                    imagens_lista = json.loads(imagens_raw)
+                except json.JSONDecodeError:
+                    pass
+            elif isinstance(imagens_raw, list):
+                imagens_lista = imagens_raw
+        else:
+            imagens_lista = imagens_do_json
+            
+        # 4. Salva as imagens individualmente
+        if imagens_lista:
+            for index, img_str in enumerate(imagens_lista):
                 try:
                     if ";base64," in img_str:
                         format, imgstr = img_str.split(';base64,') 
@@ -842,6 +872,7 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                         laudo=laudo,
                         arquivo=ContentFile(data, name=file_name)
                     )
+                    print(f"DEBUG: Imagem {index} salva no disco com sucesso.")
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
 
