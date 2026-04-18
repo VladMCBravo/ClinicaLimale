@@ -62,7 +62,13 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
 const filter = createFilterOptions({
     ignoreAccents: true,
     ignoreCase: true,
-    matchFrom: 'any', // Busca em qualquer parte do nome
+    matchFrom: 'any', // Busca em qualquer parte do nome/cpf
+    stringify: (option) => {
+        // Se for a opção de "Novo Paciente", busca pelo texto digitado
+        if (option.isNew) return option.inputValue;
+        // Se for paciente real, cria uma "string invisível" com Nome e CPF para a busca
+        return `${option.nome_completo} ${option.cpf || ''}`;
+    }
 });
 
 const formatData = (dataString) => {
@@ -523,31 +529,25 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             }
                                         }} 
                                         filterOptions={(options, params) => {
+                                            // 1. Deixa o motor nativo e inteligente do MUI fazer o trabalho duro
+                                            const filtered = filter(options, params);
                                             const { inputValue } = params;
-                                            const inputLower = inputValue.toLowerCase().trim();
-                                            const inputApenasNumeros = inputValue.replace(/\D/g, '');
 
-                                            // 1. Filtro flexível igual ao da tela de Pacientes (Nome ou CPF)
-                                            const filtered = options.filter(option => {
-                                                const matchNome = option.nome_completo && option.nome_completo.toLowerCase().includes(inputLower);
-                                                const matchCpf = option.cpf && option.cpf.replace(/\D/g, '').includes(inputApenasNumeros);
-                                                // Retorna true se bater com o nome OU (se digitou número) bater com o CPF
-                                                return matchNome || (inputApenasNumeros.length > 0 && matchCpf);
-                                            });
-
-                                            // 2. Se digitou algo e não é exatamente igual, mostra o botão de criar
+                                            // 2. Verifica se o que o usuário digitou já é um nome exato na lista
                                             const isExactMatch = options.some(
-                                                (option) => option.nome_completo.toLowerCase() === inputLower
+                                                (option) => option.nome_completo && option.nome_completo.toLowerCase() === inputValue.toLowerCase().trim()
                                             );
 
+                                            // 3. Se digitou algo e não é 100% igual, mostra o botão de criar lá no topo
                                             if (inputValue !== '' && !isExactMatch) {
                                                 filtered.unshift({ 
-                                                    id: 'novo-paciente-temp', // <-- ISSO FALTAVA PARA O MUI NÃO ESCONDER
+                                                    id: 'novo-paciente-temp',
                                                     inputValue,
                                                     nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
                                                     isNew: true
                                                 });
                                             }
+                                            
                                             return filtered;
                                         }}
                                         renderOption={(props, option) => {
