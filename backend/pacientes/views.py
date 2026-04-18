@@ -7,6 +7,9 @@ from .models import Paciente
 from .serializers import PacienteSerializer
 # --- 1. IMPORTE O 'Q' (para queries 'OU') E 'Count' ---
 from django.db.models import Count, Q 
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PacienteListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PacienteSerializer
@@ -21,35 +24,38 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        logger.info(f"[DEBUG - BACKEND] Iniciando busca de pacientes para usuário: {user.email} (Cargo: {user.cargo})")
         
-        # Começamos com a lista de todos os pacientes
-        base_queryset = Paciente.objects.annotate(
-            total_consultas=Count('agendamentos')
-        )
+        # 1. A SOLUÇÃO DO BUG: Primeiro fazemos a query limpa, SEM O ANNOTATE
+        base_queryset = Paciente.objects.all()
 
-        # Admin e Recepção veem todos
         if user.cargo in ['admin', 'recepcao']:
-            return base_queryset
-        
-        # --- 2. LÓGICA CORRIGIDA PARA O MÉDICO ---
-        if user.cargo == 'medico':
-            # Pacientes onde o médico é o responsável
+            qs = base_queryset
+        elif user.cargo == 'medico':
             pacientes_responsaveis = Q(medico_responsavel=user)
-            
-            # Pacientes que o médico já atendeu (tem uma evolução/consulta)
             pacientes_com_evolucao = Q(evolucoes__medico=user)
-            
-            # Pacientes que o médico tem/teve um agendamento
             pacientes_agendados = Q(agendamentos__medico=user)
 
-            # O médico verá pacientes que se encaixam em QUALQUER uma das condições (OU)
             filtro_medico = pacientes_responsaveis | pacientes_com_evolucao | pacientes_agendados
-            
-            # Aplicamos o filtro e usamos .distinct() para garantir que não haja duplicatas
-            return base_queryset.filter(filtro_medico).distinct()
-        
-        # Se não for nenhum dos cargos acima, não retorna nada
-        return Paciente.objects.none()
+            # O distinct aqui agora funciona corretamente pois não tem Count() atrapalhando
+            qs = base_queryset.filter(filtro_medico).distinct()
+        else:
+            qs = Paciente.objects.none()
+
+        logger.info(f"[DEBUG - BACKEND] Pacientes encontrados no banco (antes do annotate): {qs.count()}")
+
+        # 2. Só agora, com os pacientes únicos garantidos, nós contamos os agendamentos
+        # Usamos distinct=True dentro do Count por segurança
+        final_qs = qs.annotate(total_consultas=Count('agendamentos', distinct=True))
+
+        # 3. LOG DE VERIFICAÇÃO FINAL: Vamos checar se sobrou algum ID duplicado
+        ids_encontrados = list(final_qs.values_list('id', flat=True))
+        if len(ids_encontrados) != len(set(ids_encontrados)):
+            logger.error(f"[DEBUG - BACKEND] ALERTA CRÍTICO: IDs duplicados ainda estão sendo gerados! IDs: {ids_encontrados}")
+        else:
+            logger.info("[DEBUG - BACKEND] Sucesso: Nenhum paciente duplicado no envio.")
+
+        return final_qs
 
     def perform_create(self, serializer):
         serializer.save()

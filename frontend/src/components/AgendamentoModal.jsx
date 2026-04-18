@@ -92,11 +92,20 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     
     useEffect(() => {
         if (open) {
+            console.log("[DEBUG - FRONTEND] Modal aberto. Solicitando dados ao servidor...");
+            
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
-                    // --- CORREÇÃO: DEDUPLICAÇÃO DE PACIENTES ---
+                    
+                    const rawPacientes = pacientesRes.data || [];
+                    console.log(`[DEBUG - FRONTEND] Recebeu ${rawPacientes.length} pacientes brutos do backend.`, rawPacientes);
+
+                    // Deduplicação forçada com Log de aviso
                     const pacientesUnicosMap = new Map();
-                    (pacientesRes.data || []).forEach(p => {
+                    rawPacientes.forEach(p => {
+                        if (pacientesUnicosMap.has(p.id)) {
+                            console.warn(`[DEBUG - FRONTEND] DUPLICATA DELETADA NO FRONTEND: ID ${p.id} - ${p.nome_completo}`);
+                        }
                         pacientesUnicosMap.set(p.id, p); 
                     });
                     
@@ -104,11 +113,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                         a.nome_completo.localeCompare(b.nome_completo)
                     );
                     
+                    console.log(`[DEBUG - FRONTEND] Lista final após limpeza: ${pacientesOrdenados.length} pacientes.`, pacientesOrdenados);
+
                     setPacientes(pacientesOrdenados);
                     setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
                     setMedicos(medicosRes.data);
                     setEspecialidades(especialidadesRes.data);
-                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
+                }).catch(error => { 
+                    console.error("[DEBUG - FRONTEND] Erro ao carregar dados do modal:", error);
+                    showSnackbar("Erro ao carregar dados.", 'error'); 
+                });
             
             agendamentoService.getSalas()
                 .then(response => {
@@ -498,24 +512,32 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             }
                                         }} 
                                         filterOptions={(options, params) => {
-                                            // 1. Usa o filtro nativo e estrito do MUI
-                                            const filtered = filter(options, params);
                                             const { inputValue } = params;
+                                            
+                                            if (inputValue) {
+                                                console.log(`[DEBUG - FILTER] Usuário digitou: "${inputValue}"`);
+                                            }
 
-                                            if (inputValue !== '') {
-                                                // 2. Verifica se o que foi digitado já existe exatamente igual
-                                                const isExisting = options.some(
-                                                    (option) => option.nome_completo.toLowerCase() === inputValue.toLowerCase()
-                                                );
+                                            const inputLower = inputValue.toLowerCase().trim();
+                                            
+                                            const filtered = options.filter(option => 
+                                                option.nome_completo.toLowerCase().includes(inputLower)
+                                            );
+                                            
+                                            if (inputValue) {
+                                                console.log(`[DEBUG - FILTER] Sobraram ${filtered.length} resultados na lista.`);
+                                            }
 
-                                                // 3. Se não existe, coloca o botão de criar no TOPO da lista filtrada
-                                                if (!isExisting) {
-                                                    filtered.unshift({
-                                                        inputValue,
-                                                        nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
-                                                        isNew: true
-                                                    });
-                                                }
+                                            const isExactMatch = options.some(option => 
+                                                option.nome_completo.toLowerCase() === inputLower
+                                            );
+                                            
+                                            if (inputValue !== '' && !isExactMatch) {
+                                                filtered.unshift({ 
+                                                    inputValue,
+                                                    nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
+                                                    isNew: true
+                                                });
                                             }
                                             return filtered;
                                         }}
