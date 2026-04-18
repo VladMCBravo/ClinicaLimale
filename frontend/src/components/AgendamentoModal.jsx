@@ -535,31 +535,37 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         
                                         filterOptions={(options, params) => {
                                             const { inputValue } = params;
-                                            
-                                            // 1. O motor do MUI faz a busca bruta (agora entendendo o CPF sem pontos)
-                                            const filtered = filtroInteligente(options, params);
-
-                                            // 2. ORDENAÇÃO: Joga pro topo quem COMEÇA com o texto digitado
-                                            if (inputValue) {
-                                                const termo = inputValue.toLowerCase().trim();
-                                                filtered.sort((a, b) => {
-                                                    if (a.isNew || b.isNew) return 0;
-                                                    const nomeA = a.nome_completo ? a.nome_completo.toLowerCase() : '';
-                                                    const nomeB = b.nome_completo ? b.nome_completo.toLowerCase() : '';
-                                                    const aComeca = nomeA.startsWith(termo);
-                                                    const bComeca = nomeB.startsWith(termo);
-                                                    
-                                                    // Se o A começa com o texto e o B não, o A sobe na lista
-                                                    if (aComeca && !bComeca) return -1;
-                                                    if (!aComeca && bComeca) return 1;
-                                                    return 0;
-                                                });
-                                            }
-
-                                            // 3. Lógica do botão "Novo Paciente"
                                             const inputLimpo = inputValue.toLowerCase().trim();
+                                            const inputNumeros = inputValue.replace(/\D/g, '');
+
+                                            const filtered = options.filter(option => {
+                                                if (inputLimpo === '') return true;
+
+                                                // 1. Busca por CPF (se o usuário digitou algum número)
+                                                if (inputNumeros.length > 0) {
+                                                    const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
+                                                    if (cpfBanco.includes(inputNumeros)) return true;
+                                                }
+
+                                                // 2. Busca por Nome (A REGRA ANTIFALHAS)
+                                                const nomeCompleto = option.nome_completo ? option.nome_completo.toLowerCase() : '';
+                                                
+                                                // Separa o nome do paciente e o que foi digitado em "pedacinhos"
+                                                const palavrasDoNome = nomeCompleto.split(' ');
+                                                const termosBusca = inputLimpo.split(' ');
+
+                                                // Garante que TODOS os pedacinhos que a recepção digitou 
+                                                // batem com o INÍCIO de alguma palavra do nome do paciente.
+                                                const matchNome = termosBusca.every(termo => 
+                                                    palavrasDoNome.some(palavra => palavra.startsWith(termo))
+                                                );
+
+                                                return matchNome;
+                                            });
+
+                                            // 3. Lógica para manter o botão de "Novo Paciente" sempre visível se o nome não for idêntico
                                             const existeExato = options.some(
-                                                (opt) => opt.nome_completo && opt.nome_completo.toLowerCase() === inputLimpo
+                                                option => option.nome_completo && option.nome_completo.toLowerCase() === inputLimpo
                                             );
 
                                             if (inputLimpo !== '' && !existeExato) {
