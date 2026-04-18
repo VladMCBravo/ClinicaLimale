@@ -65,6 +65,13 @@ const filter = createFilterOptions({
     matchFrom: 'any', // Busca em qualquer parte do nome
 });
 
+const formatData = (dataString) => {
+    if (!dataString) return '-';
+    const partes = dataString.split('-'); 
+    if(partes.length < 3) return dataString;
+    return `${partes[2]}/${partes[1]}/${partes[0]}`; 
+};
+
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente }) {
     const { showSnackbar } = useSnackbar();
 
@@ -495,13 +502,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth>
                                     <Autocomplete 
                                         options={pacientes} 
-                                        getOptionLabel={(p) => {
-                                            if (typeof p === 'string') return p;
-                                            if (p.inputValue) return p.inputValue;
-                                            return p.nome_completo || '';
+                                        getOptionLabel={(option) => {
+                                            if (typeof option === 'string') return option;
+                                            if (option.inputValue) return option.inputValue;
+                                            return option.nome_completo || '';
                                         }} 
                                         value={formData.paciente} 
-                                        isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                        isOptionEqualToValue={(o, v) => {
+                                            // Ignora a validação de ID se for a opção de "Novo Paciente"
+                                            if (o.isNew || v.isNew) return false;
+                                            return o.id === v.id;
+                                        }} 
                                         onChange={(event, newValue) => {
                                             if (typeof newValue === 'string') {
                                                 if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue);
@@ -513,27 +524,25 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         }} 
                                         filterOptions={(options, params) => {
                                             const { inputValue } = params;
-                                            
-                                            if (inputValue) {
-                                                console.log(`[DEBUG - FILTER] Usuário digitou: "${inputValue}"`);
-                                            }
-
                                             const inputLower = inputValue.toLowerCase().trim();
-                                            
-                                            const filtered = options.filter(option => 
-                                                option.nome_completo.toLowerCase().includes(inputLower)
-                                            );
-                                            
-                                            if (inputValue) {
-                                                console.log(`[DEBUG - FILTER] Sobraram ${filtered.length} resultados na lista.`);
-                                            }
+                                            const inputApenasNumeros = inputValue.replace(/\D/g, '');
 
-                                            const isExactMatch = options.some(option => 
-                                                option.nome_completo.toLowerCase() === inputLower
+                                            // 1. Filtro flexível igual ao da tela de Pacientes (Nome ou CPF)
+                                            const filtered = options.filter(option => {
+                                                const matchNome = option.nome_completo && option.nome_completo.toLowerCase().includes(inputLower);
+                                                const matchCpf = option.cpf && option.cpf.replace(/\D/g, '').includes(inputApenasNumeros);
+                                                // Retorna true se bater com o nome OU (se digitou número) bater com o CPF
+                                                return matchNome || (inputApenasNumeros.length > 0 && matchCpf);
+                                            });
+
+                                            // 2. Se digitou algo e não é exatamente igual, mostra o botão de criar
+                                            const isExactMatch = options.some(
+                                                (option) => option.nome_completo.toLowerCase() === inputLower
                                             );
-                                            
+
                                             if (inputValue !== '' && !isExactMatch) {
                                                 filtered.unshift({ 
+                                                    id: 'novo-paciente-temp', // <-- ISSO FALTAVA PARA O MUI NÃO ESCONDER
                                                     inputValue,
                                                     nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
                                                     isNew: true
@@ -551,12 +560,20 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                             {option.nome_completo}
                                                         </Box>
                                                     ) : (
-                                                        <Box sx={{ p: 1.5, width: '100%' }}>{option.nome_completo}</Box>
+                                                        // NOVO VISUAL: Mostra Nome em cima e CPF/Data embaixo
+                                                        <Box sx={{ p: 1.5, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                                                            <Typography variant="body1" sx={{ fontWeight: 600, color: '#333' }}>
+                                                                {option.nome_completo}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: '#757575', mt: 0.5 }}>
+                                                                {option.cpf ? `CPF: ${option.cpf}` : 'Sem CPF'} • {option.data_nascimento ? formatData(option.data_nascimento) : 'Sem data de nasc.'}
+                                                            </Typography>
+                                                        </Box>
                                                     )}
                                                 </li>
                                             );
                                         }}
-                                        renderInput={(params) => (<TextField {...params} label="Paciente *" size="small" error={!formData.paciente} />)} 
+                                        renderInput={(params) => (<TextField {...params} label="Buscar paciente por nome ou CPF *" size="small" error={!formData.paciente} />)} 
                                     />
                                 </FormControl>
                                 
