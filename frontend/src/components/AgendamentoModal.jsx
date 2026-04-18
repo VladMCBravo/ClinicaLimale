@@ -87,7 +87,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [especialidades, setEspecialidades] = useState([]);
     const [salas, setSalas] = useState([]); 
     const [isEncaixe, setIsEncaixe] = useState(false);
-    
+    const [inputValuePaciente, setInputValuePaciente] = useState('');
+
     const [salasFiltradas, setSalasFiltradas] = useState([]);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
@@ -497,97 +498,77 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                     <Typography variant="subtitle1" fontWeight="bold">Identificação</Typography>
                                 </Box>
                                 
-                                <FormControl fullWidth>
-                                    <Autocomplete 
-                                        options={pacientes} 
-                                        ListboxProps={{ style: { maxHeight: 300 } }} 
-                                        getOptionLabel={(option) => {
-                                            if (typeof option === 'string') return option;
-                                            if (option.inputValue) return option.inputValue;
-                                            return option.nome_completo || '';
-                                        }} 
-                                        value={formData.paciente} 
-                                        isOptionEqualToValue={(o, v) => {
-                                            if (o.isNew || v.isNew) return false;
-                                            return o.id === v.id;
-                                        }} 
-                                        onChange={(event, newValue) => {
-                                            if (typeof newValue === 'string') {
-                                                if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue);
-                                            } else if (newValue && newValue.isNew) {
-                                                if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue.inputValue);
-                                            } else {
-                                                handlePacienteChange(event, newValue);
-                                            }
-                                        }} 
-                                        
-                                        // --- A SOLUÇÃO: FILTRO 100% MANUAL IGUAL AO PACIENTES PAGE ---
-                                        filterOptions={(options, params) => {
-                                            const { inputValue } = params;
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                                    <FormControl fullWidth>
+                                        <Autocomplete 
+                                            options={pacientes} 
+                                            ListboxProps={{ style: { maxHeight: 300 } }} 
+                                            getOptionLabel={(option) => option.nome_completo || ''} 
+                                            value={formData.paciente} 
+                                            isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                            onChange={handlePacienteChange} 
                                             
-                                            // Prepara os dados digitados
-                                            const inputLimpo = inputValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                                            const inputApenasNumeros = inputValue.replace(/\D/g, '');
-
-                                            // Se estiver vazio, mostra os 50 primeiros para não travar
-                                            if (inputLimpo === '') {
-                                                return options.slice(0, 50);
+                                            // 1. Controlamos exatamente o que está sendo digitado
+                                            inputValue={inputValuePaciente}
+                                            onInputChange={(event, newInputValue) => {
+                                                setInputValuePaciente(newInputValue || '');
+                                            }}
+                                            
+                                            // 2. A MENSAGEM SE NÃO ACHAR NINGUÉM (Com botão atalho)
+                                            noOptionsText={
+                                                <Box sx={{ textAlign: 'center', py: 1 }}>
+                                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                        Nenhum paciente encontrado.
+                                                    </Typography>
+                                                    <Button
+                                                        variant="outlined"
+                                                        size="small"
+                                                        startIcon={<PersonAddIcon />}
+                                                        onClick={() => {
+                                                            if(onAbrirNovoPaciente) onAbrirNovoPaciente(inputValuePaciente);
+                                                        }}
+                                                    >
+                                                        Cadastrar "{inputValuePaciente}"
+                                                    </Button>
+                                                </Box>
                                             }
 
-                                            // 1. O FILTRO EXATO DA PACIENTESPAGE.JSX
-                                            const filtered = options.filter(option => {
-                                                if (option.isNew) return false;
+                                            // 3. O FILTRO PURO E SIMPLES (Sem gambiarras de botão)
+                                            filterOptions={(options, params) => {
+                                                const inputLimpo = removerAcentos(params.inputValue.toLowerCase().trim());
+                                                const inputApenasNumeros = params.inputValue.replace(/\D/g, '');
 
-                                                const nomeBanco = option.nome_completo ? option.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
-                                                const matchNome = nomeBanco.includes(inputLimpo);
+                                                if (inputLimpo === '') return options.slice(0, 50);
 
-                                                const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
-                                                const matchCpf = inputApenasNumeros.length > 0 && cpfBanco.includes(inputApenasNumeros);
+                                                const filtered = options.filter(option => {
+                                                    const nomeBanco = option.nome_completo ? removerAcentos(option.nome_completo.toLowerCase()) : '';
+                                                    const matchNome = nomeBanco.includes(inputLimpo);
+                                                    
+                                                    const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
+                                                    const matchCpf = inputApenasNumeros.length > 0 && cpfBanco.includes(inputApenasNumeros);
 
-                                                return matchNome || matchCpf;
-                                            });
-
-                                            // 2. A ORDENAÇÃO: Quem começa com a letra digitada vai pro topo
-                                            filtered.sort((a, b) => {
-                                                const nomeA = a.nome_completo ? a.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
-                                                const nomeB = b.nome_completo ? b.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
-                                                
-                                                const aComeca = nomeA.startsWith(inputLimpo);
-                                                const bComeca = nomeB.startsWith(inputLimpo);
-                                                
-                                                if (aComeca && !bComeca) return -1;
-                                                if (!aComeca && bComeca) return 1;
-                                                return 0;
-                                            });
-
-                                            // 3. O BOTÃO DE CRIAR PACIENTE
-                                            const existeExato = options.some(
-                                                option => option.nome_completo && option.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === inputLimpo
-                                            );
-
-                                            if (!existeExato) {
-                                                filtered.unshift({ 
-                                                    id: 'novo-paciente-temp',
-                                                    inputValue,
-                                                    nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
-                                                    isNew: true
+                                                    return matchNome || matchCpf;
                                                 });
-                                            }
 
-                                            return filtered.slice(0, 50);
-                                        }}
-                                        // -------------------------------------------------------------
+                                                filtered.sort((a, b) => {
+                                                    const nomeA = a.nome_completo ? removerAcentos(a.nome_completo.toLowerCase()) : '';
+                                                    const nomeB = b.nome_completo ? removerAcentos(b.nome_completo.toLowerCase()) : '';
+                                                    const aComeca = nomeA.startsWith(inputLimpo);
+                                                    const bComeca = nomeB.startsWith(inputLimpo);
+                                                    
+                                                    if (aComeca && !bComeca) return -1;
+                                                    if (!aComeca && bComeca) return 1;
+                                                    return 0;
+                                                });
 
-                                        renderOption={(props, option) => {
-                                            const { key, ...optionProps } = props;
-                                            return (
-                                                <li key={key} {...optionProps} style={{ padding: 0 }}>
-                                                    {option.isNew ? (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', p: 1.5, color: '#fff', bgcolor: '#1C2E4A', fontWeight: 'bold', transition: '0.2s', '&:hover': { bgcolor: '#0f1a2e' } }}>
-                                                            <PersonAddIcon sx={{ mr: 1.5, fontSize: 20 }} />
-                                                            {option.nome_completo}
-                                                        </Box>
-                                                    ) : (
+                                                return filtered.slice(0, 50);
+                                            }}
+                                            
+                                            // 4. O VISUAL DO PACIENTE NA LISTA
+                                            renderOption={(props, option) => {
+                                                const { key, ...optionProps } = props;
+                                                return (
+                                                    <li key={key} {...optionProps} style={{ padding: 0 }}>
                                                         <Box sx={{ p: 1.5, width: '100%', display: 'flex', flexDirection: 'column' }}>
                                                             <Typography variant="body1" sx={{ fontWeight: 600, color: '#333' }}>
                                                                 {option.nome_completo}
@@ -596,13 +577,27 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                                 {option.cpf ? `CPF: ${option.cpf}` : 'Sem CPF'} • {option.data_nascimento ? formatData(option.data_nascimento) : 'Sem data de nasc.'}
                                                             </Typography>
                                                         </Box>
-                                                    )}
-                                                </li>
-                                            );
-                                        }}
-                                        renderInput={(params) => (<TextField {...params} label="Buscar paciente por nome ou CPF *" size="small" error={!formData.paciente} />)} 
-                                    />
-                                </FormControl>
+                                                    </li>
+                                                );
+                                            }}
+                                            renderInput={(params) => (<TextField {...params} label="Buscar paciente por nome ou CPF *" size="small" error={!formData.paciente} />)} 
+                                        />
+                                    </FormControl>
+
+                                    {/* 5. A SUA IDEIA: BOTÃO FIXO AO LADO DA BUSCA */}
+                                    <Tooltip title="Cadastrar Novo Paciente">
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            sx={{ minWidth: '40px', width: '40px', height: '40px', p: 0 }}
+                                            onClick={() => {
+                                                if(onAbrirNovoPaciente) onAbrirNovoPaciente(inputValuePaciente);
+                                            }}
+                                        >
+                                            <PersonAddIcon />
+                                        </Button>
+                                    </Tooltip>
+                                </Box>
                                 
                                 {pacienteDetalhes?.plano_convenio_detalhes && (
                                     <Alert severity="info" sx={{ mt: 2, py: 0, px: 2 }}>
