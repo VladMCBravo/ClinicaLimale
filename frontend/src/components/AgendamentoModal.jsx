@@ -545,7 +545,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                     const matchNome = nomeBanco.includes(inputLimpo);
                                                     
                                                     const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
-                                                    const matchCpf = inputApenasNumeros.length > 0 && cpfBanco.includes(inputApenasNumeros);
+                                                    const matchCpf = inputApenasNumeros.length > 0 && cpfBanco.startsWith(inputApenasNumeros);
 
                                                     return matchNome || matchCpf;
                                                 });
