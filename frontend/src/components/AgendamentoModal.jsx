@@ -13,6 +13,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
+import { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -56,6 +57,23 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
       overwrite
     />
   );
+});
+
+// Este é o motor de busca inteligente
+const filtroInteligente = createFilterOptions({
+    ignoreAccents: true,
+    ignoreCase: true,
+    matchFrom: 'any',
+    limit: 40, // Mostra no máximo 40 opções para a tela não travar
+    stringify: (option) => {
+        if (option.isNew) return option.inputValue;
+        
+        // O SEGREDO DO CPF: Pega o CPF do banco e arranca os pontos/traços
+        const cpfApenasNumeros = option.cpf ? String(option.cpf).replace(/\D/g, '') : '';
+        
+        // O sistema vai caçar o que a recepção digitou dentro desta frase invisível:
+        return `${option.nome_completo} ${option.cpf || ''} ${cpfApenasNumeros}`;
+    }
 });
 
 const formatData = (dataString) => {
@@ -515,32 +533,33 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             }
                                         }} 
                                         
-                                        // --- O FILTRO MANUAL, ESTRITO E INFALÍVEL ---
                                         filterOptions={(options, params) => {
                                             const { inputValue } = params;
+                                            
+                                            // 1. O motor do MUI faz a busca bruta (agora entendendo o CPF sem pontos)
+                                            const filtered = filtroInteligente(options, params);
+
+                                            // 2. ORDENAÇÃO: Joga pro topo quem COMEÇA com o texto digitado
+                                            if (inputValue) {
+                                                const termo = inputValue.toLowerCase().trim();
+                                                filtered.sort((a, b) => {
+                                                    if (a.isNew || b.isNew) return 0;
+                                                    const nomeA = a.nome_completo ? a.nome_completo.toLowerCase() : '';
+                                                    const nomeB = b.nome_completo ? b.nome_completo.toLowerCase() : '';
+                                                    const aComeca = nomeA.startsWith(termo);
+                                                    const bComeca = nomeB.startsWith(termo);
+                                                    
+                                                    // Se o A começa com o texto e o B não, o A sobe na lista
+                                                    if (aComeca && !bComeca) return -1;
+                                                    if (!aComeca && bComeca) return 1;
+                                                    return 0;
+                                                });
+                                            }
+
+                                            // 3. Lógica do botão "Novo Paciente"
                                             const inputLimpo = inputValue.toLowerCase().trim();
-                                            // Extrai apenas os números do que o usuário digitou na recepção
-                                            const inputNumeros = inputValue.replace(/\D/g, ''); 
-
-                                            // 1. Filtra a lista estritamente (igual na página de pacientes)
-                                            const filtered = options.filter(option => {
-                                                if (inputLimpo === '') return true; // Se não digitou nada, mostra a lista
-
-                                                // Checa se o texto bate com o nome
-                                                const nome = option.nome_completo ? option.nome_completo.toLowerCase() : '';
-                                                const matchNome = nome.includes(inputLimpo);
-
-                                                // Checa se o número bate com o CPF (ignorando os pontos do banco)
-                                                const cpfBancoLimpo = option.cpf ? option.cpf.replace(/\D/g, '') : '';
-                                                const matchCpf = inputNumeros.length > 0 && cpfBancoLimpo.includes(inputNumeros);
-
-                                                // Retorna o paciente se bateu com o Nome OU com o CPF
-                                                return matchNome || matchCpf;
-                                            });
-
-                                            // 2. Lógica para mostrar o botão de "Novo Paciente" se o nome não existir exatamente
                                             const existeExato = options.some(
-                                                option => option.nome_completo && option.nome_completo.toLowerCase() === inputLimpo
+                                                (opt) => opt.nome_completo && opt.nome_completo.toLowerCase() === inputLimpo
                                             );
 
                                             if (inputLimpo !== '' && !existeExato) {
@@ -554,7 +573,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
                                             return filtered;
                                         }}
-                                        // ----------------------------------------
 
                                         renderOption={(props, option) => {
                                             const { key, ...optionProps } = props;
