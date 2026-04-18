@@ -84,20 +84,30 @@ export default function AgendaPrincipal({
     // 1. Apague o [eventos, setEventos] e a função carregarEventos.
     // 2. Crie esta nova função que o FullCalendar vai usar para buscar os dados sob demanda:
     const fetchEventos = useCallback((fetchInfo, successCallback, failureCallback) => {
-    // O FullCalendar fornece automaticamente o startStr e endStr da tela atual!
-    const { startStr, endStr } = fetchInfo;
+        const { startStr, endStr } = fetchInfo;
 
-    agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro, startStr, endStr)
-        .then(response => {
-                        
-            response.data.forEach(ag => {
-            });
-            
+        agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro, startStr, endStr)
+            .then(response => {
+                const agrupadosMap = new Map();
+                
+                response.data.forEach(ag => {
+                    if (!ag.sala) return;
 
-            const eventosFormatados = response.data
-                // Atenção: Aqui nós estamos escondendo pacientes que não têm sala! (Isso pode ser um fantasma)
-                .filter(ag => ag.sala) 
-                .map(ag => {
+                    const chave = `${ag.paciente}_${ag.data_hora_inicio}`;
+                    const procAtual = ag.procedimento_descricao || ag.tipo_exame || 'Procedimento';
+
+                    if (agrupadosMap.has(chave)) {
+                        const existente = agrupadosMap.get(chave);
+                        existente.tipo_procedimento += ` + ${procAtual}`;
+                    } else {
+                        agrupadosMap.set(chave, {
+                            ...ag,
+                            tipo_procedimento: procAtual
+                        });
+                    }
+                });
+
+                const eventosFormatados = Array.from(agrupadosMap.values()).map(ag => {
                     const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
                     return {
                         id: ag.id,
@@ -106,7 +116,7 @@ export default function AgendaPrincipal({
                         end: ag.data_hora_fim,
                         extendedProps: { 
                             ...ag,
-                            tipo_procedimento: ag.tipo_exame || 'CONSULTA', 
+                            tipo_procedimento: ag.tipo_procedimento, 
                             paciente_id: ag.paciente, 
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
@@ -118,13 +128,14 @@ export default function AgendaPrincipal({
                         classNames: isInativo ? ['evento-inativo'] : []
                     };
                 });
-            successCallback(eventosFormatados);
-        })
-        .catch(error => {
-            console.error("Erro ao carregar a agenda:", error);
-            failureCallback(error);
-        });
-}, [medicoFiltro, especialidadeFiltro]);
+                
+                successCallback(eventosFormatados);
+            })
+            .catch(error => {
+                console.error("Erro ao carregar a agenda:", error);
+                failureCallback(error);
+            });
+    }, [medicoFiltro, especialidadeFiltro]);
 
     // 3. Atualize o useEffect para forçar o recarregamento quando salvar um agendamento novo
 useEffect(() => {

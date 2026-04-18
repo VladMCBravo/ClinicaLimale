@@ -48,12 +48,35 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
         setIsLoading(true);
         
         try {
-            // Passamos a dataExibicao para o service
             const response = await agendamentoService.getAgendamentosHoje(medicoFiltro, dataExibicao);
-                        
-            const dadosOrdenados = response.data.sort((a, b) => 
+            
+            // Lógica de agrupamento visual
+            const agrupadosMap = new Map();
+            
+            response.data.forEach(ag => {
+                // A chave considera o paciente e a hora de início exata
+                const chave = `${ag.paciente_id || ag.paciente}_${ag.data_hora_inicio}`;
+                const procAtual = ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta';
+                
+                if (agrupadosMap.has(chave)) {
+                    const existente = agrupadosMap.get(chave);
+                    // Concatena o nome do exame
+                    existente.procedimento_descricao += ` + ${procAtual}`;
+                    
+                    // Se algum dos exames estiver pendente de pagamento, o alerta se mantém
+                    if (ag.pagamento_status === 'Pendente') existente.pagamento_status = 'Pendente';
+                } else {
+                    const novo = { ...ag };
+                    novo.procedimento_descricao = procAtual;
+                    agrupadosMap.set(chave, novo);
+                }
+            });
+
+            // Converte o Map de volta para array e ordena
+            const dadosOrdenados = Array.from(agrupadosMap.values()).sort((a, b) => 
                 new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
             );
+            
             setPacientes(dadosOrdenados);
         } catch (error) {
             console.error("Erro ao buscar pacientes do dia:", error);
@@ -61,7 +84,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
         } finally {
             setIsLoading(false);
         }
-    }, [medicoFiltro, dataSelecionada]); // <-- Mantivemos a dependência segura
+    }, [medicoFiltro, dataSelecionada]);
 
     // =========================================================================
     // AQUI ESTÁ O CARA QUE FALTAVA PARA FAZER A BUSCA ACONTECER:
