@@ -12,7 +12,6 @@ import { faturamentoService } from '../../services/faturamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
 import { PatientDrawerContent } from './PatientPaymentDrawer';
 
-// Importa CSS Global
 import './Financeiro.css';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -39,16 +38,44 @@ export default function ContasReceberView() {
             }
 
             const res = await faturamentoService.getPagamentos(params);
-            const dados = res.data || [];
+            const dadosBrutos = res.data || [];
+
+            // --- A MÁGICA: AGRUPAMENTO DE EXAMES DO MESMO DIA ---
+            const dadosAgrupados = [];
+            const mapGrupos = new Map();
+
+            dadosBrutos.forEach(row => {
+                // Só agrupa se for do mesmo paciente, na mesma data e com o mesmo status
+                if (row.paciente) {
+                    const key = `${row.paciente}_${dayjs(row.data_vencimento).format('YYYY-MM-DD')}_${row.status}`;
+                    
+                    if (mapGrupos.has(key)) {
+                        const grupo = mapGrupos.get(key);
+                        // Soma os valores
+                        grupo.valor = (parseFloat(grupo.valor) + parseFloat(row.valor)).toFixed(2);
+                        // Junta os nomes dos exames
+                        grupo.descricao_visual = `${grupo.descricao_visual} + ${row.descricao_visual || row.categoria_nome}`;
+                        // Guarda os IDs para podermos dar baixa em todos juntos depois
+                        grupo.ids.push(row.id);
+                        grupo.originais.push(row);
+                    } else {
+                        const novoGrupo = { ...row, ids: [row.id], originais: [row] };
+                        mapGrupos.set(key, novoGrupo);
+                        dadosAgrupados.push(novoGrupo);
+                    }
+                } else {
+                    dadosAgrupados.push({ ...row, ids: [row.id], originais: [row] });
+                }
+            });
 
             // Ordenação: Data Futura -> Passada
-            dados.sort((a, b) => {
+            dadosAgrupados.sort((a, b) => {
                 const dataA = a.data_vencimento ? dayjs(a.data_vencimento) : dayjs(0);
                 const dataB = b.data_vencimento ? dayjs(b.data_vencimento) : dayjs(0);
                 return dataB.diff(dataA); 
             });
 
-            setLista(dados);
+            setLista(dadosAgrupados);
         } catch (error) { console.error(error); } 
         finally { setLoading(false); }
     }, [filtroData, busca]);
@@ -59,7 +86,6 @@ export default function ContasReceberView() {
     }, [carregarDados]);
 
     const totais = useMemo(() => {
-        // Não soma itens renegociados ou cancelados no total do rodapé
         const validos = lista.filter(i => i.status !== 'Renegociado' && i.status !== 'Cancelado');
         const totalValor = validos.reduce((acc, item) => acc + parseFloat(item.valor || 0), 0);
         return { qtd: validos.length, valor: totalValor };
@@ -70,15 +96,12 @@ export default function ContasReceberView() {
         setDrawerOpen(true);
     };
 
-    // --- CORREÇÃO DE CORES ---
     const getStatusColor = (status, vencimento) => {
         if (status === 'Pago') return 'success';
-        if (status === 'Cancelado') return 'error'; // Vermelho forte
-        if (status === 'Renegociado') return 'secondary'; // Roxo (MUI Default) ou customizado
-        
-        // Pendente
-        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) return 'error'; // Atrasado
-        return 'warning'; // Pendente normal
+        if (status === 'Cancelado') return 'error'; 
+        if (status === 'Renegociado') return 'secondary'; 
+        if (status === 'Pendente' && dayjs(vencimento).isBefore(dayjs(), 'day')) return 'error'; 
+        return 'warning'; 
     };
 
     return (
@@ -143,7 +166,6 @@ export default function ContasReceberView() {
                                         sx={{ 
                                             cursor: 'pointer', 
                                             '&:hover': { bgcolor: '#f0f7ff !important' },
-                                            // Se for renegociado, deixa "apagado"
                                             opacity: isRenegociado ? 0.6 : 1,
                                             bgcolor: isRenegociado ? '#fafafa' : 'inherit'
                                         }}
@@ -152,8 +174,12 @@ export default function ContasReceberView() {
                                             {dayjs(row.data_vencimento).format('DD/MM/YY')}
                                         </TableCell>
                                         <TableCell>
-                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem" sx={{ textDecoration: isRenegociado ? 'line-through' : 'none' }}>
+                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem" sx={{ textDecoration: isRenegociado ? 'line-through' : 'none', display: 'flex', alignItems: 'center' }}>
                                                 {row.paciente_nome || row.descricao}
+                                                {/* Badge avisando que são múltiplos exames agrupados */}
+                                                {row.originais && row.originais.length > 1 && (
+                                                    <Chip label={`${row.originais.length} Itens`} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem', bgcolor: '#e0e0e0', fontWeight: 'bold' }} />
+                                                )}
                                             </Typography>
                                             
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.2 }}>
@@ -161,8 +187,6 @@ export default function ContasReceberView() {
                                                     {row.descricao_visual || row.categoria_nome}
                                                 </Typography>
 
-                                                {/* --- ADICIONADO AQUI: Tag de 1ª Vez ou Retorno --- */}
-                                                {/* Só exibe se for um pagamento de paciente (tiver paciente_nome) e a informação de visita existir */}
                                                 {row.paciente_nome && (row.primeira_consulta !== undefined || row.tipo_visita) && (
                                                     <Chip 
                                                         label={row.primeira_consulta || row.tipo_visita === 'Primeira Consulta' ? '1ª Vez' : (row.tipo_visita || 'Retorno')} 
@@ -192,7 +216,6 @@ export default function ContasReceberView() {
                                                     fontWeight: 'bold', 
                                                     height: 20, 
                                                     fontSize: '0.65rem',
-                                                    // Estilo customizado para o Roxo do Renegociado se 'secondary' não for roxo no seu tema
                                                     ...(row.status === 'Renegociado' && {
                                                         color: '#7b1fa2',
                                                         borderColor: '#7b1fa2',

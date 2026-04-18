@@ -30,7 +30,7 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
     const [forma, setForma] = useState('PIX');
     const [dataPgto, setDataPgto] = useState(dayjs());
 
-    // Cálculos
+    // Cálculos dinâmicos
     const resumo = useMemo(() => {
         const vOriginal = parseFloat(item?.valor || 0);
         const vDesconto = parseFloat(desconto || 0);
@@ -58,7 +58,7 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
         };
     }, [item, desconto, entrada, parcelas, dataPgto]);
 
-    // Load History
+    // Busca Histórico
     useEffect(() => {
         if (item?.paciente) {
             faturamentoService.getPagamentos({ paciente: item.paciente })
@@ -71,29 +71,98 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
         }
     }, [item]);
 
-    // Actions
+    // --- A MÁGICA: CONFIRMAR PAGAMENTO AGRUPADO OU SIMPLES ---
     const handleConfirmarRecebimento = async () => {
         if (resumo.final <= 0) return alert("Valor inválido.");
         setSubmitting(true);
+        
         try {
-            await faturamentoService.realizarRecebimento(item.id, {
-                forma_pagamento: forma,
-                qtd_parcelas: parcelas,
-                data_pagamento: dataPgto.format('YYYY-MM-DD'),
-                desconto: resumo.desconto,
-                valor_entrada: resumo.entrada
-            });
+            const isGrouped = item.ids && item.ids.length > 1;
+            const isSimpleFullPayment = (resumo.desconto === 0 && parcelas == 1 && resumo.entrada === resumo.final);
+
+            if (isGrouped && !isSimpleFullPayment) {
+                // 1. TEM DESCONTO/PARCELAMENTO EM DÍVIDA AGRUPADA (Funde as transações)
+                const novasParcelas = [];
+                
+                // Parcela de Entrada
+                if (resumo.entrada > 0) {
+                    novasParcelas.push({
+                        valor: resumo.entrada,
+                        vencimento: dataPgto.format('YYYY-MM-DD'),
+                        pago_agora: true,
+                        forma_pagamento: forma
+                    });
+                }
+                
+                // Parcelas Futuras (Garante os centavos perfeitos)
+                if (resumo.saldo > 0.01) {
+                    let acumulado = 0;
+                    const totalSaldo = resumo.saldo;
+                    const qtd = parseInt(parcelas);
+                    const valParc = Math.floor((totalSaldo / qtd) * 100) / 100;
+                    
+                    for (let i = 0; i < qtd; i++) {
+                        const isLast = i === qtd - 1;
+                        const valorDesta = isLast ? Number((totalSaldo - acumulado).toFixed(2)) : valParc;
+                        acumulado += valorDesta;
+                        
+                        novasParcelas.push({
+                            valor: valorDesta,
+                            vencimento: dataPgto.add(i + 1, 'month').format('YYYY-MM-DD'),
+                            pago_agora: false
+                        });
+                    }
+                }
+
+                await faturamentoService.renegociarDivida({
+                    ids_originais: item.ids,
+                    paciente_id: item.paciente,
+                    novas_parcelas: novasParcelas
+                });
+
+            } else if (isGrouped && isSimpleFullPayment) {
+                // 2. PAGAMENTO TOTAL DIRETO (SEM DESCONTO) DE MÚLTIPLOS ITENS 
+                // Dá baixa um a um para manter o nome "Ultrassom" e "Consulta" intactos no relatório
+                await Promise.all(item.originais.map(orig => 
+                    faturamentoService.realizarRecebimento(orig.id, {
+                        forma_pagamento: forma,
+                        qtd_parcelas: 1,
+                        data_pagamento: dataPgto.format('YYYY-MM-DD'),
+                        desconto: 0,
+                        valor_entrada: parseFloat(orig.valor)
+                    })
+                ));
+            } else {
+                // 3. PAGAMENTO NORMAL (Apenas 1 item)
+                await faturamentoService.realizarRecebimento(item.id, {
+                    forma_pagamento: forma,
+                    qtd_parcelas: parcelas,
+                    data_pagamento: dataPgto.format('YYYY-MM-DD'),
+                    desconto: resumo.desconto,
+                    valor_entrada: resumo.entrada
+                });
+            }
+            
             onUpdate(); onClose();
-        } catch (error) { alert("Erro ao processar."); } 
-        finally { setSubmitting(false); }
+        } catch (error) { 
+            alert("Erro ao processar. Verifique a conexão."); 
+            console.error(error);
+        } finally { setSubmitting(false); }
     };
 
+    // --- REVERTER/CANCELAR EM LOTE ---
     const handleAlterarStatus = async (novoStatus) => {
         if (!window.confirm(`Mudar para: ${novoStatus.toUpperCase()}?`)) return;
         try {
             const payload = { status: novoStatus };
             if (novoStatus === 'Pendente') payload.data_pagamento = null;
-            await faturamentoService.updatePagamento(item.id, payload);
+            
+            if (item.ids && item.ids.length > 1) {
+                await Promise.all(item.ids.map(id => faturamentoService.updatePagamento(id, payload)));
+            } else {
+                await faturamentoService.updatePagamento(item.id, payload);
+            }
+            
             onUpdate(); onClose();
         } catch (error) { alert("Erro ao alterar status."); }
     };
@@ -104,7 +173,9 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
             {/* HEADER COMPACTO */}
             <Box sx={{ px: 2, py: 1.5, bgcolor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight="bold" fontSize="0.7rem">CONTA A RECEBER</Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="bold" fontSize="0.7rem">
+                        CONTA A RECEBER {item.originais && item.originais.length > 1 && `(${item.originais.length} ITENS)`}
+                    </Typography>
                     <Typography variant="subtitle1" fontWeight="800" color="#1a233b" lineHeight={1.2}>
                         {item.paciente_nome || item.descricao}
                     </Typography>
@@ -162,7 +233,7 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
                             <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#fff' }}>
                                 <Grid container justifyContent="space-between" alignItems="center">
                                     <Grid item>
-                                        <Typography variant="caption" color="text.secondary" fontWeight="bold">ORIGINAL</Typography>
+                                        <Typography variant="caption" color="text.secondary" fontWeight="bold">TOTAL DOS EXAMES</Typography>
                                         <Typography variant="h6" fontWeight="bold" color="#1a233b" lineHeight={1}>
                                             {formatMoney(resumo.original)}
                                         </Typography>
@@ -183,21 +254,21 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
                             <Grid container spacing={1}>
                                 <Grid item xs={6}>
                                     <TextField 
-                                        label="Desconto" size="small" fullWidth type="number" 
+                                        label="Desconto (R$)" size="small" fullWidth type="number" 
                                         value={desconto} onChange={e => setDesconto(e.target.value)}
                                         InputProps={{ startAdornment: <InputAdornment position="start" sx={{mr:0}}>-</InputAdornment> }}
                                     />
                                 </Grid>
                                 <Grid item xs={6}>
                                     <TextField 
-                                        label="Entrada" size="small" fullWidth type="number" 
+                                        label="Pagar Agora" size="small" fullWidth type="number" 
                                         value={entrada} onChange={e => setEntrada(e.target.value)}
                                         InputProps={{ startAdornment: <InputAdornment position="start" sx={{mr:0}}>R$</InputAdornment> }}
                                     />
                                 </Grid>
                                 <Grid item xs={12}>
                                     <TextField
-                                        select label="Forma Pagto (Entrada)" fullWidth size="small"
+                                        select label="Forma Pagto (Pagar Agora)" fullWidth size="small"
                                         value={forma} onChange={e => setForma(e.target.value)}
                                     >
                                         <MenuItem value="PIX">PIX</MenuItem>
@@ -208,19 +279,19 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
                                 </Grid>
                                 <Grid item xs={6}>
                                     <DatePicker 
-                                        label="Data"
+                                        label="Data do Pagamento"
                                         value={dataPgto} onChange={setDataPgto}
                                         slotProps={{ textField: { size: 'small', fullWidth: true } }}
                                     />
                                 </Grid>
                                 <Grid item xs={6}>
                                     <TextField
-                                        select label="Restante em:" fullWidth size="small"
+                                        select label="O restante divide em:" fullWidth size="small"
                                         value={parcelas} onChange={e => setParcelas(e.target.value)}
                                         disabled={resumo.saldo <= 0.01}
                                     >
-                                        <MenuItem value={1}>À Vista</MenuItem>
-                                        {[2,3,4,5,6,10,12].map(n => <MenuItem key={n} value={n}>{n}x</MenuItem>)}
+                                        <MenuItem value={1}>À Vista (Sem Parcelar)</MenuItem>
+                                        {[2,3,4,5,6,10,12].map(n => <MenuItem key={n} value={n}>{n}x (Mensal)</MenuItem>)}
                                     </TextField>
                                 </Grid>
                             </Grid>
@@ -228,7 +299,7 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
                             {/* RESUMO DINÂMICO COMPACTO */}
                             <Paper elevation={0} sx={{ mt: 0.5, p: 1.5, bgcolor: '#e3f2fd', border: '1px solid #90caf9' }}>
                                 <Typography variant="caption" fontWeight="bold" color="primary.main" gutterBottom display="block">
-                                    RESUMO
+                                    RESUMO FINAL
                                 </Typography>
                                 
                                 <Box display="flex" justifyContent="space-between" mb={0.5}>
@@ -273,7 +344,7 @@ export function PatientDrawerContent({ item, onClose, onUpdate }) {
                     <List dense sx={{ p: 0 }}>
                         {history.length === 0 ? (
                             <Typography variant="caption" align="center" display="block" sx={{ py: 3, color: 'text.secondary' }}>
-                                Sem histórico.
+                                Sem histórico de pagamentos passados.
                             </Typography>
                         ) : history.map((hist) => (
                             <ListItem key={hist.id} sx={{ borderBottom: '1px solid #f0f0f0', px: 0, py: 0.5 }}>
