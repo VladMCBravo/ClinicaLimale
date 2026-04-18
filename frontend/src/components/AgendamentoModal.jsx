@@ -13,7 +13,6 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
-import { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -57,21 +56,6 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
       overwrite
     />
   );
-});
-
-// O Motor de Busca Oficial do Material UI
-const muiFilter = createFilterOptions({
-    ignoreAccents: true,
-    ignoreCase: true,
-    matchFrom: 'any', // Igual ao ".includes()" da sua tela de Pacientes
-    limit: 50, // Segura o tranco para não travar a tela
-    stringify: (option) => {
-        if (option.isNew) return option.inputValue;
-        // O segredo do CPF: Arranca os pontos e traços na hora de pesquisar
-        const cpfNumeros = option.cpf ? String(option.cpf).replace(/\D/g, '') : '';
-        // O motor vai procurar o que foi digitado dentro dessa frase invisível
-        return `${option.nome_completo} ${option.cpf || ''} ${cpfNumeros}`;
-    }
 });
 
 const removerAcentos = (str) => {
@@ -516,7 +500,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth>
                                     <Autocomplete 
                                         options={pacientes} 
-                                        // Limita a renderização inicial para não travar o navegador
                                         ListboxProps={{ style: { maxHeight: 300 } }} 
                                         getOptionLabel={(option) => {
                                             if (typeof option === 'string') return option;
@@ -538,37 +521,51 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             }
                                         }} 
                                         
+                                        // --- A SOLUÇÃO: FILTRO 100% MANUAL IGUAL AO PACIENTES PAGE ---
                                         filterOptions={(options, params) => {
                                             const { inputValue } = params;
                                             
-                                            // 1. O motor brutal do MUI faz o trabalho pesado (nome e CPF)
-                                            const filtered = muiFilter(options, params);
+                                            // Prepara os dados digitados
+                                            const inputLimpo = inputValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                                            const inputApenasNumeros = inputValue.replace(/\D/g, '');
 
-                                            // 2. ORDENAÇÃO: Quem COMEÇA com a letra sobe pro topo
-                                            if (inputValue) {
-                                                const termo = inputValue.toLowerCase().trim();
-                                                filtered.sort((a, b) => {
-                                                    if (a.isNew || b.isNew) return -1; // Botão de criar sempre no topo
-                                                    const nomeA = (a.nome_completo || '').toLowerCase();
-                                                    const nomeB = (b.nome_completo || '').toLowerCase();
-                                                    
-                                                    const aComeca = nomeA.startsWith(termo);
-                                                    const bComeca = nomeB.startsWith(termo);
-                                                    
-                                                    // Se a pessoa A começa com a letra e a pessoa B não, a pessoa A sobe.
-                                                    if (aComeca && !bComeca) return -1;
-                                                    if (!aComeca && bComeca) return 1;
-                                                    return 0;
-                                                });
+                                            // Se estiver vazio, mostra os 50 primeiros para não travar
+                                            if (inputLimpo === '') {
+                                                return options.slice(0, 50);
                                             }
 
-                                            // 3. Lógica para adicionar o botão "Novo Paciente"
-                                            const inputLimpo = inputValue.toLowerCase().trim();
+                                            // 1. O FILTRO EXATO DA PACIENTESPAGE.JSX
+                                            const filtered = options.filter(option => {
+                                                if (option.isNew) return false;
+
+                                                const nomeBanco = option.nome_completo ? option.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
+                                                const matchNome = nomeBanco.includes(inputLimpo);
+
+                                                const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
+                                                const matchCpf = inputApenasNumeros.length > 0 && cpfBanco.includes(inputApenasNumeros);
+
+                                                return matchNome || matchCpf;
+                                            });
+
+                                            // 2. A ORDENAÇÃO: Quem começa com a letra digitada vai pro topo
+                                            filtered.sort((a, b) => {
+                                                const nomeA = a.nome_completo ? a.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
+                                                const nomeB = b.nome_completo ? b.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : '';
+                                                
+                                                const aComeca = nomeA.startsWith(inputLimpo);
+                                                const bComeca = nomeB.startsWith(inputLimpo);
+                                                
+                                                if (aComeca && !bComeca) return -1;
+                                                if (!aComeca && bComeca) return 1;
+                                                return 0;
+                                            });
+
+                                            // 3. O BOTÃO DE CRIAR PACIENTE
                                             const existeExato = options.some(
-                                                (opt) => (opt.nome_completo || '').toLowerCase() === inputLimpo
+                                                option => option.nome_completo && option.nome_completo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === inputLimpo
                                             );
 
-                                            if (inputLimpo !== '' && !existeExato) {
+                                            if (!existeExato) {
                                                 filtered.unshift({ 
                                                     id: 'novo-paciente-temp',
                                                     inputValue,
@@ -577,8 +574,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                 });
                                             }
 
-                                            return filtered;
+                                            return filtered.slice(0, 50);
                                         }}
+                                        // -------------------------------------------------------------
 
                                         renderOption={(props, option) => {
                                             const { key, ...optionProps } = props;
