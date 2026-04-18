@@ -13,7 +13,6 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
-import { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -57,18 +56,6 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
       overwrite
     />
   );
-});
-
-const filter = createFilterOptions({
-    ignoreAccents: true,
-    ignoreCase: true,
-    matchFrom: 'any', // Busca em qualquer parte do nome/cpf
-    stringify: (option) => {
-        // Se for a opção de "Novo Paciente", busca pelo texto digitado
-        if (option.isNew) return option.inputValue;
-        // Se for paciente real, cria uma "string invisível" com Nome e CPF para a busca
-        return `${option.nome_completo} ${option.cpf || ''}`;
-    }
 });
 
 const formatData = (dataString) => {
@@ -515,7 +502,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         }} 
                                         value={formData.paciente} 
                                         isOptionEqualToValue={(o, v) => {
-                                            // Ignora a validação de ID se for a opção de "Novo Paciente"
                                             if (o.isNew || v.isNew) return false;
                                             return o.id === v.id;
                                         }} 
@@ -528,18 +514,36 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                 handlePacienteChange(event, newValue);
                                             }
                                         }} 
+                                        
+                                        // --- O FILTRO MANUAL, ESTRITO E INFALÍVEL ---
                                         filterOptions={(options, params) => {
-                                            // 1. Deixa o motor nativo e inteligente do MUI fazer o trabalho duro
-                                            const filtered = filter(options, params);
                                             const { inputValue } = params;
+                                            const inputLimpo = inputValue.toLowerCase().trim();
+                                            // Extrai apenas os números do que o usuário digitou na recepção
+                                            const inputNumeros = inputValue.replace(/\D/g, ''); 
 
-                                            // 2. Verifica se o que o usuário digitou já é um nome exato na lista
-                                            const isExactMatch = options.some(
-                                                (option) => option.nome_completo && option.nome_completo.toLowerCase() === inputValue.toLowerCase().trim()
+                                            // 1. Filtra a lista estritamente (igual na página de pacientes)
+                                            const filtered = options.filter(option => {
+                                                if (inputLimpo === '') return true; // Se não digitou nada, mostra a lista
+
+                                                // Checa se o texto bate com o nome
+                                                const nome = option.nome_completo ? option.nome_completo.toLowerCase() : '';
+                                                const matchNome = nome.includes(inputLimpo);
+
+                                                // Checa se o número bate com o CPF (ignorando os pontos do banco)
+                                                const cpfBancoLimpo = option.cpf ? option.cpf.replace(/\D/g, '') : '';
+                                                const matchCpf = inputNumeros.length > 0 && cpfBancoLimpo.includes(inputNumeros);
+
+                                                // Retorna o paciente se bateu com o Nome OU com o CPF
+                                                return matchNome || matchCpf;
+                                            });
+
+                                            // 2. Lógica para mostrar o botão de "Novo Paciente" se o nome não existir exatamente
+                                            const existeExato = options.some(
+                                                option => option.nome_completo && option.nome_completo.toLowerCase() === inputLimpo
                                             );
 
-                                            // 3. Se digitou algo e não é 100% igual, mostra o botão de criar lá no topo
-                                            if (inputValue !== '' && !isExactMatch) {
+                                            if (inputLimpo !== '' && !existeExato) {
                                                 filtered.unshift({ 
                                                     id: 'novo-paciente-temp',
                                                     inputValue,
@@ -547,9 +551,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                     isNew: true
                                                 });
                                             }
-                                            
+
                                             return filtered;
                                         }}
+                                        // ----------------------------------------
+
                                         renderOption={(props, option) => {
                                             const { key, ...optionProps } = props;
                                             return (
@@ -560,7 +566,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                             {option.nome_completo}
                                                         </Box>
                                                     ) : (
-                                                        // NOVO VISUAL: Mostra Nome em cima e CPF/Data embaixo
                                                         <Box sx={{ p: 1.5, width: '100%', display: 'flex', flexDirection: 'column' }}>
                                                             <Typography variant="body1" sx={{ fontWeight: 600, color: '#333' }}>
                                                                 {option.nome_completo}
