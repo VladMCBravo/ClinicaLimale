@@ -13,6 +13,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
+import { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -56,6 +57,12 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
       overwrite
     />
   );
+});
+
+const filter = createFilterOptions({
+    ignoreAccents: true,
+    ignoreCase: true,
+    matchFrom: 'any', // Busca em qualquer parte do nome
 });
 
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente }) {
@@ -474,37 +481,41 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth>
                                     <Autocomplete 
                                         options={pacientes} 
-                                        getOptionLabel={(p) => typeof p === 'string' ? p : p.inputValue || p.nome_completo || ''} 
+                                        getOptionLabel={(p) => {
+                                            if (typeof p === 'string') return p;
+                                            if (p.inputValue) return p.inputValue;
+                                            return p.nome_completo || '';
+                                        }} 
                                         value={formData.paciente} 
                                         isOptionEqualToValue={(o, v) => o.id === v.id} 
                                         onChange={(event, newValue) => {
-                                            if (typeof newValue === 'string' || (newValue && newValue.isNew)) {
-                                                if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue.inputValue || newValue);
+                                            if (typeof newValue === 'string') {
+                                                if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue);
+                                            } else if (newValue && newValue.isNew) {
+                                                if(onAbrirNovoPaciente) onAbrirNovoPaciente(newValue.inputValue);
                                             } else {
                                                 handlePacienteChange(event, newValue);
                                             }
                                         }} 
-                                        // --- CORREÇÃO: FILTRO ESTRITO DE PACIENTES ---
                                         filterOptions={(options, params) => {
+                                            // 1. Usa o filtro nativo e estrito do MUI
+                                            const filtered = filter(options, params);
                                             const { inputValue } = params;
-                                            const inputLower = inputValue.toLowerCase().trim();
-                                            
-                                            // Filtra quem contém EXATAMENTE o termo digitado
-                                            const filtered = options.filter(option => 
-                                                option.nome_completo.toLowerCase().includes(inputLower)
-                                            );
-                                            
-                                            // Verifica se houve um match exato
-                                            const isExactMatch = options.some(option => 
-                                                option.nome_completo.toLowerCase() === inputLower
-                                            );
-                                            
-                                            if (inputValue !== '' && !isExactMatch) {
-                                                filtered.unshift({ 
-                                                    inputValue,
-                                                    nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
-                                                    isNew: true
-                                                });
+
+                                            if (inputValue !== '') {
+                                                // 2. Verifica se o que foi digitado já existe exatamente igual
+                                                const isExisting = options.some(
+                                                    (option) => option.nome_completo.toLowerCase() === inputValue.toLowerCase()
+                                                );
+
+                                                // 3. Se não existe, coloca o botão de criar no TOPO da lista filtrada
+                                                if (!isExisting) {
+                                                    filtered.unshift({
+                                                        inputValue,
+                                                        nome_completo: `+ Cadastrar novo paciente: "${inputValue}"`,
+                                                        isNew: true
+                                                    });
+                                                }
                                             }
                                             return filtered;
                                         }}
@@ -513,7 +524,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             return (
                                                 <li key={key} {...optionProps} style={{ padding: 0 }}>
                                                     {option.isNew ? (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', p: 1.5, color: '#fff', bgcolor: 'primary.main', fontWeight: 'bold', transition: '0.2s', '&:hover': { bgcolor: 'primary.dark' } }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', p: 1.5, color: '#fff', bgcolor: '#1C2E4A', fontWeight: 'bold', transition: '0.2s', '&:hover': { bgcolor: '#0f1a2e' } }}>
                                                             <PersonAddIcon sx={{ mr: 1.5, fontSize: 20 }} />
                                                             {option.nome_completo}
                                                         </Box>
