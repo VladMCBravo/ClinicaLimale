@@ -13,7 +13,6 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
-import { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
@@ -59,22 +58,10 @@ const TextMaskDateTime = React.forwardRef(function TextMaskDateTime(props, ref) 
   );
 });
 
-// Este é o motor de busca inteligente
-const filtroInteligente = createFilterOptions({
-    ignoreAccents: true,
-    ignoreCase: true,
-    matchFrom: 'any',
-    limit: 40, // Mostra no máximo 40 opções para a tela não travar
-    stringify: (option) => {
-        if (option.isNew) return option.inputValue;
-        
-        // O SEGREDO DO CPF: Pega o CPF do banco e arranca os pontos/traços
-        const cpfApenasNumeros = option.cpf ? String(option.cpf).replace(/\D/g, '') : '';
-        
-        // O sistema vai caçar o que a recepção digitou dentro desta frase invisível:
-        return `${option.nome_completo} ${option.cpf || ''} ${cpfApenasNumeros}`;
-    }
-});
+const removerAcentos = (str) => {
+    if (!str) return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
 
 const formatData = (dataString) => {
     if (!dataString) return '-';
@@ -513,6 +500,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 <FormControl fullWidth>
                                     <Autocomplete 
                                         options={pacientes} 
+                                        // Limita a renderização inicial para não travar o navegador
+                                        ListboxProps={{ style: { maxHeight: 300 } }} 
                                         getOptionLabel={(option) => {
                                             if (typeof option === 'string') return option;
                                             if (option.inputValue) return option.inputValue;
@@ -535,40 +524,47 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         
                                         filterOptions={(options, params) => {
                                             const { inputValue } = params;
-                                            const inputLimpo = inputValue.toLowerCase().trim();
-                                            const inputNumeros = inputValue.replace(/\D/g, '');
+                                            
+                                            // 1. Limpa o que foi digitado
+                                            const inputLimpo = removerAcentos(inputValue.toLowerCase().trim());
+                                            const inputApenasNumeros = inputValue.replace(/\D/g, '');
 
+                                            if (inputLimpo === '') {
+                                                return options.slice(0, 50);
+                                            }
+
+                                            // 2. Filtra quem TEM as letras ou o CPF
                                             const filtered = options.filter(option => {
-                                                if (inputLimpo === '') return true;
+                                                if (option.isNew) return false;
 
-                                                // 1. Busca por CPF (se o usuário digitou algum número)
-                                                if (inputNumeros.length > 0) {
-                                                    const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
-                                                    if (cpfBanco.includes(inputNumeros)) return true;
-                                                }
+                                                const nomeBanco = option.nome_completo ? removerAcentos(option.nome_completo.toLowerCase()) : '';
+                                                const matchNome = nomeBanco.includes(inputLimpo);
 
-                                                // 2. Busca por Nome (A REGRA ANTIFALHAS)
-                                                const nomeCompleto = option.nome_completo ? option.nome_completo.toLowerCase() : '';
-                                                
-                                                // Separa o nome do paciente e o que foi digitado em "pedacinhos"
-                                                const palavrasDoNome = nomeCompleto.split(' ');
-                                                const termosBusca = inputLimpo.split(' ');
+                                                const cpfBanco = option.cpf ? option.cpf.replace(/\D/g, '') : '';
+                                                const matchCpf = inputApenasNumeros.length > 0 && cpfBanco.includes(inputApenasNumeros);
 
-                                                // Garante que TODOS os pedacinhos que a recepção digitou 
-                                                // batem com o INÍCIO de alguma palavra do nome do paciente.
-                                                const matchNome = termosBusca.every(termo => 
-                                                    palavrasDoNome.some(palavra => palavra.startsWith(termo))
-                                                );
-
-                                                return matchNome;
+                                                return matchNome || matchCpf;
                                             });
 
-                                            // 3. Lógica para manter o botão de "Novo Paciente" sempre visível se o nome não for idêntico
+                                            // 3. O SEGREDO DO SUCESSO: Ordena colocando no TOPO quem COMEÇA com a letra digitada
+                                            filtered.sort((a, b) => {
+                                                const nomeA = a.nome_completo ? removerAcentos(a.nome_completo.toLowerCase()) : '';
+                                                const nomeB = b.nome_completo ? removerAcentos(b.nome_completo.toLowerCase()) : '';
+                                                
+                                                const aComeca = nomeA.startsWith(inputLimpo);
+                                                const bComeca = nomeB.startsWith(inputLimpo);
+                                                
+                                                if (aComeca && !bComeca) return -1; // A sobe
+                                                if (!aComeca && bComeca) return 1;  // B sobe
+                                                return 0; // Mantém igual
+                                            });
+
+                                            // 4. Lógica do botão "Criar Novo"
                                             const existeExato = options.some(
-                                                option => option.nome_completo && option.nome_completo.toLowerCase() === inputLimpo
+                                                option => option.nome_completo && removerAcentos(option.nome_completo.toLowerCase()) === inputLimpo
                                             );
 
-                                            if (inputLimpo !== '' && !existeExato) {
+                                            if (!existeExato) {
                                                 filtered.unshift({ 
                                                     id: 'novo-paciente-temp',
                                                     inputValue,
@@ -577,7 +573,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                 });
                                             }
 
-                                            return filtered;
+                                            return filtered.slice(0, 50);
                                         }}
 
                                         renderOption={(props, option) => {
