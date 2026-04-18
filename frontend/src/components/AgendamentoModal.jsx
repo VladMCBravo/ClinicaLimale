@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Button, CircularProgress, Autocomplete, FormControl, InputLabel, Select, MenuItem,
-  Box, Typography, Divider, Chip, Grid, Switch, FormControlLabel, Paper, Alert
+  Box, Typography, Divider, Chip, Grid, Switch, FormControlLabel, Paper, Alert, Tooltip
 } from '@mui/material';
 
 // --- ÍCONES (Adicionados para o banho de loja) ---
