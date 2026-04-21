@@ -15,6 +15,8 @@ import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import ListaEspera from '../components/painel/ListaEspera';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
+import RequestQuoteIcon from '@mui/icons-material/RequestQuote'; // Ícone para a Tabela de Preços
+import TabelaValoresModal from '../components/painel/TabelaValoresModal'; // Ajuste o caminho conforme criou
 
 // --- MODAIS ---
 import PacienteModal from '../components/PacienteModal';
@@ -40,6 +42,7 @@ export default function PainelRecepcaoPage() {
     const [isAgendamentoModalOpen, setIsAgendamentoModalOpen] = useState(false);
     const [isCaixaModalOpen, setIsCaixaModalOpen] = useState(false);
     const [isDispoOpen, setIsDispoOpen] = useState(false);
+    const [isValoresModalOpen, setIsValoresModalOpen] = useState(false);
 
     const [editingEvent, setEditingEvent] = useState(null);
     const [initialData, setInitialData] = useState(null);
@@ -201,6 +204,16 @@ export default function PainelRecepcaoPage() {
                             Buscar Horário
                         </Button>
 
+                        {/* NOVO BOTÃO DE VALORES */}
+                        <Button 
+                            variant="outlined" color="success"
+                            startIcon={<RequestQuoteIcon fontSize="small" />}
+                            onClick={() => setIsValoresModalOpen(true)}
+                            sx={{ height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600 }}
+                        >
+                            Tabela de Preços
+                        </Button>
+
                     </Stack>
 
                     <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
@@ -263,6 +276,12 @@ export default function PainelRecepcaoPage() {
                 initialData={initialData} 
                 editingEvent={editingEvent}
                 onAbrirNovoPaciente={handleAbrirNovoPaciente} // <--- ADICIONE AQUI
+            />
+
+            {/* NOVO MODAL */}
+            <TabelaValoresModal 
+                open={isValoresModalOpen} 
+                onClose={() => setIsValoresModalOpen(false)} 
             />
         </Box>
     );
