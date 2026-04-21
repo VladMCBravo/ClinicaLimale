@@ -67,12 +67,12 @@ export default function TabelaValoresModal({ open, onClose }) {
 
                 // Faz a requisição enviando o token no cabeçalho
                 const response = await axios.post(
-                    `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/prontuario/aplicar-mascara/`, 
+                    `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/prontuario/aplicar-mascara/`, 
                     formData, 
                     {
                         headers: { 
                             'Content-Type': 'multipart/form-data',
-                            'Authorization': `Bearer ${token}` // <--- Autenticação aqui
+                            'Authorization': `Bearer ${token}`
                         },
                         responseType: 'blob'
                     }
@@ -170,7 +170,7 @@ export default function TabelaValoresModal({ open, onClose }) {
                     startIcon={isGerandoPdf ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />} 
                     disabled={isLoading || isGerandoPdf}
                 >
-                    {isGerandoPdf ? 'A Gerar Documento...' : 'Gerar PDF com Timbre'}
+                    {isGerandoPdf ? 'A Gerar Documento...' : 'Gerar PDF'}
                 </Button>
             </DialogActions>
         </Dialog>
