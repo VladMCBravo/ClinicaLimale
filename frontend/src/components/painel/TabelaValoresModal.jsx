@@ -11,6 +11,7 @@ import axios from 'axios';
 
 import { configuracoesService } from '../../services/configuracoesService';
 import { faturamentoService } from '../../services/faturamentoService';
+import { prontuarioService } from '../../services/prontuarioService'; // <--- ADICIONE ESTA LINHA
 import { gerarPdfTabelaValores } from '../../utils/tabelaValoresPdfGenerator';
 
 const CAT_LABELS = {
@@ -70,28 +71,8 @@ export default function TabelaValoresModal({ open, onClose }) {
                 const formData = new FormData();
                 formData.append('arquivo_pdf', blob, 'tabela_valores.pdf');
 
-                // Busca os nomes de tokens mais comuns. (Adicionado access_token)
-                const token = localStorage.getItem('access') || 
-                              localStorage.getItem('token') || 
-                              localStorage.getItem('access_token') || 
-                              sessionStorage.getItem('token'); 
-
-                // Configuração flexível: suporta Token e Cookies
-                const config = {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                    responseType: 'blob',
-                    withCredentials: true // Fundamental se a sua API usar cookies para login
-                };
-
-                if (token) {
-                    config.headers['Authorization'] = `Bearer ${token}`;
-                }
-
-                const response = await axios.post(
-                    `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/prontuario/aplicar-mascara/`, 
-                    formData, 
-                    config
-                );
+                // A MÁGICA AQUI: O prontuarioService usa o apiClient, que já tem o token!
+                const response = await prontuarioService.aplicarMascaraPdf(formData);
 
                 const fileURL = URL.createObjectURL(response.data);
                 window.open(fileURL, '_blank');
