@@ -59,20 +59,26 @@ export default function TabelaValoresModal({ open, onClose }) {
         
         gerarPdfTabelaValores(especialidades, procedimentos, async (blob) => {
             try {
+                // 1. Busca o token nas chaves mais comuns de projetos React/Django
+                const token = localStorage.getItem('access') || localStorage.getItem('token') || sessionStorage.getItem('token') || sessionStorage.getItem('access');
+
+                // 2. Trava de segurança: Se não achar o token, avisa e cancela
+                if (!token) {
+                    alert("Sessão não encontrada ou expirada. Por favor, faça o login novamente.");
+                    setIsGerandoPdf(false);
+                    return;
+                }
+
                 const formData = new FormData();
                 formData.append('arquivo_pdf', blob, 'tabela_valores.pdf');
 
-                // Pegamos o token de segurança que o seu sistema já guarda no login
-                const token = localStorage.getItem('token') || sessionStorage.getItem('token'); 
-
-                // Faz a requisição enviando o token no cabeçalho
                 const response = await axios.post(
                     `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/prontuario/aplicar-mascara/`, 
                     formData, 
                     {
                         headers: { 
                             'Content-Type': 'multipart/form-data',
-                            'Authorization': `Bearer ${token}`
+                            'Authorization': `Bearer ${token}` // O crachá de acesso
                         },
                         responseType: 'blob'
                     }
@@ -83,7 +89,12 @@ export default function TabelaValoresModal({ open, onClose }) {
                 
             } catch (error) {
                 console.error("Erro ao aplicar máscara no PDF", error);
-                alert("Ocorreu um erro ao gerar o PDF com o timbre da clínica. Verifique sua conexão.");
+                // Se der erro 401 mesmo com o token, avisa que expirou
+                if (error.response && error.response.status === 401) {
+                    alert("A sua sessão de segurança expirou. Por favor, atualize a página e faça login novamente.");
+                } else {
+                    alert("Ocorreu um erro ao gerar o PDF com o timbre. Verifique a conexão.");
+                }
             } finally {
                 setIsGerandoPdf(false);
             }
