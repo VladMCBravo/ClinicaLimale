@@ -8,8 +8,7 @@ import {
 import PrintIcon from '@mui/icons-material/Print';
 import CloseIcon from '@mui/icons-material/Close';
 
-// Importe a sua instância de API configurada (ajuste o caminho se necessário)
-import api from '../../services/api'; 
+import axios from 'axios';
 
 import { configuracoesService } from '../../services/configuracoesService';
 import { faturamentoService } from '../../services/faturamentoService';
@@ -63,20 +62,28 @@ export default function TabelaValoresModal({ open, onClose }) {
                 const formData = new FormData();
                 formData.append('arquivo_pdf', blob, 'tabela_valores.pdf');
 
-                // UTILIZAMOS A SUA INSTÂNCIA 'api' QUE JÁ TEM O TOKEN DE AUTENTICAÇÃO
-                // Ajuste a rota para bater certinho com o seu urls.py (se a base url do axios já for /api, use apenas /prontuario/aplicar-mascara/)
-                const response = await api.post('/prontuario/aplicar-mascara/', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                    responseType: 'blob' // Fundamental para não corromper o PDF
-                });
+                // Pegamos o token de segurança que o seu sistema já guarda no login
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token'); 
 
-                // Cria o link invisível e força a abertura/download
+                // Faz a requisição enviando o token no cabeçalho
+                const response = await axios.post(
+                    `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/prontuario/aplicar-mascara/`, 
+                    formData, 
+                    {
+                        headers: { 
+                            'Content-Type': 'multipart/form-data',
+                            'Authorization': `Bearer ${token}` // <--- Autenticação aqui
+                        },
+                        responseType: 'blob'
+                    }
+                );
+
                 const fileURL = URL.createObjectURL(response.data);
                 window.open(fileURL, '_blank');
                 
             } catch (error) {
                 console.error("Erro ao aplicar máscara no PDF", error);
-                alert("Ocorreu um erro ao gerar o PDF com o timbre da clínica. Verifique a sua ligação.");
+                alert("Ocorreu um erro ao gerar o PDF com o timbre da clínica. Verifique sua conexão.");
             } finally {
                 setIsGerandoPdf(false);
             }
