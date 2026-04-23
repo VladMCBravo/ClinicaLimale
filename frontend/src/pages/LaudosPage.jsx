@@ -197,6 +197,7 @@ const getInitialState = (key, fallback) => {
   const [modalAtestadoOpen, setModalAtestadoOpen] = useState(false);
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); // NOVO: Controle do Modal de Revisão
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); // <--- ADICIONE ISSO
+  const [isPolling, setIsPolling] = useState(false);
 
   const searchTimeoutRef = useRef(null);
 
@@ -486,6 +487,90 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
         setSaving(false);
     }
   };
+
+  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais) => {
+    if (!paciente || !paciente.id) return alert("Selecione um paciente.");
+    if (!medicoNome) return alert("Preencha o nome do médico.");
+
+    setModalRevisaoOpen(false);
+    setIsPolling(true); // Bloqueia a tela com o loader do Polling
+
+    try {
+        // 1. Otimização das imagens
+        const imagensOtimizadas = await Promise.all(imagensFinais.map(img => otimizarImagemParaPDF(img)));
+        setTextoFinal(textoCorrigido);
+        setImagens(imagensOtimizadas);
+
+        // 2. Gera o PDF Transparente localmente
+        const blobPdf = await gerarPDFLaudo({
+            pacienteNome: paciente.nome_completo,
+            medicoNome, medicoCrm, tituloExame,
+            textoLaudo: textoCorrigido, dadosEstruturados,
+            imagensBase64: imagensOtimizadas,
+            comTimbre: true, usaAssinaturaDigital: usuarioTemCertificado,
+            retornarBlob: true
+        });
+
+        // 3. Prepara o envio
+        const formData = new FormData();
+        formData.append('paciente', paciente.id);
+        formData.append('tipo_exame', tipoExame);
+        formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
+        formData.append('texto_laudo', textoCorrigido);
+        formData.append('medico_responsavel', medicoNome);
+        formData.append('crm_medico', medicoCrm);
+        formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
+        formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
+        formData.append('arquivo_pdf', blobPdf, `Rascunho_${Date.now()}.pdf`);
+
+        // 4. Envia para a NOVA ROTA ASSÍNCRONA
+        let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const laudoProcessandoId = response.data.id;
+        setLaudoId(laudoProcessandoId);
+
+        // 5. O POLLING (Pergunta ao servidor se o PDF e as senhas já estão prontos)
+        const checkStatus = async () => {
+            try {
+                const res = await apiClient.get(`/prontuario/laudos/${laudoProcessandoId}/status/`);
+                const statusAtual = res.data.status;
+
+                if (statusAtual === 'FINALIZADO') {
+                    setIsPolling(false);
+
+                    // Alimenta os dados exatos para o WhatsApp e E-mail funcionarem
+                    if (res.data.credenciais) setCredenciais(res.data.credenciais);
+
+                    // Força o download do PDF final
+                    if (res.data.arquivo_url) {
+                        const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
+                        const urlCompleta = res.data.arquivo_url.startsWith('/') ? `${baseUrl}${res.data.arquivo_url}` : res.data.arquivo_url;
+                        window.open(urlCompleta, '_blank');
+                    }
+
+                    // Abre a tela de botões do WhatsApp
+                    setModalSucessoOpen(true);
+                } else if (statusAtual === 'ERRO') {
+                    setIsPolling(false);
+                    alert("Ocorreu um erro no servidor ao gerar o PDF ou aplicar a assinatura digital.");
+                } else {
+                    // Se estiver 'PROCESSANDO', checa novamente em 3 segundos
+                    setTimeout(checkStatus, 3000);
+                }
+            } catch(e) {
+                 console.error("Erro no polling", e);
+                 setTimeout(checkStatus, 3000); // Ignora oscilações de rede e continua tentando
+            }
+        };
+
+        // Dispara a primeira checagem
+        setTimeout(checkStatus, 3000);
+
+    } catch (e) {
+        console.error("Erro no envio:", e);
+        setIsPolling(false);
+        alert("Erro ao enviar o laudo para processamento.");
+    }
+};
 
   // Função Auxiliar para impressão simples (botão handlePrint antigo, usado nos modais de envio)
   const handlePrint = (usarTimbre = true) => {
@@ -856,6 +941,15 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
         </div>
         <DialogActions><Button onClick={() => setModalSucessoOpen(false)} style={{color: '#888'}}>Fechar Janela</Button></DialogActions>
       </Dialog>
+      <Dialog open={isPolling} disableEscapeKeyDown>
+    <div style={{padding: '40px', textAlign: 'center', minWidth: '300px'}}>
+        <FaSpinner className="spin" size={40} color="#1C2E4A" style={{marginBottom: '20px'}}/>
+        <Typography variant="h6" style={{fontWeight: 'bold', color: '#1C2E4A'}}>Processando Laudo...</Typography>
+        <Typography variant="body2" color="textSecondary" style={{marginTop: '10px'}}>
+            Gerando PDF e aplicando assinatura digital.<br/>Isso pode levar alguns segundos.
+        </Typography>
+    </div>
+</Dialog>
 
       <DeclaracaoModal open={modalDeclaracaoOpen} onClose={() => setModalDeclaracaoOpen(false)} paciente={paciente} medico={medicoNome} />
         {/* ADICIONE AQUI O MODAL DE ATESTADO */}
