@@ -28,13 +28,16 @@ if RENDER_EXTERNAL_HOSTNAME:
 CSRF_TRUSTED_ORIGINS = [
     'https://clinicalimale.onrender.com',
     'https://clinicalimale-dc0r.onrender.com',
+    'https://clinica-limale.vercel.app', # <-- ADICIONE ESTA LINHA
 ]
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://clinicalimale-dc0r.onrender.com",
+    "https://clinica-limale.vercel.app"
 ]
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').lower() == 'true'
 CORS_ALLOWED_HEADERS = [
