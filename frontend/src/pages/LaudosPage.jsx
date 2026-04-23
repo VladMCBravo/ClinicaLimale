@@ -368,126 +368,6 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
 };
 
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
-  const handleFinalizacaoCompleta = async (textoCorrigido, imagensFinais) => {
-    if (!paciente || !paciente.id) return alert("Selecione um paciente.");
-    if (!medicoNome) return alert("Preencha o nome do médico.");
-
-    setModalRevisaoOpen(false);
-    setSaving(true);
-    
-    try {
-        // --- 1. A MÁGICA DA OTIMIZAÇÃO ACONTECE AQUI ---
-        // Comprime todas as imagens pesadas em paralelo antes de seguir
-        const imagensOtimizadas = await Promise.all(
-            imagensFinais.map(img => otimizarImagemParaPDF(img))
-        );
-
-        // Atualiza estados locais com as imagens LEVES
-        setTextoFinal(textoCorrigido);
-        setImagens(imagensOtimizadas);
-
-        // 2. Gera o Blob do PDF usando as imagens leves
-        const blobPdf = await gerarPDFLaudo({
-            pacienteNome: paciente.nome_completo,
-            medicoNome, medicoCrm, tituloExame,
-            textoLaudo: textoCorrigido,
-            dadosEstruturados,
-            imagensBase64: imagensOtimizadas, // <-- CORRIGIDO AQUI
-            comTimbre: true, 
-            usaAssinaturaDigital: usuarioTemCertificado,
-            retornarBlob: true
-        });
-
-        // 3. Prepara upload com os dados enxutos
-        const formData = new FormData();
-        formData.append('paciente', paciente.id);
-        formData.append('tipo_exame', tipoExame);
-        formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
-        formData.append('texto_laudo', textoCorrigido);
-        formData.append('medico_responsavel', medicoNome);
-        formData.append('crm_medico', medicoCrm);
-        formData.append('status', "FINALIZADO");
-        formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
-        
-        // Envia as imagens otimizadas para o backend
-        formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas)); // <-- CORRIGIDO AQUI
-        
-        const nomeArquivo = `Laudo_${paciente.nome_completo.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-        formData.append('arquivo_pdf', blobPdf, nomeArquivo);
-
-        // C. Envia para API
-        let response;
-        if (laudoId) {
-            response = await apiClient.put(`/prontuario/laudos/${laudoId}/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-        } else {
-            response = await apiClient.post('/prontuario/laudos/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-            if (response.data?.id) setLaudoId(response.data.id);
-        }
-
-        if (response.data?.credenciais) setCredenciais(response.data.credenciais);
-
-        // D. Abre PDF FINAL (carimbado pelo Django) e FORÇA O DOWNLOAD
-        if (response.data?.arquivos_vinculados && response.data.arquivos_vinculados.length > 0) {
-            const arquivos = response.data.arquivos_vinculados;
-            let urlPdfFinal = arquivos[arquivos.length - 1].arquivo;
-            
-            // Garantia de segurança: se a URL vier quebrada, consertamos com o domínio principal
-            if (urlPdfFinal.startsWith('/')) {
-                const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
-                urlPdfFinal = `${baseUrl}${urlPdfFinal}`;
-            }
-
-            // Recria a inteligência de nomeação do seu código original
-            const formatarNome = (texto) => {
-                if (!texto) return '';
-                return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-            };
-            
-            const idStr = paciente.id || "S-ID";
-            const nomeLimpo = formatarNome(paciente.nome_completo) || "Paciente";
-            const tipoLimpo = formatarNome(tituloExame || tipoExame) || "Exame";
-            const nomeArquivo = `${idStr}_${nomeLimpo}_${tipoLimpo}.pdf`;
-
-            try {
-                // Puxa o PDF silenciosamente do servidor
-                const fetchResponse = await fetch(urlPdfFinal);
-                if (!fetchResponse.ok) throw new Error("Falha ao puxar arquivo");
-                const blobFinal = await fetchResponse.blob();
-                const blobUrl = URL.createObjectURL(blobFinal);
-
-                // 1. Abre na aba ao lado (Igual ao seu original)
-                window.open(blobUrl, '_blank');
-
-                // 2. Força o download no PC com o nome certinho (Igual ao seu original)
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = blobUrl;
-                a.download = nomeArquivo;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-            } catch (err) {
-                console.error("Erro ao forçar download local:", err);
-                // Se o navegador bloquear o download silencioso, abre a aba normal
-                window.open(urlPdfFinal, '_blank');
-            }
-        } else {
-            console.warn("URL do PDF final não foi retornada pela API.");
-        }
-
-        // E. Abre Modal de Sucesso
-        setModalSucessoOpen(true);
-
-    } catch (e) {
-        console.error("Erro na finalização:", e);
-        alert("Erro ao salvar o laudo.");
-    } finally {
-        setSaving(false);
-    }
-  };
-
   const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais) => {
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
@@ -544,7 +424,29 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
                     if (res.data.arquivo_url) {
                         const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
                         const urlCompleta = res.data.arquivo_url.startsWith('/') ? `${baseUrl}${res.data.arquivo_url}` : res.data.arquivo_url;
-                        window.open(urlCompleta, '_blank');
+                        
+                        try {
+                            const fetchResponse = await fetch(urlCompleta);
+                            const blobFinal = await fetchResponse.blob();
+                            const blobUrl = URL.createObjectURL(blobFinal);
+                            
+                            // Abre na aba
+                            window.open(blobUrl, '_blank');
+                            
+                            // Força download
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = blobUrl;
+                            a.download = `Laudo_${paciente.nome_completo.replace(/\s+/g, '_')}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+                        } catch (err) {
+                            // Fallback caso dê erro de rede
+                            window.open(urlCompleta, '_blank');
+                        }
                     }
 
                     // Abre a tela de botões do WhatsApp
@@ -912,7 +814,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
           onClose={() => setModalRevisaoOpen(false)} 
           textoInicial={textoFinal} 
           imagensIniciais={imagens} 
-          onFinalizar={handleFinalizacaoCompleta}
+          onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)} // <--- Conecta o botão azul
       />
       {/* ADICIONE ESTE COMPONENTE NOVO */}
