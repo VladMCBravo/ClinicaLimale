@@ -63,6 +63,6 @@ def processar_laudo_background(laudo_id):
         print(f"[CELERY] ❌ Erro ao processar Laudo ID {laudo_id}: {e}")
         # Em caso de falha, volta para rascunho para o médico tentar novamente
         if 'laudo' in locals():
-            laudo.status = 'RASCUNHO'
+            laudo.status = 'ERRO'
             laudo.save()
         return False
