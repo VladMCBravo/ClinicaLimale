@@ -225,3 +225,14 @@ GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 # Chave para criptografia do certificado digital (Mantenha em segredo!)
 # Você pode gerar uma nova com: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())
 FERNET_KEY = os.environ.get('FERNET_KEY', 'sua-chave-fernet-aqui')
+
+# --- Celery Configuration ---
+# Usa a mesma URL do Redis que os Channels já estão usando
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+# Opcional: define um limite de tempo para a tarefa não travar a fila eternamente (ex: 5 minutos)
+CELERY_TASK_TIME_LIMIT = 300

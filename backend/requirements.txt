@@ -129,3 +129,4 @@ yarg==0.1.10
 zope.interface==8.0.1
 zopfli==0.2.3.post1
 zstandard==0.25.0
+celery==5.4.0

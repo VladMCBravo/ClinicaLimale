@@ -3,7 +3,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import buscar_credenciais_ativas
+from .views import buscar_credenciais_ativas, LaudoCreateAsyncView, LaudoStatusView
 
 router = DefaultRouter()
 router.register(r'documentos', views.DocumentoPacienteViewSet, basename='documento-paciente')
@@ -39,6 +39,8 @@ urlpatterns = [
     # --- LAUDOS ---
     path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
     path('laudos/<int:pk>/', views.LaudoRetrieveUpdateDestroyView.as_view(), name='detalhe-laudo'),
+    path('laudos-async/', LaudoCreateAsyncView.as_view(), name='laudo-create-async'),
+    path('laudos/<int:pk>/status/', LaudoStatusView.as_view(), name='laudo-status'),
 
     # =========================================================================
     # ★★★ CORREÇÃO AQUI: ROTAS QUE ESTAVAM FALTANDO (ERRO 404) ★★★

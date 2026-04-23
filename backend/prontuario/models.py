@@ -544,6 +544,7 @@ class Laudo(models.Model):
     """
     STATUS_CHOICES = [
         ('RASCUNHO', 'Rascunho'),
+        ('PROCESSANDO', 'Processando'), # <-- ADICIONE ESTA LINHA
         ('FINALIZADO', 'Finalizado'),
     ]
 

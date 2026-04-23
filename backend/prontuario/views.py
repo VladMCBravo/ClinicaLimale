@@ -11,6 +11,7 @@ from django.http import HttpResponse
 from django.template.loader import get_template
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from .tasks import processar_laudo_background
 from xhtml2pdf import pisa
 from rest_framework.generics import ListAPIView # <--- Verifique se ListAPIView está importado
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -1204,3 +1205,59 @@ class AplicarMascaraPDFView(APIView):
             response = HttpResponse(pdf_file.read(), content_type='application/pdf')
             response['Content-Disposition'] = 'inline; filename="agenda_original.pdf"'
             return response
+
+# prontuario/views.py
+
+class LaudoCreateAsyncView(generics.CreateAPIView):
+    """
+    Nova View para criação assíncrona.
+    Recebe o PDF transparente do React, salva e delega o peso para o Celery.
+    """
+    serializer_class = LaudoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # 1. Salva o laudo inicialmente como 'PROCESSANDO'
+        # O serializer já vai lidar com o 'arquivo_pdf' (o transparente do React)
+        laudo = serializer.save(
+            medico=self.request.user,
+            status='PROCESSANDO'
+        )
+        
+        # 2. Dispara a tarefa no Celery (Passo 2)
+        # O .delay() joga para o Redis e libera o Python na mesma hora
+        processar_laudo_background.delay(laudo.id)
+        
+        print(f"[API] Laudo {laudo.id} enviado para a fila do Celery.")
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        # Retornamos 202 (Accepted) em vez de 201 (Created) para indicar processamento
+        response.status_code = status.HTTP_202_ACCEPTED
+        return response
+
+class LaudoStatusView(APIView):
+    """
+    Endpoint para o React fazer 'polling'.
+    Retorna se o laudo já foi finalizado ou se deu erro.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        laudo = get_object_or_404(Laudo, pk=pk)
+        
+        data = {
+            "id": laudo.id,
+            "status": laudo.status,
+            "arquivo_url": laudo.arquivo_pdf.url if laudo.status == 'FINALIZADO' and laudo.arquivo_pdf else None,
+        }
+        
+        # Se finalizou, incluímos as credenciais para o portal
+        if laudo.status == 'FINALIZADO' and laudo.exame:
+            data["credenciais"] = {
+                "codigo": laudo.exame.codigo_acesso,
+                "senha": laudo.exame.senha_acesso,
+                "link": "https://clinica-limale.vercel.app/resultados"
+            }
+            
+        return Response(data)
