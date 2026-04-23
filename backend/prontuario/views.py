@@ -1210,30 +1210,149 @@ class AplicarMascaraPDFView(APIView):
 
 class LaudoCreateAsyncView(generics.CreateAPIView):
     """
-    Nova View para criação assíncrona.
-    Recebe o PDF transparente do React, salva e delega o peso para o Celery.
+    Nova View para criação assíncrona CLONADA da view original.
+    Garante que todo o ecossistema (senhas, pastas, anti-fraude) 
+    seja gerado na hora, terceirizando APENAS o PDF para o Celery.
     """
     serializer_class = LaudoSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        # 1. Salva o laudo inicialmente como 'PROCESSANDO'
-        # O serializer já vai lidar com o 'arquivo_pdf' (o transparente do React)
+        import json
+        import base64
+        from django.core.files.base import ContentFile
+        
+        paciente_id = self.request.data.get('paciente')
+        paciente = get_object_or_404(Paciente, id=paciente_id)
+        
+        # 1. Tratar dados estruturados
+        dados_raw = self.request.data.get('dados_estruturados', '{}')
+        if isinstance(dados_raw, str):
+            try:
+                dados_dict = json.loads(dados_raw)
+            except json.JSONDecodeError:
+                dados_dict = {}
+        else:
+            dados_dict = dados_raw
+            
+        imagens_do_json = dados_dict.pop('imagens', [])
+        
+        # 2. Salva o Laudo Básico como PROCESSANDO
         laudo = serializer.save(
-            medico=self.request.user,
+            medico=self.request.user, 
+            paciente=paciente,
+            tipo_exame=self.request.data.get('titulo', 'EXAME'),
+            dados_estruturados=dados_dict,
             status='PROCESSANDO'
         )
-        
-        # 2. Dispara a tarefa no Celery (Passo 2)
-        # O .delay() joga para o Redis e libera o Python na mesma hora
-        processar_laudo_background.delay(laudo.id)
-        
-        print(f"[API] Laudo {laudo.id} enviado para a fila do Celery.")
+
+        # 3. Tratar imagens anexadas (Otimizadas pelo React)
+        imagens_raw = self.request.data.get('imagens_anexas')
+        imagens_lista = []
+        if imagens_raw:
+            if isinstance(imagens_raw, str):
+                try:
+                    imagens_lista = json.loads(imagens_raw)
+                except json.JSONDecodeError:
+                    pass
+            elif isinstance(imagens_raw, list):
+                imagens_lista = imagens_raw
+        else:
+            imagens_lista = imagens_do_json
+            
+        # 4. Salva as imagens da nuvem
+        if imagens_lista:
+            for index, img_str in enumerate(imagens_lista):
+                try:
+                    if ";base64," in img_str:
+                        format, imgstr = img_str.split(';base64,') 
+                        ext = format.split('/')[-1]
+                    else:
+                        imgstr = img_str
+                        ext = 'jpg'
+                    data = base64.b64decode(imgstr)
+                    file_name = f"laudo_{laudo.id}_img_{index}.{ext}"
+                    ImagemLaudo.objects.create(laudo=laudo, arquivo=ContentFile(data, name=file_name))
+                except Exception as e:
+                    print(f"Erro ao salvar imagem {index}: {e}")
 
     def create(self, request, *args, **kwargs):
+        from datetime import date, timedelta
+        from django.utils.text import slugify
+        
         response = super().create(request, *args, **kwargs)
-        # Retornamos 202 (Accepted) em vez de 201 (Created) para indicar processamento
-        response.status_code = status.HTTP_202_ACCEPTED
+        laudo = Laudo.objects.get(id=response.data.get('id'))
+        paciente = laudo.paciente
+        titulo_base = laudo.titulo_exame
+
+        try:
+            # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE ---
+            historico_duplicatas = Laudo.objects.filter(
+                paciente=paciente, 
+                titulo_exame__icontains=titulo_base
+            ).exclude(id=laudo.id).count()
+
+            if historico_duplicatas > 0:
+                laudo.titulo_exame = f"{titulo_base} - REVISÃO {historico_duplicatas + 1}"
+
+            # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM EXAME E SENHAS ---
+            exame = None
+            exame_id_front = request.data.get('exame')
+            exames_usados_ids = Laudo.objects.filter(exame__isnull=False).values_list('exame_id', flat=True)
+
+            if exame_id_front:
+                exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
+            
+            if not exame:
+                limite_dias = date.today() - timedelta(days=15)
+                exame = Exame.objects.filter(
+                    paciente=paciente, data_exame__gte=limite_dias
+                ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
+            
+            if not exame:
+                nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
+                exame = Exame.objects.create(
+                    paciente=paciente, data_exame=date.today(),
+                    nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
+                )
+
+            laudo.exame = exame
+            
+            # --- 🛡️ CAMADA 3: SALVAR PDF TRANSPARENTE E DISPARAR CELERY ---
+            if 'arquivo_pdf' in request.FILES:
+                pdf_file = request.FILES['arquivo_pdf']
+                
+                data_hoje_str = date.today().strftime("%d-%m-%Y")
+                nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
+                nome_seguro = slugify(nome_base_arquivo).upper()
+                extensao = pdf_file.name.split('.')[-1]
+                pdf_file.name = f"{nome_seguro}.{extensao}"
+                
+                # Salva o PDF no banco. Ele ainda não tem máscara nem assinatura.
+                laudo.arquivo_pdf = pdf_file
+            
+            laudo.save()
+            
+            # --- A MÁGICA: DELEGA O PESO PARA O WORKER ---
+            from .tasks import processar_laudo_background
+            processar_laudo_background.delay(laudo.id)
+            print(f"[API] Laudo {laudo.id} enviado para a fila do Celery.")
+
+            # --- PREPARANDO RESPOSTA PRO FRONTEND ---
+            # Devolvemos as credenciais NA HORA para o React não quebrar o WhatsApp
+            response.data['titulo_exame'] = laudo.titulo_exame
+            response.data['credenciais'] = {
+                'codigo': exame.codigo_acesso,
+                'senha': exame.senha_acesso,
+                'link': 'https://clinica-limale.vercel.app/resultados',
+                'exame_id': exame.id
+            }
+            
+            response.status_code = status.HTTP_202_ACCEPTED
+
+        except Exception as e:
+            print(f"DEBUG [LAUDO ASYNC]: Erro crítico geral: {e}")
+
         return response
 
 class LaudoStatusView(APIView):
