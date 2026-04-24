@@ -2,7 +2,6 @@
 
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
-// REMOVIDO: Não precisamos mais da logoImagemPath pois o Django fará a máscara
 import { assinarPdfRemotamente } from "../api/pdfService"; 
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
@@ -21,8 +20,7 @@ export const gerarPDFLaudo = async ({
     retornarBlob = false 
 }) => {
 
-    // Margens: [Esq, Top, Dir, Inf]
-    // Aumentamos o Top para 170 e diminuímos o fundo para 60 para caber 6 fotos perfeitamente
+    // Margens exatas para caberem 6 fotos por folha (2 colunas x 3 linhas)
     const pageMargins = [40, 170, 40, 60]; 
 
     // --- FUNÇÕES AUXILIARES ---
@@ -134,16 +132,19 @@ export const gerarPDFLaudo = async ({
     }
 
     const paragrafosTexto = processarTexto(textoParaImprimir);
+    
+    // Separa o último parágrafo para grudar ele na assinatura
     let ultimoParagrafo = null;
     if (paragrafosTexto.length > 0) {
         ultimoParagrafo = paragrafosTexto.pop(); 
     }
     content.push(...paragrafosTexto);
 
+    // --- TABELAS ---
     const fetos = [
-        { dados: dadosEstruturados.feto1 || dadosEstruturados, label: 'FETO 1' },
-        { dados: dadosEstruturados.feto2, label: 'FETO 2' },
-        { dados: dadosEstruturados.feto3, label: 'FETO 3' }
+        { dados: dadosEstruturados?.feto1 || dadosEstruturados, label: 'FETO 1' },
+        { dados: dadosEstruturados?.feto2, label: 'FETO 2' },
+        { dados: dadosEstruturados?.feto3, label: 'FETO 3' }
     ];
 
     fetos.forEach(feto => {
@@ -169,51 +170,9 @@ export const gerarPDFLaudo = async ({
         }
     });
 
-    // --- 🛡️ BLINDAGEM DE IMAGENS ---
-    // Só processa imagens que forem Base64 válidas. Descarta as quebradas para não travar o PDF.
-    const imagensValidas = (imagensBase64 || []).filter(img => typeof img === 'string' && img.startsWith('data:image/'));
-
-    if (imagensValidas.length > 0) {
-        content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
-        
-        const IMG_WIDTH = 230; 
-        const IMG_HEIGHT = 160; 
-
-        for (let i = 0; i < imagensValidas.length; i += 2) {
-            const img1 = imagensValidas[i];
-            const img2 = imagensValidas[i + 1];
-            const columns = [];
-            
-            columns.push({
-                image: img1,
-                width: IMG_WIDTH,
-                height: IMG_HEIGHT,
-                fit: [IMG_WIDTH, IMG_HEIGHT],
-                alignment: 'center',
-                margin: [0, 0, 0, 10]
-            });
-
-            if (img2) {
-                columns.push({
-                    image: img2,
-                    width: IMG_WIDTH,
-                    height: IMG_HEIGHT,
-                    fit: [IMG_WIDTH, IMG_HEIGHT],
-                    alignment: 'center',
-                    margin: [0, 0, 0, 10]
-                });
-            } else {
-                columns.push({ text: '', width: IMG_WIDTH });
-            }
-
-            content.push({
-                columns: columns,
-                columnGap: 10,
-                unbreakable: false 
-            });
-        }
-    }
-
+    // ==========================================================
+    // 1. ASSINATURA (AGORA VEM ANTES DAS IMAGENS)
+    // ==========================================================
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const isDra = primeiroNome.endsWith('a'); 
     const prefixoMedico = isDra ? 'Dra.' : 'Dr.';
@@ -260,6 +219,7 @@ export const gerarPDFLaudo = async ({
         };
     }
 
+    // Insere o último parágrafo colado com a assinatura para não separar páginas
     content.push({
         stack: [
             ultimoParagrafo ? ultimoParagrafo : {},
@@ -268,10 +228,48 @@ export const gerarPDFLaudo = async ({
         unbreakable: true 
     });
 
+
+    // ==========================================================
+    // 2. DOCUMENTAÇÃO FOTOGRÁFICA (VAI PARA A ÚLTIMA PÁGINA)
+    // ==========================================================
+    const imagensValidas = (imagensBase64 || []).filter(img => typeof img === 'string' && img.startsWith('data:image/'));
+
+    if (imagensValidas.length > 0) {
+        // pageBreak: 'before' força as imagens a começarem em uma folha nova limpa!
+        content.push({ text: 'DOCUMENTAÇÃO FOTOGRÁFICA', style: 'sectionHeader', margin: [0, 20, 0, 10], pageBreak: 'before' });
+        
+        // Com altura de 160 + margem de 10 = 170. Como nosso espaço livre na página é 612 (842 - 170 topo - 60 base), 
+        // 3 linhas de imagens (170 * 3 = 510) cabem com folga e perfeição em uma única folha A4.
+        const IMG_WIDTH = 230; 
+        const IMG_HEIGHT = 160; 
+
+        for (let i = 0; i < imagensValidas.length; i += 2) {
+            const img1 = imagensValidas[i];
+            const img2 = imagensValidas[i + 1];
+            const columns = [];
+            
+            columns.push({
+                image: img1, width: IMG_WIDTH, height: IMG_HEIGHT, fit: [IMG_WIDTH, IMG_HEIGHT], alignment: 'center', margin: [0, 0, 0, 10]
+            });
+
+            if (img2) {
+                columns.push({
+                    image: img2, width: IMG_WIDTH, height: IMG_HEIGHT, fit: [IMG_WIDTH, IMG_HEIGHT], alignment: 'center', margin: [0, 0, 0, 10]
+                });
+            } else {
+                columns.push({ text: '', width: IMG_WIDTH }); // Espaço vazio para manter o alinhamento
+            }
+
+            content.push({ columns: columns, columnGap: 10, unbreakable: false });
+        }
+    }
+
+    // ==========================================================
+    // 3. GERAÇÃO DO ARQUIVO PDF
+    // ==========================================================
     const docDefinition = {
         pageSize: 'A4', 
         pageMargins: pageMargins,
-        // Header e Footer removidos da configuração para não causar travamentos
         content: content,
         styles: {
           mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },
@@ -284,14 +282,13 @@ export const gerarPDFLaudo = async ({
     
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 
-    // FLUXO 1: Retorna apenas o Blob para o Django "carimbar" por cima (Usado ao Finalizar)
     if (retornarBlob) {
         return new Promise((resolve) => {
             pdfDocGenerator.getBlob((blob) => resolve(blob));
         });
     }
 
-    // FLUXO 2: Visualização Local (Botões soltos e envio via WhatsApp direto)
+    // FLUXO DE VISUALIZAÇÃO/DOWNLOAD LOCAL 
     const formatarNome = (texto) => {
         if (!texto) return '';
         return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');

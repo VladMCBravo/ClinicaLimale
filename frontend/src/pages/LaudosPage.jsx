@@ -325,7 +325,7 @@ const getInitialState = (key, fallback) => {
   }, []);
 
   // Função para redimensionar e comprimir imagens Base64
-const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
+const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
     return new Promise((resolve, reject) => {
         // Se já não for uma imagem válida, devolve como está para não quebrar
         if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) {
@@ -376,8 +376,11 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 700, qualidade = 0.70) => {
     setIsPolling(true); // Bloqueia a tela com o loader do Polling
 
     try {
-        // 1. Otimização das imagens
-        const imagensOtimizadas = await Promise.all(imagensFinais.map(img => otimizarImagemParaPDF(img)));
+        // 1. Otimização das imagens (Em fila, para não estourar a RAM do Chrome)
+        const imagensOtimizadas = [];
+        for (let img of imagensFinais) {
+            imagensOtimizadas.push(await otimizarImagemParaPDF(img));
+        }
         setTextoFinal(textoCorrigido);
         setImagens(imagensOtimizadas);
 

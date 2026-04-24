@@ -1260,7 +1260,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         else:
             imagens_lista = imagens_do_json
             
-        # 4. Salva as imagens da nuvem
+        # 4. Salva as imagens individualmente (CORRIGIDO: Revertido bulk_create por segurança de nuvem)
         if imagens_lista:
             for index, img_str in enumerate(imagens_lista):
                 try:
@@ -1272,7 +1272,14 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                         ext = 'jpg'
                     data = base64.b64decode(imgstr)
                     file_name = f"laudo_{laudo.id}_img_{index}.{ext}"
-                    ImagemLaudo.objects.create(laudo=laudo, arquivo=ContentFile(data, name=file_name))
+                    
+                    # O bulk_create NÃO sobe o arquivo para a nuvem (Supabase/S3).
+                    # Como as imagens agora são super leves (otimizadas a 500px no React), 
+                    # salvar com .create() é muito rápido e garante que a foto apareça no portal.
+                    ImagemLaudo.objects.create(
+                        laudo=laudo, 
+                        arquivo=ContentFile(data, name=file_name)
+                    )
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
 
