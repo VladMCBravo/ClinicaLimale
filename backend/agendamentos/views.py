@@ -38,6 +38,13 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
             'paciente', 'medico', 'especialidade', 'sala', 'procedimento', 'plano_utilizado'
         ).prefetch_related('pagamento').all().order_by('data_hora_inicio')
         
+        # --- NOVA TRAVA DE PRIVACIDADE ---
+        user = self.request.user
+        if user.cargo == 'medico':
+            # Filtra a agenda para mostrar APENAS as consultas deste médico
+            queryset = queryset.filter(medico=user)
+        # ---------------------------------
+        
         # Filtros (usados pelo FullCalendar e Frontend)
         sala_id = self.request.query_params.get('sala_id')
         if sala_id:

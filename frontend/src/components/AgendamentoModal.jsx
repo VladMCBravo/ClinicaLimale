@@ -97,11 +97,15 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
     
     useEffect(() => {
+        let isMounted = true; // Boas práticas para evitar update em componente desmontado
+
+        // Só busca os dados se o Modal estiver ABERTO
         if (open) {
             console.log("[DEBUG - FRONTEND] Modal aberto. Solicitando dados ao servidor...");
             
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
+                    if (!isMounted) return; // Se fechou antes de carregar, cancela
                     
                     const rawPacientes = pacientesRes.data || [];
                     console.log(`[DEBUG - FRONTEND] Recebeu ${rawPacientes.length} pacientes brutos do backend.`, rawPacientes);
@@ -370,6 +374,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // 👇 ADICIONE ESTA LINHA AQUI (A trava de segurança final)
+        if (isSubmitting) return;
         
         const erroValidacao = validarFormulario();
         if (erroValidacao) {

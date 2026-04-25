@@ -6,6 +6,7 @@ from pacientes.models import Paciente
 from usuarios.models import CustomUser, Especialidade
 from faturamento.models import Procedimento
 from datetime import timedelta
+from django.utils import timezone
 
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
@@ -71,6 +72,17 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
 
         if not inicio or not fim:
             return data
+
+        # 1. Pegamos o usuário logado de dentro do contexto do DRF
+        request = self.context.get('request')
+        usuario_logado = request.user if request else None
+
+        # --- TRAVA ATUALIZADA: BLOQUEIO DE VIAGEM NO TEMPO (EXCETO ADMIN) ---
+        if inicio < timezone.now():
+            # Se não tiver usuário logado OU se o cargo for diferente de admin, bloqueia!
+            if not usuario_logado or usuario_logado.cargo != 'admin':
+                raise serializers.ValidationError({"data_hora_inicio": "Não é permitido criar agendamentos no passado."})
+        # -----------------------------------------------
 
         # --- A MÁGICA DOS MILISSEGUNDOS (Tolerância de 1 segundo) ---
         inicio_tolerancia = inicio + timedelta(seconds=1)
