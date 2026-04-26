@@ -16,6 +16,7 @@ from xhtml2pdf import pisa
 from rest_framework.generics import ListAPIView # <--- Verifique se ListAPIView está importado
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from xhtml2pdf import pisa
@@ -112,6 +113,21 @@ class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Evolucao.objects.all()
     serializer_class = EvolucaoSerializer
     permission_classes = [CanViewProntuario]
+
+    # 👇 ADICIONE ESTA TRAVA PARA A EDIÇÃO (PATCH/PUT) 👇
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        # Verificamos se o médico logado é o mesmo que escreveu a evolução
+        if instance.medico != self.request.user:
+            raise PermissionDenied("Acesso Negado: Apenas o médico autor pode alterar esta evolução.")
+        serializer.save()
+
+    # 👇 ADICIONE ESTA TRAVA PARA A EXCLUSÃO (DELETE) 👇
+    def perform_destroy(self, instance):
+        # Verificamos se o médico logado é o mesmo que escreveu a evolução
+        if instance.medico != self.request.user:
+            raise PermissionDenied("Acesso Negado: Você não tem permissão para apagar registros de outro profissional.")
+        instance.delete()
 
 class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = PrescricaoSerializer
@@ -1077,7 +1093,32 @@ class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """
     queryset = Laudo.objects.all()
     serializer_class = LaudoSerializer
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [IsAuthenticated]
+
+    # 👇 ADICIONE ESTE BLOCO PARA BLINDAR A EDIÇÃO 👇
+    def perform_update(self, serializer):
+        laudo_atual = self.get_object() # Pega o laudo original do banco
+
+        # 1. Trava de Autoria: Só o dono do laudo pode alterar
+        if laudo_atual.medico != self.request.user:
+            raise PermissionDenied("Você não tem permissão para editar o laudo de outro médico.")
+
+        # 2. Trava Médico-Legal: Laudos finalizados são imutáveis
+        if laudo_atual.status == 'FINALIZADO':
+            raise ValidationError("Falha Médico-Legal: Este laudo já foi finalizado/assinado e não pode ser alterado.")
+
+        # Se passou pelos seguranças, pode salvar
+        serializer.save()
+
+    # 👇 ADICIONE ESTE BLOCO PARA BLINDAR A EXCLUSÃO 👇
+    def perform_destroy(self, instance):
+        if instance.medico != self.request.user:
+            raise PermissionDenied("Você não tem permissão para excluir o laudo de outro médico.")
+        
+        if instance.status == 'FINALIZADO':
+            raise ValidationError("Falha Médico-Legal: Laudos finalizados são registros permanentes e não podem ser excluídos.")
+
+        instance.delete() 
 
     def update(self, request, *args, **kwargs):
         # 1. Deixa o Django atualizar os textos e dados JSON
