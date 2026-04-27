@@ -6,34 +6,40 @@ import {
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-// MUDANÇA: Usando AdapterDayjs para evitar erros de versão do date-fns
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import 'dayjs/locale/pt-br'; // Importação do idioma é simples e direta
+import 'dayjs/locale/pt-br';
 import dayjs from 'dayjs';
 
 import SearchIcon from '@mui/icons-material/Search';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 import apiClient from '../../api/axiosConfig';
-import { agendamentoService } from '../../services/agendamentoService';
 
 export default function VerificadorDisponibilidade({ onSlotSelect }) {
     // ESTADOS
-    // Inicializa com dayjs() em vez de new Date()
     const [dataSelecionada, setDataSelecionada] = useState(dayjs());
     const [medicos, setMedicos] = useState([]);
+    const [especialidades, setEspecialidades] = useState([]);
+    
     const [medicoSelecionado, setMedicoSelecionado] = useState(null);
+    const [especialidadeSelecionada, setEspecialidadeSelecionada] = useState(null);
     
     // RESULTADOS
-    const [horariosLivres, setHorariosLivres] = useState([]);
+    const [diasDisponiveis, setDiasDisponiveis] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [feedback, setFeedback] = useState('Selecione Data e Médico para buscar.');
+    const [feedback, setFeedback] = useState('Selecione um médico e busque.');
 
-    // Carrega médicos ao abrir
+    // Carrega médicos e especialidades ao abrir
     useEffect(() => {
         apiClient.get('/usuarios/usuarios/?cargo=medico')
             .then(res => setMedicos(res.data.results || res.data || []))
-            .catch(err => console.error("Erro médicos", err));
+            .catch(err => console.error("Erro ao buscar médicos", err));
+            
+        // Ajuste a rota de especialidades conforme o seu backend
+        apiClient.get('/usuarios/especialidades/')
+            .then(res => setEspecialidades(res.data.results || res.data || []))
+            .catch(err => console.error("Erro ao buscar especialidades", err));
     }, []);
 
     const buscarDisponibilidade = async () => {
@@ -43,60 +49,26 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
         }
 
         setLoading(true);
-        setHorariosLivres([]);
-        setFeedback("Buscando agenda...");
+        setDiasDisponiveis([]);
+        setFeedback("Mapeando a agenda...");
 
         try {
-            // 1. Pega todos os agendamentos do médico
-            const res = await agendamentoService.getAgendamentos(medicoSelecionado.id, '');
-            const agendamentos = res.data || [];
-
-            // 2. Filtra agendamentos DO DIA escolhido
-            // dayjs facilita a formatação: YYYY-MM-DD
-            const diaAlvoStr = dataSelecionada.format('YYYY-MM-DD'); 
-            
-            const ocupados = agendamentos.filter(ag => {
-                // A API geralmente retorna YYYY-MM-DDTHH:mm:ss
-                const dataAg = ag.data_hora_inicio.split('T')[0];
-                return dataAg === diaAlvoStr && ag.status !== 'Cancelado';
+            // Chama a API que construímos, passando o médico e o mês/dia inicial
+            const res = await apiClient.get('/agendamentos/horarios-disponiveis/', {
+                params: {
+                    medico_id: medicoSelecionado.id,
+                    data: dataSelecionada.format('YYYY-MM-DD')
+                }
             });
 
-            // 3. Gera slots de 30 em 30 min (das 08:00 às 18:00)
-            const slotsLivres = [];
-            let hora = 8; 
-            let min = 0;
-            const fimHora = 18; 
-
-            // Vamos manipular um objeto dayjs para calcular os slots
-            // .startOf('day') zera a hora para 00:00, depois setamos 8h
-            let currentSlot = dataSelecionada.hour(8).minute(0).second(0);
-
-            while (hora < fimHora) {
-                // Verifica colisão
-                const isOcupado = ocupados.some(ag => {
-                    // Converte string da API para objeto Date para pegar hora/min
-                    const agDate = new Date(ag.data_hora_inicio);
-                    // Como estamos em fuso local, cuidado. Mas assumindo consistência:
-                    return agDate.getHours() === hora && agDate.getMinutes() === min;
-                });
-
-                if (!isOcupado) {
-                    slotsLivres.push({
-                        label: currentSlot.format('HH:mm'), // Ex: "08:30"
-                        // .toDate() converte para JS Date padrão para passar pro onSlotSelect
-                        date: currentSlot.toDate() 
-                    });
-                }
-
-                // Incrementa 30 min
-                currentSlot = currentSlot.add(30, 'minute');
-                hora = currentSlot.hour();
-                min = currentSlot.minute();
+            const dadosAPI = res.data || [];
+            setDiasDisponiveis(dadosAPI);
+            
+            if (dadosAPI.length === 0) {
+                setFeedback("Nenhum horário livre encontrado nas próximas semanas.");
+            } else {
+                setFeedback("");
             }
-
-            setHorariosLivres(slotsLivres);
-            if (slotsLivres.length === 0) setFeedback("Agenda cheia para este dia.");
-            else setFeedback("");
 
         } catch (error) {
             console.error(error);
@@ -106,9 +78,14 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
         }
     };
 
+    // Formatação de data visual Ex: "Segunda, 27/04"
+    const formatarDataDia = (dataStr) => {
+        return dayjs(dataStr, 'YYYY-MM-DD').format('dddd, DD/MM');
+    };
+
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%', p: 1 }}>
                 
                 <Typography variant="h6" sx={{ color: '#1C2E4A', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <SearchIcon /> Buscar Horário
@@ -116,30 +93,41 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
                 <Divider />
 
                 <Stack spacing={2}>
-                    <DatePicker
-                        label="Data"
-                        value={dataSelecionada}
-                        onChange={(newValue) => { 
-                            setDataSelecionada(newValue); 
-                            setHorariosLivres([]); 
-                            setFeedback("Clique em buscar."); 
-                        }}
-                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                    />
-
+                    {/* Filtro 1: Médico (Obrigatório) */}
                     <Autocomplete
                         size="small"
                         options={medicos}
                         getOptionLabel={(o) => o.first_name ? `${o.first_name} ${o.last_name}` : o.username}
                         value={medicoSelecionado}
-                        onChange={(e, v) => { setMedicoSelecionado(v); setHorariosLivres([]); }}
-                        renderInput={(params) => <TextField {...params} label="Selecione o Médico" />}
+                        onChange={(e, v) => { setMedicoSelecionado(v); setDiasDisponiveis([]); }}
+                        renderInput={(params) => <TextField {...params} label="Selecione o Médico *" />}
+                    />
+
+                    {/* Filtro 2: Especialidade (Opcional - Apenas visual) */}
+                    <Autocomplete
+                        size="small"
+                        options={especialidades}
+                        getOptionLabel={(o) => o.nome || ''}
+                        value={especialidadeSelecionada}
+                        onChange={(e, v) => setEspecialidadeSelecionada(v)}
+                        renderInput={(params) => <TextField {...params} label="Especialidade (Opcional)" helperText="Não bloqueia a busca."/>}
+                    />
+
+                    {/* Filtro 3: Data Inicial */}
+                    <DatePicker
+                        label="Buscar a partir de:"
+                        value={dataSelecionada}
+                        onChange={(newValue) => { 
+                            setDataSelecionada(newValue); 
+                            setDiasDisponiveis([]); 
+                        }}
+                        slotProps={{ textField: { size: 'small', fullWidth: true } }}
                     />
 
                     <Button 
                         variant="contained" 
                         onClick={buscarDisponibilidade}
-                        disabled={loading}
+                        disabled={loading || !medicoSelecionado}
                         fullWidth
                         sx={{ bgcolor: '#1C2E4A', fontWeight: 'bold' }}
                     >
@@ -149,31 +137,43 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
 
                 <Divider sx={{ my: 1 }} />
 
+                {/* RESULTADOS DA BUSCA */}
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                    {horariosLivres.length > 0 ? (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {horariosLivres.map((slot, idx) => (
-                                <Chip
-                                    key={idx}
-                                    label={slot.label}
-                                    icon={<AccessTimeIcon fontSize="small"/>}
-                                    onClick={() => onSlotSelect({
-                                        // Mock para compatibilidade com o formato do modal existente
-                                        data_hora_inicio: { toDate: () => slot.date }, 
-                                        medico: medicoSelecionado,
-                                        especialidade: null 
-                                    })}
-                                    color="primary"
-                                    variant="outlined"
-                                    sx={{ cursor: 'pointer', fontWeight: 'bold', '&:hover': { bgcolor: '#e3f2fd' } }}
-                                />
-                            ))}
-                        </Box>
-                    ) : (
-                        <Alert severity="info" sx={{ mt: 1 }}>{feedback}</Alert>
-                    )}
-                </Box>
+                    {feedback && <Alert severity="info" sx={{ mt: 1 }}>{feedback}</Alert>}
 
+                    {diasDisponiveis.map((diaInfo, idx) => (
+                        <Box key={idx} sx={{ mb: 3 }}>
+                            <Typography variant="subtitle2" sx={{ color: '#37474f', fontWeight: 'bold', mb: 1, display: 'flex', alignItems: 'center', gap: 0.5, textTransform: 'capitalize' }}>
+                                <CalendarTodayIcon fontSize="inherit" color="primary" /> {formatarDataDia(diaInfo.data)}
+                            </Typography>
+                            
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {diaInfo.horarios_disponiveis.map((horario, hIdx) => (
+                                    <Chip
+                                        key={hIdx}
+                                        label={horario}
+                                        icon={<AccessTimeIcon fontSize="small"/>}
+                                        onClick={() => {
+                                            // Envia o payload exato que o AgendamentoModal entende no "initialData"
+                                            const startString = `${diaInfo.data}T${horario}:00`;
+                                            onSlotSelect({
+                                                start: startString,
+                                                medicoId: medicoSelecionado.id,
+                                                especialidadeId: especialidadeSelecionada ? especialidadeSelecionada.id : null
+                                            });
+                                        }}
+                                        color="primary"
+                                        variant="outlined"
+                                        sx={{ 
+                                            cursor: 'pointer', fontWeight: 'bold', 
+                                            '&:hover': { bgcolor: '#1976d2', color: '#fff' } 
+                                        }}
+                                    />
+                                ))}
+                            </Box>
+                        </Box>
+                    ))}
+                </Box>
             </Box>
         </LocalizationProvider>
     );

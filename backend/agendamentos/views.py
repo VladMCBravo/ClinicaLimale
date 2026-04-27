@@ -277,20 +277,30 @@ class HorariosDisponiveisAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        data_str = request.query_params.get('data')
         medico_id = request.query_params.get('medico_id')
-        especialidade_id = request.query_params.get('especialidade_id')
+        data_str = request.query_params.get('data') # Agora serve como "Data Inicial da Busca"
+        
+        # Ignoramos a especialidade na lógica de busca para não travar a pesquisa, 
+        # conforme a sua regra de negócio.
 
-        if not data_str or not medico_id:
-            return Response({'detail': 'Parâmetros obrigatórios ausentes.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not medico_id:
+            return Response({'detail': 'O ID do médico é obrigatório.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            data_selecionada = parse_date(data_str)
-            if not data_selecionada: raise ValueError
+            # Se não enviar data, assume hoje
+            data_selecionada = parse_date(data_str) if data_str else timezone.now().date()
         except ValueError:
             return Response({'detail': 'Data inválida.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        horarios = services.buscar_horarios_para_data(data_selecionada, medico_id, especialidade_id)
+        # Chama o serviço inteligente que busca os próximos dias
+        # limite_dias_retorno=7 significa que o sistema vai "caçar" até encontrar 
+        # os próximos 7 dias em que esse médico tem algum buraco na agenda.
+        horarios = services.buscar_proximo_horario_disponivel(
+            medico_id=medico_id, 
+            data_inicial=data_selecionada, 
+            limite_dias_retorno=7 
+        )
+        
         return Response(horarios, status=status.HTTP_200_OK)
     
 
