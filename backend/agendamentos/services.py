@@ -173,11 +173,11 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
 def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None, limite_dias_retorno=3) -> list:
     """
     Busca os próximos dias úteis com horários disponíveis para um médico.
-    RETORNO ALTERADO: Agora retorna uma LISTA com os próximos 'limite_dias_retorno' dias.
     """
     try:
         medico = CustomUser.objects.get(id=medico_id, cargo='medico', is_active=True)
-        jornadas = JornadaDeTrabalho.objects.filter(medico=medico).order_by('dia_da_semana')
+        # Traz apenas as jornadas ativas
+        jornadas = JornadaDeTrabalho.objects.filter(medico=medico, ativo=True).order_by('dia_da_semana')
         if not jornadas.exists():
             return [] 
 
@@ -196,40 +196,58 @@ def buscar_proximo_horario_disponivel(medico_id: int, data_inicial: date = None,
         limite_busca = inicio_busca + timedelta(days=90)
         data_atual = inicio_busca
         
-        dias_encontrados = [] # NOVO: Armazena múltiplos dias
+        dias_encontrados = [] 
 
         while data_atual <= limite_busca:
             if len(dias_encontrados) >= limite_dias_retorno:
-                break # Para de buscar ao encontrar a cota de dias
+                break 
 
+            # --- CORREÇÃO 1: DIA DA SEMANA EXATO ---
+            # O Python (0=Segunda) já é idêntico ao DiaSemana do seu Models
             dia_semana_py = data_atual.weekday() 
-            dia_semana_django = (dia_semana_py + 2) % 7
-            if dia_semana_django == 0: dia_semana_django = 7
+            
+            # --- CORREÇÃO 2: MATEMÁTICA DA SEMANA DO MÊS ---
+            semana_do_mes = ((data_atual.day - 1) // 7) + 1
 
-            jornada_do_dia = jornadas.filter(dia_da_semana=dia_semana_django).first()
+            # Pega TODAS as jornadas cadastradas para este dia da semana
+            jornadas_do_dia = jornadas.filter(dia_da_semana=dia_semana_py)
 
-            if not jornada_do_dia or not jornada_do_dia.hora_inicio or not jornada_do_dia.hora_fim:
-                data_atual += timedelta(days=1)
-                continue
-
-            intervalo_minutos = 15
             horarios_possiveis = []
-            try:
-                 hora_corrente_dt = datetime.combine(data_atual, jornada_do_dia.hora_inicio)
-                 fim_expediente_dt = datetime.combine(data_atual, jornada_do_dia.hora_fim)
-                 hora_corrente = timezone.make_aware(hora_corrente_dt)
-                 fim_expediente = timezone.make_aware(fim_expediente_dt)
-            except ValueError:
-                 data_atual += timedelta(days=1)
-                 continue 
+            intervalo_minutos = 15
 
-            while hora_corrente < fim_expediente:
-                horarios_possiveis.append(hora_corrente)
-                hora_corrente += timedelta(minutes=intervalo_minutos)
+            for jornada in jornadas_do_dia:
+                # Verifica a restrição das semanas (1ª, 2ª, 3ª, etc)
+                if jornada.semanas_do_mes and len(jornada.semanas_do_mes) > 0:
+                    semanas_validas = [int(s) for s in jornada.semanas_do_mes]
+                    if semana_do_mes not in semanas_validas:
+                        continue # Pula esta jornada, pois não atende nesta semana do mês
+
+                if not jornada.hora_inicio or not jornada.hora_fim:
+                    continue
+
+                try:
+                     hora_corrente_dt = datetime.combine(data_atual, jornada.hora_inicio)
+                     fim_expediente_dt = datetime.combine(data_atual, jornada.hora_fim)
+                     hora_corrente = timezone.make_aware(hora_corrente_dt)
+                     fim_expediente = timezone.make_aware(fim_expediente_dt)
+                except ValueError:
+                     continue 
+
+                # Usa o intervalo cadastrado na jornada
+                intervalo = jornada.intervalo_consulta or 15
+
+                while hora_corrente < fim_expediente:
+                    # Evita duplicidade se o admin cadastrar jornadas sobrepostas
+                    if hora_corrente not in horarios_possiveis:
+                        horarios_possiveis.append(hora_corrente)
+                    hora_corrente += timedelta(minutes=intervalo)
 
             if not horarios_possiveis:
                  data_atual += timedelta(days=1)
                  continue
+
+            # Ordena cronologicamente
+            horarios_possiveis.sort()
 
             inicio_dia_aware = horarios_possiveis[0]
             fim_dia_aware = timezone.make_aware(datetime.combine(data_atual, time.max))
