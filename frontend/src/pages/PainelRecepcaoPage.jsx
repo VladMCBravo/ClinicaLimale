@@ -116,13 +116,18 @@ export default function PainelRecepcaoPage() {
 
     const handleFiltroChange = (filtros) => { setMedicoFiltro(filtros.medicoId); setEspecialidadeFiltro(filtros.especialidadeId); };
 
-    const handleSlotSelect = (slotInfo) => {
-        setIsDispoOpen(false);
+    // --- FUNÇÃO ATUALIZADA PARA RECEBER OS DADOS DO NOVO DRAWER ---
+    const handleSlotSelect = (payload) => {
+        setIsDispoOpen(false); // 1. Fecha o menu lateral
+        
+        // 2. Preenche o initialData EXATAMENTE com as chaves que o Drawer enviou
         setInitialData({
-             start: slotInfo.data_hora_inicio.toDate(),
-             medicoId: slotInfo.medico?.id,
-             especialidadeId: slotInfo.especialidade?.id
+             start: payload.start, 
+             medicoId: payload.medicoId,
+             especialidadeId: payload.especialidadeId
         });
+        
+        // 3. Abre o modal (que agora vai ler esse medicoId e puxar os dados)
         setIsAgendamentoModalOpen(true);
     };
 

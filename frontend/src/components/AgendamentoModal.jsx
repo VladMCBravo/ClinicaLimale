@@ -192,11 +192,18 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             const startTime = dayjs(initialData.start);
             const endTime = startTime.add(15, 'minute');
             
+            // --- MODIFICAÇÃO: Força a aba "Consulta" se vier do Drawer com um médico ---
+            if (initialData.medicoId) {
+                setTipoAgendamento('Consulta');
+            }
+
             setFormData(prev => ({ 
                 ...prev, 
                 data_hora_inicio: startTime,
                 data_hora_fim: endTime, 
                 sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
+                
+                // Mapeia os IDs do Drawer para os objetos reais do Select
                 medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
                 especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
             }));
