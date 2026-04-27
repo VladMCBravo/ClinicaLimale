@@ -16,6 +16,7 @@ import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
 
 import { agendamentoService } from '../services/agendamentoService';
 import { pacienteService } from '../services/pacienteService';
+import { configuracoesService } from '../services/configuracoesService'; // Adicione nas importações do topo
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { IMaskInput } from 'react-imask';
 import dayjs from 'dayjs';
@@ -95,7 +96,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
     const [bloqueioCapacidade, setBloqueioCapacidade] = useState(false);
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
-    
+    const [jornadasMedico, setJornadasMedico] = useState([]);
+    const [confirmarJornadaOpen, setConfirmarJornadaOpen] = useState(false);
+
     useEffect(() => {
         let isMounted = true; // Boas práticas para evitar update em componente desmontado
 
@@ -332,6 +335,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         setBloqueioCapacidade(bloqueado);
     }, [capacidade, tipoAgendamento, editingEvent, open]);
 
+    useEffect(() => {
+    if (formData.medico && open) {
+        configuracoesService.getJornadas(formData.medico.id)
+            .then(res => setJornadasMedico(res.data))
+            .catch(err => console.error("Erro ao buscar jornada:", err));
+    } else {
+        setJornadasMedico([]);
+    }
+}, [formData.medico, open]);
+
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
         setFormData(prev => ({ ...prev, paciente: pacienteSelecionado }));
         if (pacienteSelecionado) {
@@ -372,18 +385,43 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         return null;
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const verificarDentroDaJornada = (inicioDayjs, fimDayjs) => {
+    if (jornadasMedico.length === 0) return false; // Se não tem jornada cadastrada, está fora
 
-        // 👇 ADICIONE ESTA LINHA AQUI (A trava de segurança final)
-        if (isSubmitting) return;
+    // 1. Traduzir o dia da semana: Day.js (0=Dom, 1=Seg) para Django (0=Seg, 6=Dom)
+    const diaSemanaDayjs = inicioDayjs.day();
+    const diaSemanaDjango = diaSemanaDayjs === 0 ? 6 : diaSemanaDayjs - 1;
+
+    // 2. Descobrir qual semana do mês é esta data (Ex: dia 8 = 2ª semana)
+    const semanaDoMes = Math.ceil(inicioDayjs.date() / 7);
+
+    // 3. Filtrar jornadas que batem com o dia e a semana
+    const jornadasValidas = jornadasMedico.filter(j => {
+        if (j.dia_da_semana !== diaSemanaDjango || !j.ativo) return false;
         
-        const erroValidacao = validarFormulario();
-        if (erroValidacao) {
-            showSnackbar(erroValidacao, 'warning');
-            return;
+        // Verifica as semanas
+        const semanasConfiguradas = j.semanas_do_mes || [];
+        if (semanasConfiguradas.length > 0 && !semanasConfiguradas.includes(semanaDoMes)) {
+            return false; // Tem regra de semana, mas não inclui a semana atual
         }
+        return true;
+    });
 
+    if (jornadasValidas.length === 0) return false;
+
+    // 4. Verificar se o horário se encaixa em ALGUMA das jornadas válidas
+    const horaMinutoInicio = inicioDayjs.format('HH:mm');
+    const horaMinutoFim = fimDayjs.format('HH:mm');
+
+    return jornadasValidas.some(j => {
+        const jornadaInicio = j.hora_inicio.substring(0, 5); // Pega apenas HH:mm
+        const jornadaFim = j.hora_fim.substring(0, 5);
+        return horaMinutoInicio >= jornadaInicio && horaMinutoFim <= jornadaFim;
+    });
+};
+
+    // 1. O OPERÁRIO: Esta função apenas envia os dados para o servidor
+    const executarSubmitReal = async () => {
         setIsSubmitting(true);
         
         const submissionData = {
@@ -431,6 +469,34 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    // 2. O PORTEIRO: Disparado quando você clica em "Salvar Agendamento"
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (isSubmitting) return; // Evita cliques duplos
+        
+        const erroValidacao = validarFormulario();
+        if (erroValidacao) {
+            showSnackbar(erroValidacao, 'warning');
+            return;
+        }
+
+        // --- TRAVA DE JORNADA ---
+        // Se for Consulta e tiver médico e datas selecionadas...
+        if (tipoAgendamento === 'Consulta' && formData.medico && formData.data_hora_inicio && formData.data_hora_fim) {
+            const dentroDaJornada = verificarDentroDaJornada(formData.data_hora_inicio, formData.data_hora_fim);
+            
+            // Se estiver FORA da jornada, abre o modal de aviso e INTERROMPE o salvamento
+            if (!dentroDaJornada) {
+                setConfirmarJornadaOpen(true);
+                return; 
+            }
+        }
+
+        // Se estiver tudo certo (dentro da jornada, ou for um procedimento), salva direto!
+        executarSubmitReal();
     };
 
     const handleDelete = async () => {
@@ -750,6 +816,39 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     </Box>
                 </DialogActions>
             </form>
+            {/* NOVO: MODAL DE ALERTA DE JORNADA */}
+            <Dialog 
+                open={confirmarJornadaOpen} 
+                onClose={() => setConfirmarJornadaOpen(false)}
+                PaperProps={{ sx: { borderRadius: 2, minWidth: 400 } }}
+            >
+                <DialogTitle sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+                    Aviso de Fora de Jornada
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Typography>
+                        O horário selecionado (<strong>{dataInicioVisual} às {dataFimVisual.substring(11, 16)}</strong>) está <strong>fora da jornada de trabalho</strong> cadastrada para o(a) Dr(a). {formData.medico?.first_name}.
+                    </Typography>
+                    <Typography sx={{ mt: 2 }}>
+                        Deseja forçar este agendamento como uma exceção?
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setConfirmarJornadaOpen(false)} color="inherit">
+                        Cancelar
+                    </Button>
+                    <Button 
+                        onClick={() => {
+                            setConfirmarJornadaOpen(false);
+                            executarSubmitReal(); // Executa o submit à força
+                        }} 
+                        variant="contained" 
+                        color="warning"
+                    >
+                        Sim, Forçar Agendamento
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Dialog>
     );
 }

@@ -106,7 +106,7 @@ class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'medico', 'medico_nome', 'dia_da_semana', 
             'dia_da_semana_display', 'hora_inicio', 'hora_fim', 
-            'intervalo_consulta', 'ativo'
+            'intervalo_consulta', 'ativo', 'semanas_do_mes'
         ]
         read_only_fields = ['medico_nome', 'dia_da_semana_display']
 

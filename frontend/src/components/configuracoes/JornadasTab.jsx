@@ -4,7 +4,7 @@ import {
     Box, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, CircularProgress, Button, IconButton,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField,
-    MenuItem, FormControl, InputLabel, Select, Switch, FormControlLabel, Grid, Paper
+    MenuItem, FormControl, InputLabel, Select, Switch, FormControlLabel, Grid, Paper, OutlinedInput, Checkbox, ListItemText
 } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker'; // Certifique-se de ter @mui/x-date-pickers instalado
 import dayjs from 'dayjs';
@@ -24,8 +24,17 @@ const diasDaSemana = [
     { value: 6, label: 'Domingo' },
 ];
 
+// Constante para as semanas
+const semanasOpcoes = [
+    { value: 1, label: '1ª Semana do Mês' },
+    { value: 2, label: '2ª Semana do Mês' },
+    { value: 3, label: '3ª Semana do Mês' },
+    { value: 4, label: '4ª Semana do Mês' },
+    { value: 5, label: '5ª Semana do Mês' },
+];
+
 const initialState = {
-    medico: '', dia_da_semana: '', hora_inicio: null, hora_fim: null, intervalo_consulta: 30, ativo: true,
+    medico: '', dia_da_semana: '', hora_inicio: null, hora_fim: null, intervalo_consulta: 30, ativo: true, semanas_do_mes: []
 };
 
 export default function JornadasTab() {
@@ -72,6 +81,7 @@ export default function JornadasTab() {
                 hora_fim: parseTime(item.hora_fim),
                 intervalo_consulta: item.intervalo_consulta,
                 ativo: item.ativo,
+                semanas_do_mes: item.semanas_do_mes || [], 
             });
         } else { setFormData(initialState); }
         setIsModalOpen(true);
@@ -177,6 +187,27 @@ export default function JornadasTab() {
                                 <InputLabel>Dia da Semana *</InputLabel>
                                 <Select value={formData.dia_da_semana} label="Dia da Semana *" onChange={(e) => setFormData({...formData, dia_da_semana: e.target.value})}>
                                     {diasDaSemana.map((d) => <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>)}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <FormControl fullWidth>
+                                <InputLabel>Semanas do Mês (Deixe vazio para TODAS)</InputLabel>
+                                <Select
+                                    multiple
+                                    value={formData.semanas_do_mes}
+                                    onChange={(e) => setFormData({...formData, semanas_do_mes: e.target.value})}
+                                    input={<OutlinedInput label="Semanas do Mês (Deixe vazio para TODAS)" />}
+                                    renderValue={(selected) => 
+                                        selected.length === 0 ? "Todas as semanas" : selected.map(val => semanasOpcoes.find(opt => opt.value === val)?.label).join(', ')
+                                    }
+                                >
+                                    {semanasOpcoes.map((semana) => (
+                                        <MenuItem key={semana.value} value={semana.value}>
+                                            <Checkbox checked={formData.semanas_do_mes.indexOf(semana.value) > -1} />
+                                            <ListItemText primary={semana.label} />
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </Grid>

@@ -159,6 +159,7 @@ class JornadaDeTrabalho(models.Model):
         verbose_name="Ativo",
         help_text="Define se esta jornada está ativa"
     )
+    semanas_do_mes = models.JSONField(default=list, blank=True, null=True)
 
     class Meta:
         verbose_name = "Jornada de Trabalho"
