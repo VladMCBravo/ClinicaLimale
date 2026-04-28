@@ -1,6 +1,10 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import { ToggleButton, ToggleButtonGroup } from '@mui/material';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import PersonIcon from '@mui/icons-material/Person';
+import apiClient from '../../api/axiosConfig'; // Para buscar os médicos com jornada
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
 import { useNavigate } from 'react-router-dom';
@@ -81,6 +85,17 @@ export default function AgendaPrincipal({
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
 
+    // --- NOVOS ESTADOS PARA O MODO DE VISÃO ---
+    const [viewMode, setViewMode] = useState('salas'); // 'salas' ou 'medicos'
+    const [medicosComJornada, setMedicosComJornada] = useState([]);
+
+    // Busca os médicos que têm jornada assim que a agenda carrega
+    useEffect(() => {
+        apiClient.get('/usuarios/medicos-com-jornada/') // Certifique-se de que esta rota está no seu urls.py
+            .then(res => setMedicosComJornada(res.data.results || res.data || []))
+            .catch(err => console.error("Erro ao buscar médicos com jornada", err));
+    }, []);
+
     // 1. Apague o [eventos, setEventos] e a função carregarEventos.
     // 2. Crie esta nova função que o FullCalendar vai usar para buscar os dados sob demanda:
     const fetchEventos = useCallback((fetchInfo, successCallback, failureCallback) => {
@@ -109,6 +124,10 @@ export default function AgendaPrincipal({
 
                 const eventosFormatados = Array.from(agrupadosMap.values()).map(ag => {
                     const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
+                    
+                    // A MÁGICA AQUI: Muda o ID da coluna dependendo da visão selecionada
+                    const colunaId = viewMode === 'salas' ? `sala_${ag.sala}` : `medico_${ag.medico}`;
+
                     return {
                         id: ag.id,
                         title: ag.paciente_nome, 
@@ -121,7 +140,7 @@ export default function AgendaPrincipal({
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
                         },
-                        resourceId: String(ag.sala),
+                        resourceId: colunaId, // Usa a variável dinâmica
                         backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
                         borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
                         textColor: isInativo ? '#666' : '#fff',
@@ -135,7 +154,7 @@ export default function AgendaPrincipal({
                 console.error("Erro ao carregar a agenda:", error);
                 failureCallback(error);
             });
-    }, [medicoFiltro, especialidadeFiltro]);
+    }, [medicoFiltro, especialidadeFiltro, viewMode]); // <--- ADICIONE O viewMode AQUI
 
     // 3. Atualize o useEffect para forçar o recarregamento quando salvar um agendamento novo
 useEffect(() => {
@@ -211,7 +230,25 @@ useEffect(() => {
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
-           
+            
+            {/* O NOVO BOTÃO DE INTERCALAR VISÕES */}
+            <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', bgcolor: '#f4f6f8', borderBottom: '1px solid #e0e0e0' }}>
+                <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={(e, newValue) => { if (newValue) setViewMode(newValue); }}
+                    size="small"
+                    sx={{ bgcolor: '#fff' }}
+                >
+                    <ToggleButton value="salas" sx={{ fontWeight: 'bold' }}>
+                        <MeetingRoomIcon sx={{ mr: 1, fontSize: 18 }} /> Por Salas
+                    </ToggleButton>
+                    <ToggleButton value="medicos" sx={{ fontWeight: 'bold' }}>
+                        <PersonIcon sx={{ mr: 1, fontSize: 18 }} /> Por Médicos
+                    </ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
+
             {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
                 <FullCalendar
@@ -223,7 +260,19 @@ useEffect(() => {
                     headerToolbar={{ left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' }}
                     height="100%"
                     events={fetchEventos}
-                    resources={salas.map(s => ({ id: String(s.id), title: s.nome }))}
+                    
+                    // A SEGUNDA MÁGICA: Muda as colunas dependendo do modo
+                    resources={
+                        viewMode === 'salas' 
+                        ? salas.map(s => ({ id: `sala_${s.id}`, title: s.nome }))
+                        : medicosComJornada.map(m => ({ 
+                            id: `medico_${m.id}`, 
+                            title: `Dr(a). ${m.first_name}`
+                            // Nota: Para usar o "businessHours" de bloqueio visual aqui, 
+                            // o seu endpoint do backend precisará retornar o array de "jornadas_de_trabalho" aninhado.
+                        }))
+                    }
+                    
                     dateClick={onDateClick}
                     eventClick={handleCalendarEventClick}
                     datesSet={onDatesSet}

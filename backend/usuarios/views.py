@@ -9,7 +9,7 @@ from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMed
 from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer
 from cryptography.hazmat.primitives.serialization import pkcs12
 from django.utils import timezone
-
+from django.db.models import Count
 
 # --- SUAS VIEWS DE AUTENTICAÇÃO (SEM MUDANÇAS) ---
 class CustomAuthTokenLoginView(ObtainAuthToken):
@@ -229,3 +229,11 @@ class VerificarCertificadoView(APIView):
                 "status": "erro",
                 "detail": f"Falha na validação: {str(e)}"
             }, status=400)
+
+class MedicosComJornadaListView(generics.ListAPIView):
+    serializer_class = UserSerializer
+    def get_queryset(self):
+        # Retorna apenas usuários médicos que têm pelo menos 1 jornada cadastrada
+        return CustomUser.objects.filter(cargo='medico').annotate(
+            num_jornadas=Count('jornadas_de_trabalho')
+        ).filter(num_jornadas__gt=0)

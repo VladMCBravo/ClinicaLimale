@@ -17,8 +17,8 @@ class UserSerializer(serializers.ModelSerializer):
         required=False
     )
 
-    # --- 2. ADICIONE VALIDADORES EXPLÍCITOS ---
-    # Isso transforma o Erro 500 em um Erro 400 amigável.
+    # <--- 1. ADICIONE ESTE NOVO CAMPO --->
+    jornadas = serializers.SerializerMethodField()
     
     cpf = serializers.CharField(
         required=False, allow_blank=True, allow_null=True,
@@ -39,7 +39,7 @@ class UserSerializer(serializers.ModelSerializer):
             'genero', 'data_nascimento', 'telefone', 'cpf', 'email',
             'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 
             'crm', 'rqe', 
-            'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password'
+            'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password', 'jornadas'
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
@@ -51,6 +51,13 @@ class UserSerializer(serializers.ModelSerializer):
         if value == "":
             return None
         return value
+    
+    # <--- 3. ADICIONE ESTA FUNÇÃO DENTRO DA CLASSE (Logo após os validate_cpf) --->
+    def get_jornadas(self, obj):
+        # Retorna apenas os dados essenciais das jornadas ativas deste médico
+        return obj.jornadas_de_trabalho.filter(ativo=True).values(
+            'dia_da_semana', 'hora_inicio', 'hora_fim', 'semanas_do_mes'
+        )
 
     def validate_crm(self, value):
         if value == "":

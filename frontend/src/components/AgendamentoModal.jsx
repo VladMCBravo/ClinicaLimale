@@ -708,25 +708,36 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             <Autocomplete options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} />
                                         </>
                                     ) : (
-                                        <Autocomplete 
-                                            multiple 
-                                            options={procedimentos} 
-                                            getOptionLabel={(p) => p.descricao || ''} 
-                                            value={formData.procedimentos} 
-                                            isOptionEqualToValue={(o, v) => o.id === v.id} 
-                                            onChange={handleProcedimentosChange}
-                                            disableCloseOnSelect
-                                            renderInput={(params) => (
-                                                <TextField 
-                                                    {...params} 
-                                                    label={editingEvent ? "Procedimento *" : "Procedimentos (Selecione 1 ou mais) *"} 
-                                                    size="small" 
-                                                    placeholder={formData.procedimentos.length > 0 ? "" : "Selecione..."}
-                                                    helperText={editingEvent ? "Na edição, altere apenas o procedimento atual." : ""}
-                                                />
-                                            )} 
-                                            renderTags={(value, getTagProps) => value.map((option, index) => ( <Chip variant="filled" color="primary" label={option.descricao} size="small" sx={{ color: '#fff' }} {...getTagProps({ index })} /> ))}
-                                        />
+                                        <>
+                                            <Autocomplete 
+                                                multiple 
+                                                options={procedimentos} 
+                                                getOptionLabel={(p) => p.descricao || ''} 
+                                                value={formData.procedimentos} 
+                                                isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                                onChange={handleProcedimentosChange}
+                                                disableCloseOnSelect
+                                                renderInput={(params) => (
+                                                    <TextField 
+                                                        {...params} 
+                                                        label={editingEvent ? "Procedimento *" : "Procedimentos (Selecione 1 ou mais) *"} 
+                                                        size="small" 
+                                                        placeholder={formData.procedimentos.length > 0 ? "" : "Selecione..."}
+                                                        helperText={editingEvent ? "Na edição, altere apenas o procedimento atual." : ""}
+                                                    />
+                                                )} 
+                                                renderTags={(value, getTagProps) => value.map((option, index) => ( <Chip variant="filled" color="primary" label={option.descricao} size="small" sx={{ color: '#fff' }} {...getTagProps({ index })} /> ))}
+                                            />
+                                            {/* NOVO: CAMPO DE MÉDICO PARA PROCEDIMENTOS */}
+                                            <Autocomplete 
+                                                options={medicos} 
+                                                getOptionLabel={(m) => m.first_name + ' ' + m.last_name} 
+                                                value={formData.medico} 
+                                                isOptionEqualToValue={(o, v) => o.id === v.id} 
+                                                onChange={(e, value) => setFormData({ ...formData, medico: value })} 
+                                                renderInput={(params) => <TextField {...params} label="Médico Responsável (Opcional)" size="small" />} 
+                                            />
+                                        </>
                                     )}
 
                                     <FormControl fullWidth>
