@@ -71,20 +71,22 @@ class EspecialidadeViewSet(viewsets.ModelViewSet):
 # --- ADICIONE ESTE NOVO VIEWSET ---
 class JornadaTrabalhoViewSet(viewsets.ModelViewSet):
     serializer_class = JornadaDeTrabalhoSerializer
-    permission_classes = [IsAdminUser] # Apenas Admin pode definir jornadas
+
+    # SUBSTITUÍMOS A PERMISSÃO FIXA POR UMA DINÂMICA
+    def get_permissions(self):
+        # Qualquer usuário logado (Recepção, Médico, etc) pode LISTAR e LER as jornadas
+        if self.action in ['list', 'retrieve']:
+            self.permission_classes = [IsAuthenticated]
+        # Mas apenas Administradores podem CRIAR, EDITAR ou EXCLUIR
+        else:
+            self.permission_classes = [IsAdminUser]
+        return super().get_permissions()
 
     def get_queryset(self):
-        """
-        Retorna todas as jornadas, com 'select_related' para otimizar
-        a busca pelo nome do médico.
-        """
         queryset = JornadaDeTrabalho.objects.all().select_related('medico')
-        
-        # Permite filtrar por médico, ex: /api/jornadas/?medico_id=2
         medico_id = self.request.query_params.get('medico_id')
         if medico_id:
             queryset = queryset.filter(medico_id=medico_id)
-            
         return queryset.order_by('medico__first_name', 'dia_da_semana', 'hora_inicio')
 
 class UserMeView(APIView):

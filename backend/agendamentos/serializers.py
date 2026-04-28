@@ -106,7 +106,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             if not procedimento: 
                 raise serializers.ValidationError({"procedimento": "Selecione um procedimento."})
             
-            if 'medico' in data: data['medico'] = None
+            
             if 'especialidade' in data: data['especialidade'] = None
             
             if not sala_selecionada and not instance:
