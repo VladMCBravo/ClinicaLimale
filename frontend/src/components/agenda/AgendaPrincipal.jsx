@@ -24,6 +24,7 @@ const StyledCalendarWrapper = styled('div')({
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: '#fff',
+    position: 'relative', // <--- 1. ADICIONE APENAS ESTA LINHA AQUI
 
     // --- FONTES DOS HORÁRIOS MENORES ---
     '.fc-timegrid-slot-label-cushion': { 
@@ -63,6 +64,16 @@ const StyledCalendarWrapper = styled('div')({
     },
     '.fc-button-primary': { backgroundColor: '#1C2E4A', borderColor: '#1C2E4A' },
     '.fc-button-active': { backgroundColor: '#000 !important' }
+});
+
+// <--- 2. ADICIONE ESTE BLOCO NOVO AQUI (Logo abaixo do StyledCalendarWrapper) --->
+const MiniToggleContainer = styled(Box)({
+    position: 'absolute',
+    top: '4px',
+    right: '250px', // Posiciona exatamente no espaço vazio entre o título e os botões "Dia/Semana/Mês"
+    zIndex: 10,
+    display: 'flex',
+    alignItems: 'center',
 });
 
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
@@ -231,26 +242,25 @@ useEffect(() => {
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
             
-            {/* O NOVO BOTÃO DE INTERCALAR VISÕES */}
-            <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', bgcolor: '#f4f6f8', borderBottom: '1px solid #e0e0e0' }}>
-                <ToggleButtonGroup
-                    value={viewMode}
-                    exclusive
-                    onChange={(e, newValue) => { if (newValue) setViewMode(newValue); }}
-                    size="small"
-                    sx={{ bgcolor: '#fff' }}
-                >
-                    <ToggleButton value="salas" sx={{ fontWeight: 'bold' }}>
-                        <MeetingRoomIcon sx={{ mr: 1, fontSize: 18 }} /> Por Salas
-                    </ToggleButton>
-                    <ToggleButton value="medicos" sx={{ fontWeight: 'bold' }}>
-                        <PersonIcon sx={{ mr: 1, fontSize: 18 }} /> Por Médicos
-                    </ToggleButton>
-                </ToggleButtonGroup>
-            </Box>
-
             {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
+                {/* 4. COLOCAMOS O BOTÃO AQUI DENTRO (Flutuando no cabeçalho) */}
+                <MiniToggleContainer>
+                    <ToggleButtonGroup
+                        value={viewMode}
+                        exclusive
+                        onChange={(e, newValue) => { if (newValue) setViewMode(newValue); }}
+                        size="small"
+                        sx={{ height: '26px', bgcolor: '#fff' }}
+                    >
+                        <ToggleButton value="salas" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
+                            <MeetingRoomIcon sx={{ fontSize: 16, mr: 0.5 }} /> Salas
+                        </ToggleButton>
+                        <ToggleButton value="medicos" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
+                            <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} /> Médicos
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                </MiniToggleContainer>
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
