@@ -102,23 +102,19 @@ export const gerarPDFLaudo = async ({
     // --- MONTAGEM DO CONTEÚDO ---
     const content = [];
 
-    // 1. Prepara as informações do cabeçalho do Paciente
-    const patientStack = [
-        { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
-        { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
-    ];
+    // Verifica se existem os dados extras para usar o Novo Cabeçalho
+    const hasExtraData = dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante;
 
-    // 2. ADIÇÃO SEGURA: Só inclui a linha de Nasc, Sexo e Médico se foi passado
-    if (dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante) {
-        let infoArray = [];
+    if (hasExtraData) {
+        // =========================================================
+        // NOVO CABEÇALHO LIMALÉ (Geral / Abdome)
+        // =========================================================
         
-        // Calculadora de idade para o PDF
-        const formatarNascimentoEIdade = (nascimentoStr) => {
+        // Calculadora de idade exclusiva para o PDF
+        const calcularIdadePDF = (nascimentoStr) => {
             if (!nascimentoStr) return '';
-            // Se por acaso vier o formato antigo escrito "X anos"
             if (nascimentoStr.includes('anos') || isNaN(Date.parse(nascimentoStr))) return nascimentoStr; 
             
-            // Corrige fuso horário adicionando meio dia
             const nascimento = new Date(nascimentoStr + 'T12:00:00'); 
             const hoje = new Date();
             let idade = hoje.getFullYear() - nascimento.getFullYear();
@@ -126,45 +122,68 @@ export const gerarPDFLaudo = async ({
             if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
                 idade--;
             }
-            
-            const dia = String(nascimento.getDate()).padStart(2, '0');
-            const mes = String(nascimento.getMonth() + 1).padStart(2, '0');
-            const ano = nascimento.getFullYear();
-            
-            return `${dia}/${mes}/${ano} (${idade} anos)`;
+            return `${idade} anos`;
         };
 
-        const infoIdade = dadosEstruturados.dataNascimento ? formatarNascimentoEIdade(dadosEstruturados.dataNascimento) : dadosEstruturados.idade;
+        const infoIdade = dadosEstruturados.dataNascimento ? calcularIdadePDF(dadosEstruturados.dataNascimento) : (dadosEstruturados.idade || '___');
+        const infoSexo = dadosEstruturados.sexo || '___';
+        const infoSolicitante = dadosEstruturados.medicoSolicitante || '___';
 
-        if (infoIdade) infoArray.push(`Nasc: ${infoIdade}`);
-        if (dadosEstruturados.sexo) infoArray.push(`Sexo: ${dadosEstruturados.sexo}`);
-        if (dadosEstruturados.medicoSolicitante) infoArray.push(`Solicitante: ${dadosEstruturados.medicoSolicitante}`);
-
-        if (infoArray.length > 0) {
-            patientStack.push({
-                text: infoArray.join('   |   '),
-                fontSize: 9,
-                color: '#555',
-                margin: [0, 2, 0, 0] // Espaçamento leve
-            });
-        }
-    }
-
-    // 3. Monta a coluna
-    content.push({
-        columns: [
-            { 
-                stack: patientStack, width: '*' 
+        content.push({
+            layout: 'noBorders',
+            margin: [0, 0, 0, 20], // Margem inferior antes do título do exame
+            table: {
+                widths: ['*', 'auto'],
+                body: [
+                    // Linha 1: Paciente e Data
+                    [
+                        { text: [{ text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___'] },
+                        { text: [{ text: 'Data: ', bold: true, color: '#555' }, new Date().toLocaleDateString('pt-BR')], alignment: 'right' }
+                    ],
+                    // Linha 2: Idade e Sexo
+                    [
+                        { 
+                            text: [
+                                { text: 'Idade: ', bold: true, color: '#555' }, infoIdade, 
+                                { text: '      Sexo: ', bold: true, color: '#555' }, infoSexo
+                            ], 
+                            colSpan: 2, 
+                            margin: [0, 3, 0, 3] // Espaçamento leve entre as linhas
+                        },
+                        {}
+                    ],
+                    // Linha 3: Médico Solicitante
+                    [
+                        { text: [{ text: 'Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase()], colSpan: 2 },
+                        {}
+                    ]
+                ]
             },
-            { 
-                stack: [
-                    { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
-                    { text: new Date().toLocaleDateString('pt-BR'), fontSize: 11, alignment: 'right' }
-                ], width: 100 
-            }
-        ],
-        margin: [0, 0, 0, 20]
-    });
+            fontSize: 11
+        });
+
+    } else {
+        // =========================================================
+        // CABEÇALHO ANTIGO (Mantido intocado para Obstétrico)
+        // =========================================================
+        const patientStack = [
+            { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
+            { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
+        ];
+
+        content.push({
+            columns: [
+                { stack: patientStack, width: '*' },
+                { 
+                    stack: [
+                        { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
+                        { text: new Date().toLocaleDateString('pt-BR'), fontSize: 11, alignment: 'right' }
+                    ], width: 100 
+                }
+            ],
+            margin: [0, 0, 0, 20]
+        });
+    }
 
     // O título já usa a propriedade `tituloExame` enviada dinamicamente, preservando a fonte e centralização!
     content.push({ 

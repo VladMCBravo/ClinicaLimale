@@ -617,16 +617,23 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                                 sessionStorage.removeItem('laudos_rascunho_auto_save');
 
                                 // 3. Define o novo paciente
+                                // Verificação à prova de balas para o Sexo/Gênero
+                                const rawSexo = p.sexo || p.genero || '';
+                                const cleanSexo = rawSexo.toUpperCase();
                                 let sexoMapeado = '';
-                                if (p.sexo === 'M' || p.genero === 'M') sexoMapeado = 'Masculino';
-                                if (p.sexo === 'F' || p.genero === 'F') sexoMapeado = 'Feminino';
+
+                                if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') {
+                                    sexoMapeado = 'Masculino';
+                                } else if (cleanSexo === 'F' || cleanSexo === 'FEMININO') {
+                                    sexoMapeado = 'Feminino';
+                                }
 
                                 // Injeta a Data de Nascimento crua e o Sexo!
                                 setDadosEstruturados({
                                     dataNascimento: p.data_nascimento || '',
                                     sexo: sexoMapeado
                                 });
-                                
+
                                 setPaciente(p); 
                                 setTermoBusca(''); 
                                 setPacientesEncontrados([]);
