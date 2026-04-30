@@ -2,27 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { FaNotesMedical, FaEdit } from 'react-icons/fa';
 
 const FormAbdome = ({ onUpdate, initialValues }) => {
-    // 1. Estados iniciais
-    const [tituloExame, setTituloExame] = useState('ULTRASSONOGRAFIA GERAL');
-    const [textoLivre, setTextoLivre] = useState('');
+    // 1. CARREGAMENTO INTELIGENTE: Puxa direto no useState.
+    // Assim que a tela Pai seleciona o paciente, ela monta o componente 
+    // já com a Data de Nascimento e Sexo corretos sem causar Loop!
+    const [tituloExame, setTituloExame] = useState(initialValues?.tituloExame || 'ULTRASSONOGRAFIA GERAL');
+    const [textoLivre, setTextoLivre] = useState(initialValues?.textoLivre || '');
     const [dadosPaciente, setDadosPaciente] = useState({
-        dataNascimento: '',
-        sexo: '',
-        medicoSolicitante: ''
+        dataNascimento: initialValues?.dataNascimento || '',
+        sexo: initialValues?.sexo || '',
+        medicoSolicitante: initialValues?.medicoSolicitante || ''
     });
 
-    // 2. ESCUTADOR: Atualiza os campos automaticamente quando você escolhe um paciente na tela "pai"
-    useEffect(() => {
-        if (initialValues) {
-            setDadosPaciente({
-                dataNascimento: initialValues.dataNascimento || '',
-                sexo: initialValues.sexo || '',
-                medicoSolicitante: initialValues.medicoSolicitante || ''
-            });
-            if (initialValues.textoLivre) setTextoLivre(initialValues.textoLivre);
-            if (initialValues.tituloExame) setTituloExame(initialValues.tituloExame);
-        }
-    }, [initialValues]);
+    // 2. Removemos o useEffect que escutava o [initialValues]. Era ele que causava o "pisca-pisca"!
 
     // 3. Envia o texto livre e os dados de volta para o LaudosPage e Prévia
     useEffect(() => {
@@ -31,7 +22,8 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
             dadosEstruturados: { ...dadosPaciente, textoLivre }, 
             tituloExame: tituloExame
         });
-    }, [textoLivre, tituloExame, dadosPaciente, onUpdate]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [textoLivre, tituloExame, dadosPaciente]); // Acionando apenas quando você digita algo
 
     const selectStyle = {
         width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '12px', marginTop: '4px'
@@ -70,7 +62,6 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                             <div>
                                 <label style={{fontSize: '11px', fontWeight: 'bold', color: '#555'}}>Data de Nascimento</label>
-                                {/* Alterado para type="date" para facilitar */}
                                 <input 
                                     type="date" 
                                     value={dadosPaciente.dataNascimento} 
