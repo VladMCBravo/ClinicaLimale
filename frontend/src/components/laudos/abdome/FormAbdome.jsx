@@ -22,6 +22,13 @@ const DashboardPanel = ({ id, title, theme, icon: Icon, children, isOpen, onTogg
 };
 
 const FormAbdome = ({ onUpdate, initialValues }) => {
+    // 1. ADICIONANDO NOVOS ESTADOS PARA TÍTULO E DADOS ADICIONAIS
+    const [tituloExame, setTituloExame] = useState('ULTRASSONOGRAFIA GERAL');
+    const [dadosPaciente, setDadosPaciente] = useState({
+        idade: '',
+        sexo: '',
+        medicoSolicitante: ''
+    });
     // ESTADOS DE CADA ÓRGÃO (Padrão: Normal)
     const [formState, setFormState] = useState(initialValues || {
         figado: 'Normal',
@@ -36,13 +43,9 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
         liquidoLivre: 'Ausente'
     });
 
-    const [secoesFechadas, setSecoesFechadas] = useState({
-        retro: true
-    });
+    const [secoesFechadas, setSecoesFechadas] = useState({ retro: true });
 
-    const toggleSecao = (id) => {
-        setSecoesFechadas(prev => ({ ...prev, [id]: !prev[id] }));
-    };
+    const toggleSecao = (id) => { setSecoesFechadas(prev => ({ ...prev, [id]: !prev[id] })); };
     const isAberto = (id) => !secoesFechadas[id];
 
     const handleChange = (campo, valor) => {
@@ -108,14 +111,14 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
         
         texto += formState.liquidoLivre === 'Ausente' ? 'Ausência de líquido livre.' : 'Presença de líquido livre na cavidade abdominal.';
 
-        // Envia para o LaudosPage
+        // 2. ATUALIZANDO O ENVIO DOS DADOS (onUpdate)
         onUpdate({
             texto: texto,
-            dadosEstruturados: formState,
-            tituloExame: 'ULTRASSONOGRAFIA GERAL'
+            dadosEstruturados: { ...formState, ...dadosPaciente }, // Injeta idade, sexo e solicitante aqui
+            tituloExame: tituloExame // Usa o título dinâmico que mantém as configs de fonte do gerador
         });
 
-    }, [formState, onUpdate]);
+    }, [formState, tituloExame, dadosPaciente, onUpdate]); // Adicionados novos states na dependência
 
     // Estilo simples para os selects internos
     const selectStyle = {
@@ -125,12 +128,57 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
     return (
         <div className="flex flex-col gap-3 pb-8">
             
-            {/* CABEÇALHO DO EXAME */}
+            {/* 3. NOVO CABEÇALHO DO EXAME COM OS CAMPOS DIGITÁVEIS */}
             <div className="dashboard-panel" style={{borderLeft: '4px solid #333', marginBottom: '5px', background:'#fff', border: '1px solid #ddd', borderRadius:'6px'}}>
                 <div className="dashboard-panel-body" style={{padding:'10px'}}>
-                    <h3 style={{margin: 0, fontSize: '14px', color: '#1C2E4A', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                        <FaNotesMedical /> Exame de Ultrassonografia Geral
+                    <h3 style={{margin: 0, fontSize: '14px', color: '#1C2E4A', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px'}}>
+                        <FaNotesMedical /> Identificação e Título do Exame
                     </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <label style={{fontSize: '11px', fontWeight: 'bold', color: '#555'}}>Título Personalizado</label>
+                            <input 
+                                type="text" 
+                                value={tituloExame} 
+                                onChange={(e) => setTituloExame(e.target.value)} 
+                                style={selectStyle} 
+                                placeholder="Ex: ULTRASSONOGRAFIA DE ABDOME TOTAL"
+                            />
+                        </div>
+                        <div>
+                            <label style={{fontSize: '11px', fontWeight: 'bold', color: '#555'}}>Médico Solicitante</label>
+                            <input 
+                                type="text" 
+                                value={dadosPaciente.medicoSolicitante} 
+                                onChange={(e) => setDadosPaciente({...dadosPaciente, medicoSolicitante: e.target.value})} 
+                                style={selectStyle} 
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div>
+                                <label style={{fontSize: '11px', fontWeight: 'bold', color: '#555'}}>Idade</label>
+                                <input 
+                                    type="text" 
+                                    value={dadosPaciente.idade} 
+                                    onChange={(e) => setDadosPaciente({...dadosPaciente, idade: e.target.value})} 
+                                    style={selectStyle} 
+                                />
+                            </div>
+                            <div>
+                                <label style={{fontSize: '11px', fontWeight: 'bold', color: '#555'}}>Sexo</label>
+                                <select 
+                                    value={dadosPaciente.sexo} 
+                                    onChange={(e) => setDadosPaciente({...dadosPaciente, sexo: e.target.value})} 
+                                    style={selectStyle}
+                                >
+                                    <option value="">Selecione...</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Feminino">Feminino</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

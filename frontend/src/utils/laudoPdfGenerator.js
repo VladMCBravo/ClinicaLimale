@@ -102,13 +102,32 @@ export const gerarPDFLaudo = async ({
     // --- MONTAGEM DO CONTEÚDO ---
     const content = [];
 
+    // 1. Prepara as informações do cabeçalho do Paciente
+    const patientStack = [
+        { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
+        { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
+    ];
+
+    // 2. ADIÇÃO SEGURA: Só inclui a linha de Idade, Sexo e Médico se foi passado pelo formulário
+    if (dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante) {
+        let infoArray = [];
+        if (dadosEstruturados.idade) infoArray.push(`Idade: ${dadosEstruturados.idade}`);
+        if (dadosEstruturados.sexo) infoArray.push(`Sexo: ${dadosEstruturados.sexo}`);
+        if (dadosEstruturados.medicoSolicitante) infoArray.push(`Solicitante: ${dadosEstruturados.medicoSolicitante}`);
+
+        patientStack.push({
+            text: infoArray.join('   |   '),
+            fontSize: 9,
+            color: '#555',
+            margin: [0, 2, 0, 0] // Espaçamento leve entre o nome e os dados
+        });
+    }
+
+    // 3. Monta a coluna
     content.push({
         columns: [
             { 
-                stack: [
-                    { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
-                    { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
-                ], width: '*' 
+                stack: patientStack, width: '*' 
             },
             { 
                 stack: [
@@ -120,6 +139,7 @@ export const gerarPDFLaudo = async ({
         margin: [0, 0, 0, 20]
     });
 
+    // O título já usa a propriedade `tituloExame` enviada dinamicamente, preservando a fonte e centralização!
     content.push({ 
         text: tituloExame || 'RELATÓRIO MÉDICO', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 20] 
     });

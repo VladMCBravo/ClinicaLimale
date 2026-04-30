@@ -830,6 +830,8 @@ class LaudoListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         import json
         import base64
+        import re # <-- Importação necessária para regex
+        from datetime import date
         from django.core.files.base import ContentFile
         
         paciente_id = self.request.data.get('paciente')
@@ -847,6 +849,35 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             
         # Limpa imagens do JSON se vieram lá dentro por engano
         imagens_do_json = dados_dict.pop('imagens', [])
+
+        # =========================================================================
+        # NOVIDADE: ATUALIZAÇÃO AUTOMÁTICA DO CADASTRO DO PACIENTE
+        # =========================================================================
+        paciente_atualizado = False
+
+        # Se o médico selecionou o Sexo no Laudo e o cadastro estava vazio
+        sexo_laudo = dados_dict.get('sexo')
+        if sexo_laudo and not paciente.genero: # Se sua API usar 'sexo', mude aqui
+            novo_sexo = 'M' if sexo_laudo.lower() == 'masculino' else 'F'
+            paciente.genero = novo_sexo # Ou paciente.sexo = novo_sexo
+            paciente_atualizado = True
+
+        # Se o médico digitou a Idade no Laudo e a Data de Nascimento estava vazia
+        idade_laudo = dados_dict.get('idade')
+        if idade_laudo and not paciente.data_nascimento:
+            # Extrai apenas os números da string (ex: "32 anos" -> 32)
+            match = re.search(r'\d+', str(idade_laudo))
+            if match:
+                idade_num = int(match.group())
+                ano_nascimento = date.today().year - idade_num
+                # Salva como 1º de Janeiro do ano calculado
+                paciente.data_nascimento = date(ano_nascimento, 1, 1)
+                paciente_atualizado = True
+
+        if paciente_atualizado:
+            paciente.save()
+            print(f"DEBUG: Dados do paciente {paciente.nome_completo} atualizados via Laudo.")
+        # =========================================================================
         
         # 2. Salva o Laudo Básico com JSON leve
         laudo = serializer.save(
@@ -1261,6 +1292,8 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
     def perform_create(self, serializer):
         import json
         import base64
+        import re # <-- Importação necessária para regex
+        from datetime import date
         from django.core.files.base import ContentFile
         
         paciente_id = self.request.data.get('paciente')
@@ -1277,6 +1310,31 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             dados_dict = dados_raw
             
         imagens_do_json = dados_dict.pop('imagens', [])
+
+        # =========================================================================
+        # NOVIDADE: ATUALIZAÇÃO AUTOMÁTICA DO CADASTRO DO PACIENTE
+        # =========================================================================
+        paciente_atualizado = False
+
+        sexo_laudo = dados_dict.get('sexo')
+        if sexo_laudo and not paciente.genero:
+            novo_sexo = 'M' if sexo_laudo.lower() == 'masculino' else 'F'
+            paciente.genero = novo_sexo 
+            paciente_atualizado = True
+
+        idade_laudo = dados_dict.get('idade')
+        if idade_laudo and not paciente.data_nascimento:
+            match = re.search(r'\d+', str(idade_laudo))
+            if match:
+                idade_num = int(match.group())
+                ano_nascimento = date.today().year - idade_num
+                paciente.data_nascimento = date(ano_nascimento, 1, 1)
+                paciente_atualizado = True
+
+        if paciente_atualizado:
+            paciente.save()
+            print(f"DEBUG: Dados do paciente {paciente.nome_completo} atualizados via Laudo Async.")
+        # =========================================================================
         
         # 2. Salva o Laudo Básico como PROCESSANDO
         laudo = serializer.save(
