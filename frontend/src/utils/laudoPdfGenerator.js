@@ -108,19 +108,46 @@ export const gerarPDFLaudo = async ({
         { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
     ];
 
-    // 2. ADIÇÃO SEGURA: Só inclui a linha de Idade, Sexo e Médico se foi passado pelo formulário
-    if (dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante) {
+    // 2. ADIÇÃO SEGURA: Só inclui a linha de Nasc, Sexo e Médico se foi passado
+    if (dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante) {
         let infoArray = [];
-        if (dadosEstruturados.idade) infoArray.push(`Idade: ${dadosEstruturados.idade}`);
+        
+        // Calculadora de idade para o PDF
+        const formatarNascimentoEIdade = (nascimentoStr) => {
+            if (!nascimentoStr) return '';
+            // Se por acaso vier o formato antigo escrito "X anos"
+            if (nascimentoStr.includes('anos') || isNaN(Date.parse(nascimentoStr))) return nascimentoStr; 
+            
+            // Corrige fuso horário adicionando meio dia
+            const nascimento = new Date(nascimentoStr + 'T12:00:00'); 
+            const hoje = new Date();
+            let idade = hoje.getFullYear() - nascimento.getFullYear();
+            const m = hoje.getMonth() - nascimento.getMonth();
+            if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+                idade--;
+            }
+            
+            const dia = String(nascimento.getDate()).padStart(2, '0');
+            const mes = String(nascimento.getMonth() + 1).padStart(2, '0');
+            const ano = nascimento.getFullYear();
+            
+            return `${dia}/${mes}/${ano} (${idade} anos)`;
+        };
+
+        const infoIdade = dadosEstruturados.dataNascimento ? formatarNascimentoEIdade(dadosEstruturados.dataNascimento) : dadosEstruturados.idade;
+
+        if (infoIdade) infoArray.push(`Nasc: ${infoIdade}`);
         if (dadosEstruturados.sexo) infoArray.push(`Sexo: ${dadosEstruturados.sexo}`);
         if (dadosEstruturados.medicoSolicitante) infoArray.push(`Solicitante: ${dadosEstruturados.medicoSolicitante}`);
 
-        patientStack.push({
-            text: infoArray.join('   |   '),
-            fontSize: 9,
-            color: '#555',
-            margin: [0, 2, 0, 0] // Espaçamento leve entre o nome e os dados
-        });
+        if (infoArray.length > 0) {
+            patientStack.push({
+                text: infoArray.join('   |   '),
+                fontSize: 9,
+                color: '#555',
+                margin: [0, 2, 0, 0] // Espaçamento leve
+            });
+        }
     }
 
     // 3. Monta a coluna

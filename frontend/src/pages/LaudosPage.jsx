@@ -617,15 +617,13 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                                 sessionStorage.removeItem('laudos_rascunho_auto_save');
 
                                 // 3. Define o novo paciente
-                                const idadeCalculada = calcularIdade(p.data_nascimento);
                                 let sexoMapeado = '';
-                                // Verifica como a sua API retorna (pode vir como 'M', 'F' no campo sexo ou genero)
                                 if (p.sexo === 'M' || p.genero === 'M') sexoMapeado = 'Masculino';
                                 if (p.sexo === 'F' || p.genero === 'F') sexoMapeado = 'Feminino';
 
-                                // Injeta automaticamente no laudo!
+                                // Injeta a Data de Nascimento crua e o Sexo!
                                 setDadosEstruturados({
-                                    idade: idadeCalculada,
+                                    dataNascimento: p.data_nascimento || '',
                                     sexo: sexoMapeado
                                 });
                                 
