@@ -479,7 +479,8 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         return Response({
             'consultas_agendadas': qtd_consultas,
             'procedimentos_agendados': qtd_procedimentos,
-            'verificacao_por_sala': bool(sala_id)
+            'verificacao_por_sala': bool(sala_id),
+            'is_admin': request.user.cargo == 'admin' # <--- ADICIONE ESTA LINHA
         })
         
 

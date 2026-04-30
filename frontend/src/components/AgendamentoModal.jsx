@@ -89,6 +89,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [salas, setSalas] = useState([]); 
     const [isEncaixe, setIsEncaixe] = useState(false);
     const [inputValuePaciente, setInputValuePaciente] = useState('');
+    const [isAdmin, setIsAdmin] = useState(false); // <--- NOVO STATE AQUI
 
     const [salasFiltradas, setSalasFiltradas] = useState([]);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
@@ -319,6 +320,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                         procedimentos: response.data.procedimentos_agendados, 
                         loading: false 
                     });
+                    
+                    // GRAVA A PERMISSÃO DE ADMIN VINDA DO BACKEND
+                    if (response.data.is_admin) {
+                        setIsAdmin(true);
+                    } else {
+                        setIsAdmin(false);
+                    }
                 })
                 .catch(err => { setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); });
         }
@@ -339,8 +347,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (tipoAgendamento === 'Consulta') bloqueado = ocupacaoConsultas >= MAX_CONS;
         else if (tipoAgendamento === 'Procedimento') bloqueado = ocupacaoProcedimentos >= MAX_PROC;
 
+        // --- A MÁGICA FINAL: ADMIN PASSA DIRETO ---
+        if (isAdmin) {
+            bloqueado = false;
+        }
+
         setBloqueioCapacidade(bloqueado);
-    }, [capacidade, tipoAgendamento, editingEvent, open]);
+    }, [capacidade, tipoAgendamento, editingEvent, open, isAdmin]); // <--- NÃO ESQUEÇA DE ADICIONAR isAdmin AQUI NAS DEPENDÊNCIAS
 
     useEffect(() => {
     if (formData.medico && open) {

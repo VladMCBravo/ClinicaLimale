@@ -88,10 +88,14 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         inicio_tolerancia = inicio + timedelta(seconds=1)
         fim_tolerancia = fim - timedelta(seconds=1)
 
-        # --- A MÁGICA DO ENCAIXE ---
-        # Verifica se o frontend mandou a ordem de forçar o encaixe
+        # --- A MÁGICA DO ENCAIXE E DO PASSE LIVRE ADMIN ---
         is_encaixe_req = self.initial_data.get('is_encaixe', False)
         is_encaixe = str(is_encaixe_req).lower() in ['true', '1', 't']
+
+        # SE O USUÁRIO FOR ADMIN, GANHA PASSE LIVRE AUTOMÁTICO (Age como encaixe)
+        if usuario_logado and getattr(usuario_logado, 'cargo', '') == 'admin':
+            is_encaixe = True
+        # ----------------------------------------------------
 
         # 2. Validação Básica de Campos
         if tipo_agendamento == 'Consulta':
