@@ -177,10 +177,11 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
             </div>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="dashboard-grid">
             
             {/* ================= COLUNA ESQUERDA (MÉTRICAS & CÁLCULOS) ================= */}
-                            
+            <div className="col-left">
+                
                 {/* A. DATAÇÃO (Sempre Primeiro) */}
                 <DashboardPanel id="datacao" title="1. Datação e Cronologia" theme="purple" icon={FaCalendarAlt} isOpen={isAberto('datacao')} onToggle={toggleSecao}>
                     <SecaoDatacao {...commonProps} />
@@ -211,13 +212,14 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                         <SecaoIndicesGraficos {...commonProps} />
                     </DashboardPanel>
                  )}
-            
+            </div>
 
             {/* ================= COLUNA DIREITA (DESCRITIVA & CHECKLISTS) ================= */}
             
 
                 {/* COLUNA DIREITA */}
-                            
+            <div className="col-right">
+                
                 {/* Dados Gerais: DESAPARECE SE FOR INICIAL */}
                 {!isInicial && (
                     <DashboardPanel id="dadosGerais" title="Dados Gerais / Estática" theme="blue" icon={GiFetus} isOpen={isAberto('dadosGerais')} onToggle={toggleSecao}>
@@ -260,7 +262,8 @@ const FormObstetrico = ({ onUpdate, initialValues }) => {
                     </DashboardPanel>
                 )}
             </div>
-                
+        </div>
+        
         {/* 4. CONCLUSÃO (LARGURA TOTAL - Fora do Grid) */}
         <div style={{marginTop: '12px'}}>
              <DashboardPanel id="conclusao" title="Conclusão e Diagnóstico" theme="red" isOpen={true} onToggle={() => {}}>
