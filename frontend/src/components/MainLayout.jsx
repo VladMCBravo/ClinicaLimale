@@ -6,18 +6,24 @@ import { Box } from '@mui/material';
 
 export default function MainLayout() {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      {/* O Navbar agora fica preso no topo */}
       <Navbar />
+      
+      {/* Área Principal (Outlet) */}
       <Box 
         component="main" 
         sx={{ 
           flexGrow: 1,
-          // Permite que páginas com conteúdo longo tenham a sua própria barra de rolagem
-          overflowY: 'auto', 
-          backgroundColor: '#f0f2f5'
+          // MUDANÇA CRUCIAL AQUI: 
+          // Retirado o overflowY: 'auto' daqui.
+          // Agora o Layout Pai é "rígido". As barras de rolagem
+          // devem nascer DENTRO das páginas (como em PacientesPage e LaudosPage)
+          overflow: 'hidden', 
+          backgroundColor: '#f0f2f5',
+          height: 'calc(100vh - 64px)' // Altura exata sobrando abaixo da Navbar
         }}
       >
-        {/* As páginas filhas agora controlam o seu próprio padding */}
         <Outlet />
       </Box>
     </Box>
