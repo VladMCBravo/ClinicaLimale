@@ -43,9 +43,9 @@ const styles = {
   container: { 
       display: 'flex', 
       background: theme.bg, 
-      // PADRÃO: Altura fixa subtraindo a AppBar (64px)
-      height: 'calc(100vh - 64px)', 
-      overflow: 'hidden', // Trava a barra de rolagem da página pai
+      height: 'calc(100vh - 65px)', 
+      maxHeight: 'calc(100vh - 65px)', // TRAVA ABSOLUTA: A página não cresce além da tela
+      overflow: 'hidden', // Nada escapa pro layout principal
       fontFamily: "'Segoe UI', Roboto, sans-serif", 
       fontSize: '11px', 
       color: '#333' 
@@ -53,31 +53,23 @@ const styles = {
   leftCol: { 
       flex: 2, 
       minWidth: '700px', 
-      height: '100%', 
+      minHeight: 0, // CRUCIAL: Diz ao flexbox que ele pode encolher
       display: 'flex', 
       flexDirection: 'column', 
       background: '#fff',
       borderRight: '1px solid #ddd',
-      overflow: 'hidden' // Garante que a coluna não vaze
+      overflow: 'hidden' 
   },
-  // --- ADICIONE ESTE BLOCO ---
   formScrollArea: {
       flex: 1,
-      minHeight: 0, // <--- O SEGREDO AQUI: Impede que o conteúdo estique a tela inteira
-      overflowY: 'auto',
-      padding: '10px 5px 10px 10px'
-  },
-  // ---------------------------
-  formScrollArea: {
-      flex: 1,
-      overflowY: 'auto', // Apenas o formulário (página filha) rola
+      minHeight: 0, // CRUCIAL: Aqui é onde a barra de rolagem vai nascer
+      overflowY: 'auto', 
       padding: '10px'
   },
   rightCol: { 
       flex: 1, 
-      minWidth: '400px', 
-      height: '100%', 
-      padding: '10px', 
+      minWidth: '400px',
+      minHeight: 0, // CRUCIAL: Impede que a coluna expanda pro infinito
       display: 'flex', 
       flexDirection: 'column', 
       background: theme.bg,
@@ -90,27 +82,22 @@ const styles = {
       borderBottom: `1px solid ${theme.border}`,
       padding: '8px 12px',
       display: 'grid',
-      // MUDANÇA AQUI:
-      // 1. Reduzi ligeiramente os minmax de Paciente e Médico
-      // 2. Aumentei o CRM de 80px para 100px
       gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
-      gap: '8px', // MUDANÇA AQUI: Reduzi de 12px para 8px (compactar)
+      gap: '8px', 
       alignItems: 'center',
       boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-      flexShrink: 0, 
+      flexShrink: 0, // Impede que o cabeçalho seja esmagado
       zIndex: 20 
   },
-  
   inputGroup: {
       position: 'relative',
       display: 'flex',
       alignItems: 'center',
-      height: '30px', // MUDANÇA AQUI: Reduzi altura de 32px para 30px (mais slim)
+      height: '30px', 
       background: '#F0F2F5',
       borderRadius: '4px',
       border: '1px solid #ced4da',
   },
-
   inputIcon: {
       padding: '0 8px',
       color: '#666',
@@ -119,20 +106,19 @@ const styles = {
       justifyContent: 'center',
       borderRight: '1px solid #e0e0e0',
       height: '100%',
-      fontSize: '12px' // Ícone um pouco menor também
+      fontSize: '12px' 
   },
-
   inputCompact: {
       border: 'none',
       background: 'transparent',
       width: '100%',
       height: '100%',
-      padding: '0 6px', // Padding interno reduzido
-      fontSize: '11px', // MUDANÇA AQUI: Fonte reduzida para caber nomes longos
+      padding: '0 6px', 
+      fontSize: '11px', 
       fontWeight: '600',
       color: '#2C3E50',
       outline: 'none',
-      textOverflow: 'ellipsis' // Garante que se estourar, mostra "..."
+      textOverflow: 'ellipsis' 
   },
   dropdownList: {
       position: 'absolute',
@@ -784,10 +770,11 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
 
       {/* ================= COLUNA DIREITA (PREVIEW E AÇÕES) ================= */}
       <div style={styles.rightCol}>
-         <div style={{ background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
+         {/* TROCADO height: '100%' por flex: 1 e minHeight: 0 */}
+         <div style={{ flex: 1, minHeight: 0, background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
              {/* BARRA DE AÇÕES */}
-             <Box sx={{ px: 1.5, background: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', zIndex: 10 }}>
+             <Box sx={{ px: 1.5, background: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', flexShrink: 0, zIndex: 10 }}>
                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                      <FaFileAlt color="#1C2E4A" size={12} />
                      <Typography variant="caption" sx={{ fontWeight: 800, color: '#1C2E4A', fontSize: '11px' }}>
@@ -803,29 +790,27 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
                     <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Termo</Button>
                     <Button 
-        size="small" 
-        onClick={() => {
-            if (!paciente || !medicoNome) {
-                alert("Selecione um Paciente e identifique o Médico antes de gerar o atestado.");
-                return;
-            }
-            setModalAtestadoOpen(true);
-        }} 
-        sx={{ color: '#00897B', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
-    >
-        Atestado
-    </Button>
+                        size="small" 
+                        onClick={() => {
+                            if (!paciente || !medicoNome) {
+                                alert("Selecione um Paciente e identifique o Médico antes de gerar o atestado.");
+                                return;
+                            }
+                            setModalAtestadoOpen(true);
+                        }} 
+                        sx={{ color: '#00897B', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
+                    >
+                        Atestado
+                    </Button>
                     <Button size="small" onClick={() => setModalDeclaracaoOpen(true)} sx={{ color: '#7E57C2', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Declaração</Button>
                     <Button 
                         variant="contained" 
                         size="small" 
                         onClick={() => {
-                            // --- 🛡️ TRAVA DE SEGURANÇA ---
                             if (!textoFinal || textoFinal.trim() === '') {
                                 alert("⚠️ O texto do laudo está vazio!\nPor favor, preencha as medidas e certifique-se de que o texto apareceu na tela de Prévia antes de finalizar.");
-                                return; // Interrompe o clique e não abre o modal
+                                return; 
                             }
-                            // Se estiver tudo certo, segue o fluxo normal:
                             setModalRevisaoOpen(true);
                         }} 
                         endIcon={<FaSave size={12}/>} 
@@ -845,8 +830,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                  </Stack>
              </Box>
              
-             {/* TEXTAREA */}
-             <div style={{flex: 1, padding: '0', overflow: 'hidden', background: '#EEEEEE', position: 'relative'}}>
+             {/* TEXTAREA COM SCROLL PRÓPRIO ADICIONADO MIN-HEIGHT */}
+             <div style={{flex: 1, minHeight: 0, padding: '0', overflow: 'hidden', background: '#EEEEEE', position: 'relative'}}>
                 <textarea 
                     value={textoFinal} 
                     readOnly={true} 
