@@ -41,11 +41,11 @@ const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg:
 
 const styles = {
   container: { 
+      flex: 1, // Usa o espaço dado pelo MainLayout
       display: 'flex', 
       background: theme.bg, 
-      height: 'calc(100vh - 65px)', 
-      maxHeight: 'calc(100vh - 65px)', // TRAVA ABSOLUTA: A página não cresce além da tela
-      overflow: 'hidden', // Nada escapa pro layout principal
+      minHeight: 0, // Impede vazamento vertical
+      overflow: 'hidden', 
       fontFamily: "'Segoe UI', Roboto, sans-serif", 
       fontSize: '11px', 
       color: '#333' 
@@ -53,27 +53,24 @@ const styles = {
   leftCol: { 
       flex: 2, 
       minWidth: '700px', 
-      minHeight: 0, // CRUCIAL: Diz ao flexbox que ele pode encolher
       display: 'flex', 
       flexDirection: 'column', 
       background: '#fff',
       borderRight: '1px solid #ddd',
-      overflow: 'hidden' 
+      minHeight: 0 // Impede vazamento vertical
   },
   formScrollArea: {
       flex: 1,
-      minHeight: 0, // CRUCIAL: Aqui é onde a barra de rolagem vai nascer
-      overflowY: 'auto', 
+      overflowY: 'auto', // A rolagem correta
       padding: '10px'
   },
   rightCol: { 
       flex: 1, 
       minWidth: '400px',
-      minHeight: 0, // CRUCIAL: Impede que a coluna expanda pro infinito
       display: 'flex', 
       flexDirection: 'column', 
       background: theme.bg,
-      overflow: 'hidden'
+      minHeight: 0 // Impede vazamento vertical
   },
   
   // --- BARRA SUPERIOR (Toolbar) AJUSTADA ---
