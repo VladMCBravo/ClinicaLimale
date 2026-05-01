@@ -179,38 +179,62 @@ export default function PacientesPage() {
   };
 
   return (
-    <Paper sx={{ p: 2, margin: 'auto' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5">Gestão de Pacientes</Typography>
-        <Button variant="contained" color="primary" onClick={handleOpenNewModal}>
-          Novo Paciente
-        </Button>
-      </Box>
+    <Box sx={{ 
+      height: 'calc(100vh - 64px)', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      p: 2, 
+      overflow: 'hidden' 
+    }}>
+      {/* CABEÇALHO FIXO */}
+      <Paper sx={{ p: 2, mb: 1, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1C2E4A' }}>
+            Gestão de Pacientes
+          </Typography>
+          
+          {/* NOVA ÁREA DE ESTATÍSTICAS (KPIs) */}
+          <Stack direction="row" spacing={3} sx={{ textAlign: 'center' }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">TOTAL</Typography>
+              <Typography variant="h6" sx={{ lineHeight: 1 }}>{pacientes.length}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">FILTRADOS</Typography>
+              <Typography variant="h6" sx={{ lineHeight: 1, color: 'primary.main' }}>{filteredPacientes.length}</Typography>
+            </Box>
+          </Stack>
 
-      <Box sx={{ mb: 2 }}>
+          <Button variant="contained" color="primary" onClick={handleOpenNewModal}>
+            Novo Paciente
+          </Button>
+        </Box>
+
         <TextField
           fullWidth
           variant="outlined"
+          size="small"
           label="Buscar paciente por nome ou CPF..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-      </Box>
+      </Paper>
 
+      {/* ÁREA DE RESULTADOS COM ROLAGEM PRÓPRIA */}
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1 }}>
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer>
-          <Table>
+        <TableContainer component={Paper} sx={{ flexGrow: 1, overflowY: 'auto' }}>
+          <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{fontWeight: 'bold'}}>Nome Completo</TableCell>
-                <TableCell sx={{fontWeight: 'bold'}}>Telefone / WhatsApp</TableCell> {/* NOVA COLUNA */}
-                <TableCell sx={{fontWeight: 'bold'}}>Nascimento</TableCell> {/* NOVA COLUNA */}
-                <TableCell sx={{fontWeight: 'bold'}}>Email</TableCell>
-                <TableCell align="right" sx={{fontWeight: 'bold'}}>Ações</TableCell>
+                <TableCell sx={{fontWeight: 'bold', bgcolor: '#fff'}}>Nome Completo</TableCell>
+                <TableCell sx={{fontWeight: 'bold', bgcolor: '#fff'}}>Telefone / WhatsApp</TableCell>
+                <TableCell sx={{fontWeight: 'bold', bgcolor: '#fff'}}>Nascimento</TableCell>
+                <TableCell sx={{fontWeight: 'bold', bgcolor: '#fff'}}>Email</TableCell>
+                <TableCell align="right" sx={{fontWeight: 'bold', bgcolor: '#fff'}}>Ações</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -218,7 +242,6 @@ export default function PacientesPage() {
                 <TableRow key={paciente.id} hover>
                   <TableCell>{paciente.nome_completo}</TableCell>
                   
-                  {/* --- NOVAS COLUNAS --- */}
                   <TableCell>
                       {paciente.telefone_celular ? (
                           <Box sx={{display: 'flex', alignItems: 'center', gap: 0.5}}>
@@ -232,23 +255,27 @@ export default function PacientesPage() {
                   <TableCell>{paciente.email || '-'}</TableCell>
                   
                   <TableCell align="right">
-                    {/* --- NOVO: Botão de Enviar WhatsApp --- */}
                     <IconButton 
                         onClick={() => handleEnviarWhatsApp(paciente)} 
                         title="Enviar nova senha pelo WhatsApp"
                     >
                         <WhatsAppIcon sx={{ color: '#25D366' }} /> 
                     </IconButton>
-                    {/* --- NOVO: Botão de Ver Laudos (Recepção) --- */}
                     <IconButton 
                         onClick={() => handleOpenHistorico(paciente)} 
                         title="Ver Laudos e Resultados"
                     >
-                        <PictureAsPdfIcon color="error" /> {/* Ícone Vermelho para destacar PDF */}
+                        <PictureAsPdfIcon color="error" />
                     </IconButton>
-                    <IconButton onClick={() => handleOpenVincular(paciente)} title="Vincular Exame Solto"><LinkIcon color="primary" /></IconButton>
-                    <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário"><FolderOpenIcon /></IconButton>
-                    <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente"><EditIcon /></IconButton>
+                    <IconButton onClick={() => handleOpenVincular(paciente)} title="Vincular Exame Solto">
+                        <LinkIcon color="primary" />
+                    </IconButton>
+                    <IconButton onClick={() => handleOpenProntuario(paciente.id)} title="Abrir Prontuário">
+                        <FolderOpenIcon />
+                    </IconButton>
+                    <IconButton onClick={() => handleEdit(paciente)} title="Editar Paciente">
+                        <EditIcon />
+                    </IconButton>
                     {user && user.isAdmin && (
                         <IconButton onClick={() => handleDelete(paciente.id)} title="Deletar Paciente">
                             <DeleteIcon color="error" />
@@ -266,7 +293,8 @@ export default function PacientesPage() {
           </Table>
         </TableContainer>
       )}
-      
+
+      {/* MODAIS INVISÍVEIS AGORA DENTRO DO CONTEINER PAI (<Box>) */}
       <PacienteModal 
         open={isModalOpen}
         onClose={handleCloseModal}
@@ -279,14 +307,12 @@ export default function PacientesPage() {
         paciente={pacienteParaVincular}
         onSuccess={() => showSnackbar('Exame vinculado com sucesso!', 'success')}
       />
-      {/* --- NOVO: Modal de Histórico de Laudos --- */}
       <HistoricoLaudosModal 
           open={modalHistoricoOpen}
           onClose={() => setModalHistoricoOpen(false)}
           pacienteId={pacienteParaHistorico?.id}
           pacienteNome={pacienteParaHistorico?.nome_completo}
       />
-
-    </Paper>
+    </Box>
   );
 }

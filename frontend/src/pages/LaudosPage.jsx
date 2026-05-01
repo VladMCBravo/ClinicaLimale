@@ -37,12 +37,15 @@ import { gerarPDFLaudo } from '../utils/laudoPdfGenerator';
 // --- TEMA E ESTILOS ---
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F0F2F5', border: '#D1D5DB' };
 
+// src/pages/LaudosPage.jsx
+
 const styles = {
   container: { 
       display: 'flex', 
       background: theme.bg, 
-      height: '100vh', 
-      overflow: 'hidden', 
+      // PADRÃO: Altura fixa subtraindo a AppBar (64px)
+      height: 'calc(100vh - 64px)', 
+      overflow: 'hidden', // Trava a barra de rolagem da página pai
       fontFamily: "'Segoe UI', Roboto, sans-serif", 
       fontSize: '11px', 
       color: '#333' 
@@ -51,13 +54,16 @@ const styles = {
       flex: 2, 
       minWidth: '700px', 
       height: '100%', 
-      overflowY: 'auto', 
-      padding: '10px', 
       display: 'flex', 
       flexDirection: 'column', 
-      gap: '10px',
       background: '#fff',
-      borderRight: '1px solid #ddd'
+      borderRight: '1px solid #ddd',
+      overflow: 'hidden' // Garante que a coluna não vaze
+  },
+  formScrollArea: {
+      flex: 1,
+      overflowY: 'auto', // Apenas o formulário (página filha) rola
+      padding: '10px'
   },
   rightCol: { 
       flex: 1, 
@@ -66,8 +72,10 @@ const styles = {
       padding: '10px', 
       display: 'flex', 
       flexDirection: 'column', 
-      background: theme.bg 
+      background: theme.bg,
+      overflow: 'hidden'
   },
+  
   // --- BARRA SUPERIOR (Toolbar) AJUSTADA ---
   toolbar: {
       background: '#fff',
