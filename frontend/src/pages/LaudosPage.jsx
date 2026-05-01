@@ -60,6 +60,14 @@ const styles = {
       borderRight: '1px solid #ddd',
       overflow: 'hidden' // Garante que a coluna não vaze
   },
+  // --- ADICIONE ESTE BLOCO ---
+  formScrollArea: {
+      flex: 1,
+      minHeight: 0, // <--- O SEGREDO AQUI: Impede que o conteúdo estique a tela inteira
+      overflowY: 'auto',
+      padding: '10px 5px 10px 10px'
+  },
+  // ---------------------------
   formScrollArea: {
       flex: 1,
       overflowY: 'auto', // Apenas o formulário (página filha) rola
@@ -729,7 +737,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
         </div>
 
         {/* 2. ÁREA DO FORMULÁRIO DINÂMICO */}
-        <div style={{flex: 1, overflowY: 'auto', paddingRight: '5px'}}> 
+        <div style={styles.formScrollArea}> 
             {tipoExame === 'OBSTETRICO' && (
                 <FormObstetrico 
                     key={`${paciente?.id || 'novo'}-${tipoExame}`} 
