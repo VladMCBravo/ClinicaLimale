@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import PacienteModal from '../components/PacienteModal';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, CircularProgress, IconButton, Button, TextField
+  TableContainer, TableHead, TableRow, CircularProgress, IconButton, Button, TextField, Stack
 } from '@mui/material';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import EditIcon from '@mui/icons-material/Edit';
