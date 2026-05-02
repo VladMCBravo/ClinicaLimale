@@ -444,7 +444,7 @@ class VacinaPaciente(models.Model):
     dose = models.CharField(max_length=50)
     
     data_aplicacao = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pendente')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pendente')
     observacao = models.TextField(blank=True, null=True, help_text="Ex: Rede privada, lote, etc.")
 
     class Meta:
@@ -590,7 +590,7 @@ class Laudo(models.Model):
     texto_laudo = models.TextField(blank=True)
     imagens_ids = models.JSONField(default=list, blank=True)
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='RASCUNHO')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='RASCUNHO')
     
     # --- CREDENCIAIS (Legado/Backup) ---
     # Estes campos existem aqui caso o laudo seja criado SEM um exame (pasta) vinculado
