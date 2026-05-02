@@ -383,7 +383,7 @@ export const gerarPDFLaudo = async ({
                 const fileURL = URL.createObjectURL(pdfAssinadoBlob);
                 
                 forcarDownloadEAbrir(fileURL);
-                setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
+                setTimeout(() => URL.revokeObjectURL(fileURL), 60000);
             } catch (error) {
                 console.error("Erro na assinatura:", error);
                 alert("Não foi possível assinar digitalmente. Verifique se seu certificado está válido.");
@@ -393,7 +393,7 @@ export const gerarPDFLaudo = async ({
         pdfDocGenerator.getBlob((blob) => {
             const fileURL = URL.createObjectURL(blob);
             forcarDownloadEAbrir(fileURL);
-            setTimeout(() => URL.revokeObjectURL(fileURL), 2000);
+            setTimeout(() => URL.revokeObjectURL(fileURL), 60000);
         });
     }
 };

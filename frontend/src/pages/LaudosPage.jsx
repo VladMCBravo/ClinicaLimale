@@ -466,7 +466,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                             a.click();
                             document.body.removeChild(a);
                             
-                            setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
                         } catch (err) {
                             // Fallback caso dê erro de rede
                             window.open(urlCompleta, '_blank');
@@ -533,7 +533,6 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
         : `https://wa.me/?text=${encodeURIComponent(texto)}`;
 
       window.open(urlWhats, '_blank');
-      // REMOVIDO: setTimeout(() => { handlePrint(true); }, 2000);
   };
 
   const handleEnviarEmail = () => {
@@ -541,7 +540,6 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
       const email = paciente?.email || "";
       const assunto = `Resultado de Exame - Clínica Limalé`;
       window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, '_blank');
-      // REMOVIDO: setTimeout(() => { handlePrint(true); }, 1500);
   };
 
   const handleImprimirTermo = () => {
