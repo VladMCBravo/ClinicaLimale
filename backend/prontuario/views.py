@@ -932,14 +932,33 @@ class LaudoListCreateView(generics.ListCreateAPIView):
         titulo_base = laudo.titulo_exame
 
         try:
-            # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE ---
-            historico_duplicatas = Laudo.objects.filter(
-                paciente=paciente, 
-                titulo_exame__icontains=titulo_base
-            ).exclude(id=laudo.id).count()
+            # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
+            # Removemos a lógica de "- REVISÃO". O título base continua limpo.
+            laudo.titulo_exame = titulo_base
 
-            if historico_duplicatas > 0:
-                laudo.titulo_exame = f"{titulo_base} - REVISÃO {historico_duplicatas + 1}"
+            # Busca laudos anteriores oficiais do mesmo exame para este paciente
+            laudos_anteriores = Laudo.objects.filter(
+                paciente=paciente, 
+                titulo_exame=titulo_base
+            ).exclude(id=laudo.id)
+
+            if laudos_anteriores.exists():
+                for laudo_antigo in laudos_anteriores:
+                    # 1. Inativa o laudo antigo para o Médico (Fica no histórico como cancelado)
+                    laudo_antigo.status = 'CANCELADO_POR_RETIFICACAO'
+                    laudo_antigo.save()
+                    
+                    # 2. LIMPEZA DO PORTAL DO PACIENTE:
+                    # O portal de resultados lê os arquivos salvos em 'ArquivoExame' dentro do contêiner 'exame'.
+                    # Ao deletar o PDF antigo do contêiner, o paciente verá apenas o laudo mais recente.
+                    if laudo_antigo.exame and laudo_antigo.arquivo_pdf:
+                        nome_arquivo_antigo = laudo_antigo.arquivo_pdf.name.split('/')[-1]
+                        ArquivoExame.objects.filter(
+                            exame=laudo_antigo.exame,
+                            tipo='LAUDO',
+                            arquivo__icontains=nome_arquivo_antigo
+                        ).delete()
+            # --------------------------------------------------------
 
             # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM IMAGENS (JANELA DE 15 DIAS) ---
             print(f"DEBUG [LAUDO]: Iniciando vínculo seguro para o paciente {paciente.nome_completo}")
@@ -1392,14 +1411,33 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         titulo_base = laudo.titulo_exame
 
         try:
-            # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE ---
-            historico_duplicatas = Laudo.objects.filter(
-                paciente=paciente, 
-                titulo_exame__icontains=titulo_base
-            ).exclude(id=laudo.id).count()
+            # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
+            # Removemos a lógica de "- REVISÃO". O título base continua limpo.
+            laudo.titulo_exame = titulo_base
 
-            if historico_duplicatas > 0:
-                laudo.titulo_exame = f"{titulo_base} - REVISÃO {historico_duplicatas + 1}"
+            # Busca laudos anteriores oficiais do mesmo exame para este paciente
+            laudos_anteriores = Laudo.objects.filter(
+                paciente=paciente, 
+                titulo_exame=titulo_base
+            ).exclude(id=laudo.id)
+
+            if laudos_anteriores.exists():
+                for laudo_antigo in laudos_anteriores:
+                    # 1. Inativa o laudo antigo para o Médico (Fica no histórico como cancelado)
+                    laudo_antigo.status = 'CANCELADO_POR_RETIFICACAO'
+                    laudo_antigo.save()
+                    
+                    # 2. LIMPEZA DO PORTAL DO PACIENTE:
+                    # O portal de resultados lê os arquivos salvos em 'ArquivoExame' dentro do contêiner 'exame'.
+                    # Ao deletar o PDF antigo do contêiner, o paciente verá apenas o laudo mais recente.
+                    if laudo_antigo.exame and laudo_antigo.arquivo_pdf:
+                        nome_arquivo_antigo = laudo_antigo.arquivo_pdf.name.split('/')[-1]
+                        ArquivoExame.objects.filter(
+                            exame=laudo_antigo.exame,
+                            tipo='LAUDO',
+                            arquivo__icontains=nome_arquivo_antigo
+                        ).delete()
+            # --------------------------------------------------------
 
             # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM EXAME E SENHAS ---
             exame = None

@@ -384,6 +384,15 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
+    // --- NOVA TRAVA DE CONSCIENTIZAÇÃO ---
+    const confirmacao = window.confirm(
+        "Atenção: Após finalizado, este laudo será processado e assinado digitalmente.\n\n" +
+        "Se houver erros e você precisar corrigir algo depois, o laudo atual será CANCELADO no prontuário e substituído por um novo laudo oficial para o paciente.\n\n" +
+        "Deseja gerar o laudo definitivo agora?"
+    );
+    if (!confirmacao) return;
+    // -------------------------------------
+
     setModalRevisaoOpen(false);
     setIsPolling(true); // Bloqueia a tela com o loader do Polling
 
@@ -524,7 +533,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
         : `https://wa.me/?text=${encodeURIComponent(texto)}`;
 
       window.open(urlWhats, '_blank');
-      setTimeout(() => { handlePrint(true); }, 2000);
+      // REMOVIDO: setTimeout(() => { handlePrint(true); }, 2000);
   };
 
   const handleEnviarEmail = () => {
@@ -532,7 +541,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
       const email = paciente?.email || "";
       const assunto = `Resultado de Exame - Clínica Limalé`;
       window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, '_blank');
-      setTimeout(() => { handlePrint(true); }, 1500);
+      // REMOVIDO: setTimeout(() => { handlePrint(true); }, 1500);
   };
 
   const handleImprimirTermo = () => {

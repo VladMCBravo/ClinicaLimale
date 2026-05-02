@@ -544,8 +544,10 @@ class Laudo(models.Model):
     """
     STATUS_CHOICES = [
         ('RASCUNHO', 'Rascunho'),
-        ('PROCESSANDO', 'Processando'), # <-- ADICIONE ESTA LINHA
+        ('PROCESSANDO', 'Processando'),
         ('FINALIZADO', 'Finalizado'),
+        ('ERRO', 'Erro'), # Já estava mapeado implicitamente no Celery, é bom documentar
+        ('CANCELADO_POR_RETIFICACAO', 'Cancelado (Retificado)'), # <-- NOVA OPÇÃO
     ]
 
     # --- RELACIONAMENTOS ---
