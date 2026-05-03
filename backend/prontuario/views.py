@@ -24,7 +24,7 @@ from django.shortcuts import get_object_or_404 # Para buscar objetos
 from agendamentos.models import Agendamento # <-- 1. Importe o Agendamento
 from usuarios.models import Especialidade # <-- 2. Importe Especialidade
 from django.template import Context, Template # Para renderizar o template
-from datetime import date # Para a data de hoje
+from datetime import date, timedelta
 from django.db import transaction # Importar transaction
 from core.models import Clinica # Importa o modelo de configuração
 from core.services_assinatura import assinar_pdf_digitalmente
@@ -933,72 +933,71 @@ class LaudoListCreateView(generics.ListCreateAPIView):
 
         try:
             # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
-            # Removemos a lógica de "- REVISÃO". O título base continua limpo.
             laudo.titulo_exame = titulo_base
 
-            # Busca laudos anteriores oficiais do mesmo exame para este paciente
             laudos_anteriores = Laudo.objects.filter(
                 paciente=paciente, 
                 titulo_exame=titulo_base
             ).exclude(id=laudo.id)
+            
+            exame_herdado = None # <--- ESSA É A VARIÁVEL QUE FALTAVA
 
             if laudos_anteriores.exists():
                 for laudo_antigo in laudos_anteriores:
-                    # 1. Inativa o laudo antigo para o Médico (Fica no histórico como cancelado)
+                    # 1. O novo laudo "rouba" o contêiner (Exame) do laudo antigo
+                    if laudo_antigo.exame:
+                        exame_herdado = laudo_antigo.exame
+                        laudo_antigo.exame = None # Desvincula para sumir do portal
+                    
+                    # 2. Inativa o laudo antigo no prontuário
                     laudo_antigo.status = 'CANCELADO_POR_RETIFICACAO'
                     laudo_antigo.save()
                     
-                    # 2. LIMPEZA DO PORTAL DO PACIENTE:
-                    # O portal de resultados lê os arquivos salvos em 'ArquivoExame' dentro do contêiner 'exame'.
-                    # Ao deletar o PDF antigo do contêiner, o paciente verá apenas o laudo mais recente.
-                    if laudo_antigo.exame and laudo_antigo.arquivo_pdf:
+                    # 3. Limpa o PDF velho de dentro do contêiner
+                    if exame_herdado and laudo_antigo.arquivo_pdf:
                         nome_arquivo_antigo = laudo_antigo.arquivo_pdf.name.split('/')[-1]
                         ArquivoExame.objects.filter(
-                            exame=laudo_antigo.exame,
+                            exame=exame_herdado,
                             tipo='LAUDO',
                             arquivo__icontains=nome_arquivo_antigo
                         ).delete()
             # --------------------------------------------------------
 
-            # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM IMAGENS (JANELA DE 15 DIAS) ---
-            print(f"DEBUG [LAUDO]: Iniciando vínculo seguro para o paciente {paciente.nome_completo}")
-            from datetime import date, timedelta
+            # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM EXAME E SENHAS ---
             exame = None
-            exame_id_front = request.data.get('exame')
             
-            # Pega uma lista com todos os IDs de exames que JÁ TÊM laudo
-            exames_usados_ids = Laudo.objects.filter(exame__isnull=False).values_list('exame_id', flat=True)
-
-            if exame_id_front:
-                print(f"DEBUG [LAUDO]: Front-end enviou Exame ID {exame_id_front}. Verificando disponibilidade...")
-                exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
-            
-            if not exame:
-                print("DEBUG [LAUDO]: Buscando exame disponível nos últimos 15 dias...")
-                limite_dias = date.today() - timedelta(days=15)
-                exame = Exame.objects.filter(
-                    paciente=paciente,
-                    data_exame__gte=limite_dias
-                ).exclude(
-                    id__in=exames_usados_ids
-                ).order_by('-data_exame', '-criado_em').first()
-            
-            if not exame:
-                print("DEBUG [LAUDO]: Nenhum exame livre encontrado. Criando um novo container (Exame)...")
-                # O SEGREDO ESTÁ AQUI: Adicionamos o ID do laudo ao nome da pasta para ser 100% único
-                nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
+            if exame_herdado:
+                # O laudo novo assume a mesma pasta e a mesma senha do antigo!
+                exame = exame_herdado 
+            else:
+                # Se for um laudo totalmente novo (não retificado), roda a lógica original
+                exame_id_front = request.data.get('exame')
                 
-                exame = Exame.objects.create(
-                    paciente=paciente,
-                    data_exame=date.today(),
-                    nome_paciente_pasta=nome_unico_pasta, # <--- Fura o bloqueio do banco de dados
-                    status='DISPONIVEL'
-                )
-                print(f"DEBUG [LAUDO]: Novo Exame ID {exame.id} criado com sucesso com a pasta '{nome_unico_pasta}'.")
+                # Ignoramos os cancelados na hora de procurar contêineres ocupados
+                exames_usados_ids = Laudo.objects.filter(
+                    exame__isnull=False
+                ).exclude(status='CANCELADO_POR_RETIFICACAO').values_list('exame_id', flat=True)
 
+                if exame_id_front:
+                    exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
+                
+                if not exame:
+                    limite_dias = date.today() - timedelta(days=15)
+                    exame = Exame.objects.filter(
+                        paciente=paciente, data_exame__gte=limite_dias
+                    ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
+                
+                if not exame:
+                    nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
+                    exame = Exame.objects.create(
+                        paciente=paciente, data_exame=date.today(),
+                        nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
+                    )
+
+            # Salva o vínculo final
             laudo.exame = exame
             laudo.save()
-            print("DEBUG [LAUDO]: Laudo vinculado ao Exame com sucesso!")
+
 
             # --- 🛡️ CAMADA 3: NOMENCLATURA E APLICAÇÃO DA MÁSCARA ---
             if 'arquivo_pdf' in request.FILES:
@@ -1412,28 +1411,31 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
         try:
             # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
-            # Removemos a lógica de "- REVISÃO". O título base continua limpo.
             laudo.titulo_exame = titulo_base
 
-            # Busca laudos anteriores oficiais do mesmo exame para este paciente
             laudos_anteriores = Laudo.objects.filter(
                 paciente=paciente, 
                 titulo_exame=titulo_base
             ).exclude(id=laudo.id)
+            
+            exame_herdado = None # <--- ESSA É A VARIÁVEL QUE FALTAVA
 
             if laudos_anteriores.exists():
                 for laudo_antigo in laudos_anteriores:
-                    # 1. Inativa o laudo antigo para o Médico (Fica no histórico como cancelado)
+                    # 1. O novo laudo "rouba" o contêiner (Exame) do laudo antigo
+                    if laudo_antigo.exame:
+                        exame_herdado = laudo_antigo.exame
+                        laudo_antigo.exame = None # Desvincula para sumir do portal
+                    
+                    # 2. Inativa o laudo antigo no prontuário
                     laudo_antigo.status = 'CANCELADO_POR_RETIFICACAO'
                     laudo_antigo.save()
                     
-                    # 2. LIMPEZA DO PORTAL DO PACIENTE:
-                    # O portal de resultados lê os arquivos salvos em 'ArquivoExame' dentro do contêiner 'exame'.
-                    # Ao deletar o PDF antigo do contêiner, o paciente verá apenas o laudo mais recente.
-                    if laudo_antigo.exame and laudo_antigo.arquivo_pdf:
+                    # 3. Limpa o PDF velho de dentro do contêiner
+                    if exame_herdado and laudo_antigo.arquivo_pdf:
                         nome_arquivo_antigo = laudo_antigo.arquivo_pdf.name.split('/')[-1]
                         ArquivoExame.objects.filter(
-                            exame=laudo_antigo.exame,
+                            exame=exame_herdado,
                             tipo='LAUDO',
                             arquivo__icontains=nome_arquivo_antigo
                         ).delete()
@@ -1441,26 +1443,38 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
             # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM EXAME E SENHAS ---
             exame = None
-            exame_id_front = request.data.get('exame')
-            exames_usados_ids = Laudo.objects.filter(exame__isnull=False).values_list('exame_id', flat=True)
-
-            if exame_id_front:
-                exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
             
-            if not exame:
-                limite_dias = date.today() - timedelta(days=15)
-                exame = Exame.objects.filter(
-                    paciente=paciente, data_exame__gte=limite_dias
-                ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
-            
-            if not exame:
-                nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
-                exame = Exame.objects.create(
-                    paciente=paciente, data_exame=date.today(),
-                    nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
-                )
+            if exame_herdado:
+                # O laudo novo assume a mesma pasta e a mesma senha do antigo!
+                exame = exame_herdado 
+            else:
+                # Se for um laudo totalmente novo (não retificado), roda a lógica original
+                exame_id_front = request.data.get('exame')
+                
+                # Ignoramos os cancelados na hora de procurar contêineres ocupados
+                exames_usados_ids = Laudo.objects.filter(
+                    exame__isnull=False
+                ).exclude(status='CANCELADO_POR_RETIFICACAO').values_list('exame_id', flat=True)
 
+                if exame_id_front:
+                    exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
+                
+                if not exame:
+                    limite_dias = date.today() - timedelta(days=15)
+                    exame = Exame.objects.filter(
+                        paciente=paciente, data_exame__gte=limite_dias
+                    ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
+                
+                if not exame:
+                    nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
+                    exame = Exame.objects.create(
+                        paciente=paciente, data_exame=date.today(),
+                        nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
+                    )
+
+            # Salva o vínculo final
             laudo.exame = exame
+            laudo.save()
             
             # --- 🛡️ CAMADA 3: SALVAR PDF TRANSPARENTE E DISPARAR CELERY ---
             if 'arquivo_pdf' in request.FILES:
