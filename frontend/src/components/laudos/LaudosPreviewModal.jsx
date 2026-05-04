@@ -20,12 +20,15 @@ const LaudosPreviewModal = ({
     const [textoEditado, setTextoEditado] = useState('');
     const [imagens, setImagens] = useState([]);
     const [tabIndex, setTabIndex] = useState(0); // 0 = Texto, 1 = Fotos
+    const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
 
     useEffect(() => {
         if (open) {
             setTextoEditado(textoInicial);
             setImagens(imagensIniciais || []);
             setTabIndex(0);
+            // Reseta a data para hoje sempre que o modal abre
+            setDataExameModal(new Date().toISOString().split('T')[0]); 
         }
     }, [open, textoInicial, imagensIniciais]);
 
@@ -243,12 +246,36 @@ const LaudosPreviewModal = ({
             </DialogContent>
 
             <DialogActions style={{ padding: '20px 24px', background: '#f5f5f5', justifyContent: 'space-between' }}>
-                <Button onClick={onClose} style={{ color: '#666' }}>
-                    Voltar
-                </Button>
+                {/* --- LADO ESQUERDO DA BARRA INFERIOR: DATA RETROATIVA --- */}
+                <Box style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Typography variant="caption" style={{ fontWeight: 'bold', color: '#555' }}>
+                        Data do Exame:
+                    </Typography>
+                    <input 
+                        type="date"
+                        value={dataExameModal}
+                        onChange={(e) => setDataExameModal(e.target.value)}
+                        style={{
+                            padding: '6px 10px',
+                            borderRadius: '4px',
+                            border: '1px solid #ccc',
+                            fontFamily: 'inherit',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            color: '#333'
+                        }}
+                    />
+                </Box>
+
+                {/* --- LADO DIREITO DA BARRA INFERIOR: BOTÕES --- */}
+                <Box>
+                    <Button onClick={onClose} style={{ color: '#666', marginRight: '15px' }}>
+                        Voltar
+                    </Button>
                 
                 <Button 
-                    onClick={() => onFinalizar(textoEditado, imagens)} 
+                    onClick={() => onFinalizar(textoEditado, imagens, dataExameModal)} 
                     variant="contained" 
                     size="large"
                     style={{ 
@@ -263,6 +290,7 @@ const LaudosPreviewModal = ({
                     <FaSave style={{ marginRight: 10 }} /> 
                     SALVAR E FINALIZAR
                 </Button>
+                </Box>
             </DialogActions>
         </Dialog>
     );

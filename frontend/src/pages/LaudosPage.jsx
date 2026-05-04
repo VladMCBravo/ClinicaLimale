@@ -79,7 +79,7 @@ const styles = {
       borderBottom: `1px solid ${theme.border}`,
       padding: '8px 12px',
       display: 'grid',
-      gridTemplateColumns: 'minmax(220px, 3.5fr) 130px minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
+      gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
       gap: '8px', 
       alignItems: 'center',
       boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
@@ -167,7 +167,6 @@ const getInitialState = (key, fallback) => {
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
   const hojeISO = new Date().toISOString().split('T')[0];
-  const [dataExame, setDataExame] = useState(() => getInitialState('dataExame', hojeISO));
 
   // Busca Paciente
   const [termoBusca, setTermoBusca] = useState('');
@@ -382,7 +381,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
 };
 
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
-  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais) => {
+  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada) => {
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
@@ -413,7 +412,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
             medicoNome, medicoCrm, tituloExame,
             textoLaudo: textoCorrigido, dadosEstruturados,
             imagensBase64: imagensOtimizadas,
-            dataExame: dataExame, // <--- ENVIANDO PRO PDF
+            dataExame: dataExameSelecionada, // <--- USE O PARÂMETRO AQUI
             comTimbre: true, usaAssinaturaDigital: usuarioTemCertificado,
             retornarBlob: true
         });
@@ -421,7 +420,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
         // 3. Prepara o envio
         const formData = new FormData();
         formData.append('paciente', paciente.id);
-        formData.append('data_exame', dataExame); // <--- ENVIANDO PRO DJANGO
+        formData.append('data_exame', dataExameSelecionada); // <--- USE O PARÂMETRO AQUI
         formData.append('tipo_exame', tipoExame);
         formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
         formData.append('texto_laudo', textoCorrigido);
@@ -610,18 +609,6 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                             : null}
                     </div>
                 </div>
-                {/* A.2. DATA RETROATIVA */}
-            <div style={styles.inputGroup}>
-                <div style={styles.inputIcon} title="Data do Exame">
-                    <FaCalendarAlt size={14} />
-                </div>
-                <input 
-                    type="date"
-                    style={{...styles.inputCompact, cursor: 'pointer'}}
-                    value={dataExame}
-                    onChange={(e) => setDataExame(e.target.value)}
-                />
-            </div>
                 {/* LISTA SUSPENSA COM O ID EM DESTAQUE */}
                 {!paciente && pacientesEncontrados.length > 0 && (
                     <div style={styles.dropdownList}>
