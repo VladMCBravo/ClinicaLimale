@@ -1,6 +1,6 @@
 // src/pages/LaudosPage.jsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes } from 'react-icons/fa';
+import { FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCalendarAlt } from 'react-icons/fa';
 import { FaWhatsapp, FaEnvelope, FaCheckCircle } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 // Imports Material UI
@@ -79,7 +79,7 @@ const styles = {
       borderBottom: `1px solid ${theme.border}`,
       padding: '8px 12px',
       display: 'grid',
-      gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
+      gridTemplateColumns: 'minmax(220px, 3.5fr) 130px minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
       gap: '8px', 
       alignItems: 'center',
       boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
@@ -166,7 +166,9 @@ const getInitialState = (key, fallback) => {
   // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
-  
+  const hojeISO = new Date().toISOString().split('T')[0];
+  const [dataExame, setDataExame] = useState(() => getInitialState('dataExame', hojeISO));
+
   // Busca Paciente
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
@@ -296,11 +298,10 @@ const getInitialState = (key, fallback) => {
     // --- CORREÇÃO DO AUTO-SAVE (sessionStorage) ---
     useEffect(() => {
         const dadosParaSalvar = {
-            laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens
+            laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens, dataExame // <--- ADICIONADO AQUI
         };
         const timeoutId = setTimeout(() => {
             try {
-                // MUDANÇA: Agora salva na sessão temporária
                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
             } catch (e) {
                 const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
@@ -309,7 +310,7 @@ const getInitialState = (key, fallback) => {
         }, 1000);
 
         return () => clearTimeout(timeoutId);
-    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
+    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens, dataExame]); // <--- ADICIONADO AQUI
 
   // --- 3. MANIPULADORES DO FORMULÁRIO ---
   const handleLimpar = () => {
@@ -327,6 +328,7 @@ const getInitialState = (key, fallback) => {
         setImagens([]);
         setTermoBusca('');
         setPacientesEncontrados([]);
+        setDataExame(new Date().toISOString().split('T')[0]);
     }
   };
 
@@ -411,6 +413,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
             medicoNome, medicoCrm, tituloExame,
             textoLaudo: textoCorrigido, dadosEstruturados,
             imagensBase64: imagensOtimizadas,
+            dataExame: dataExame, // <--- ENVIANDO PRO PDF
             comTimbre: true, usaAssinaturaDigital: usuarioTemCertificado,
             retornarBlob: true
         });
@@ -418,6 +421,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
         // 3. Prepara o envio
         const formData = new FormData();
         formData.append('paciente', paciente.id);
+        formData.append('data_exame', dataExame); // <--- ENVIANDO PRO DJANGO
         formData.append('tipo_exame', tipoExame);
         formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
         formData.append('texto_laudo', textoCorrigido);
@@ -606,6 +610,18 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
                             : null}
                     </div>
                 </div>
+                {/* A.2. DATA RETROATIVA */}
+            <div style={styles.inputGroup}>
+                <div style={styles.inputIcon} title="Data do Exame">
+                    <FaCalendarAlt size={14} />
+                </div>
+                <input 
+                    type="date"
+                    style={{...styles.inputCompact, cursor: 'pointer'}}
+                    value={dataExame}
+                    onChange={(e) => setDataExame(e.target.value)}
+                />
+            </div>
                 {/* LISTA SUSPENSA COM O ID EM DESTAQUE */}
                 {!paciente && pacientesEncontrados.length > 0 && (
                     <div style={styles.dropdownList}>

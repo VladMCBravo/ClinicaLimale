@@ -15,6 +15,7 @@ export const gerarPDFLaudo = async ({
     textoLaudo, 
     dadosEstruturados, 
     imagensBase64,
+    dataExame = null, // <--- NOVO PARÂMETRO
     comTimbre = true,
     usaAssinaturaDigital = false,
     retornarBlob = false 
@@ -99,6 +100,10 @@ export const gerarPDFLaudo = async ({
         };
     };
 
+    const dataExameFormatada = dataExame 
+        ? dataExame.split('-').reverse().join('/') 
+        : new Date().toLocaleDateString('pt-BR');
+
     // --- MONTAGEM DO CONTEÚDO ---
     const content = [];
 
@@ -138,7 +143,7 @@ export const gerarPDFLaudo = async ({
                     // Linha 1: Paciente e Data
                     [
                         { text: [{ text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___'] },
-                        { text: [{ text: 'Data: ', bold: true, color: '#555' }, new Date().toLocaleDateString('pt-BR')], alignment: 'right' }
+                        { text: [{ text: 'Data: ', bold: true, color: '#555' }, dataExameFormatada], alignment: 'right' } // <--- MUDOU AQUI
                     ],
                     // Linha 2: Idade e Sexo
                     [
@@ -177,7 +182,7 @@ export const gerarPDFLaudo = async ({
                 { 
                     stack: [
                         { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
-                        { text: new Date().toLocaleDateString('pt-BR'), fontSize: 11, alignment: 'right' }
+                        { text: dataExameFormatada, fontSize: 11, alignment: 'right' } // <--- MUDOU AQUI
                     ], width: 100 
                 }
             ],

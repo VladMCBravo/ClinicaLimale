@@ -925,11 +925,25 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     print(f"Erro ao salvar imagem {index}: {e}")
 
     def create(self, request, *args, **kwargs):
+        from datetime import datetime, date, timedelta
+        from django.utils.text import slugify
+
         # 1. Executa o salvamento básico (chama a perform_create acima)
         response = super().create(request, *args, **kwargs)
         laudo = Laudo.objects.get(id=response.data.get('id'))
         paciente = laudo.paciente
         titulo_base = laudo.titulo_exame
+
+        # --- NOVIDADE: PARSE DA DATA RETROATIVA ---
+        data_exame_str = request.data.get('data_exame')
+        try:
+            if data_exame_str:
+                data_retroativa = datetime.strptime(data_exame_str, "%Y-%m-%d").date()
+            else:
+                data_retroativa = date.today()
+        except ValueError:
+            data_retroativa = date.today()
+        # ------------------------------------------
 
         try:
             # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
@@ -982,7 +996,8 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
                 
                 if not exame:
-                    limite_dias = date.today() - timedelta(days=15)
+                    # Limite de dias baseado na data do exame (retroativo)
+                    limite_dias = data_retroativa - timedelta(days=15)
                     exame = Exame.objects.filter(
                         paciente=paciente, data_exame__gte=limite_dias
                     ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
@@ -990,7 +1005,8 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 if not exame:
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
-                        paciente=paciente, data_exame=date.today(),
+                        paciente=paciente, 
+                        data_exame=data_retroativa, # <--- DATA CORRETA NO BANCO E NO PORTAL
                         nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
                     )
 
@@ -1004,7 +1020,11 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 print("DEBUG [LAUDO]: PDF recebido do Front-end. Iniciando processo da Máscara...")
                 from django.utils.text import slugify
                 pdf_file = request.FILES['arquivo_pdf']
-                
+
+                # Usa a data retroativa no nome físico do arquivo
+                data_hoje_str = data_retroativa.strftime("%d-%m-%Y")
+                nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
+
                 try:
                     # =======================================================
                     # CRÍTICO: "Rebobina" o arquivo para o início antes de ler
@@ -1401,13 +1421,24 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     print(f"Erro ao salvar imagem {index}: {e}")
 
     def create(self, request, *args, **kwargs):
-        from datetime import date, timedelta
+        from datetime import date, timedelta, datetime
         from django.utils.text import slugify
         
         response = super().create(request, *args, **kwargs)
         laudo = Laudo.objects.get(id=response.data.get('id'))
         paciente = laudo.paciente
         titulo_base = laudo.titulo_exame
+
+        # --- NOVIDADE: PARSE DA DATA RETROATIVA ---
+        data_exame_str = request.data.get('data_exame')
+        try:
+            if data_exame_str:
+                data_retroativa = datetime.strptime(data_exame_str, "%Y-%m-%d").date()
+            else:
+                data_retroativa = date.today()
+        except ValueError:
+            data_retroativa = date.today()
+        # ------------------------------------------
 
         try:
             # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
@@ -1460,7 +1491,8 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
                 
                 if not exame:
-                    limite_dias = date.today() - timedelta(days=15)
+                    # Limite de dias baseado na data do exame (retroativo)
+                    limite_dias = data_retroativa - timedelta(days=15)
                     exame = Exame.objects.filter(
                         paciente=paciente, data_exame__gte=limite_dias
                     ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
@@ -1468,7 +1500,8 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                 if not exame:
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
-                        paciente=paciente, data_exame=date.today(),
+                        paciente=paciente, 
+                        data_exame=data_retroativa, # <--- DATA CORRETA NO BANCO E NO PORTAL
                         nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
                     )
 
@@ -1480,7 +1513,8 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             if 'arquivo_pdf' in request.FILES:
                 pdf_file = request.FILES['arquivo_pdf']
                 
-                data_hoje_str = date.today().strftime("%d-%m-%Y")
+                # Usa a data retroativa no nome físico do arquivo
+                data_hoje_str = data_retroativa.strftime("%d-%m-%Y")
                 nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
                 nome_seguro = slugify(nome_base_arquivo).upper()
                 extensao = pdf_file.name.split('.')[-1]
