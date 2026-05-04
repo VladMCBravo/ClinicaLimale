@@ -297,10 +297,11 @@ const getInitialState = (key, fallback) => {
     // --- CORREÇÃO DO AUTO-SAVE (sessionStorage) ---
     useEffect(() => {
         const dadosParaSalvar = {
-            laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens, dataExame // <--- ADICIONADO AQUI
+            laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens 
         };
         const timeoutId = setTimeout(() => {
             try {
+                // MUDANÇA: Agora salva na sessão temporária
                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
             } catch (e) {
                 const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
@@ -309,7 +310,7 @@ const getInitialState = (key, fallback) => {
         }, 1000);
 
         return () => clearTimeout(timeoutId);
-    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens, dataExame]); // <--- ADICIONADO AQUI
+    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
 
   // --- 3. MANIPULADORES DO FORMULÁRIO ---
   const handleLimpar = () => {
@@ -327,7 +328,6 @@ const getInitialState = (key, fallback) => {
         setImagens([]);
         setTermoBusca('');
         setPacientesEncontrados([]);
-        setDataExame(new Date().toISOString().split('T')[0]);
     }
   };
 
