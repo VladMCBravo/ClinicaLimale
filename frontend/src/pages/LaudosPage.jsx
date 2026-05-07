@@ -333,7 +333,10 @@ const getInitialState = (key, fallback) => {
 
   const handleFormUpdate = useCallback((dados) => {
       if (dados.texto) setTextoFinal(dados.texto);
-      if (dados.dadosEstruturados) setDadosEstruturados(dados.dadosEstruturados);
+      if (dados.dadosEstruturados) {
+          // 👇 Agora ele junta os dados novos com os dados que já existiam!
+          setDadosEstruturados(prev => ({ ...prev, ...dados.dadosEstruturados }));
+      }
       if (dados.tituloExame) setTituloExame(dados.tituloExame);
   }, []);
 
