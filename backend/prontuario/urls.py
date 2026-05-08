@@ -43,21 +43,18 @@ urlpatterns = [
     path('laudos/<int:pk>/status/', LaudoStatusView.as_view(), name='laudo-status'),
 
     # =========================================================================
-    # ★★★ CORREÇÃO AQUI: ROTAS QUE ESTAVAM FALTANDO (ERRO 404) ★★★
+    # ★★★ CORREÇÃO AQUI: ALINHAMENTO COM O FRONTEND ★★★
     # =========================================================================
     
     # 1. Rota para listar os exames dentro do prontuário (aba Exames)
     path('exames-paciente/', views.ListarExamesDoPacienteView.as_view(), name='exames-paciente'),
 
-    # 2. Rota para listar as credenciais ativas (aba Credenciais/Impressão)
-    # Usamos a mesma view pois ela retorna a lista de exames com código/senha
-    path('credenciais-ativas/', views.ListarExamesDoPacienteView.as_view(), name='credenciais-ativas'),
+    # 2. Rota conectada exatamente com o que o LaudosPage.jsx pede!
+    # Devolve o objeto contendo { codigo: '...', senha: '...' }
+    path('credenciais-ativas/', buscar_credenciais_ativas, name='credenciais-ativas'),
 
     # --- ROTA UNIVERSAL DE MÁSCARA ---
     path('aplicar-mascara/', views.AplicarMascaraPDFView.as_view(), name='aplicar-mascara-pdf'),
-
-    # MUDANÇA AQUI: Renomeando a URL para não ter conflito
-    path('buscar-senha-paciente/', buscar_credenciais_ativas, name='buscar-senha-paciente'),
 
     path('', include(router.urls)),
 ]

@@ -6,6 +6,31 @@ import { assinarPdfRemotamente } from "../api/pdfService";
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
+// --- NOVA FUNÇÃO: Busca o JPEG do backend e converte para Base64 ---
+const getMascaraBase64 = async () => {
+    // ⚠️ IMPORTANTE: Ajuste esta URL para apontar para a rota correta do seu backend Django
+    // Se em produção o React e o Django rodam no mesmo domínio, '/static/Receituario.jpg' vai funcionar.
+    // Em desenvolvimento (localhost), pode ser necessário colocar 'http://localhost:8000/static/Receituario.jpg'
+    const TIMBRE_URL = '/static/Receituario.jpg'; 
+    
+    try {
+        const response = await fetch(TIMBRE_URL);
+        if (!response.ok) throw new Error('Falha ao carregar a máscara');
+        
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error("Aviso: Não foi possível carregar a máscara do receituário.", error);
+        return null; // Se falhar, retorna null e o laudo é gerado em fundo branco
+    }
+};
+// -------------------------------------------------------------------
+
 export const gerarPDFLaudo = async ({
     pacienteId, 
     pacienteNome, 
@@ -22,7 +47,8 @@ export const gerarPDFLaudo = async ({
 }) => {
 
     // Margens exatas para caberem 6 fotos por folha (2 colunas x 3 linhas)
-    const pageMargins = [40, 170, 40, 60]; 
+    // Aumentamos o recuo inferior de 60 para 100 para afastar do rodapé
+    const pageMargins = [40, 170, 40, 100];
 
     // --- FUNÇÕES AUXILIARES ---
     const processarTexto = (textoRaw) => {
@@ -338,6 +364,13 @@ export const gerarPDFLaudo = async ({
     // ==========================================================
     // 3. GERAÇÃO DO ARQUIVO PDF
     // ==========================================================
+    
+    // 3.1 Busca a imagem JPEG do backend
+    let mascaraBase64 = null;
+    if (comTimbre) {
+        mascaraBase64 = await getMascaraBase64();
+    }
+
     const docDefinition = {
         pageSize: 'A4', 
         pageMargins: pageMargins,
@@ -350,6 +383,17 @@ export const gerarPDFLaudo = async ({
         },
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.2 } 
     };
+
+    // 3.2 Se a imagem carregou com sucesso, aplica ela ocupando a folha toda
+    if (mascaraBase64) {
+        docDefinition.background = function () {
+            return {
+                image: mascaraBase64,
+                width: 595.28,  // Largura exata de um A4 em pontos no pdfmake
+                height: 841.89  // Altura exata de um A4 em pontos no pdfmake
+            };
+        };
+    }
     
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 

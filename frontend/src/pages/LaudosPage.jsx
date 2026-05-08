@@ -341,7 +341,8 @@ const getInitialState = (key, fallback) => {
   }, []);
 
   // Função para redimensionar e comprimir imagens Base64
-const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
+// MUDANÇA: Aumentamos a resolução para 1200 e qualidade para 0.85
+const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => {
     return new Promise((resolve, reject) => {
         // Se já não for uma imagem válida, devolve como está para não quebrar
         if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) {
@@ -368,13 +369,17 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 500, qualidade = 0.65) => {
             
             const ctx = canvas.getContext('2d');
             
+            // Ativa a suavização nativa para imagens médicas ficarem melhores ao dar zoom
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
             // Fundo branco caso a imagem original tenha transparência (ex: PNG)
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, width, height);
             
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Exporta FORÇANDO formato JPEG na qualidade 85%
+            // Exporta FORÇANDO formato JPEG na qualidade ajustada
             const base64Otimizado = canvas.toDataURL('image/jpeg', qualidade);
             resolve(base64Otimizado);
         };
