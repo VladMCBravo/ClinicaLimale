@@ -8,10 +8,8 @@ pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 // --- NOVA FUNÇÃO: Busca o JPEG do backend e converte para Base64 ---
 const getMascaraBase64 = async () => {
-    // ⚠️ IMPORTANTE: Ajuste esta URL para apontar para a rota correta do seu backend Django
-    // Se em produção o React e o Django rodam no mesmo domínio, '/static/Receituario.jpg' vai funcionar.
-    // Em desenvolvimento (localhost), pode ser necessário colocar 'http://localhost:8000/static/Receituario.jpg'
-    const TIMBRE_URL = '/static/Receituario.jpg'; 
+    // Agora ele vai procurar na raiz do seu site na Vercel
+    const TIMBRE_URL = '/Receituario.jpg';
     
     try {
         const response = await fetch(TIMBRE_URL);
