@@ -12,7 +12,8 @@ import apiClient from '../../api/axiosConfig';
 function TabPanel({ children, value, index, ...other }) {
     return (
         <div role="tabpanel" hidden={value !== index} {...other} style={{ width: '100%' }}>
-            {value === index && <Box sx={{ py: 3, px: 2 }}>{children}</Box>}
+            {/* Reduzimos o padding vertical (py) de 3 para 1.5 para ganhar espaço */}
+            {value === index && <Box sx={{ py: 1.5, px: 2 }}>{children}</Box>}
         </div>
     );
 }
@@ -31,13 +32,10 @@ export default function MeuPerfilTab() {
         cargo: '', crm: ''
     });
 
-    const [certStatus, setCertStatus] = useState(null);
+    const [certStatus, setCertStatus] = useState(false);
     const [certFile, setCertFile] = useState(null);
     const [certSenha, setCertSenha] = useState('');
     const [showSenha, setShowSenha] = useState(false);
-
-    const token = sessionStorage.getItem('authToken'); // Troque localStorage por sessionStorage
-    const API_URL = 'http://localhost:8000/api'; 
 
     useEffect(() => {
         carregarDadosPerfil();
@@ -45,9 +43,8 @@ export default function MeuPerfilTab() {
 
     const carregarDadosPerfil = async () => {
         try {
-            const res = await apiClient.get('/usuarios/me/'); 
+            const res = await apiClient.get('/usuarios/me/');
             setPerfil(res.data);
-            // CORREÇÃO AQUI: Lendo a variável exata que o backend envia
             setCertStatus(res.data.tem_certificado_valido); 
         } catch (error) {
             mostrarFeedback('Erro ao carregar perfil.', 'error');
@@ -64,64 +61,61 @@ export default function MeuPerfilTab() {
     };
 
     const buscarCep = async () => {
-    const cepLimpo = perfil.cep?.replace(/[^0-9]/g, '');
-    if (cepLimpo?.length !== 8) return;
-    
-    try {
-        const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-        const data = await res.json();
-        if (!data.erro) {
-            setPerfil(prev => ({
-                ...prev,
-                logradouro: data.logradouro,
-                bairro: data.bairro,
-                cidade: data.localidade,
-                uf: data.uf
-            }));
+        const cepLimpo = perfil.cep?.replace(/[^0-9]/g, '');
+        if (cepLimpo?.length !== 8) return;
+        
+        try {
+            const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+            const data = await res.json();
+            if (!data.erro) {
+                setPerfil(prev => ({
+                    ...prev,
+                    logradouro: data.logradouro,
+                    bairro: data.bairro,
+                    cidade: data.localidade,
+                    uf: data.uf
+                }));
+            }
+        } catch (error) { console.error("Erro no CEP"); }
+    };
+
+    const handleSalvarPerfil = async (e) => {
+        e.preventDefault();
+        setSavingInfo(true);
+        try {
+            const payload = {
+                first_name: perfil.first_name, 
+                last_name: perfil.last_name, 
+                telefone: perfil.telefone,
+                logradouro: perfil.logradouro, 
+                numero: perfil.numero, 
+                complemento: perfil.complemento,
+                bairro: perfil.bairro, 
+                cidade: perfil.cidade, 
+                uf: perfil.uf, 
+                cep: perfil.cep
+            };
+            await apiClient.patch('/usuarios/me/', payload);
+            mostrarFeedback('Perfil atualizado com sucesso!');
+        } catch (error) {
+            mostrarFeedback('Erro ao atualizar perfil.', 'error');
+        } finally {
+            setSavingInfo(false);
         }
-    } catch (error) { console.error("Erro no CEP"); }
-};
+    };
 
-// E o handleSalvarPerfil para usar o apiClient:
-const handleSalvarPerfil = async (e) => {
-    e.preventDefault();
-    setSavingInfo(true);
-    try {
-        const payload = {
-            first_name: perfil.first_name, 
-            last_name: perfil.last_name, 
-            telefone: perfil.telefone,
-            logradouro: perfil.logradouro, 
-            numero: perfil.numero, 
-            complemento: perfil.complemento,
-            bairro: perfil.bairro, 
-            cidade: perfil.cidade, 
-            uf: perfil.uf, 
-            cep: perfil.cep
-        };
-        // O apiClient já tem o Token e a BASE_URL configurados
-        await apiClient.patch('/usuarios/me/', payload);
-        mostrarFeedback('Perfil atualizado com sucesso!');
-    } catch (error) {
-        mostrarFeedback('Erro ao atualizar perfil.', 'error');
-    } finally {
-        setSavingInfo(false);
-    }
-};
-
-// E esta função de teste:
-const handleTestarAssinatura = async () => {
-    setTestingCert(true);
-    try {
-        const res = await apiClient.get('/usuarios/me/certificado/verificar/');
-        mostrarFeedback(res.data.detail, 'success');
-    } catch (error) {
-        const msg = error.response?.data?.detail || 'Erro ao validar certificado.';
-        mostrarFeedback(msg, 'error');
-    } finally {
-        setTestingCert(false);
-    }
-};
+    const handleTestarAssinatura = async () => {
+        setTestingCert(true);
+        try {
+            const res = await apiClient.get('/usuarios/me/certificado/verificar/');
+            mostrarFeedback(res.data.detail, 'success');
+        } catch (error) {
+            const msg = error.response?.data?.detail || 'Erro ao validar certificado.';
+            mostrarFeedback(msg, 'error');
+        } finally {
+            setTestingCert(false);
+        }
+    };
 
     const handleUploadCertificado = async (e) => {
         e.preventDefault();
@@ -133,20 +127,14 @@ const handleTestarAssinatura = async () => {
         formData.append('senha', certSenha);
 
         try {
-            // Usando o apiClient! Ele já coloca o Token e aponta para a URL base correta
-            const res = await apiClient.post('/usuarios/me/certificado/', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+            await apiClient.post('/usuarios/me/certificado/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
-            
             mostrarFeedback('Certificado validado com sucesso!');
             setCertFile(null); 
             setCertSenha('');
-            carregarDadosPerfil(); // Recarrega para atualizar o status para true
-            
+            carregarDadosPerfil();
         } catch (error) { 
-            // Captura o erro customizado do backend
             const msg = error.response?.data?.detail || 'Senha ou arquivo inválido.';
             mostrarFeedback(msg, 'error'); 
         } finally { 
@@ -156,59 +144,71 @@ const handleTestarAssinatura = async () => {
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
 
+    // Define larguras dinâmicas para a aba de Pessoais: 3 colunas se for médico, 2 se não for
+    const gridTamanho = perfil.cargo === 'medico' ? 4 : 6;
+
     return (
         <Box>
-            {feedback.show && <Alert severity={feedback.type} sx={{ mb: 2 }}>{feedback.message}</Alert>}
+            {feedback.show && <Alert severity={feedback.type} sx={{ mb: 1.5, py: 0 }}>{feedback.message}</Alert>}
             
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                <Tabs value={tab} onChange={(e, v) => setTab(v)} textColor="primary" indicatorColor="primary">
-                    <Tab icon={<Person sx={{mr:1, mb:0}}/>} iconPosition="start" label="Dados Pessoais" />
-                    <Tab icon={<LocationOn sx={{mr:1, mb:0}}/>} iconPosition="start" label="Endereço" />
-                    {perfil.cargo === 'medico' && <Tab icon={<Security sx={{mr:1, mb:0}}/>} iconPosition="start" label="Assinatura Digital" />}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+                <Tabs value={tab} onChange={(e, v) => setTab(v)} textColor="primary" indicatorColor="primary" sx={{ minHeight: 40 }}>
+                    <Tab icon={<Person sx={{mr:1, mb:0}}/>} iconPosition="start" label="Dados Pessoais" sx={{ minHeight: 40 }} />
+                    <Tab icon={<LocationOn sx={{mr:1, mb:0}}/>} iconPosition="start" label="Endereço" sx={{ minHeight: 40 }} />
+                    {perfil.cargo === 'medico' && <Tab icon={<Security sx={{mr:1, mb:0}}/>} iconPosition="start" label="Assinatura Digital" sx={{ minHeight: 40 }} />}
                 </Tabs>
             </Box>
 
+            {/* ABA 1: DADOS PESSOAIS */}
             <TabPanel value={tab} index={0}>
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}><TextField fullWidth label="Nome" name="first_name" value={perfil.first_name || ''} onChange={handleChange} required /></Grid>
-                        <Grid item xs={12} sm={6}><TextField fullWidth label="Sobrenome" name="last_name" value={perfil.last_name || ''} onChange={handleChange} required /></Grid>
-                        <Grid item xs={12} sm={6}><TextField fullWidth label="Telefone" name="telefone" value={perfil.telefone || ''} onChange={handleChange} /></Grid>
-                        <Grid item xs={12} sm={6}><TextField fullWidth label="Cargo" value={(perfil.cargo || '').toUpperCase()} disabled /></Grid>
-                        {perfil.cargo === 'medico' && <Grid item xs={12} sm={6}><TextField fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
+                        {/* Linha 1 */}
+                        <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Nome" name="first_name" value={perfil.first_name || ''} onChange={handleChange} required /></Grid>
+                        <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Sobrenome" name="last_name" value={perfil.last_name || ''} onChange={handleChange} required /></Grid>
+                        
+                        {/* Linha 2 (Fica na mesma linha graças ao gridTamanho) */}
+                        <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Telefone" name="telefone" value={perfil.telefone || ''} onChange={handleChange} /></Grid>
+                        <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Cargo" value={(perfil.cargo || '').toUpperCase()} disabled /></Grid>
+                        {perfil.cargo === 'medico' && <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
                     </Grid>
-                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button type="submit" variant="contained" disabled={savingInfo}>{savingInfo ? <CircularProgress size={24} /> : 'Salvar Alterações'}</Button>
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Alterações'}</Button>
                     </Box>
                 </form>
             </TabPanel>
 
+            {/* ABA 2: ENDEREÇO */}
             <TabPanel value={tab} index={1}>
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={4}><TextField fullWidth label="CEP" name="cep" value={perfil.cep || ''} onChange={handleChange} onBlur={buscarCep} /></Grid>
-                        <Grid item xs={12} sm={8}><TextField fullWidth label="Logradouro" name="logradouro" value={perfil.logradouro || ''} onChange={handleChange} /></Grid>
-                        <Grid item xs={12} sm={4}><TextField fullWidth label="Número" name="numero" value={perfil.numero || ''} onChange={handleChange} /></Grid>
-                        <Grid item xs={12} sm={8}><TextField fullWidth label="Complemento" name="complemento" value={perfil.complemento || ''} onChange={handleChange} /></Grid>
-                        <Grid item xs={12} sm={5}><TextField fullWidth label="Bairro" name="bairro" value={perfil.bairro || ''} onChange={handleChange} /></Grid>
-                        <Grid item xs={12} sm={5}><TextField fullWidth label="Cidade" name="cidade" value={perfil.cidade || ''} onChange={handleChange} /></Grid>
-                        <Grid item xs={12} sm={2}><TextField fullWidth label="UF" name="uf" value={perfil.uf || ''} onChange={handleChange} /></Grid>
+                        {/* Linha 1 */}
+                        <Grid item xs={12} sm={3}><TextField size="small" fullWidth label="CEP" name="cep" value={perfil.cep || ''} onChange={handleChange} onBlur={buscarCep} /></Grid>
+                        <Grid item xs={12} sm={7}><TextField size="small" fullWidth label="Logradouro" name="logradouro" value={perfil.logradouro || ''} onChange={handleChange} /></Grid>
+                        <Grid item xs={12} sm={2}><TextField size="small" fullWidth label="Número" name="numero" value={perfil.numero || ''} onChange={handleChange} /></Grid>
+                        
+                        {/* Linha 2 */}
+                        <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Complemento" name="complemento" value={perfil.complemento || ''} onChange={handleChange} /></Grid>
+                        <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Bairro" name="bairro" value={perfil.bairro || ''} onChange={handleChange} /></Grid>
+                        
+                        {/* Linha 3 */}
+                        <Grid item xs={12} sm={9}><TextField size="small" fullWidth label="Cidade" name="cidade" value={perfil.cidade || ''} onChange={handleChange} /></Grid>
+                        <Grid item xs={12} sm={3}><TextField size="small" fullWidth label="UF" name="uf" value={perfil.uf || ''} onChange={handleChange} /></Grid>
                     </Grid>
-                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button type="submit" variant="contained" disabled={savingInfo}>{savingInfo ? <CircularProgress size={24} /> : 'Salvar Endereço'}</Button>
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Endereço'}</Button>
                     </Box>
                 </form>
             </TabPanel>
 
-            {/* --- ABA 3: SEGURANÇA E ASSINATURA (SÓ PARA MÉDICOS) --- */}
+            {/* ABA 3: SEGURANÇA E ASSINATURA (SÓ PARA MÉDICOS) */}
             {perfil.cargo === 'medico' && (
                 <TabPanel value={tab} index={2}>
-                    {/* Quadro de Status Atual */}
-                    <Box sx={{ p: 2, mb: 3, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: '#f8f9fa' }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Status da Assinatura Digital</Typography>
+                    <Box sx={{ p: 1.5, mb: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: '#f8f9fa' }}>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Status da Assinatura Digital</Typography>
                         {certStatus ? (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <CheckCircle color="success" />
+                                <CheckCircle color="success" fontSize="small" />
                                 <Typography variant="body2" sx={{ color: 'success.main' }}>
                                     Certificado salvo no sistema. Teste abaixo para validar a assinatura.
                                 </Typography>
@@ -218,48 +218,41 @@ const handleTestarAssinatura = async () => {
                         )}
                     </Box>
 
-                    {/* Bloco de Teste (Mostra se o certStatus for true) */}
                     {certStatus && (
-                        <Box sx={{ mb: 3, p: 2, border: '1px dashed #4CAF50', borderRadius: 2, textAlign: 'center', bgcolor: '#f1f8e9' }}>
-                            <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', fontWeight: 500 }}>
+                        <Box sx={{ mb: 2, p: 1.5, border: '1px dashed #4CAF50', borderRadius: 2, textAlign: 'center', bgcolor: '#f1f8e9' }}>
+                            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 500 }}>
                                 Deseja confirmar se sua senha e arquivo estão prontos para uso?
                             </Typography>
                             <Button 
-                                variant="outlined" 
-                                color="success" 
-                                size="small"
+                                variant="outlined" color="success" size="small"
                                 startIcon={testingCert ? <CircularProgress size={16} color="inherit" /> : <CheckCircle />}
-                                onClick={handleTestarAssinatura}
-                                disabled={testingCert}
-                                sx={{ fontWeight: 'bold' }}
+                                onClick={handleTestarAssinatura} disabled={testingCert} sx={{ fontWeight: 'bold' }}
                             >
                                 {testingCert ? 'Verificando...' : 'Testar Assinatura Agora'}
                             </Button>
                         </Box>
                     )}
-                    {/* >>> FIM DO BLOCO DE TESTE <<< */}
 
-                    <Divider sx={{ mb: 3 }} />
+                    {!certStatus && <Divider sx={{ mb: 2 }} />}
 
-                    {/* Formulário de Upload (Já existe abaixo) */}
                     <form onSubmit={handleUploadCertificado}>
                         <Grid container spacing={2} alignItems="center">
                             <Grid item xs={12} sm={6}>
-                                <Button variant="outlined" component="label" fullWidth startIcon={<CloudUpload />} sx={{ height: '56px' }}>
+                                <Button variant="outlined" component="label" fullWidth size="small" startIcon={<CloudUpload />} sx={{ height: '40px' }}>
                                     {certFile ? certFile.name : 'Selecionar .p12'}
                                     <input type="file" hidden accept=".p12,.pfx" onChange={(e) => setCertFile(e.target.files[0])} />
                                 </Button>
                             </Grid>
                             <Grid item xs={12} sm={6}>
                                 <TextField 
-                                    fullWidth label="Senha do Certificado" type={showSenha ? "text" : "password"} 
+                                    size="small" fullWidth label="Senha do Certificado" type={showSenha ? "text" : "password"} 
                                     value={certSenha} onChange={(e) => setCertSenha(e.target.value)} required
-                                    InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton onClick={() => setShowSenha(!showSenha)} edge="end">{showSenha ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>) }}
+                                    InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton size="small" onClick={() => setShowSenha(!showSenha)} edge="end">{showSenha ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}</IconButton></InputAdornment>) }}
                                 />
                             </Grid>
                         </Grid>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                            <Button type="submit" variant="contained" disabled={uploadingCert}>{uploadingCert ? <CircularProgress size={24} /> : 'Validar e Salvar Certificado'}</Button>
+                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button type="submit" variant="contained" size="small" disabled={uploadingCert}>{uploadingCert ? <CircularProgress size={20} /> : 'Validar e Salvar Certificado'}</Button>
                         </Box>
                     </form>
                 </TabPanel>
