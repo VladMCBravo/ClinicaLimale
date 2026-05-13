@@ -44,16 +44,17 @@ export default function MeuPerfilTab() {
     }, []);
 
     const carregarDadosPerfil = async () => {
-    try {
-        const res = await apiClient.get('/usuarios/me/'); // apiClient já cuida do Token
-        setPerfil(res.data);
-        if (res.data.certificado_detalhes) setCertStatus(res.data.certificado_detalhes);
-    } catch (error) {
-        mostrarFeedback('Erro ao carregar perfil.', 'error');
-    } finally {
-        setLoading(false);
-    }
-};
+        try {
+            const res = await apiClient.get('/usuarios/me/'); 
+            setPerfil(res.data);
+            // CORREÇÃO AQUI: Lendo a variável exata que o backend envia
+            setCertStatus(res.data.tem_certificado_valido); 
+        } catch (error) {
+            mostrarFeedback('Erro ao carregar perfil.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleChange = (e) => setPerfil({ ...perfil, [e.target.name]: e.target.value });
 
@@ -132,19 +133,25 @@ const handleTestarAssinatura = async () => {
         formData.append('senha', certSenha);
 
         try {
-            const res = await fetch(`${API_URL}/usuarios/me/certificado/`, {
-                method: 'POST',
-                headers: { 'Authorization': `Token ${token}` },
-                body: formData
+            // Usando o apiClient! Ele já coloca o Token e aponta para a URL base correta
+            const res = await apiClient.post('/usuarios/me/certificado/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
             });
-            const data = await res.json();
-            if (res.ok) {
-                mostrarFeedback('Certificado validado com sucesso!');
-                setCertFile(null); setCertSenha('');
-                carregarDadosPerfil();
-            } else mostrarFeedback(data.detail || 'Senha ou arquivo inválido.', 'error');
-        } catch (error) { mostrarFeedback('Erro ao enviar.', 'error'); } 
-        finally { setUploadingCert(false); }
+            
+            mostrarFeedback('Certificado validado com sucesso!');
+            setCertFile(null); 
+            setCertSenha('');
+            carregarDadosPerfil(); // Recarrega para atualizar o status para true
+            
+        } catch (error) { 
+            // Captura o erro customizado do backend
+            const msg = error.response?.data?.detail || 'Senha ou arquivo inválido.';
+            mostrarFeedback(msg, 'error'); 
+        } finally { 
+            setUploadingCert(false); 
+        }
     };
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -196,18 +203,23 @@ const handleTestarAssinatura = async () => {
             {/* --- ABA 3: SEGURANÇA E ASSINATURA (SÓ PARA MÉDICOS) --- */}
             {perfil.cargo === 'medico' && (
                 <TabPanel value={tab} index={2}>
-                    {/* Quadro de Status Atual (Já existe) */}
+                    {/* Quadro de Status Atual */}
                     <Box sx={{ p: 2, mb: 3, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: '#f8f9fa' }}>
                         <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Status da Assinatura Digital</Typography>
-                        {certStatus?.possui_arquivo ? (
+                        {certStatus ? (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {certStatus.expirado ? <Chip color="error" label="Certificado Expirado" /> : <><CheckCircle color="success" /><Typography variant="body2" sx={{ color: 'success.main' }}>Válido (Expira em {certStatus.dias_para_expirar} dias)</Typography></>}
+                                <CheckCircle color="success" />
+                                <Typography variant="body2" sx={{ color: 'success.main' }}>
+                                    Certificado salvo no sistema. Teste abaixo para validar a assinatura.
+                                </Typography>
                             </Box>
-                        ) : <Typography variant="body2" color="text.secondary">Nenhum certificado configurado.</Typography>}
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">Nenhum certificado configurado.</Typography>
+                        )}
                     </Box>
 
-                    {/* >>> ADICIONE ESTE NOVO BLOCO DE TESTE AQUI <<< */}
-                    {certStatus?.possui_arquivo && (
+                    {/* Bloco de Teste (Mostra se o certStatus for true) */}
+                    {certStatus && (
                         <Box sx={{ mb: 3, p: 2, border: '1px dashed #4CAF50', borderRadius: 2, textAlign: 'center', bgcolor: '#f1f8e9' }}>
                             <Typography variant="body2" sx={{ mb: 1.5, color: 'text.secondary', fontWeight: 500 }}>
                                 Deseja confirmar se sua senha e arquivo estão prontos para uso?
