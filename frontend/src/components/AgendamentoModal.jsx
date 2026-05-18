@@ -555,10 +555,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     };
     
-    const valorExibido = useMemo(() => {
+    const infoFinanceira = useMemo(() => {
         if (formData.tipo_atendimento === 'Convenio' && formData.plano_utilizado) {
-            
-            // CÁLCULO SE FOR PROCEDIMENTO
             if (tipoAgendamento === 'Procedimento') {
                 const listaProcedimentos = formData.procedimentos?.length > 0 ? formData.procedimentos : (formData.procedimento ? [formData.procedimento] : []);
                 let totalConvenio = 0;
@@ -570,44 +568,36 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     else precoFaltando = true; 
                 });
 
-                if (precoFaltando) return "Aviso: Preço não cadastrado para este plano";
-                return `Faturar Convênio: R$ ${totalConvenio.toFixed(2).replace('.', ',')}`;
+                if (precoFaltando) return { status: 'erro', texto: 'Aviso: Há exames selecionados SEM PREÇO CADASTRADO para este plano.' };
+                return { status: 'ok', texto: `Faturar Convênio: R$ ${totalConvenio.toFixed(2).replace('.', ',')}` };
             }
             
-            // CÁLCULO SE FOR CONSULTA (ESPECIALIDADE)
             if (tipoAgendamento === 'Consulta' && formData.especialidade) {
-                // Procura o preço no array de convênios da especialidade
                 const precoPlanoConsulta = formData.especialidade.valores_convenio?.find(
-                    // O campo no backend chama plano_convenio_id (conforme definimos no serializer acima)
-                    v => v.plano_convenio_id === formData.plano_utilizado.id
+                    v => v.plano_convenio_id === formData.plano_utilizado.id || v.plano_convenio?.id === formData.plano_utilizado.id
                 )?.valor;
                 
-                if (precoPlanoConsulta) {
-                    return `Faturar Convênio: R$ ${parseFloat(precoPlanoConsulta).toFixed(2).replace('.', ',')}`;
-                }
-                return "Aviso: Preço não cadastrado para este plano";
+                if (precoPlanoConsulta) return { status: 'ok', texto: `Faturar Convênio: R$ ${parseFloat(precoPlanoConsulta).toFixed(2).replace('.', ',')}` };
+                return { status: 'erro', texto: 'Aviso: PREÇO NÃO CADASTRADO para este plano de consulta.' };
             }
-
-            return `Faturamento via Convênio`;
+            return { status: 'ok', texto: `Faturamento via Convênio` };
         }
         
         if (formData.tipo_atendimento === 'Particular') {
             if (tipoAgendamento === 'Consulta' && formData.especialidade?.valor_consulta) {
-                return `R$ ${formData.especialidade.valor_consulta}`;
+                return { status: 'ok', texto: `R$ ${formData.especialidade.valor_consulta}` };
             }
             if (tipoAgendamento === 'Procedimento') {
                 if (formData.procedimentos && formData.procedimentos.length > 0) {
-                    const total = formData.procedimentos.reduce((acumulador, procAtual) => {
-                        return acumulador + (parseFloat(procAtual.valor_particular) || 0);
-                    }, 0);
-                    return `R$ ${total.toFixed(2).replace('.', ',')}`;
+                    const total = formData.procedimentos.reduce((acc, proc) => acc + (parseFloat(proc.valor_particular) || 0), 0);
+                    return { status: 'ok', texto: `R$ ${total.toFixed(2).replace('.', ',')}` };
                 } else if (formData.procedimento?.valor_particular) {
-                    return `R$ ${parseFloat(formData.procedimento.valor_particular).toFixed(2).replace('.', ',')}`;
+                    return { status: 'ok', texto: `R$ ${parseFloat(formData.procedimento.valor_particular).toFixed(2).replace('.', ',')}` };
                 }
             }
         }
         return null;
-    }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.procedimentos, formData.tipo_atendimento]);
+    }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.procedimentos, formData.tipo_atendimento, formData.plano_utilizado]);
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 3, bgcolor: '#fbfcff' } }}>
@@ -907,11 +897,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         </Box>
                                     )}
                                     
-                                    {valorExibido && (
+                                    {infoFinanceira && infoFinanceira.status === 'ok' && (
                                         <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, display: 'flex', justifyContent: 'space-between' }}>
                                             <Typography variant="body2" color="text.secondary">Total Previsto:</Typography>
-                                            <Typography variant="body2" color="primary.main" fontWeight="bold">{valorExibido}</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">{infoFinanceira.texto}</Typography>
                                         </Box>
+                                    )}
+                                    
+                                    {infoFinanceira && infoFinanceira.status === 'erro' && (
+                                        <Alert severity="error" sx={{ mt: 1, fontWeight: 'bold' }}>
+                                            {infoFinanceira.texto}
+                                        </Alert>
                                     )}
 
                                     <Box sx={{ p: 1.5, bgcolor: formData.isento_cobranca ? '#e8f5e9' : '#f5f5f5', borderRadius: 1, border: formData.isento_cobranca ? '1px solid #a5d6a7' : '1px solid transparent', transition: '0.3s' }}>

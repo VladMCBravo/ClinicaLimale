@@ -157,28 +157,18 @@ export default function ContasReceberView() {
                             {lista.map(row => {
                                 const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
                                 const isRenegociado = row.status === 'Renegociado';
-                                
+                                const isConvenio = row.tipo_atendimento === 'Convenio'; // <--- IDENTIFICAÇÃO
+
                                 return (
-                                    <TableRow 
-                                        key={row.id} 
-                                        hover 
-                                        onClick={() => handleRowClick(row)}
-                                        sx={{ 
-                                            cursor: 'pointer', 
-                                            '&:hover': { bgcolor: '#f0f7ff !important' },
-                                            opacity: isRenegociado ? 0.6 : 1,
-                                            bgcolor: isRenegociado ? '#fafafa' : 'inherit'
-                                        }}
-                                    >
+                                    <TableRow key={row.id} hover onClick={() => handleRowClick(row)}>
                                         <TableCell sx={{ fontSize: '0.8rem', color: '#444' }}>
                                             {dayjs(row.data_vencimento).format('DD/MM/YY')}
                                         </TableCell>
                                         <TableCell>
-                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem" sx={{ textDecoration: isRenegociado ? 'line-through' : 'none', display: 'flex', alignItems: 'center' }}>
+                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
                                                 {row.paciente_nome || row.descricao}
-                                                {/* Badge avisando que são múltiplos exames agrupados */}
                                                 {row.originais && row.originais.length > 1 && (
-                                                    <Chip label={`${row.originais.length} Itens`} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem', bgcolor: '#e0e0e0', fontWeight: 'bold' }} />
+                                                    <Chip label={`${row.originais.length} Itens`} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />
                                                 )}
                                             </Typography>
                                             
@@ -186,6 +176,15 @@ export default function ContasReceberView() {
                                                 <Typography variant="caption" color="textSecondary" fontSize="0.7rem">
                                                     {row.descricao_visual || row.categoria_nome}
                                                 </Typography>
+
+                                                {/* 👇 ETIQUETA DO CONVÊNIO APARECE AQUI 👇 */}
+                                                {isConvenio && (
+                                                    <Chip 
+                                                        label={`${row.convenio_nome || 'Convênio'} - ${row.plano_nome || ''}`} 
+                                                        size="small" 
+                                                        sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 'bold' }} 
+                                                    />
+                                                )}
 
                                                 {row.paciente_nome && (row.primeira_consulta !== undefined || row.tipo_visita) && (
                                                     <Chip 

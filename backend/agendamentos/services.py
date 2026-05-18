@@ -134,6 +134,24 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
     cargos_isentos_manualmente = ['recepcao', 'admin']
 
     valor_do_pagamento = 0.00
+    # --- NOVA LÓGICA DO VALOR DO CONVÊNIO ---
+    if agendamento.tipo_atendimento == 'Convenio' and agendamento.plano_utilizado:
+        if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
+            from usuarios.models import ValorEspecialidadeConvenio
+            val_obj = ValorEspecialidadeConvenio.objects.filter(
+                especialidade=agendamento.especialidade, 
+                plano_convenio=agendamento.plano_utilizado
+            ).first()
+            if val_obj: valor_do_pagamento = val_obj.valor
+            
+        elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
+            from faturamento.models import ValorProcedimentoConvenio
+            val_obj = ValorProcedimentoConvenio.objects.filter(
+                procedimento=agendamento.procedimento, 
+                plano_convenio=agendamento.plano_utilizado
+            ).first()
+            if val_obj: valor_do_pagamento = val_obj.valor
+            
     if agendamento.tipo_agendamento == 'Consulta':
         if agendamento.especialidade and agendamento.especialidade.valor_consulta:
             valor_do_pagamento = agendamento.especialidade.valor_consulta

@@ -92,6 +92,9 @@ class PagamentoSerializer(serializers.ModelSerializer):
     # 👇 1. ADICIONE ESTAS DUAS LINHAS AQUI 👇
     primeira_consulta = serializers.ReadOnlyField(source='agendamento.primeira_consulta')
     tipo_visita = serializers.ReadOnlyField(source='agendamento.tipo_visita')
+    tipo_atendimento = serializers.CharField(source='agendamento.tipo_atendimento', read_only=True)
+    convenio_nome = serializers.CharField(source='agendamento.plano_utilizado.convenio.nome', read_only=True, allow_null=True)
+    plano_nome = serializers.CharField(source='agendamento.plano_utilizado.nome', read_only=True, allow_null=True)
 
     class Meta:
         model = Pagamento
@@ -99,7 +102,8 @@ class PagamentoSerializer(serializers.ModelSerializer):
             'id', 'agendamento_id', 'agendamento_detalhes', 'paciente', 'paciente_nome', 'descricao',
             'descricao_visual', 'valor', 'status', 'status_display', 'forma_pagamento', 
             'forma_pagamento_display', 'data_pagamento', 'data_vencimento',
-            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em', 'link_pagamento', 'primeira_consulta', 'tipo_visita'
+            'registrado_por', 'pix_copia_e_cola', 'pix_qr_code_base64', 'pix_expira_em', 'link_pagamento', 'primeira_consulta', 'tipo_visita',
+            'tipo_atendimento', 'convenio_nome', 'plano_nome' # <--- ADICIONE NA LISTA AQUI
         ]
         read_only_fields = ['registrado_por']
 
