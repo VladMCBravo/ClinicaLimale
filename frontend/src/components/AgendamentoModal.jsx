@@ -614,10 +614,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                             getOptionLabel={(option) => option.nome_completo || ''} 
                                             value={formData.paciente} 
                                             isOptionEqualToValue={(o, v) => o.id === v.id} 
-                                            onChange={handlePacienteChange} 
-                                            
-                                            // 1. Controlamos exatamente o que está sendo digitado
-                                            inputValue={inputValuePaciente}
+                                            onChange={handlePacienteChange}                                         
+                                            // CORREÇÃO: Removemos a linha "inputValue={inputValuePaciente}"
+                                            // Mantemos apenas o onInputChange para pegar o texto para o botão de cadastro, 
+                                            // sem interferir no filtro interno do MUI.
                                             onInputChange={(event, newInputValue) => {
                                                 setInputValuePaciente(newInputValue || '');
                                             }}
@@ -643,9 +643,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
                                             // 3. O FILTRO PURO E SIMPLES (Sem gambiarras de botão)
                                             filterOptions={(options, params) => {
-                                                const inputLimpo = removerAcentos(params.inputValue.toLowerCase().trim());
-                                                const inputApenasNumeros = params.inputValue.replace(/\D/g, '');
+                                                const termo = params.inputValue || '';
+                                                const inputLimpo = removerAcentos(termo.toLowerCase().trim());
+                                                const inputApenasNumeros = termo.replace(/\D/g, '');
 
+                                                // Se o campo estiver vazio, retorna os primeiros 50
                                                 if (inputLimpo === '') return options.slice(0, 50);
 
                                                 const filtered = options.filter(option => {
