@@ -469,6 +469,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             paciente: formData.paciente?.id || null,
             medico: formData.medico?.id || null,
             especialidade: formData.especialidade?.id || null,
+            plano_utilizado: formData.plano_utilizado?.id || null,
             data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
             data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
             is_encaixe: isEncaixe
