@@ -3,6 +3,7 @@ from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico
@@ -67,6 +68,19 @@ class EspecialidadeViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             self.permission_classes = [IsAdminUser]
         return super().get_permissions()
+    
+    @action(detail=True, methods=['post'], url_path='definir-preco-convenio')
+    def definir_preco(self, request, pk=None):
+        especialidade = self.get_object()
+        plano_id = request.data.get('plano_convenio_id')
+        valor = request.data.get('valor')
+        
+        ValorEspecialidadeConvenio.objects.update_or_create(
+            especialidade=especialidade, 
+            plano_convenio_id=plano_id, 
+            defaults={'valor': valor}
+        )
+        return Response({"msg": "Preço da consulta atualizado com sucesso!"})
 
 # --- ADICIONE ESTE NOVO VIEWSET ---
 class JornadaTrabalhoViewSet(viewsets.ModelViewSet):

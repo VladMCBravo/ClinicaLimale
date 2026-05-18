@@ -169,3 +169,12 @@ class JornadaDeTrabalho(models.Model):
     def __str__(self):
         nome_medico = self.medico.get_full_name() or self.medico.username
         return f"{nome_medico} - {self.get_dia_da_semana_display()}: {self.hora_inicio.strftime('%H:%M')} às {self.hora_fim.strftime('%H:%M')}"
+
+class ValorEspecialidadeConvenio(models.Model):
+    especialidade = models.ForeignKey(Especialidade, on_delete=models.CASCADE, related_name='valores_convenio')
+    plano_convenio = models.ForeignKey('faturamento.PlanoConvenio', on_delete=models.CASCADE)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        unique_together = ('especialidade', 'plano_convenio')
+        verbose_name = "Valor de Especialidade por Convênio"

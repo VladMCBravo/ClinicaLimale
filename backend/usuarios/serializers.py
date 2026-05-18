@@ -2,12 +2,25 @@
 
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator # <-- 1. IMPORTE O VALIDATOR
-from .models import CustomUser, Especialidade, JornadaDeTrabalho
+from .models import CustomUser, Especialidade, JornadaDeTrabalho, ValorEspecialidadeConvenio
 
+# 1º A CLASSE DO VALOR VEM PRIMEIRO:
+class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
+    plano_convenio_id = serializers.IntegerField(source='plano_convenio.id', read_only=True)
+    plano_nome = serializers.CharField(source='plano_convenio.nome', read_only=True)
+    convenio_nome = serializers.CharField(source='plano_convenio.convenio.nome', read_only=True)
+
+    class Meta:
+        model = ValorEspecialidadeConvenio
+        fields = ['id', 'plano_convenio_id', 'plano_nome', 'convenio_nome', 'valor']
+
+# 2º A CLASSE DA ESPECIALIDADE VEM DEPOIS:
 class EspecialidadeSerializer(serializers.ModelSerializer):
+    valores_convenio = ValorEspecialidadeConvenioSerializer(many=True, read_only=True)
+
     class Meta:
         model = Especialidade
-        fields = ['id', 'nome', 'valor_consulta']
+        fields = ['id', 'nome', 'valor_consulta', 'valores_convenio']
 
 class UserSerializer(serializers.ModelSerializer):
     especialidades_detalhes = EspecialidadeSerializer(source='especialidades', many=True, read_only=True)
@@ -130,3 +143,13 @@ class UserMeUpdateSerializer(serializers.ModelSerializer):
             'bairro', 'cidade', 'uf', 'cep'
         ]
         # NENHUM campo de permissão, cargo ou documento oficial é incluído aqui.
+
+class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
+    # Campos virtuais para não precisarmos importar o serializer de faturamento (evita erro de import circular)
+    plano_convenio_id = serializers.IntegerField(source='plano_convenio.id', read_only=True)
+    plano_nome = serializers.CharField(source='plano_convenio.nome', read_only=True)
+    convenio_nome = serializers.CharField(source='plano_convenio.convenio.nome', read_only=True)
+
+    class Meta:
+        model = ValorEspecialidadeConvenio
+        fields = ['id', 'plano_convenio_id', 'plano_nome', 'convenio_nome', 'valor']

@@ -13,6 +13,10 @@ const updateEspecialidade = (id, data) => {
     return apiClient.put(`/usuarios/especialidades/${id}/`, data);
 };
 
+const definirPrecoConvenioEspecialidade = (id, data) => {
+    return apiClient.post(`/usuarios/especialidades/${id}/definir-preco-convenio/`, data);
+};
+
 const deleteEspecialidade = (id) => {
     return apiClient.delete(`/usuarios/especialidades/${id}/`);
 };
@@ -58,4 +62,5 @@ export const configuracoesService = {
     updateJornada,
     deleteJornada,
     getMedicos,
+    definirPrecoConvenioEspecialidade
 };

@@ -556,29 +556,40 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     
     const valorExibido = useMemo(() => {
         if (formData.tipo_atendimento === 'Convenio' && formData.plano_utilizado) {
-            // Lógica para achar o preço de Convênio
+            
+            // CÁLCULO SE FOR PROCEDIMENTO
             if (tipoAgendamento === 'Procedimento') {
                 const listaProcedimentos = formData.procedimentos?.length > 0 ? formData.procedimentos : (formData.procedimento ? [formData.procedimento] : []);
-                
                 let totalConvenio = 0;
                 let precoFaltando = false;
 
                 listaProcedimentos.forEach(proc => {
-                    // Procura o valor específico deste plano na lista de preços do procedimento
                     const precoPlano = proc.valores_convenio?.find(v => v.plano_convenio?.id === formData.plano_utilizado.id)?.valor;
-                    
-                    if (precoPlano) {
-                        totalConvenio += parseFloat(precoPlano);
-                    } else {
-                        precoFaltando = true; // Marca que faltou preço para algum exame
-                    }
+                    if (precoPlano) totalConvenio += parseFloat(precoPlano);
+                    else precoFaltando = true; 
                 });
 
-                if (precoFaltando) return "Preço não cadastrado para este plano";
+                if (precoFaltando) return "Aviso: Preço não cadastrado para este plano";
                 return `Faturar Convênio: R$ ${totalConvenio.toFixed(2).replace('.', ',')}`;
             }
+            
+            // CÁLCULO SE FOR CONSULTA (ESPECIALIDADE)
+            if (tipoAgendamento === 'Consulta' && formData.especialidade) {
+                // Procura o preço no array de convênios da especialidade
+                const precoPlanoConsulta = formData.especialidade.valores_convenio?.find(
+                    // O campo no backend chama plano_convenio_id (conforme definimos no serializer acima)
+                    v => v.plano_convenio_id === formData.plano_utilizado.id
+                )?.valor;
+                
+                if (precoPlanoConsulta) {
+                    return `Faturar Convênio: R$ ${parseFloat(precoPlanoConsulta).toFixed(2).replace('.', ',')}`;
+                }
+                return "Aviso: Preço não cadastrado para este plano";
+            }
+
             return `Faturamento via Convênio`;
         }
+        
         if (formData.tipo_atendimento === 'Particular') {
             if (tipoAgendamento === 'Consulta' && formData.especialidade?.valor_consulta) {
                 return `R$ ${formData.especialidade.valor_consulta}`;
