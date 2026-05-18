@@ -827,7 +827,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 </Box>
 
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem></Select></FormControl>
+                                    <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem>
+                                            <MenuItem value="Convenio">Convênio</MenuItem> 
+                                            {/* CORREÇÃO: A trava disabled={!pacienteDetalhes?.plano_convenio} foi totalmente removida aqui */}
+                                        </Select>
+                                    </FormControl>
+
                                     {/* Campo para selecionar o plano se for Convênio */}
                                     {formData.tipo_atendimento === 'Convenio' && (
                                         <FormControl fullWidth size="small">
@@ -842,7 +847,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                 )}
                                             />
                                         </FormControl>
-                                    )}
+                                    )} {/* CORREÇÃO: Bloco devidamente fechado com ')}' para evitar erros de compilação */}
                                     
                                     {valorExibido && (
                                         <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, display: 'flex', justifyContent: 'space-between' }}>
