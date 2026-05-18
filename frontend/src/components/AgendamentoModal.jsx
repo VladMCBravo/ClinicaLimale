@@ -86,6 +86,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [pacientes, setPacientes] = useState([]);
     const [procedimentos, setProcedimentos] = useState([]);
     const [planos, setPlanos] = useState([]);
+    const [convenios, setConvenios] = useState([]);
+    const [convenioSelecionado, setConvenioSelecionado] = useState(null); // Armazena a empresa escolhida
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
     const [salas, setSalas] = useState([]); 
@@ -147,10 +149,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 })
                 .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
             
-                // NOVO: Buscar os planos de convênio
+                // NOVO: Buscar os planos e os convênios
             faturamentoService.getPlanosConvenio()
                 .then(response => setPlanos(response.data))
                 .catch(error => console.error("Erro ao carregar planos", error));
+                
+            faturamentoService.getConvenios()
+                .then(response => setConvenios(response.data))
+                .catch(error => console.error("Erro ao carregar convênios", error));
     }
     }, [open, showSnackbar]);
 
@@ -549,9 +555,30 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     };
     
     const valorExibido = useMemo(() => {
-        if (formData.tipo_atendimento === 'Convenio') {
-        return `Faturamento via Convênio`;
-    }
+        if (formData.tipo_atendimento === 'Convenio' && formData.plano_utilizado) {
+            // Lógica para achar o preço de Convênio
+            if (tipoAgendamento === 'Procedimento') {
+                const listaProcedimentos = formData.procedimentos?.length > 0 ? formData.procedimentos : (formData.procedimento ? [formData.procedimento] : []);
+                
+                let totalConvenio = 0;
+                let precoFaltando = false;
+
+                listaProcedimentos.forEach(proc => {
+                    // Procura o valor específico deste plano na lista de preços do procedimento
+                    const precoPlano = proc.valores_convenio?.find(v => v.plano_convenio?.id === formData.plano_utilizado.id)?.valor;
+                    
+                    if (precoPlano) {
+                        totalConvenio += parseFloat(precoPlano);
+                    } else {
+                        precoFaltando = true; // Marca que faltou preço para algum exame
+                    }
+                });
+
+                if (precoFaltando) return "Preço não cadastrado para este plano";
+                return `Faturar Convênio: R$ ${totalConvenio.toFixed(2).replace('.', ',')}`;
+            }
+            return `Faturamento via Convênio`;
+        }
         if (formData.tipo_atendimento === 'Particular') {
             if (tipoAgendamento === 'Consulta' && formData.especialidade?.valor_consulta) {
                 return `R$ ${formData.especialidade.valor_consulta}`;
@@ -835,19 +862,38 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
                                     {/* Campo para selecionar o plano se for Convênio */}
                                     {formData.tipo_atendimento === 'Convenio' && (
-                                        <FormControl fullWidth size="small">
-                                            <Autocomplete
-                                                options={planos}
-                                                getOptionLabel={(option) => option.nome || ''}
-                                                value={formData.plano_utilizado}
-                                                isOptionEqualToValue={(option, value) => option.id === value.id}
-                                                onChange={(event, newValue) => setFormData({ ...formData, plano_utilizado: newValue })}
-                                                renderInput={(params) => (
-                                                    <TextField {...params} label="Plano do Convênio *" error={!formData.plano_utilizado} />
-                                                )}
-                                            />
-                                        </FormControl>
-                                    )} {/* CORREÇÃO: Bloco devidamente fechado com ')}' para evitar erros de compilação */}
+                                        <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                            {/* 1. Seleciona a Empresa (Convênio) */}
+                                            <FormControl fullWidth size="small">
+                                                <Autocomplete
+                                                    options={convenios}
+                                                    getOptionLabel={(option) => option.nome || ''}
+                                                    value={convenioSelecionado}
+                                                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                                                    onChange={(event, newValue) => {
+                                                        setConvenioSelecionado(newValue);
+                                                        setFormData({ ...formData, plano_utilizado: null }); // Limpa o plano se mudar a empresa
+                                                    }}
+                                                    renderInput={(params) => <TextField {...params} label="Convênio (Empresa) *" />}
+                                                />
+                                            </FormControl>
+
+                                            {/* 2. Seleciona o Plano (Filtrado pelo Convênio acima) */}
+                                            <FormControl fullWidth size="small">
+                                                <Autocomplete
+                                                    // Filtra os planos para mostrar apenas os da empresa selecionada
+                                                    options={convenioSelecionado ? planos.filter(p => p.convenio_nome === convenioSelecionado.nome) : []}
+                                                    getOptionLabel={(option) => option.nome || ''}
+                                                    value={formData.plano_utilizado}
+                                                    disabled={!convenioSelecionado} // Trava se não escolheu a empresa
+                                                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                                                    onChange={(event, newValue) => setFormData({ ...formData, plano_utilizado: newValue })}
+                                                    renderInput={(params) => <TextField {...params} label="Tipo de Plano *" error={!formData.plano_utilizado} />}
+                                                    noOptionsText={convenioSelecionado ? "Nenhum plano encontrado" : "Selecione a empresa primeiro"}
+                                                />
+                                            </FormControl>
+                                        </Box>
+                                    )}
                                     
                                     {valorExibido && (
                                         <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, display: 'flex', justifyContent: 'space-between' }}>
