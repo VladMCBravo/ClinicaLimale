@@ -200,6 +200,9 @@ class LoteFaturamento(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_envio = models.DateTimeField(null=True, blank=True)
     valor_total_lote = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    valor_pago = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    valor_glosa = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    data_pagamento = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_LOTE_CHOICES, default='Aberto')
     gerado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     

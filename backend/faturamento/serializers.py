@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from .models import (
     TransacaoFinanceira, Pagamento, CategoriaDespesa, Despesa, Convenio, 
-    PlanoConvenio, Procedimento, ValorProcedimentoConvenio # 1. Importe o novo modelo
+    PlanoConvenio, Procedimento, ValorProcedimentoConvenio, LoteFaturamento
 )
 from agendamentos.models import Agendamento, ConfiguracaoExame, DiaFuncionamentoExame
 
@@ -205,6 +205,13 @@ class ValorProcedimentoConvenioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ValorProcedimentoConvenio
         fields = ['id', 'plano_convenio', 'plano_convenio_id', 'valor']
+
+class LoteFaturamentoSerializer(serializers.ModelSerializer):
+    convenio_nome = serializers.CharField(source='convenio.nome', read_only=True)
+    
+    class Meta:
+        model = LoteFaturamento
+        fields = '__all__'
 
 # 3. NOVOS SERIALIZERS PARA A AGENDA (Leitura)
 class DiaFuncionamentoExameSerializer(serializers.ModelSerializer):

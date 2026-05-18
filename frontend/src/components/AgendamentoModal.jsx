@@ -15,6 +15,7 @@ import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlin
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
 
 import { agendamentoService } from '../services/agendamentoService';
+import { faturamentoService } from '../services/faturamentoService';
 import { pacienteService } from '../services/pacienteService';
 import { configuracoesService } from '../services/configuracoesService'; // Adicione nas importações do topo
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -84,6 +85,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     
     const [pacientes, setPacientes] = useState([]);
     const [procedimentos, setProcedimentos] = useState([]);
+    const [planos, setPlanos] = useState([]);
     const [medicos, setMedicos] = useState([]);
     const [especialidades, setEspecialidades] = useState([]);
     const [salas, setSalas] = useState([]); 
@@ -144,7 +146,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     setSalasFiltradas(response.data); 
                 })
                 .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
-        }
+            
+                // NOVO: Buscar os planos de convênio
+            faturamentoService.getPlanosConvenio()
+                .then(response => setPlanos(response.data))
+                .catch(error => console.error("Erro ao carregar planos", error));
+    }
     }, [open, showSnackbar]);
 
     useEffect(() => {
@@ -402,6 +409,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             if (tipoAgendamento === 'Procedimento') return "A sala de procedimentos já está ocupada. Marque 'Forçar Encaixe' para ignorar.";
         }
         
+        // Agora a checagem de convênio fica solta e correta:
+        if (formData.tipo_atendimento === 'Convenio' && !formData.plano_utilizado) {
+            return "Selecione o plano do convênio utilizado pelo paciente.";
+        }
+        
         return null;
     };
 
@@ -537,6 +549,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     };
     
     const valorExibido = useMemo(() => {
+        if (formData.tipo_atendimento === 'Convenio') {
+        return `Faturamento via Convênio`;
+    }
         if (formData.tipo_atendimento === 'Particular') {
             if (tipoAgendamento === 'Consulta' && formData.especialidade?.valor_consulta) {
                 return `R$ ${formData.especialidade.valor_consulta}`;
@@ -811,6 +826,21 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio" disabled={!pacienteDetalhes?.plano_convenio}>Convênio</MenuItem></Select></FormControl>
+                                    {/* Campo para selecionar o plano se for Convênio */}
+                                    {formData.tipo_atendimento === 'Convenio' && (
+                                        <FormControl fullWidth size="small">
+                                            <Autocomplete
+                                                options={planos}
+                                                getOptionLabel={(option) => option.nome || ''}
+                                                value={formData.plano_utilizado}
+                                                isOptionEqualToValue={(option, value) => option.id === value.id}
+                                                onChange={(event, newValue) => setFormData({ ...formData, plano_utilizado: newValue })}
+                                                renderInput={(params) => (
+                                                    <TextField {...params} label="Plano do Convênio *" error={!formData.plano_utilizado} />
+                                                )}
+                                            />
+                                        </FormControl>
+                                    )}
                                     
                                     {valorExibido && (
                                         <Box sx={{ p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1, display: 'flex', justifyContent: 'space-between' }}>

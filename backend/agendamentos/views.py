@@ -139,7 +139,7 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         
         if pagamento:
             pagamento.registrado_por = self.request.user
-            
+            tipo_atendimento = agendamento.tipo_atendimento
             # --- NOVA LÓGICA DE ISENÇÃO ---
             isento = self.request.data.get('isento_cobranca')
             
@@ -155,6 +155,18 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
                 pagamento.status = 'Pago'
                 pagamento.forma_pagamento = 'Outros'
                 pagamento.data_pagamento = timezone.now().date()
+            elif tipo_atendimento == 'Convenio':
+                # --- NOVA LÓGICA DE CONVÊNIO ---
+                desc_base = agendamento.procedimento.descricao if agendamento.procedimento else "Consulta"
+                nome_plano = agendamento.plano_utilizado.nome if agendamento.plano_utilizado else "Sem Plano"
+                
+                # Zera o valor para a recepção (o faturamento real ocorre no módulo financeiro)
+                pagamento.valor = 0.00
+                pagamento.descricao = f"{desc_base} (CONVÊNIO: {nome_plano})"
+                pagamento.status = 'Pago' # Define como pago para não travar a fila da recepção
+                pagamento.forma_pagamento = 'Outros'
+                pagamento.data_pagamento = timezone.now().date()
+
             else:
                 # Fluxo Normal (Cobrança padrão)
                 pagamento.status = 'Pendente'

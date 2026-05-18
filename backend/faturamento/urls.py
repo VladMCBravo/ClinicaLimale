@@ -19,7 +19,8 @@ from .views import (
     InterWebhookAPIView,
     CobrancasPendentesPacienteAPIView, # <-- Importe a nova view
     LancamentoAvulsoAPIView,
-    ProjecaoFluxoCaixaAPIView # <-- Importe a nova view
+    ProjecaoFluxoCaixaAPIView,
+    LoteFaturamentoViewSet
 )
 
 # O router regista os ViewSets (que criam múltiplas URLs)
@@ -30,6 +31,7 @@ router.register(r'pagamentos', PagamentoViewSet, basename='pagamento')
 router.register(r'categorias-despesa', CategoriaDespesaViewSet, basename='categoria-despesa')
 router.register(r'despesas', DespesaViewSet, basename='despesa')
 router.register(r'convenios', ConvenioViewSet, basename='convenio')
+router.register(r'lotes', LoteFaturamentoViewSet)
 router.register(r'planos', PlanoConvenioViewSet, basename='plano')
 router.register(r'procedimentos', ProcedimentoViewSet, basename='procedimento')
 

@@ -25,7 +25,7 @@ from .models import (
 from .serializers import (
     TransacaoFinanceiraSerializer, PagamentoSerializer, PagamentoUpdateSerializer,
     DespesaSerializer, CategoriaDespesaSerializer, ConvenioSerializer, 
-    PlanoConvenioSerializer, ProcedimentoSerializer, CobrancaPendenteSerializer
+    PlanoConvenioSerializer, ProcedimentoSerializer, CobrancaPendenteSerializer, LoteFaturamentoSerializer
 )
 from agendamentos.serializers import AgendamentoSerializer
 from agendamentos.models import Agendamento, Sala, ConfiguracaoExame, DiaFuncionamentoExame
@@ -709,6 +709,49 @@ class ConvenioViewSet(viewsets.ModelViewSet):
 class PlanoConvenioViewSet(viewsets.ModelViewSet):
     queryset = PlanoConvenio.objects.all()
     serializer_class = PlanoConvenioSerializer
+
+class LoteFaturamentoViewSet(viewsets.ModelViewSet):
+    queryset = LoteFaturamento.objects.all().order_by('-data_criacao')
+    serializer_class = LoteFaturamentoSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'], url_path='baixar')
+    @transaction.atomic
+    def baixar(self, request, pk=None):
+        lote = self.get_object()
+        
+        if lote.status in ['Pago', 'Pago com Glosa']:
+            return Response({"erro": "Este lote já foi baixado anteriormente."}, status=400)
+
+        # 1. Captura os valores informados pelo Frontend
+        valor_pago = float(request.data.get('valor_pago', 0))
+        valor_glosa = float(request.data.get('valor_glosa', 0))
+        data_pag = request.data.get('data_pagamento')
+        
+        # 2. Atualiza o Lote
+        lote.valor_pago = valor_pago
+        lote.valor_glosa = valor_glosa
+        lote.data_pagamento = data_pag
+        lote.status = 'Pago com Glosa' if valor_glosa > 0 else 'Pago'
+        lote.save()
+
+        # 3. CRIA A RECEITA REAL NO FLUXO DE CAIXA
+        if valor_pago > 0:
+            TransacaoFinanceira.objects.create(
+                tipo='Receita',
+                descricao=f"Recebimento Lote {lote.id} - {lote.convenio.nome}",
+                valor=valor_pago,
+                status='Pago',
+                data_vencimento=data_pag,
+                data_pagamento=data_pag,
+                forma_pagamento='Transferencia',
+                observacoes=f"Faturamento TISS. Valor original: {lote.valor_total_lote} | Glosa: {valor_glosa}",
+                criado_por=request.user,
+                baixado_por=request.user,
+                data_hora_baixa=timezone.now()
+            )
+
+        return Response({"msg": "Lote baixado e receita integrada ao fluxo de caixa com sucesso!"})
 
 class ProcedimentoViewSet(viewsets.ModelViewSet):
     queryset = Procedimento.objects.filter(ativo=True)
