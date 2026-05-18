@@ -160,12 +160,23 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
                 desc_base = agendamento.procedimento.descricao if agendamento.procedimento else "Consulta"
                 nome_plano = agendamento.plano_utilizado.nome if agendamento.plano_utilizado else "Sem Plano"
                 
-                # Zera o valor para a recepção (o faturamento real ocorre no módulo financeiro)
-                pagamento.valor = 0.00
+                # Busca o valor real do plano
+                novo_valor = 0.00
+                if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
+                    from usuarios.models import ValorEspecialidadeConvenio
+                    val_obj = ValorEspecialidadeConvenio.objects.filter(especialidade=agendamento.especialidade, plano_convenio=agendamento.plano_utilizado).first()
+                    if val_obj: novo_valor = val_obj.valor
+                elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
+                    from faturamento.models import ValorProcedimentoConvenio
+                    val_obj = ValorProcedimentoConvenio.objects.filter(procedimento=agendamento.procedimento, plano_convenio=agendamento.plano_utilizado).first()
+                    if val_obj: novo_valor = val_obj.valor
+                
+                # Aplica o valor correto e define como Pendente para aparecer no Contas a Receber
+                pagamento.valor = novo_valor
                 pagamento.descricao = f"{desc_base} (CONVÊNIO: {nome_plano})"
-                pagamento.status = 'Pago' # Define como pago para não travar a fila da recepção
-                pagamento.forma_pagamento = 'Outros'
-                pagamento.data_pagamento = timezone.now().date()
+                pagamento.status = 'Pendente' 
+                pagamento.forma_pagamento = 'Convenio'
+                pagamento.data_pagamento = None
 
             else:
                 # Fluxo Normal (Cobrança padrão)
@@ -216,19 +227,36 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             pagamento.save()
             return # Sai da função para não aplicar as regras de status abaixo
 
-        if agendamento.status == 'Não Compareceu':
-            if pagamento.status == 'Pendente':
-                pagamento.status = 'Cancelado'
-                pagamento.save()
-                print(f"[DEBUG-FIN] SUCESSO: Pagamento {pagamento.id} marcado como CANCELADO.")
-            else:
-                print(f"[DEBUG-FIN] AVISO: Pagamento {pagamento.id} ignorado (Status atual: {pagamento.status})")
+        # --- A CORREÇÃO: RECALCULA O VALOR DA DÍVIDA NA EDIÇÃO ---
+        if pagamento.status == 'Pendente':
+            novo_valor = 0.00
+            desc_base = agendamento.procedimento.descricao if agendamento.procedimento else "Consulta"
+            
+            if agendamento.tipo_atendimento == 'Convenio' and agendamento.plano_utilizado:
+                nome_plano = agendamento.plano_utilizado.nome
                 
-        elif agendamento.status in ['Agendado', 'Confirmado']:
-            if pagamento.status == 'Cancelado':
-                pagamento.status = 'Pendente'
-                pagamento.save()
-                print(f"[DEBUG-FIN] SUCESSO: Pagamento {pagamento.id} revertido para PENDENTE.")
+                if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
+                    from usuarios.models import ValorEspecialidadeConvenio
+                    val_obj = ValorEspecialidadeConvenio.objects.filter(especialidade=agendamento.especialidade, plano_convenio=agendamento.plano_utilizado).first()
+                    if val_obj: novo_valor = val_obj.valor
+                elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
+                    from faturamento.models import ValorProcedimentoConvenio
+                    val_obj = ValorProcedimentoConvenio.objects.filter(procedimento=agendamento.procedimento, plano_convenio=agendamento.plano_utilizado).first()
+                    if val_obj: novo_valor = val_obj.valor
+                
+                pagamento.descricao = f"{desc_base} (CONVÊNIO: {nome_plano})"
+                pagamento.forma_pagamento = 'Convenio'
+            else:
+                if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
+                    novo_valor = agendamento.especialidade.valor_consulta or 0.00
+                elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
+                    novo_valor = agendamento.procedimento.valor_particular or 0.00
+                
+                pagamento.descricao = desc_base
+
+            pagamento.valor = novo_valor
+            pagamento.save()
+            print(f"[DEBUG-FIN] SUCESSO: Pagamento {pagamento.id} revertido para PENDENTE.")
 
     def perform_destroy(self, instance):
         """

@@ -378,6 +378,19 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     }
 }, [formData.medico, open]);
 
+    // --- NOVO: Sincroniza a Empresa do Convênio automaticamente ao abrir o modal ou mudar de plano ---
+    useEffect(() => {
+        if (formData.tipo_atendimento === 'Convenio' && formData.plano_utilizado && convenios.length > 0) {
+            // Procura na lista de empresas a dona deste plano
+            const empresa = convenios.find(c => c.nome === formData.plano_utilizado.convenio_nome);
+            if (empresa && (!convenioSelecionado || convenioSelecionado.id !== empresa.id)) {
+                setConvenioSelecionado(empresa);
+            }
+        } else if (formData.tipo_atendimento !== 'Convenio') {
+            setConvenioSelecionado(null);
+        }
+    }, [formData.plano_utilizado, formData.tipo_atendimento, convenios]);
+
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
         setFormData(prev => ({ ...prev, paciente: pacienteSelecionado }));
         if (pacienteSelecionado) {

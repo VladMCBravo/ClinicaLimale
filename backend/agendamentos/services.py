@@ -144,20 +144,14 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
             ).first()
             if val_obj: valor_do_pagamento = val_obj.valor
             
-        elif agendamento.tipo_agendamento == 'Procedimento' and agendamento.procedimento:
-            from faturamento.models import ValorProcedimentoConvenio
-            val_obj = ValorProcedimentoConvenio.objects.filter(
-                procedimento=agendamento.procedimento, 
-                plano_convenio=agendamento.plano_utilizado
-            ).first()
-            if val_obj: valor_do_pagamento = val_obj.valor
-            
-    if agendamento.tipo_agendamento == 'Consulta':
-        if agendamento.especialidade and agendamento.especialidade.valor_consulta:
-            valor_do_pagamento = agendamento.especialidade.valor_consulta
-    elif agendamento.tipo_agendamento == 'Procedimento':
-        if agendamento.procedimento and agendamento.procedimento.valor_particular:
-            valor_do_pagamento = agendamento.procedimento.valor_particular
+        # --- A CORREÇÃO: O 'ELSE' IMPEDE QUE O PARTICULAR SOBRESCREVA O CONVÊNIO ---
+    else:
+        if agendamento.tipo_agendamento == 'Consulta':
+            if agendamento.especialidade and agendamento.especialidade.valor_consulta:
+                valor_do_pagamento = agendamento.especialidade.valor_consulta
+        elif agendamento.tipo_agendamento == 'Procedimento':
+            if agendamento.procedimento and agendamento.procedimento.valor_particular:
+                valor_do_pagamento = agendamento.procedimento.valor_particular
     
     pagamento = Pagamento.objects.create(
         agendamento=agendamento, 
@@ -165,7 +159,7 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
         valor=valor_do_pagamento,
         status='Pendente', 
         registrado_por=usuario_logado,
-        data_vencimento=agendamento.data_hora_inicio.date() # <--- ADICIONE APENAS ESTA LINHA AQUI!
+        data_vencimento=agendamento.data_hora_inicio.date() 
     )
     
     gerar_pagamento = False
