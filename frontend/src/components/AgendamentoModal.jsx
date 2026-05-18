@@ -378,18 +378,54 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     }
 }, [formData.medico, open]);
 
-    // --- NOVO: Sincroniza a Empresa do Convênio automaticamente ao abrir o modal ou mudar de plano ---
+    // --- CORREÇÃO: Sincronização de Convênio com LOGS ---
     useEffect(() => {
-        if (formData.tipo_atendimento === 'Convenio' && formData.plano_utilizado && convenios.length > 0) {
-            // Procura na lista de empresas a dona deste plano
-            const empresa = convenios.find(c => c.nome === formData.plano_utilizado.convenio_nome);
-            if (empresa && (!convenioSelecionado || convenioSelecionado.id !== empresa.id)) {
-                setConvenioSelecionado(empresa);
+        if (formData.tipo_atendimento === 'Convenio' && convenios.length > 0 && planos.length > 0) {
+            
+            console.log("[DEBUG - CONVÊNIO] --- Analisando Agendamento ---");
+            console.log("1. Valor atual no formData:", formData.plano_utilizado);
+            
+            let planoObj = null;
+
+            // CASO 1: O backend mandou apenas o nome (texto) do plano (ocorre ao abrir para editar)
+            if (typeof formData.plano_utilizado === 'string') {
+                console.log("2. O plano veio como TEXTO do banco de dados. Procurando o objeto...");
+                planoObj = planos.find(p => p.nome === formData.plano_utilizado);
+            } 
+            // CASO 2: Já é um objeto (ocorre quando a recepção seleciona o plano na mão)
+            else if (formData.plano_utilizado && formData.plano_utilizado.id) {
+                planoObj = planos.find(p => p.id === formData.plano_utilizado.id);
             }
+
+            if (planoObj) {
+                console.log("3. Objeto do Plano mapeado com sucesso:", planoObj.nome);
+                
+                // Encontra a empresa (Unimed, Bradesco, etc) que é dona desse plano
+                const empresaObj = convenios.find(c => c.nome === planoObj.convenio_nome);
+                console.log("4. Empresa dona do plano:", empresaObj ? empresaObj.nome : "Não encontrada");
+
+                // Atualiza a primeira caixa (Empresa)
+                setConvenioSelecionado(prev => {
+                    if (empresaObj && (!prev || prev.id !== empresaObj.id)) {
+                        return empresaObj;
+                    }
+                    return prev;
+                });
+
+                // Transforma o texto no objeto para a segunda caixa (Plano) não ficar em branco
+                if (formData.plano_utilizado !== planoObj) {
+                    console.log("5. Corrigindo o formulário: Trocando o texto pelo objeto!");
+                    setFormData(prev => ({ ...prev, plano_utilizado: planoObj }));
+                }
+            } else {
+                console.log("❌ ERRO: Plano não encontrado na lista de planos carregados do servidor.");
+            }
+            
         } else if (formData.tipo_atendimento !== 'Convenio') {
+            // Se mudou para Particular, limpa a caixa da empresa
             setConvenioSelecionado(null);
         }
-    }, [formData.plano_utilizado, formData.tipo_atendimento, convenios]);
+    }, [formData.tipo_atendimento, formData.plano_utilizado, convenios, planos]);
 
     const handlePacienteChange = useCallback((event, pacienteSelecionado) => {
         setFormData(prev => ({ ...prev, paciente: pacienteSelecionado }));
