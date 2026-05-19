@@ -41,10 +41,23 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         ).exists()
     
     def get_valor_faturamento(self, obj):
-        # Puxa o valor do pagamento atrelado a este agendamento
-        pagamento = obj.pagamento.first() if hasattr(obj, 'pagamento') else None
-        if pagamento:
-            return float(pagamento.valor)
+        try:
+            # Puxa o objeto financeiro atrelado (evitando quebrar se não existir)
+            pagamento = getattr(obj, 'pagamento', None)
+            
+            if not pagamento:
+                return 0.00
+            
+            # Se por acaso o Django trouxer como lista, pegamos o primeiro.
+            # Se já for o objeto direto (o seu caso), usamos ele mesmo.
+            if hasattr(pagamento, 'first'):
+                pagamento = pagamento.first()
+                
+            if pagamento and pagamento.valor is not None:
+                return float(pagamento.valor)
+        except Exception:
+            pass
+            
         return 0.00
 
 # --- Serializer para ESCRITA (POST, PUT, PATCH) ---
