@@ -586,18 +586,30 @@ class CobrancasPendentesPacienteAPIView(generics.ListAPIView):
 class AgendamentosFaturaveisAPIView(generics.ListAPIView):
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
+    
     def get_queryset(self):
         convenio_id = self.request.query_params.get('convenio_id')
         mes = self.request.query_params.get('mes')
         ano = self.request.query_params.get('ano')
+        periodo = self.request.query_params.get('periodo', 'mensal') # <--- NOVO
+        
         if not all([convenio_id, mes, ano]): return Agendamento.objects.none()
-        return Agendamento.objects.filter(
+        
+        qs = Agendamento.objects.filter(
             plano_utilizado__convenio__id=convenio_id,
             data_hora_inicio__month=mes,
             data_hora_inicio__year=ano,
             tipo_atendimento='Convenio',
             guia_tiss__isnull=True
-        )
+        ).exclude(status__in=['Cancelado', 'Não Compareceu']) # Boa prática
+        
+        # --- FILTRO DE QUINZENA ---
+        if periodo == 'quinzena1':
+            qs = qs.filter(data_hora_inicio__day__lte=15)
+        elif periodo == 'quinzena2':
+            qs = qs.filter(data_hora_inicio__day__gte=16)
+            
+        return qs
 
 # ==============================================================================
 # 2. VIEWS NOVAS (TRANSAÇÃO UNIFICADA)
@@ -842,9 +854,17 @@ class GerarLoteFaturamentoAPIView(APIView):
     def post(self, request, *args, **kwargs):
         if not FaturamentoService: return Response({"error": "Service indisponível"}, 500)
         try:
+            mes_ref_str = request.data.get('mes_referencia')
+            
+            # --- ACEITA O FORMATO DE DIA PARA SALVAR A QUINZENA EXATA NO BANCO ---
+            if len(mes_ref_str) == 7: # YYYY-MM
+                data_ref = timezone.datetime.strptime(mes_ref_str, '%Y-%m').date()
+            else: # YYYY-MM-DD
+                data_ref = timezone.datetime.strptime(mes_ref_str, '%Y-%m-%d').date()
+
             lote, xml = FaturamentoService.processar_lote_tiss(
                 request.data.get('convenio_id'),
-                timezone.datetime.strptime(request.data.get('mes_referencia'), '%Y-%m').date(),
+                data_ref,
                 request.data.get('agendamento_ids', []),
                 request.user
             )

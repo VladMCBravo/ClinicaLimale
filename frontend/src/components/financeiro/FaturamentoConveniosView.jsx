@@ -27,6 +27,7 @@ export default function FaturamentoConveniosView() {
     const [agendamentosFaturaveis, setAgendamentosFaturaveis] = useState([]);
     const [selectedConvenio, setSelectedConvenio] = useState('');
     const [selectedDate, setSelectedDate] = useState(dayjs());
+    const [periodo, setPeriodo] = useState('mensal'); // <--- ADICIONE ESTA LINHA
     const [termoBusca, setTermoBusca] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -71,11 +72,18 @@ export default function FaturamentoConveniosView() {
         setAgendamentosFaturaveis([]);
         setSelectedIds([]); 
         
-        const params = { convenio_id: selectedConvenio, ano: selectedDate.year(), mes: selectedDate.month() + 1 };
+        // --- NOVO: Envia o parâmetro de período (mensal, quinzena1, quinzena2) ---
+        const params = { 
+            convenio_id: selectedConvenio, 
+            ano: selectedDate.year(), 
+            mes: selectedDate.month() + 1,
+            periodo: periodo 
+        };
+        
         try {
             const response = await faturamentoService.getAgendamentosFaturaveis(params);
             setAgendamentosFaturaveis(response.data);
-            if (response.data.length === 0) showSnackbar("Nenhum agendamento faturável encontrado.", 'info');
+            if (response.data.length === 0) showSnackbar("Nenhum agendamento faturável encontrado para este período.", 'info');
         } catch (error) { showSnackbar("Erro ao buscar agendamentos.", 'error'); } 
         finally { setIsLoading(false); }
     };
@@ -95,7 +103,12 @@ export default function FaturamentoConveniosView() {
     const handleGerarLote = async () => {
         setIsGenerating(true);
         try {
-            const mesRefStr = `${selectedDate.year()}-${(selectedDate.month() + 1).toString().padStart(2, '0')}`;
+            // --- NOVO: Força o dia 16 para a segunda quinzena, para o histórico mostrar certo ---
+            let diaRef = '01';
+            if (periodo === 'quinzena2') diaRef = '16';
+            
+            const mesRefStr = `${selectedDate.year()}-${(selectedDate.month() + 1).toString().padStart(2, '0')}-${diaRef}`;
+            
             const response = await faturamentoService.gerarLoteFaturamento({
                 convenio_id: selectedConvenio, mes_referencia: mesRefStr, agendamento_ids: selectedIds
             });
@@ -175,6 +188,14 @@ export default function FaturamentoConveniosView() {
                             </Select>
                         </FormControl>
                         <DatePicker views={['month', 'year']} value={selectedDate} onChange={setSelectedDate} slotProps={{ textField: { size: 'small', sx: { width: 140, bgcolor: 'white' } } }} />
+                        {/* --- NOVA CAIXINHA DE QUINZENA --- */}
+                        <FormControl size="small" sx={{ width: 160, bgcolor: 'white' }}>
+                            <Select value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+                                <MenuItem value="mensal">Mês Completo</MenuItem>
+                                <MenuItem value="quinzena1">1ª Quinzena</MenuItem>
+                                <MenuItem value="quinzena2">2ª Quinzena</MenuItem>
+                            </Select>
+                        </FormControl>
                         <Button variant="contained" onClick={handleBuscar} disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : <Search />} sx={{ fontWeight: 'bold' }}>Buscar</Button>
                     </Box>
 
@@ -271,7 +292,11 @@ export default function FaturamentoConveniosView() {
                                     <TableRow key={lote.id} hover>
                                         <TableCell sx={{ fontWeight: 'bold' }}>#{lote.id}</TableCell>
                                         <TableCell>{lote.convenio_nome}</TableCell>
-                                        <TableCell>{lote.mes_referencia.substring(0, 7)}</TableCell>
+                                        <TableCell>
+                                            {lote.mes_referencia.endsWith('-16') 
+                                                ? `2ª Quinzena ${lote.mes_referencia.substring(5, 7)}/${lote.mes_referencia.substring(0, 4)}` 
+                                                : `${lote.mes_referencia.substring(5, 7)}/${lote.mes_referencia.substring(0, 4)}`}
+                                        </TableCell>
                                         <TableCell>{new Date(lote.data_criacao).toLocaleDateString('pt-BR')}</TableCell>
                                         <TableCell>
                                             <Chip size="small" 
