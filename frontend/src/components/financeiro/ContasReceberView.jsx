@@ -161,8 +161,17 @@ export default function ContasReceberView() {
 
                                 return (
                                     <TableRow key={row.id} hover onClick={() => handleRowClick(row)}>
-                                        <TableCell sx={{ fontSize: '0.8rem', color: '#444' }}>
-                                            {dayjs(row.data_vencimento).format('DD/MM/YY')}
+                                        <TableCell sx={{ color: '#444' }}>
+                                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                                {dayjs(row.data_vencimento).format('DD/MM/YY')}
+                                            </Typography>
+                                            
+                                            {/* 👇 HORÁRIO DA CONSULTA INSERIDO AQUI 👇 */}
+                                            {row.agendamento_detalhes?.data_hora_inicio && (
+                                                <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                                                    {dayjs(row.agendamento_detalhes.data_hora_inicio).format('HH:mm')}
+                                                </Typography>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" fontWeight="600" fontSize="0.85rem">

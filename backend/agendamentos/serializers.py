@@ -18,6 +18,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True, default=None)
     procedimento_descricao = serializers.CharField(source='procedimento.descricao', read_only=True, default=None)
     plano_utilizado = serializers.CharField(source='plano_utilizado.nome', read_only=True, default=None)
+    valor_faturamento = serializers.SerializerMethodField()
     sala_nome = serializers.CharField(source='sala.nome', read_only=True)
 
     class Meta:
@@ -29,7 +30,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 
             'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao', 
             'data_criacao', 'data_atualizacao', 'expira_em', 'id_sala_telemedicina', 
-            'sala', 'sala_nome'
+            'sala', 'sala_nome', 'valor_faturamento'
         ]
 
     def get_primeira_consulta(self, obj):
@@ -38,6 +39,13 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             status__in=['Realizado', 'Confirmado'],
             data_hora_inicio__lt=obj.data_hora_inicio
         ).exists()
+    
+    def get_valor_faturamento(self, obj):
+        # Puxa o valor do pagamento atrelado a este agendamento
+        pagamento = obj.pagamento.first() if hasattr(obj, 'pagamento') else None
+        if pagamento:
+            return float(pagamento.valor)
+        return 0.00
 
 # --- Serializer para ESCRITA (POST, PUT, PATCH) ---
 class AgendamentoWriteSerializer(serializers.ModelSerializer):

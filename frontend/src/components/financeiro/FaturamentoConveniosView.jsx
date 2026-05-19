@@ -88,7 +88,8 @@ export default function FaturamentoConveniosView() {
 
     const totais = useMemo(() => {
         const selecionados = filteredList.filter(ag => selectedIds.includes(ag.id));
-        return { qtd: selecionados.length, valor: selecionados.reduce((acc, curr) => acc + Number(curr.valor || 0), 0) };
+        // CORREÇÃO AQUI: Troca curr.valor por curr.valor_faturamento
+        return { qtd: selecionados.length, valor: selecionados.reduce((acc, curr) => acc + Number(curr.valor_faturamento || 0), 0) };
     }, [filteredList, selectedIds]);
 
     const handleGerarLote = async () => {
@@ -204,10 +205,28 @@ export default function FaturamentoConveniosView() {
                                                     setSelectedIds(ids);
                                                 }}/>
                                             </TableCell>
-                                            <TableCell>{new Date(ag.data_hora_inicio).toLocaleDateString('pt-BR')}</TableCell>
-                                            <TableCell>{ag.paciente_nome}</TableCell>
-                                            <TableCell>{ag.procedimento || 'Consulta'}</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>{formatMoney(ag.valor)}</TableCell>
+                                            <TableCell>
+                                                {/* DATA E HORA AQUI */}
+                                                <Typography variant="body2">{dayjs(ag.data_hora_inicio).format('DD/MM/YYYY')}</Typography>
+                                                <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                                                    {dayjs(ag.data_hora_inicio).format('HH:mm')}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                {/* NOME E ETIQUETA DO PLANO AQUI */}
+                                                <Typography variant="body2" fontWeight="bold">{ag.paciente_nome}</Typography>
+                                                <Chip 
+                                                    label={ag.plano_utilizado || 'Convênio'} 
+                                                    size="small" 
+                                                    sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 'bold', mt: 0.5 }} 
+                                                />
+                                            </TableCell>
+                                            <TableCell>{ag.procedimento_descricao || 'Consulta'}</TableCell>
+                                            
+                                            {/* VALOR CORRIGIDO */}
+                                            <TableCell align="right" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                                                {formatMoney(ag.valor_faturamento)}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
