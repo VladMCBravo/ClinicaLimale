@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     FaRobot, FaCheckCircle, FaExclamationTriangle, FaTimesCircle, 
-    FaWifi, FaTools, FaBolt, FaListCheck, FaGlobe
+    FaWifi, FaTools, FaBolt, FaGlobe, FaTasks
 } from 'react-icons/fa';
 import { 
     Badge, Popover, Box, Typography, List, ListItem, ListItemText, 
@@ -142,7 +142,7 @@ export default function StatusRobo() {
                                     <Typography variant="caption"><strong>1. Energia:</strong> PC Desligado, suspenso ou nobreak apitou.</Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                                    <FaListCheck size={14} style={{ marginTop: '3px', color: '#d32f2f' }} />
+                                    <FaTasks size={14} style={{ marginTop: '3px', color: '#d32f2f' }} />
                                     <Typography variant="caption"><strong>2. Agendador (0x800710E0):</strong> Abra o Agendador de Tarefas no PC local, clique em "Finalizar" e "Executar" na tarefa do Robô.</Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
