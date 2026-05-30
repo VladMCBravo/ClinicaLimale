@@ -19,7 +19,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from xhtml2pdf import pisa
 from django.shortcuts import get_object_or_404 # Para buscar objetos
 from agendamentos.models import Agendamento # <-- 1. Importe o Agendamento
 from usuarios.models import Especialidade # <-- 2. Importe Especialidade
@@ -39,8 +38,7 @@ from .serializers import LaudoSerializer
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
 from .models import (
-    Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, 
-    Evolucao, Prescricao, OpcaoClinica, ItemPrescricao, AnamneseGinecologica, 
+    Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica, ItemPrescricao, AnamneseGinecologica, 
     AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral,
     MarcoDNPM, VacinaPaciente, TemplateRelatorio, RelatorioSalvo
 )
@@ -49,7 +47,6 @@ from .serializers import (
     EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer,
     MarcoDNPMSerializer, VacinaPacienteSerializer, TemplateRelatorioSerializer, RelatorioSalvoListSerializer, RelatorioSalvoCreateSerializer
 )
-from usuarios.permissions import CanViewProntuario # Verifique se esta permissão está correta
 
 # --- ★★★ REVERTEMOS PARA A VIEW ÚNICA ★★★ ---
 # (Delete todas as classes BaseEvolucaoCreateAPIView e suas filhas)
@@ -1489,7 +1486,8 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                 ).exclude(status='CANCELADO_POR_RETIFICACAO').values_list('exame_id', flat=True)
 
                 if exame_id_front:
-                    exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
+                    # CORRIGIDO: Removido o .exclude para permitir múltiplos laudos no mesmo exame_id via Async
+                    exame = Exame.objects.filter(id=exame_id_front).first()
                 
                 if not exame:
                     # Limite de dias baseado na data do exame (retroativo)
@@ -1502,7 +1500,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
                         paciente=paciente, 
-                        data_exame=data_retroativa, # <--- DATA CORRETA NO BANCO E NO PORTAL
+                        data_exame=data_retroativa,
                         nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
                     )
 
@@ -1565,10 +1563,10 @@ class LaudoStatusView(APIView):
         }
         
         # Se finalizou, incluímos as credenciais para o portal
-        if laudo.status == 'FINALIZADO' and laudo.exame:
+        if laudo.status == 'FINALIZADO': # <-- Removida a exigência do laudo.exame
             data["credenciais"] = {
-                "codigo": laudo.exame.codigo_acesso,
-                "senha": laudo.exame.senha_acesso,
+                "codigo": laudo.codigo_acesso, # <-- Trocado de exame para laudo
+                "senha": laudo.senha_acesso,   # <-- Trocado de exame para laudo
                 "link": "https://clinica-limale.vercel.app/resultados"
             }
             
