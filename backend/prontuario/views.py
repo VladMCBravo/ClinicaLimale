@@ -1095,10 +1095,10 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             print("DEBUG [LAUDO]: Preparando link final para devolver ao React...")
             response.data['titulo_exame'] = laudo.titulo_exame
             response.data['credenciais'] = {
-                'codigo': exame.codigo_acesso,
-                'senha': exame.senha_acesso,
+                'codigo': laudo.codigo_acesso, # Puxa o código PCT- do próprio Laudo
+                'senha': laudo.senha_acesso,   # Puxa a senha do próprio Laudo
                 'link': 'https://clinica-limale.vercel.app/resultados',
-                'exame_id': exame.id
+                'exame_id': exame.id if exame else None
             }
             from exames.serializers import ArquivoExameSerializer
             arquivos = exame.arquivos.all()
@@ -1535,10 +1535,10 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             # Devolvemos as credenciais NA HORA para o React não quebrar o WhatsApp
             response.data['titulo_exame'] = laudo.titulo_exame
             response.data['credenciais'] = {
-                'codigo': exame.codigo_acesso,
-                'senha': exame.senha_acesso,
+                'codigo': laudo.codigo_acesso, # Puxa o código PCT- do próprio Laudo
+                'senha': laudo.senha_acesso,   # Puxa a senha do próprio Laudo
                 'link': 'https://clinica-limale.vercel.app/resultados',
-                'exame_id': exame.id
+                'exame_id': exame.id if exame else None
             }
             
             response.status_code = status.HTTP_202_ACCEPTED

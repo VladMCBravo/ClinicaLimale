@@ -390,6 +390,10 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
 
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
   const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada) => {
+    // 🛑 1. TRAVA DEFINITIVA ANTI-CLIQUE DUPLO
+    // Se já estiver processando (isPolling = true), ignora qualquer outro clique.
+    if (isPolling) return;
+    
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 

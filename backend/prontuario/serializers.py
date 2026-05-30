@@ -334,13 +334,7 @@ class LaudoSerializer(serializers.ModelSerializer):
         return []
 
     def get_credenciais(self, obj):
-        if hasattr(obj, 'exame') and obj.exame:
-            return {
-                'codigo': obj.exame.codigo_acesso,
-                'senha': obj.exame.senha_acesso,
-                'link': 'https://clinica-limale.vercel.app/resultados',
-                'fonte': 'exame'
-            }
+        # Ignora as credenciais do Exame (EX-) e força SEMPRE o uso do Laudo (PCT-)
         if obj.codigo_acesso and obj.senha_acesso:
             return {
                 'codigo': obj.codigo_acesso,
