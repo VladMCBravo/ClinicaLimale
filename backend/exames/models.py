@@ -56,11 +56,13 @@ class Exame(models.Model):
         unique_together = ('nome_paciente_pasta', 'data_exame')
 
     def save(self, *args, **kwargs):
-        if not self.codigo_acesso:
-            self.codigo_acesso = 'EX-' + str(uuid.uuid4())[:4].upper()
-        if not self.senha_acesso:
-            import random
-            self.senha_acesso = str(random.randint(100000, 999999))
+        # 🛑 DESLIGANDO A GERAÇÃO DE SENHAS REDUNDANTES
+        # if not self.codigo_acesso:
+        #     self.codigo_acesso = 'EX-' + str(uuid.uuid4())[:4].upper()
+        # if not self.senha_acesso:
+        #     import random
+        #     self.senha_acesso = str(random.randint(100000, 999999))
+        
         super().save(*args, **kwargs)
 
     def __str__(self):
