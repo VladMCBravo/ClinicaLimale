@@ -993,7 +993,8 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 ).exclude(status='CANCELADO_POR_RETIFICACAO').values_list('exame_id', flat=True)
 
                 if exame_id_front:
-                    exame = Exame.objects.filter(id=exame_id_front).exclude(id__in=exames_usados_ids).first()
+                    # Trava afrouxada para permitir que 2 laudos no mesmo dia compartilhem as fotos da Samsung
+                    exame = Exame.objects.filter(id=exame_id_front).first()
                 
                 if not exame:
                     # Limite de dias baseado na data do exame (retroativo)

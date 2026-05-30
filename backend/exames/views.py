@@ -95,7 +95,7 @@ class UploadExameView(APIView):
         )
 
         # 4. VÍNCULO COM LAUDO (Escudo contra o IntegrityError)
-        if paciente_encontrado:
+        """ if paciente_encontrado:
             Laudo.objects.get_or_create(
                 exame=exame,
                 defaults={
@@ -103,7 +103,7 @@ class UploadExameView(APIView):
                     'titulo_exame': f"Exames Anexados (Auto): {paciente_encontrado.nome_completo}",
                     'status': 'FINALIZADO'
                 }
-            )
+            ) """
 
         # 5. SALVAMENTO DOS ARQUIVOS SEM DUPLICAR
         count_imgs = 0
@@ -158,23 +158,40 @@ class AcessarResultadosView(APIView):
         if not paciente_encontrado:
             return Response({'erro': 'Credenciais inválidas ou exame não encontrado.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # 4. MONTA A LINHA DO TEMPO COMPLETA DO PACIENTE
+        # 4. MONTA A LINHA DO TEMPO COMPLETA DO PACIENTE (AGRUPAMENTO INTELIGENTE)
         historico = []
-        exames_ja_listados = set() # Evita duplicar fotos que já estão dentro do laudo
+        datas_com_laudo = set() # Memória para saber quais dias já têm laudo
 
-        # A) Pega todos os laudos finalizados
-        laudos = Laudo.objects.filter(paciente=paciente_encontrado).order_by('-data_criacao')
+        # A) Busca apenas laudos válidos (ignora os que foram cancelados por correção)
+        laudos = Laudo.objects.filter(
+            paciente=paciente_encontrado
+        ).exclude(status='CANCELADO_POR_RETIFICACAO').order_by('-data_criacao')
+        
         for laudo in laudos:
             arquivos_data = []
+            urls_adicionadas = set() # Evita duplicar fotos na tela
+
+            # Adiciona o PDF do texto da médica
             if laudo.arquivo_pdf:
                 arquivos_data.append({'id': f"pdf_{laudo.id}", 'tipo': 'LAUDO', 'url': laudo.arquivo_pdf.url})
             
-            # Puxa as imagens se tiver um exame de ultrassom amarrado
-            if hasattr(laudo, 'exame') and laudo.exame:
-                exames_ja_listados.add(laudo.exame.id)
-                for arq in laudo.exame.arquivos.all():
-                    arquivos_data.append({'id': arq.id, 'tipo': arq.tipo, 'url': arq.arquivo.url})
+            # Descobre a data correta deste laudo
+            data_do_laudo = laudo.data_criacao.date()
+            if hasattr(laudo, 'exame') and laudo.exame and laudo.exame.data_exame:
+                data_do_laudo = laudo.exame.data_exame
+                
+            datas_com_laudo.add(data_do_laudo)
 
+            # MÁGICA: Busca as pastas de imagens da Samsung por DATA, e não pela trava do banco
+            exames_do_dia = Exame.objects.filter(paciente=paciente_encontrado, data_exame=data_do_laudo)
+            for ex in exames_do_dia:
+                for arq in ex.arquivos.all():
+                    # Garante que a foto só apareça uma vez no carrossel
+                    if arq.arquivo.url not in urls_adicionadas:
+                        arquivos_data.append({'id': arq.id, 'tipo': arq.tipo, 'url': arq.arquivo.url})
+                        urls_adicionadas.add(arq.arquivo.url)
+
+            # Cria o bloco visual perfeito (Separado por exame e médico)
             historico.append({
                 'id': f"L_{laudo.id}",
                 'data_exame': laudo.data_criacao.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -183,21 +200,23 @@ class AcessarResultadosView(APIView):
                 'arquivos': arquivos_data
             })
 
-        # B) Pega exames antigos "soltos" (que o robô subiu mas não tem laudo em texto)
-        exames_soltos = Exame.objects.filter(paciente=paciente_encontrado, status='DISPONIVEL').exclude(id__in=exames_ja_listados)
+        # B) Exames "soltos" (Se o robô subir fotos num dia em que a médica não fez laudo)
+        exames_soltos = Exame.objects.filter(
+            paciente=paciente_encontrado, status='DISPONIVEL'
+        ).exclude(data_exame__in=datas_com_laudo)
+        
         for exame in exames_soltos:
             arquivos_data = []
             for arq in exame.arquivos.all():
                 arquivos_data.append({'id': arq.id, 'tipo': arq.tipo, 'url': arq.arquivo.url})
             
             if arquivos_data:
-                # Trata formatação caso a data venha como string ou Date
                 data_str = exame.data_exame.strftime('%Y-%m-%dT%H:%M:%S') if hasattr(exame.data_exame, 'strftime') else f"{exame.data_exame}T00:00:00"
                 historico.append({
                     'id': f"E_{exame.id}",
                     'data_exame': data_str,
                     'titulo': "Imagens de Exame (Sem Laudo)",
-                    'medico': "Clínica Limalé",
+                    'medico': "Equipe Técnica",
                     'arquivos': arquivos_data
                 })
 

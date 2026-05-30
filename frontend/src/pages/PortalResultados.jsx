@@ -134,8 +134,19 @@ export default function PortalResultados() {
                   </Box>
                   
                   <Box sx={{ mt: { xs: 2, sm: 0 }, display: 'flex', gap: 1 }}>
-                    <Chip label={`${exame.arquivos.filter(a => a.tipo === 'IMAGEM').length} fotos`} size="small" sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' }} />
-                    {exame.arquivos.some(a => a.tipo === 'LAUDO') && <Chip label="Laudo PDF" size="small" color="error" sx={{ fontWeight: 'bold' }} />}
+                    {/* Só mostra a tag de fotos se for maior que zero */}
+                    {exame.arquivos.filter(a => a.tipo === 'IMAGEM').length > 0 && (
+                      <Chip label={`${exame.arquivos.filter(a => a.tipo === 'IMAGEM').length} fotos`} size="small" sx={{ bgcolor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' }} />
+                    )}
+                    
+                    {/* Nova tag para exibir se há vídeos anexados */}
+                    {exame.arquivos.filter(a => a.tipo === 'VIDEO').length > 0 && (
+                      <Chip label={`${exame.arquivos.filter(a => a.tipo === 'VIDEO').length} vídeos`} size="small" sx={{ bgcolor: '#fff3e0', color: '#e65100', fontWeight: 'bold' }} />
+                    )}
+
+                    {exame.arquivos.some(a => a.tipo === 'LAUDO') && (
+                      <Chip label="Laudo PDF" size="small" color="error" sx={{ fontWeight: 'bold' }} />
+                    )}
                   </Box>
                 </Card>
               </Grid>
