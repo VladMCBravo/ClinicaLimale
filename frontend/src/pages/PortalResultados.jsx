@@ -13,6 +13,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import PersonIcon from '@mui/icons-material/Person';
 import logoImage from '../assets/logo.png'; 
 import { acessarExame } from '../services/exames';
+import { FaWhatsapp } from 'react-icons/fa';
 
 export default function PortalResultados() {
   const [step, setStep] = useState('LOGIN'); // LOGIN -> DASHBOARD -> RESULTADOS
@@ -77,6 +78,24 @@ export default function PortalResultados() {
             {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
             <Button type="submit" fullWidth variant="contained" size="large" disabled={loading} sx={{ mt: 3, mb: 2 }}>
               {loading ? 'Buscando...' : 'Acessar Histórico'}
+            </Button>
+          </Box>
+
+          {/* NOVA SEÇÃO: SUPORTE VIA WHATSAPP */}
+          <Box sx={{ mt: 1, textAlign: 'center', width: '100%' }}>
+            <Divider sx={{ mb: 2 }} />
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>
+              Para solicitar acesso entre em contato pelo WhatsApp
+            </Typography>
+            <Button
+              component="a"
+              href="https://wa.me/5511919511842" // <-- COLOQUE AQUI O DDD E O NÚMERO DA CLÍNICA
+              target="_blank"
+              rel="noopener noreferrer"
+              startIcon={<FaWhatsapp size={18} />}
+              sx={{ color: '#25D366', textTransform: 'none', fontWeight: 'bold', fontSize: '13px' }}
+            >
+              Falar com a Recepção
             </Button>
           </Box>
         </Paper>
