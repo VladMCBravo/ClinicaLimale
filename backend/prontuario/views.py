@@ -1497,11 +1497,14 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
                 
                 if not exame:
+                    import uuid # <-- Importamos o gerador de IDs únicos
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
                         paciente=paciente, 
                         data_exame=data_retroativa,
-                        nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
+                        nome_paciente_pasta=nome_unico_pasta, 
+                        status='DISPONIVEL',
+                        codigo_acesso=f"EX-{uuid.uuid4().hex[:8].upper()}" # <-- FORÇA UM CÓDIGO ÚNICO AQUI
                     )
 
             # Salva o vínculo final
@@ -1551,6 +1554,10 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
         except Exception as e:
             print(f"DEBUG [LAUDO ASYNC]: Erro crítico geral: {e}")
+            # Muda o status para erro para o polling do React parar e avisar o médico
+            laudo.status = 'ERRO'
+            laudo.save()
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return response
 
