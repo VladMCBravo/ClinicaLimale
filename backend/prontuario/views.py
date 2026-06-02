@@ -1524,15 +1524,18 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             
             laudo.save()
             
-            # --- A MÁGICA: PROCESSAMENTO EM SEGUNDO PLANO SEM CELERY ---
+            # --- A MÁGICA: PROCESSAMENTO EM SEGUNDO PLANO BLINDADO ---
             import threading
+            from django.db import transaction # Adicione esta importação no topo do arquivo se já não tiver
             from .tasks import processar_laudo_background
             
-            # Cria uma thread (processo paralelo) nativa do Python
-            thread = threading.Thread(target=processar_laudo_background, args=(laudo.id,))
-            thread.start() # Inicia o processo de assinar sem travar o servidor
+            # Só inicia a Thread APÓS o commit final no banco de dados (evita Race Condition)
+            transaction.on_commit(lambda: threading.Thread(
+                target=processar_laudo_background, 
+                args=(laudo.id,)
+            ).start())
             
-            print(f"[API] Laudo {laudo.id} enviado para a Thread em background.")
+            print(f"[API] Laudo {laudo.id} programado para Thread em background.")
 
             # --- PREPARANDO RESPOSTA PRO FRONTEND ---
             # Devolvemos as credenciais NA HORA para o React não quebrar o WhatsApp
