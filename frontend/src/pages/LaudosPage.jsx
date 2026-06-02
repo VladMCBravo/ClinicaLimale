@@ -27,6 +27,7 @@ import FormAbdome from '../components/laudos/abdome/FormAbdome'; // Ajuste o cam
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
+import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
 import DeclaracaoModal from '../components/laudos/DeclaracaoModal';
 import AtestadoModal from '../components/laudos/AtestadoModal'; // Vamos criar este arquivo abaixo
 import LaudosPreviewModal from '../components/laudos/LaudosPreviewModal'; // Novo Modal
@@ -697,7 +698,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                     <option value="TRANSVAGINAL">Transvaginal</option>
                     <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
                     <option value="ABDOME">US Geral</option>
-                    <option value="DOPPLER_CAROTIDAS">Carótidas</option> 
+                    <option value="DOPPLER_CAROTIDAS">Carótidas</option>
+                    <option value="ELETROCARDIOGRAMA">Eletrocardiograma</option> 
                 </select>
             </div>
 
@@ -777,6 +779,13 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
             
             {tipoExame === 'DOPPLER_CAROTIDAS' && (
                 <FormDopplerCarotidas 
+                    key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+                    onUpdate={handleFormUpdate} 
+                    initialValues={dadosEstruturados} 
+                />
+            )}
+            {tipoExame === 'ELETROCARDIOGRAMA' && (
+                <FormEletrocardiograma 
                     key={`${paciente?.id || 'novo'}-${tipoExame}`} 
                     onUpdate={handleFormUpdate} 
                     initialValues={dadosEstruturados} 
