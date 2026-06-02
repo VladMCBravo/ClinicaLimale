@@ -2,21 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { FaNotesMedical, FaEdit } from 'react-icons/fa';
 
 // O texto padrão solicitado pelo médico
-const TEXTO_PADRAO_ECG = `ELETROCARDIOGRAMA DE REPOUSO
-
-Ritmo sinusal.
+const TEXTO_PADRAO_ECG = `Ritmo sinusal.
 Onda P e intervalo PR normais.
 Eixo elétrico preservado e morfologia do QRS normal.
 Segmento ST sem anormalidades.
 Onda T sem anormalidades.
+
 CONCLUSÃO:
 - Eletrocardiograma de repouso dentro dos limites da normalidade.
 
-Diretriz da Sociedade Brasileira de Cardiologia sobre a Análise e Emissão de Laudos Eletrocardiográficos – 2022. Arq Bras Cardiol. 2022;
-119(4):638-680
+Diretriz da Sociedade Brasileira de Cardiologia sobre a Análise e Emissão de Laudos Eletrocardiográficos – 2022. Arq Bras Cardiol. 2022; 119(4):638-680
 Obs.: Este resultado não confirma a presença ou ausência de doença, devendo ser correlacionado com os demais dados clínico-epidemiológicos do paciente em questão. A correta interpretação do resultado deste exame deverá ser realizada pelo médico solicitante.
-
-Liberado por: CRM-SP:171068- RQE 138568  Dr ALEJANDRO MIRANDA PALOMEQUE`;
+Liberado por: CRM-SP:171068- RQE 138568 Dr ALEJANDRO MIRANDA PALOMEQUE`;
 
 
 const FormEletrocardiograma = ({ onUpdate, initialValues }) => {

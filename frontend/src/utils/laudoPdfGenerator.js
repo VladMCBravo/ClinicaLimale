@@ -63,6 +63,23 @@ export const gerarPDFLaudo = async ({
             if (line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t))) {
                 return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
             }
+            // ====================================================================
+            // NOVA REGRA: Encolhe a fonte automaticamente para Avisos e Referências
+            // ====================================================================
+            const identificadoresRodape = ['Diretriz', 'Obs.:', 'Liberado por:', 'Nota:', 'Atenção:'];
+            
+            if (identificadoresRodape.some(id => line.startsWith(id))) {
+                return { 
+                    text: line, 
+                    fontSize: 8,       // <-- FONTE MENOR (Padrão é 10)
+                    color: '#555',     // <-- Cor levemente acinzentada para diferenciar
+                    alignment: 'justify', 
+                    lineHeight: 1.1,   // <-- Linhas mais espremidas
+                    margin: [0, 0, 0, 3] 
+                };
+            }
+
+            // Texto normal do Laudo
             return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
         });
     };
