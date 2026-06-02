@@ -1524,10 +1524,15 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             
             laudo.save()
             
-            # --- A MÁGICA: DELEGA O PESO PARA O WORKER ---
+            # --- A MÁGICA: PROCESSAMENTO EM SEGUNDO PLANO SEM CELERY ---
+            import threading
             from .tasks import processar_laudo_background
-            processar_laudo_background.delay(laudo.id)
-            print(f"[API] Laudo {laudo.id} enviado para a fila do Celery.")
+            
+            # Cria uma thread (processo paralelo) nativa do Python
+            thread = threading.Thread(target=processar_laudo_background, args=(laudo.id,))
+            thread.start() # Inicia o processo de assinar sem travar o servidor
+            
+            print(f"[API] Laudo {laudo.id} enviado para a Thread em background.")
 
             # --- PREPARANDO RESPOSTA PRO FRONTEND ---
             # Devolvemos as credenciais NA HORA para o React não quebrar o WhatsApp
