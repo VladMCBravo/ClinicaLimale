@@ -34,7 +34,7 @@ class Exame(models.Model):
     data_exame = models.DateField()
     nome_paciente_pasta = models.CharField(max_length=255, help_text="Nome na pasta do ultrassom")
     
-    codigo_acesso = models.CharField(max_length=20, unique=True, blank=True)
+    codigo_acesso = models.CharField(max_length=20, unique=True, blank=True, null=True)
     senha_acesso = models.CharField(max_length=20, blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDENTE')
