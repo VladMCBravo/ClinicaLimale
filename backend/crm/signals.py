@@ -92,29 +92,37 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
         if ciclo.fase_atual != 'F5':
             from .services import CRMService
             hoje = timezone.now().date()
+            motivo_falta = "Falta" if instance.status == 'Não Compareceu' else "Cancelamento"
             
-            # Descobre se foi cancelamento ou falta para contextualizar a tarefa
-            motivo = "Falta" if instance.status == 'Não Compareceu' else "Cancelamento"
-            
-            # D0: Imediato (Resgate quente)
+            # Tenta buscar a objeção principal se houver um perfil
+            objecao = "Não informada"
+            if hasattr(instance.paciente, 'perfil_comportamental') and instance.paciente.perfil_comportamental.principal_objecao:
+                objecao = instance.paciente.perfil_comportamental.get_principal_objecao_display()
+
+            # Personaliza a cadência
             CRMService.criar_acao(
                 ciclo=ciclo, 
-                descricao=f"D0 ({motivo}): Mandar mensagem de resgate imediata. Aconteceu algo?", 
+                descricao=f"D0 ({motivo_falta}): Mensagem de resgate imediata. Objecao conhecida: {objecao}.", 
                 data_alvo=hoje
             )
-            # D1: Dia Seguinte (Contorno de objeção)
+
+            # D1: Baseado no tipo de exame
+            d1_text = f"D1 ({motivo_falta}): Oferecer novo horário."
+            if ciclo.tipo == 'GESTACAO':
+                d1_text = f"D1 ({motivo_falta}): Reforçar a importância de manter o controle do ultrassom na semana certa."
+                
             CRMService.criar_acao(
                 ciclo=ciclo, 
-                descricao=f"D1 ({motivo}): Oferecer nova opção de agenda ou contornar objeção.", 
+                descricao=d1_text, 
                 data_alvo=hoje + timedelta(days=1)
             )
-            # D3: Última tentativa
+            
             CRMService.criar_acao(
                 ciclo=ciclo, 
-                descricao=f"D3 ({motivo}): Quebra de gelo / Última tentativa de reativar.", 
+                descricao=f"D3 ({motivo_falta}): Última tentativa (Ex: Condição especial/Encaixe).", 
                 data_alvo=hoje + timedelta(days=3)
             )
-            print(f"🔄 [CRM] Cadência D0/D1/D3 armada para o Ciclo {ciclo.id} ({motivo})")
+            
 
     elif instance.status in status_f3:
         if teve_sucesso_anterior and instance.status == 'Realizado':

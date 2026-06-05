@@ -127,12 +127,31 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         if obj.fase_atual == 'F5':
             return {"cor": "#ef6c00", "icone": "🔄", "texto": "Faltou/Cancelou. Reagendar hoje!"}
 
-        # 3. ALERTA DE LEAD FRIO (F1)
+        # --- NOVOS ALERTAS BASEADOS NO GHOST MODE ---
+        try:
+            if hasattr(obj.paciente, 'perfil_comportamental'):
+                perfil = obj.paciente.perfil_comportamental
+                
+                # A: Paciente Quente que não agendou
+                if obj.fase_atual == 'F1' and perfil.nivel_urgencia == 'quente':
+                     return {"cor": "#d32f2f", "icone": "🔥", "texto": "Lead Quente! Responder Imediatamente."}
+                
+                # B: Abordagem empática para investigação
+                if obj.fase_atual == 'F1' and perfil.motivo_exame in ['investigacao_dor', 'urgencia']:
+                    return {"cor": "#c2185b", "icone": "🩺", "texto": "Paciente com dor/urgência. Prioridade no acolhimento."}
+                
+                # C: Gestante de primeira viagem (Maior ticket médio potencial)
+                tipo_upper = (obj.tipo or '').upper()
+                e_obstetrico = 'GESTA' in tipo_upper or 'OBST' in tipo_upper
+                if obj.fase_atual == 'F1' and e_obstetrico and perfil.primeira_gravidez:
+                    return {"cor": "#009688", "icone": "🧸", "texto": "Primeira Gravidez. Enviar material educativo!"}
+        except Exception:
+            pass
+            
+        # 3. ALERTA DE LEAD FRIO (F1 padrão)
         if obj.fase_atual == 'F1':
             dias_na_base = (timezone.now() - obj.data_inicio).days
-            # Coloquei >= 0 só para você conseguir ver funcionando hoje!
-            # Na vida real da clínica, mude o 0 para 2 (ou seja, 48 horas de geladeira).
-            if dias_na_base >= 0: 
+            if dias_na_base >= 2: 
                 return {"cor": "#0288d1", "icone": "❄️", "texto": f"Lead Frio ({dias_na_base} dias). Puxar conversa!"}
 
         # 4. NOVO: ALERTA DE PÓS-VENDA (F3 - Pós Exame)

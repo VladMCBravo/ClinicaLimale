@@ -176,6 +176,53 @@ class AnaliseComportamental(models.Model):
     # Notas livres para a equipe de atendimento
     observacoes_internas = models.TextField(blank=True, help_text="Informações cruciais para a equipe de atendimento")
 
+    # --- NOVOS CAMPOS PARA O GHOST MODE E MARKETING ---
+    exame_interesse = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name="Exame de Interesse (Bot)"
+    )
+    medico_solicitante = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name="Médico que pediu o exame"
+    )
+    motivo_exame = models.CharField(
+        max_length=30, 
+        blank=True, 
+        null=True, 
+        choices=[
+            ('rotina', 'Rotina'),
+            ('investigacao_dor', 'Investigação/Dor'),
+            ('acompanhamento', 'Acompanhamento'),
+            ('urgencia', 'Urgência')
+        ]
+    )
+    primeira_gravidez = models.BooleanField(
+        null=True, 
+        blank=True, 
+        verbose_name="Mãe de Primeira Viagem?"
+    )
+    sexo_bebe = models.CharField(
+        max_length=20, 
+        blank=True, 
+        null=True, 
+        choices=[('menino', 'Menino'), ('menina', 'Menina'), ('surpresa', 'Surpresa')]
+    )
+    concorrencia_mencionada = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name="Concorrente Mencionado"
+    )
+    nivel_urgencia = models.CharField(
+        max_length=20, 
+        choices=[('frio', 'Frio'), ('morno', 'Morno'), ('quente', 'Quente')], 
+        default='morno'
+    )
+
     def __str__(self):
         return f"Perfil de {self.paciente.nome_completo}"
 

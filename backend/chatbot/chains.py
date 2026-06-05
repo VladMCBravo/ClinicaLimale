@@ -1,4 +1,4 @@
-# Em chatbot/chains.py
+# chatbot/chains.py
 
 import os
 import logging
@@ -7,100 +7,70 @@ from pydantic import BaseModel, Field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.runnables import Runnable
 
 logger = logging.getLogger(__name__)
 
-faq_base_de_conhecimento = """
-**P: Qual o endereço da clínica?**
-R: Nosso endereço é Rua Orense, 41 – Sala 512, no Condomínio D Office, centro de Diadema/SP.
-**P: Qual o horário de funcionamento?**
-R: Funcionamos de Segunda a Sexta, das 8h às 18h, e aos Sábados, das 8h às 12h.
-**P: Vocês atendem adulto e criança?**
-R: Sim! Atendemos pacientes de todas as idades. Temos especialistas em Pediatria para as crianças e diversas outras especialidades para os adultos.
-**P: A consulta tem direito a retorno?**
-R: Sim, nossas consultas particulares dão direito a um retorno em até 30 dias para avaliação dos exames solicitados, sem custo adicional.
-**P: Vocês aceitam convênio?**
-R: No momento, atendemos apenas na modalidade particular. Emitimos nota fiscal para que você possa solicitar reembolso junto ao seu plano de saúde.
-**P: Qual o telefone da clínica?**
-R: Você pode entrar em contato conosco pelo mesmo número de WhatsApp que está falando agora. Para outros assuntos, o telefone da recepção é (11) XXXX-XXXX.
-"""
-
 llm = None
-chain_faq: Optional[Runnable] = None
-chain_recepcionista: Optional[Runnable] = None
+chain_ghost_mode = None
 
 try:
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
 
-    # ATENÇÃO AQUI: Esta linha foi recuada para a esquerda! Ela agora corre depois da validação.
+    # Mantemos o modelo rápido e com temperatura 0 para extração precisa
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=api_key)
 
-    class RecepcionistaOutput(BaseModel):
-        nome_extraido: Optional[str] = Field(description="O nome do paciente, se ele informar na mensagem. Caso contrário, null.")
-        email_extraido: Optional[str] = Field(description="O email do paciente, se houver na mensagem (ex: nome@gmail.com). Senão, null.")
-        cpf_extraido: Optional[str] = Field(description="O CPF do paciente, extraia apenas os números se ele informar. Senão, null.")
-        endereco_extraido: Optional[str] = Field(description="O endereço, rua, bairro ou cidade que o paciente informar. Senão, null.")
-        procedimento_especialidade: Optional[str] = Field(description="Se informou O NOME do exame ou especialidade médica. Senão, null.")
-        intencao: Literal['exame_geral', 'exame_fetal', 'consulta', 'informacao_geral', 'humano', 'cancelamento'] = Field(description="A intenção deduzida.")
-        resposta_humanizada: str = Field(description="A resposta completa.")
+    # ==========================================
+    # O SUPER MODELO DE EXTRAÇÃO (OS 3 FUNIS)
+    # ==========================================
+    class GhostModeOutput(BaseModel):
+        # --- DADOS CADASTRAIS BÁSICOS ---
+        nome_extraido: Optional[str] = Field(description="Nome do paciente. Null se não informado.")
+        data_nascimento: Optional[str] = Field(description="Data de nascimento (YYYY-MM-DD). Null se não informado.")
+        email_extraido: Optional[str] = Field(description="Email do paciente. Null se não informado.")
+        
+        # --- FUNIL GERAL E DE EXAMES ---
+        exame_interesse: Optional[str] = Field(description="O tipo de exame ou consulta desejado. Ex: Morfológico, Eletrocardiograma. Null se não informado.")
+        medico_solicitante: Optional[str] = Field(description="Nome do médico que pediu o exame, se o paciente mencionar (ex: 'Dr. Roberto pediu'). Null se não mencionado.")
+        motivo_exame: Literal['rotina', 'investigacao_dor', 'acompanhamento', 'urgencia'] = Field(description="Classifique o motivo do exame. Null se não for possível deduzir.")
 
-    parser_recepcionista = JsonOutputParser(pydantic_object=RecepcionistaOutput)
-    prompt_recepcionista = ChatPromptTemplate.from_template(
+        # --- FUNIL OBSTÉTRICO (GESTANTES) ---
+        semanas_gestacao: Optional[int] = Field(description="Número de semanas de gestação, extraído apenas se for número. Null se não for gestante ou não informado.")
+        primeira_gravidez: Optional[bool] = Field(description="True se mencionar que é o primeiro filho/mãe de primeira viagem. False se mencionar filhos anteriores. Null se não mencionado.")
+        sexo_bebe: Literal['menino', 'menina', 'surpresa'] = Field(description="Sexo do bebê, se a paciente já souber e mencionar. Null se não mencionado.")
+
+        # --- FUNIL COMERCIAL E VENDAS ---
+        agendou: Optional[bool] = Field(description="True se confirmou o agendamento. False se desistiu. Null se a conversa ainda não foi concluída.")
+        motivo_desistencia: Literal['preco', 'horario', 'localizacao', 'precisa_pedido_medico', 'outro'] = Field(description="Se agendou=False, classifique o motivo da desistência. Null se não desistiu.")
+        concorrencia_mencionada: Optional[str] = Field(description="Nome de outra clínica ou laboratório que o paciente usou para comparar preço ou serviço. Null se não mencionar.")
+        nivel_urgencia: Literal['frio', 'morno', 'quente'] = Field(description="Frio: só pesquisando preço. Morno: quer agendar, mas tem dúvidas. Quente: precisa agendar logo ou demonstrou muita pressa.")
+
+    parser_ghost = JsonOutputParser(pydantic_object=GhostModeOutput)
+    
+    prompt_ghost = ChatPromptTemplate.from_template(
         """# MISSÃO
-        Você é Leônidas, o assistente da Clínica Limalé.
-        Interprete a mensagem, classifique a intenção e responda conforme as regras estritas abaixo.
+        Você é um analista de dados silencioso operando no CRM de uma clínica médica de imagem e consultas.
+        Sua tarefa é ler a transcrição do atendimento via WhatsApp e extrair as informações do paciente para o banco de dados.
 
-        # CONTEXTO
-        - Nome do paciente conhecido: "{nome_conhecido}"
-        - Mensagem: "{user_message}"
-        - Pular Saudação: "{pular_saudacao}"
+        # REGRAS DE EXTRAÇÃO
+        1. NUNCA invente informações. Se o paciente não disse claramente, retorne null.
+        2. Analise a conversa como um todo para deduzir o "nivel_urgencia" e o "motivo_exame".
+        3. Preste muita atenção às objeções para preencher o "motivo_desistencia" corretamente.
 
-        # REGRAS DE ROTEAMENTO (ATENÇÃO ÀS PALAVRAS-CHAVE E NÚMEROS)
-        1. Intenção 'exame_fetal': Se a mensagem contiver "1", "ultrassom", "morfológico", "doppler", "eco fetal", "4d", "gravidez", "gestação", "ver bebê".
-        2. Intenção 'exame_geral': Se a mensagem contiver "2", "3", "ultrassonografia geral", "exames cardiológicos", "eletrocardiograma".
-        3. Intenção 'consulta': Se a mensagem contiver "4", "consulta", "pediatra", "ginecologista", "médico".
-        4. Intenção 'humano': Se a mensagem pedir "recepção", "humano", "atendente", "ajuda".
-        5. Intenção 'cancelamento': Se pedir para "cancelar", "desmarcar".
+        # MENSAGEM ATUAL DO PACIENTE
+        {user_message}
 
-        # REGRAS DE RESPOSTA (OBRIGATÓRIO)
-        1. SE a intenção for 'exame_fetal': A SUA ÚNICA RESPOSTA DEVE SER EXATAMENTE ESTA:
-           "Perfeito.\\n\\nPara te orientar melhor, me informa com quantas semanas você está hoje, por favor."
-        
-        2. SE a intenção for 'exame_geral' ou 'consulta': Pergunte de forma acolhedora qual o procedimento/especialidade exata a pessoa procura. Exemplo: "Perfeito. Qual exame específico você gostaria de agendar?"
-        
-        3. SE a intenção for 'humano': "Certo, vou transferir você para nossa recepção. Um momento."
-
-        4. IMPORTANTE: Se "{pular_saudacao}" for "SIM", você NUNCA deve dar bom dia ou dizer seu nome. Vá direto para a resposta da regra acima.
+        # HISTÓRICO RECENTE DA CONVERSA
+        {historico}
 
         # INSTRUÇÕES DE FORMATAÇÃO
         {format_instructions}
         """,
-        partial_variables={"format_instructions": parser_recepcionista.get_format_instructions()},
+        partial_variables={"format_instructions": parser_ghost.get_format_instructions()},
     )
-    chain_recepcionista = prompt_recepcionista | llm | parser_recepcionista
-
-    # Chain de FAQ mantida intacta
-    class FaqOutput(BaseModel):
-        resposta: str = Field(description="A resposta à pergunta do usuário.")
-
-    parser_faq = JsonOutputParser(pydantic_object=FaqOutput)
-    prompt_faq_template = ChatPromptTemplate.from_template(
-        """# MISSÃO
-        Você é a secretária Leonidas. Responda à pergunta usando APENAS a FAQ.
-        # FAQ
-        {faq}
-        # NOME DO USUÁRIO
-        {nome_usuario}
-        # INSTRUÇÕES DE FORMATAÇÃO
-        {format_instructions}
-        # PERGUNTA DO USUÁRIO
-        {pergunta_do_usuario}""",
-        partial_variables={"format_instructions": parser_faq.get_format_instructions()},
-    )
-    chain_faq = prompt_faq_template | llm | parser_faq
+    
+    chain_ghost_mode = prompt_ghost | llm | parser_ghost
 
 except Exception as e:
-    logger.critical(f"FALHA: {e}")
+    logger.critical(f"FALHA AO INICIALIZAR IA GHOST MODE: {e}")
