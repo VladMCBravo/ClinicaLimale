@@ -9,6 +9,7 @@ from datetime import datetime, time, timedelta
 from dateutil import parser
 from typing import Optional
 from pydantic import BaseModel, Field
+import threading
 
 from django.utils import timezone
 from django.http import JsonResponse
@@ -310,12 +311,23 @@ class EvolutionWebhookView(APIView):
 
             if message_text:
                 handler = WhatsAppBotHandler(phone_number)
-                # Processa a mensagem silenciosamente para atualizar o ChatMemory e Analytics
-                resposta = handler.processar_fluxo(message_text) 
                 
-                # COMENTE OU REMOVA ESTA LINHA PARA O BOT NÃO RESPONDER:
-                # handler.enviar_mensagem(resposta)
+                # 1. FUNÇÃO INTERNA: O que vai rodar "escondido" em segundo plano
+                def tarefa_em_segundo_plano():
+                    try:
+                        # O bot vai pensar e processar a IA no tempo dele (sem pressa)
+                        resposta = handler.processar_fluxo(message_text) 
+                        
+                        # COMENTE OU REMOVA ESTA LINHA PARA O BOT NÃO RESPONDER DIRETAMENTE:
+                        # handler.enviar_mensagem(resposta)
+                    except Exception as e:
+                        logger.error(f"Erro no processamento da IA em segundo plano: {e}")
+
+                # 2. INICIA A THREAD: Manda a tarefa para o fundo e não espera ela terminar
+                thread = threading.Thread(target=tarefa_em_segundo_plano)
+                thread.start()
             
-            return Response({"status": "ok"}, status=200)
+            # 3. RESPOSTA IMEDIATA: A Evolution API recebe o "Joinha" na mesma hora e vai embora feliz!
+            return Response({"status": "Mensagem recebida e processamento iniciado em background"}, status=200)
             
         return Response({"status": "ignored"}, status=200)
