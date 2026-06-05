@@ -18,18 +18,17 @@ def notificar_recepcao_whatsapp(session_id, nome_paciente):
     from .whatsapp_service import WhatsAppBotHandler
     import os
     
-    # ⚠️ MUDE AQUI: Coloque o número do celular da sua recepcionista (com 55 e DDD)
+    # Coloque o número do celular da sua recepcionista (com 55 e DDD)
     NUMERO_RECEPCAO = os.environ.get("TELEFONE_RECEPCAO", "5511941041657")
     
-    # Prepara o link para a recepcionista clicar e já abrir a conversa
     telefone_paciente = ''.join(filter(str.isdigit, session_id))
     nome = nome_paciente if nome_paciente else "Uma paciente"
     
     mensagem = (
         f"🚨 *ALERTA DE ATENDIMENTO* 🚨\n\n"
         f"*{nome}* pediu para falar com a recepção!\n\n"
-        f"📲 *Clique no link abaixo para assumir a conversa:*\n"
-        f"https://wa.me/{telefone_paciente}"
+        f"📱 Telefone: {telefone_paciente}\n"
+        f"👉 Acesse o sistema para continuar o atendimento."
     )
     
     try:
@@ -143,8 +142,17 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # ==================================================================
     # --- FASE 1: A RECEPCIONISTA E O ROTEAMENTO ---
     # ==================================================================
+
+    ESTADOS_FUNIL_GESTANTE = [
+        'inicio', 
+        'aguardando_semanas_gestacao', 
+        'aguardando_escolha_horario_gestacao', 
+        'aguardando_nome_cadastro', 
+        'aguardando_email_cadastro'
+    ]
+
     msg_limpa = user_message.strip().lower()
-    
+
     # BLINDAGEM MÁXIMA: Impede a Recepcionista de interromper os Agentes Especialistas!
     # ADICIONADO O ESTADO 'mf_aguardando_confirmacao_morfo2'
     estados_protegidos = [
@@ -304,6 +312,7 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     elif estado_atual in ['inicio_cancelamento', 'aguardando_escolha_cancelamento']:
         agente_cancelamento = AgenteCancelamento(session_id, memoria_atual)
         resultado = agente_cancelamento.processar(user_message, estado_atual)
+  
     
     # ==================================================================
     # --- FASE 3: FAQ E FALLBACK FINAL ---

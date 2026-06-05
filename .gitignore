@@ -22,4 +22,4 @@ staticfiles/
 # Seus arquivos grandes (do seu arquivo original)
 *.zip
 *.sql
-backup_*
+backup_*.env

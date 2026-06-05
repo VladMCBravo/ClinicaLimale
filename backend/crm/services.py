@@ -247,7 +247,7 @@ class CRMService:
     @staticmethod
     def registrar_abandono_chatbot(telefone, motivo_abandono="silêncio pós-proposta", nome_lead="Lead (Bot)"):
         """
-        Invocado pelo Chatbot quando um lead esfria.
+        Invocado pelo Chatbot (Recovery Manager) quando um lead esfria.
         Move para F5 e anota a objeção para acionar a cadência comercial.
         """
         from pacientes.models import Paciente
@@ -257,13 +257,13 @@ class CRMService:
         
         telefone_limpo = ''.join(filter(str.isdigit, str(telefone)))
         
-        # 1. Busca o paciente ou CRIA UM NOVO (Isso salva leads que abandonaram no meio do funil!)
+        # 1. Busca o paciente ou CRIA UM NOVO (Salva leads que abandonaram no meio)
         paciente = Paciente.objects.filter(telefone_celular=telefone_limpo).first()
         if not paciente:
             paciente = Paciente.objects.create(
                 nome_completo=nome_lead,
                 telefone_celular=telefone_limpo,
-                data_nascimento='1900-01-01' # Data padrão do sistema
+                data_nascimento='1900-01-01'
             )
             print(f"👤 Novo Lead criado pelo resgate do Bot: {nome_lead}")
             
@@ -282,14 +282,14 @@ class CRMService:
         
         if "agenda" in motivo_abandono.lower() or "horário" in motivo_abandono.lower():
             comp.principal_objecao = 'AGENDA'
-        elif "preço" in motivo_abandono.lower() or "valor" in motivo_abandono.lower():
+        elif "preço" in motivo_abandono.lower() or "valor" in motivo_abandono.lower() or "preco" in motivo_abandono.lower():
             comp.principal_objecao = 'PRECO'
         else:
             comp.principal_objecao = 'OUTRO'
             
         comp.observacoes_internas = f"Abandono no Bot: {motivo_abandono}"
         comp.save()
-        
+
         # 4. Move para Recuperação (F5) e dispara a automação
         if ciclo.fase_atual != 'F5':
             # Usa o método existente para mover a fase de forma segura
