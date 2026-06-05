@@ -89,6 +89,13 @@ def verificar_resposta_lembrete(session_id, user_message, memoria_atual):
 
 def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=session_id)
+    
+    # FORÇA O ESTADO PARA STAND-BY/HUMANO EM CONVERSAS NOVAS
+    if not memoria_obj.state or memoria_obj.state == 'inicio':
+        memoria_obj.state = 'humano'
+        memoria_obj.save()
+
+    # DESCOMENTADO: O código abaixo precisa existir para que o resto do arquivo não quebre
     memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
     estado_atual = memoria_obj.state
     nome_usuario = memoria_atual.get('nome_usuario', '')
@@ -161,6 +168,99 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
     # CORREÇÃO 2: Descobre se é o primeiro contato do paciente burlando o estado 'inicio' do banco
     historico = memoria_atual.get('historico_conversa', [])
     is_conversa_nova = len(historico) == 0
+
+    # ==================================================================
+    # 🕵️ CAPTURA SILENCIOSA DE LEADS E DADOS (GHOST MODE)
+    # ==================================================================
+    if is_conversa_nova:
+        from pacientes.models import Paciente
+        from crm.models import Ciclo, AnaliseComportamental
+        from .chains import chain_recepcionista # <--- IA importada aqui!
+        import re
+
+        msg_lower = user_message.lower()
+        origem_detectada = 'OUTRO'
+
+        # 1. Leitura das Palavras-Chave da Campanha
+        if "instagram" in msg_lower or "insta" in msg_lower:
+            origem_detectada = 'INSTAGRAM'
+        elif "google" in msg_lower:
+            origem_detectada = 'GOOGLE'
+        elif "facebook" in msg_lower or "face" in msg_lower:
+            origem_detectada = 'FACEBOOK'
+        elif "tiktok" in msg_lower:
+            origem_detectada = 'TIKTOK'
+        elif "site" in msg_lower:
+            origem_detectada = 'SITE'
+
+        # 2. INVOCAÇÃO SILENCIOSA DA IA (A mágica da extração)
+        try:
+            analise_ia = chain_recepcionista.invoke({
+                "user_message": user_message,
+                "nome_conhecido": "",
+                "pular_saudacao": "SIM"
+            })
+            nome_extraido = analise_ia.get("nome_extraido")
+            email_extraido = analise_ia.get("email_extraido")
+            cpf_extraido = analise_ia.get("cpf_extraido")
+            endereco_extraido = analise_ia.get("endereco_extraido")
+        except Exception as e:
+            logger.error(f"Erro no Ghost Mode IA: {e}")
+            nome_extraido = email_extraido = cpf_extraido = endereco_extraido = None
+
+        # 3. Limpa o telefone
+        telefone_limpo = ''.join(filter(str.isdigit, session_id))
+        
+        # Se a IA já achou o nome na 1ª mensagem, usa ele. Senão, vira "Lead"
+        nome_paciente_novo = nome_extraido.title() if nome_extraido else 'Lead (Novo Contato)'
+
+        # 4. Cria ou Encontra o Paciente silenciosamente
+        paciente, created = Paciente.objects.get_or_create(
+            telefone_celular=telefone_limpo,
+            defaults={'nome_completo': nome_paciente_novo, 'data_nascimento': '1900-01-01'}
+        )
+
+        # 5. Atualiza a ficha com os dados pescados pela IA
+        atualizou = False
+        
+        if nome_extraido and "Lead" in paciente.nome_completo:
+            paciente.nome_completo = nome_extraido.title()
+            atualizou = True
+            
+        if email_extraido and not paciente.email:
+            paciente.email = email_extraido.lower()
+            atualizou = True
+            
+        if cpf_extraido and not paciente.cpf:
+            # Validação simples: Remove tudo que não for número antes de salvar
+            cpf_limpo = re.sub(r'\D', '', cpf_extraido)
+            if len(cpf_limpo) == 11:
+                paciente.cpf = cpf_limpo
+                atualizou = True
+                
+        # Supondo que você tenha o campo 'endereco' no seu model Paciente
+        if endereco_extraido and hasattr(paciente, 'endereco') and not paciente.endereco:
+            paciente.endereco = endereco_extraido
+            atualizou = True
+
+        if atualizou or created:
+            paciente.save()
+            print(f"🤖 [GHOST MODE] Ficha de {paciente.nome_completo} processada silenciosamente pela IA.")
+
+        # 6. Atualiza o Perfil Comportamental (Alimenta o Gráfico de Pizza)
+        comp, _ = AnaliseComportamental.objects.get_or_create(paciente=paciente)
+        if not comp.origem_aquisicao: 
+            comp.origem_aquisicao = origem_detectada
+            comp.observacoes_internas = f"Primeira mensagem (Bot): {user_message}"
+            comp.save()
+
+        # 7. Cria o Card na F1 do Kanban (Gatilho de Vendas)
+        ciclo, _ = Ciclo.objects.get_or_create(
+            paciente=paciente, 
+            status='ativo',
+            defaults={'tipo': 'OUTRO', 'fase_atual': 'F1'}
+        )
+    # ==================================================================
 
     # 1. DELEGAÇÃO PARA A RECEPCIONISTA (Boas-vindas e IA Ativa)
     # Se a conversa é nova, se tem saudação, ou se a IA antiga estava livre -> Recepcionista assume!

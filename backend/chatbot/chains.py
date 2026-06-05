@@ -39,10 +39,13 @@ try:
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=api_key)
 
     class RecepcionistaOutput(BaseModel):
-        nome_extraido: Optional[str] = Field(description="O nome do paciente, SE ele tiver se apresentado. Caso contrário, retorne null.")
-        procedimento_especialidade: Optional[str] = Field(description="Se o paciente já informou O NOME do exame (ex: Eletrocardiograma) ou especialidade médica, extraia aqui. Senão, null.")
-        intencao: Literal['exame_geral', 'exame_fetal', 'consulta', 'informacao_geral', 'humano', 'cancelamento'] = Field(description="A intenção deduzida da mensagem.")
-        resposta_humanizada: str = Field(description="A resposta completa pronta para ser enviada.")
+        nome_extraido: Optional[str] = Field(description="O nome do paciente, se ele informar na mensagem. Caso contrário, null.")
+        email_extraido: Optional[str] = Field(description="O email do paciente, se houver na mensagem (ex: nome@gmail.com). Senão, null.")
+        cpf_extraido: Optional[str] = Field(description="O CPF do paciente, extraia apenas os números se ele informar. Senão, null.")
+        endereco_extraido: Optional[str] = Field(description="O endereço, rua, bairro ou cidade que o paciente informar. Senão, null.")
+        procedimento_especialidade: Optional[str] = Field(description="Se informou O NOME do exame ou especialidade médica. Senão, null.")
+        intencao: Literal['exame_geral', 'exame_fetal', 'consulta', 'informacao_geral', 'humano', 'cancelamento'] = Field(description="A intenção deduzida.")
+        resposta_humanizada: str = Field(description="A resposta completa.")
 
     parser_recepcionista = JsonOutputParser(pydantic_object=RecepcionistaOutput)
     prompt_recepcionista = ChatPromptTemplate.from_template(

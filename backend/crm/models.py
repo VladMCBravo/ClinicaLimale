@@ -10,6 +10,7 @@ class Ciclo(models.Model):
     O Container de uma jornada.
     Ex: "Gestação 2026", "Acompanhamento Cardiológico".
     """
+
     TIPO_CHOICES = [
         ('GESTACAO', 'Gestação'),
         ('RN', 'Recém-Nascido'),
@@ -145,11 +146,16 @@ class AnaliseComportamental(models.Model):
     ORIGEM_CHOICES = [
         ('GOOGLE', 'Google (Pesquisa/Meu Negócio)'),
         ('INSTAGRAM', 'Instagram'),
+        ('FACEBOOK', 'Facebook Ads'),    # <--- NOVA
+        ('TIKTOK', 'TikTok'),            # <--- NOVA
+        ('SITE', 'Site Oficial'),        # <--- NOVA
         ('INDICACAO', 'Indicação de Paciente/Amigo'),
         ('MEDICO', 'Indicação Médica'),
         ('CONVENIO', 'Convênio'),
         ('OUTRO', 'Outro'),
     ]
+    # ------------------------------
+
 
     paciente = models.OneToOneField(Paciente, on_delete=models.CASCADE, related_name='perfil_comportamental')
     perfil_emocional = models.CharField(max_length=20, choices=PERFIL_EMOCIONAL, default='INDEFINIDO')

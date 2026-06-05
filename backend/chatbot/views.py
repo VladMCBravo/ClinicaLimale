@@ -310,8 +310,11 @@ class EvolutionWebhookView(APIView):
 
             if message_text:
                 handler = WhatsAppBotHandler(phone_number)
-                resposta = handler.processar_fluxo(message_text)
-                handler.enviar_mensagem(resposta)
+                # Processa a mensagem silenciosamente para atualizar o ChatMemory e Analytics
+                resposta = handler.processar_fluxo(message_text) 
+                
+                # COMENTE OU REMOVA ESTA LINHA PARA O BOT NÃO RESPONDER:
+                # handler.enviar_mensagem(resposta)
             
             return Response({"status": "ok"}, status=200)
             
