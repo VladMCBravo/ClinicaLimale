@@ -1,7 +1,7 @@
 // src/components/prontuario/LayoutEvolucaoPadrao.jsx
 
-import React from 'react';
-import { Box, Typography, Button, CircularProgress } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Button, CircularProgress, Tabs, Tab } from '@mui/material';
 
 export default function LayoutEvolucaoPadrao({
     titulo,
@@ -11,11 +11,14 @@ export default function LayoutEvolucaoPadrao({
     onSalvar,
     isSubmitting,
     textoBotaoSalvar = 'Salvar Atendimento',
+    abasApoio = [], // <-- 1. Agora o layout recebe as abas
     formularioSOAP
 }) {
+    const [abaAtiva, setAbaAtiva] = useState(0); // 2. Estado para controlar a aba atual
+
     return (
         // Aplicamos a classe tasy-workspace para herdar o CSS global das barras de rolagem
-        <Box className="tasy-workspace" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Box className="tasy-workspace" sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             
             {/* CABEÇALHO DO FORMULÁRIO (Fixo) */}
             <Box sx={{ 
@@ -40,9 +43,48 @@ export default function LayoutEvolucaoPadrao({
                 </Box>
             </Box>
 
-            {/* ÁREA DO FORMULÁRIO (Rolável) */}
+            {/* BARRA DE NAVEGAÇÃO DAS ABAS */}
+            {/* Só renderiza a barra se houver abas de apoio passadas pelo componente pai */}
+            {abasApoio.length > 0 && (
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fafafa', px: 2, flexShrink: 0 }}>
+                    <Tabs 
+                        value={abaAtiva} 
+                        onChange={(e, val) => setAbaAtiva(val)} 
+                        indicatorColor="primary" 
+                        textColor="primary"
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        sx={{ minHeight: '40px' }}
+                    >
+                        <Tab label="Evolução (SOAP)" sx={{ minHeight: '40px', py: 0, fontSize: '0.8rem' }} />
+                        {abasApoio.map((aba, index) => (
+                            <Tab key={index} label={aba.label} sx={{ minHeight: '40px', py: 0, fontSize: '0.8rem' }} />
+                        ))}
+                    </Tabs>
+                </Box>
+            )}
+
+            {/* ÁREA DO FORMULÁRIO (Rolável e Persistente) */}
             <Box className="tasy-compact-input" sx={{ flexGrow: 1, overflowY: 'auto', p: 3, bgcolor: '#ffffff' }}>
-                {formularioSOAP}
+                
+                {/* Aba 0: Formulário Principal (SOAP) */}
+                <Box sx={{ display: abaAtiva === 0 ? 'block' : 'none', height: '100%' }}>
+                    {formularioSOAP}
+                </Box>
+                
+                {/* Abas Dinâmicas de Apoio (Histórico, DNPM, Vacinas, etc.) */}
+                {abasApoio.map((aba, index) => (
+                    <Box 
+                        key={index + 1} 
+                        sx={{ 
+                            display: abaAtiva === (index + 1) ? 'block' : 'none', 
+                            height: '100%' 
+                        }}
+                    >
+                        {aba.component}
+                    </Box>
+                ))}
+
             </Box>
             
         </Box>
