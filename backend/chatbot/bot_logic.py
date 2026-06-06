@@ -62,16 +62,16 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 paciente.email = email.lower()
                 atualizou_paciente = True
                 
-            # --- PROTEÇÃO CONTRA O ERRO DE DATA ---
+            # --- CORREÇÃO DA DATA (REMOVENDO O date_parser) ---
             data_nasc = analise_ia.get("data_nascimento")
             if data_nasc and not paciente.data_nascimento:
+                # Como a IA já entrega 'YYYY-MM-DD' (ex: 1990-11-04), 
+                # basta atribuir diretamente. O Django já sabe ler esse formato.
                 try:
-                    # Converte "05/10/1978" para o formato "1978-10-05" exigido pelo Django
-                    data_formatada = date_parser.parse(data_nasc, dayfirst=True).strftime('%Y-%m-%d')
-                    paciente.data_nascimento = data_formatada
+                    paciente.data_nascimento = data_nasc 
                     atualizou_paciente = True
                 except Exception as e:
-                    logger.warning(f"Ignorando data inválida fornecida pela IA: {data_nasc}")
+                    logger.warning(f"Erro ao salvar data de nascimento {data_nasc}: {e}")
 
             if atualizou_paciente or created:
                 paciente.save()
