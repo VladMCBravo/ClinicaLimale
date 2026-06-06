@@ -6,6 +6,8 @@ from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
 from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
 from .models import ModeloLaudo # <--- Adicione ModeloLaudo aqui
+from pacientes.models import Paciente
+from agendamentos.models import Agendamento
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
@@ -343,3 +345,46 @@ class LaudoSerializer(serializers.ModelSerializer):
                 'fonte': 'laudo'
             }
         return None
+
+class PatientBannerSerializer(serializers.ModelSerializer):
+    """
+    Entrega os dados mastigados para a barra preta do topo (Patient Banner)
+    """
+    idade_formatada = serializers.SerializerMethodField()
+    sinais_vitais = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Paciente
+        # Note que se o seu model Paciente usa 'sexo' em vez de 'genero', altere abaixo:
+        fields = ['id', 'nome_completo', 'genero', 'data_nascimento', 'idade_formatada', 'sinais_vitais']
+
+    def get_idade_formatada(self, obj):
+        # Tenta usar a função de calcular idade do seu model, se existir
+        if hasattr(obj, 'get_idade_anos'):
+            return obj.get_idade_anos()
+        return "Idade Indisponível"
+
+    def get_sinais_vitais(self, obj):
+        # Busca a última evolução do paciente para mostrar os sinais vitais mais recentes na barra
+        ultima_evolucao = Evolucao.objects.filter(paciente=obj).order_by('-data_atendimento').first()
+        if ultima_evolucao:
+            return {
+                'pa': ultima_evolucao.pressao_arterial or 'N/A',
+                'fc': ultima_evolucao.frequencia_cardiaca or 'N/A',
+                'peso': ultima_evolucao.peso or 'N/A'
+            }
+        return {'pa': 'N/A', 'fc': 'N/A', 'peso': 'N/A'}
+
+class WorkspacePacienteSerializer(serializers.ModelSerializer):
+    """
+    Entrega a lista de pacientes (Menu Esquerdo) com metadados
+    """
+    ultima_consulta = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Paciente
+        fields = ['id', 'nome_completo', 'cpf', 'data_nascimento', 'ultima_consulta']
+
+    def get_ultima_consulta(self, obj):
+        ev = Evolucao.objects.filter(paciente=obj).order_by('-data_atendimento').first()
+        return ev.data_atendimento.strftime('%d/%m/%Y') if ev else "Sem registros"

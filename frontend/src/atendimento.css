@@ -1,0 +1,57 @@
+/* src/atendimento.css */
+
+/* 1. BARRAS DE ROLAGEM FINAS E CORPORATIVAS (Estilo Tasy) */
+.tasy-workspace ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.tasy-workspace ::-webkit-scrollbar-track {
+    background: #f1f3f5;
+    border-left: 1px solid #e9ecef;
+}
+.tasy-workspace ::-webkit-scrollbar-thumb {
+    background: #adb5bd;
+    border-radius: 3px;
+}
+.tasy-workspace ::-webkit-scrollbar-thumb:hover {
+    background: #868e96;
+}
+
+/* 2. ACHATAMENTO (FLAT DESIGN) DOS PAINÉIS */
+.tasy-flat-panel {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: 1px solid #dee2e6;
+    background-color: #ffffff;
+}
+
+/* 3. CAMPOS DE TEXTO MAIS COMPACTOS (Para caber mais dados na tela) */
+.tasy-compact-input .MuiOutlinedInput-root {
+    border-radius: 2px !important;
+    background-color: #f8f9fa;
+}
+.tasy-compact-input .MuiInputBase-input {
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+}
+.tasy-compact-input .MuiInputLabel-root {
+    font-size: 13px !important;
+    transform: translate(14px, 9px) scale(1);
+}
+.tasy-compact-input .MuiInputLabel-shrink {
+    transform: translate(14px, -9px) scale(0.75);
+    background-color: #ffffff;
+    padding: 0 4px;
+}
+
+/* 4. CABEÇALHOS DE SEÇÃO SUTIS */
+.tasy-section-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    padding: 6px 12px;
+    margin: 0 -16px 12px -16px;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.80rem;
+    text-transform: uppercase;
+}

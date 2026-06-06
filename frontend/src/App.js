@@ -1,29 +1,24 @@
 // src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth'; // Ajuste o caminho se necessário
+import { useAuth } from './hooks/useAuth';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
-// --- CONFIGURAÇÃO DE TEMA E DATA ---
-import { ThemeProvider } from '@mui/material/styles'; // Importação do ThemeProvider
-import CssBaseline from '@mui/material/CssBaseline'; // Normaliza o CSS
-import theme from './theme'; // Importa o tema que acabámos de criar
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from './theme';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import 'dayjs/locale/pt-br';
 
-// Componentes de Layout e Proteção
-import AdminRoute from './components/AdminRoute'; // <--- Importe aqui
+import AdminRoute from './components/AdminRoute';
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './components/MainLayout';
 
-// Importe suas páginas PRINCIPAIS
 import LoginPage from './pages/LoginPage';
-import PainelMedicoPage from './pages/PainelMedico/PainelMedicoPage'; 
 import PainelRecepcaoPage from './pages/PainelRecepcaoPage';
 import PacientesPage from './pages/PacientesPage';
-import ProntuarioPage from './pages/ProntuarioPage';
 import FinanceiroPage from './pages/FinanceiroPage';
 import LaudosPage from './pages/LaudosPage';
 import PortalResultados from './pages/PortalResultados';
@@ -31,9 +26,9 @@ import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
-// Páginas CRM
 import CRMKanbanPage from './pages/CRM/CRMKanbanPage';
 import DashboardExecutivoPage from './pages/CRM/DashboardExecutivoPage';
+import ProntuarioWorkspace from './pages/PainelMedico/ProntuarioWorkspace';
 
 const RotaInicialDinamica = () => {
   const { user } = useAuth();
@@ -45,10 +40,9 @@ const RotaInicialDinamica = () => {
   }
   
   if (user.isMedico) {
-    return <PainelMedicoPage />;
+    return <ProntuarioWorkspace />;
   }
 
-  // Fallback caso o usuário não tenha cargo definido
   return <Navigate to="/login" replace />;
 };
 
@@ -60,33 +54,28 @@ function App() {
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
           <Router>
             <Routes>
-              {/* Rota Pública */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/resultados" element={<PortalResultados />} />
               
-              {/* Rotas Protegidas (Requer Login) */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   
-                  /* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */
+                  {/* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */}
                   <Route path="/" element={<RotaInicialDinamica />} />
                   <Route path="/painel" element={<PainelRecepcaoPage />} />
-
                   <Route path="/laudos" element={<LaudosPage />} />
                   <Route path="/vincular" element={<VincularExames />} />
-
                   <Route path="/pacientes" element={<PacientesPage />} />
-                  <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioPage />} />
+                  
+                  {/* ROTA DO WORKSPACE CENTRALIZADA */}
+                  <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioWorkspace />} />
 
                   <Route path="/telemedicina" element={<TelemedicinaPage />} />
-                  
-                  {/* MOVA A LINHA ABAIXO PARA CÁ (FORA DO ADMINROUTE) */}
                   <Route path="/configuracoes" element={<ConfiguracoesPage />} />
 
-                  /* --- ÁREA RESTRITA (ADMINISTRADOR) --- */
+                  {/* --- ÁREA RESTRITA (ADMINISTRADOR) --- */}
                   <Route element={<AdminRoute />}>
                       <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                      {/* REMOVA A LINHA DE CONFIGURAÇÕES DAQUI */}
                       <Route path="/crm/kanban" element={<CRMKanbanPage />} />
                       <Route path="/crm/executivo" element={<DashboardExecutivoPage />} />
                   </Route>

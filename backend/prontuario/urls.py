@@ -56,5 +56,12 @@ urlpatterns = [
     # --- ROTA UNIVERSAL DE MÁSCARA ---
     path('aplicar-mascara/', views.AplicarMascaraPDFView.as_view(), name='aplicar-mascara-pdf'),
 
+    # =========================================================================
+    # ROTAS DO WORKSPACE TASY-LIKE
+    # =========================================================================
+    path('workspace/banner/<int:paciente_id>/', views.PatientBannerAPIView.as_view(), name='workspace-banner'),
+    path('workspace/meus-pacientes/', views.MeusPacientesWorkspaceAPIView.as_view(), name='workspace-meus-pacientes'),
+    path('workspace/minhas-consultas/', views.ConsultasWorkspaceAPIView.as_view(), name='workspace-minhas-consultas'),
+
     path('', include(router.urls)),
 ]

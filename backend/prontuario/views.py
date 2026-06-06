@@ -33,7 +33,7 @@ from .models import Laudo, ImagemLaudo
 from prontuario.models import Laudo
 from exames.models import Exame, ArquivoExame
 from exames.serializers import ExameSerializer
-from .serializers import LaudoSerializer
+from .serializers import LaudoSerializer, PatientBannerSerializer, WorkspacePacienteSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
@@ -1585,4 +1585,62 @@ class LaudoStatusView(APIView):
                 "link": "https://clinica-limale.vercel.app/resultados"
             }
             
+        return Response(data)
+
+class PatientBannerAPIView(APIView):
+    """
+    Endpoint (GET): /api/prontuario/workspace/banner/<paciente_id>/
+    Retorna os dados vitais e de cadastro para a barra superior congelada.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, paciente_id):
+        paciente = get_object_or_404(Paciente, id=paciente_id)
+        serializer = PatientBannerSerializer(paciente, context={'request': request})
+        return Response(serializer.data)
+
+
+class MeusPacientesWorkspaceAPIView(generics.ListAPIView):
+    """
+    Endpoint (GET): /api/prontuario/workspace/meus-pacientes/
+    Alimenta a aba "Pacientes" da coluna esquerda, listando pacientes que o médico já atendeu.
+    """
+    serializer_class = WorkspacePacienteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        medico = self.request.user
+        # Filtra IDs de pacientes que têm evoluções com o médico logado (sem repetições)
+        pacientes_ids = Evolucao.objects.filter(medico=medico).values_list('paciente_id', flat=True).distinct()
+        return Paciente.objects.filter(id__in=pacientes_ids).order_by('nome_completo')
+
+
+class ConsultasWorkspaceAPIView(APIView):
+    """
+    Endpoint (GET): /api/prontuario/workspace/minhas-consultas/
+    Alimenta a aba "Consultas" da coluna esquerda (Ordem Cronológica do Dia).
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        from datetime import date
+        hoje = date.today()
+        medico = request.user
+        
+        # Filtra os agendamentos de hoje para o médico logado
+        agendamentos = Agendamento.objects.filter(
+            medico=medico, 
+            data_hora_inicio__date=hoje
+        ).order_by('data_hora_inicio')
+        
+        data = []
+        for ag in agendamentos:
+            data.append({
+                "id": ag.id,
+                "paciente_id": ag.paciente.id,
+                "paciente_nome": ag.paciente.nome_completo,
+                "horario": ag.data_hora_inicio.strftime('%H:%M'),
+                "especialidade": ag.especialidade.nome if ag.especialidade else "Geral",
+                "status": ag.status
+            })
         return Response(data)
