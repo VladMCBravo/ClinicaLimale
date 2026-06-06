@@ -26,17 +26,31 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     // 1. Corrija o fetchData
     const fetchData = useCallback(async () => {
         setIsLoading(true);
+        console.log("[DEBUG] Iniciando fetchData para paciente:", pacienteId);
+        
+        if (!pacienteId) {
+            console.error("[DEBUG] Erro: pacienteId está indefinido!");
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            // Agora chamamos o caminho exato que configuramos no urls.py
-            const [tempRes, repRes] = await Promise.all([
-                apiClient.get('/prontuario/templates-relatorio/'),
-                apiClient.get(`/prontuario/pacientes/${pacienteId}/relatorios/`) 
-            ]);
+            console.log("[DEBUG] Chamando APIs...");
+            
+            // Separamos as chamadas para isolar qual delas está a falhar
+            const tempRes = await apiClient.get('/prontuario/templates-relatorio/');
+            console.log("[DEBUG] Templates recebidos:", tempRes.data);
+            
+            const repRes = await apiClient.get(`/prontuario/pacientes/${pacienteId}/relatorios/`);
+            console.log("[DEBUG] Relatórios recebidos:", repRes.data);
+            
             setTemplates(tempRes.data);
             setSavedReports(repRes.data);
         } catch (error) {
-            showSnackbar('Erro ao carregar dados.', 'error');
+            console.error("[DEBUG] Erro na API:", error);
+            showSnackbar('Erro ao carregar dados. Verifique o console.', 'error');
         } finally {
+            console.log("[DEBUG] fetchData finalizado (setIsLoading false).");
             setIsLoading(false);
         }
     }, [pacienteId, showSnackbar]);
