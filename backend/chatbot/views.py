@@ -344,42 +344,29 @@ class EvolutionWebhookView(APIView):
 
 # No final do seu arquivo chatbot/views.py
 
-class WhatsAppStatusView(APIView):
-    permission_classes = [IsAuthenticated] 
+class WhatsAppLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def post(self, request):
         """
-        Consulta a Evolution API para saber se o WhatsApp está conectado.
+        Derruba a conexão do WhatsApp atual para permitir ler um novo QR Code.
         """
         base_url = os.environ.get("EVOLUTION_API_URL", "http://evolution_api:8080").rstrip("/")
-        api_key = os.environ.get("EVOLUTION_API_KEY", "") 
-        # ATUALIZADO: O padrão agora é crm_oficial
-        instance_name = os.environ.get("EVOLUTION_INSTANCE_NAME", "crm_oficial") 
-        
-        url_evolution = f"{base_url}/instance/connect/{instance_name}" 
-        headers = {"apikey": api_key} 
+        api_key = os.environ.get("EVOLUTION_API_KEY", "")
+        instance_name = os.environ.get("EVOLUTION_INSTANCE_NAME", "crm_oficial")
+
+        # Rota de Logout da Evolution API
+        url_evolution = f"{base_url}/instance/logout/{instance_name}"
+        headers = {"apikey": api_key}
 
         try:
-            response = requests.get(url_evolution, headers=headers, timeout=10)
+            # A Evolution exige um método DELETE para fazer o logout
+            response = requests.delete(url_evolution, headers=headers, timeout=10)
             
-            if not response.ok:
-                return Response({
-                    "status": "erro_evolution", 
-                    "mensagem": f"Erro na Evolution: Verifique se a instância '{instance_name}' existe."
-                }, status=status.HTTP_200_OK)
-
-            dados = response.json()
-            
-            if 'base64' in dados:
-                return Response({"status": "qr_code", "qr_code_base64": dados['base64']}, status=status.HTTP_200_OK)
-            
-            estado = dados.get('instance', {}).get('state') or dados.get('state', 'desconhecido')
-            
-            if estado == 'open':
-                return Response({"status": "conectado", "mensagem": "WhatsApp conectado!"}, status=status.HTTP_200_OK)
+            if response.ok:
+                return Response({"status": "sucesso", "mensagem": "WhatsApp desconectado com sucesso."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"erro": "Falha ao desconectar."}, status=status.HTTP_400_BAD_REQUEST)
                 
-            return Response({"status": estado, "mensagem": f"Status atual: {estado}"}, status=status.HTTP_200_OK)
-
         except Exception as e:
-            logger.error(f"Erro fatal de conexão: {e}", exc_info=True)
-            return Response({'error': f'Falha de infraestrutura.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"erro": "Erro de infraestrutura ao tentar desconectar."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

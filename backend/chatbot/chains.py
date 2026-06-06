@@ -27,7 +27,7 @@ try:
     class GhostModeOutput(BaseModel):
         # --- DADOS CADASTRAIS BÁSICOS ---
         nome_extraido: Optional[str] = Field(description="Nome do paciente. Null se não informado.")
-        data_nascimento: Optional[str] = Field(description="Data de nascimento (YYYY-MM-DD). Null se não informado.")
+        data_nascimento: Optional[str] = Field(description="Data de nascimento no formato YYYY-MM-DD. ATENÇÃO: O paciente fala no formato BRASILEIRO (DD/MM/AAAA). Ex: 05/10/1978 significa 5 de Outubro (1978-10-05). Não inverta o dia e o mês! Null se não informado.")
         email_extraido: Optional[str] = Field(description="Email do paciente. Null se não informado.")
         
         # --- FUNIL GERAL E DE EXAMES ---

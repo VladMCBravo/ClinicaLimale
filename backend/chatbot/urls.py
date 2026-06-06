@@ -15,7 +15,8 @@ from .views import (
     ListarMedicosPorEspecialidadeView,
     ListarConversasAtivasView,
     EvolutionWebhookView,
-    WhatsAppStatusView
+    WhatsAppStatusView,
+    WhatsAppLogoutView
 )
 from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
 from . import views
@@ -47,4 +48,5 @@ urlpatterns = [
 
     # --- ROTA DO QR CODE ---
     path('whatsapp/status/', WhatsAppStatusView.as_view(), name='whatsapp_status'),
+    path('whatsapp/logout/', WhatsAppLogoutView.as_view(), name='whatsapp_logout'), # <--- NOVA ROTA
 ]
