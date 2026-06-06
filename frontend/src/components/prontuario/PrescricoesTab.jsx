@@ -1,17 +1,21 @@
 // src/components/prontuario/PrescricoesTab.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Button, CircularProgress, TextField, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, IconButton, Divider } from '@mui/material';
+import { 
+  Box, Button, CircularProgress, TextField, Typography, 
+  Accordion, AccordionSummary, AccordionDetails, IconButton, Divider 
+} from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
-import { useSnackbar } from '../../contexts/SnackbarContext'; // Ensure the '/' is present!
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 const initialItemState = { medicamento: '', dosagem: '', instrucoes: '' };
 
 export default function PrescricoesTab({ pacienteId }) {
-  const { showSnackbar } = useSnackbar(); // 2. ADICIONE ESTA LINHA PARA INICIALIZAR O HOOK
+  const { showSnackbar } = useSnackbar();
   const [prescricoes, setPrescricoes] = useState([]);
   const [itens, setItens] = useState([initialItemState]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,141 +26,123 @@ export default function PrescricoesTab({ pacienteId }) {
       const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/prescricoes/`);
       setPrescricoes(response.data);
     } catch (error) {
-      // MUDANÇA AQUI
       showSnackbar('Erro ao carregar histórico de prescrições.', 'error');
-      console.error("Erro ao buscar prescrições:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [pacienteId, showSnackbar]); // 3. ADICIONE A DEPENDÊNCIA
+  }, [pacienteId, showSnackbar]);
 
   useEffect(() => {
-    fetchPrescricoes();
-  }, [fetchPrescricoes]);
+    if (pacienteId) fetchPrescricoes();
+  }, [fetchPrescricoes, pacienteId]);
 
-  const handleItemChange = (index, event) => {
+  const handleItemChange = (index, field, value) => {
     const newItens = [...itens];
-    newItens[index][event.target.name] = event.target.value;
+    newItens[index][field] = value;
     setItens(newItens);
   };
 
-  const handleAddItem = () => {
-    setItens([...itens, { ...initialItemState }]);
-  };
+  const handleAddItem = () => setItens([...itens, { ...initialItemState }]);
+  const handleRemoveItem = (index) => setItens(itens.filter((_, i) => i !== index));
 
-  const handleRemoveItem = (index) => {
-    const newItens = itens.filter((_, i) => i !== index);
-    setItens(newItens);
-  };
-
-  const handleSave = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    const dataToSend = { itens: itens };
     try {
-      await apiClient.post(`/prontuario/pacientes/${pacienteId}/prescricoes/`, dataToSend);
-      showSnackbar('Prescrição salva com sucesso!', 'success'); // Feedback de sucesso
-      setItens([initialItemState]); // Limpa o formulário
-      fetchPrescricoes(); // Recarrega a lista
+      await apiClient.post(`/prontuario/pacientes/${pacienteId}/prescricoes/`, { itens });
+      showSnackbar('Prescrição salva com sucesso!', 'success');
+      setItens([initialItemState]);
+      fetchPrescricoes();
     } catch (error) {
-      showSnackbar('Erro ao salvar prescrição.', 'error');
-      console.error("Erro ao salvar prescrição:", error.response?.data);
-    } finally {
-      setIsLoading(false);
+      showSnackbar('Erro ao salvar a prescrição.', 'error');
     }
   };
-  
+
   const handleGerarPdf = async (prescricaoId) => {
     try {
-        // --- CORREÇÃO AQUI ---
-        // Você está chamando /api/pdf/...
-        // Mas o apiClient JÁ adiciona o /api
-        // O resultado é /api/api/pdf/..., que dá 404.
-        
-        // ALTERE DE:
-        // const response = await apiClient.get(
-        //     `/api/pdf/prescricao/${prescricaoId}/`, 
-        //     { responseType: 'blob' } 
-        // );
-
-        // PARA: (Remova o /api do início)
+        // Chamada direta para a rota de PDF definida no seu backend (urls.py)
         const response = await apiClient.get(
             `/pdf/prescricao/${prescricaoId}/`, 
-            { responseType: 'blob' } 
+            { responseType: 'blob' } // CRÍTICO: definir como blob para baixar arquivos
         );
-        // --- FIM DA CORREÇÃO ---
 
+        // Cria uma URL temporária para o PDF
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+        
+        // Abre em uma nova aba
         window.open(fileURL, '_blank');
+        
+        // Limpa a URL para liberar memória
         setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
     } catch (error) {
-        console.error("Erro ao gerar PDF da prescrição:", error);
-        
-        // Adicione um feedback mais claro do erro 404
-        if (error.response && error.response.status === 404) {
-             showSnackbar('Erro 404: Rota do PDF não encontrada no backend.', 'error');
-        } else {
-             showSnackbar('Erro ao gerar PDF da prescrição.', 'error');
-        }
+        console.error("Erro ao gerar PDF:", error);
+        showSnackbar('Erro ao gerar PDF da prescrição.', 'error');
     }
   };
 
-
-  if (isLoading && prescricoes.length === 0) return <CircularProgress />;
+  if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress size={24}/></Box>;
 
   return (
-    <Box>
-      {/* Formulário para Nova Prescrição */}
-      <Paper component="form" onSubmit={handleSave} elevation={2} sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Gerar Nova Prescrição</Typography>
+    // Usa a classe tasy-compact-input para forçar os inputs a ficarem pequenos e adequados para barra lateral
+    <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      
+      {/* 1. ÁREA DE NOVA PRESCRIÇÃO (Formulário Vertical) */}
+      <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Typography className="tasy-section-header">Nova Prescrição</Typography>
+        
         {itens.map((item, index) => (
-          <Box key={index} sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
-            <TextField name="medicamento" label="Medicamento" value={item.medicamento} onChange={e => handleItemChange(index, e)} required fullWidth />
-            <TextField name="dosagem" label="Dosagem" value={item.dosagem} onChange={e => handleItemChange(index, e)} required />
-            <TextField name="instrucoes" label="Instruções" value={item.instrucoes} onChange={e => handleItemChange(index, e)} required fullWidth />
-            <IconButton onClick={() => handleRemoveItem(index)} color="error" disabled={itens.length <= 1}>
-              <RemoveCircleOutlineIcon />
-            </IconButton>
+          <Box key={index} sx={{ p: 1.5, border: '1px solid #e0e0e0', bgcolor: '#ffffff', position: 'relative' }}>
+            {itens.length > 1 && (
+              <IconButton size="small" color="error" onClick={() => handleRemoveItem(index)} sx={{ position: 'absolute', top: 0, right: 0 }}>
+                <RemoveCircleOutlineIcon fontSize="small" />
+              </IconButton>
+            )}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+                <TextField label="Medicamento" value={item.medicamento} onChange={(e) => handleItemChange(index, 'medicamento', e.target.value)} required fullWidth />
+                <TextField label="Dosagem" value={item.dosagem} onChange={(e) => handleItemChange(index, 'dosagem', e.target.value)} required fullWidth />
+                <TextField label="Instruções de Uso" value={item.instrucoes} onChange={(e) => handleItemChange(index, 'instrucoes', e.target.value)} required multiline rows={2} fullWidth />
+            </Box>
           </Box>
         ))}
-        <Button startIcon={<AddCircleOutlineIcon />} onClick={handleAddItem}>Adicionar Medicamento</Button>
-        <Button type="submit" variant="contained" disabled={isLoading} sx={{ display: 'block', mt: 2 }}>Salvar Prescrição</Button>
-      </Paper>
 
-      {/* Lista de Prescrições Anteriores */}
-      <Typography variant="h6" gutterBottom>Histórico de Prescrições</Typography>
-      {prescricoes.length > 0 ? (
-        prescricoes.map(prescricao => (
-          <Accordion key={prescricao.id}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ flexShrink: 0, fontWeight: 'bold' }}>
-                {new Date(prescricao.data_prescricao).toLocaleDateString('pt-BR')}
-              </Typography>
-              <Typography sx={{ ml: 2, color: 'text.secondary' }}>Dr(a). {prescricao.medico}</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              {prescricao.itens.map((item, index) => (
-                <Box key={index} sx={{ mb: 1 }}>
-                  <Typography variant="subtitle2">{item.medicamento} - {item.dosagem}</Typography>
-                  <Typography variant="body2" sx={{ pl: 1 }}>{item.instrucoes}</Typography>
-                  <Divider sx={{ mt: 1 }} />
-                </Box>
-              ))}
-              <Button 
-                startIcon={<PictureAsPdfIcon />} 
-                onClick={() => handleGerarPdf(prescricao.id)}
-                variant="outlined"
-                size="small"
-                sx={{ mt: 2 }}
-              >
-                Gerar PDF
-              </Button>
-            </AccordionDetails>
-          </Accordion>
-        ))
-      ) : (
-        <Typography>Nenhuma prescrição registrada para este paciente.</Typography>
-      )}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+            <Button startIcon={<AddCircleOutlineIcon />} onClick={handleAddItem} size="small" variant="text">
+            Adicionar Item
+            </Button>
+            <Button type="submit" variant="contained" size="small" disableElevation>
+            Salvar
+            </Button>
+        </Box>
+      </Box>
+
+      {/* 2. HISTÓRICO DE PRESCRIÇÕES (Flat Accordion) */}
+      <Box>
+        <Typography className="tasy-section-header">Prescrições Anteriores</Typography>
+        {prescricoes.length > 0 ? (
+          prescricoes.map(prescricao => (
+            <Accordion key={prescricao.id} disableGutters sx={{ border: '1px solid #e0e0e0', mb: 1, '&:before': { display: 'none' } }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                  {new Date(prescricao.data_prescricao).toLocaleDateString('pt-BR')}
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 1.5, pt: 0, bgcolor: '#f8f9fa' }}>
+                {prescricao.itens.map((item, idx) => (
+                  <Box key={idx} sx={{ mb: 1 }}>
+                    <Typography variant="body2" fontWeight="bold">{item.medicamento} - {item.dosagem}</Typography>
+                    <Typography variant="caption" color="text.secondary">{item.instrucoes}</Typography>
+                    <Divider sx={{ my: 0.5 }} />
+                  </Box>
+                ))}
+                <Button startIcon={<PictureAsPdfIcon />} onClick={() => handleGerarPdf(prescricao.id)} variant="outlined" size="small" fullWidth sx={{ mt: 1 }}>
+                  Imprimir PDF
+                </Button>
+              </AccordionDetails>
+            </Accordion>
+          ))
+        ) : (
+          <Typography variant="body2" color="text.secondary">Nenhuma prescrição salva.</Typography>
+        )}
+      </Box>
     </Box>
   );
 }
