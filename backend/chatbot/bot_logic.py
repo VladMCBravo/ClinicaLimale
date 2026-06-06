@@ -43,7 +43,15 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             logger.warning(f"📅 [DEBUG DATA] Data de nascimento extraída pela IA: {analise_ia.get('data_nascimento')}")
             # -----------------------------------------
             # 3. ATUALIZAÇÃO DO CADASTRO DO PACIENTE
-            telefone_limpo = ''.join(filter(str.isdigit, session_id))
+            # --- CORREÇÃO DO FORMATO DO TELEFONE ---
+            raw_phone = ''.join(filter(str.isdigit, session_id))
+            
+            # Se começar com 55 (Brasil) e tiver 13 dígitos, removemos o 55
+            if len(raw_phone) == 13 and raw_phone.startswith('55'):
+                telefone_limpo = raw_phone[2:]
+            else:
+                telefone_limpo = raw_phone
+            # ----------------------------------------
             
             paciente, created = Paciente.objects.get_or_create(
                 telefone_celular=telefone_limpo,
