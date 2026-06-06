@@ -41,6 +41,16 @@ export default function ProntuarioWorkspace() {
     const [conteudoCentral, setConteudoCentral] = useState({ tipo: 'VAZIO' }); 
     const [ferramentaDireita, setFerramentaDireita] = useState(null);
 
+    // NOVA FUNÇÃO: Formata a data de AAAA-MM-DD para DD/MM/AAAA
+    const formatarData = (dataBase) => {
+        if (!dataBase) return 'N/A';
+        if (dataBase.includes('-')) {
+            const [ano, mes, dia] = dataBase.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+        return dataBase;
+    };
+
     // --- CARREGAMENTO DA COLUNA ESQUERDA (Listas) ---
     useEffect(() => {
         carregarListaEsquerda();
@@ -75,31 +85,27 @@ export default function ProntuarioWorkspace() {
         }
     };
 
+    // NOVA FUNÇÃO: Busca apenas o banner
+    const carregarBanner = async (pacId) => {
+        try {
+            const resBanner = await apiClient.get(`/prontuario/workspace/banner/${pacId}/`);
+            setPacienteAtivo(resBanner.data);
+        } catch (error) {
+            console.error("Erro ao recarregar banner", error);
+        }
+    };
+
     // --- AÇÕES DO USUÁRIO ---
     const selecionarPaciente = async (itemLista) => {
         const pacId = abaEsquerda === 0 ? itemLista.paciente_id : itemLista.id;
         const agendamento = abaEsquerda === 0 ? itemLista : null;
         
         setAgendamentoAtivo(agendamento);
-        setFerramentaDireita(null); // Fecha a direita ao trocar de paciente
+        setFerramentaDireita(null);
 
-        try {
-            // Busca os dados do banner
-            const resBanner = await apiClient.get(`/prontuario/workspace/banner/${pacId}/`);
-            setPacienteAtivo(resBanner.data);
-        } catch (error) {
-            // Mock de emergência para o banner
-            setPacienteAtivo({
-                id: pacId,
-                nome_completo: itemLista.paciente_nome || itemLista.nome_completo,
-                genero: 'Feminino',
-                data_nascimento: '01/06/2019',
-                idade_formatada: '6 anos',
-                sinais_vitais: { pa: '100x80', fc: '89', peso: '22kg' }
-            });
-        }
+        // Chama a função nova aqui!
+        await carregarBanner(pacId);
 
-        // Se veio da agenda, abre o formulário da especialidade automaticamente
         if (agendamento) {
             setConteudoCentral({ tipo: 'NOVO_ATENDIMENTO', especialidade: agendamento.especialidade });
         } else {
@@ -127,7 +133,11 @@ export default function ProntuarioWorkspace() {
             const props = { 
                 pacienteId: pacienteAtivo.id, 
                 agendamentoId: agendamentoAtivo?.id,
-                onEvolucaoSalva: () => console.log('Evolução Salva! Recarregar listas se necessário.') 
+                // O GATILHO MÁGICO AQUI:
+                onEvolucaoSalva: () => {
+                    console.log('Evolução Salva! Atualizando a barra superior...');
+                    carregarBanner(pacienteAtivo.id); 
+                } 
             };
 
             return (
@@ -166,7 +176,7 @@ export default function ProntuarioWorkspace() {
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 3, fontSize: '0.75rem', color: '#ced4da', flexGrow: 1 }}>
                             <Box><strong>Prontuário:</strong> {pacienteAtivo.id}</Box>
-                            <Box><strong>Nascimento:</strong> {pacienteAtivo.data_nascimento} ({pacienteAtivo.idade_formatada})</Box>
+                            <Box><strong>Nascimento:</strong> {formatarData(pacienteAtivo.data_nascimento)} ({pacienteAtivo.idade_formatada || 'Indisponível'})</Box>
                             <Box><strong>Sexo:</strong> {pacienteAtivo.genero}</Box>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 2, fontSize: '0.75rem', color: '#ced4da', borderLeft: '1px solid #555', pl: 2 }}>

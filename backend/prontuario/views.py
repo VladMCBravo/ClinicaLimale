@@ -1616,9 +1616,41 @@ class PatientBannerAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, paciente_id):
+        # 1. Pega os dados mestre do paciente
         paciente = get_object_or_404(Paciente, id=paciente_id)
-        serializer = PatientBannerSerializer(paciente, context={'request': request})
-        return Response(serializer.data)
+        
+        # 2. Busca a última evolução para puxar a Pressão (PA) e Frequência Cardíaca (FC)
+        # Ajuste os nomes dos campos de acordo com o que você criou no seu models.py da Evolucao
+        ultima_evolucao = Evolucao.objects.filter(paciente=paciente).order_by('-data_atendimento').first()
+        
+        # Lógica: Tenta pegar da evolução. Se não tiver evolução, fica 'N/A'
+        pa = getattr(ultima_evolucao, 'pressao_arterial', 'N/A') if ultima_evolucao else 'N/A'
+        fc = getattr(ultima_evolucao, 'frequencia_cardiaca', 'N/A') if ultima_evolucao else 'N/A'
+        
+        # O Peso e Altura vêm sempre do cadastro do Paciente (que o SOAP acabou de atualizar)
+        peso = f"{paciente.peso} kg" if paciente.peso else 'N/A'
+
+        # Calcula a idade exata (opcional, se você já tiver um método no model, use-o)
+        from datetime import date
+        idade_formatada = "Indisponível"
+        if paciente.data_nascimento:
+            hoje = date.today()
+            anos = hoje.year - paciente.data_nascimento.year - ((hoje.month, hoje.day) < (paciente.data_nascimento.month, paciente.data_nascimento.day))
+            idade_formatada = f"{anos} anos"
+
+        data = {
+            'id': paciente.id,
+            'nome_completo': paciente.nome_completo,
+            'data_nascimento': paciente.data_nascimento, # O backend manda AAAA-MM-DD, o React formata
+            'genero': paciente.genero,
+            'idade_formatada': idade_formatada,
+            'sinais_vitais': {
+                'pa': pa or 'N/A',
+                'fc': fc or 'N/A',
+                'peso': peso
+            }
+        }
+        return Response(data)
 
 
 class MeusPacientesWorkspaceAPIView(generics.ListAPIView):
