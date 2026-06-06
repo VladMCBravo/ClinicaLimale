@@ -1,5 +1,6 @@
 # chatbot/services.py
 
+import os
 import requests
 from usuarios.models import Especialidade
 from faturamento.models import Procedimento
@@ -67,9 +68,30 @@ def buscar_precos_servicos(nome_servico=None):
         return []
 
 def enviar_msg_whatsapp(numero, texto):
-    # ATUAL: Evolution API
-    # FUTURO: Basta trocar a URL e o Header para os da META
-    url = "https://sua-instancia-evolution.com/message/sendText/limale"
-    headers = {"apikey": "sua_chave_aqui"}
-    payload = {"number": numero, "text": texto}
-    requests.post(url, json=payload, headers=headers)
+    """
+    Envia mensagens ativas pelo WhatsApp usando a Evolution API e as variáveis de ambiente.
+    """
+    base_url = os.environ.get("EVOLUTION_API_URL", "http://evolution_api:8080").rstrip("/")
+    api_key = os.environ.get("EVOLUTION_API_KEY", "")
+    instance_name = os.environ.get("EVOLUTION_INSTANCE_NAME", "crm_oficial")
+
+    url = f"{base_url}/message/sendText/{instance_name}"
+    
+    headers = {
+        "apikey": api_key,
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "number": numero,
+        "text": texto
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status() # Dispara erro se não for 200 OK
+        logger.info(f"✅ Mensagem enviada com sucesso para {numero}")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Erro ao enviar mensagem WhatsApp para {numero}: {e}")
+        return False
