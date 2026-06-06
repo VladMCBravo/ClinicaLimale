@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Box, Typography, LinearProgress, TextField, InputAdornment, Grid, Paper, ToggleButton, ToggleButtonGroup
+  Box, Typography, LinearProgress, TextField, InputAdornment, Grid, Paper, ToggleButton, ToggleButtonGroup, Button
 } from '@mui/material';
 import { FaSearch, FaThLarge, FaListUl, FaChartBar, FaFilePdf } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
