@@ -1,24 +1,21 @@
-// src/components/prontuario/cardiologia/RelatoriosTab.jsx
-// VERSÃO FINAL: Com ícone de arquivar (lixeira) e diálogo de confirmação
+// src/components/prontuario/RelatoriosTab.jsx
+// VERSÃO CORRIGIDA: Layout Vertical Adaptado para a Barra Lateral Direita
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Box, Grid, Paper, Typography, FormControl, InputLabel, Select,
+    Box, Typography, FormControl, InputLabel, Select,
     MenuItem, Button, TextField, CircularProgress, List, ListItem,
-    ListItemText, Divider,
-    IconButton, Tooltip,
-    // --- 1. IMPORTAR ÍCONE DA LIXEIRA E COMPONENTES DE DIÁLOGO ---
+    ListItemText, Divider, IconButton, Tooltip,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import DeleteIcon from '@mui/icons-material/Delete'; // <-- Ícone da lixeira
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
 export default function RelatoriosTab({ pacienteId, consultaAtualId, especialidade }) {
     const { showSnackbar } = useSnackbar();
     
-    // ... (Estados de dados e loading continuam iguais) ...
     const [templates, setTemplates] = useState([]); 
     const [savedReports, setSavedReports] = useState([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -29,12 +26,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pdfLoadingId, setPdfLoadingId] = useState(null); 
-
-    // --- 2. ADICIONAR ESTADO PARA O DIÁLOGO DE CONFIRMAÇÃO ---
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-
-    // ... (fetchTemplates e fetchSavedReports continuam iguais) ...
     const fetchTemplates = useCallback(async () => {
         setIsLoadingTemplates(true);
         try {
@@ -50,8 +43,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const fetchSavedReports = useCallback(async () => {
         setIsLoadingHistory(true);
         try {
-            // Esta view no backend deve ser atualizada para
-            // retornar apenas relatórios com "ativo=True"
             const res = await apiClient.get(`/prontuario/pacientes/${pacienteId}/relatorios/`);
             setSavedReports(res.data);
         } catch (err) {
@@ -61,8 +52,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     }, [pacienteId, showSnackbar]);
 
-
-    // ... (useEffect e handleGerarPreview continuam iguais) ...
     useEffect(() => {
         if (pacienteId && especialidade) {
             fetchTemplates();
@@ -90,10 +79,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             );
             
             setEditorContent(res.data.conteudo_preenchido);
-            
             const templateNome = templates.find(t => t.id === selectedTemplateId)?.titulo || 'Relatório';
             setTitulo(templateNome);
-
         } catch (err) {
             showSnackbar('Erro ao gerar prévia do relatório.', 'error');
         } finally {
@@ -101,7 +88,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
 
-    // ... (handleSalvarRelatorio e handleGerarPdf continuam iguais) ...
     const handleSalvarRelatorio = async () => {
         if (!titulo || !editorContent) {
             showSnackbar('O título e o conteúdo do relatório não podem estar vazios.', 'warning');
@@ -125,7 +111,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             setTitulo('');
             setSelectedTemplateId('');
             fetchSavedReports(); 
-
         } catch (err) {
             showSnackbar('Erro ao salvar o relatório.', 'error');
         } finally {
@@ -142,226 +127,159 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 `/pdf/relatorio/${relatorioId}/`,
                 { responseType: 'blob' }
             );
-
             const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             window.open(fileURL, '_blank');
             setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
-
         } catch (error) {
             console.error("Erro ao gerar PDF do relatório:", error);
-            if (error.response && error.response.status === 404) {
-                showSnackbar('Erro 404: Rota do PDF de relatório não encontrada.', 'error');
-            } else {
-                showSnackbar('Erro ao gerar PDF do relatório.', 'error');
-            }
+            showSnackbar('Erro ao gerar PDF do relatório.', 'error');
         } finally {
             setPdfLoadingId(null); 
         }
     };
-
-    // --- 3. ADICIONAR FUNÇÕES PARA O "SOFT DELETE" (Arquivar) ---
     
-    // Esta função será chamada pelo botão "Arquivar" do diálogo
     const handleArquivarRelatorio = async () => {
         const relatorioId = confirmDeleteId;
         if (!relatorioId) return;
-
         try {
-            // ATENÇÃO: Este é um NOVO ENDPOINT que seu backend precisa criar.
-            // Ele deve ser um POST ou PATCH que seta "ativo = False" no relatório.
             await apiClient.post(`/prontuario/relatorios/${relatorioId}/arquivar/`);
-            
             showSnackbar('Relatório arquivado com sucesso.', 'success');
-            
-            // Recarrega a lista (que agora virá filtrada do backend sem esse item)
             fetchSavedReports();
-
         } catch (error) {
-            console.error("Erro ao arquivar relatório:", error);
             showSnackbar('Erro ao arquivar o relatório.', 'error');
         } finally {
-            // Fecha o diálogo de confirmação
             setConfirmDeleteId(null);
         }
     };
 
-    // Esta função apenas abre o diálogo
-    const handleOpenConfirmDialog = (id) => {
-        setConfirmDeleteId(id);
-    };
-
-    
     return (
-        <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, borderColor: 'grey.400' }}>
-            <Box sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: 3 
-            }}>
+        // 1. Aplicação da classe "tasy-compact-input" e layout totalmente vertical
+        <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
-                {/* --- LADO ESQUERDO: ESTAÇÃO DE TRABALHO (Sem alterações) --- */}
-                <Box sx={{ flex: { md: 2 }, width: '100%' }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                        Gerar Novo Relatório
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {/* Dropdown de Templates */}
-                        <FormControl fullWidth size="small" disabled={isLoadingTemplates}>
-                            <InputLabel id="template-select-label">Selecione um Modelo</InputLabel>
-                            <Select
-                                labelId="template-select-label"
-                                label="Selecione um Modelo"
-                                value={selectedTemplateId}
-                                onChange={(e) => setSelectedTemplateId(e.target.value)}
-                            >
-                                {isLoadingTemplates ? <MenuItem disabled>Carregando...</MenuItem> :
-                                 templates.map(template => (
-                                    <MenuItem key={template.id} value={template.id}>{template.titulo}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+            {/* --- SEÇÃO 1: GERAR NOVO RELATÓRIO --- */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography className="tasy-section-header">Gerar Novo Relatório</Typography>
+                
+                <FormControl fullWidth size="small" disabled={isLoadingTemplates}>
+                    <InputLabel id="template-select-label">Selecione um Modelo</InputLabel>
+                    <Select
+                        labelId="template-select-label"
+                        label="Selecione um Modelo"
+                        value={selectedTemplateId}
+                        onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    >
+                        {isLoadingTemplates ? <MenuItem disabled>Carregando...</MenuItem> :
+                            templates.map(template => (
+                            <MenuItem key={template.id} value={template.id}>{template.titulo}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
 
-                        {/* Botão Gerar */}
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleGerarPreview}
-                            disabled={!selectedTemplateId || isLoadingPreview}
-                        >
-                            {isLoadingPreview ? <CircularProgress size={24} /> 
-                                : (consultaAtualId ? 'Gerar Prévia (Usando Consulta Atual)' : 'Gerar Prévia (Sem Consulta)')
-                            }
-                        </Button>
-                        
-                        {!consultaAtualId ? (
-                            <Typography variant="caption" color="warning.main" sx={{textAlign: 'center', mt: -1}}>
-                                Consulta (SOAP) não salva nesta sessão. A prévia usará apenas dados do paciente.
-                            </Typography>
-                        ) : (
-                             <Typography variant="caption" color="success.main" sx={{textAlign: 'center', mt: -1}}>
-                                Consulta atual (SOAP) será incluída na prévia.
-                            </Typography>
-                        )}
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleGerarPreview}
+                    disabled={!selectedTemplateId || isLoadingPreview}
+                    size="small"
+                    disableElevation
+                >
+                    {isLoadingPreview ? <CircularProgress size={20} color="inherit" /> : 'Gerar Prévia'}
+                </Button>
 
+                {/* Feedback visual discreto */}
+                <Typography variant="caption" color={consultaAtualId ? "success.main" : "warning.main"} sx={{ mt: -1, lineHeight: 1.2 }}>
+                    {consultaAtualId 
+                        ? '✓ Consulta atual incluída na prévia.' 
+                        : '⚠ Sem consulta. A prévia usará apenas dados do paciente.'}
+                </Typography>
 
-                        {/* Editor de Texto */}
-                        <TextField
-                            label="Título do Relatório"
-                            value={titulo}
-                            onChange={(e) => setTitulo(e.target.value)}
-                            size="small"
-                            fullWidth
-                        />
-                        <TextField
-                            label="Conteúdo do Relatório (Editável)"
-                            value={editorContent}
-                            onChange={(e) => setEditorContent(e.target.value)}
-                            multiline
-                            rows={15}
-                            fullWidth
-                            disabled={isLoadingPreview}
-                        />
+                <TextField
+                    label="Título do Relatório"
+                    value={titulo}
+                    onChange={(e) => setTitulo(e.target.value)}
+                    size="small"
+                    fullWidth
+                />
+                
+                <TextField
+                    label="Conteúdo do Relatório"
+                    value={editorContent}
+                    onChange={(e) => setEditorContent(e.target.value)}
+                    multiline
+                    rows={8} // 2. Reduzido de 15 para 8 para caber melhor na barra lateral
+                    fullWidth
+                    disabled={isLoadingPreview}
+                />
 
-                        {/* Botão Salvar */}
-                        <Button
-                            variant="contained"
-                            color="success"
-                            onClick={handleSalvarRelatorio}
-                            disabled={isSubmitting || !editorContent || !titulo}
-                        >
-                            {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Relatório'}
-                        </Button>
-                    </Paper>
-                </Box>
-
-
-                {/* --- LADO DIREITO: HISTÓRICO (COM A LIXEIRA) --- */}
-                <Box sx={{ flex: { md: 1 }, width: '100%' }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                        Relatórios Salvos
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
-                        {isLoadingHistory ? <CircularProgress /> :
-                         savedReports.length === 0 ? <Typography>Nenhum relatório salvo.</Typography> : (
-                            <List dense>
-                                {savedReports.map(report => (
-                                    <React.Fragment key={report.id}>
-                                        <ListItem
-                                            // --- 4. ATUALIZAR O SECONDARY ACTION ---
-                                            // Colocamos os dois botões dentro de um Box
-                                            secondaryAction={
-                                                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                    {/* Botão de PDF (igual ao de antes) */}
-                                                    <Tooltip title="Gerar PDF">
-                                                        <span>
-                                                            <IconButton
-                                                                edge="end"
-                                                                aria-label="gerar pdf"
-                                                                onClick={() => handleGerarPdf(report.id)}
-                                                                disabled={pdfLoadingId === report.id}
-                                                            >
-                                                                {pdfLoadingId === report.id ? 
-                                                                    <CircularProgress size={20} color="inherit" /> : 
-                                                                    <PictureAsPdfIcon fontSize="small" />
-                                                                }
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-
-                                                    {/* Botão de Arquivar (Lixeira) */}
-                                                    <Tooltip title="Arquivar Relatório">
-                                                        <span>
-                                                            <IconButton
-                                                                edge="end"
-                                                                aria-label="arquivar"
-                                                                onClick={() => handleOpenConfirmDialog(report.id)}
-                                                                disabled={pdfLoadingId === report.id} // Desabilita se o PDF estiver carregando
-                                                            >
-                                                                <DeleteIcon fontSize="small" color="error" />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                </Box>
-                                            }
-                                        >
-                                            <ListItemText
-                                                primary={report.titulo}
-                                                secondary={`Em: ${new Date(report.data_criacao).toLocaleDateString()} por Dr(a) ${report.medico_nome}`}
-                                            />
-                                        </ListItem>
-                                        <Divider component="li" />
-                                    </React.Fragment>
-                                ))}
-                            </List>
-                         )}
-                    </Paper>
-                </Box>
+                <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleSalvarRelatorio}
+                    disabled={isSubmitting || !editorContent || !titulo}
+                    size="small"
+                    disableElevation
+                >
+                    {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar Relatório'}
+                </Button>
             </Box>
 
-            {/* --- 5. ADICIONAR O DIÁLOGO DE CONFIRMAÇÃO NO FINAL --- */}
-            <Dialog
-                open={!!confirmDeleteId}
-                onClose={() => setConfirmDeleteId(null)}
-                aria-labelledby="alert-dialog-title"
-                aria-describedby="alert-dialog-description"
-            >
-                <DialogTitle id="alert-dialog-title">
-                    Arquivar Relatório?
-                </DialogTitle>
+            {/* --- SEÇÃO 2: RELATÓRIOS SALVOS --- */}
+            <Box>
+                <Typography className="tasy-section-header">Relatórios Salvos</Typography>
+                
+                {isLoadingHistory ? <CircularProgress size={24} sx={{ m: 2, display: 'block' }} /> :
+                    savedReports.length === 0 ? <Typography variant="body2" color="text.secondary">Nenhum relatório salvo.</Typography> : (
+                    <List dense disablePadding>
+                        {savedReports.map(report => (
+                            <React.Fragment key={report.id}>
+                                <ListItem
+                                    disablePadding
+                                    sx={{ py: 1 }}
+                                    secondaryAction={
+                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                            <Tooltip title="Gerar PDF" placement="top">
+                                                <span>
+                                                    <IconButton size="small" onClick={() => handleGerarPdf(report.id)} disabled={pdfLoadingId === report.id}>
+                                                        {pdfLoadingId === report.id ? <CircularProgress size={16} /> : <PictureAsPdfIcon fontSize="small" color="primary" />}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Tooltip title="Arquivar" placement="top">
+                                                <span>
+                                                    <IconButton size="small" onClick={() => setConfirmDeleteId(report.id)} disabled={pdfLoadingId === report.id}>
+                                                        <DeleteIcon fontSize="small" color="error" />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        </Box>
+                                    }
+                                >
+                                    <ListItemText
+                                        primary={<Typography variant="body2" fontWeight="500">{report.titulo}</Typography>}
+                                        secondary={<Typography variant="caption" color="text.secondary">{new Date(report.data_criacao).toLocaleDateString()}</Typography>}
+                                    />
+                                </ListItem>
+                                <Divider component="li" />
+                            </React.Fragment>
+                        ))}
+                    </List>
+                )}
+            </Box>
+
+            {/* DIÁLOGO DE CONFIRMAÇÃO */}
+            <Dialog open={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)}>
+                <DialogTitle>Arquivar Relatório?</DialogTitle>
                 <DialogContent>
-                    <DialogContentText id="alert-dialog-description">
-                        Tem certeza que deseja arquivar este relatório? 
-                        Ele será removido desta lista, mas permanecerá visível no 
-                        histórico do sistema (Admin) para fins de auditoria.
+                    <DialogContentText>
+                        Tem certeza que deseja arquivar este relatório? Ele será removido desta lista.
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
-                    <Button onClick={handleArquivarRelatorio} color="error" autoFocus>
-                        Sim, Arquivar
-                    </Button>
+                    <Button onClick={handleArquivarRelatorio} color="error" autoFocus>Sim, Arquivar</Button>
                 </DialogActions>
             </Dialog>
-        </Paper>
+            
+        </Box>
     );
 }

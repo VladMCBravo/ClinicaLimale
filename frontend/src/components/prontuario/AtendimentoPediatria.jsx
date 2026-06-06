@@ -363,9 +363,30 @@ export default function AtendimentoPediatria({ pacienteId, agendamentoId, onEvol
 
             // As abas (Histórico, DNPM, Vacinação) mapeadas para ferramentas da coluna direita
             abasApoio={[
-                { label: 'Histórico', component: <HistoricoPediatrico ref={historicoRef} pacienteId={pacienteId} /> },
-                { label: 'DNPM', component: <DnpmDetalhado ref={dnpmRef} pacienteId={pacienteId} onDataChange={fetchStatusResumos} /> },
-                { label: 'Vacinação', component: <VacinacaoTab ref={vacinacaoRef} pacienteId={pacienteId} onDataChange={fetchStatusResumos} /> }
+                { 
+                    label: 'Histórico', 
+                    component: (
+                        <Suspense fallback={<CircularProgress sx={{ m: 4 }} />}>
+                            <HistoricoPediatrico ref={historicoRef} pacienteId={pacienteId} />
+                        </Suspense>
+                    ) 
+                },
+                { 
+                    label: 'DNPM', 
+                    component: (
+                        <Suspense fallback={<CircularProgress sx={{ m: 4 }} />}>
+                            <DnpmDetalhado ref={dnpmRef} pacienteId={pacienteId} onDataChange={fetchStatusResumos} />
+                        </Suspense>
+                    ) 
+                },
+                { 
+                    label: 'Vacinação', 
+                    component: (
+                        <Suspense fallback={<CircularProgress sx={{ m: 4 }} />}>
+                            <VacinacaoTab ref={vacinacaoRef} pacienteId={pacienteId} onDataChange={fetchStatusResumos} />
+                        </Suspense>
+                    ) 
+                }
             ]}
 
             // O seu formulário SOAP robusto e complexo isolado nesta propriedade
