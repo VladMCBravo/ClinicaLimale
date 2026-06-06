@@ -227,7 +227,15 @@ export default function ProntuarioWorkspace() {
                                 {ferramentaDireita === 'PRESCRIÇÕES' && <PrescricoesTab pacienteId={pacienteAtivo?.id} />}
                                 {ferramentaDireita === 'DOCUMENTOS' && <DocumentosTab pacienteId={pacienteAtivo?.id} />}
                                 {ferramentaDireita === 'LAUDOS' && <LaudosTab pacienteId={pacienteAtivo?.id} />}
-                                {ferramentaDireita === 'ATESTADOS' && <RelatoriosTab pacienteId={pacienteAtivo?.id} />}
+                                {/* NOVA LINHA ADICIONADA PARA O DICOM */}
+                                {ferramentaDireita === 'IMAGENS' && <ExamesDicomTab pacienteId={pacienteAtivo?.id} />}
+                                {ferramentaDireita === 'ATESTADOS' && (
+                                    <RelatoriosTab 
+                                        pacienteId={pacienteAtivo?.id} 
+                                        consultaAtualId={agendamentoAtivo?.id} 
+                                        especialidade={agendamentoAtivo?.especialidade} 
+                                    />
+                                )}
                             </Suspense>
                         </Box>
                     </Box>

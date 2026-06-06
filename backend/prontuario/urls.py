@@ -11,14 +11,14 @@ router.register(r'documentos', views.DocumentoPacienteViewSet, basename='documen
 urlpatterns = [
     path('anamnese/', views.AnamneseDetailAPIView.as_view(), name='detalhe-anamnese'),
     
-    # --- ★★★ ROTA ÚNICA PARA EVOLUÇÃO ★★★ ---
-    # Esta rota agora lida com GET (Listar) e POST (Criar)
+    # =========================================================================
+    # EVOLUÇÕES (Ajustado para bater com HistoricoConsultas.jsx)
+    # =========================================================================
+    # Rota genérica (mantida caso você use em outro lugar)
     path('evolucoes/', views.EvolucaoListCreateAPIView.as_view(), name='lista-criar-evolucoes'),
-    
-    # Esta rota lida com GET/PATCH/DELETE de uma evolução específica
     path('evolucoes/<int:pk>/', views.EvolucaoDetailAPIView.as_view(), name='detalhe-evolucao'),
-    
-    # --- (Delete todas as rotas 'evolucoes-pediatria/', 'evolucoes-cardiologia/', etc.) ---
+    # NOVA ROTA: Pedida pelo Frontend para buscar o histórico do paciente na coluna da esquerda
+    path('pacientes/<int:paciente_id>/evolucoes/', views.EvolucaoListCreateAPIView.as_view(), name='evolucoes-do-paciente'),
     
     # --- OUTRAS ROTAS (Sem alteração) ---
     path('prescricoes/', views.PrescricaoListCreateAPIView.as_view(), name='listar-criar-prescricoes'),
@@ -32,13 +32,19 @@ urlpatterns = [
     path('vacinas/<int:pk>/', views.VacinaPacienteDetailView.as_view(), name='detalhe-vacina'),
     path('vacinas-status/', views.VacinaStatusView.as_view(), name='status-vacina'),
     
-    # Rota para buscar templates (Mapeada corretamente para a view)
-    path('templates-relatorio/', views.TemplateRelatorioListView.as_view(), name='template-relatorio-list'),
-
-    # Rota corrigida: O backend espera o paciente_id na URL (pacientes/<id>/relatorios/)
+    # =========================================================================
+    # RELATÓRIOS (Ajustado para bater com RelatoriosTab.jsx)
+    # =========================================================================
+    # NOVA ROTA: O React pede os templates disponíveis
+    path('templates/', views.TemplatesRelatorioListView.as_view(), name='templates-relatorio'),
+    
+    # Ajustadas para receber o ID do paciente na URL
     path('pacientes/<int:paciente_id>/relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
     path('pacientes/<int:paciente_id>/relatorios/criar/', views.RelatorioSalvoCreateView.as_view(), name='relatorio-salvo-create'),
-    path('gerar-preview-relatorio/<int:paciente_id>/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
+    path('pacientes/<int:paciente_id>/gerar-preview-relatorio/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
+    
+    # NOVA ROTA: O botão de "Arquivar" (Soft Delete) na lixeira
+    path('relatorios/<int:pk>/arquivar/', views.ArquivarRelatorioView.as_view(), name='arquivar-relatorio'),
     
     # --- LAUDOS ---
     path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
@@ -61,7 +67,7 @@ urlpatterns = [
     path('aplicar-mascara/', views.AplicarMascaraPDFView.as_view(), name='aplicar-mascara-pdf'),
 
     # =========================================================================
-    # ROTAS DO WORKSPACE TASY-LIKE
+    # ROTAS DO WORKSPACE TASY-LIKE (Perfeitas, não mexa!)
     # =========================================================================
     path('workspace/banner/<int:paciente_id>/', views.PatientBannerAPIView.as_view(), name='workspace-banner'),
     path('workspace/meus-pacientes/', views.MeusPacientesWorkspaceAPIView.as_view(), name='workspace-meus-pacientes'),

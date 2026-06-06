@@ -25,7 +25,8 @@ export default function ExamesDicomTab({ pacienteId }) {
     setIsLoading(true);
     try {
       // --- 3. AJUSTE A URL PARA A ROTA CORRETA ---
-      const response = await apiClient.get(`/integracao/pacientes/${pacienteId}/exames/`);
+      // Como deve ficar no React (CORRETO):
+      const response = await apiClient.get(`/prontuario/exames-paciente/?paciente_id=${pacienteId}`);
       setExames(response.data);
     } catch (error) {
       console.error("Erro ao buscar exames DICOM:", error);

@@ -81,7 +81,15 @@ export default function HistoricoConsultas({ pacienteId, onConsultaClick }) {
                                 primary={`Em ${new Date(ev.data_atendimento).toLocaleDateString('pt-BR')}`}
                                 secondary={`com Dr(a). ${ev.medico_nome || 'Não informado'}`} 
                             />
-                            
+                            {/* NOVO BLOCO ADICIONADO: O BOTÃO VISUAL */}
+                            <IconButton 
+                                edge="end" 
+                                onClick={(e) => handleDownloadPdf(ev.id, e)}
+                                title="Baixar PDF"
+                            >
+                                {/* Você precisará importar o PictureAsPdfIcon do @mui/icons-material no topo do arquivo */}
+                                <PictureAsPdfIcon fontSize="small" color="primary" /> 
+                            </IconButton>
                         </ListItemButton>
                     )) : (
                         <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>

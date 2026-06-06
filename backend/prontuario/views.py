@@ -797,6 +797,27 @@ class GerarRelatorioPDFView(APIView):
             context, 
             filename
         )
+    
+class ArquivarRelatorioView(APIView):
+    """
+    Inativa (Soft Delete) um relatório salvo para que ele não apareça mais no prontuário,
+    mas permaneça no banco de dados para auditoria.
+    """
+    permission_classes = [CanViewProntuario] # Protegido
+
+    def post(self, request, pk):
+        relatorio = get_object_or_404(RelatorioSalvo, pk=pk)
+        
+        # O médico só pode arquivar os próprios relatórios (opcional, mas recomendado)
+        if relatorio.medico != request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Você não tem permissão para arquivar o relatório de outro médico.")
+
+        # Realiza o Soft Delete (Certifique-se de que o campo 'ativo' ou similar exista no modelo)
+        relatorio.ativo = False 
+        relatorio.save()
+        
+        return Response({"detail": "Relatório arquivado com sucesso."}, status=status.HTTP_200_OK)
 
 class ListarExamesDoPacienteView(generics.ListAPIView):
     """
