@@ -20,6 +20,19 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
 
     logger.info(f"🕵️ [GHOST MODE] Analisando sessão: {session_id}")
 
+    # --- NOVO FILTRO DE MENSAGENS CURTAS ---
+    mensagem_limpa = user_message.strip().lower()
+    palavras_ignoradas = ['ok', 'sim', 'não', 'nao', 'obrigado', 'obrigada', 'bom dia', 'boa tarde', 'boa noite', 'tá bom', 'joia']
+    
+    if len(mensagem_limpa) <= 3 or mensagem_limpa in palavras_ignoradas:
+        logger.info("🤖 [GHOST MODE] Mensagem ignorada (Curta ou genérica).")
+        # Apenas salva no histórico e encerra
+        historico.append(f"Paciente: {user_message}")
+        memoria_atual['historico_conversa'] = historico[-10:]
+        memoria_obj.memory_data = memoria_atual
+        memoria_obj.save()
+        return {}
+
     # 2. INVOCAÇÃO SILENCIOSA DA IA (Roda em todas as mensagens agora)
     if chain_ghost_mode:
         try:

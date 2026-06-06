@@ -19,7 +19,7 @@ try:
         raise ValueError("A variável de ambiente GOOGLE_API_KEY não foi encontrada.")
 
     # Mantemos o modelo rápido e com temperatura 0 para extração precisa
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, google_api_key=api_key, max_retries=0)
 
     # ==========================================
     # O SUPER MODELO DE EXTRAÇÃO (OS 3 FUNIS)
