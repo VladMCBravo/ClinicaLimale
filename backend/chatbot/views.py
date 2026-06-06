@@ -303,6 +303,15 @@ class EvolutionWebhookView(APIView):
         
         if data.get("event") == "messages.upsert":
             payload = data.get("data", {})
+            
+            # --- PROTEÇÃO CONTRA O ECO ---
+            # Verifica se a mensagem foi enviada pelo próprio número da clínica (recepção)
+            is_from_me = payload.get("key", {}).get("fromMe", False)
+            if is_from_me:
+                # Retorna status 200 para a Evolution API não tentar reenviar, mas ignora o processamento
+                return Response({"status": "ignored - outgoing message"}, status=200)
+            # -----------------------------
+
             msg_obj = payload.get("message", {})
             message_text = msg_obj.get("conversation") or msg_obj.get("extendedTextMessage", {}).get("text", "")
             

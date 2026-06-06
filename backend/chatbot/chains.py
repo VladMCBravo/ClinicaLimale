@@ -30,24 +30,32 @@ try:
         data_nascimento: Optional[str] = Field(description="Data de nascimento (YYYY-MM-DD). Null se não informado.")
         email_extraido: Optional[str] = Field(description="Email do paciente. Null se não informado.")
         
-        # --- DADOS DE MARKETING E ORIGEM ---
-        origem_aquisicao: Literal['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'SITE', 'INDICACAO', 'MEDICO', 'CONVENIO', 'OUTRO'] = Field(description="De onde o paciente veio ou onde viu o anúncio. Deduza pela conversa ou por mensagens automáticas do WhatsApp (ex: 'Vi no Instagram' -> 'INSTAGRAM'). Se não for possível identificar, retorne null.")
-
         # --- FUNIL GERAL E DE EXAMES ---
         exame_interesse: Optional[str] = Field(description="O tipo de exame ou consulta desejado. Ex: Morfológico, Eletrocardiograma. Null se não informado.")
-        medico_solicitante: Optional[str] = Field(description="Nome do médico que pediu o exame, se o paciente mencionar (ex: 'Dr. Roberto pediu'). Null se não mencionado.")
-        motivo_exame: Literal['rotina', 'investigacao_dor', 'acompanhamento', 'urgencia'] = Field(description="Classifique o motivo do exame. Null se não for possível deduzir.")
+        medico_solicitante: Optional[str] = Field(description="Nome do médico que pediu o exame. Null se não mencionado.")
+        
+        # CORREÇÃO AQUI (Adicionado Optional)
+        motivo_exame: Optional[Literal['rotina', 'investigacao_dor', 'acompanhamento', 'urgencia']] = Field(description="Classifique o motivo do exame. Null se não for possível deduzir.")
 
         # --- FUNIL OBSTÉTRICO (GESTANTES) ---
         semanas_gestacao: Optional[int] = Field(description="Número de semanas de gestação, extraído apenas se for número. Null se não for gestante ou não informado.")
-        primeira_gravidez: Optional[bool] = Field(description="True se mencionar que é o primeiro filho/mãe de primeira viagem. False se mencionar filhos anteriores. Null se não mencionado.")
-        sexo_bebe: Literal['menino', 'menina', 'surpresa'] = Field(description="Sexo do bebê, se a paciente já souber e mencionar. Null se não mencionado.")
+        primeira_gravidez: Optional[bool] = Field(description="True se mencionar que é o primeiro filho. Null se não mencionado.")
+        
+        # CORREÇÃO AQUI (Adicionado Optional)
+        sexo_bebe: Optional[Literal['menino', 'menina', 'surpresa']] = Field(description="Sexo do bebê. Null se não mencionado.")
 
         # --- FUNIL COMERCIAL E VENDAS ---
         agendou: Optional[bool] = Field(description="True se confirmou o agendamento. False se desistiu. Null se a conversa ainda não foi concluída.")
-        motivo_desistencia: Literal['preco', 'horario', 'localizacao', 'precisa_pedido_medico', 'outro'] = Field(description="Se agendou=False, classifique o motivo da desistência. Null se não desistiu.")
-        concorrencia_mencionada: Optional[str] = Field(description="Nome de outra clínica ou laboratório que o paciente usou para comparar preço ou serviço. Null se não mencionar.")
-        nivel_urgencia: Literal['frio', 'morno', 'quente'] = Field(description="Frio: só pesquisando preço. Morno: quer agendar, mas tem dúvidas. Quente: precisa agendar logo ou demonstrou muita pressa.")
+        
+        # CORREÇÃO AQUI (Adicionado Optional)
+        motivo_desistencia: Optional[Literal['preco', 'horario', 'localizacao', 'precisa_pedido_medico', 'outro']] = Field(description="Se agendou=False, classifique o motivo da desistência. Null se não desistiu.")
+        concorrencia_mencionada: Optional[str] = Field(description="Nome de outra clínica ou laboratório. Null se não mencionar.")
+        
+        # CORREÇÃO AQUI (Adicionado Optional)
+        nivel_urgencia: Optional[Literal['frio', 'morno', 'quente']] = Field(description="Frio: pesquisando preço. Morno: dúvidas. Quente: precisa agendar logo.")
+        
+        # O CAMPO DE MARKETING QUE AJUSTAMOS (Com Optional)
+        origem_aquisicao: Optional[Literal['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'SITE', 'INDICACAO', 'MEDICO', 'CONVENIO', 'OUTRO']] = Field(description="De onde o paciente veio ou onde viu o anúncio. Null se não for possível identificar.")
 
     parser_ghost = JsonOutputParser(pydantic_object=GhostModeOutput)
     
