@@ -152,11 +152,11 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                     comp.observacoes_internas = f"{novas_obs}\n{obs_atuais}"[:500] 
                     comp.save()
 
-            # Movimentação no funil baseada no agendamento
+            # Move o card no funil baseado na decisão do paciente
             agendou = analise_ia.get("agendou")
             if agendou is False:
-                ciclo.fase_atual = 'ENCERRADO'
-                ciclo.status = 'encerrado'
+                ciclo.fase_atual = 'F5' # Move para a coluna de Recuperação
+                # Removemos a mudança de status. Ele continua 'ativo' para aparecer na tela!
                 ciclo.save()
             elif agendou is True and ciclo.fase_atual == 'F1':
                 ciclo.fase_atual = 'F2'
