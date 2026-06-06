@@ -36,7 +36,8 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   // --- NOVO ESTADO: COMPORTAMENTO E MARKETING ---
   const [comportamento, setComportamento] = useState({
     origem_aquisicao: '', segue_instagram: false, avaliou_google: false, indicou_outros: false,
-    perfil_emocional: 'INDEFINIDO', principal_objecao: '', observacoes_internas: ''
+    perfil_emocional: 'INDEFINIDO', principal_objecao: '', observacoes_internas: '',
+    nivel_urgencia: '', exame_interesse: '', motivo_exame: '', concorrencia_mencionada: '' // <--- NOVOS
   });
 
   useEffect(() => {
@@ -74,7 +75,11 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
               indicou_outros: dadosFinais.comportamento.indicou_outros || false,
               perfil_emocional: dadosFinais.comportamento.perfil_emocional || 'INDEFINIDO',
               principal_objecao: dadosFinais.comportamento.principal_objecao || '',
-              observacoes_internas: dadosFinais.comportamento.observacoes_internas || ''
+              observacoes_internas: dadosFinais.comportamento.observacoes_internas || '',
+              nivel_urgencia: dadosFinais.comportamento.nivel_urgencia || '',
+              exame_interesse: dadosFinais.comportamento.exame_interesse || '',
+              motivo_exame: dadosFinais.comportamento.motivo_exame || '',
+              concorrencia_mencionada: dadosFinais.comportamento.concorrencia_mencionada || ''
           });
       }
 
@@ -298,12 +303,11 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
           </>
 
         ) : tabIndex === 1 ? (
-          // ABA 2: PERFIL & MARKETING (NOVA)
+          // ABA 2: PERFIL & MARKETING (COMPLETA COM DADOS DA IA)
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             
-            {/* Bloco de Origem e Engajamento */}
             <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#555', mb: 1.5 }}>Origem e Engajamento</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#555', mb: 1.5 }}>🤖 Insights Extraídos pela IA</Typography>
                 <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                         <TextField
@@ -316,30 +320,39 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                         </TextField>
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                        <FormGroup sx={{ gap: 0 }}>
-                            <FormControlLabel control={<Switch size="small" checked={comportamento.segue_instagram} onChange={(e) => handleChangeComportamento('segue_instagram', e.target.checked)} />} label={<Typography sx={{ fontSize: '0.8rem' }}>Segue no Instagram?</Typography>} />
-                            <FormControlLabel control={<Switch size="small" checked={comportamento.avaliou_google} onChange={(e) => handleChangeComportamento('avaliou_google', e.target.checked)} />} label={<Typography sx={{ fontSize: '0.8rem' }}>Avaliou no Google?</Typography>} />
-                            <FormControlLabel control={<Switch size="small" checked={comportamento.indicou_outros} onChange={(e) => handleChangeComportamento('indicou_outros', e.target.checked)} color="success" />} label={<Typography sx={{ fontSize: '0.8rem', fontWeight: comportamento.indicou_outros ? 'bold' : 'normal' }}>É uma Promotora? (Indicou alguém)</Typography>} />
-                        </FormGroup>
+                        <TextField
+                            select fullWidth size="small" label="Nível de Urgência"
+                            value={comportamento.nivel_urgencia || ''}
+                            onChange={(e) => handleChangeComportamento('nivel_urgencia', e.target.value)}
+                        >
+                            <MenuItem value="">Não mapeado</MenuItem>
+                            <MenuItem value="quente">🔥 Quente (Pra ontem)</MenuItem>
+                            <MenuItem value="morno">🟡 Morno (Com dúvidas)</MenuItem>
+                            <MenuItem value="frio">❄️ Frio (Só pesquisando)</MenuItem>
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth size="small" label="Exame de Interesse"
+                            value={comportamento.exame_interesse || ''}
+                            onChange={(e) => handleChangeComportamento('exame_interesse', e.target.value)}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth size="small" label="Concorrente Mencionado"
+                            value={comportamento.concorrencia_mencionada || ''}
+                            onChange={(e) => handleChangeComportamento('concorrencia_mencionada', e.target.value)}
+                        />
                     </Grid>
                 </Grid>
             </Box>
 
             <Divider />
 
-            {/* Bloco de Perfil Comportamental (O resgate da ponta solta) */}
             <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#555', mb: 1.5 }}>Comportamento Clínico</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#555', mb: 1.5 }}>Atendimento e Fechamento</Typography>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                        <TextField
-                            select fullWidth size="small" label="Perfil Emocional"
-                            value={comportamento.perfil_emocional}
-                            onChange={(e) => handleChangeComportamento('perfil_emocional', e.target.value)}
-                        >
-                            {PERFIS.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-                        </TextField>
-                    </Grid>
                     <Grid item xs={12} sm={6}>
                         <TextField
                             select fullWidth size="small" label="Principal Objeção (Gargalo)"
@@ -349,6 +362,12 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                             <MenuItem value="">Nenhuma / Não mapeada</MenuItem>
                             {OBJECOES.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
                         </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <FormGroup sx={{ gap: 0 }}>
+                            <FormControlLabel control={<Switch size="small" checked={comportamento.segue_instagram} onChange={(e) => handleChangeComportamento('segue_instagram', e.target.checked)} />} label={<Typography sx={{ fontSize: '0.8rem' }}>Segue no Insta?</Typography>} />
+                            <FormControlLabel control={<Switch size="small" checked={comportamento.avaliou_google} onChange={(e) => handleChangeComportamento('avaliou_google', e.target.checked)} />} label={<Typography sx={{ fontSize: '0.8rem' }}>Avaliou no Google?</Typography>} />
+                        </FormGroup>
                     </Grid>
                     <Grid item xs={12}>
                         <TextField

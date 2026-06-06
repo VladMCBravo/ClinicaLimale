@@ -54,6 +54,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
     alerta_clinico = serializers.SerializerMethodField()
     alerta_whatsapp = serializers.SerializerMethodField()
     alerta_operacional = serializers.SerializerMethodField()
+    # --- NOVO: RESUMO DO BOT PARA O KANBAN E GRÁFICOS ---
+    comportamento_resumo = serializers.SerializerMethodField()
 
     class Meta:
         model = Ciclo
@@ -72,7 +74,8 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
             'idade_gestacional',
             'alerta_clinico',
             'alerta_whatsapp',
-            'alerta_operacional' 
+            'alerta_operacional',
+            'comportamento_resumo' # <-- ADICIONE AQUI 
         ]
 
     def get_paciente_foto(self, obj):
@@ -159,6 +162,21 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
              return {"cor": "#2e7d32", "icone": "⭐", "texto": "Pedir avaliação no Google e Feedback"}
 
         return None
+    
+    # --- NOVO MÉTODO (Adicione no final da classe CicloKanbanSerializer) ---
+    def get_comportamento_resumo(self, obj):
+        try:
+            if hasattr(obj.paciente, 'perfil_comportamental'):
+                comp = obj.paciente.perfil_comportamental
+                return {
+                    "origem": comp.origem_aquisicao or "Não Informado",
+                    "urgencia": comp.nivel_urgencia or "morno",
+                    "exame": comp.exame_interesse or "Não Especificado",
+                    "objecao": comp.get_principal_objecao_display() or ""
+                }
+        except Exception:
+            pass
+        return {"origem": "Não Informado", "urgencia": "morno", "exame": "Não Especificado", "objecao": ""}
 
     # 2. CORREÇÃO DO ALERTA (Morfologico, etc) NO CARD
     def get_alerta_clinico(self, obj):

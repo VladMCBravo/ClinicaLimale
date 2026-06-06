@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Box, Typography, LinearProgress, TextField, InputAdornment, Grid, Paper, ToggleButton, ToggleButtonGroup
 } from '@mui/material';
-import { FaSearch, FaThLarge, FaListUl, FaChartBar } from 'react-icons/fa';
+import { FaSearch, FaThLarge, FaListUl, FaChartBar, FaFilePdf } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
 
@@ -110,10 +110,35 @@ export default function CRMKanbanPage() {
   return (
     <Box sx={{ p: 1, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
       
-      {/* BARRA SUPERIOR ULTRA COMPACTA */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+      {/* --- CSS MÁGICO PARA IMPRESSÃO PDF --- */}
+      <style>
+        {`
+          @media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+            .print-card { break-inside: avoid; }
+          }
+        `}
+      </style>
+
+      {/* BARRA SUPERIOR */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }} className="no-print">
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#333' }}>Gestão de Pacientes</Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          
+          {/* BOTÃO DE RELATÓRIO PDF */}
+          <Button 
+            variant="outlined" 
+            size="small" 
+            startIcon={<FaFilePdf />} 
+            onClick={() => window.print()}
+            sx={{ bgcolor: 'white', height: 32, fontSize: '0.75rem', color: '#d32f2f', borderColor: '#d32f2f' }}
+          >
+            Gerar PDF
+          </Button>
+
           <ToggleButtonGroup value={viewMode} exclusive onChange={(e, n) => n && setViewMode(n)} size="small" sx={{ bgcolor: 'white', height: 32 }}>
             <ToggleButton value="table" sx={{ py: 0, px: 1, fontSize: '0.75rem' }}><FaListUl style={{ marginRight: '4px' }} /> Tabela</ToggleButton>
             <ToggleButton value="kanban" sx={{ py: 0, px: 1, fontSize: '0.75rem' }}><FaThLarge style={{ marginRight: '4px' }} /> Kanban</ToggleButton>
@@ -123,6 +148,8 @@ export default function CRMKanbanPage() {
         </Box>
       </Box>
 
+      {/* ADICIONANDO A CLASSE 'print-area' ENVOLVENDO O CONTEÚDO */}
+      <div className="print-area">
       {/* CABEÇALHOS DO FUNIL MAIS FINOS */}
       <Grid container spacing={1} sx={{ mb: 1.5 }}>
         {PHASES.map((phase) => (
@@ -139,9 +166,10 @@ export default function CRMKanbanPage() {
       </Grid>
 
       {/* RENDERIZAÇÃO DAS ABAS */}
-      {viewMode === 'table' && <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
-      {viewMode === 'kanban' && <KanbanView displayedCards={displayedCards} activePhaseBorder={activePhaseBorder} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
-      {viewMode === 'graficos' && <GraficosView rawData={rawData} PHASES={PHASES} />}
+        {viewMode === 'table' && <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
+        {viewMode === 'kanban' && <KanbanView displayedCards={displayedCards} activePhaseBorder={activePhaseBorder} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
+        {viewMode === 'graficos' && <GraficosView rawData={rawData} PHASES={PHASES} />}
+      </div>
 
       <CicloDetalhesModal open={modalOpen} onClose={() => setModalOpen(false)} cicloId={selectedCicloId} onUpdate={loadData} />
     </Box>

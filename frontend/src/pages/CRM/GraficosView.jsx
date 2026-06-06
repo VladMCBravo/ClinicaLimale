@@ -9,58 +9,45 @@ export default function GraficosView({ rawData, PHASES }) {
 
   // 1. Dados do Funil
   const dadosFunil = PHASES.map(phase => ({
-    name: phase.title.split('.')[0], // Deixa o nome mais curto (ex: "1" em vez de "1. Novos Leads") para caber melhor
+    name: phase.title.split('.')[0], 
     fullName: phase.title,
     pacientes: rawData[phase.id]?.length || 0,
     receita: rawData[phase.id]?.reduce((acc, i) => acc + (parseFloat(i.receita_acumulada) || 0), 0) || 0,
     color: phase.border
   }));
 
-  // 2. Dados da Pizza (Clínico)
-  const alertasCount = { 'Normal': 0, 'Aviso': 0, 'Alta': 0, 'Urgente': 0 };
-  todosPacientes.forEach(paciente => {
-    if (!paciente.alerta_clinico) alertasCount['Normal']++;
-    else {
-       const p = paciente.alerta_clinico.prioridade;
-       if (p === 'urgente') alertasCount['Urgente']++;
-       else if (p === 'alta') alertasCount['Alta']++;
-       else alertasCount['Aviso']++;
-    }
+  // 2. Dados de Marketing (Origem de Aquisição) - NOVO!
+  const origemCount = {};
+  todosPacientes.forEach(p => {
+      const origem = p.comportamento_resumo?.origem || 'Não Informado';
+      origemCount[origem] = (origemCount[origem] || 0) + 1;
   });
 
-  const dadosPizza = [
-    { name: 'Normal', value: alertasCount['Normal'], color: '#4caf50' },
-    { name: 'Aviso Leve', value: alertasCount['Aviso'], color: '#ffb300' },
-    { name: 'Alta', value: alertasCount['Alta'], color: '#f4511e' },
-    { name: 'Urgente', value: alertasCount['Urgente'], color: '#d32f2f' },
-  ].filter(item => item.value > 0);
+  const coresMarketing = ['#1976d2', '#e91e63', '#fbc02d', '#4caf50', '#9c27b0', '#ff9800', '#607d8b'];
+  const dadosOrigem = Object.keys(origemCount).map((key, index) => ({
+      name: key,
+      value: origemCount[key],
+      color: coresMarketing[index % coresMarketing.length]
+  })).filter(item => item.value > 0);
 
-  // 3. NOVOS DADOS: Eficiência Operacional (Sem Agendamento e Atrasados)
-  let semAgendamento = 0;
-  let atrasados = 0;
-  let agendadosNormais = 0;
-
+  // 3. Dados Operacional
+  let semAgendamento = 0; let atrasados = 0; let agendadosNormais = 0;
   todosPacientes.forEach(p => {
-    if (!p.dados_agendamento) semAgendamento++;
-    else agendadosNormais++;
-
+    if (!p.dados_agendamento) semAgendamento++; else agendadosNormais++;
     if (p.proxima_acao_imediata?.atrasada) atrasados++;
   });
-
   const dadosOperacional = [
     { name: 'Em dia', value: agendadosNormais, color: '#2196f3' },
     { name: 'Sem Agendamento', value: semAgendamento, color: '#9e9e9e' },
     { name: 'Ações Atrasadas', value: atrasados, color: '#e53935' },
   ].filter(item => item.value > 0);
 
-  // Oculta a linha de fundo tracejada para um visual mais limpo
   const chartHeight = 260; 
 
   return (
-    <Grid container spacing={1.5}>
-      {/* GRÁFICO 1: O Funil */}
+    <Grid container spacing={1.5} sx={{ pb: 4 }}>
       <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 1.5, height: 320, bgcolor: '#fff', borderRadius: 1 }}>
+        <Paper sx={{ p: 1.5, height: 320, bgcolor: '#fff', borderRadius: 1 }} className="print-card">
           <Typography variant="subtitle2" fontWeight="bold" color="#444" gutterBottom>Conversão e Receita</Typography>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <BarChart data={dadosFunil} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
@@ -75,14 +62,14 @@ export default function GraficosView({ rawData, PHASES }) {
         </Paper>
       </Grid>
 
-      {/* GRÁFICO 2: Clínico */}
+      {/* NOVO: GRÁFICO DE MARKETING */}
       <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 1.5, height: 320, bgcolor: '#fff', borderRadius: 1 }}>
-          <Typography variant="subtitle2" fontWeight="bold" color="#444" gutterBottom>Termômetro Clínico</Typography>
+        <Paper sx={{ p: 1.5, height: 320, bgcolor: '#fff', borderRadius: 1 }} className="print-card">
+          <Typography variant="subtitle2" fontWeight="bold" color="#444" gutterBottom>Origem de Mídia / Campanhas</Typography>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <PieChart>
-              <Pie data={dadosPizza} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" label={({value}) => value} labelLine={false}>
-                {dadosPizza.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+              <Pie data={dadosOrigem} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" label={({name, value}) => `${name} (${value})`} labelLine={true}>
+                {dadosOrigem.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
               </Pie>
               <Tooltip />
               <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px' }}/>
@@ -91,9 +78,8 @@ export default function GraficosView({ rawData, PHASES }) {
         </Paper>
       </Grid>
 
-      {/* GRÁFICO 3: NOVO - Operacional */}
       <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 1.5, height: 320, bgcolor: '#fff', borderRadius: 1 }}>
+        <Paper sx={{ p: 1.5, height: 320, bgcolor: '#fff', borderRadius: 1 }} className="print-card">
           <Typography variant="subtitle2" fontWeight="bold" color="#444" gutterBottom>Fuga Operacional</Typography>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <PieChart>
