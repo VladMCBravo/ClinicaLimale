@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_api_key.permissions import HasAPIKey
 
 # --- SEÇÃO DE IMPORTAÇÕES DO LANGCHAIN E IA ---
@@ -344,8 +345,8 @@ class EvolutionWebhookView(APIView):
 # No final do seu arquivo chatbot/views.py
 
 class WhatsAppStatusView(APIView):
-    # Mantemos a permissão de API Key que o seu sistema já utiliza
-    permission_classes = [HasAPIKey] 
+    # --- CORREÇÃO AQUI: Trocamos o HasAPIKey pelo IsAuthenticated ---
+    permission_classes = [IsAuthenticated] 
 
     def get(self, request):
         """
