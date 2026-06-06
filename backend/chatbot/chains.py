@@ -30,6 +30,9 @@ try:
         data_nascimento: Optional[str] = Field(description="Data de nascimento (YYYY-MM-DD). Null se não informado.")
         email_extraido: Optional[str] = Field(description="Email do paciente. Null se não informado.")
         
+        # --- DADOS DE MARKETING E ORIGEM ---
+        origem_aquisicao: Literal['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'SITE', 'INDICACAO', 'MEDICO', 'CONVENIO', 'OUTRO'] = Field(description="De onde o paciente veio ou onde viu o anúncio. Deduza pela conversa ou por mensagens automáticas do WhatsApp (ex: 'Vi no Instagram' -> 'INSTAGRAM'). Se não for possível identificar, retorne null.")
+
         # --- FUNIL GERAL E DE EXAMES ---
         exame_interesse: Optional[str] = Field(description="O tipo de exame ou consulta desejado. Ex: Morfológico, Eletrocardiograma. Null se não informado.")
         medico_solicitante: Optional[str] = Field(description="Nome do médico que pediu o exame, se o paciente mencionar (ex: 'Dr. Roberto pediu'). Null se não mencionado.")

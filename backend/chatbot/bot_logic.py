@@ -79,6 +79,10 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
             atualizou_comp = False
             
             # --- SALVANDO DADOS DO NOVO PROMPT DO GHOST MODE ---
+            if analise_ia.get("origem_aquisicao"):
+                comp.origem_aquisicao = analise_ia.get("origem_aquisicao")
+                atualizou_comp = True
+
             if analise_ia.get("exame_interesse"):
                 comp.exame_interesse = analise_ia.get("exame_interesse")
                 atualizou_comp = True
