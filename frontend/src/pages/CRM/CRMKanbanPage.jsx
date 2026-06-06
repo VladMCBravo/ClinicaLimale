@@ -110,13 +110,46 @@ export default function CRMKanbanPage() {
   return (
     <Box sx={{ p: 1, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
       
-      {/* --- CSS MÁGICO PARA IMPRESSÃO PDF --- */}
+      {/* --- CSS MÁGICO PARA IMPRESSÃO PDF COM MÁSCARA --- */}
       <style>
         {`
           @media print {
+            /* 1. Configura a folha para A4 e remove margens padrão do navegador */
+            @page {
+              size: A4 portrait;
+              margin: 0; 
+            }
+            
             body * { visibility: hidden; }
             .print-area, .print-area * { visibility: visible; }
-            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            
+            /* 2. Ajusta o espaço do conteúdo para não cobrir a logo da clínica */
+            .print-area { 
+              position: absolute; 
+              left: 0; 
+              top: 0; 
+              width: 100%; 
+              padding-top: 170px !important; /* Margem exata do timbre usada no Laudo */
+              padding-left: 40px;
+              padding-right: 40px;
+              box-sizing: border-box;
+            }
+
+            /* 3. INJETA O TIMBRE/MÁSCARA NO FUNDO DA PÁGINA */
+            .print-area::before {
+              content: "";
+              position: fixed; /* Repete a imagem em todas as páginas se o relatório for longo */
+              top: 0;
+              left: 0;
+              width: 100vw;
+              height: 100vh;
+              background-image: url('/Receituario.jpg'); /* Puxa a mesma máscara do laudo */
+              background-size: 100% 100%; /* Estica perfeitamente na folha A4 */
+              background-position: center;
+              background-repeat: no-repeat;
+              z-index: -1; /* Joga a imagem para trás dos gráficos */
+            }
+
             .no-print { display: none !important; }
             .print-card { break-inside: avoid; }
           }
