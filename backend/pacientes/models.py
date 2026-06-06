@@ -24,7 +24,7 @@ class Paciente(models.Model):
     
     # Dados Demográficos
     nome_completo = models.CharField(max_length=255)
-    data_nascimento = models.DateField()
+    data_nascimento = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento") # <-- CORREÇÃO
     # --- AQUI ESTÁ A CORREÇÃO CRUCIAL (CAMPO DUM) ---
     dum = models.DateField(null=True, blank=True, help_text="Data da Última Menstruação")
     # ------------------------------------------------
