@@ -17,6 +17,7 @@ import ListaEspera from '../components/painel/ListaEspera';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote'; // Ícone para a Tabela de Preços
 import TabelaValoresModal from '../components/painel/TabelaValoresModal'; // Ajuste o caminho conforme criou
+import ChatbotStatusModal from '../components/painel/ChatbotStatusModal'; // Ajuste o caminho
 
 // --- MODAIS ---
 import PacienteModal from '../components/PacienteModal';
@@ -47,6 +48,7 @@ export default function PainelRecepcaoPage() {
     const [editingEvent, setEditingEvent] = useState(null);
     const [initialData, setInitialData] = useState(null);
     const [nomeNovoPaciente, setNomeNovoPaciente] = useState('');
+    const [isChatbotModalOpen, setIsChatbotModalOpen] = useState(false);
 
     // Carrega SALAS
     useEffect(() => {
@@ -233,9 +235,17 @@ export default function PainelRecepcaoPage() {
                             <IconButton size="small" sx={{color: '#546E7A'}}> <TodayIcon fontSize="small"/> </IconButton>
                         </Tooltip>
                         
-                        <Tooltip title="Chatbot">
-                            <IconButton size="small" sx={{color: '#546E7A'}}> <SmartToyIcon fontSize="small"/> </IconButton>
+                        <Tooltip title="Status do WhatsApp (IA)">
+                            <IconButton 
+                                size="small" 
+                                sx={{color: '#546E7A'}} 
+                                onClick={() => setIsChatbotModalOpen(true)}
+                            > 
+                                <SmartToyIcon fontSize="small"/> 
+                            </IconButton>
                         </Tooltip>
+                        
+                        <ChatbotStatusModal open={isChatbotModalOpen} onClose={() => setIsChatbotModalOpen(false)} />
                     </Stack>
 
                 </Paper>
@@ -287,6 +297,11 @@ export default function PainelRecepcaoPage() {
             <TabelaValoresModal 
                 open={isValoresModalOpen} 
                 onClose={() => setIsValoresModalOpen(false)} 
+            />
+            {/* MODAL DO QR CODE DO WHATSAPP */}
+            <ChatbotStatusModal
+                open={isChatbotModalOpen}
+                onClose={() => setIsChatbotModalOpen(false)}
             />
         </Box>
     );

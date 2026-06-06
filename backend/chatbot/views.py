@@ -340,3 +340,36 @@ class EvolutionWebhookView(APIView):
             return Response({"status": "Mensagem recebida e processamento iniciado em background"}, status=200)
             
         return Response({"status": "ignored"}, status=200)
+
+# No final do seu arquivo chatbot/views.py
+
+class WhatsAppStatusView(APIView):
+    # Mantemos a permissão de API Key que o seu sistema já utiliza
+    permission_classes = [HasAPIKey] 
+
+    def get(self, request):
+        """
+        Consulta a Evolution API para saber se o WhatsApp está conectado.
+        """
+        # Nome do serviço no docker-compose é evolution_api, porta 8080
+        url_evolution = "http://evolution_api:8080/instance/connect/limale" 
+        headers = {"apikey": "Bravotech0510"} 
+
+        try:
+            response = requests.get(url_evolution, headers=headers, timeout=10)
+            dados = response.json()
+            
+            # Se a Evolution retornar base64, é porque precisa ler o QR Code
+            if 'base64' in dados:
+                return Response({"status": "qr_code", "qr_code_base64": dados['base64']}, status=status.HTTP_200_OK)
+            
+            # Se o estado for 'open', está conectado
+            estado = dados.get('instance', {}).get('state', 'desconhecido')
+            if estado == 'open':
+                return Response({"status": "conectado", "mensagem": "WhatsApp conectado!"}, status=status.HTTP_200_OK)
+                
+            return Response({"status": estado, "mensagem": f"Status: {estado}"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Erro ao consultar status do WhatsApp: {e}")
+            return Response({'error': 'Falha na comunicação com Evolution API'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
