@@ -36,7 +36,7 @@ urlpatterns = [
     # RELATÓRIOS (Ajustado para bater com RelatoriosTab.jsx)
     # =========================================================================
     # NOVA ROTA: O React pede os templates disponíveis
-    path('templates/', views.TemplatesRelatorioListView.as_view(), name='templates-relatorio'),
+    path('templates/', views.TemplateRelatorioListView.as_view(), name='templates-relatorio'),
     
     # Ajustadas para receber o ID do paciente na URL
     path('pacientes/<int:paciente_id>/relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
