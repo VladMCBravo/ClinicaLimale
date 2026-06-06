@@ -38,7 +38,10 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 "user_message": user_message,
                 "historico": "\n".join(historico[-4:]) 
             })
-            
+            # --- ADICIONE ESTES LOGS DE DEBUG AQUI ---
+            logger.warning(f"🤖 [RAIO-X DA IA] JSON extraído: {analise_ia}")
+            logger.warning(f"📅 [DEBUG DATA] Data de nascimento extraída pela IA: {analise_ia.get('data_nascimento')}")
+            # -----------------------------------------
             # 3. ATUALIZAÇÃO DO CADASTRO DO PACIENTE
             telefone_limpo = ''.join(filter(str.isdigit, session_id))
             
