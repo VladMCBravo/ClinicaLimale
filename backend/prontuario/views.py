@@ -1630,6 +1630,9 @@ class PatientBannerAPIView(APIView):
         # O Peso e Altura vêm sempre do cadastro do Paciente (que o SOAP acabou de atualizar)
         peso = f"{paciente.peso} kg" if paciente.peso else 'N/A'
 
+        # NOVA LINHA: Buscando a altura
+        altura = f"{paciente.altura} cm" if paciente.altura else 'N/A'
+
         # Calcula a idade exata (opcional, se você já tiver um método no model, use-o)
         from datetime import date
         idade_formatada = "Indisponível"
@@ -1647,7 +1650,8 @@ class PatientBannerAPIView(APIView):
             'sinais_vitais': {
                 'pa': pa or 'N/A',
                 'fc': fc or 'N/A',
-                'peso': peso
+                'peso': peso,
+                'altura': altura  # NOVA LINHA AQUI
             }
         }
         return Response(data)

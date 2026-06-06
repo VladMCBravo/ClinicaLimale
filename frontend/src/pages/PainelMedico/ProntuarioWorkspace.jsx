@@ -183,6 +183,7 @@ export default function ProntuarioWorkspace() {
                             <Box><strong>PA:</strong> {pacienteAtivo.sinais_vitais?.pa}</Box>
                             <Box><strong>FC:</strong> {pacienteAtivo.sinais_vitais?.fc}</Box>
                             <Box><strong>Peso:</strong> {pacienteAtivo.sinais_vitais?.peso}</Box>
+                            <Box><strong>Altura:</strong> {pacienteAtivo.sinais_vitais?.altura}</Box>
                         </Box>
                     </>
                 ) : (
