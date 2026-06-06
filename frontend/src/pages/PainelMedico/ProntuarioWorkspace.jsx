@@ -26,6 +26,7 @@ const RelatoriosTab = lazy(() => import('../../components/prontuario/RelatoriosT
 const DocumentosTab = lazy(() => import('../../components/prontuario/DocumentosTab'));
 const ExamesDicomTab = lazy(() => import('../../components/prontuario/ExamesDicomTab'));
 const LaudosTab = lazy(() => import('../../components/laudos/LaudosTab'));
+const VisaoGeralPaciente = lazy(() => import('../../components/prontuario/VisaoGeralPaciente'));
 
 export default function ProntuarioWorkspace() {
     // --- ESTADOS GLOBAIS DA TELA ---
@@ -141,10 +142,9 @@ export default function ProntuarioWorkspace() {
 
         if (conteudoCentral.tipo === 'HISTORICO_GERAL') {
             return (
-                <Box sx={{ p: 3 }}>
-                    <Typography variant="h6">Visão Geral do Paciente</Typography>
-                    <Typography variant="body2" color="text.secondary">Aqui renderizamos o componente de timeline de evoluções antigas.</Typography>
-                </Box>
+                <Suspense fallback={<CircularProgress sx={{ m: 'auto', display: 'block', mt: 4 }} />}>
+                    <VisaoGeralPaciente pacienteId={pacienteAtivo.id} />
+                </Suspense>
             );
         }
     };
