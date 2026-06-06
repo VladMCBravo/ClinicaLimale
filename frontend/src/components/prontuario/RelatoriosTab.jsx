@@ -23,13 +23,14 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const [isLoading, setIsLoading] = useState(true);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+    // 1. Corrija o fetchData
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // (Suas lógicas de chamadas de API originais mantidas aqui)
+            // Agora chamamos o caminho exato que configuramos no urls.py
             const [tempRes, repRes] = await Promise.all([
                 apiClient.get('/prontuario/templates-relatorio/'),
-                apiClient.get(`/prontuario/relatorios/?paciente=${pacienteId}`)
+                apiClient.get(`/prontuario/pacientes/${pacienteId}/relatorios/`) 
             ]);
             setTemplates(tempRes.data);
             setSavedReports(repRes.data);
@@ -40,18 +41,16 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     }, [pacienteId, showSnackbar]);
 
-    useEffect(() => {
-        if (pacienteId) fetchData();
-    }, [fetchData, pacienteId]);
-
+    // 2. Corrija o handleSave
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            await apiClient.post('/prontuario/relatorios/criar/', {
-                paciente: pacienteId,
-                evolucao: consultaAtualId || null,
+            // Ajuste aqui também para o novo formato de rota
+            await apiClient.post(`/prontuario/pacientes/${pacienteId}/relatorios/criar/`, {
                 titulo: titulo,
-                conteudo: editorContent
+                conteudo_final: editorContent, // Mantenha o nome igual ao que está no serializer
+                consulta: consultaAtualId || null,
+                template_origem: selectedTemplateId || null
             });
             showSnackbar('Documento salvo!', 'success');
             setTitulo('');

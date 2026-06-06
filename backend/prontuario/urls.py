@@ -32,9 +32,13 @@ urlpatterns = [
     path('vacinas/<int:pk>/', views.VacinaPacienteDetailView.as_view(), name='detalhe-vacina'),
     path('vacinas-status/', views.VacinaStatusView.as_view(), name='status-vacina'),
     
-    path('relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
-    path('relatorios/criar/', views.RelatorioSalvoCreateView.as_view(), name='relatorio-salvo-create'),
-    path('gerar-preview-relatorio/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
+    # Rota para buscar templates (Mapeada corretamente para a view)
+    path('templates-relatorio/', views.TemplateRelatorioListView.as_view(), name='template-relatorio-list'),
+
+    # Rota corrigida: O backend espera o paciente_id na URL (pacientes/<id>/relatorios/)
+    path('pacientes/<int:paciente_id>/relatorios/', views.RelatorioSalvoListView.as_view(), name='relatorio-salvo-list'),
+    path('pacientes/<int:paciente_id>/relatorios/criar/', views.RelatorioSalvoCreateView.as_view(), name='relatorio-salvo-create'),
+    path('gerar-preview-relatorio/<int:paciente_id>/', views.GerarPreviewRelatorioView.as_view(), name='gerar-preview-relatorio'),
     
     # --- LAUDOS ---
     path('laudos/', views.LaudoListCreateView.as_view(), name='lista-criar-laudos'),
