@@ -345,16 +345,20 @@ class EvolutionWebhookView(APIView):
 # No final do seu arquivo chatbot/views.py
 
 class WhatsAppStatusView(APIView):
-    # --- CORREÇÃO AQUI: Trocamos o HasAPIKey pelo IsAuthenticated ---
     permission_classes = [IsAuthenticated] 
 
     def get(self, request):
         """
         Consulta a Evolution API para saber se o WhatsApp está conectado.
         """
-        # Nome do serviço no docker-compose é evolution_api, porta 8080
-        url_evolution = "http://evolution_api:8080/instance/connect/limale" 
-        headers = {"apikey": "Bravotech0510"} 
+        # Puxa tudo das variáveis de ambiente de forma segura
+        base_url = os.environ.get("EVOLUTION_API_URL", "http://evolution_api:8080").rstrip("/")
+        api_key = os.environ.get("EVOLUTION_API_KEY", "") # Fallback vazio por segurança
+        instance_name = os.environ.get("EVOLUTION_INSTANCE_NAME", "limale_crm") # Puxa o nome correto
+        
+        # Monta a URL dinamicamente
+        url_evolution = f"{base_url}/instance/connect/{instance_name}" 
+        headers = {"apikey": api_key} 
 
         try:
             response = requests.get(url_evolution, headers=headers, timeout=10)
@@ -373,4 +377,4 @@ class WhatsAppStatusView(APIView):
 
         except Exception as e:
             logger.error(f"Erro ao consultar status do WhatsApp: {e}")
-            return Response({'error': 'Falha na comunicação com Evolution API'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Falha na comunicação com a API do WhatsApp. Verifique a URL e a Instância.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
