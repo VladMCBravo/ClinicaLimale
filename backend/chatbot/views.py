@@ -349,32 +349,48 @@ class WhatsAppStatusView(APIView):
 
     def get(self, request):
         """
-        Consulta a Evolution API para saber se o WhatsApp está conectado.
+        Consulta a Evolution API com logs agressivos para descobrir o gargalo.
         """
-        # Puxa tudo das variáveis de ambiente de forma segura
         base_url = os.environ.get("EVOLUTION_API_URL", "http://evolution_api:8080").rstrip("/")
-        api_key = os.environ.get("EVOLUTION_API_KEY", "") # Fallback vazio por segurança
-        instance_name = os.environ.get("EVOLUTION_INSTANCE_NAME", "limale_crm") # Puxa o nome correto
+        api_key = os.environ.get("EVOLUTION_API_KEY", "") 
+        instance_name = os.environ.get("EVOLUTION_INSTANCE_NAME", "limale_crm") 
         
-        # Monta a URL dinamicamente
         url_evolution = f"{base_url}/instance/connect/{instance_name}" 
         headers = {"apikey": api_key} 
 
+        # --- LOGS DE DIAGNÓSTICO (Usamos warning para garantir que apareça no Render) ---
+        logger.warning(f"🚀 [WHATSAPP DEBUG] Tentando conectar na Evolution API...")
+        logger.warning(f"🔗 [WHATSAPP DEBUG] URL Alvo: {url_evolution}")
+        logger.warning(f"🔑 [WHATSAPP DEBUG] Chave usada (inicio): {api_key[:4]}...")
+
         try:
-            response = requests.get(url_evolution, headers=headers, timeout=10)
+            # timeout de 15s para dar tempo da VPS alemã responder
+            response = requests.get(url_evolution, headers=headers, timeout=15)
+            
+            # --- O RAIO-X DA RESPOSTA ---
+            logger.warning(f"📡 [WHATSAPP DEBUG] Status Code: {response.status_code}")
+            logger.warning(f"📦 [WHATSAPP DEBUG] Corpo da Resposta: {response.text}")
+            
+            # Se a Evolution der erro (ex: 404 Not Found, 401 Unauthorized)
+            if not response.ok:
+                return Response({
+                    "status": "erro_evolution", 
+                    "mensagem": f"Erro na Evolution (Status {response.status_code}): {response.text}"
+                }, status=status.HTTP_200_OK) # Mandamos 200 pro React ler e mostrar a mensagem vermelha
+
             dados = response.json()
             
-            # Se a Evolution retornar base64, é porque precisa ler o QR Code
             if 'base64' in dados:
                 return Response({"status": "qr_code", "qr_code_base64": dados['base64']}, status=status.HTTP_200_OK)
             
-            # Se o estado for 'open', está conectado
-            estado = dados.get('instance', {}).get('state', 'desconhecido')
+            # Cobre diferenças entre as versões v1 e v2 da Evolution API
+            estado = dados.get('instance', {}).get('state') or dados.get('state', 'desconhecido')
+            
             if estado == 'open':
                 return Response({"status": "conectado", "mensagem": "WhatsApp conectado!"}, status=status.HTTP_200_OK)
                 
-            return Response({"status": estado, "mensagem": f"Status: {estado}"}, status=status.HTTP_200_OK)
+            return Response({"status": estado, "mensagem": f"Status atual: {estado}"}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.error(f"Erro ao consultar status do WhatsApp: {e}")
-            return Response({'error': 'Falha na comunicação com a API do WhatsApp. Verifique a URL e a Instância.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"❌ [WHATSAPP DEBUG] Erro fatal de conexão: {e}", exc_info=True)
+            return Response({'error': f'Falha de infraestrutura: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
