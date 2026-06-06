@@ -1,19 +1,25 @@
-// src/components/prontuario/ProntuarioCompleto.jsx (REESTRUTURADO PARA SPLIT-PANE)
+// src/components/prontuario/ProntuarioCompleto.jsx
 
 import React, { useState, Suspense, lazy, useEffect, useCallback } from 'react';
 import { 
-    Box, Tabs, Tab, CircularProgress, Paper, Typography, 
+    Box, CircularProgress, Paper, Typography, 
     IconButton, Tooltip, Divider 
 } from '@mui/material';
+
+// Ícones para a nova Barra Lateral Direita
 import VideocamIcon from '@mui/icons-material/Videocam'; 
 import CloseIcon from '@mui/icons-material/Close'; 
-import MenuOpenIcon from '@mui/icons-material/MenuOpen'; // Novo ícone para expandir a tela de apoio
+import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy'; // Prescrições
+import DescriptionIcon from '@mui/icons-material/Description'; // Atestado/Relatório
+import FolderIcon from '@mui/icons-material/Folder'; // Documentos
+import ImageIcon from '@mui/icons-material/Image'; // Imagens
+import AssignmentIcon from '@mui/icons-material/Assignment'; // Laudos
 
 import ModalHistoricoEvolucao from './ModalHistoricoEvolucao'; 
 import apiClient from '../../api/axiosConfig'; 
 import { useSnackbar } from '../../contexts/SnackbarContext'; 
 
-// --- Imports das Abas (Agora tratadas como Ferramentas) ---
+// --- Imports das Abas (Agora renderizadas no painel lateral direito) ---
 const PrescricoesTab = lazy(() => import('./PrescricoesTab')); 
 const RelatoriosTab = lazy(() => import('./RelatoriosTab'));
 const EvolucaoTab = lazy(() => import('./EvolucoesTab')); 
@@ -22,8 +28,9 @@ const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
 const LaudosTab = lazy(() => import('../laudos/LaudosTab'));
 
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
-  // O menu de ferramentas de apoio
-  const [ferramentaAtiva, setFerramentaAtiva] = useState(null); 
+  // Controle da Ferramenta Global Ativa (Substitui as antigas Tabs superiores)
+  const [ferramentaGlobal, setFerramentaGlobal] = useState(null); 
+  
   const { showSnackbar } = useSnackbar();
   const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); 
   const [criandoSala, setCriandoSala] = useState(false);
@@ -34,29 +41,49 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
   const isExame = agendamento?.tipo === 'EXAME' || ['Radiologia', 'Ultrassonografia'].includes(especialidade);
 
-  // Se for exame de imagem, podemos já abrir o painel lateral na opção de Laudos (índice 4)
+  // Auto-abrir Laudos se for exame
   useEffect(() => { 
-      if (isExame) {
-          setFerramentaAtiva(4); 
-      }
+      if (isExame) setFerramentaGlobal('laudos'); 
   }, [isExame]);
 
   useEffect(() => {
     setTelemedicinaVisivel(false);
     setLinkSalaAtual(agendamento?.link_telemedicina || null);
     setConsultaAtualId(null); 
-    // Fecha o painel lateral ao trocar de paciente para limpar a tela
-    setFerramentaAtiva(null); 
+    setFerramentaGlobal(null); // Fecha o painel lateral ao trocar de paciente
   }, [pacienteId, agendamento?.link_telemedicina]);
 
-  const handleFerramentaChange = (event, newIndex) => { 
-      // Se clicar na mesma ferramenta, fecha o painel lateral. Se clicar em outra, muda o conteúdo.
-      setFerramentaAtiva(prev => prev === newIndex ? null : newIndex); 
+  const toggleFerramenta = (ferramenta) => {
+      setFerramentaGlobal(prev => prev === ferramenta ? null : ferramenta);
   };
   
   const handleToggleTelemedicina = () => {
-      // (Lógica da telemedicina mantida inalterada)
-      // ...
+    if (telemedicinaVisivel) {
+      setTelemedicinaVisivel(false);
+      return;
+    }
+    if (agendamento?.modalidade !== 'Telemedicina') {
+        showSnackbar('Este agendamento não é de telemedicina.', 'warning');
+        return;
+    }
+    setTelemedicinaVisivel(true);
+    if (linkSalaAtual) return; 
+
+    setCriandoSala(true);
+    apiClient.post(`/agendamentos/${agendamento.id}/criar-telemedicina/`)
+      .then(response => {
+        const roomUrl = response.data.roomUrl;
+        showSnackbar('Sala criada com sucesso!', 'success');
+        setLinkSalaAtual(roomUrl); 
+      })
+      .catch(err => {
+        console.error("Erro ao criar sala:", err);
+        showSnackbar('Erro ao criar a sala de telemedicina.', 'error');
+        setTelemedicinaVisivel(false); 
+      })
+      .finally(() => {
+        setCriandoSala(false);
+      });
   };
   
   const handleEvolucaoSalvaChain = useCallback((idDaEvolucao) => {
@@ -78,87 +105,119 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   }
 
   return (
-    <Paper elevation={2} sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Paper elevation={2} sx={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
 
-      {/* BARRA DE MENU (Agora controla as ferramentas da coluna direita) */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pr: 1 }}>
+      {/* ÁREA DE TRABALHO PRINCIPAL (Centro e Direita) */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
         
-        {/* Adicionado botão para fechar o painel de ferramentas caso esteja aberto */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {ferramentaAtiva !== null && (
-                <Tooltip title="Fechar painel de apoio">
-                    <IconButton onClick={() => setFerramentaAtiva(null)} sx={{ ml: 1, mr: 1 }}>
-                        <MenuOpenIcon sx={{ transform: 'rotate(180deg)' }} />
-                    </IconButton>
-                </Tooltip>
-            )}
+        {/* TELEMEDICINA (Fica no topo se ativada, sem quebrar o layout) */}
+        {telemedicinaVisivel && (
+            <Box sx={{ height: '40vh', minHeight: '250px', backgroundColor: 'grey.900', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+                <IconButton onClick={() => setTelemedicinaVisivel(false)} sx={{position: 'absolute', top: 5, right: 5, color: 'white', zIndex: 1}} size="small">
+                    <CloseIcon fontSize="small"/>
+                </IconButton>
+                {criandoSala ? (
+                    <CircularProgress color="inherit" />
+                ) : linkSalaAtual ? (
+                    <iframe src={linkSalaAtual} allow="camera; microphone; fullscreen; speaker; display-capture" style={{ width: '100%', height: '100%', border: 'none' }} title="Sala de Telemedicina"></iframe>
+                ) : (
+                    <Typography>Erro ao carregar link da sala.</Typography>
+                )}
+            </Box>
+        )}
 
-            <Tabs value={ferramentaAtiva} onChange={handleFerramentaChange} aria-label="Ferramentas de Apoio" variant="scrollable" scrollButtons="auto">
-            {/* O índice 0 foi removido das ferramentas pois o Atendimento é a tela principal */}
-            <Tab label="Prescrições" value={0} />
-            <Tab label="Atestado/Relatório" value={1} />
-            <Tab label="Documentos" value={2} />
-            <Tab label="Histórico de Imagens" value={3} /> 
-            <Tab 
-                label="Laudos" 
-                value={4}
-                style={{ color: isExame ? '#1976d2' : 'inherit', fontWeight: isExame ? 'bold' : 'normal' }}
-            /> 
-            </Tabs>
-        </Box>
-        
-        <Tooltip title={telemedicinaVisivel ? "Fechar Painel de Vídeo" : "Iniciar Telemedicina"}>
-          <span> 
-            <IconButton onClick={handleToggleTelemedicina} disabled={agendamento?.modalidade !== 'Telemedicina' || criandoSala} size="small">
-              {criandoSala ? <CircularProgress size={20} color="inherit" /> : <VideocamIcon />}
-            </IconButton>
-          </span>
-        </Tooltip>
-      </Box>
-
-      {/* ÁREA PRINCIPAL (Layout Dividido) */}
-      <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}> 
-        
-        {/* COLUNA ESQUERDA: Sempre visível e contém o SOAP/Atendimento */}
-        <Box sx={{ 
-            flexGrow: 1, // Ocupa todo o espaço quando o painel de apoio está fechado
-            width: ferramentaAtiva !== null ? '50%' : '100%', // Reduz a largura se o apoio abrir
-            overflowY: 'auto', 
-            transition: 'width 0.3s ease', // Animação suave
-            p: 2
-        }}>
-             <EvolucaoTab 
+        {/* COLUNAS DINÂMICAS */}
+        <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
+          
+          {/* COLUNA CENTRAL: O Formulário da Especialidade (Sempre visível) */}
+          <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 0, transition: 'width 0.3s' }}>
+              <EvolucaoTab 
                 pacienteId={pacienteId} 
                 especialidade={especialidade} 
                 onEvolucoesSalva={handleEvolucaoSalvaChain}
               />
-        </Box>
+          </Box>
 
-        {/* DIVISOR (Aparece apenas quando uma ferramenta está aberta) */}
-        {ferramentaAtiva !== null && <Divider orientation="vertical" flexItem />}
+          {/* DIVISOR: Aparece apenas se uma ferramenta global estiver aberta */}
+          {ferramentaGlobal && <Divider orientation="vertical" flexItem />}
 
-        {/* COLUNA DIREITA: Painel de Apoio (Abre apenas se uma ferramenta for selecionada) */}
-        {ferramentaAtiva !== null && (
-            <Box sx={{ 
-                width: '50%', // Define a largura fixa para a ferramenta
-                overflowY: 'auto', 
-                backgroundColor: '#fafafa', // Uma cor de fundo sutilmente diferente para destacar que é uma área auxiliar
-                p: 2
-            }}>
+          {/* COLUNA DIREITA (APOIO): Prescrições, Laudos, Documentos */}
+          {ferramentaGlobal && (
+             <Box sx={{ width: { xs: '100%', md: '45%' }, overflowY: 'auto', bgcolor: '#fafafa', p: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                        {ferramentaGlobal === 'prescricoes' && 'Prescrições Médicas'}
+                        {ferramentaGlobal === 'relatorios' && 'Atestados e Relatórios'}
+                        {ferramentaGlobal === 'documentos' && 'Documentos do Paciente'}
+                        {ferramentaGlobal === 'imagens' && 'Histórico de Imagens'}
+                        {ferramentaGlobal === 'laudos' && 'Laudos e Resultados'}
+                    </Typography>
+                    <IconButton size="small" onClick={() => setFerramentaGlobal(null)}><CloseIcon fontSize="small" /></IconButton>
+                </Box>
                 <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}>
-                    {/* Renderiza o componente correspondente à ferramenta ativa sem desmontar o EvolucaoTab */}
-                    {ferramentaAtiva === 0 && <PrescricoesTab pacienteId={pacienteId} />}
-                    {ferramentaAtiva === 1 && <RelatoriosTab pacienteId={pacienteId} especialidade={especialidade} consultaAtualId={consultaAtualId} />}
-                    {ferramentaAtiva === 2 && <DocumentosTab pacienteId={pacienteId} />}
-                    {ferramentaAtiva === 3 && <ExamesDicomTab pacienteId={pacienteId} />}
-                    {ferramentaAtiva === 4 && <LaudosTab pacienteId={pacienteId} />}
+                  {ferramentaGlobal === 'prescricoes' && <PrescricoesTab pacienteId={pacienteId} />}
+                  {ferramentaGlobal === 'relatorios' && <RelatoriosTab pacienteId={pacienteId} especialidade={especialidade} consultaAtualId={consultaAtualId} />}
+                  {ferramentaGlobal === 'documentos' && <DocumentosTab pacienteId={pacienteId} />}
+                  {ferramentaGlobal === 'imagens' && <ExamesDicomTab pacienteId={pacienteId} />}
+                  {ferramentaGlobal === 'laudos' && <LaudosTab pacienteId={pacienteId} />}
                 </Suspense>
-            </Box>
-        )}
+             </Box>
+          )}
+
+        </Box>
       </Box>
-      
-      {/* (Lógica do modal histórico omitida para brevidade, mantenha como estava) */}
-      
+
+      {/* BARRA DE FERRAMENTAS VERTICAL (Na extrema direita, idêntico aos painéis modernos) */}
+      <Box sx={{ width: '60px', borderLeft: 1, borderColor: 'divider', bgcolor: '#ffffff', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2, flexShrink: 0, zIndex: 10 }}>
+          <Tooltip title="Prescrições" placement="left">
+              <IconButton color={ferramentaGlobal === 'prescricoes' ? 'primary' : 'default'} onClick={() => toggleFerramenta('prescricoes')}>
+                  <LocalPharmacyIcon />
+              </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Atestado/Relatório" placement="left">
+              <IconButton color={ferramentaGlobal === 'relatorios' ? 'primary' : 'default'} onClick={() => toggleFerramenta('relatorios')}>
+                  <DescriptionIcon />
+              </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Documentos" placement="left">
+              <IconButton color={ferramentaGlobal === 'documentos' ? 'primary' : 'default'} onClick={() => toggleFerramenta('documentos')}>
+                  <FolderIcon />
+              </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Histórico de Imagens" placement="left">
+              <IconButton color={ferramentaGlobal === 'imagens' ? 'primary' : 'default'} onClick={() => toggleFerramenta('imagens')}>
+                  <ImageIcon />
+              </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Laudos" placement="left">
+              <IconButton color={ferramentaGlobal === 'laudos' ? 'primary' : 'default'} onClick={() => toggleFerramenta('laudos')}>
+                  <AssignmentIcon color={isExame && !ferramentaGlobal ? 'info' : 'inherit'} />
+              </IconButton>
+          </Tooltip>
+
+          <Divider flexItem sx={{ my: 1 }} />
+
+          <Tooltip title={telemedicinaVisivel ? "Fechar Câmera" : "Telemedicina"} placement="left">
+              <span>
+                  <IconButton color={telemedicinaVisivel ? "secondary" : "default"} onClick={handleToggleTelemedicina} disabled={agendamento?.modalidade !== 'Telemedicina' || criandoSala}>
+                      {criandoSala ? <CircularProgress size={20} color="inherit" /> : <VideocamIcon />}
+                  </IconButton>
+              </span>
+          </Tooltip>
+      </Box>
+
+      {/* Modal de Histórico */}
+      {modalHistoricoId && (
+        <ModalHistoricoEvolucao 
+          pacienteId={pacienteId} 
+          evolucaoId={modalHistoricoId}
+          onClose={onCloseHistoricoModal}
+        />
+      )}
     </Paper>
   );
 }
