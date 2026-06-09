@@ -14,8 +14,11 @@ import DescriptionIcon from '@mui/icons-material/Description'; // Atestado/Relat
 import FolderIcon from '@mui/icons-material/Folder'; // Documentos
 import ImageIcon from '@mui/icons-material/Image'; // Imagens
 import AssignmentIcon from '@mui/icons-material/Assignment'; // Laudos
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'; // <-- NOVO: Ícone de PDF
 
-import ModalHistoricoEvolucao from './ModalHistoricoEvolucao'; 
+import ModalHistoricoEvolucao from './ModalHistoricoEvolucao';
+import HistoricoLaudosModal from '../laudos/HistoricoLaudosModal'; // <-- NOVO: Importa o Modal
+
 import apiClient from '../../api/axiosConfig'; 
 import { useSnackbar } from '../../contexts/SnackbarContext'; 
 
@@ -30,7 +33,8 @@ const LaudosTab = lazy(() => import('../laudos/LaudosTab'));
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
   // Controle da Ferramenta Global Ativa (Substitui as antigas Tabs superiores)
   const [ferramentaGlobal, setFerramentaGlobal] = useState(null); 
-  
+  const [modalHistoricoLaudosOpen, setModalHistoricoLaudosOpen] = useState(false);
+
   const { showSnackbar } = useSnackbar();
   const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); 
   const [criandoSala, setCriandoSala] = useState(false);
@@ -199,6 +203,14 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
               </IconButton>
           </Tooltip>
 
+          {/* --- NOVO BOTÃO AQUI --- */}
+          <Tooltip title="Baixar Laudos Anteriores" placement="left">
+              <IconButton onClick={() => setModalHistoricoLaudosOpen(true)}>
+                  <PictureAsPdfIcon color="error" />
+              </IconButton>
+          </Tooltip>
+          {/* ----------------------- */}
+
           <Divider flexItem sx={{ my: 1 }} />
 
           <Tooltip title={telemedicinaVisivel ? "Fechar Câmera" : "Telemedicina"} placement="left">
@@ -218,6 +230,14 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           onClose={onCloseHistoricoModal}
         />
       )}
+      {/* --- NOVO: Modal de Histórico de Laudos --- */}
+      <HistoricoLaudosModal 
+          open={modalHistoricoLaudosOpen}
+          onClose={() => setModalHistoricoLaudosOpen(false)}
+          pacienteId={pacienteId}
+          pacienteNome={agendamento?.paciente_nome || 'Paciente'}
+      />
+
     </Paper>
   );
 }
