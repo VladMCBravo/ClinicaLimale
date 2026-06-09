@@ -33,7 +33,7 @@ const getInitialFormData = () => ({
     status: 'Agendado',
     tipo_atendimento: 'Particular', 
     plano_utilizado: null, 
-    observacoes: '', // AQUI ESTÁ O CAMPO QUE VAI PRO BANCO
+    observacoes: '', 
     tipo_visita: 'Primeira Consulta', 
     modalidade: 'Presencial', 
     especialidade: null,
@@ -103,10 +103,47 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [jornadasMedico, setJornadasMedico] = useState([]);
     const [confirmarJornadaOpen, setConfirmarJornadaOpen] = useState(false);
 
-    // --- A MÁGICA DO NOVO PACIENTE AQUI ---
-    // Sempre que o refreshTrigger for alterado (salvou paciente novo), ele recarrega a lista e seleciona.
+    // --- NOVA LÓGICA: SINALIZADOR DE PACIENTE NOVO ---
+    const [esperandoNovoPaciente, setEsperandoNovoPaciente] = useState(false);
+
+    // 1. CARREGAMENTO INICIAL DAS LISTAS (ESTAVA FALTANDO!)
+    useEffect(() => {
+        let isMounted = true; 
+        if (open) {
+            agendamentoService.getModalData()
+                .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
+                    if (!isMounted) return; 
+                    
+                    const rawPacientes = pacientesRes.data || [];
+                    const pacientesUnicosMap = new Map();
+                    rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p)); 
+                    const pacientesOrdenados = Array.from(pacientesUnicosMap.values()).sort((a, b) => 
+                        a.nome_completo.localeCompare(b.nome_completo)
+                    );
+                    setPacientes(pacientesOrdenados);
+                    setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
+                    setMedicos(medicosRes.data);
+                    setEspecialidades(especialidadesRes.data);
+                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
+            
+            agendamentoService.getSalas()
+                .then(response => {
+                    if (!isMounted) return;
+                    setSalas(response.data);
+                    setSalasFiltradas(response.data); 
+                })
+                .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
+            
+            faturamentoService.getPlanosConvenio().then(response => { if(isMounted) setPlanos(response.data) }).catch(err => console.error(err));
+            faturamentoService.getConvenios().then(response => { if(isMounted) setConvenios(response.data) }).catch(err => console.error(err));
+        }
+        return () => { isMounted = false; };
+    }, [open, showSnackbar]);
+
+    // 2. O RASTREADOR DO NOVO PACIENTE (VINCULA AUTOMATICAMENTE)
     useEffect(() => {
         if (open && refreshTrigger > 0) {
+            // Toda vez que a agenda atualizar (ex: fechou modal de paciente)
             agendamentoService.getModalData().then(([pacientesRes]) => {
                 const rawPacientes = pacientesRes.data || [];
                 const pacientesUnicosMap = new Map();
@@ -115,22 +152,22 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     a.nome_completo.localeCompare(b.nome_completo)
                 );
                 
-                setPacientes(prevPacientes => {
-                    // Verifica qual ID é novo na lista comparado com o que tínhamos antes
-                    if (prevPacientes.length > 0) {
-                        const idsAntigos = prevPacientes.map(p => p.id);
-                        const pacienteNovo = pacientesOrdenados.find(p => !idsAntigos.includes(p.id));
-                        
-                        if (pacienteNovo) {
-                            handlePacienteChange(null, pacienteNovo);
-                            showSnackbar('Paciente vinculado com sucesso!', 'success');
-                        }
+                setPacientes(pacientesOrdenados);
+
+                // Se o modal estava esperando um paciente ser criado...
+                if (esperandoNovoPaciente && rawPacientes.length > 0) {
+                    // Pega o paciente com o MAIOR ID (o que acabou de ser criado no banco)
+                    const pacienteNovo = rawPacientes.reduce((max, p) => p.id > max.id ? p : max, rawPacientes[0]);
+                    
+                    if (pacienteNovo) {
+                        handlePacienteChange(null, pacienteNovo);
+                        setEsperandoNovoPaciente(false); // Desliga o alerta
+                        showSnackbar('Paciente recém-criado vinculado com sucesso!', 'success');
                     }
-                    return pacientesOrdenados;
-                });
+                }
             });
         }
-    }, [refreshTrigger, open]);
+    }, [refreshTrigger, open, esperandoNovoPaciente]);
 
     const handleDataInicioChange = (e) => {
         const valorVisual = e.target.value;
@@ -175,6 +212,88 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         });
     };
     
+    useEffect(() => {
+        if (!open) {
+            setFormData(getInitialFormData());
+            setTipoAgendamento('Consulta');
+            setPacienteDetalhes(null);
+            setDataInicioVisual('');
+            setDataFimVisual('');
+            setIsEncaixe(false);
+            setEsperandoNovoPaciente(false);
+            return;
+        }
+
+        if (editingEvent) {
+            const isFullCalendarEvent = !!editingEvent.extendedProps;
+            const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
+            const tipo = dados.tipo_agendamento || 'Consulta';
+            
+            const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
+            const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
+
+            setTipoAgendamento(tipo);
+            const procEncontrado = procedimentos.find(p => p.id === dados.procedimento) || null;
+            
+            setFormData({
+                paciente: pacientes.find(p => p.id === dados.paciente) || null,
+                data_hora_inicio: inicioDayjs,
+                data_hora_fim: fimDayjs,
+                status: dados.status,
+                tipo_atendimento: dados.tipo_atendimento,
+                plano_utilizado: dados.plano_utilizado,
+                observacoes: dados.observacoes || '',
+                tipo_visita: dados.tipo_visita || 'Primeira Consulta',
+                modalidade: dados.modalidade || 'Presencial',
+                especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
+                sala: salas.find(s => s.id === dados.sala) || null,
+                medico: medicos.find(m => m.id === dados.medico) || null,
+                procedimento: procEncontrado, 
+                procedimentos: procEncontrado ? [procEncontrado] : [], 
+            });
+
+            setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
+            setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
+
+        } else if (initialData) {
+            const startTime = dayjs(initialData.start);
+            const endTime = startTime.add(15, 'minute');
+            if (initialData.medicoId) setTipoAgendamento('Consulta');
+            setFormData(prev => ({ 
+                ...prev, 
+                data_hora_inicio: startTime,
+                data_hora_fim: endTime, 
+                sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
+                medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
+                especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
+            }));
+
+            setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
+            setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
+        }
+    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
+
+    useEffect(() => {
+        const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
+        if (!procParaFiltro || tipoAgendamento === 'Consulta') { setSalasFiltradas(salas); return; }
+
+        const equipamentoNecessario = procParaFiltro.equipamento_obrigatorio;
+        if (equipamentoNecessario) {
+            const compativeis = salas.filter(sala => sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario));
+            setSalasFiltradas(compativeis);
+            setFormData(prev => {
+                if (prev.sala) {
+                    const salaTemEquipamento = prev.sala.equipamentos && prev.sala.equipamentos.includes(equipamentoNecessario);
+                    if (!salaTemEquipamento) {
+                        showSnackbar(`A sala anterior não possui ${equipamentoNecessario}.`, 'warning');
+                        return { ...prev, sala: null }; 
+                    }
+                }
+                return prev;
+            });
+        } else { setSalasFiltradas(salas); }
+    }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas, showSnackbar]);
+
     useEffect(() => {
         const inicioValido = formData.data_hora_inicio && formData.data_hora_inicio.isValid();
         const fimValido = formData.data_hora_fim && formData.data_hora_fim.isValid();
@@ -309,7 +428,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
             data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
             is_encaixe: isEncaixe,
-            observacoes: formData.observacoes // Garente que vai pro banco!
+            observacoes: formData.observacoes 
         };
 
         delete submissionData.procedimentos;
@@ -398,30 +517,10 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         return null;
     }, [tipoAgendamento, formData.especialidade, formData.procedimento, formData.procedimentos, formData.tipo_atendimento, formData.plano_utilizado]);
 
-    // O truque para recarregar pacientes sem precisar do Modal "Pai"
-    const recarregarPacientesApósCadastro = () => {
-         agendamentoService.getModalData().then(([pacientesRes]) => {
-            const rawPacientes = pacientesRes.data || [];
-            const pacientesUnicosMap = new Map();
-            rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p)); 
-            const pacientesOrdenados = Array.from(pacientesUnicosMap.values()).sort((a, b) => 
-                a.nome_completo.localeCompare(b.nome_completo)
-            );
-            setPacientes(pacientesOrdenados);
-            
-            // Tenta achar o paciente que a pessoa acabou de digitar pelo nome
-            if (inputValuePaciente) {
-                 const recemCriado = pacientesOrdenados.find(p => p.nome_completo.toLowerCase().includes(inputValuePaciente.toLowerCase()));
-                 if (recemCriado) {
-                     handlePacienteChange(null, recemCriado);
-                 }
-            }
-        });
-    };
-
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, bgcolor: '#fbfcff' } }}>
-            <DialogTitle sx={{ p: 2, pb: 1, borderBottom: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+            {/* CABEÇALHO COMPACTO */}
+            <DialogTitle sx={{ p: 1.5, pb: 1, borderBottom: '1px solid #e0e0e0', bgcolor: '#fff' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" fontWeight="bold" color="primary.main">
                         {editingEvent ? 'Editar Agendamento' : 'Novo Agendamento'}
@@ -430,8 +529,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             {capacidade.loading ? <CircularProgress size={16} /> : (
                                 <>
-                                    <Chip label={`Consultas: ${capacidade.consultas}/${MAX_CONS}`} color={capacidade.consultas >= MAX_CONS ? "error" : "success"} size="small" variant={tipoAgendamento === 'Consulta' ? "filled" : "outlined"} />
-                                    <Chip label={`Procedimentos: ${capacidade.procedimentos}/${MAX_PROC}`} color={capacidade.procedimentos >= MAX_PROC ? "error" : "success"} size="small" variant={tipoAgendamento === 'Procedimento' ? "filled" : "outlined"} />
+                                    <Chip label={`Consultas: ${capacidade.consultas}/${MAX_CONS}`} color={capacidade.consultas >= MAX_CONS ? "error" : "success"} size="small" variant={tipoAgendamento === 'Consulta' ? "filled" : "outlined"} sx={{ height: 20 }} />
+                                    <Chip label={`Procedimentos: ${capacidade.procedimentos}/${MAX_PROC}`} color={capacidade.procedimentos >= MAX_PROC ? "error" : "success"} size="small" variant={tipoAgendamento === 'Procedimento' ? "filled" : "outlined"} sx={{ height: 20 }} />
                                 </>
                             )}
                         </Box>
@@ -440,16 +539,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             </DialogTitle>
 
             <form onSubmit={handleSubmit}>
-                {/* COMPRESSÃO 1: Redução do padding principal do modal (p: 2 em vez de 3) */}
-                <DialogContent sx={{ p: 2 }}>
-                    {/* COMPRESSÃO 2: Redução do espaçamento entre as colunas (spacing: 1.5) */}
+                {/* ESPAÇAMENTO PRINCIPAL REDUZIDO */}
+                <DialogContent sx={{ p: 1.5 }}>
                     <Grid container spacing={1.5}>
                         
                         {/* COLUNA ESQUERDA */}
                         <Grid item xs={12} md={7}>
-                            {/* COMPRESSÃO 3: Cartões com padding (p: 1.5) e margem inferior (mb: 1.5) menores */}
                             <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, color: 'primary.main' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
                                     <PersonOutlineIcon sx={{ mr: 1, fontSize: 20 }} />
                                     <Typography variant="subtitle2" fontWeight="bold">Identificação</Typography>
                                 </Box>
@@ -468,8 +565,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Nenhum paciente encontrado.</Typography>
                                                     <Button variant="outlined" size="small" startIcon={<PersonAddIcon />} onClick={() => {
                                                         if(onAbrirNovoPaciente) {
+                                                            setEsperandoNovoPaciente(true); // SINALIZA AO MODAL QUE VEM PACIENTE NOVO AÍ!
                                                             onAbrirNovoPaciente(inputValuePaciente);
-                                                            setTimeout(recarregarPacientesApósCadastro, 10000); 
                                                         }
                                                     }}>
                                                         Cadastrar "{inputValuePaciente}"
@@ -507,8 +604,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                     <Tooltip title="Cadastrar Novo Paciente">
                                         <Button variant="contained" color="primary" sx={{ minWidth: '40px', width: '40px', height: '40px', p: 0 }} onClick={() => {
                                             if(onAbrirNovoPaciente) {
+                                                setEsperandoNovoPaciente(true); // SINALIZA AO MODAL QUE VEM PACIENTE NOVO AÍ!
                                                 onAbrirNovoPaciente(inputValuePaciente);
-                                                setTimeout(recarregarPacientesApósCadastro, 10000); 
                                             }
                                         }}>
                                             <PersonAddIcon />
@@ -516,19 +613,20 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                     </Tooltip>
                                 </Box>
                                 {pacienteDetalhes?.plano_convenio_detalhes && (
-                                    <Alert severity="info" sx={{ mt: 1, py: 0, px: 2, '& .MuiAlert-message': { py: 0.5 } }}>
+                                    <Alert severity="info" sx={{ mt: 1, py: 0, px: 2, '& .MuiAlert-message': { py: 0 } }}>
                                         Plano: <strong>{pacienteDetalhes.plano_convenio_detalhes.convenio_nome}</strong>
                                     </Alert>
                                 )}
                             </Paper>
 
                             <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, color: 'primary.main' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
                                     <MedicalInformationOutlinedIcon sx={{ mr: 1, fontSize: 20 }} />
                                     <Typography variant="subtitle2" fontWeight="bold">Dados Clínicos</Typography>
                                 </Box>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                                    <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    
+                                    <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                                         <FormControl fullWidth size="small">
                                             <InputLabel>Tipo</InputLabel>
                                             <Select value={tipoAgendamento} label="Tipo" onChange={(e) => setTipoAgendamento(e.target.value)}>
@@ -542,7 +640,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         )}
                                     </Box>
 
-                                    <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                    <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                                         {tipoAgendamento === 'Consulta' ? (
                                             <Autocomplete fullWidth options={medicos.filter(m => formData.especialidade ? m.especialidades.includes(formData.especialidade.id) : true)} getOptionLabel={(m) => m.first_name + ' ' + m.last_name} value={formData.medico} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData({ ...formData, medico: value })} disabled={!formData.especialidade} renderInput={(params) => <TextField {...params} label="Médico *" size="small" />} />
                                         ) : (
@@ -550,16 +648,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         )}
 
                                         <FormControl fullWidth>
-                                            <Autocomplete options={salasFiltradas} getOptionLabel={(s) => s.nome || ''} value={formData.sala} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))} renderInput={(params) => (<TextField {...params} label="Sala *" size="small" error={!formData.sala} />)} noOptionsText="Nenhuma sala compatível" />
+                                            <Autocomplete options={salasFiltradas} getOptionLabel={(s) => s.nome || ''} value={formData.sala} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={(e, value) => setFormData(prev => ({...prev, sala: value}))} renderInput={(params) => (<TextField {...params} label="Sala *" size="small" error={!formData.sala} />)} noOptionsText="Nenhuma sala" />
                                         </FormControl>
                                     </Box>
 
                                     {tipoAgendamento === 'Procedimento' && (
-                                         <Autocomplete multiple options={procedimentos} getOptionLabel={(p) => p.descricao || ''} value={formData.procedimentos} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handleProcedimentosChange} disableCloseOnSelect renderInput={(params) => (<TextField {...params} label={editingEvent ? "Procedimento *" : "Procedimentos *"} size="small" placeholder={formData.procedimentos.length > 0 ? "" : "Selecione..."} /> )} renderTags={(value, getTagProps) => value.map((option, index) => ( <Chip variant="filled" color="primary" label={option.descricao} size="small" sx={{ color: '#fff', height: 24 }} {...getTagProps({ index })} /> ))} />
+                                         <Autocomplete multiple options={procedimentos} getOptionLabel={(p) => p.descricao || ''} value={formData.procedimentos} isOptionEqualToValue={(o, v) => o.id === v.id} onChange={handleProcedimentosChange} disableCloseOnSelect renderInput={(params) => (<TextField {...params} label={editingEvent ? "Procedimento *" : "Procedimentos *"} size="small" placeholder={formData.procedimentos.length > 0 ? "" : "Selecione..."} /> )} renderTags={(value, getTagProps) => value.map((option, index) => ( <Chip variant="filled" color="primary" label={option.descricao} size="small" sx={{ color: '#fff', height: 20 }} {...getTagProps({ index })} /> ))} />
                                     )}
 
                                     {bloqueioCapacidade && (
-                                        <Alert severity="warning" sx={{ alignItems: 'center', py: 0, '& .MuiAlert-message': { py: 0.5 } }}>
+                                        <Alert severity="warning" sx={{ alignItems: 'center', py: 0, '& .MuiAlert-message': { py: 0 } }}>
                                             <FormControlLabel control={<Switch checked={isEncaixe} onChange={(e) => setIsEncaixe(e.target.checked)} color="warning" size="small" />} label={<Typography variant="caption" fontWeight="bold">Forçar Encaixe</Typography>} sx={{ m: 0 }} />
                                         </Alert>
                                     )}
@@ -569,14 +667,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                             <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
                                 <TextField
                                     label="Observações Gerais (Opcional)"
-                                    multiline
-                                    rows={1}
-                                    maxRows={2}
                                     fullWidth
                                     size="small"
                                     value={formData.observacoes || ''}
                                     onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
-                                    placeholder="Ex: Paciente cadeirante, trazer exames..."
+                                    placeholder="Ex: Paciente cadeirante..."
                                 />
                             </Paper>
                         </Grid>
@@ -584,11 +679,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                         {/* COLUNA DIREITA */}
                         <Grid item xs={12} md={5}>
                             <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, color: 'primary.main' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
                                     <EventAvailableOutlinedIcon sx={{ mr: 1, fontSize: 20 }} />
                                     <Typography variant="subtitle2" fontWeight="bold">Organização</Typography>
                                 </Box>
-                                <Grid container spacing={1.5}>
+                                <Grid container spacing={1}>
                                     <Grid item xs={12} sm={6}>
                                         <TextField label="Início *" value={dataInicioVisual} onChange={handleDataInicioChange} fullWidth size="small" placeholder="DD/MM/AAAA HH:MM" InputProps={{ inputComponent: TextMaskDateTime }} />
                                     </Grid>
@@ -596,27 +691,37 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         <TextField label="Fim *" value={dataFimVisual} onChange={handleDataFimChange} fullWidth size="small" placeholder="DD/MM/AAAA HH:MM" InputProps={{ inputComponent: TextMaskDateTime }} />
                                     </Grid>
                                 </Grid>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1.5 }}>
-                                    <FormControl fullWidth size="small"><InputLabel>Modalidade</InputLabel><Select name="modalidade" value={formData.modalidade} label="Modalidade" onChange={(e) => setFormData({...formData, modalidade: e.target.value})} ><MenuItem value="Presencial">Presencial (na clínica)</MenuItem><MenuItem value="Telemedicina">Telemedicina</MenuItem></Select></FormControl>
-                                    <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado</MenuItem><MenuItem value="Confirmado">Confirmado</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Não Compareceu</MenuItem></Select></FormControl>
+                                
+                                <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, mt: 1 }}>
+                                    <FormControl fullWidth size="small"><InputLabel>Modalidade</InputLabel><Select name="modalidade" value={formData.modalidade} label="Modalidade" onChange={(e) => setFormData({...formData, modalidade: e.target.value})} ><MenuItem value="Presencial">Presencial</MenuItem><MenuItem value="Telemedicina">Telemedicina</MenuItem></Select></FormControl>
+                                    <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado</MenuItem><MenuItem value="Confirmado">Confirmado</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Faltou</MenuItem></Select></FormControl>
                                 </Box>
                             </Paper>
 
                             <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, color: 'primary.main' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
                                     <AttachMoneyOutlinedIcon sx={{ mr: 1, fontSize: 20 }} />
                                     <Typography variant="subtitle2" fontWeight="bold">Faturamento</Typography>
                                 </Box>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                                    <FormControl fullWidth size="small"><InputLabel>Tipo de Atendimento</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo de Atendimento" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio">Convênio</MenuItem></Select></FormControl>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    
+                                    <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center' }}>
+                                        <FormControl fullWidth size="small"><InputLabel>Tipo</InputLabel><Select name="tipo_atendimento" value={formData.tipo_atendimento} label="Tipo" onChange={(e) => setFormData({...formData, tipo_atendimento: e.target.value})}><MenuItem value="Particular">Particular</MenuItem><MenuItem value="Convenio">Convênio</MenuItem></Select></FormControl>
+                                        
+                                        <Box sx={{ p: 0.5, bgcolor: formData.isento_cobranca ? '#e8f5e9' : 'transparent', borderRadius: 1, whiteSpace: 'nowrap' }}>
+                                            <FormControlLabel control={<Switch checked={formData.isento_cobranca || false} onChange={(e) => setFormData({...formData, isento_cobranca: e.target.checked})} color="success" size="small" />} label={<Typography variant="body2" fontWeight="bold" color={formData.isento_cobranca ? 'success.dark' : 'text.primary'}>Isentar</Typography>} sx={{ m: 0 }} />
+                                        </Box>
+                                    </Box>
+
+                                    {formData.isento_cobranca && (<TextField label="Motivo da Isenção *" size="small" fullWidth value={formData.motivo_isencao || ''} onChange={(e) => setFormData({...formData, motivo_isencao: e.target.value})} required={formData.isento_cobranca} placeholder="Ex: Retorno..." sx={{ bgcolor: '#fff' }} />)}
 
                                     {formData.tipo_atendimento === 'Convenio' && (
-                                        <Box sx={{ display: 'flex', gap: 1.5, flexDirection: { xs: 'column', sm: 'row' } }}>
+                                        <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                                             <FormControl fullWidth size="small">
                                                 <Autocomplete options={convenios} getOptionLabel={(option) => option.nome || ''} value={convenioSelecionado} isOptionEqualToValue={(option, value) => option.id === value.id} onChange={(event, newValue) => { setConvenioSelecionado(newValue); setFormData({ ...formData, plano_utilizado: null }); }} renderInput={(params) => <TextField {...params} label="Empresa *" size="small" />} />
                                             </FormControl>
                                             <FormControl fullWidth size="small">
-                                                <Autocomplete options={convenioSelecionado ? planos.filter(p => p.convenio_nome === convenioSelecionado.nome) : []} getOptionLabel={(option) => option.nome || ''} value={formData.plano_utilizado} disabled={!convenioSelecionado} isOptionEqualToValue={(option, value) => option.id === value.id} onChange={(event, newValue) => setFormData({ ...formData, plano_utilizado: newValue })} renderInput={(params) => <TextField {...params} label="Plano *" error={!formData.plano_utilizado} size="small" />} noOptionsText={convenioSelecionado ? "Nenhum plano" : "Selecione a empresa"} />
+                                                <Autocomplete options={convenioSelecionado ? planos.filter(p => p.convenio_nome === convenioSelecionado.nome) : []} getOptionLabel={(option) => option.nome || ''} value={formData.plano_utilizado} disabled={!convenioSelecionado} isOptionEqualToValue={(option, value) => option.id === value.id} onChange={(event, newValue) => setFormData({ ...formData, plano_utilizado: newValue })} renderInput={(params) => <TextField {...params} label="Plano *" error={!formData.plano_utilizado} size="small" />} noOptionsText={convenioSelecionado ? "Nenhum plano" : "Empresa..."} />
                                             </FormControl>
                                         </Box>
                                     )}
@@ -627,23 +732,19 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                         </Box>
                                     )}
                                     
-                                    {infoFinanceira && infoFinanceira.status === 'erro' && (<Alert severity="error" sx={{ py: 0, '& .MuiAlert-message': { py: 0.5 } }}>{infoFinanceira.texto}</Alert>)}
-
-                                    <Box sx={{ p: 1, bgcolor: formData.isento_cobranca ? '#e8f5e9' : '#f5f5f5', borderRadius: 1, border: formData.isento_cobranca ? '1px solid #a5d6a7' : '1px solid transparent', transition: '0.3s' }}>
-                                        <FormControlLabel control={<Switch checked={formData.isento_cobranca || false} onChange={(e) => setFormData({...formData, isento_cobranca: e.target.checked})} color="success" size="small" />} label={<Typography variant="body2" fontWeight="bold" color={formData.isento_cobranca ? 'success.dark' : 'text.primary'}>Isentar Cobrança</Typography>} sx={{ m: 0 }} />
-                                        {formData.isento_cobranca && (<TextField label="Motivo da Isenção *" size="small" fullWidth value={formData.motivo_isencao || ''} onChange={(e) => setFormData({...formData, motivo_isencao: e.target.value})} required={formData.isento_cobranca} placeholder="Ex: Retorno..." sx={{ mt: 1.5, bgcolor: '#fff' }} />)}
-                                    </Box>
+                                    {infoFinanceira && infoFinanceira.status === 'erro' && (<Alert severity="error" sx={{ py: 0, '& .MuiAlert-message': { py: 0 } }}>{infoFinanceira.texto}</Alert>)}
                                 </Box>
                             </Paper>
                         </Grid>
                     </Grid>
                 </DialogContent>
                 
-                <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+                {/* RODAPÉ COMPACTO */}
+                <DialogActions sx={{ p: 1.5, borderTop: '1px solid #e0e0e0', bgcolor: '#fff' }}>
                     <Box>{editingEvent && (<Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />} disabled={isSubmitting} size="small">Excluir</Button>)}</Box>
-                    <Box sx={{ display: 'flex', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button onClick={onClose} disabled={isSubmitting} color="inherit" size="small">Cancelar</Button>
-                        <Button type="submit" variant="contained" disabled={isSubmitting} size="medium" sx={{ px: 3, borderRadius: 2 }}>{isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar'}</Button>
+                        <Button type="submit" variant="contained" disabled={isSubmitting} size="small" sx={{ px: 3, borderRadius: 2 }}>{isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar'}</Button>
                     </Box>
                 </DialogActions>
             </form>
