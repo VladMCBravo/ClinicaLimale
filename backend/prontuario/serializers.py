@@ -91,7 +91,7 @@ class PrescricaoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Prescricao
-        fields = ['id', 'paciente', 'medico', 'data_prescricao', 'itens']
+        fields = ['id', 'paciente', 'medico', 'data_prescricao', 'titulo', 'itens']
 
     def create(self, validated_data):
         itens_data = validated_data.pop('itens')

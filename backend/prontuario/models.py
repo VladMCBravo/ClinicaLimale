@@ -71,6 +71,7 @@ class Evolucao(models.Model):
 class Prescricao(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='prescricoes')
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    titulo = models.CharField(max_length=255, blank=True, null=True, verbose_name="Título da Prescrição")
     data_prescricao = models.DateTimeField(auto_now_add=True)
 
     class Meta:
