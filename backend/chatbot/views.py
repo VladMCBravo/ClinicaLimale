@@ -326,19 +326,15 @@ class EvolutionWebhookView(APIView):
                 # 1. FUNÇÃO INTERNA: O que vai rodar "escondido" em segundo plano
                 def tarefa_em_segundo_plano():
                     try:
-                        # PASSO A: Verifica se é a primeira vez que o cliente manda mensagem
-                        # O remote_jid costuma ser usado como session_id na Evolution API
-                        memoria_obj, created = ChatMemory.objects.get_or_create(session_id=remote_jid)
-                        memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
-                        historico = memoria_atual.get('historico_conversa', [])
+                        # Usamos o phone_number limpo para dar match exato com o banco de dados
+                        memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
                         
-                        eh_primeira_mensagem = len(historico) == 0
-
-                        # PASSO B: O bot vai pensar e processar a IA no tempo dele (Ghost Mode)
+                        # O bot vai pensar e processar a IA no tempo dele (Ghost Mode)
                         resposta = handler.processar_fluxo(message_text) 
                         
-                        # PASSO C: Se for cliente novo, aplica o delay de 12 segundos e manda a saudação
-                        if eh_primeira_mensagem:
+                        # Se 'is_nova_conversa' for True, significa que o Django acabou de 
+                        # criar essa memória pela primeiríssima vez.
+                        if is_nova_conversa:
                             time.sleep(12) # Pausa dramática de 12 segundos
                             
                             mensagem_saudacao = (
