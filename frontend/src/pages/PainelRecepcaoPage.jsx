@@ -290,7 +290,8 @@ export default function PainelRecepcaoPage() {
                 onSave={handleAgendamentoSave} 
                 initialData={initialData} 
                 editingEvent={editingEvent}
-                onAbrirNovoPaciente={handleAbrirNovoPaciente} // <--- ADICIONE AQUI
+                onAbrirNovoPaciente={handleAbrirNovoPaciente} 
+                refreshTrigger={refreshTrigger} // <--- ADICIONE APENAS ESTA LINHA AQUI
             />
 
             {/* NOVO MODAL */}
