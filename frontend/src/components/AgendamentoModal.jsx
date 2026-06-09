@@ -71,7 +71,7 @@ const formatData = (dataString) => {
     return `${partes[2]}/${partes[1]}/${partes[0]}`; 
 };
 
-export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente }) {
+export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente, refreshTrigger }) {
     const { showSnackbar } = useSnackbar();
 
     const MAX_CONS = 3;
@@ -103,119 +103,34 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [jornadasMedico, setJornadasMedico] = useState([]);
     const [confirmarJornadaOpen, setConfirmarJornadaOpen] = useState(false);
 
+    // --- A MÁGICA DO NOVO PACIENTE AQUI ---
+    // Sempre que o refreshTrigger for alterado (salvou paciente novo), ele recarrega a lista e seleciona.
     useEffect(() => {
-        let isMounted = true; 
-
-        if (open) {
-            agendamentoService.getModalData()
-                .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
-                    if (!isMounted) return; 
-                    
-                    const rawPacientes = pacientesRes.data || [];
-                    const pacientesUnicosMap = new Map();
-                    rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p)); 
-                    const pacientesOrdenados = Array.from(pacientesUnicosMap.values()).sort((a, b) => 
-                        a.nome_completo.localeCompare(b.nome_completo)
-                    );
-                    setPacientes(pacientesOrdenados);
-                    setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
-                    setMedicos(medicosRes.data);
-                    setEspecialidades(especialidadesRes.data);
-                }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
-            
-            agendamentoService.getSalas()
-                .then(response => {
-                    setSalas(response.data);
-                    setSalasFiltradas(response.data); 
-                })
-                .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
-            
-            faturamentoService.getPlanosConvenio().then(response => setPlanos(response.data)).catch(error => console.error("Erro", error));
-            faturamentoService.getConvenios().then(response => setConvenios(response.data)).catch(error => console.error("Erro", error));
-        }
-        return () => { isMounted = false; };
-    }, [open, showSnackbar]);
-
-    useEffect(() => {
-        if (!open) {
-            setFormData(getInitialFormData());
-            setTipoAgendamento('Consulta');
-            setPacienteDetalhes(null);
-            setDataInicioVisual('');
-            setDataFimVisual('');
-            setIsEncaixe(false);
-            return;
-        }
-
-        if (editingEvent) {
-            const isFullCalendarEvent = !!editingEvent.extendedProps;
-            const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
-            const tipo = dados.tipo_agendamento || 'Consulta';
-            
-            const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
-            const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
-
-            setTipoAgendamento(tipo);
-            const procEncontrado = procedimentos.find(p => p.id === dados.procedimento) || null;
-            
-            setFormData({
-                paciente: pacientes.find(p => p.id === dados.paciente) || null,
-                data_hora_inicio: inicioDayjs,
-                data_hora_fim: fimDayjs,
-                status: dados.status,
-                tipo_atendimento: dados.tipo_atendimento,
-                plano_utilizado: dados.plano_utilizado,
-                observacoes: dados.observacoes || '',
-                tipo_visita: dados.tipo_visita || 'Primeira Consulta',
-                modalidade: dados.modalidade || 'Presencial',
-                especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
-                sala: salas.find(s => s.id === dados.sala) || null,
-                medico: medicos.find(m => m.id === dados.medico) || null,
-                procedimento: procEncontrado, 
-                procedimentos: procEncontrado ? [procEncontrado] : [], 
-            });
-
-            setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
-            setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
-
-        } else if (initialData) {
-            const startTime = dayjs(initialData.start);
-            const endTime = startTime.add(15, 'minute');
-            if (initialData.medicoId) setTipoAgendamento('Consulta');
-            setFormData(prev => ({ 
-                ...prev, 
-                data_hora_inicio: startTime,
-                data_hora_fim: endTime, 
-                sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
-                medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
-                especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
-            }));
-
-            setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
-            setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
-        }
-    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
-
-    useEffect(() => {
-        const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
-        if (!procParaFiltro || tipoAgendamento === 'Consulta') { setSalasFiltradas(salas); return; }
-
-        const equipamentoNecessario = procParaFiltro.equipamento_obrigatorio;
-        if (equipamentoNecessario) {
-            const compativeis = salas.filter(sala => sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario));
-            setSalasFiltradas(compativeis);
-            setFormData(prev => {
-                if (prev.sala) {
-                    const salaTemEquipamento = prev.sala.equipamentos && prev.sala.equipamentos.includes(equipamentoNecessario);
-                    if (!salaTemEquipamento) {
-                        showSnackbar(`A sala anterior não possui ${equipamentoNecessario}. Selecione uma compatível.`, 'warning');
-                        return { ...prev, sala: null }; 
+        if (open && refreshTrigger > 0) {
+            agendamentoService.getModalData().then(([pacientesRes]) => {
+                const rawPacientes = pacientesRes.data || [];
+                const pacientesUnicosMap = new Map();
+                rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p)); 
+                const pacientesOrdenados = Array.from(pacientesUnicosMap.values()).sort((a, b) => 
+                    a.nome_completo.localeCompare(b.nome_completo)
+                );
+                
+                setPacientes(prevPacientes => {
+                    // Verifica qual ID é novo na lista comparado com o que tínhamos antes
+                    if (prevPacientes.length > 0) {
+                        const idsAntigos = prevPacientes.map(p => p.id);
+                        const pacienteNovo = pacientesOrdenados.find(p => !idsAntigos.includes(p.id));
+                        
+                        if (pacienteNovo) {
+                            handlePacienteChange(null, pacienteNovo);
+                            showSnackbar('Paciente vinculado com sucesso!', 'success');
+                        }
                     }
-                }
-                return prev;
+                    return pacientesOrdenados;
+                });
             });
-        } else { setSalasFiltradas(salas); }
-    }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas, showSnackbar]);
+        }
+    }, [refreshTrigger, open]);
 
     const handleDataInicioChange = (e) => {
         const valorVisual = e.target.value;
