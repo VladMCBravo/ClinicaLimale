@@ -40,32 +40,35 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
   if (!displayedCards || displayedCards.length === 0) return <Typography sx={{ p: 2 }}>Nenhum paciente encontrado.</Typography>;
 
   return (
-    <TableContainer component={Paper} sx={{ borderRadius: 1 }}>
-      <Table size="small">
-        <TableHead sx={{ bgcolor: '#f8f9fa' }}>
+    // 1. Força o container da tabela a ocupar 100% do limite rolável que criamos na tela pai
+    <TableContainer component={Paper} sx={{ borderRadius: 1, height: '100%', overflow: 'auto' }}>
+      {/* 2. Adiciona o stickyHeader para o topo não sumir quando você descer a lista */}
+      <Table stickyHeader size="small">
+        <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
+            {/* 3. Garante que o fundo do cabeçalho seja sólido (bgcolor) para o texto não sobrepor */}
+            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'data'} direction={orderBy === 'data' ? order : 'asc'} onClick={() => handleRequestSort('data')}>
                 Data
               </TableSortLabel>
             </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
+            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'paciente'} direction={orderBy === 'paciente' ? order : 'asc'} onClick={() => handleRequestSort('paciente')}>
                 Paciente
               </TableSortLabel>
             </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
+            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'ig'} direction={orderBy === 'ig' ? order : 'asc'} onClick={() => handleRequestSort('ig')}>
                 IG & Alerta Clínico
               </TableSortLabel>
             </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
+            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'procedimento'} direction={orderBy === 'procedimento' ? order : 'asc'} onClick={() => handleRequestSort('procedimento')}>
                 Procedimento
               </TableSortLabel>
             </TableCell>
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Próxima Ação</TableCell>
-            <TableCell align="right"></TableCell>
+            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>Próxima Ação</TableCell>
+            <TableCell align="right" sx={{ bgcolor: '#f8f9fa' }}></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>

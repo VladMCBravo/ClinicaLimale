@@ -108,7 +108,8 @@ export default function CRMKanbanPage() {
   const activePhaseBorder = PHASES.find(p => p.id === activePhase)?.border || '#ccc';
 
   return (
-    <Box sx={{ p: 1, minHeight: '100vh', bgcolor: '#f4f5f7' }}>
+    // 1. TRAVAMOS A ALTURA DA PÁGINA E ESCONDEMOS O SCROLL GLOBAL (Igual ao PainelRecepcao)
+    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 1, bgcolor: '#f4f5f7', overflow: 'hidden' }}>
       
       {/* --- CSS MÁGICO PARA IMPRESSÃO PDF COM MÁSCARA --- */}
       <style>
@@ -156,8 +157,8 @@ export default function CRMKanbanPage() {
         `}
       </style>
 
-      {/* BARRA SUPERIOR */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }} className="no-print">
+      {/* BARRA SUPERIOR (Fixa - Não encolhe) */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexShrink: 0 }} className="no-print">
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#333' }}>Gestão de Pacientes</Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           
@@ -181,27 +182,30 @@ export default function CRMKanbanPage() {
         </Box>
       </Box>
 
-      {/* ADICIONANDO A CLASSE 'print-area' ENVOLVENDO O CONTEÚDO */}
-      <div className="print-area">
-      {/* CABEÇALHOS DO FUNIL MAIS FINOS */}
-      <Grid container spacing={1} sx={{ mb: 1.5 }}>
-        {PHASES.map((phase) => (
-          <Grid item xs={12} sm={6} md={2.4} key={phase.id}>
-            <Paper elevation={activePhase === phase.id ? 2 : 0} onClick={() => setActivePhase(phase.id)} sx={{ px: 1, py: 0.5, cursor: 'pointer', bgcolor: activePhase === phase.id ? phase.color : 'white', borderTop: `3px solid ${phase.border}`, borderBottom: '1px solid #e0e0e0', borderRight: '1px solid #e0e0e0', borderLeft: '1px solid #e0e0e0' }}>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#555', fontSize: '0.65rem' }}>{phase.title}</Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', lineHeight: 1.2 }}>{rawData[phase.id]?.length || 0}</Typography>
-                <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.65rem', color: '#777' }}>{formatMoney(rawData[phase.id]?.reduce((acc, i) => acc + (parseFloat(i.receita_acumulada) || 0), 0))}</Typography>
-              </Box>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
+      {/* ÁREA DE CONTEÚDO (Ocupa o espaço restante e controla as listas) */}
+      <div className="print-area" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+        
+        {/* CABEÇALHOS DO FUNIL (Fixos) */}
+        <Grid container spacing={1} sx={{ mb: 1.5, flexShrink: 0 }}>
+          {PHASES.map((phase) => (
+            <Grid item xs={12} sm={6} md={2.4} key={phase.id}>
+              <Paper elevation={activePhase === phase.id ? 2 : 0} onClick={() => setActivePhase(phase.id)} sx={{ px: 1, py: 0.5, cursor: 'pointer', bgcolor: activePhase === phase.id ? phase.color : 'white', borderTop: `3px solid ${phase.border}`, borderBottom: '1px solid #e0e0e0', borderRight: '1px solid #e0e0e0', borderLeft: '1px solid #e0e0e0' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#555', fontSize: '0.65rem' }}>{phase.title}</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold', lineHeight: 1.2 }}>{rawData[phase.id]?.length || 0}</Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.65rem', color: '#777' }}>{formatMoney(rawData[phase.id]?.reduce((acc, i) => acc + (parseFloat(i.receita_acumulada) || 0), 0))}</Typography>
+                </Box>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
 
-      {/* RENDERIZAÇÃO DAS ABAS */}
-        {viewMode === 'table' && <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
-        {viewMode === 'kanban' && <KanbanView displayedCards={displayedCards} activePhaseBorder={activePhaseBorder} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
-        {viewMode === 'graficos' && <GraficosView rawData={rawData} PHASES={PHASES} />}
+        {/* 2. ÁREA DE ROLAGEM LIMITADA: Aqui a mágica acontece para a tabela e o kanban */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', minHeight: 0, pb: 2, pr: 0.5 }}>
+          {viewMode === 'table' && <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
+          {viewMode === 'kanban' && <KanbanView displayedCards={displayedCards} activePhaseBorder={activePhaseBorder} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
+          {viewMode === 'graficos' && <GraficosView rawData={rawData} PHASES={PHASES} />}
+        </Box>
       </div>
 
       <CicloDetalhesModal open={modalOpen} onClose={() => setModalOpen(false)} cicloId={selectedCicloId} onUpdate={loadData} />
