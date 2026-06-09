@@ -37,7 +37,7 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
   const [comportamento, setComportamento] = useState({
     origem_aquisicao: '', segue_instagram: false, avaliou_google: false, indicou_outros: false,
     perfil_emocional: 'INDEFINIDO', principal_objecao: '', observacoes_internas: '',
-    nivel_urgencia: '', exame_interesse: '', motivo_exame: '', concorrencia_mencionada: '' // <--- NOVOS
+    nivel_urgencia: '', exame_interesse: '', motivo_exame: '', concorrencia_mencionada: '', medico_solicitante: '' 
   });
 
   useEffect(() => {
@@ -79,7 +79,8 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
               nivel_urgencia: dadosFinais.comportamento.nivel_urgencia || '',
               exame_interesse: dadosFinais.comportamento.exame_interesse || '',
               motivo_exame: dadosFinais.comportamento.motivo_exame || '',
-              concorrencia_mencionada: dadosFinais.comportamento.concorrencia_mencionada || ''
+              concorrencia_mencionada: dadosFinais.comportamento.concorrencia_mencionada || '',
+              medico_solicitante: dadosFinais.comportamento.medico_solicitante || ''
           });
       }
 
@@ -338,6 +339,16 @@ export default function CicloDetalhesModal({ open, onClose, cicloId, onUpdate })
                             onChange={(e) => handleChangeComportamento('exame_interesse', e.target.value)}
                         />
                     </Grid>
+                    {/* --- NOVO CAMPO ADICIONADO ABAIXO --- */}
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth size="small" label="Médico Solicitante"
+                            placeholder="Ex: Dra. Ana ou 'Conta Própria'"
+                            value={comportamento.medico_solicitante || ''}
+                            onChange={(e) => handleChangeComportamento('medico_solicitante', e.target.value)}
+                        />
+                    </Grid>
+                    {/* ---------------------------------- */}
                     <Grid item xs={12} sm={6}>
                         <TextField
                             fullWidth size="small" label="Concorrente Mencionado"
