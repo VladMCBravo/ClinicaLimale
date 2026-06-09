@@ -95,18 +95,25 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
         setIsSubmitting(true);
         try {
-            // 1. BLINDAGEM DOS IDs (Sanitização)
-            // Tenta converter para número. Se for "novo", "null", "undefined", etc, vira NaN.
             const safeTemplateId = parseInt(selectedTemplateId, 10);
             const safeConsultaId = parseInt(consultaAtualId, 10);
 
+            // Monta o payload APENAS com os campos obrigatórios
             const payload = {
                 titulo: titulo,
-                conteudo_final: editorContent,
-                // Se for um número válido, envia. Se for NaN, envia estritamente null.
-                template_origem: !isNaN(safeTemplateId) ? safeTemplateId : null,
-                consulta: !isNaN(safeConsultaId) ? safeConsultaId : null
+                conteudo_final: editorContent
             };
+
+            // Adiciona o template apenas se for um ID válido
+            if (!isNaN(safeTemplateId) && safeTemplateId > 0) {
+                payload.template_origem = safeTemplateId;
+            }
+            
+            // Adiciona a consulta apenas se for um ID válido E menor que 1 bilhão 
+            // (Isso evita IDs temporários gerados pelo frontend com Date.now())
+            if (!isNaN(safeConsultaId) && safeConsultaId > 0 && safeConsultaId < 1000000000) {
+                payload.consulta = safeConsultaId;
+            }
 
             await apiClient.post(
                 `/prontuario/pacientes/${pacienteId}/relatorios/criar/`,
@@ -119,9 +126,21 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             setSelectedTemplateId('');
             fetchSavedReports(); 
         } catch (err) {
-            // 2. LOG REVELADOR: Mostra exatamente do que o Django reclamou
-            console.error("Detalhes do Erro DRF (400 Bad Request):", err.response?.data);
-            showSnackbar('Erro ao salvar o relatório. Verifique o console.', 'error');
+            // LÓGICA DE DETETIVE: Puxa o erro exato de dentro do objeto DRF e joga na tela
+            const errorData = err.response?.data;
+            console.error("Detalhes do Erro DRF (400 Bad Request):", errorData);
+            
+            let errorMessage = 'Erro ao salvar o relatório.';
+            
+            if (errorData && typeof errorData === 'object') {
+                // Pega a primeira chave do objeto de erro (ex: "consulta") e a mensagem
+                const firstKey = Object.keys(errorData)[0];
+                if (firstKey) {
+                    errorMessage = `Erro (${firstKey}): ${errorData[firstKey]}`;
+                }
+            }
+            
+            showSnackbar(errorMessage, 'error');
         } finally {
             setIsSubmitting(false);
         }
