@@ -54,6 +54,7 @@ from .serializers import (
 class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
     """
     View ÚNICA para Listar (GET) e Criar (POST) evoluções.
+    Modificada com inteligência anti-duplicação (Upsert).
     """
     serializer_class = EvolucaoSerializer
     permission_classes = [CanViewProntuario]
@@ -63,47 +64,57 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
         paciente_id = self.kwargs.get('paciente_id')
         return Evolucao.objects.filter(paciente__id=paciente_id).order_by('-data_atendimento')
 
+    def create(self, request, *args, **kwargs):
+        """
+        INTERCEPTOR: Se o agendamento já tiver uma evolução, atualiza em vez de dar erro 400.
+        """
+        agendamento_id = request.data.get('agendamento')
+        
+        if agendamento_id:
+            # Busca se já existe alguma evolução salva para este agendamento específico
+            evolucao_existente = Evolucao.objects.filter(agendamento_id=agendamento_id).first()
+            
+            if evolucao_existente:
+                # 🔥 A MÁGICA AQUI: Se já existe, o Django ignora o erro 400 
+                # e atualiza os textos (SOAP) do atendimento atual!
+                serializer = self.get_serializer(evolucao_existente, data=request.data, partial=True)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Se não existe evolução para esse ID de agendamento, cria um novo registro normalmente
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """
-        Cria a evolução e HERDA A ESPECIALIDADE do agendamento.
+        Cria a evolução original e herda as especialidades (Mantido igual)
         """
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
-        
-        # --- LÓGICA DE HERANÇA (ATUALIZADA) ---
         agendamento_id = self.request.data.get('agendamento')
         agendamento_obj = None
         especialidade_herdada = None
 
-        # 1. Tenta pegar a especialidade do Agendamento (como antes)
         if agendamento_id:
             try:
                 agendamento_obj = Agendamento.objects.get(id=agendamento_id, paciente=paciente)
-                # Só pega se não for nulo
                 if agendamento_obj.especialidade:
                     especialidade_herdada = agendamento_obj.especialidade
             except Agendamento.DoesNotExist:
                 pass 
         
-        # ★★★ 2. O FALLBACK (A CORREÇÃO) ★★★
-        # Se, depois de tentar o agendamento, a especialidade AINDA for NULA...
         if not especialidade_herdada:
-            # ...tente pegar o NOME da especialidade que o frontend enviou
             especialidade_nome_fornecida = self.request.data.get('especialidade_nome_fornecida')
-            
             if especialidade_nome_fornecida:
                 try:
-                    # Busca o objeto Especialidade pelo nome
                     especialidade_herdada = Especialidade.objects.get(nome__iexact=especialidade_nome_fornecida)
                 except Especialidade.DoesNotExist:
-                    pass # Continua nulo se o nome for inválido
+                    pass
 
-        
-        # 3. Salva a evolução com os dados
         serializer.save(
             medico=self.request.user, 
             paciente=paciente,
             agendamento=agendamento_obj,       
-            especialidade=especialidade_herdada # <-- Agora preenchido via fallback
+            especialidade=especialidade_herdada
         )
 
 class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
