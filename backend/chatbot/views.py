@@ -34,6 +34,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 # --- SEÇÃO DE IMPORTAÇÕES DO SEU PROJETO ---
+import time
 from .models import ChatMemory
 from .services import buscar_precos_servicos
 from pacientes.models import Paciente
@@ -325,11 +326,30 @@ class EvolutionWebhookView(APIView):
                 # 1. FUNÇÃO INTERNA: O que vai rodar "escondido" em segundo plano
                 def tarefa_em_segundo_plano():
                     try:
-                        # O bot vai pensar e processar a IA no tempo dele (sem pressa)
+                        # PASSO A: Verifica se é a primeira vez que o cliente manda mensagem
+                        # O remote_jid costuma ser usado como session_id na Evolution API
+                        memoria_obj, created = ChatMemory.objects.get_or_create(session_id=remote_jid)
+                        memoria_atual = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
+                        historico = memoria_atual.get('historico_conversa', [])
+                        
+                        eh_primeira_mensagem = len(historico) == 0
+
+                        # PASSO B: O bot vai pensar e processar a IA no tempo dele (Ghost Mode)
                         resposta = handler.processar_fluxo(message_text) 
                         
-                        # COMENTE OU REMOVA ESTA LINHA PARA O BOT NÃO RESPONDER DIRETAMENTE:
-                        # handler.enviar_mensagem(resposta)
+                        # PASSO C: Se for cliente novo, aplica o delay de 12 segundos e manda a saudação
+                        if eh_primeira_mensagem:
+                            time.sleep(12) # Pausa dramática de 12 segundos
+                            
+                            mensagem_saudacao = (
+                                "Olá 🤍\n\n"
+                                "Sou o Leônidas, assistente da Clínica Limalé — centro de "
+                                "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                                "Será um prazer te atender.\nNo que posso ajudar hoje?"
+                            )
+                            
+                            handler.enviar_mensagem(mensagem_saudacao)
+
                     except Exception as e:
                         logger.error(f"Erro no processamento da IA em segundo plano: {e}")
 
