@@ -95,12 +95,19 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
         setIsSubmitting(true);
         try {
+            // 1. BLINDAGEM DOS IDs (Sanitização)
+            // Tenta converter para número. Se for "novo", "null", "undefined", etc, vira NaN.
+            const safeTemplateId = parseInt(selectedTemplateId, 10);
+            const safeConsultaId = parseInt(consultaAtualId, 10);
+
             const payload = {
                 titulo: titulo,
                 conteudo_final: editorContent,
-                template_origem: selectedTemplateId || null,
-                consulta: consultaAtualId || null
+                // Se for um número válido, envia. Se for NaN, envia estritamente null.
+                template_origem: !isNaN(safeTemplateId) ? safeTemplateId : null,
+                consulta: !isNaN(safeConsultaId) ? safeConsultaId : null
             };
+
             await apiClient.post(
                 `/prontuario/pacientes/${pacienteId}/relatorios/criar/`,
                 payload
@@ -112,7 +119,9 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             setSelectedTemplateId('');
             fetchSavedReports(); 
         } catch (err) {
-            showSnackbar('Erro ao salvar o relatório.', 'error');
+            // 2. LOG REVELADOR: Mostra exatamente do que o Django reclamou
+            console.error("Detalhes do Erro DRF (400 Bad Request):", err.response?.data);
+            showSnackbar('Erro ao salvar o relatório. Verifique o console.', 'error');
         } finally {
             setIsSubmitting(false);
         }
