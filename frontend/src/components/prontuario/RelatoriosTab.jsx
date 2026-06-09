@@ -96,9 +96,9 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         setIsSubmitting(true);
         try {
             const safeTemplateId = parseInt(selectedTemplateId, 10);
-            const safeConsultaId = parseInt(consultaAtualId, 10);
 
-            // Monta o payload APENAS com os campos obrigatórios
+            // Monta o payload SIMPLIFICADO (inspirado na PrescricoesTab)
+            // Não enviamos mais o ID da consulta para evitar o conflito de Pk.
             const payload = {
                 titulo: titulo,
                 conteudo_final: editorContent
@@ -107,12 +107,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             // Adiciona o template apenas se for um ID válido
             if (!isNaN(safeTemplateId) && safeTemplateId > 0) {
                 payload.template_origem = safeTemplateId;
-            }
-            
-            // Adiciona a consulta apenas se for um ID válido E menor que 1 bilhão 
-            // (Isso evita IDs temporários gerados pelo frontend com Date.now())
-            if (!isNaN(safeConsultaId) && safeConsultaId > 0 && safeConsultaId < 1000000000) {
-                payload.consulta = safeConsultaId;
             }
 
             await apiClient.post(
@@ -126,14 +120,11 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             setSelectedTemplateId('');
             fetchSavedReports(); 
         } catch (err) {
-            // LÓGICA DE DETETIVE: Puxa o erro exato de dentro do objeto DRF e joga na tela
             const errorData = err.response?.data;
             console.error("Detalhes do Erro DRF (400 Bad Request):", errorData);
             
             let errorMessage = 'Erro ao salvar o relatório.';
-            
             if (errorData && typeof errorData === 'object') {
-                // Pega a primeira chave do objeto de erro (ex: "consulta") e a mensagem
                 const firstKey = Object.keys(errorData)[0];
                 if (firstKey) {
                     errorMessage = `Erro (${firstKey}): ${errorData[firstKey]}`;
