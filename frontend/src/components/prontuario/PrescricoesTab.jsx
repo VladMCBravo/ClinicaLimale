@@ -16,27 +16,23 @@ const initialItemState = { medicamento: '', dosagem: '', instrucoes: '' };
 
 // 🌟 LISTA DE MEDICAMENTOS CLÁSSICOS (Pode adicionar quantos quiser!)
 const medicamentosComuns = [
-    "Amoxicilina 500mg",
-    "Amoxicilina + Clavulanato 875/125mg",
-    "Azitromicina 500mg",
-    "Cefalexina 500mg",
-    "Dexametasona 4mg",
-    "Dexclorfeniramina 2mg",
-    "Dipirona 500mg",
-    "Dipirona 1g",
-    "Enalapril 20mg",
-    "Ibuprofeno 400mg",
-    "Ibuprofeno 600mg",
-    "Loratadina 10mg",
-    "Losartana 50mg",
-    "Omeprazol 20mg",
-    "Ondansetrona 4mg",
-    "Ondansetrona 8mg",
-    "Pantoprazol 40mg",
-    "Paracetamol 500mg",
-    "Paracetamol 750mg",
-    "Prednisona 20mg",
-    "Simeticona 40mg"
+    "Amoxicilina",
+    "Amoxicilina + Clavulanato",
+    "Azitromicina",
+    "Cefalexina",
+    "Dexametasona",
+    "Dexclorfeniramina",
+    "Dipirona",
+    "Enalapril",
+    "Ibuprofeno",
+    "Loratadina",
+    "Losartana",
+    "Omeprazol",
+    "Ondansetrona",
+    "Pantoprazol",
+    "Paracetamol",
+    "Prednisona",
+    "Simeticona"
 ];
 
 export default function PrescricoesTab({ pacienteId }) {
