@@ -41,33 +41,34 @@ export default function AtendimentoCardiologia({ pacienteId, agendamentoId, onEv
 
     // Reseta estados ao trocar de paciente e CARREGA DADOS EXISTENTES
     useEffect(() => {
-        // 1. Limpa a tela ao trocar de paciente por segurança
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
         setExameFisicoData({});
         setTabIndex(0);
         setEvolucaoIdSessao(null); 
 
-        // 2. Busca se já existe uma evolução salva para este Agendamento hoje
         if (pacienteId && agendamentoId) {
             const carregarAtendimentoExistente = async () => {
                 try {
                     const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/`);
-                    // Garante que funciona tanto se o Django retornar um Array direto ou paginado (.results)
                     const evolucoes = response.data?.results || response.data; 
-                    
-                    // Procura se tem alguma evolução atrelada a este agendamento exato
                     const consultaExistente = evolucoes.find(ev => ev.agendamento === agendamentoId);
 
                     if (consultaExistente) {
-                        // Se achou, preenche as caixas de texto com o que você já tinha digitado antes!
                         setSoapData({
                             notas_subjetivas: consultaExistente.notas_subjetivas || '',
                             notas_objetivas: consultaExistente.notas_objetivas || '',
                             avaliacao: consultaExistente.avaliacao || '',
                             plano: consultaExistente.plano || ''
                         });
-                        // Informa ao sistema que já estamos numa sessão de edição
+                        
+                        // 🔥 NOVIDADE 1: Restaura o PA e FC isolados para não apagarem ao editar
+                        setExameFisicoData(prev => ({
+                            ...prev,
+                            pa: consultaExistente.pressao_arterial || '',
+                            fc: consultaExistente.frequencia_cardiaca || ''
+                        }));
+
                         setEvolucaoIdSessao(consultaExistente.id);
                     }
                 } catch (err) {
@@ -180,9 +181,10 @@ export default function AtendimentoCardiologia({ pacienteId, agendamentoId, onEv
         // ★★★ 1. Crie o payload que inclui o agendamentoId ★★★
         const soapPayload = {
             ...soapData,
+            pressao_arterial: exameFisicoData.pa || null,
+            frequencia_cardiaca: exameFisicoData.fc || null,
+            
             agendamento: agendamentoId || null,
-
-            // ★★★ ADICIONE ESTA LINHA ★★★
             especialidade_nome_fornecida: "Cardiologia"
         };
 

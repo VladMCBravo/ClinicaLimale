@@ -1,10 +1,9 @@
-// src/components/PatientHeader.jsx - VERSÃO CORRETA E FINAL
+// src/components/PatientHeader.jsx - VERSÃO COM SINAIS VITAIS
 
 import React from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 
-// O componente recebe 'paciente', 'agendamento' e a função 'onStartTelemedicina'
 export default function PatientHeader({ paciente, agendamento, onStartTelemedicina }) {
     if (!paciente) {
         return (
@@ -28,16 +27,27 @@ export default function PatientHeader({ paciente, agendamento, onStartTelemedici
         return idade;
     };
 
+    // Tenta puxar dos sinais vitais da última evolução, se não tiver, tenta do cadastro, se não, N/A.
+    const pesoExibicao = paciente?.sinais_vitais?.peso || paciente.peso || 'N/A';
+    const alturaExibicao = paciente?.sinais_vitais?.altura || paciente.altura || 'N/A';
+    const paExibicao = paciente?.sinais_vitais?.pa || 'N/A';
+    const fcExibicao = paciente?.sinais_vitais?.fc || 'N/A';
+
     return (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: '1px solid #eee' }}>
             <Box>
                 <Typography variant="h5">{paciente.nome_completo}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Idade: {calcularIdade(paciente.data_nascimento)} anos  |  Peso: {paciente.peso || 'N/A'} kg  |  Altura: {paciente.altura || 'N/A'} m
+                
+                {/* 🔥 LINHA ATUALIZADA COM PA E FC */}
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    <b>Idade:</b> {calcularIdade(paciente.data_nascimento)} anos  |  
+                    <b> Peso:</b> {pesoExibicao} kg  |  
+                    <b> Altura:</b> {alturaExibicao} m  |  
+                    <b> PA:</b> {paExibicao} mmHg  |  
+                    <b> FC:</b> {fcExibicao} bpm
                 </Typography>
             </Box>
             
-            {/* O botão de Telemedicina só aparece se o agendamento for dessa modalidade */}
             {isTelemedicina && (
                 <Button 
                     variant="contained" 
