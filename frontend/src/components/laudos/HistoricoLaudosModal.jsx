@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, 
-    Button, Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, Paper, IconButton, Chip, Alert, CircularProgress, Tooltip,
-    Box, Typography
+    Button, IconButton, Alert, CircularProgress, Tooltip,
+    Box, Typography, Accordion, AccordionSummary, AccordionDetails, Divider
 } from '@mui/material';
-import { FaFilePdf, FaTimes, FaWhatsapp, FaPrint, FaSpinner, FaUserMd, FaKeyboard, FaTrash } from 'react-icons/fa';
+import { FaWhatsapp, FaPrint, FaSpinner, FaUserMd, FaKeyboard, FaTrash } from 'react-icons/fa';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import CloseIcon from '@mui/icons-material/Close';
+
 import apiClient from '../../api/axiosConfig';
 import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator';
 
@@ -23,29 +26,14 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const carregarLaudos = async () => {
         setLoading(true);
         try {
-            // 1. Busca os laudos estruturados (digitados pela ajudante)
-            const resLaudos = await apiClient.get('/prontuario/laudos/', {
-                params: { paciente: pacienteId }
-            });
-            // Proteção contra paginação do Django
+            const resLaudos = await apiClient.get('/prontuario/laudos/', { params: { paciente: pacienteId } });
             const laudosEstruturados = Array.isArray(resLaudos.data) ? resLaudos.data : resLaudos.data.results || [];
 
-            // 🕵️‍♂️ LOG ESPIÃO 1: Vamos ver a lista crua que o Django enviou
-            console.log("=== 🕵️‍♂️ DADOS QUE CHEGARAM DO DJANGO ===");
-            console.log(laudosEstruturados);
-
-            // 2. Busca os exames/pastas (enviados pela Samsung V7)
-            const resExames = await apiClient.get('/exames/exames-paciente/', {
-                params: { paciente_id: pacienteId }
-            });
+            const resExames = await apiClient.get('/prontuario/exames-paciente/', { params: { paciente_id: pacienteId } });
             const exames = Array.isArray(resExames.data) ? resExames.data : resExames.data.results || [];
 
-            // 3. Descobre quais exames já têm laudo digitado para não duplicar
-            const examesComLaudoDigitado = laudosEstruturados
-                .map(l => l.exame)
-                .filter(id => id != null);
+            const examesComLaudoDigitado = laudosEstruturados.map(l => l.exame).filter(id => id != null);
             
-            // 4. Filtra e formata os PDFs que vieram direto da máquina
             const pdfsExternos = exames.filter(ex => {
                 if (examesComLaudoDigitado.includes(ex.id)) return false;
                 return ex.arquivos && ex.arquivos.some(arq => arq.arquivo && arq.arquivo.toLowerCase().includes('.pdf'));
@@ -64,10 +52,8 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 };
             });
 
-            // 5. Junta tudo na mesma lista e ordena por data
             const listaUnificada = [...laudosEstruturados, ...pdfsExternos];
             listaUnificada.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
-
             setLaudos(listaUnificada);
             
         } catch (error) {
@@ -89,31 +75,14 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const getLinkPDF = (laudo) => {
-        // 🕵️‍♂️ LOG ESPIÃO 2: Analisa um laudo importado individualmente
-        if (laudo.titulo && laudo.titulo.includes("Importação")) {
-            console.log(`=== 🕵️‍♂️ LAUDO DA PACIENTE: ${pacienteNome} ===`);
-            console.log("Objeto Inteiro do Laudo:", laudo);
-            console.log("Conteúdo de arquivo_pdf:", laudo.arquivo_pdf);
-        }
-
-        // 1. Tenta pegar a URL direta enviada pelo Django para arquivos importados
         if (laudo.arquivo_pdf) {
-            if (typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.toLowerCase().includes('.pdf')) {
-                return laudo.arquivo_pdf;
-            }
-            if (typeof laudo.arquivo_pdf === 'object' && laudo.arquivo_pdf !== null && laudo.arquivo_pdf.url) {
-                return laudo.arquivo_pdf.url;
-            }
+            if (typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.toLowerCase().includes('.pdf')) return laudo.arquivo_pdf;
+            if (typeof laudo.arquivo_pdf === 'object' && laudo.arquivo_pdf !== null && laudo.arquivo_pdf.url) return laudo.arquivo_pdf.url;
         }
-
-        // 2. Tenta buscar no array de arquivos da máquina (Samsung)
         if (laudo.arquivos_exame && Array.isArray(laudo.arquivos_exame) && laudo.arquivos_exame.length > 0) {
-            const arquivoPdf = laudo.arquivos_exame.find(f => 
-                f.arquivo && typeof f.arquivo === 'string' && f.arquivo.toLowerCase().includes('.pdf')
-            );
+            const arquivoPdf = laudo.arquivos_exame.find(f => f.arquivo && typeof f.arquivo === 'string' && f.arquivo.toLowerCase().includes('.pdf'));
             if (arquivoPdf) return arquivoPdf.arquivo;
         }
-        
         return null;
     };
 
@@ -124,27 +93,15 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const handleGerar2Via = async (laudo) => {
-        // 🛡️ TRAVA DE SEGURANÇA: Bloqueia laudos importados
         const tituloLaudo = laudo.titulo || laudo.titulo_exame || laudo.tipo_exame || '';
         if (tituloLaudo.includes("Importação") || tituloLaudo.includes("Exames Anexados")) {
             return alert("⚠️ O servidor ainda não processou o arquivo físico deste laudo antigo. Se você acabou de importar, atualize a página em alguns segundos.");
         }
-
         setGerandoId(laudo.id);
         const pdfWindow = window.open('', '_blank');
         
         if (pdfWindow) {
-            pdfWindow.document.write(`
-                <html>
-                    <head><title>Gerando PDF...</title></head>
-                    <body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f5f5f5;">
-                        <div style="text-align:center;">
-                            <h3>Gerando 2ª via do Laudo...</h3>
-                            <p>Aguarde um instante.</p>
-                        </div>
-                    </body>
-                </html>
-            `);
+            pdfWindow.document.write(`<html><head><title>Gerando PDF...</title></head><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f5f5f5;"><div style="text-align:center;"><h3>Gerando 2ª via do Laudo...</h3><p>Aguarde um instante.</p></div></body></html>`);
         } else {
             setGerandoId(null);
             return alert("O navegador bloqueou a janela. Permita pop-ups.");
@@ -152,17 +109,12 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
 
         try {
             let dadosEstruturados = laudo.dados_estruturados;
-            if (typeof dadosEstruturados === 'string') {
-                try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {}
-            }
-
-            const nomeMedicoParaPDF = laudo.medico_responsavel || laudo.medico_nome;
-            const crmMedicoParaPDF = laudo.crm_medico || '';
+            if (typeof dadosEstruturados === 'string') { try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {} }
 
             const blob = await gerarPDFLaudo({
                 pacienteNome: pacienteNome || laudo.paciente_nome,
-                medicoNome: nomeMedicoParaPDF,
-                medicoCrm: crmMedicoParaPDF,
+                medicoNome: laudo.medico_responsavel || laudo.medico_nome,
+                medicoCrm: laudo.crm_medico || '',
                 tituloExame: tituloLaudo,
                 textoLaudo: laudo.texto_laudo,
                 dadosEstruturados: dadosEstruturados,
@@ -185,154 +137,124 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f8f9fa' }}>
-                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                    <span style={{fontWeight:'bold'}}>Histórico de Laudos</span>
-                    <Chip label={pacienteNome} size="small" color="primary" variant="outlined"/>
-                </div>
-                <IconButton onClick={onClose} size="small"><FaTimes /></IconButton>
+        // Forçamos maxWidth="sm" para que o modal fique fininho (imita a coluna direita do prontuário)
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth disableEscapeKeyDown={loading}>
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: '#333', fontSize: '1.1rem' }}>
+                    Histórico de Laudos
+                </Typography>
+                <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
             </DialogTitle>
             
-            <DialogContent dividers sx={{ p: 0 }}>
+            {/* Classe tasy-compact-input engloba o conteúdo para herdar o CSS */}
+            <DialogContent dividers sx={{ p: 2, bgcolor: '#ffffff' }} className="tasy-compact-input">
+                
+                <Typography className="tasy-section-header">
+                    Paciente: {pacienteNome || "Não Informado"}
+                </Typography>
+
                 {loading ? (
-                    <div style={{padding:'40px', textAlign:'center'}}><CircularProgress /></div>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress size={30}/></Box>
                 ) : laudos.length === 0 ? (
-                    <div style={{padding:'20px'}}>
-                        <Alert severity="info">Nenhum laudo encontrado para este paciente.</Alert>
-                    </div>
+                    <Alert severity="info" sx={{ mt: 2 }}>Nenhum laudo encontrado para este paciente.</Alert>
                 ) : (
-                    <TableContainer component={Paper} elevation={0}>
-                        <Table size="small">
-                            <TableHead sx={{ bgcolor: '#eee' }}>
-                                <TableRow>
-                                    <TableCell><strong>Data</strong></TableCell>
-                                    <TableCell><strong>Exame</strong></TableCell>
-                                    <TableCell><strong>Responsáveis</strong></TableCell>
-                                    <TableCell align="center"><strong>Ações</strong></TableCell>
-                                    <TableCell align="center"><strong>Envio</strong></TableCell>
-                                    <TableCell align="center" sx={{color:'red'}}><strong>Excluir</strong></TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {laudos.map((laudo) => {
-                                    const linkPdfReal = getLinkPDF(laudo);
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {laudos.map((laudo) => {
+                            const linkPdfReal = getLinkPDF(laudo);
+                            const medicoAssinatura = laudo.medico_responsavel ? laudo.medico_responsavel : "---";
+                            const crm = laudo.crm_medico || "";
+
+                            return (
+                                // --- O MESMO PADRÃO DE SANFONA DAS PRESCRIÇÕES ---
+                                <Accordion key={laudo.id} disableGutters sx={{ border: '1px solid #e0e0e0', '&:before': { display: 'none' } }}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                            <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                                                {new Date(laudo.data_criacao).toLocaleDateString('pt-BR')} - {laudo.titulo || laudo.tipo_exame}
+                                            </Typography>
+                                            {laudo.is_exame_externo && (
+                                                <Typography variant="caption" color="text.secondary">Arquivo Original da Máquina</Typography>
+                                            )}
+                                        </Box>
+                                    </AccordionSummary>
                                     
-                                    // --- LÓGICA DE NOMES CRISTALINA ---
-                                    // 1. Assinatura: Se null, mostra "---". Não inventa.
-                                    const medicoAssinatura = laudo.medico_responsavel ? laudo.medico_responsavel : "---";
-                                    const crm = laudo.crm_medico || "";
-                                    
-                                    // 2. Gerador: Sempre mostra o login.
-                                    const usuarioGerador = laudo.medico_nome; 
+                                    <AccordionDetails sx={{ p: 1.5, pt: 0, bgcolor: '#f8f9fa' }}>
+                                        {/* Informações de Autoria */}
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1.5 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <FaUserMd color="#1976d2" size={12} />
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '11px', color: medicoAssinatura === "---" ? '#999' : '#000' }}>
+                                                    Resp: {medicoAssinatura} {crm && `(CRM: ${crm})`}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <FaKeyboard color="#9e9e9e" size={12} />
+                                                <Typography variant="caption" sx={{ color: '#757575', fontSize: '10px' }}>
+                                                    Gerado por: {laudo.medico_nome}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                        
+                                        <Divider sx={{ my: 1 }} />
+                                        
+                                        {/* Botões de Ação Horizontalmente Alinhados */}
+                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                            {linkPdfReal ? (
+                                                <Button 
+                                                    size="small" variant="contained" color="error" 
+                                                    startIcon={<PictureAsPdfIcon />}
+                                                    onClick={() => window.open(linkPdfReal, '_blank')}
+                                                    sx={{ flexGrow: 1, textTransform: 'none', fontSize: '11px' }}
+                                                    disableElevation
+                                                >
+                                                    Abrir PDF
+                                                </Button>
+                                            ) : (
+                                                <Button 
+                                                    size="small" variant="outlined" color="warning"
+                                                    startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
+                                                    onClick={() => handleGerar2Via(laudo)}
+                                                    disabled={gerandoId === laudo.id}
+                                                    sx={{ flexGrow: 1, textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
+                                                >
+                                                    {gerandoId === laudo.id ? "Gerando..." : "Gerar 2ª Via"}
+                                                </Button>
+                                            )}
 
-                                    return (
-                                        <TableRow key={laudo.id} hover>
-                                            <TableCell width="15%">{new Date(laudo.data_criacao).toLocaleDateString()}</TableCell>
-                                            <TableCell width="25%">
-                                                {laudo.titulo || laudo.tipo_exame}
-                                                <div style={{fontSize:'10px', color:'#999'}}>{laudo.tipo_exame}</div>
-                                            </TableCell>
-                                            
-                                            <TableCell width="30%">
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                    {/* LINHA 1: MÉDICO (ASSINATURA) */}
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <FaUserMd color="#1976d2" size={12} title="Médico Responsável (Assinatura)"/>
-                                                        <div>
-                                                            <Typography variant="body2" sx={{ fontWeight: 'bold', lineHeight: 1, fontSize:'11px', color: medicoAssinatura === "---" ? '#999' : '#000' }}>
-                                                                {medicoAssinatura}
-                                                            </Typography>
-                                                            {crm && (
-                                                                <Typography variant="caption" sx={{ color: '#555', fontSize:'10px' }}>
-                                                                    CRM: {crm}
-                                                                </Typography>
-                                                            )}
-                                                        </div>
-                                                    </Box>
-
-                                                    {/* LINHA 2: GERADO POR (LOGIN) - SEMPRE VISÍVEL */}
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: '1px dashed #e0e0e0' }}>
-                                                        <FaKeyboard color="#9e9e9e" size={12} title="Digitado/Gerado por"/>
-                                                        <Typography variant="caption" sx={{ color: '#757575', fontSize:'10px' }}>
-                                                            Gerado por: {usuarioGerador}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            </TableCell>
-                                            
-                                            <TableCell align="center">
-                                                {linkPdfReal ? (
-                                                    <Button 
-                                                        size="small" 
-                                                        variant="contained" 
-                                                        color="error" 
-                                                        startIcon={<FaFilePdf />}
-                                                        onClick={() => window.open(linkPdfReal, '_blank')}
-                                                        sx={{ textTransform: 'none', fontSize: '11px' }}
-                                                    >
-                                                        PDF
-                                                    </Button>
-                                                ) : (
-                                                    <Tooltip title="Gerar 2ª via">
-                                                        <Button 
-                                                            size="small" 
-                                                            variant="outlined" 
-                                                            color="warning"
-                                                            startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
-                                                            onClick={() => handleGerar2Via(laudo)}
-                                                            disabled={gerandoId === laudo.id}
-                                                            sx={{ textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
-                                                        >
-                                                            {gerandoId === laudo.id ? "..." : "2ª Via"}
-                                                        </Button>
-                                                    </Tooltip>
-                                                )}
-                                            </TableCell>
-
-                                            <TableCell align="center">
-                                                {linkPdfReal ? (
+                                            {linkPdfReal && (
+                                                <Tooltip title="Enviar por WhatsApp">
                                                     <IconButton 
-                                                        color="success" 
-                                                        size="small"
+                                                        color="success" size="small"
                                                         onClick={() => handleEnviarZap(linkPdfReal)}
+                                                        sx={{ border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#fff' }}
                                                     >
-                                                        <FaWhatsapp />
+                                                        <FaWhatsapp size={16} />
                                                     </IconButton>
-                                                ) : <span style={{color:'#ccc'}}>-</span>}
-                                            </TableCell>
+                                                </Tooltip>
+                                            )}
 
-                                            <TableCell align="center">
-                                                {laudo.is_exame_externo ? (
-                                                    <Tooltip title="Protegido: Arquivo original da máquina">
-                                                        <span>
-                                                            <IconButton size="small" disabled sx={{ color: '#eee' }}>
-                                                                <FaTrash size={14} />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                ) : (
+                                            {!laudo.is_exame_externo && (
+                                                <Tooltip title="Excluir Laudo">
                                                     <IconButton 
-                                                        size="small" 
-                                                        color="default" 
+                                                        size="small" color="error" 
                                                         onClick={() => handleDelete(laudo.id)}
-                                                        sx={{ '&:hover': { color: 'red' } }}
+                                                        sx={{ border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#fff' }}
                                                     >
                                                         <FaTrash size={14} />
                                                     </IconButton>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                </Tooltip>
+                                            )}
+                                        </Box>
+                                    </AccordionDetails>
+                                </Accordion>
+                            );
+                        })}
+                    </Box>
                 )}
             </DialogContent>
             
-            <DialogActions sx={{ bgcolor: '#f8f9fa' }}>
-                <Button onClick={onClose} color="inherit">Fechar</Button>
+            <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
+                <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none' }}>Fechar</Button>
             </DialogActions>
         </Dialog>
     );
