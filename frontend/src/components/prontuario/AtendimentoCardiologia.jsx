@@ -39,14 +39,45 @@ export default function AtendimentoCardiologia({ pacienteId, agendamentoId, onEv
     const [evolucaoIdSessao, setEvolucaoIdSessao] = useState(null);
     const historicoRef = useRef(null);
 
-    // Reseta estados ao trocar de paciente
+    // Reseta estados ao trocar de paciente e CARREGA DADOS EXISTENTES
     useEffect(() => {
+        // 1. Limpa a tela ao trocar de paciente por segurança
         setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
         setSintomasConsulta({});
         setExameFisicoData({});
         setTabIndex(0);
         setEvolucaoIdSessao(null); 
-    }, [pacienteId]);
+
+        // 2. Busca se já existe uma evolução salva para este Agendamento hoje
+        if (pacienteId && agendamentoId) {
+            const carregarAtendimentoExistente = async () => {
+                try {
+                    const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/`);
+                    // Garante que funciona tanto se o Django retornar um Array direto ou paginado (.results)
+                    const evolucoes = response.data?.results || response.data; 
+                    
+                    // Procura se tem alguma evolução atrelada a este agendamento exato
+                    const consultaExistente = evolucoes.find(ev => ev.agendamento === agendamentoId);
+
+                    if (consultaExistente) {
+                        // Se achou, preenche as caixas de texto com o que você já tinha digitado antes!
+                        setSoapData({
+                            notas_subjetivas: consultaExistente.notas_subjetivas || '',
+                            notas_objetivas: consultaExistente.notas_objetivas || '',
+                            avaliacao: consultaExistente.avaliacao || '',
+                            plano: consultaExistente.plano || ''
+                        });
+                        // Informa ao sistema que já estamos numa sessão de edição
+                        setEvolucaoIdSessao(consultaExistente.id);
+                    }
+                } catch (err) {
+                    console.error("Erro ao buscar evolução do dia:", err);
+                }
+            };
+            
+            carregarAtendimentoExistente();
+        }
+    }, [pacienteId, agendamentoId]);
 
     // --- (generateHda e generateExameFisico - sem alterações) ---
     const generateHda = useCallback((sintomas) => { 
