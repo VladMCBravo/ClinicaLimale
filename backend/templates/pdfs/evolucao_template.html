@@ -42,26 +42,28 @@
         </div>
     </div>
 
-    {% if anamnese and anamnese.pediatrica %}
-    <div class="section">
-        <div class="section-title">Histórico Pediátrico (Cadastro Mestre)</div>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
-            <tr>
-                <td style="border: 1px solid #ddd; padding: 6px;"><strong>Tipo do Parto:</strong><br>{{ anamnese.pediatrica.tipo_parto|default:"N/I" }}</td>
-                <td style="border: 1px solid #ddd; padding: 6px;"><strong>Idade Gestacional:</strong><br>{{ anamnese.pediatrica.idade_gestacional|default:"N/I" }}</td>
-            </tr>
-            <tr>
-                <td style="border: 1px solid #ddd; padding: 6px;"><strong>Peso ao Nascer:</strong><br>{{ anamnese.pediatrica.peso_nascimento|default:"N/I" }}</td>
-                <td style="border: 1px solid #ddd; padding: 6px;"><strong>APGAR:</strong><br>{{ anamnese.pediatrica.apgar|default:"N/I" }}</td>
-            </tr>
-            <tr>
-                <td colspan="2" style="border: 1px solid #ddd; padding: 6px;">
-                    <strong>Intercorrências Gestação/Parto:</strong><br>
-                    {{ anamnese.pediatrica.intercorrencias_gestacao_parto|default:"Nenhuma" }}
-                </td>
-            </tr>
-        </table>
-    </div>
+    {% if evolucao.especialidade.nome|lower == 'pediatria' or evolucao.especialidade.nome|lower == 'neonatologia' %}
+        {% if anamnese and anamnese.pediatrica %}
+        <div class="section">
+            <div class="section-title">Histórico Pediátrico (Cadastro Mestre)</div>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 6px;"><strong>Tipo do Parto:</strong><br>{{ anamnese.pediatrica.tipo_parto|default:"N/I" }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;"><strong>Idade Gestacional:</strong><br>{{ anamnese.pediatrica.idade_gestacional|default:"N/I" }}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 6px;"><strong>Peso ao Nascer:</strong><br>{{ anamnese.pediatrica.peso_nascimento|default:"N/I" }}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;"><strong>APGAR:</strong><br>{{ anamnese.pediatrica.apgar|default:"N/I" }}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="border: 1px solid #ddd; padding: 6px;">
+                        <strong>Intercorrências Gestação/Parto:</strong><br>
+                        {{ anamnese.pediatrica.intercorrencias_gestacao_parto|default:"Nenhuma" }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        {% endif %}
     {% endif %}
 
     {% if vacinas %}
