@@ -123,44 +123,58 @@ export default function AtendimentoPediatria({ pacienteId, agendamentoId, onEvol
     }, [pacienteId]);
 
     useEffect(() => {
-        console.log("🔥 [EFFECT] O useEffect principal foi disparado (Carregamento)");
-        if (pacienteId) {
-            setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-            setSintomasConsulta({});
-            setExameFisicoData({}); 
-            setVacinacaoStatus(null);
-            setDnpmStatus(null);
-            setEvolucaoIdSessao(null); 
+        // 1. Limpa os dados ao trocar de paciente
+        setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
+        setSintomasConsulta({});
+        setExameFisicoData({}); 
+        setVacinacaoStatus(null);
+        setDnpmStatus(null);
+        setEvolucaoIdSessao(null); 
 
-            console.log("   -> Iniciando GET /pacientes/...");
-            apiClient.get(`/pacientes/${pacienteId}/`)
-                .then(res => {
-                    console.log("   ✅ [API] Dados vitais recebidos.");
-                    setExameFisicoData(prev => ({
-                        ...prev,
-                        peso: res.data.peso || '',
-                        altura: res.data.altura || '',
-                    }));
-                    setSoapData(prev => ({
-                        ...prev,
-                        notas_objetivas: `Dados Vitais:\nPeso: ${res.data.peso || '___'} kg\nAltura: ${res.data.altura || '___'} cm\nPC: ${prev.pc || '___'} cm\nT: ${prev.temperatura || '___'} °C\n\nExame Físico:\n`
-                    }));
-                })
-                .catch(err => {
-                    console.error("   ❌ [API] Erro ao carregar dados do paciente:", err);
-                    showSnackbar('Erro ao carregar dados vitais do paciente.', 'error');
-                });
+        if (pacienteId && agendamentoId) {
+            const carregarAtendimentoExistente = async () => {
+                try {
+                    // Busca se já existe uma evolução salva para este Agendamento hoje
+                    const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/evolucoes/`);
+                    const evolucoes = response.data?.results || response.data; 
+                    const consultaExistente = evolucoes.find(ev => ev.agendamento === agendamentoId);
+
+                    if (consultaExistente) {
+                        // RECARREGA OS TEXTOS
+                        setSoapData({
+                            notas_subjetivas: consultaExistente.notas_subjetivas || '',
+                            notas_objetivas: consultaExistente.notas_objetivas || '',
+                            avaliacao: consultaExistente.avaliacao || '',
+                            plano: consultaExistente.plano || ''
+                        });
+                        
+                        // RESTAURA OS VITAIS PARA ELES NÃO APAGAREM
+                        setExameFisicoData(prev => ({
+                            ...prev,
+                            peso: consultaExistente.peso || '',
+                            altura: consultaExistente.altura || '',
+                        }));
+
+                        setEvolucaoIdSessao(consultaExistente.id);
+                    } else {
+                        // SE FOR UMA CONSULTA NOVA, PUXA OS VITAIS BÁSICOS DO CADASTRO DA RECEPÇÃO
+                        apiClient.get(`/pacientes/${pacienteId}/`).then(res => {
+                            setExameFisicoData(prev => ({
+                                ...prev,
+                                peso: res.data.peso || '',
+                                altura: res.data.altura || '',
+                            }));
+                        });
+                    }
+                } catch (err) {
+                    console.error("Erro ao buscar evolução/dados:", err);
+                }
+            };
             
+            carregarAtendimentoExistente();
             fetchStatusResumos();
-        } else {
-            setSoapData({ notas_subjetivas: '', notas_objetivas: '', avaliacao: '', plano: '' });
-            setSintomasConsulta({});
-            setExameFisicoData({}); 
-            setVacinacaoStatus(null);
-            setDnpmStatus(null);
-            setEvolucaoIdSessao(null);
         }
-    }, [pacienteId, fetchStatusResumos]); 
+    }, [pacienteId, agendamentoId, fetchStatusResumos]);
 
     const generateExameFisico = useCallback((data) => {
         const currentData = data || exameFisicoData;
@@ -247,11 +261,21 @@ export default function AtendimentoPediatria({ pacienteId, agendamentoId, onEvol
     };
     
     const handleSaveSOAPAndVitals = async () => {
+        // Envia para a API do paciente apenas para atualizar o perfil global
         const vitaisData = { 
             peso: exameFisicoData.peso || null, 
             altura: exameFisicoData.altura || null,
         };
-        const soapPayload = { ...soapData, agendamento: agendamentoId || null };
+        
+        // ★★★ NOVIDADE: Envia os vitais isolados e a tag de Pediatria pro Prontuário
+        const soapPayload = { 
+            ...soapData, 
+            peso: exameFisicoData.peso || null,
+            altura: exameFisicoData.altura || null,
+            agendamento: agendamentoId || null,
+            especialidade_nome_fornecida: "Pediatria" 
+        };
+        
         let evolucaoId;
         
         if (evolucaoIdSessao) {

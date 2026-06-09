@@ -4,7 +4,7 @@
 
 {% block content %}
 
-    <h1>RELATÓRIO DE ATENDIMENTO PEDIÁTRICO</h1>
+    <h1>RELATÓRIO DE EVOLUÇÃO CLÍNICA</h1>
 
     <table class="info-grid">
         <tr>
@@ -64,6 +64,7 @@
     </div>
     {% endif %}
 
+    {% if vacinas %}
     <div class="section">
         <div class="section-title">Caderneta de Vacinação</div>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
@@ -93,7 +94,9 @@
             </tbody>
         </table>
     </div>
+    {% endif %}
 
+    {% if marcos %}
     <div class="section">
         <div class="section-title">Marcos do DNPM</div>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt;">
@@ -119,6 +122,7 @@
             </tbody>
         </table>
     </div>
+    {% endif %}
 
     <div style="text-align: center; margin-top: 50px;">
     {% if tem_assinatura_digital %}
