@@ -29,6 +29,7 @@ const EvolucaoTab = lazy(() => import('./EvolucoesTab'));
 const DocumentosTab = lazy(() => import('./DocumentosTab')); 
 const ExamesDicomTab = lazy(() => import('./ExamesDicomTab'));
 const LaudosTab = lazy(() => import('../laudos/LaudosTab'));
+const TelemedicinaTab = lazy(() => import('./TelemedicinaTab'));
 
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
   // Controle da Ferramenta Global Ativa (Substitui as antigas Tabs superiores)
@@ -155,6 +156,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
                         {ferramentaGlobal === 'documentos' && 'Documentos do Paciente'}
                         {ferramentaGlobal === 'imagens' && 'Histórico de Imagens'}
                         {ferramentaGlobal === 'laudos' && 'Laudos e Resultados'}
+                        {ferramentaGlobal === 'telemedicina' && 'Telemedicina'}
                     </Typography>
                     <IconButton size="small" onClick={() => setFerramentaGlobal(null)}><CloseIcon fontSize="small" /></IconButton>
                 </Box>
@@ -164,6 +166,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
                   {ferramentaGlobal === 'documentos' && <DocumentosTab pacienteId={pacienteId} />}
                   {ferramentaGlobal === 'imagens' && <ExamesDicomTab pacienteId={pacienteId} />}
                   {ferramentaGlobal === 'laudos' && <LaudosTab pacienteId={pacienteId} />}
+                  {ferramentaGlobal === 'telemedicina' && <TelemedicinaTab agendamento={agendamento} />}
                 </Suspense>
              </Box>
           )}
@@ -213,10 +216,15 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
 
           <Divider flexItem sx={{ my: 1 }} />
 
-          <Tooltip title={telemedicinaVisivel ? "Fechar Câmera" : "Telemedicina"} placement="left">
+          {/* NOVO BOTÃO DE TELEMEDICINA CONECTADO AO FERRAMENTAGLOBAL */}
+          <Tooltip title="Telemedicina" placement="left">
               <span>
-                  <IconButton color={telemedicinaVisivel ? "secondary" : "default"} onClick={handleToggleTelemedicina} disabled={agendamento?.modalidade !== 'Telemedicina' || criandoSala}>
-                      {criandoSala ? <CircularProgress size={20} color="inherit" /> : <VideocamIcon />}
+                  <IconButton 
+                    color={ferramentaGlobal === 'telemedicina' ? 'primary' : 'default'} 
+                    onClick={() => toggleFerramenta('telemedicina')} 
+                    disabled={agendamento?.modalidade !== 'Telemedicina'}
+                  >
+                      <VideocamIcon />
                   </IconButton>
               </span>
           </Tooltip>
