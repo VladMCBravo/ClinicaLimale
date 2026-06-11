@@ -27,6 +27,7 @@ const DocumentosTab = lazy(() => import('../../components/prontuario/DocumentosT
 const ExamesDicomTab = lazy(() => import('../../components/prontuario/ExamesDicomTab'));
 const LaudosTab = lazy(() => import('../../components/laudos/LaudosTab'));
 const VisaoGeralPaciente = lazy(() => import('../../components/prontuario/VisaoGeralPaciente'));
+const TelemedicinaTab = lazy(() => import('../../components/prontuario/TelemedicinaTab'));
 
 export default function ProntuarioWorkspace() {
     // --- ESTADOS GLOBAIS DA TELA ---
@@ -247,6 +248,7 @@ export default function ProntuarioWorkspace() {
                                         especialidade={agendamentoAtivo?.especialidade} 
                                     />
                                 )}
+                                {ferramentaDireita === 'TELEMEDICINA' && <TelemedicinaTab agendamento={agendamentoAtivo} />}
                             </Suspense>
                         </Box>
                     </Box>
@@ -260,7 +262,15 @@ export default function ProntuarioWorkspace() {
                     <Tooltip title="Imagens DICOM" placement="left"><IconButton size="small" color={ferramentaDireita === 'IMAGENS' ? 'primary' : 'default'} onClick={() => toggleFerramenta('IMAGENS')}><ImageIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Laudos" placement="left"><IconButton size="small" color={ferramentaDireita === 'LAUDOS' ? 'primary' : 'default'} onClick={() => toggleFerramenta('LAUDOS')}><AssignmentIcon fontSize="small" /></IconButton></Tooltip>
                     <Divider flexItem sx={{ my: 1 }} />
-                    <Tooltip title="Telemedicina" placement="left"><IconButton size="small"><VideocamIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Telemedicina" placement="left">
+                        <IconButton 
+                            size="small" 
+                            color={ferramentaDireita === 'TELEMEDICINA' ? 'primary' : 'default'} 
+                            onClick={() => toggleFerramenta('TELEMEDICINA')}
+                        >
+                            <VideocamIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                 </Box>
 
             </Box>
