@@ -96,6 +96,15 @@ class CustomUser(AbstractUser):
         verbose_name="CPF"
     )
     # --- FIM DOS NOVOS CAMPOS ---
+
+    # <-- NOVO CAMPO -->
+    pin_ponto = models.CharField(
+        max_length=6, 
+        blank=True, 
+        null=True, 
+        help_text="PIN numérico de 4 a 6 dígitos para o ponto eletrônico"
+    )
+    # <-- FIM DO NOVO CAMPO -->
     
     CARGO_CHOICES = [
         ('admin', 'Administrador'),
@@ -178,3 +187,71 @@ class ValorEspecialidadeConvenio(models.Model):
     class Meta:
         unique_together = ('especialidade', 'plano_convenio')
         verbose_name = "Valor de Especialidade por Convênio"
+
+# 2. No final do arquivo models.py, adicione a classe do Ponto:
+class RegistroPonto(models.Model):
+    TIPO_BATIDA_CHOICES = [
+        ('entrada', 'Entrada'),
+        ('saida_pausa', 'Saída para Pausa/Almoço'),
+        ('retorno_pausa', 'Retorno da Pausa'),
+        ('saida', 'Saída (Fim do expediente)'),
+    ]
+
+    STATUS_CHOICES = [
+        ('aprovado', 'Aprovado (Dentro do Raio)'),
+        ('rejeitado', 'Rejeitado (Fora do Raio)'),
+        ('ajuste_manual', 'Ajuste Manual (RH)'),
+    ]
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='registros_ponto')
+    data_hora = models.DateTimeField(auto_now_add=True, verbose_name="Data e Hora")
+    tipo = models.CharField(max_length=20, choices=TIPO_BATIDA_CHOICES)
+    
+    # Coordenadas capturadas
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    distancia_metros = models.FloatField(null=True, blank=True, verbose_name="Distância do centro (m)")
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='aprovado')
+    
+    # Informações extras de segurança
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True, help_text="Navegador/Dispositivo usado")
+    observacao = models.TextField(blank=True, null=True, help_text="Justificativas ou notas do RH")
+
+    class Meta:
+        verbose_name = "Registro de Ponto"
+        verbose_name_plural = "Registros de Ponto"
+        ordering = ['-data_hora']
+
+    def __str__(self):
+        return f"{self.usuario.get_full_name()} - {self.get_tipo_display()} - {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
+
+class ConfiguracaoClinica(models.Model):
+    # Dados Cadastrais
+    razao_social = models.CharField(max_length=255, blank=True, null=True)
+    nome_fantasia = models.CharField(max_length=255, blank=True, null=True)
+    cnpj = models.CharField(max_length=18, blank=True, null=True)
+    inscricao_estadual = models.CharField(max_length=50, blank=True, null=True)
+    telefone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    
+    # Endereço
+    cep = models.CharField(max_length=9, blank=True, null=True)
+    logradouro = models.CharField(max_length=255, blank=True, null=True)
+    numero = models.CharField(max_length=20, blank=True, null=True)
+    bairro = models.CharField(max_length=100, blank=True, null=True)
+    cidade = models.CharField(max_length=100, blank=True, null=True)
+    uf = models.CharField(max_length=2, blank=True, null=True)
+    
+    # Geofencing (Ponto Eletrônico)
+    raio_metros = models.IntegerField(default=150, help_text="Raio de tolerância em metros para bater ponto")
+    latitude = models.FloatField(blank=True, null=True)
+    longitude = models.FloatField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Configuração da Clínica"
+        verbose_name_plural = "Configurações da Clínica"
+
+    def __str__(self):
+        return self.nome_fantasia or "Configuração Principal"

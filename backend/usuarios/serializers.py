@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator # <-- 1. IMPORTE O VALIDATOR
-from .models import CustomUser, Especialidade, JornadaDeTrabalho, ValorEspecialidadeConvenio
+from .models import CustomUser, Especialidade, JornadaDeTrabalho, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica
 
 # 1º A CLASSE DO VALOR VEM PRIMEIRO:
 class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
@@ -153,3 +153,21 @@ class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ValorEspecialidadeConvenio
         fields = ['id', 'plano_convenio_id', 'plano_nome', 'convenio_nome', 'valor']
+    
+class RegistroPontoSerializer(serializers.ModelSerializer):
+    nome_funcionario = serializers.CharField(source='usuario.get_full_name', read_only=True)
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    
+    class Meta:
+        model = RegistroPonto
+        fields = [
+            'id', 'usuario', 'nome_funcionario', 'data_hora', 
+            'tipo', 'tipo_display', 'latitude', 'longitude', 
+            'distancia_metros', 'status', 'ip_address'
+        ]
+        read_only_fields = ['data_hora', 'distancia_metros', 'status', 'usuario']
+
+class ConfiguracaoClinicaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConfiguracaoClinica
+        fields = '__all__'

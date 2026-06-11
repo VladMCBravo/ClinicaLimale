@@ -5,7 +5,8 @@ import {
 } from '@mui/material';
 import { 
     People, Business, AttachMoney, AccessTime, Badge, 
-    ListAlt, LocalHospital, MeetingRoom, CardMembership, AccountCircle
+    ListAlt, LocalHospital, MeetingRoom, CardMembership, AccountCircle,
+    Map // <--- NOVO ÍCONE ADICIONADO AQUI
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -18,6 +19,7 @@ import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 import EspecialidadesPage from './EspecialidadesPage'; 
 import ConveniosTab from '../components/configuracoes/ConveniosTab';
 import SalasTab from '../components/configuracoes/SalasTab';
+import DadosClinicaTab from '../components/configuracoes/DadosClinicaTab'; // <--- NOVO COMPONENTE ADICIONADO AQUI
 
 // ... (Mantenha as funções TabPanel e SubTabs originais que você já tinha no arquivo)
 function TabPanel({ children, value, index, ...other }) {
@@ -109,17 +111,25 @@ return (
                                 </Paper>
                             </TabPanel>
 
-                            {/* ABA 2: CLÍNICA */}
+                            {/* ABA 2: CLÍNICA (ATUALIZADA) */}
                             <TabPanel value={mainTab} index={2}>
                                 <SubTabs 
                                     value={servicosTab} onChange={(e, v) => setServicosTab(v)}
-                                    tabs={[ { label: 'Procedimentos', icon: <ListAlt /> }, { label: 'Especialidades', icon: <LocalHospital /> }, { label: 'Convênios', icon: <CardMembership /> }, { label: 'Salas', icon: <MeetingRoom /> } ]}
+                                    tabs={[ 
+                                        { label: 'Dados da Clínica', icon: <Map /> }, // <--- ABA NOVA NA POSIÇÃO 0
+                                        { label: 'Procedimentos', icon: <ListAlt /> }, 
+                                        { label: 'Especialidades', icon: <LocalHospital /> }, 
+                                        { label: 'Convênios', icon: <CardMembership /> }, 
+                                        { label: 'Salas', icon: <MeetingRoom /> } 
+                                    ]}
                                 />
                                 <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
-                                    {servicosTab === 0 && <ProcedimentosView />}
-                                    {servicosTab === 1 && <EspecialidadesPage />}
-                                    {servicosTab === 2 && <ConveniosTab />}
-                                    {servicosTab === 3 && <SalasTab />}
+                                    {/* OS ÍNDICES FORAM AJUSTADOS PARA ACOMODAR A NOVA ABA */}
+                                    {servicosTab === 0 && <DadosClinicaTab />}
+                                    {servicosTab === 1 && <ProcedimentosView />}
+                                    {servicosTab === 2 && <EspecialidadesPage />}
+                                    {servicosTab === 3 && <ConveniosTab />}
+                                    {servicosTab === 4 && <SalasTab />}
                                 </Paper>
                             </TabPanel>
 

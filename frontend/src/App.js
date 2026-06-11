@@ -24,6 +24,7 @@ import LaudosPage from './pages/LaudosPage';
 import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
+import PontoKioskPage from './pages/PontoKioskPage'; // <-- NOVO IMPORT
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
 import CRMKanbanPage from './pages/CRM/CRMKanbanPage';
@@ -56,6 +57,8 @@ function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/resultados" element={<PortalResultados />} />
+              {/* --- ROTA DO KIOSK DE PONTO (PÚBLICA) --- */}
+              <Route path="/ponto" element={<PontoKioskPage />} />
               
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>

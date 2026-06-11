@@ -1,13 +1,14 @@
 # backend/usuarios/views.py - VERSÃO CORRIGIDA
+import math
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, ValorEspecialidadeConvenio
-from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer
+from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica
+from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer
 from cryptography.hazmat.primitives.serialization import pkcs12
 from django.utils import timezone
 from django.db.models import Count
@@ -253,3 +254,134 @@ class MedicosComJornadaListView(generics.ListAPIView):
         return CustomUser.objects.filter(cargo='medico').annotate(
             num_jornadas=Count('jornadas_de_trabalho')
         ).filter(num_jornadas__gt=0)
+
+# 1. A NOVA VIEW PARA A TELA DE CONFIGURAÇÕES DO FRONTEND
+class ConfiguracaoClinicaView(APIView):
+    permission_classes = [IsAuthenticated] # Só quem está logado pode acessar/editar
+
+    def get(self, request):
+        # Pega a primeira configuração ou cria uma em branco se não existir
+        config, created = ConfiguracaoClinica.objects.get_or_create(id=1)
+        serializer = ConfiguracaoClinicaSerializer(config)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        # Apenas Admin pode alterar
+        if request.user.cargo != 'admin':
+            return Response({"detail": "Apenas administradores podem editar a clínica."}, status=status.HTTP_403_FORBIDDEN)
+            
+        config = ConfiguracaoClinica.objects.first()
+        serializer = ConfiguracaoClinicaSerializer(config, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+def calcular_distancia_haversine(lat1, lon1, lat2, lon2):
+    """Calcula a distância em metros entre duas coordenadas geográficas"""
+    if None in [lat1, lon1, lat2, lon2]:
+        return None
+        
+    R = 6371000 # Raio da Terra em metros
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = math.sin(delta_phi/2.0)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2.0)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+# --- NOVA VIEW PARA CONFIGURAÇÕES DA CLÍNICA ---
+class ConfiguracaoClinicaView(APIView):
+    permission_classes = [IsAuthenticated] # Só quem está logado pode acessar/editar
+
+    def get(self, request):
+        # Pega a primeira configuração ou cria uma em branco se não existir
+        config, created = ConfiguracaoClinica.objects.get_or_create(id=1)
+        serializer = ConfiguracaoClinicaSerializer(config)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        # Apenas Admin pode alterar
+        if request.user.cargo != 'admin':
+            return Response({"detail": "Apenas administradores podem editar a clínica."}, status=status.HTTP_403_FORBIDDEN)
+            
+        config = ConfiguracaoClinica.objects.first()
+        serializer = ConfiguracaoClinicaSerializer(config, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# --- VIEW DO PONTO ATUALIZADA PARA LER DO BANCO DE DADOS ---
+class BaterPontoView(APIView):
+    """
+    Endpoint dedicado para bater o ponto.
+    Qualquer pessoa acessa, mas precisa do CPF e PIN corretos.
+    """
+    permission_classes = [AllowAny] 
+
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0]
+        return request.META.get('REMOTE_ADDR')
+
+    def post(self, request):
+        cpf = request.data.get('cpf')
+        pin = request.data.get('pin')
+        tipo = request.data.get('tipo') 
+        lat_usuario = request.data.get('latitude')
+        lng_usuario = request.data.get('longitude')
+
+        if not all([cpf, pin, tipo, lat_usuario, lng_usuario]):
+            return Response({"detail": "Todos os campos (cpf, pin, tipo, latitude, longitude) são obrigatórios."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Valida o Usuário e o PIN
+        try:
+            usuario = CustomUser.objects.get(cpf=cpf)
+            if not usuario.pin_ponto or usuario.pin_ponto != pin:
+                return Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_401_UNAUTHORIZED)
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Busca as configurações da clínica no banco de dados
+        config = ConfiguracaoClinica.objects.first()
+        if not config or not config.latitude or not config.longitude:
+            return Response({"detail": "O GPS da clínica ainda não foi configurado pelo administrador."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Calcula a distância (Geofencing)
+        try:
+            lat_usuario = float(lat_usuario)
+            lng_usuario = float(lng_usuario)
+            distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_usuario, lng_usuario)
+            
+            status_ponto = 'aprovado'
+            if distancia > config.raio_metros:
+                return Response({
+                    "detail": f"Você está a {int(distancia)} metros da clínica. O máximo permitido é {config.raio_metros} metros.",
+                    "distancia": distancia
+                }, status=status.HTTP_403_FORBIDDEN)
+                
+        except ValueError:
+            return Response({"detail": "Coordenadas inválidas."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Salva o Registro
+        registro = RegistroPonto.objects.create(
+            usuario=usuario,
+            tipo=tipo,
+            latitude=lat_usuario,
+            longitude=lng_usuario,
+            distancia_metros=distancia,
+            status=status_ponto,
+            ip_address=self.get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
+        )
+
+        return Response({
+            "detail": "Ponto registrado com sucesso!",
+            "tipo": registro.get_tipo_display(),
+            "data_hora": registro.data_hora,
+            "distancia_metros": int(distancia)
+        }, status=status.HTTP_201_CREATED)
