@@ -1,15 +1,17 @@
-// src/components/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import axios from 'axios';
+import apiClient from '../api/axiosConfig'; // <-- IMPORTANDO O SEU APICLIENT AQUI TAMBÉM
 import {
     FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, 
     FaTachometerAlt, FaVideo, FaStethoscope, FaFileMedical, 
-    FaClock // <--- NOVO ÍCONE PARA O PONTO
+    FaClock 
 } from 'react-icons/fa';
 import { 
-    IconButton, Dialog, DialogTitle, DialogContent, DialogActions, 
+    AccessTime, Fingerprint, Input, FreeBreakfast, MeetingRoom 
+} from '@mui/icons-material';
+import { 
+    IconButton, Dialog, DialogContent, 
     Button, TextField, Typography, Box, Alert, Grid, CircularProgress
 } from '@mui/material';
 import StatusRobo from './StatusRobo';
@@ -21,16 +23,28 @@ const Navbar = () => {
     
     // --- ESTADOS DO MODAL DE PONTO ---
     const [modalPontoOpen, setModalPontoOpen] = useState(false);
-    const [cpf, setCpf] = useState(''); // Opcional: se você tiver o CPF no objeto `user`, pode iniciar com `user.cpf`
+    const [horaAtual, setHoraAtual] = useState(new Date());
+    const [cpf, setCpf] = useState(''); 
     const [pin, setPin] = useState('');
     const [loadingPonto, setLoadingPonto] = useState(false);
     const [mensagemPonto, setMensagemPonto] = useState({ tipo: '', texto: '' });
     const [localizacao, setLocalizacao] = useState(null);
 
-    // Função para pegar GPS ao abrir o modal
+    // Relógio rodando apenas quando o modal está aberto
+    useEffect(() => {
+        let timer;
+        if (modalPontoOpen) {
+            timer = setInterval(() => setHoraAtual(new Date()), 1000);
+        }
+        return () => clearInterval(timer);
+    }, [modalPontoOpen]);
+
     const handleAbrirModalPonto = () => {
         setModalPontoOpen(true);
         setMensagemPonto({ tipo: '', texto: '' });
+        
+        // Pode iniciar o CPF já preenchido se o objeto user tiver essa info
+        if (user && user.cpf) setCpf(user.cpf);
         
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
@@ -55,8 +69,8 @@ const Navbar = () => {
 
         setLoadingPonto(true);
         try {
-            // Ajuste a URL base do seu backend
-            const response = await axios.post('http://localhost:8000/api/usuarios/ponto/bater/', {
+            // Usando o apiClient para garantir que aponte para a URL correta (Local ou Vercel)
+            const response = await apiClient.post('/usuarios/ponto/bater/', {
                 cpf: cpf.replace(/\D/g, ''),
                 pin: pin,
                 tipo: tipo_batida,
@@ -64,15 +78,14 @@ const Navbar = () => {
                 longitude: localizacao.longitude
             });
             setMensagemPonto({ tipo: 'success', texto: `${response.data.detail} (${response.data.tipo})` });
-            setPin(''); // Limpa só o PIN por segurança
-            setTimeout(() => setModalPontoOpen(false), 2000); // Fecha após sucesso
+            setPin(''); 
+            setTimeout(() => setModalPontoOpen(false), 2000); 
         } catch (error) {
             setMensagemPonto({ tipo: 'error', texto: error.response?.data?.detail || "Erro ao conectar." });
         } finally {
             setLoadingPonto(false);
         }
     };
-    // --- FIM DOS ESTADOS DO PONTO ---
 
     const renderPrincipalLink = () => {
         if (user.isRecepcao || user.isAdmin) {
@@ -117,7 +130,6 @@ const Navbar = () => {
                         <span className="user-greeting">Olá, {formatarSaudacao(user)} {user.first_name || ''}</span>
                         <div className="user-actions">
                             
-                            {/* --- BOTÃO DO PONTO ELETRÔNICO --- */}
                             <IconButton onClick={handleAbrirModalPonto} className="icon-button" sx={{ color: '#4caf50' }} title="Bater Ponto">
                                 <FaClock />
                             </IconButton>
@@ -134,36 +146,41 @@ const Navbar = () => {
             </header>
 
             {/* --- MODAL DO PONTO ELETRÔNICO --- */}
-            <Dialog open={modalPontoOpen} onClose={() => setModalPontoOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold' }}>Registro de Ponto</DialogTitle>
-                <DialogContent>
-                    <Box sx={{ textAlign: 'center', mb: 2 }}>
-                        <Typography variant="h4" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
-                            {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            <Dialog open={modalPontoOpen} onClose={() => setModalPontoOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+                    
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2, color: '#1a233b' }}>Registro de Ponto</Typography>
+                    
+                    <Box sx={{ textAlign: 'center', mb: 3 }}>
+                        <AccessTime sx={{ fontSize: 40, color: '#1a233b', mb: 0.5 }} />
+                        <Typography variant="h3" sx={{ fontWeight: 'bold', fontFamily: 'monospace', color: '#1a233b' }}>
+                            {horaAtual.toLocaleTimeString('pt-BR')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'lowercase' }}>
+                            {horaAtual.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </Typography>
                     </Box>
                     
                     {mensagemPonto.texto && (
-                        <Alert severity={mensagemPonto.tipo} sx={{ mb: 2 }}>{mensagemPonto.texto}</Alert>
+                        <Alert severity={mensagemPonto.tipo} sx={{ mb: 2, textAlign: 'left' }}>{mensagemPonto.texto}</Alert>
                     )}
 
                     <TextField fullWidth label="Seu CPF" variant="outlined" margin="dense" value={cpf} onChange={(e) => setCpf(e.target.value)} />
-                    <TextField fullWidth label="PIN (Senha)" type="password" variant="outlined" margin="dense" value={pin} onChange={(e) => setPin(e.target.value)} inputProps={{ maxLength: 6 }} sx={{ mb: 2 }} />
+                    <TextField fullWidth label="PIN (Senha)" type="password" variant="outlined" margin="dense" value={pin} onChange={(e) => setPin(e.target.value)} inputProps={{ maxLength: 6 }} sx={{ mb: 3, mt: 1 }} />
 
                     {loadingPonto ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress /></Box>
                     ) : (
-                        <Grid container spacing={1}>
-                            <Grid item xs={6}><Button fullWidth variant="contained" color="success" onClick={() => handleBaterPonto('entrada')}>Entrada</Button></Grid>
-                            <Grid item xs={6}><Button fullWidth variant="outlined" color="warning" onClick={() => handleBaterPonto('saida_pausa')}>Pausa</Button></Grid>
-                            <Grid item xs={6}><Button fullWidth variant="outlined" color="info" onClick={() => handleBaterPonto('retorno_pausa')}>Retorno</Button></Grid>
-                            <Grid item xs={6}><Button fullWidth variant="contained" color="error" onClick={() => handleBaterPonto('saida')}>Saída</Button></Grid>
+                        <Grid container spacing={1.5}>
+                            <Grid item xs={6}><Button fullWidth variant="contained" color="success" onClick={() => handleBaterPonto('entrada')} startIcon={<Input />}>Entrada</Button></Grid>
+                            <Grid item xs={6}><Button fullWidth variant="outlined" color="warning" onClick={() => handleBaterPonto('saida_pausa')} startIcon={<FreeBreakfast />}>Pausa</Button></Grid>
+                            <Grid item xs={6}><Button fullWidth variant="outlined" color="info" onClick={() => handleBaterPonto('retorno_pausa')} startIcon={<Fingerprint />}>Retorno</Button></Grid>
+                            <Grid item xs={6}><Button fullWidth variant="contained" color="error" onClick={() => handleBaterPonto('saida')} startIcon={<MeetingRoom />}>Saída</Button></Grid>
                         </Grid>
                     )}
+                    
+                    <Button onClick={() => setModalPontoOpen(false)} sx={{ mt: 3, color: 'text.secondary' }}>Cancelar</Button>
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setModalPontoOpen(false)}>Cancelar</Button>
-                </DialogActions>
             </Dialog>
         </>
     );

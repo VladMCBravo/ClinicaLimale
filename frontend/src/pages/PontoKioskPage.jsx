@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Container, Grid 
+    Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Grid 
 } from '@mui/material';
 import { AccessTime, Fingerprint, Input, FreeBreakfast, MeetingRoom } from '@mui/icons-material';
-import axios from 'axios';
+import apiClient from '../api/axiosConfig'; // <-- USANDO SEU APICLIENT PARA CORRIGIR O ERRO DE CORS
 
 export default function PontoKioskPage() {
     const [horaAtual, setHoraAtual] = useState(new Date());
@@ -23,19 +23,12 @@ export default function PontoKioskPage() {
     useEffect(() => {
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    setLocalizacao({
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                    });
-                },
-                (err) => {
-                    setMensagem({ tipo: 'error', texto: 'Por favor, permita o acesso à localização do navegador para bater o ponto.' });
-                },
+                (pos) => setLocalizacao({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+                (err) => setMensagem({ tipo: 'error', texto: 'Permita o acesso à localização para bater o ponto.' }),
                 { enableHighAccuracy: true, timeout: 5000 }
             );
         } else {
-            setMensagem({ tipo: 'error', texto: 'Geolocalização não suportada neste dispositivo.' });
+            setMensagem({ tipo: 'error', texto: 'Geolocalização não suportada.' });
         }
     }, []);
 
@@ -53,9 +46,9 @@ export default function PontoKioskPage() {
         setMensagem({ tipo: '', texto: '' });
 
         try {
-            // Ajuste a URL base conforme sua configuração do Axios
-            const response = await axios.post('http://localhost:8000/api/usuarios/ponto/bater/', {
-                cpf: cpf.replace(/\D/g, ''), // Remove pontos e traços
+            // Usando apiClient (resolve o erro do Vercel vs Localhost)
+            const response = await apiClient.post('/usuarios/ponto/bater/', {
+                cpf: cpf.replace(/\D/g, ''),
                 pin: pin,
                 tipo: tipo_batida,
                 latitude: localizacao.latitude,
@@ -63,11 +56,8 @@ export default function PontoKioskPage() {
             });
 
             setMensagem({ tipo: 'success', texto: `${response.data.detail} (${response.data.tipo})` });
-            // Limpa os campos após o sucesso
             setCpf('');
             setPin('');
-            
-            // Oculta a mensagem de sucesso após 5 segundos
             setTimeout(() => setMensagem({ tipo: '', texto: '' }), 5000);
 
         } catch (error) {
@@ -82,12 +72,12 @@ export default function PontoKioskPage() {
         <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f0f2f5', p: 2 }}>
             <Paper elevation={4} sx={{ maxWidth: 500, width: '100%', p: 4, borderRadius: 4, textAlign: 'center' }}>
                 
-                <AccessTime sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+                <AccessTime sx={{ fontSize: 50, color: '#1a233b', mb: 1 }} />
                 
-                <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 1, fontFamily: 'monospace' }}>
+                <Typography variant="h2" sx={{ fontWeight: 'bold', mb: 0.5, fontFamily: 'monospace', color: '#1a233b' }}>
                     {horaAtual.toLocaleTimeString('pt-BR')}
                 </Typography>
-                <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4, textTransform: 'lowercase' }}>
                     {horaAtual.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </Typography>
 
@@ -98,20 +88,20 @@ export default function PontoKioskPage() {
                 )}
 
                 <TextField 
-                    fullWidth label="Seu CPF" variant="outlined" margin="normal"
+                    fullWidth label="Seu CPF" variant="outlined" margin="dense"
                     value={cpf} onChange={(e) => setCpf(e.target.value)}
                     placeholder="Somente números"
                 />
                 
                 <TextField 
-                    fullWidth label="PIN de Ponto" type="password" variant="outlined" margin="normal"
+                    fullWidth label="PIN de Ponto" type="password" variant="outlined" margin="dense"
                     value={pin} onChange={(e) => setPin(e.target.value)}
-                    inputProps={{ maxLength: 6 }} sx={{ mb: 4 }}
+                    inputProps={{ maxLength: 6 }} sx={{ mb: 4, mt: 2 }}
                     placeholder="Senha de 4 a 6 dígitos"
                 />
 
                 {loading ? (
-                    <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress /></Box>
                 ) : (
                     <Grid container spacing={2}>
                         <Grid item xs={6}>
@@ -135,12 +125,6 @@ export default function PontoKioskPage() {
                             </Button>
                         </Grid>
                     </Grid>
-                )}
-                
-                {!localizacao && !loading && (
-                    <Typography variant="caption" color="error" sx={{ display: 'block', mt: 3 }}>
-                        * Aguardando permissão de GPS para liberar o painel...
-                    </Typography>
                 )}
             </Paper>
         </Box>

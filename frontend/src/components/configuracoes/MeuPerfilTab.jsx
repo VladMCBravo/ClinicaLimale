@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Box, Typography, Tabs, Tab, Grid, TextField, Button, 
-    CircularProgress, Alert, InputAdornment, IconButton, Divider, Chip
+    CircularProgress, Alert, InputAdornment, IconButton, Divider 
 } from '@mui/material';
 import { 
     Person, LocationOn, Security, Visibility, VisibilityOff, CloudUpload, CheckCircle
@@ -12,7 +12,6 @@ import apiClient from '../../api/axiosConfig';
 function TabPanel({ children, value, index, ...other }) {
     return (
         <div role="tabpanel" hidden={value !== index} {...other} style={{ width: '100%' }}>
-            {/* Reduzimos o padding vertical (py) de 3 para 1.5 para ganhar espaço */}
             {value === index && <Box sx={{ py: 1.5, px: 2 }}>{children}</Box>}
         </div>
     );
@@ -29,13 +28,14 @@ export default function MeuPerfilTab() {
     const [perfil, setPerfil] = useState({
         first_name: '', last_name: '', telefone: '',
         logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
-        cargo: '', crm: ''
+        cargo: '', crm: '', pin_ponto: '' // <--- NOVO ESTADO AQUI
     });
 
     const [certStatus, setCertStatus] = useState(false);
     const [certFile, setCertFile] = useState(null);
     const [certSenha, setCertSenha] = useState('');
     const [showSenha, setShowSenha] = useState(false);
+    const [showPin, setShowPin] = useState(false); // <--- CONTROLE DE VISIBILIDADE DO PIN
 
     useEffect(() => {
         carregarDadosPerfil();
@@ -44,7 +44,10 @@ export default function MeuPerfilTab() {
     const carregarDadosPerfil = async () => {
         try {
             const res = await apiClient.get('/usuarios/me/');
-            setPerfil(res.data);
+            setPerfil({
+                ...res.data,
+                pin_ponto: res.data.pin_ponto || '' // Garante que não venha undefined
+            });
             setCertStatus(res.data.tem_certificado_valido); 
         } catch (error) {
             mostrarFeedback('Erro ao carregar perfil.', 'error');
@@ -69,11 +72,8 @@ export default function MeuPerfilTab() {
             const data = await res.json();
             if (!data.erro) {
                 setPerfil(prev => ({
-                    ...prev,
-                    logradouro: data.logradouro,
-                    bairro: data.bairro,
-                    cidade: data.localidade,
-                    uf: data.uf
+                    ...prev, logradouro: data.logradouro, bairro: data.bairro,
+                    cidade: data.localidade, uf: data.uf
                 }));
             }
         } catch (error) { console.error("Erro no CEP"); }
@@ -93,7 +93,8 @@ export default function MeuPerfilTab() {
                 bairro: perfil.bairro, 
                 cidade: perfil.cidade, 
                 uf: perfil.uf, 
-                cep: perfil.cep
+                cep: perfil.cep,
+                pin_ponto: perfil.pin_ponto // <--- INCLUÍDO NO PAYLOAD
             };
             await apiClient.patch('/usuarios/me/', payload);
             mostrarFeedback('Perfil atualizado com sucesso!');
@@ -144,8 +145,7 @@ export default function MeuPerfilTab() {
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
 
-    // Define larguras dinâmicas para a aba de Pessoais: 3 colunas se for médico, 2 se não for
-    const gridTamanho = perfil.cargo === 'medico' ? 4 : 6;
+    const gridTamanho = perfil.cargo === 'medico' ? 3 : 4;
 
     return (
         <Box>
@@ -159,18 +159,35 @@ export default function MeuPerfilTab() {
                 </Tabs>
             </Box>
 
-            {/* ABA 1: DADOS PESSOAIS */}
             <TabPanel value={tab} index={0}>
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
-                        {/* Linha 1 */}
                         <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Nome" name="first_name" value={perfil.first_name || ''} onChange={handleChange} required /></Grid>
                         <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Sobrenome" name="last_name" value={perfil.last_name || ''} onChange={handleChange} required /></Grid>
                         
-                        {/* Linha 2 (Fica na mesma linha graças ao gridTamanho) */}
                         <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Telefone" name="telefone" value={perfil.telefone || ''} onChange={handleChange} /></Grid>
                         <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Cargo" value={(perfil.cargo || '').toUpperCase()} disabled /></Grid>
                         {perfil.cargo === 'medico' && <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
+                        
+                        {/* --- NOVO CAMPO: PIN DO PONTO --- */}
+                        <Grid item xs={12} sm={gridTamanho}>
+                            <TextField 
+                                size="small" fullWidth label="PIN (Ponto Eletrônico)" name="pin_ponto" 
+                                type={showPin ? "text" : "password"} 
+                                value={perfil.pin_ponto || ''} onChange={handleChange} 
+                                inputProps={{ maxLength: 6 }}
+                                placeholder="4 a 6 dígitos"
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setShowPin(!showPin)} edge="end">
+                                                {showPin ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+                        </Grid>
                     </Grid>
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                         <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Alterações'}</Button>
@@ -178,20 +195,14 @@ export default function MeuPerfilTab() {
                 </form>
             </TabPanel>
 
-            {/* ABA 2: ENDEREÇO */}
             <TabPanel value={tab} index={1}>
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
-                        {/* Linha 1 */}
                         <Grid item xs={12} sm={3}><TextField size="small" fullWidth label="CEP" name="cep" value={perfil.cep || ''} onChange={handleChange} onBlur={buscarCep} /></Grid>
                         <Grid item xs={12} sm={7}><TextField size="small" fullWidth label="Logradouro" name="logradouro" value={perfil.logradouro || ''} onChange={handleChange} /></Grid>
                         <Grid item xs={12} sm={2}><TextField size="small" fullWidth label="Número" name="numero" value={perfil.numero || ''} onChange={handleChange} /></Grid>
-                        
-                        {/* Linha 2 */}
                         <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Complemento" name="complemento" value={perfil.complemento || ''} onChange={handleChange} /></Grid>
                         <Grid item xs={12} sm={6}><TextField size="small" fullWidth label="Bairro" name="bairro" value={perfil.bairro || ''} onChange={handleChange} /></Grid>
-                        
-                        {/* Linha 3 */}
                         <Grid item xs={12} sm={9}><TextField size="small" fullWidth label="Cidade" name="cidade" value={perfil.cidade || ''} onChange={handleChange} /></Grid>
                         <Grid item xs={12} sm={3}><TextField size="small" fullWidth label="UF" name="uf" value={perfil.uf || ''} onChange={handleChange} /></Grid>
                     </Grid>
@@ -201,7 +212,6 @@ export default function MeuPerfilTab() {
                 </form>
             </TabPanel>
 
-            {/* ABA 3: SEGURANÇA E ASSINATURA (SÓ PARA MÉDICOS) */}
             {perfil.cargo === 'medico' && (
                 <TabPanel value={tab} index={2}>
                     <Box sx={{ p: 1.5, mb: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: '#f8f9fa' }}>
