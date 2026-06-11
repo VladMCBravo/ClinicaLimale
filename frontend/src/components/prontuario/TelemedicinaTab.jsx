@@ -38,12 +38,17 @@ export default function TelemedicinaTab({ agendamento }) {
     }
   };
 
-  // Trava de segurança caso cliquem no ícone em consultas normais
-  if (agendamento?.modalidade !== 'Telemedicina') {
+  // Trava de segurança ajustada (Ignora maiúsculas e minúsculas)
+  const isTelemedicina = String(agendamento?.modalidade || '').toLowerCase() === 'telemedicina';
+
+  if (!isTelemedicina) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary">
-          Este agendamento não é da modalidade Telemedicina.
+        <Typography color="text.secondary" gutterBottom>
+          Este agendamento não consta como Telemedicina no sistema.
+        </Typography>
+        <Typography variant="body2" color="text.disabled">
+          (Modalidade atual: {agendamento?.modalidade || 'Não informada'})
         </Typography>
       </Box>
     );

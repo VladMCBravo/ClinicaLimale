@@ -115,26 +115,10 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
       {/* ÁREA DE TRABALHO PRINCIPAL (Centro e Direita) */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
         
-        {/* TELEMEDICINA (Fica no topo se ativada, sem quebrar o layout) */}
-        {telemedicinaVisivel && (
-            <Box sx={{ height: '40vh', minHeight: '250px', backgroundColor: 'grey.900', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-                <IconButton onClick={() => setTelemedicinaVisivel(false)} sx={{position: 'absolute', top: 5, right: 5, color: 'white', zIndex: 1}} size="small">
-                    <CloseIcon fontSize="small"/>
-                </IconButton>
-                {criandoSala ? (
-                    <CircularProgress color="inherit" />
-                ) : linkSalaAtual ? (
-                    <iframe src={linkSalaAtual} allow="camera; microphone; fullscreen; speaker; display-capture" style={{ width: '100%', height: '100%', border: 'none' }} title="Sala de Telemedicina"></iframe>
-                ) : (
-                    <Typography>Erro ao carregar link da sala.</Typography>
-                )}
-            </Box>
-        )}
-
         {/* COLUNAS DINÂMICAS */}
         <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
           
-          {/* COLUNA CENTRAL: O Formulário da Especialidade (Sempre visível) */}
+          {/* COLUNA CENTRAL: Formulário da Especialidade (Sempre visível) */}
           <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 0, transition: 'width 0.3s' }}>
               <EvolucaoTab 
                 pacienteId={pacienteId} 
@@ -146,7 +130,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           {/* DIVISOR: Aparece apenas se uma ferramenta global estiver aberta */}
           {ferramentaGlobal && <Divider orientation="vertical" flexItem />}
 
-          {/* COLUNA DIREITA (APOIO): Prescrições, Laudos, Documentos */}
+          {/* COLUNA DIREITA (APOIO) */}
           {ferramentaGlobal && (
              <Box sx={{ width: { xs: '100%', md: '45%' }, overflowY: 'auto', bgcolor: '#fafafa', p: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -174,7 +158,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
         </Box>
       </Box>
 
-      {/* BARRA DE FERRAMENTAS VERTICAL (Na extrema direita, idêntico aos painéis modernos) */}
+      {/* BARRA DE FERRAMENTAS VERTICAL */}
       <Box sx={{ width: '60px', borderLeft: 1, borderColor: 'divider', bgcolor: '#ffffff', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2, flexShrink: 0, zIndex: 10 }}>
           <Tooltip title="Prescrições" placement="left">
               <IconButton color={ferramentaGlobal === 'prescricoes' ? 'primary' : 'default'} onClick={() => toggleFerramenta('prescricoes')}>
@@ -206,31 +190,26 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
               </IconButton>
           </Tooltip>
 
-          {/* --- NOVO BOTÃO AQUI --- */}
           <Tooltip title="Baixar Laudos Anteriores" placement="left">
               <IconButton onClick={() => setModalHistoricoLaudosOpen(true)}>
                   <PictureAsPdfIcon color="error" />
               </IconButton>
           </Tooltip>
-          {/* ----------------------- */}
 
           <Divider flexItem sx={{ my: 1 }} />
 
-          {/* NOVO BOTÃO DE TELEMEDICINA CONECTADO AO FERRAMENTAGLOBAL */}
+          {/* BOTÃO DE TELEMEDICINA - TRAVA REMOVIDA PARA GARANTIR FUNCIONAMENTO */}
           <Tooltip title="Telemedicina" placement="left">
-              <span>
-                  <IconButton 
-                    color={ferramentaGlobal === 'telemedicina' ? 'primary' : 'default'} 
-                    onClick={() => toggleFerramenta('telemedicina')} 
-                    disabled={agendamento?.modalidade !== 'Telemedicina'}
-                  >
-                      <VideocamIcon />
-                  </IconButton>
-              </span>
+              <IconButton 
+                color={ferramentaGlobal === 'telemedicina' ? 'primary' : 'default'} 
+                onClick={() => toggleFerramenta('telemedicina')} 
+              >
+                  <VideocamIcon />
+              </IconButton>
           </Tooltip>
       </Box>
 
-      {/* Modal de Histórico */}
+      {/* Modais */}
       {modalHistoricoId && (
         <ModalHistoricoEvolucao 
           pacienteId={pacienteId} 
@@ -238,7 +217,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
           onClose={onCloseHistoricoModal}
         />
       )}
-      {/* --- NOVO: Modal de Histórico de Laudos --- */}
       <HistoricoLaudosModal 
           open={modalHistoricoLaudosOpen}
           onClose={() => setModalHistoricoLaudosOpen(false)}
