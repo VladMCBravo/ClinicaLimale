@@ -38,22 +38,6 @@ export default function TelemedicinaTab({ agendamento }) {
     }
   };
 
-  // Trava de segurança ajustada (Ignora maiúsculas e minúsculas)
-  const isTelemedicina = String(agendamento?.modalidade || '').toLowerCase() === 'telemedicina';
-
-  if (!isTelemedicina) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color="text.secondary" gutterBottom>
-          Este agendamento não consta como Telemedicina no sistema.
-        </Typography>
-        <Typography variant="body2" color="text.disabled">
-          (Modalidade atual: {agendamento?.modalidade || 'Não informada'})
-        </Typography>
-      </Box>
-    );
-  }
-
   return (
     <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
       

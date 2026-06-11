@@ -32,14 +32,8 @@ const LaudosTab = lazy(() => import('../laudos/LaudosTab'));
 const TelemedicinaTab = lazy(() => import('./TelemedicinaTab'));
 
 export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCloseHistoricoModal, onEvolucaoSalva }) {
-  // Controle da Ferramenta Global Ativa (Substitui as antigas Tabs superiores)
   const [ferramentaGlobal, setFerramentaGlobal] = useState(null); 
   const [modalHistoricoLaudosOpen, setModalHistoricoLaudosOpen] = useState(false);
-
-  const { showSnackbar } = useSnackbar();
-  const [telemedicinaVisivel, setTelemedicinaVisivel] = useState(false); 
-  const [criandoSala, setCriandoSala] = useState(false);
-  const [linkSalaAtual, setLinkSalaAtual] = useState(agendamento?.link_telemedicina || null); 
   const [consultaAtualId, setConsultaAtualId] = useState(null);
 
   const pacienteId = agendamento?.paciente;
@@ -52,8 +46,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   }, [isExame]);
 
   useEffect(() => {
-    setTelemedicinaVisivel(false);
-    setLinkSalaAtual(agendamento?.link_telemedicina || null);
     setConsultaAtualId(null); 
     setFerramentaGlobal(null); // Fecha o painel lateral ao trocar de paciente
   }, [pacienteId, agendamento?.link_telemedicina]);
@@ -62,34 +54,6 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
       setFerramentaGlobal(prev => prev === ferramenta ? null : ferramenta);
   };
   
-  const handleToggleTelemedicina = () => {
-    if (telemedicinaVisivel) {
-      setTelemedicinaVisivel(false);
-      return;
-    }
-    if (agendamento?.modalidade !== 'Telemedicina') {
-        showSnackbar('Este agendamento não é de telemedicina.', 'warning');
-        return;
-    }
-    setTelemedicinaVisivel(true);
-    if (linkSalaAtual) return; 
-
-    setCriandoSala(true);
-    apiClient.post(`/agendamentos/${agendamento.id}/criar-telemedicina/`)
-      .then(response => {
-        const roomUrl = response.data.roomUrl;
-        showSnackbar('Sala criada com sucesso!', 'success');
-        setLinkSalaAtual(roomUrl); 
-      })
-      .catch(err => {
-        console.error("Erro ao criar sala:", err);
-        showSnackbar('Erro ao criar a sala de telemedicina.', 'error');
-        setTelemedicinaVisivel(false); 
-      })
-      .finally(() => {
-        setCriandoSala(false);
-      });
-  };
   
   const handleEvolucaoSalvaChain = useCallback((idDaEvolucao) => {
       console.log(`[ProntuarioCompleto] Recebido ID da evolução: ${idDaEvolucao}`);
