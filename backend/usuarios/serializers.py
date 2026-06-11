@@ -52,7 +52,8 @@ class UserSerializer(serializers.ModelSerializer):
             'genero', 'data_nascimento', 'telefone', 'cpf', 'email',
             'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 
             'crm', 'rqe', 
-            'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password', 'jornadas'
+            'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password', 'jornadas',
+            'pin_ponto'
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 

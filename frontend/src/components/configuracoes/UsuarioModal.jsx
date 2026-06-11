@@ -19,6 +19,7 @@ const initialState = {
     genero: '', data_nascimento: '', telefone: '', cpf: '', email: '',
     crm: '', rqe: '',
     logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
+    pin_ponto: '',
 };
 
 export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar }) {
@@ -64,6 +65,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 cidade: usuarioParaEditar.cidade || '',
                 uf: usuarioParaEditar.uf || '',
                 cep: usuarioParaEditar.cep || '',
+                pin_ponto: usuarioParaEditar.pin_ponto || '', // <--- ADICIONE AQUI
                 password: '', // Senha fica vazia
             });
             setSelectedEspecialidades(usuarioParaEditar.especialidades || []);
@@ -228,9 +230,10 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
 
                         <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Dados de Acesso e Cargo</Typography>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}><TextField name="email" label="E-mail" type="email" value={formData.email || ''} onChange={handleChange} required fullWidth /></Grid>
-                            <Grid item xs={12} sm={6}><TextField name="username" label="Usuário (login)" value={formData.username} onChange={handleChange} required fullWidth /></Grid>
-                            <Grid item xs={12} sm={6}><TextField name="password" label={usuarioParaEditar ? "Nova Senha (deixe em branco para não alterar)" : "Senha"} type="password" onChange={handleChange} required={!usuarioParaEditar} fullWidth /></Grid>
+                            <Grid item xs={12} sm={4}><TextField name="email" label="E-mail" type="email" value={formData.email || ''} onChange={handleChange} required fullWidth /></Grid>
+                            <Grid item xs={12} sm={4}><TextField name="username" label="Usuário (login)" value={formData.username} onChange={handleChange} required fullWidth /></Grid>
+                            <Grid item xs={12} sm={4}><TextField name="password" label={usuarioParaEditar ? "Nova Senha (opcional)" : "Senha"} type="password" onChange={handleChange} required={!usuarioParaEditar} fullWidth /></Grid>
+                            
                             <Grid item xs={12} sm={6}>
                                 <FormControl fullWidth required>
                                     <InputLabel>Cargo</InputLabel>
@@ -240,6 +243,20 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                         <MenuItem value="admin">Administrador</MenuItem>
                                     </Select>
                                 </FormControl>
+                            </Grid>
+                            {/* --- NOVO CAMPO DE PIN AQUI --- */}
+                            <Grid item xs={12} sm={6}>
+                                <TextField 
+                                    name="pin_ponto" 
+                                    label="PIN do Ponto Eletrônico" 
+                                    type="password"
+                                    value={formData.pin_ponto || ''} 
+                                    onChange={handleChange} 
+                                    fullWidth 
+                                    inputProps={{ maxLength: 6 }}
+                                    placeholder="Senha numérica (4 a 6 dígitos)"
+                                    helperText="Usado apenas para bater o ponto no totem/sistema"
+                                />
                             </Grid>
                         </Grid>
                         
