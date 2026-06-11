@@ -40,20 +40,21 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
   const isExame = agendamento?.tipo === 'EXAME' || ['Radiologia', 'Ultrassonografia'].includes(especialidade);
 
-  // Auto-abrir Laudos se for exame
-  useEffect(() => { 
-      if (isExame) setFerramentaGlobal('laudos'); 
-  }, [isExame]);
-
+  // CORREÇÃO CRÍTICA AQUI: Apenas pacienteId!
   useEffect(() => {
+    console.log("[DEBUG] useEffect de Reset acionado. O paciente mudou.");
     setConsultaAtualId(null); 
-    setFerramentaGlobal(null); // Fecha o painel lateral ao trocar de paciente
-  }, [pacienteId, agendamento?.link_telemedicina]);
+    setFerramentaGlobal(null); 
+  }, [pacienteId]); 
 
   const toggleFerramenta = (ferramenta) => {
-      setFerramentaGlobal(prev => prev === ferramenta ? null : ferramenta);
+      console.log(`[DEBUG] Clicou no ícone: ${ferramenta}`);
+      setFerramentaGlobal(prev => {
+          const novoEstado = prev === ferramenta ? null : ferramenta;
+          console.log(`[DEBUG] Ferramenta Global mudou de '${prev}' para '${novoEstado}'`);
+          return novoEstado;
+      });
   };
-  
   
   const handleEvolucaoSalvaChain = useCallback((idDaEvolucao) => {
       console.log(`[ProntuarioCompleto] Recebido ID da evolução: ${idDaEvolucao}`);
