@@ -6,7 +6,7 @@ import {
 import { 
     People, Business, AttachMoney, AccessTime, Badge, 
     ListAlt, LocalHospital, MeetingRoom, CardMembership, AccountCircle,
-    Map // <--- NOVO ÍCONE ADICIONADO AQUI
+    Map, Fingerprint
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 
@@ -20,6 +20,7 @@ import EspecialidadesPage from './EspecialidadesPage';
 import ConveniosTab from '../components/configuracoes/ConveniosTab';
 import SalasTab from '../components/configuracoes/SalasTab';
 import DadosClinicaTab from '../components/configuracoes/DadosClinicaTab'; // <--- NOVO COMPONENTE ADICIONADO AQUI
+import RelatorioPontoTab from '../components/configuracoes/RelatorioPontoTab';
 
 // ... (Mantenha as funções TabPanel e SubTabs originais que você já tinha no arquivo)
 function TabPanel({ children, value, index, ...other }) {
@@ -103,11 +104,16 @@ return (
                             <TabPanel value={mainTab} index={1}>
                                 <SubTabs 
                                     value={equipeTab} onChange={(e, v) => setEquipeTab(v)}
-                                    tabs={[ { label: 'Usuários', icon: <Badge /> }, { label: 'Jornadas', icon: <AccessTime /> } ]}
+                                    tabs={[ 
+                                        { label: 'Usuários', icon: <Badge /> }, 
+                                        { label: 'Jornadas', icon: <AccessTime /> },
+                                        { label: 'Relatório de Ponto', icon: <Fingerprint /> } // <--- NOVA ABA AQUI
+                                    ]}
                                 />
                                 <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
                                     {equipeTab === 0 && <UsuariosTab />}
                                     {equipeTab === 1 && <JornadasTab />}
+                                    {equipeTab === 2 && <RelatorioPontoTab />} {/* <--- RENDERIZAÇÃO DO COMPONENTE */}
                                 </Paper>
                             </TabPanel>
 

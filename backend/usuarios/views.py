@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica
-from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer
+from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer, RegistroPontoSerializer
 from cryptography.hazmat.primitives.serialization import pkcs12
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -317,81 +317,65 @@ class ConfiguracaoClinicaView(APIView):
 # --- VIEW DO PONTO ATUALIZADA PARA LER DO BANCO DE DADOS ---
 class BaterPontoView(APIView):
     """
-    Endpoint dedicado para bater o ponto.
-    Qualquer pessoa acessa, mas precisa do CPF e PIN corretos.
+    Endpoint dedicado para bater o ponto. Registra sucessos e falhas (auditoria).
     """
     permission_classes = [AllowAny] 
 
     def get_client_ip(self, request):
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0]
+        if x_forwarded_for: return x_forwarded_for.split(',')[0]
         return request.META.get('REMOTE_ADDR')
 
     def post(self, request):
         cpf_recebido = request.data.get('cpf')
         pin = request.data.get('pin')
-        tipo = request.data.get('tipo') 
+        tipo = request.data.get('tipo', 'entrada') 
         lat_usuario = request.data.get('latitude')
         lng_usuario = request.data.get('longitude')
 
-        print(f"[DEBUG PONTO] Tentando bater ponto. CPF Recebido: '{cpf_recebido}' | Tipo: '{tipo}'")
+        if not all([cpf_recebido, pin, lat_usuario, lng_usuario]):
+            return Response({"detail": "Dados incompletos para o ponto."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not all([cpf_recebido, pin, tipo, lat_usuario, lng_usuario]):
-            return Response({"detail": "Todos os campos (cpf, pin, tipo, latitude, longitude) são obrigatórios."}, 
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        # 1. Tratamento Inteligente de CPF
-        # Deixa apenas os números
+        # 1. Busca o Usuário
         cpf_limpo = re.sub(r'\D', '', cpf_recebido)
+        cpf_formatado = f"{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}" if len(cpf_limpo) == 11 else cpf_recebido
         
-        # Cria a versão com máscara (XXX.XXX.XXX-XX) caso o banco tenha salvo assim
-        cpf_formatado = cpf_recebido
-        if len(cpf_limpo) == 11:
-            cpf_formatado = f"{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}"
-
-        # 2. Busca o Usuário (Aceita ele limpo, formatado ou como veio)
         try:
             usuario = CustomUser.objects.get(Q(cpf=cpf_limpo) | Q(cpf=cpf_formatado) | Q(cpf=cpf_recebido))
-            print(f"[DEBUG PONTO] Usuário encontrado: {usuario.get_full_name()} (Username: {usuario.username})")
-            
-            # Valida o PIN
-            if not usuario.pin_ponto or str(usuario.pin_ponto) != str(pin):
-                print("[DEBUG PONTO] Erro: PIN incorreto ou vazio.")
-                return Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_401_UNAUTHORIZED)
-                
         except CustomUser.DoesNotExist:
-            print("[DEBUG PONTO] Erro: Nenhum usuário encontrado com este CPF no banco.")
             return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
         except CustomUser.MultipleObjectsReturned:
-            print("[DEBUG PONTO] Erro: Existe mais de um usuário com o mesmo CPF no banco!")
-            return Response({"detail": "Erro de duplicidade de CPF. Contate o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": "Erro: Multiplos CPFs idênticos encontrados."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # 3. Busca as configurações da clínica no banco de dados
+        # 2. Busca GPS da Clínica e calcula distância
         config = ConfiguracaoClinica.objects.first()
-        if not config or not config.latitude or not config.longitude:
-            print("[DEBUG PONTO] Erro: A clínica não possui coordenadas salvas no banco.")
-            return Response({"detail": "O GPS da clínica ainda não foi configurado pelo administrador."}, status=status.HTTP_400_BAD_REQUEST)
+        distancia = None
+        if config and config.latitude and config.longitude:
+            try:
+                lat_usuario, lng_usuario = float(lat_usuario), float(lng_usuario)
+                distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_usuario, lng_usuario)
+            except ValueError:
+                pass # Mantém distância como None se der erro na conversão
 
-        # 4. Calcula a distância (Geofencing)
-        try:
-            lat_usuario = float(lat_usuario)
-            lng_usuario = float(lng_usuario)
-            distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_usuario, lng_usuario)
-            
-            print(f"[DEBUG PONTO] Distância calculada: {distancia:.2f} metros (Permitido: {config.raio_metros}m)")
-            
-            status_ponto = 'aprovado'
-            if distancia > config.raio_metros:
-                return Response({
-                    "detail": f"Você está a {int(distancia)} metros da clínica. O máximo permitido é {config.raio_metros} metros.",
-                    "distancia": distancia
-                }, status=status.HTTP_403_FORBIDDEN)
-                
-        except ValueError:
-            return Response({"detail": "Coordenadas inválidas."}, status=status.HTTP_400_BAD_REQUEST)
+        # 3. Motor de Regras (Auditoria)
+        status_ponto = 'aprovado'
+        observacao = ''
+        erro_response = None
 
-        # 5. Salva o Registro
+        if not usuario.pin_ponto or str(usuario.pin_ponto) != str(pin):
+            status_ponto = 'rejeitado'
+            observacao = 'Tentativa Bloqueada: PIN Incorreto'
+            erro_response = Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        elif config and distancia is not None and distancia > config.raio_metros:
+            status_ponto = 'rejeitado'
+            observacao = f'Tentativa Bloqueada: Fora do raio permitido ({int(distancia)}m da clínica)'
+            erro_response = Response({
+                "detail": f"Você está a {int(distancia)} metros da clínica. O máximo permitido é {config.raio_metros} metros.",
+                "distancia": distancia
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 4. Salva o Registro de Auditoria (Ocorrendo erro ou sucesso)
         registro = RegistroPonto.objects.create(
             usuario=usuario,
             tipo=tipo,
@@ -399,14 +383,32 @@ class BaterPontoView(APIView):
             longitude=lng_usuario,
             distancia_metros=distancia,
             status=status_ponto,
+            observacao=observacao,
             ip_address=self.get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )
-        print(f"[DEBUG PONTO] Sucesso! Ponto registrado para {usuario.username}.")
 
+        # 5. Se houve erro na regra 3, devolve a mensagem bloqueando a tela
+        if erro_response:
+            return erro_response
+
+        # 6. Sucesso!
         return Response({
             "detail": "Ponto registrado com sucesso!",
             "tipo": registro.get_tipo_display(),
             "data_hora": registro.data_hora,
-            "distancia_metros": int(distancia)
+            "distancia_metros": int(distancia) if distancia else None
         }, status=status.HTTP_201_CREATED)
+
+# --- NOVA VIEW DO RELATÓRIO PARA O ADMIN ---
+class RegistroPontoListView(generics.ListAPIView):
+    """
+    Lista todos os pontos registrados (aprovados e rejeitados). 
+    Acesso exclusivo para administradores.
+    """
+    serializer_class = RegistroPontoSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        # Traz os mais recentes primeiro
+        return RegistroPonto.objects.select_related('usuario').all().order_by('-data_hora')
