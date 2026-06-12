@@ -1,4 +1,5 @@
 # backend/usuarios/views.py - VERSÃO CORRIGIDA
+import re
 import math
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
@@ -11,7 +12,7 @@ from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMed
 from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer
 from cryptography.hazmat.primitives.serialization import pkcs12
 from django.utils import timezone
-from django.db.models import Count
+from django.db.models import Count, Q
 
 # --- SUAS VIEWS DE AUTENTICAÇÃO (SEM MUDANÇAS) ---
 class CustomAuthTokenLoginView(ObtainAuthToken):
@@ -328,34 +329,57 @@ class BaterPontoView(APIView):
         return request.META.get('REMOTE_ADDR')
 
     def post(self, request):
-        cpf = request.data.get('cpf')
+        cpf_recebido = request.data.get('cpf')
         pin = request.data.get('pin')
         tipo = request.data.get('tipo') 
         lat_usuario = request.data.get('latitude')
         lng_usuario = request.data.get('longitude')
 
-        if not all([cpf, pin, tipo, lat_usuario, lng_usuario]):
+        print(f"[DEBUG PONTO] Tentando bater ponto. CPF Recebido: '{cpf_recebido}' | Tipo: '{tipo}'")
+
+        if not all([cpf_recebido, pin, tipo, lat_usuario, lng_usuario]):
             return Response({"detail": "Todos os campos (cpf, pin, tipo, latitude, longitude) são obrigatórios."}, 
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Valida o Usuário e o PIN
-        try:
-            usuario = CustomUser.objects.get(cpf=cpf)
-            if not usuario.pin_ponto or usuario.pin_ponto != pin:
-                return Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_401_UNAUTHORIZED)
-        except CustomUser.DoesNotExist:
-            return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        # 1. Tratamento Inteligente de CPF
+        # Deixa apenas os números
+        cpf_limpo = re.sub(r'\D', '', cpf_recebido)
+        
+        # Cria a versão com máscara (XXX.XXX.XXX-XX) caso o banco tenha salvo assim
+        cpf_formatado = cpf_recebido
+        if len(cpf_limpo) == 11:
+            cpf_formatado = f"{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}"
 
-        # 2. Busca as configurações da clínica no banco de dados
+        # 2. Busca o Usuário (Aceita ele limpo, formatado ou como veio)
+        try:
+            usuario = CustomUser.objects.get(Q(cpf=cpf_limpo) | Q(cpf=cpf_formatado) | Q(cpf=cpf_recebido))
+            print(f"[DEBUG PONTO] Usuário encontrado: {usuario.get_full_name()} (Username: {usuario.username})")
+            
+            # Valida o PIN
+            if not usuario.pin_ponto or str(usuario.pin_ponto) != str(pin):
+                print("[DEBUG PONTO] Erro: PIN incorreto ou vazio.")
+                return Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_401_UNAUTHORIZED)
+                
+        except CustomUser.DoesNotExist:
+            print("[DEBUG PONTO] Erro: Nenhum usuário encontrado com este CPF no banco.")
+            return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        except CustomUser.MultipleObjectsReturned:
+            print("[DEBUG PONTO] Erro: Existe mais de um usuário com o mesmo CPF no banco!")
+            return Response({"detail": "Erro de duplicidade de CPF. Contate o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 3. Busca as configurações da clínica no banco de dados
         config = ConfiguracaoClinica.objects.first()
         if not config or not config.latitude or not config.longitude:
+            print("[DEBUG PONTO] Erro: A clínica não possui coordenadas salvas no banco.")
             return Response({"detail": "O GPS da clínica ainda não foi configurado pelo administrador."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3. Calcula a distância (Geofencing)
+        # 4. Calcula a distância (Geofencing)
         try:
             lat_usuario = float(lat_usuario)
             lng_usuario = float(lng_usuario)
             distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_usuario, lng_usuario)
+            
+            print(f"[DEBUG PONTO] Distância calculada: {distancia:.2f} metros (Permitido: {config.raio_metros}m)")
             
             status_ponto = 'aprovado'
             if distancia > config.raio_metros:
@@ -367,7 +391,7 @@ class BaterPontoView(APIView):
         except ValueError:
             return Response({"detail": "Coordenadas inválidas."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 4. Salva o Registro
+        # 5. Salva o Registro
         registro = RegistroPonto.objects.create(
             usuario=usuario,
             tipo=tipo,
@@ -378,6 +402,7 @@ class BaterPontoView(APIView):
             ip_address=self.get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )
+        print(f"[DEBUG PONTO] Sucesso! Ponto registrado para {usuario.username}.")
 
         return Response({
             "detail": "Ponto registrado com sucesso!",
