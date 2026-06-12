@@ -295,7 +295,7 @@ export const gerarPDFLaudo = async ({
 
     if (usaAssinaturaDigital) {
         // Defina a URL que o QR Code deve abrir (Ex: site do ITI ou portal da sua clínica)
-        const urlValidacaoQR = 'https://verificador.iti.gov.br';
+        const urlValidacaoQR = 'https://validar.iti.gov.br';
 
         elementoAssinatura = {
             stack: [

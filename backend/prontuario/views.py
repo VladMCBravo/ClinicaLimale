@@ -298,19 +298,21 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
         print("DEBUG: O médico possui objeto 'CertificadoMedico' vinculado.")
         if medico_assinante.certificado.arquivo_p12:
             try:
-                caminho = medico_assinante.certificado.arquivo_p12.path
-                print(f"DEBUG: Arquivo .p12 encontrado em: {caminho}")
+                # REMOVEMOS A LINHA DO .path QUE CAUSAVA O CRASH
+                print("DEBUG: Arquivo .p12 encontrado no storage.")
                 tem_certificado_valido = True
                 
                 # ==========================================================
-                # NOVO: GERAÇÃO DO QR CODE EM BASE64
+                # GERAÇÃO DO QR CODE EM BASE64
                 # ==========================================================
-                url_validacao = "https://verificador.iti.gov.br" 
+                # ATUALIZADO: Nova URL do Governo (veja o item 2 abaixo)
+                url_validacao = "https://validar.iti.gov.br" 
+                
                 qr = qrcode.QRCode(
                     version=1,
                     error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=4, # Tamanho reduzido para caber bem no rodapé
-                    border=0,   # Sem borda branca extra
+                    box_size=4,
+                    border=0,
                 )
                 qr.add_data(url_validacao)
                 qr.make(fit=True)
