@@ -3,6 +3,7 @@
 from io import BytesIO
 import io
 import os
+import qrcode
 from pypdf import PdfReader, PdfWriter
 from django.db import models
 from django.conf import settings # <-- IMPORTAR SETTINGS
@@ -288,18 +289,54 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     else:
         print("DEBUG: ERRO - Nenhum médico foi identificado no contexto do PDF.")
 
-    # 3. VERIFICAÇÃO DO CERTIFICADO
+    # 3. VERIFICAÇÃO DO CERTIFICADO E GERAÇÃO DE QR CODE
     tem_certificado_valido = False
+    qr_code_data_url = ""
+    logo_icp_data_url = ""
+
     if medico_assinante and hasattr(medico_assinante, 'certificado'):
         print("DEBUG: O médico possui objeto 'CertificadoMedico' vinculado.")
         if medico_assinante.certificado.arquivo_p12:
             try:
-                # Tenta verificar se o arquivo existe fisicamente
                 caminho = medico_assinante.certificado.arquivo_p12.path
                 print(f"DEBUG: Arquivo .p12 encontrado em: {caminho}")
                 tem_certificado_valido = True
+                
+                # ==========================================================
+                # NOVO: GERAÇÃO DO QR CODE EM BASE64
+                # ==========================================================
+                url_validacao = "https://verificador.iti.gov.br" 
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=4, # Tamanho reduzido para caber bem no rodapé
+                    border=0,   # Sem borda branca extra
+                )
+                qr.add_data(url_validacao)
+                qr.make(fit=True)
+                
+                # O fundo transparente ou cor da caixa (f8f9fa)
+                img_qr = qr.make_image(fill_color="black", back_color="#f8f9fa")
+                
+                buffer_qr = io.BytesIO()
+                img_qr.save(buffer_qr, format="PNG")
+                qr_base64 = base64.b64encode(buffer_qr.getvalue()).decode("utf-8")
+                qr_code_data_url = f"data:image/png;base64,{qr_base64}"
+
+                # ==========================================================
+                # NOVO: CARREGAMENTO DO LOGÓTIPO ICP-BRASIL EM BASE64
+                # ==========================================================
+                # Vai procurar a imagem na pasta backend/static/images/
+                caminho_logo = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_icp_brasil.png')
+                if os.path.exists(caminho_logo):
+                    with open(caminho_logo, "rb") as image_file:
+                        logo_base64 = base64.b64encode(image_file.read()).decode("utf-8")
+                        logo_icp_data_url = f"data:image/png;base64,{logo_base64}"
+                else:
+                    print(f"DEBUG: Logótipo ICP-Brasil não encontrado em {caminho_logo}")
+
             except Exception as e:
-                print(f"DEBUG: Erro ao acessar arquivo do certificado: {e}")
+                print(f"DEBUG: Erro ao aceder ao certificado ou gerar QR/Logo: {e}")
         else:
             print("DEBUG: O objeto CertificadoMedico existe, mas o campo arquivo_p12 está vazio.")
     else:
@@ -315,6 +352,8 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
         'clinica': clinica_info,
         'anamnese': anamnese_obj,
         'tem_assinatura_digital': tem_certificado_valido, 
+        'qr_code_base64_ou_url': qr_code_data_url, # ENVIANDO O QR CODE
+        'logo_icp_base64': logo_icp_data_url,      # ENVIANDO O LOGÓTIPO
         **context
     }
     # ==========================================================

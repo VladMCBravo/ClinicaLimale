@@ -294,13 +294,26 @@ export const gerarPDFLaudo = async ({
     let elementoAssinatura = null;
 
     if (usaAssinaturaDigital) {
+        // Defina a URL que o QR Code deve abrir (Ex: site do ITI ou portal da sua clínica)
+        const urlValidacaoQR = 'https://verificador.iti.gov.br';
+
         elementoAssinatura = {
             stack: [
                 { text: '', margin: [0, 20] }, 
                 {
                     table: {
-                        widths: ['*'],
+                        widths: ['auto', '*'], // Duas colunas: QR Code e Texto
                         body: [[
+                            // Coluna 1: O QR Code gerado nativamente pelo pdfMake
+                            {
+                                qr: urlValidacaoQR, 
+                                fit: 65, // Tamanho do QR Code
+                                alignment: 'center',
+                                margin: [5, 5, 5, 5],
+                                border: [false, false, true, false], // Borda apenas separando do texto
+                                borderColor: ['#ccc', '#ccc', '#ccc', '#ccc']
+                            },
+                            // Coluna 2: O texto que você já tinha
                             {
                                 stack: [
                                     { text: 'DOCUMENTO ASSINADO DIGITALMENTE', fontSize: 8, color: '#555', margin: [0, 0, 0, 2] },
@@ -310,13 +323,20 @@ export const gerarPDFLaudo = async ({
                                     { text: 'Valide em: verificador.iti.gov.br', fontSize: 7, color: '#777' }
                                 ],
                                 alignment: 'center',
-                                fillColor: '#f8f9fa',
-                                borderColor: ['#ccc', '#ccc', '#ccc', '#ccc']
+                                margin: [0, 5, 0, 5],
+                                border: [false, false, false, false]
                             }
                         ]]
                     },
-                    layout: { defaultBorder: true },
-                    margin: [120, 0, 120, 0] 
+                    layout: { 
+                        defaultBorder: true,
+                        hLineWidth: function () { return 1; },
+                        vLineWidth: function () { return 1; },
+                        hLineColor: function () { return '#ccc'; },
+                        vLineColor: function () { return '#ccc'; }
+                    },
+                    // Ajuste de margem para centralizar a caixa na página
+                    margin: [90, 0, 90, 0] 
                 }
             ]
         };
