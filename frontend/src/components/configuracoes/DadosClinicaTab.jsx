@@ -1,12 +1,17 @@
 // src/components/configuracoes/DadosClinicaTab.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-    Box, Typography, TextField, Button, Grid, Divider, Alert, InputAdornment 
+    Box, Typography, TextField, Button, Grid, Divider, Alert, InputAdornment, CircularProgress
 } from '@mui/material';
 import { Save, GpsFixed, LocationCity, Business } from '@mui/icons-material';
+import apiClient from '../../api/axiosConfig';
+import { useSnackbar } from '../../contexts/SnackbarContext'; 
 
 export default function DadosClinicaTab() {
-    // Estado inicial. Em breve você preencherá isso fazendo um GET no seu backend
+    const { showSnackbar } = useSnackbar();
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
     const [clinica, setClinica] = useState({
         razao_social: '',
         nome_fantasia: '',
@@ -20,11 +25,37 @@ export default function DadosClinicaTab() {
         bairro: '',
         cidade: '',
         uf: '',
-        // Dados de Geofencing para o Ponto
         raio_metros: 150,
         latitude: '',
         longitude: ''
     });
+
+    // 1. Busca os dados no backend ao abrir a tela
+    useEffect(() => {
+        carregarDados();
+    }, []);
+
+    const carregarDados = async () => {
+        try {
+            const response = await apiClient.get('/usuarios/clinica/configuracao/');
+            const data = response.data;
+            // Atualiza o estado evitando nulls que quebram os inputs do React
+            setClinica(prev => ({
+                ...prev,
+                ...data,
+                razao_social: data.razao_social || '',
+                nome_fantasia: data.nome_fantasia || '',
+                cnpj: data.cnpj || '',
+                latitude: data.latitude || '',
+                longitude: data.longitude || '',
+                raio_metros: data.raio_metros || 150
+            }));
+        } catch (error) {
+            showSnackbar('Erro ao carregar as configurações da clínica.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleChange = (e) => {
         setClinica({ ...clinica, [e.target.name]: e.target.value });
@@ -38,17 +69,29 @@ export default function DadosClinicaTab() {
                     latitude: pos.coords.latitude,
                     longitude: pos.coords.longitude
                 });
+                showSnackbar("Coordenadas capturadas! Clique em salvar.", "info");
             }, () => {
-                alert("Erro ao capturar GPS. Verifique as permissões do navegador.");
+                showSnackbar("Erro ao capturar GPS. Verifique as permissões do navegador.", "error");
             });
         }
     };
 
-    const handleSave = () => {
-        // Futura requisição PUT/POST para o backend salvar os dados da clínica
-        console.log("Dados a salvar:", clinica);
-        alert("Em breve: Dados salvos no banco de dados!");
+    // 2. Envia os dados para o backend via PATCH
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await apiClient.patch('/usuarios/clinica/configuracao/', clinica);
+            showSnackbar('Dados da clínica salvos com sucesso!', 'success');
+        } catch (error) {
+            showSnackbar('Erro ao salvar os dados da clínica.', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
+
+    if (loading) {
+        return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+    }
 
     return (
         <Box>
@@ -101,7 +144,6 @@ export default function DadosClinicaTab() {
                 </Grid>
             </Grid>
 
-            {/* SEÇÃO DO GEOFENCING (PONTO ELETRÔNICO) */}
             <Alert severity="info" sx={{ mb: 3 }}>
                 <strong>Configuração do Ponto Eletrônico:</strong> Defina abaixo o raio de alcance em que seus funcionários têm permissão para bater o ponto via GPS.
             </Alert>
@@ -121,10 +163,10 @@ export default function DadosClinicaTab() {
                     />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                    <TextField fullWidth label="Latitude (Central)" name="latitude" value={clinica.latitude} onChange={handleChange} />
+                    <TextField fullWidth label="Latitude (Central)" name="latitude" type="number" value={clinica.latitude} onChange={handleChange} />
                 </Grid>
                 <Grid item xs={12} md={3}>
-                    <TextField fullWidth label="Longitude (Central)" name="longitude" value={clinica.longitude} onChange={handleChange} />
+                    <TextField fullWidth label="Longitude (Central)" name="longitude" type="number" value={clinica.longitude} onChange={handleChange} />
                 </Grid>
                 <Grid item xs={12} md={2}>
                     <Button variant="outlined" color="secondary" fullWidth sx={{ height: '56px' }} onClick={capturarGPSAtual} startIcon={<GpsFixed />}>
@@ -134,8 +176,8 @@ export default function DadosClinicaTab() {
             </Grid>
 
             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="contained" color="primary" size="large" startIcon={<Save />} onClick={handleSave}>
-                    Salvar Dados da Clínica
+                <Button variant="contained" color="primary" size="large" startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <Save />} onClick={handleSave} disabled={saving}>
+                    {saving ? 'Salvando...' : 'Salvar Dados da Clínica'}
                 </Button>
             </Box>
         </Box>
