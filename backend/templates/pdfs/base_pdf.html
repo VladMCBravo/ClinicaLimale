@@ -7,10 +7,18 @@
         /* Estilos do seu evolucao_template.html, agora centralizados */
         @page { 
             size: a4; 
-            /* Ajuste crítico: Top, Right, Bottom, Left */
-            /* Aumente o margin-top para o texto não sobrepor a logo da máscara */
-            margin: 6cm 1.5cm 4.5cm 1.5cm; /* <--- Aumentamos o Top para 6cm */
-}
+            margin: 6cm 1.5cm 4.5cm 1.5cm; 
+            
+            /* ISSO CRIA UM QUADRO FIXO NO RODAPÉ DE TODAS AS FOLHAS */
+            /* Ignore o aviso amarelo do VS Code aqui, o xhtml2pdf entende perfeitamente */
+            @frame assinatura_footer {
+                -pdf-frame-content: assinatura_digital;
+                left: 1.5cm;
+                right: 1.5cm;
+                bottom: 1.5cm;
+                height: 2.5cm; 
+            }
+        }
         
         body { font-family: "Helvetica", sans-serif; font-size: 11pt; color: #333; }
         
@@ -35,7 +43,7 @@
 
     <main>
         {% block content %}
-            {% endblock %}
+        {% endblock %}
     </main>
 </body>
 </html>
