@@ -72,31 +72,5 @@
             </div>
         {% endif %}
     </div>
-    ```
-
-### Passo 3: Colar no TOPO dos arquivos!
-Agora, abra os seus 4 arquivos HTML (`prescricao_template.html`, `atestado_template.html`, `evolucao_template.html` e `relatorio_template.html`).
-
-1. Vá lá no final do arquivo e **APAGUE** a assinatura antiga e o espaçador (`<div style="height: 60px;"></div>`). Não precisamos mais deles lá embaixo.
-2. Vá para o **TOPO** do arquivo, e cole o bloco novo **exatamente abaixo da tag `{% block content %}`**.
-
-Deve ficar assim, por exemplo, na Prescrição:
-
-```html
-{% extends "pdfs/base_pdf.html" %}
-
-{% block title %}Prescrição Médica{% endblock %}
-
-{% block content %}
-
-    <div id="assinatura_digital">
-        {% if tem_assinatura_digital %}
-            <div style="width: 100%; border-top: 1px solid #999; padding-top: 8px; font-size: 8pt; color: #444;">
-    <h1>PRESCRIÇÃO MÉDICA</h1>
-
-    <table class="info-grid">
-    ```
-
-Pode fazer esse ajuste e testar! O HTML vai voltar a ser lido sem quebrar, o gerador de PDF vai capturar a assinatura antes de escrever a página, e ela vai aparecer lindamente cravada no fundo!
 
 {% endblock %}
