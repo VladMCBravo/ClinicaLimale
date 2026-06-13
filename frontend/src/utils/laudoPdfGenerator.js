@@ -321,7 +321,13 @@ export const gerarPDFLaudo = async ({
                             { text: 'Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).', fontSize: 7.5, color: '#555', margin: [0, 0, 0, 2] },  
                             { text: [
                                 '*Para validar a assinatura deste documento, acesse ',
-                                { text: 'https://validar.iti.gov.br', bold: true },
+                                { 
+                                    text: 'https://validar.iti.gov.br', 
+                                    bold: true, 
+                                    link: 'https://validar.iti.gov.br', // <-- Mágica do clique aqui!
+                                    decoration: 'underline',            // <-- Sublinhado
+                                    color: '#0056b3'                    // <-- Azul discreto de link (opcional)
+                                },
                                 ' ou aponte a câmera para o QR Code ao lado.'
                             ], fontSize: 7.5, color: '#555' }
                         ],
