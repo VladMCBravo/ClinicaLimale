@@ -355,10 +355,7 @@ export const gerarPDFLaudo = async ({
     if (ultimoParagrafo) {
         content.push(ultimoParagrafo);
     }
-    
-    // ❌ APAGUE ESTA LINHA ABAIXO COMPLETAMENTE ❌
-    // content.push({ text: '', margin: [0, 80] });
-
+        
     // Insere a assinatura fixada no rodapé da página atual
     content.push(elementoAssinatura);
 
