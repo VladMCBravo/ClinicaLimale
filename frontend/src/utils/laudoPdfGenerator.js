@@ -404,16 +404,23 @@ export const gerarPDFLaudo = async ({
 
     const docDefinition = {
         pageSize: 'A4', 
-        pageMargins: [40, 170, 40, 100], // Margem de 100 protege o footer
+        // Aumentamos o bottom margin da página de 150 para 160 para o texto parar mais cedo
+        pageMargins: [40, 170, 40, 160], 
         
-        // --- ADICIONE ESTA FUNÇÃO AQUI ---
         footer: function(currentPage, pageCount) {
             return {
-                margin: [40, 10, 40, 0], // x: 40 alinha perfeitamente com a margem da página
+                margin: [40, 0, 40, 50], 
                 ...elementoAssinatura
             };
         },
-        // ----------------------------------
+        
+        // --- ADICIONE ESTE BLOCO PARA COMPRIMIR O TEXTO ---
+        defaultStyle: {
+            lineHeight: 1.1, // O padrão costuma ser 1.2 ou mais. Isso deixa as linhas sutilmente mais juntas.
+            // fontSize: 11, // (Opcional) Se mesmo assim não couber, você pode descomentar esta linha e reduzir a fonte base ligeiramente
+        },
+        // ---------------------------------------------------
+
         content: content,
         styles: {
           mainHeader: { fontSize: 14, bold: true, color: '#1C2E4A' },
