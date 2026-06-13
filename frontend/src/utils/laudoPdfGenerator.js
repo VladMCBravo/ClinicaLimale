@@ -304,16 +304,19 @@ export const gerarPDFLaudo = async ({
             table: {
                 widths: ['auto', '*', 'auto'], 
                 body: [[
+                    // Coluna 1: Logo ICP-Brasil (Esquerda)
                     {
-                        qr: urlValidacaoQR, 
-                        fit: 55, 
+                        image: logoIcpBase64,
+                        width: 55, // Aumentado para igualar ao texto e ao QR Code
                         alignment: 'left',
                         margin: [0, 5, 0, 0],
                         border: [false, true, false, false], 
                         borderColor: ['#999', '#999', '#999', '#999']
                     },
+                    // Coluna 2: Textos (Centro)
                     {
                         stack: [
+                            // Nota: Para o RQE aparecer aqui no React, você precisa garantir que a API do backend envie o "medicoRqe" para o frontend.
                             { text: `Assinado digitalmente por ${nomeFormatado} - CRM ${limparCRM(medicoCrm) || 'N/A'}`, bold: true, fontSize: 9, color: '#000', margin: [0, 0, 0, 2] },
                             { text: 'Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).', fontSize: 7.5, color: '#555', margin: [0, 0, 0, 2] },  
                             { text: [
@@ -323,15 +326,16 @@ export const gerarPDFLaudo = async ({
                             ], fontSize: 7.5, color: '#555' }
                         ],
                         alignment: 'left',
-                        margin: [10, 8, 0, 0],
+                        margin: [10, 8, 10, 0], // Adicionamos 10 de margem na direita também para dar respiro ao QR Code
                         border: [false, true, false, false], 
                         borderColor: ['#999', '#999', '#999', '#999']
                     },
+                    // Coluna 3: QR Code (Direita)
                     {
-                        image: logoIcpBase64,
-                        width: 40, // Reduzido drasticamente para virar um pequeno selo quadrado
+                        qr: urlValidacaoQR, 
+                        fit: 55, 
                         alignment: 'right',
-                        margin: [0, 10, 0, 0],
+                        margin: [0, 5, 0, 0],
                         border: [false, true, false, false], 
                         borderColor: ['#999', '#999', '#999', '#999']
                     }
