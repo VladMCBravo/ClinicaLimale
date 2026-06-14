@@ -87,8 +87,18 @@ export default function ContasReceberView() {
 
     const totais = useMemo(() => {
         const validos = lista.filter(i => i.status !== 'Renegociado' && i.status !== 'Cancelado');
+        
+        // Soma financeira continua igual
         const totalValor = validos.reduce((acc, item) => acc + parseFloat(item.valor || 0), 0);
-        return { qtd: validos.length, valor: totalValor };
+        
+        // NOVA LÓGICA DE CONTAGEM:
+        // Em vez de contar as linhas agrupadas (validos.length), 
+        // nós somamos a quantidade de itens 'originais' que estão dentro de cada grupo.
+        const quantidadeReal = validos.reduce((acc, item) => {
+            return acc + (item.originais ? item.originais.length : 1);
+        }, 0);
+
+        return { qtd: quantidadeReal, valor: totalValor };
     }, [lista]);
 
     const handleRowClick = (item) => {
