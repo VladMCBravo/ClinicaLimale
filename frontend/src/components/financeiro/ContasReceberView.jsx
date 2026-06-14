@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import { faturamentoService } from '../../services/faturamentoService';
 import LancamentoCaixaModal from './LancamentoCaixaModal';
 import { PatientDrawerContent } from './PatientPaymentDrawer';
+import { gerarPdfContasReceber } from '../../utils/pdfFinanceiro'; // <--- Ajuste o caminho da importação
 
 import './Financeiro.css';
 
@@ -21,7 +22,8 @@ export default function ContasReceberView() {
     const [loading, setLoading] = useState(false);
     const [filtroData, setFiltroData] = useState(dayjs());
     const [busca, setBusca] = useState('');
-    
+    const [ordem, setOrdem] = useState({ coluna: 'vencimento', direcao: 'asc' });
+
     const [modalOpen, setModalOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
@@ -84,6 +86,44 @@ export default function ContasReceberView() {
         const timeoutId = setTimeout(() => { carregarDados(); }, 500);
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
+
+    // --- NOVA LÓGICA DE ORDENAÇÃO NA MEMÓRIA ---
+    const handleSort = (coluna) => {
+        const isAsc = ordem.coluna === coluna && ordem.direcao === 'asc';
+        setOrdem({ coluna, direcao: isAsc ? 'desc' : 'asc' });
+    };
+
+    const listaOrdenada = useMemo(() => {
+        let sortableItems = [...lista];
+        sortableItems.sort((a, b) => {
+            if (ordem.coluna === 'vencimento') {
+                const dataA = a.data_vencimento ? dayjs(a.data_vencimento).valueOf() : 0;
+                const dataB = b.data_vencimento ? dayjs(b.data_vencimento).valueOf() : 0;
+                return ordem.direcao === 'asc' ? dataA - dataB : dataB - dataA;
+            }
+            if (ordem.coluna === 'paciente') {
+                const nomeA = (a.paciente_nome || a.descricao || '').toLowerCase();
+                const nomeB = (b.paciente_nome || b.descricao || '').toLowerCase();
+                if (nomeA < nomeB) return ordem.direcao === 'asc' ? -1 : 1;
+                if (nomeA > nomeB) return ordem.direcao === 'asc' ? 1 : -1;
+                return 0;
+            }
+            if (ordem.coluna === 'valor') {
+                const valorA = parseFloat(a.valor || 0);
+                const valorB = parseFloat(b.valor || 0);
+                return ordem.direcao === 'asc' ? valorA - valorB : valorB - valorA;
+            }
+            if (ordem.coluna === 'status') {
+                const statusA = (a.status || '').toLowerCase();
+                const statusB = (b.status || '').toLowerCase();
+                if (statusA < statusB) return ordem.direcao === 'asc' ? -1 : 1;
+                if (statusA > statusB) return ordem.direcao === 'asc' ? 1 : -1;
+                return 0;
+            }
+            return 0;
+        });
+        return sortableItems;
+    }, [lista, ordem]);
 
     const totais = useMemo(() => {
         // Filtra removendo faturas renegociadas e canceladas
@@ -163,28 +203,60 @@ export default function ContasReceberView() {
                 
                 <TableContainer sx={{ flexGrow: 1 }}>
                     <Table stickyHeader size="small">
+                        {/* --- CABEÇALHO COM TABLE SORT LABELS --- */}
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>Vencimento</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>Paciente / Descrição</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>Valor</TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>Status</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>
+                                    <TableSortLabel
+                                        active={ordem.coluna === 'vencimento'}
+                                        direction={ordem.coluna === 'vencimento' ? ordem.direcao : 'asc'}
+                                        onClick={() => handleSort('vencimento')}
+                                    >
+                                        Vencimento
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>
+                                    <TableSortLabel
+                                        active={ordem.coluna === 'paciente'}
+                                        direction={ordem.coluna === 'paciente' ? ordem.direcao : 'asc'}
+                                        onClick={() => handleSort('paciente')}
+                                    >
+                                        Paciente / Descrição
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>
+                                    <TableSortLabel
+                                        active={ordem.coluna === 'valor'}
+                                        direction={ordem.coluna === 'valor' ? ordem.direcao : 'asc'}
+                                        onClick={() => handleSort('valor')}
+                                    >
+                                        Valor
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: '#f9fafb', color: '#666' }}>
+                                    <TableSortLabel
+                                        active={ordem.coluna === 'status'}
+                                        direction={ordem.coluna === 'status' ? ordem.direcao : 'asc'}
+                                        onClick={() => handleSort('status')}
+                                    >
+                                        Status
+                                    </TableSortLabel>
+                                </TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {lista.map(row => {
+                            {/* MAP AGORA USA A 'listaOrdenada' */}
+                            {listaOrdenada.map(row => {
                                 const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
                                 const isRenegociado = row.status === 'Renegociado';
-                                const isConvenio = row.tipo_atendimento === 'Convenio'; // <--- IDENTIFICAÇÃO
+                                const isConvenio = row.tipo_atendimento === 'Convenio';
 
                                 return (
-                                    <TableRow key={row.id} hover onClick={() => handleRowClick(row)}>
+                                    <TableRow key={row.id} hover onClick={() => handleRowClick(row)} sx={{ cursor: 'pointer' }}>
                                         <TableCell sx={{ color: '#444' }}>
                                             <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                                                 {dayjs(row.data_vencimento).format('DD/MM/YY')}
                                             </Typography>
-                                            
-                                            {/* 👇 HORÁRIO DA CONSULTA INSERIDO AQUI 👇 */}
                                             {row.agendamento_detalhes?.data_hora_inicio && (
                                                 <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 'bold', fontSize: '0.7rem' }}>
                                                     {dayjs(row.agendamento_detalhes.data_hora_inicio).format('HH:mm')}
@@ -198,34 +270,15 @@ export default function ContasReceberView() {
                                                     <Chip label={`${row.originais.length} Itens`} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />
                                                 )}
                                             </Typography>
-                                            
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.2 }}>
                                                 <Typography variant="caption" color="textSecondary" fontSize="0.7rem">
                                                     {row.descricao_visual || row.categoria_nome}
                                                 </Typography>
-
-                                                {/* 👇 ETIQUETA DO CONVÊNIO APARECE AQUI 👇 */}
                                                 {isConvenio && (
-                                                    <Chip 
-                                                        label={`${row.convenio_nome || 'Convênio'} - ${row.plano_nome || ''}`} 
-                                                        size="small" 
-                                                        sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 'bold' }} 
-                                                    />
+                                                    <Chip label={`${row.convenio_nome || 'Convênio'} - ${row.plano_nome || ''}`} size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 'bold' }} />
                                                 )}
-
                                                 {row.paciente_nome && (row.primeira_consulta !== undefined || row.tipo_visita) && (
-                                                    <Chip 
-                                                        label={row.primeira_consulta || row.tipo_visita === 'Primeira Consulta' ? '1ª Vez' : (row.tipo_visita || 'Retorno')} 
-                                                        size="small" 
-                                                        sx={{ 
-                                                            height: '16px', 
-                                                            fontSize: '0.6rem', 
-                                                            bgcolor: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#fff8e1' : '#e3f2fd', 
-                                                            color: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#f57f17' : '#1565c0',
-                                                            border: `1px solid ${(row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#ffe082' : '#90caf9'}`,
-                                                            '& .MuiChip-label': { px: 0.6, py: 0 }
-                                                        }} 
-                                                    />
+                                                    <Chip label={row.primeira_consulta || row.tipo_visita === 'Primeira Consulta' ? '1ª Vez' : (row.tipo_visita || 'Retorno')} size="small" sx={{ height: '16px', fontSize: '0.6rem', bgcolor: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#fff8e1' : '#e3f2fd', color: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#f57f17' : '#1565c0', border: `1px solid ${(row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#ffe082' : '#90caf9'}`, '& .MuiChip-label': { px: 0.6, py: 0 } }} />
                                                 )}
                                             </Box>
                                         </TableCell>
@@ -238,38 +291,44 @@ export default function ContasReceberView() {
                                                 size="small" 
                                                 color={getStatusColor(row.status, row.data_vencimento)}
                                                 variant={row.status === 'Pago' ? 'filled' : 'outlined'}
-                                                sx={{ 
-                                                    fontWeight: 'bold', 
-                                                    height: 20, 
-                                                    fontSize: '0.65rem',
-                                                    ...(row.status === 'Renegociado' && {
-                                                        color: '#7b1fa2',
-                                                        borderColor: '#7b1fa2',
-                                                        bgcolor: 'transparent'
-                                                    })
-                                                }}
+                                                sx={{ fontWeight: 'bold', height: 20, fontSize: '0.65rem', ...(row.status === 'Renegociado' && { color: '#7b1fa2', borderColor: '#7b1fa2', bgcolor: 'transparent' }) }}
                                             />
                                         </TableCell>
                                     </TableRow>
                                 );
                             })}
-                            {!loading && lista.length === 0 && (
+                            {!loading && listaOrdenada.length === 0 && (
                                 <TableRow><TableCell colSpan={4} align="center" sx={{ py: 4, color: '#999' }}>Nenhum registro encontrado.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </TableContainer>
 
-                <Box sx={{ p: 1.5, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
-                    <Typography variant="caption" color="text.secondary">
-                        QTDE. DE SERVIÇOS: <b>{totais.qtdServicos}</b>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        PACIENTES ATENDIDOS: <b>{totais.qtdPacientes}</b>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        VALOR TOTAL: <b style={{ color: '#2e7d32', fontSize: '0.9rem' }}>{formatMoney(totais.valor)}</b>
-                    </Typography>
+                {/* --- RODAPÉ COM BOTÃO DE IMPRESSÃO --- */}
+                <Box sx={{ p: 1.5, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    
+                    <Button 
+                        variant="outlined" 
+                        size="small" 
+                        color="primary" 
+                        startIcon={<Print />}
+                        onClick={() => gerarPdfContasReceber(listaOrdenada, totais, filtroData)}
+                        sx={{ textTransform: 'none', borderRadius: 4 }}
+                    >
+                        Imprimir Relatório
+                    </Button>
+
+                    <Box sx={{ display: 'flex', gap: 4 }}>
+                        <Typography variant="caption" color="text.secondary">
+                            QTDE. DE SERVIÇOS: <b>{totais.qtdServicos}</b>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            PACIENTES ATENDIDOS: <b>{totais.qtdPacientes}</b>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            VALOR TOTAL: <b style={{ color: '#2e7d32', fontSize: '0.9rem' }}>{formatMoney(totais.valor)}</b>
+                        </Typography>
+                    </Box>
                 </Box>
             </Paper>
 
