@@ -33,7 +33,8 @@ export const gerarPDFLaudo = async ({
     pacienteId, 
     pacienteNome, 
     medicoNome, 
-    medicoCrm, 
+    medicoCrm,
+    medicoEspecialidades = [], 
     tituloExame, 
     textoLaudo, 
     dadosEstruturados, 
@@ -302,6 +303,13 @@ export const gerarPDFLaudo = async ({
         const agora = new Date();
         const dataHoraFormatada = `${agora.toLocaleDateString('pt-BR')} - ${agora.toLocaleTimeString('pt-BR')} (GMT-3)`;
 
+        let textoEspecialidades = '';
+        if (medicoEspecialidades && medicoEspecialidades.length > 0) {
+            textoEspecialidades = medicoEspecialidades
+                .map(esp => `${esp.especialidade_nome}${esp.rqe ? ` - RQE ${esp.rqe}` : ''}`)
+                .join(' | ');
+        }
+
         elementoAssinatura = {
             
             table: {
@@ -321,6 +329,8 @@ export const gerarPDFLaudo = async ({
                         stack: [
                             // Adicionado Dr(a).
                             { text: `Assinado digitalmente por Dr(a). ${nomeFormatado} - CRM ${limparCRM(medicoCrm) || 'N/A'}`, bold: true, fontSize: 9, color: '#000', margin: [0, 0, 0, 2] },
+
+                            ...(textoEspecialidades ? [{ text: textoEspecialidades, fontSize: 8, color: '#1C2E4A', bold: true, margin: [0, 0, 0, 2] }] : []),
                             
                             // Adicionado Data e Hora
                             { text: `Data e hora: ${dataHoraFormatada}`, fontSize: 8, color: '#333', margin: [0, 0, 0, 2] },

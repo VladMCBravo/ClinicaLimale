@@ -177,7 +177,8 @@ const getInitialState = (key, fallback) => {
   // Médico
   const [medicoNome, setMedicoNome] = useState(() => getInitialState('medicoNome', ''));
   const [medicoCrm, setMedicoCrm] = useState(() => getInitialState('medicoCrm', ''));
-  const [todosMedicos, setTodosMedicos] = useState([]); 
+  const [medicoEspecialidades, setMedicoEspecialidades] = useState(() => getInitialState('medicoEspecialidades', [])); // <--- ADICIONAR ESTA LINHA
+  const [todosMedicos, setTodosMedicos] = useState([]);
   const [medicosFiltrados, setMedicosFiltrados] = useState([]); 
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false);
@@ -271,6 +272,7 @@ const getInitialState = (key, fallback) => {
       const nomeCompleto = medico.first_name ? `${medico.first_name} ${medico.last_name}` : medico.username;
       setMedicoNome(nomeCompleto);
       setMedicoCrm(medico.crm || ''); 
+      setMedicoEspecialidades(medico.medico_especialidades || []);
       setMostrarListaMedicos(false);
   };
 
@@ -298,11 +300,10 @@ const getInitialState = (key, fallback) => {
     // --- CORREÇÃO DO AUTO-SAVE (sessionStorage) ---
     useEffect(() => {
         const dadosParaSalvar = {
-            laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens 
+            laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens 
         };
         const timeoutId = setTimeout(() => {
             try {
-                // MUDANÇA: Agora salva na sessão temporária
                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
             } catch (e) {
                 const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
@@ -311,7 +312,7 @@ const getInitialState = (key, fallback) => {
         }, 1000);
 
         return () => clearTimeout(timeoutId);
-    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, textoFinal, dadosEstruturados, tituloExame, imagens]);
+    }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens]);
 
   // --- 3. MANIPULADORES DO FORMULÁRIO ---
   const handleLimpar = () => {
@@ -323,6 +324,7 @@ const getInitialState = (key, fallback) => {
         setPaciente(null);
         setMedicoNome('');
         setMedicoCrm('');
+        setMedicoEspecialidades([]);
         setTextoFinal('');
         setDadosEstruturados({});
         setTituloExame('');
@@ -423,6 +425,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         const blobPdf = await gerarPDFLaudo({
             pacienteNome: paciente.nome_completo,
             medicoNome, medicoCrm, tituloExame,
+            medicoEspecialidades,
             textoLaudo: textoCorrigido, dadosEstruturados,
             imagensBase64: imagensOtimizadas,
             dataExame: dataExameSelecionada, // <--- USE O PARÂMETRO AQUI
@@ -518,7 +521,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
   const handlePrint = (usarTimbre = true) => {
       gerarPDFLaudo({
           pacienteNome: paciente?.nome_completo,
-          medicoNome, medicoCrm, tituloExame, textoLaudo: textoFinal, 
+          medicoNome, medicoCrm, tituloExame, textoLaudo: textoFinal,
+          medicoEspecialidades, 
           dadosEstruturados, imagensBase64: imagens,
           comTimbre: usarTimbre, usaAssinaturaDigital: usuarioTemCertificado 
       });
@@ -609,7 +613,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                                 setPaciente(null); 
                                 setTermoBusca(''); 
                                 setPacientesEncontrados([]); 
-                                // Limpeza profunda completa
+                                setMedicoEspecialidades([]);
                                 setLaudoId(null); 
                                 setCredenciais(null); // <-- Faltou
                                 setTextoFinal(''); 
