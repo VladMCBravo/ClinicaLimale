@@ -30,10 +30,11 @@ class MedicoEspecialidadeSerializer(serializers.ModelSerializer):
         fields = ['especialidade', 'especialidade_nome', 'rqe']
 
 class UserSerializer(serializers.ModelSerializer):
-    # 3. SUBSTITUIR O CAMPO ANTIGO PELO NOVO NESTED SERIALIZER
     medico_especialidades = MedicoEspecialidadeSerializer(many=True, required=False)
-
     jornadas = serializers.SerializerMethodField()
+    
+    # 1. O TRUQUE MÁGICO: Recriamos o campo antigo apenas como leitura
+    especialidades = serializers.SerializerMethodField()
     
     cpf = serializers.CharField(
         required=False, allow_blank=True, allow_null=True,
@@ -51,7 +52,7 @@ class UserSerializer(serializers.ModelSerializer):
             'genero', 'data_nascimento', 'telefone', 'cpf', 'email',
             'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 
             'crm', 'cargo', 'is_active', 'password', 'jornadas', 'pin_ponto',
-            'medico_especialidades' # <-- O novo campo entra aqui, os antigos (rqe, especialidades) saem
+            'medico_especialidades', 'especialidades'
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
@@ -64,6 +65,11 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.jornadas_de_trabalho.filter(ativo=True).values(
             'dia_da_semana', 'hora_inicio', 'hora_fim', 'semanas_do_mes'
         )
+    
+    def get_especialidades(self, obj):
+        # Vai no banco de dados e traz uma lista limpa: [1, 2, 5]
+        # Assim o frontend pode usar o .includes() sem quebrar nada!
+        return list(obj.especialidades.values_list('id', flat=True))
 
     def validate_crm(self, value):
         if value == "":
