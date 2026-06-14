@@ -86,19 +86,27 @@ export default function ContasReceberView() {
     }, [carregarDados]);
 
     const totais = useMemo(() => {
+        // Filtra removendo faturas renegociadas e canceladas
         const validos = lista.filter(i => i.status !== 'Renegociado' && i.status !== 'Cancelado');
         
-        // Soma financeira continua igual
+        // 1. VALOR TOTAL (Soma financeira dos serviços executados/ativos)
         const totalValor = validos.reduce((acc, item) => acc + parseFloat(item.valor || 0), 0);
         
-        // NOVA LÓGICA DE CONTAGEM:
-        // Em vez de contar as linhas agrupadas (validos.length), 
-        // nós somamos a quantidade de itens 'originais' que estão dentro de cada grupo.
-        const quantidadeReal = validos.reduce((acc, item) => {
+        // 2. QTDE. DE SERVIÇOS (Soma a quantidade real de itens dentro de cada grupo)
+        const qtdServicos = validos.reduce((acc, item) => {
             return acc + (item.originais ? item.originais.length : 1);
         }, 0);
+        
+        // 3. PACIENTES ATENDIDOS (Conta quantos pacientes únicos existem na lista)
+        const pacientesUnicos = new Set();
+        validos.forEach(item => {
+            if (item.paciente) {
+                pacientesUnicos.add(item.paciente); // O Set impede IDs duplicados
+            }
+        });
+        const qtdPacientes = pacientesUnicos.size;
 
-        return { qtd: quantidadeReal, valor: totalValor };
+        return { qtdServicos, qtdPacientes, valor: totalValor };
     }, [lista]);
 
     const handleRowClick = (item) => {
@@ -254,10 +262,13 @@ export default function ContasReceberView() {
 
                 <Box sx={{ p: 1.5, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
                     <Typography variant="caption" color="text.secondary">
-                        QUANTIDADE: <b>{totais.qtd}</b>
+                        QTDE. DE SERVIÇOS: <b>{totais.qtdServicos}</b>
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        TOTAL ATIVO: <b style={{ color: '#2e7d32', fontSize: '0.9rem' }}>{formatMoney(totais.valor)}</b>
+                        PACIENTES ATENDIDOS: <b>{totais.qtdPacientes}</b>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        VALOR TOTAL: <b style={{ color: '#2e7d32', fontSize: '0.9rem' }}>{formatMoney(totais.valor)}</b>
                     </Typography>
                 </Box>
             </Paper>
