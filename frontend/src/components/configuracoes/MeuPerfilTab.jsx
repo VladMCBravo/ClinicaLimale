@@ -1,8 +1,7 @@
-// src/components/configuracoes/MeuPerfilTab.jsx
 import React, { useState, useEffect } from 'react';
 import { 
     Box, Typography, Tabs, Tab, Grid, TextField, Button, 
-    CircularProgress, Alert, InputAdornment, IconButton, Divider 
+    CircularProgress, Alert, InputAdornment, IconButton, Divider, Chip
 } from '@mui/material';
 import { 
     Person, LocationOn, Security, Visibility, VisibilityOff, CloudUpload, CheckCircle
@@ -28,14 +27,14 @@ export default function MeuPerfilTab() {
     const [perfil, setPerfil] = useState({
         first_name: '', last_name: '', telefone: '',
         logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
-        cargo: '', crm: '', pin_ponto: '' // <--- NOVO ESTADO AQUI
+        cargo: '', crm: '', pin_ponto: '', medico_especialidades: [] 
     });
 
     const [certStatus, setCertStatus] = useState(false);
     const [certFile, setCertFile] = useState(null);
     const [certSenha, setCertSenha] = useState('');
     const [showSenha, setShowSenha] = useState(false);
-    const [showPin, setShowPin] = useState(false); // <--- CONTROLE DE VISIBILIDADE DO PIN
+    const [showPin, setShowPin] = useState(false); 
 
     useEffect(() => {
         carregarDadosPerfil();
@@ -46,7 +45,8 @@ export default function MeuPerfilTab() {
             const res = await apiClient.get('/usuarios/me/');
             setPerfil({
                 ...res.data,
-                pin_ponto: res.data.pin_ponto || '' // Garante que não venha undefined
+                pin_ponto: res.data.pin_ponto || '',
+                medico_especialidades: res.data.medico_especialidades || [] // Captura a lista do backend
             });
             setCertStatus(res.data.tem_certificado_valido); 
         } catch (error) {
@@ -94,7 +94,7 @@ export default function MeuPerfilTab() {
                 cidade: perfil.cidade, 
                 uf: perfil.uf, 
                 cep: perfil.cep,
-                pin_ponto: perfil.pin_ponto // <--- INCLUÍDO NO PAYLOAD
+                pin_ponto: perfil.pin_ponto 
             };
             await apiClient.patch('/usuarios/me/', payload);
             mostrarFeedback('Perfil atualizado com sucesso!');
@@ -169,7 +169,6 @@ export default function MeuPerfilTab() {
                         <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Cargo" value={(perfil.cargo || '').toUpperCase()} disabled /></Grid>
                         {perfil.cargo === 'medico' && <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
                         
-                        {/* --- NOVO CAMPO: PIN DO PONTO --- */}
                         <Grid item xs={12} sm={gridTamanho}>
                             <TextField 
                                 size="small" fullWidth label="PIN (Ponto Eletrônico)" name="pin_ponto" 
@@ -188,6 +187,26 @@ export default function MeuPerfilTab() {
                                 }}
                             />
                         </Grid>
+
+                        {/* --- EXIBIÇÃO DAS ESPECIALIDADES DO MÉDICO --- */}
+                        {perfil.cargo === 'medico' && perfil.medico_especialidades.length > 0 && (
+                            <Grid item xs={12}>
+                                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>Minhas Especialidades / RQEs</Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    {perfil.medico_especialidades.map((item, idx) => (
+                                        <Chip 
+                                            key={idx} 
+                                            color="primary" 
+                                            variant="outlined" 
+                                            label={`${item.especialidade_nome || 'Especialidade'} ${item.rqe ? ` - RQE: ${item.rqe}` : ''}`} 
+                                        />
+                                    ))}
+                                </Box>
+                                <Typography variant="caption" sx={{ color: 'text.disabled', mt: 0.5, display: 'block' }}>
+                                    *A alteração de especialidades é gerida pela administração.
+                                </Typography>
+                            </Grid>
+                        )}
                     </Grid>
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                         <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Alterações'}</Button>
@@ -196,6 +215,7 @@ export default function MeuPerfilTab() {
             </TabPanel>
 
             <TabPanel value={tab} index={1}>
+                {/* O restante das tabs permanece igual... */}
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
                         <Grid item xs={12} sm={3}><TextField size="small" fullWidth label="CEP" name="cep" value={perfil.cep || ''} onChange={handleChange} onBlur={buscarCep} /></Grid>

@@ -1,23 +1,21 @@
-// 1. IMPORTAR OS COMPONENTES DE MÁSCARA E MAIS DO MUI
-import React, { useState, useEffect, useCallback } from 'react'; // Adicionar useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, TextField,
     Button, CircularProgress, Box, FormControl, InputLabel, Select,
-    MenuItem, FormControlLabel, Switch, OutlinedInput, Chip, 
-    Typography, Grid, InputAdornment // Adicionar InputAdornment
+    MenuItem, FormControlLabel, Switch, Chip, Typography, Grid, 
+    InputAdornment, IconButton, List, ListItem, ListItemText
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { configuracoesService } from '../../services/configuracoesService';
-// Importar as máscaras
 import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from '../common/MaskedInput';
 
-// 2. initialState (COMPLETO)
 const initialState = {
     username: '', password: '', first_name: '', last_name: '',
     cargo: 'recepcao', is_active: true,
     genero: '', data_nascimento: '', telefone: '', cpf: '', email: '',
-    crm: '', rqe: '',
+    crm: '', 
     logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
     pin_ponto: '',
 };
@@ -27,12 +25,13 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
     const [formData, setFormData] = useState(initialState);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [especialidadesDisponiveis, setEspecialidadesDisponiveis] = useState([]);
-    const [selectedEspecialidades, setSelectedEspecialidades] = useState([]);
     const [isCepLoading, setIsCepLoading] = useState(false);
 
-    // ==================================================================
-    // === A CORREÇÃO ESTÁ AQUI ===
-    // Este useEffect busca a lista de especialidades
+    // --- NOVOS ESTADOS PARA ESPECIALIDADES COM RQE ---
+    const [medicoEspecialidades, setMedicoEspecialidades] = useState([]);
+    const [novaEsp, setNovaEsp] = useState('');
+    const [novoRqe, setNovoRqe] = useState('');
+
     useEffect(() => {
         if (open) {
             configuracoesService.getEspecialidades()
@@ -40,9 +39,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 .catch(() => showSnackbar('Erro ao carregar especialidades.', 'error'));
         }
     }, [open, showSnackbar]);
-    // ==================================================================
 
-    // 3. useEffect (COMPLETO)
     useEffect(() => {
         if (open && usuarioParaEditar) {
             setFormData({
@@ -57,7 +54,6 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 cpf: usuarioParaEditar.cpf || '',
                 email: usuarioParaEditar.email || '',
                 crm: usuarioParaEditar.crm || '',
-                rqe: usuarioParaEditar.rqe || '',
                 logradouro: usuarioParaEditar.logradouro || '',
                 numero: usuarioParaEditar.numero || '',
                 complemento: usuarioParaEditar.complemento || '',
@@ -65,66 +61,58 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 cidade: usuarioParaEditar.cidade || '',
                 uf: usuarioParaEditar.uf || '',
                 cep: usuarioParaEditar.cep || '',
-                pin_ponto: usuarioParaEditar.pin_ponto || '', // <--- ADICIONE AQUI
-                password: '', // Senha fica vazia
+                pin_ponto: usuarioParaEditar.pin_ponto || '',
+                password: '', 
             });
-            setSelectedEspecialidades(usuarioParaEditar.especialidades || []);
+            // Carrega a nova estrutura de relacionamento do backend
+            setMedicoEspecialidades(usuarioParaEditar.medico_especialidades || []);
         } else {
             setFormData(initialState);
-            setSelectedEspecialidades([]);
+            setMedicoEspecialidades([]);
         }
     }, [usuarioParaEditar, open]);
 
     const handleClose = () => {
+        setNovaEsp('');
+        setNovoRqe('');
         onClose();
     };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevState => ({ ...prevState, [name]: value }));
-    };
-    
-    const handleEspecialidadesChange = (event) => {
-        const { target: { value } } = event;
-        setSelectedEspecialidades(typeof value === 'string' ? value.split(',') : value);
+    const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleSwitchChange = (e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }));
+    const handleMaskedChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+    // --- FUNÇÕES DE MANIPULAÇÃO DA LISTA DE ESPECIALIDADES ---
+    const handleAddEspecialidade = () => {
+        if (!novaEsp) return;
+        // Evita duplicar a mesma especialidade
+        if (medicoEspecialidades.find(item => item.especialidade === novaEsp)) {
+            return showSnackbar('Especialidade já adicionada!', 'warning');
+        }
+        
+        setMedicoEspecialidades(prev => [...prev, { especialidade: novaEsp, rqe: novoRqe }]);
+        setNovaEsp('');
+        setNovoRqe('');
     };
 
-    const handleSwitchChange = (e) => {
-        setFormData(prevState => ({ ...prevState, is_active: e.target.checked }));
+    const handleRemoveEspecialidade = (index) => {
+        setMedicoEspecialidades(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleMaskedChange = (event) => {
-        const { name, value } = event.target;
-        setFormData(prevState => ({ ...prevState, [name]: value }));
-    };
-
-    // --- NOVO: FUNÇÃO DE BUSCA DO VIACEP ---
     const handleCepBlur = useCallback(async () => {
-        const cep = formData.cep?.replace(/[^0-9]/g, ''); // Limpa a máscara
-
+        const cep = formData.cep?.replace(/[^0-9]/g, '');
         if (cep && cep.length === 8) {
             setIsCepLoading(true);
             try {
                 const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
                 if (!response.ok) throw new Error('CEP não encontrado');
-                
                 const data = await response.json();
-                
-                if (data.erro) {
-                    throw new Error('CEP não localizado');
-                }
-
-                // Preenche o formulário com os dados
+                if (data.erro) throw new Error('CEP não localizado');
                 setFormData(prev => ({
-                    ...prev,
-                    logradouro: data.logradouro,
-                    bairro: data.bairro,
-                    cidade: data.localidade,
-                    uf: data.uf,
-                    complemento: data.complemento,
+                    ...prev, logradouro: data.logradouro, bairro: data.bairro,
+                    cidade: data.localidade, uf: data.uf, complemento: data.complemento,
                 }));
                 showSnackbar('Endereço preenchido!', 'success');
-
             } catch (error) {
                 showSnackbar(error.message || 'Erro ao buscar CEP.', 'error');
             } finally {
@@ -132,20 +120,17 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
             }
         }
     }, [formData.cep, showSnackbar]);
-    // --- FIM DA FUNÇÃO VIACEP ---
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         
+        // Agora enviamos a lista de objetos no padrão que o Django vai entender
         const dataToSend = {
             ...formData,
-            especialidades: selectedEspecialidades,
+            medico_especialidades: medicoEspecialidades, 
         };
-        
-        if (!dataToSend.password) {
-            delete dataToSend.password;
-        }
+        if (!dataToSend.password) delete dataToSend.password;
 
         try {
             if (usuarioParaEditar) {
@@ -188,36 +173,15 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <TextField name="cpf" label="CPF" value={formData.cpf || ''} onChange={handleMaskedChange} fullWidth
-                                    InputProps={{ inputComponent: TextMaskCPF }}
-                                />
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                                <TextField name="telefone" label="Telefone / Celular" value={formData.telefone || ''} onChange={handleMaskedChange} fullWidth
-                                    InputProps={{ inputComponent: TextMaskTelefone }}
-                                />
-                            </Grid>
+                            <Grid item xs={12} sm={6}><TextField name="cpf" label="CPF" value={formData.cpf || ''} onChange={handleMaskedChange} fullWidth InputProps={{ inputComponent: TextMaskCPF }} /></Grid>
+                            <Grid item xs={12} sm={6}><TextField name="telefone" label="Telefone / Celular" value={formData.telefone || ''} onChange={handleMaskedChange} fullWidth InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
                         </Grid>
 
                         <Typography variant="h6" sx={{ color: 'text.secondary', mt: 2 }}>Endereço</Typography>
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={4}>
-                                <TextField 
-                                    name="cep" 
-                                    label="CEP" 
-                                    value={formData.cep || ''} 
-                                    onChange={handleMaskedChange}
-                                    onBlur={handleCepBlur}
-                                    fullWidth
-                                    InputProps={{ 
-                                        inputComponent: TextMaskCEP,
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                {isCepLoading && <CircularProgress size={20} />}
-                                            </InputAdornment>
-                                        )
-                                    }}
+                                <TextField name="cep" label="CEP" value={formData.cep || ''} onChange={handleMaskedChange} onBlur={handleCepBlur} fullWidth
+                                    InputProps={{ inputComponent: TextMaskCEP, endAdornment: (<InputAdornment position="end">{isCepLoading && <CircularProgress size={20} />}</InputAdornment>)}}
                                 />
                             </Grid>
                             <Grid item xs={12} sm={8}><TextField name="logradouro" label="Logradouro" value={formData.logradouro || ''} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} /></Grid>
@@ -244,55 +208,65 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            {/* --- NOVO CAMPO DE PIN AQUI --- */}
                             <Grid item xs={12} sm={6}>
-                                <TextField 
-                                    name="pin_ponto" 
-                                    label="PIN do Ponto Eletrônico" 
-                                    type="password"
-                                    value={formData.pin_ponto || ''} 
-                                    onChange={handleChange} 
-                                    fullWidth 
-                                    inputProps={{ maxLength: 6 }}
-                                    placeholder="Senha numérica (4 a 6 dígitos)"
-                                    helperText="Usado apenas para bater o ponto no totem/sistema"
-                                />
+                                <TextField name="pin_ponto" label="PIN do Ponto Eletrônico" type="password" value={formData.pin_ponto || ''} onChange={handleChange} fullWidth inputProps={{ maxLength: 6 }} placeholder="Senha numérica (4 a 6 dígitos)" />
                             </Grid>
                         </Grid>
                         
-                        {/* Campos de Médico */}
+                        {/* NOVO LAYOUT PARA DADOS MÉDICOS E RQE */}
                         {formData.cargo === 'medico' && (
                             <Box sx={{ mt: 2 }}>
                                 <Typography variant="h6" sx={{ color: 'text.secondary' }}>Dados Médicos</Typography>
-                                <Grid container spacing={2} sx={{ pt: 2 }}>
-                                    <Grid item xs={12} sm={6}><TextField name="crm" label="CRM" value={formData.crm || ''} onChange={handleChange} fullWidth /></Grid>
-                                    <Grid item xs={12} sm={6}><TextField name="rqe" label="RQE" value={formData.rqe || ''} onChange={handleChange} fullWidth /></Grid>
+                                <Grid container spacing={2} sx={{ pt: 1 }}>
+                                    <Grid item xs={12} sm={4}>
+                                        <TextField name="crm" label="CRM" value={formData.crm || ''} onChange={handleChange} fullWidth />
+                                    </Grid>
                                     
-                                    {/* ======================================================= */}
-                                    {/* O "Grid item" aqui garante que o campo não "esmague" */}
-                                    <Grid item xs={12}>
-                                    {/* ======================================================= */}
-                                        <FormControl fullWidth>
-                                            <InputLabel>Especialidades</InputLabel>
-                                            <Select multiple value={selectedEspecialidades} onChange={handleEspecialidadesChange}
-                                                input={<OutlinedInput label="Especialidades" />}
-                                                renderValue={(selected) => (
-                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                        {selected.map((id) => {
-                                                            // Agora 'find' vai funcionar
-                                                            const esp = especialidadesDisponiveis.find(e => e.id === id);
-                                                            return <Chip key={id} label={esp ? esp.nome : `ID ${id}`} />;
-                                                        })}
-                                                    </Box>
-                                                )}>
-                                                {/* E o .map aqui também vai funcionar */}
-                                                {especialidadesDisponiveis.map((especialidade) => (
-                                                    <MenuItem key={especialidade.id} value={especialidade.id}>
-                                                        {especialidade.nome}
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                        </FormControl>
+                                    <Grid item xs={12} sm={8}>
+                                        <Box sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, bgcolor: '#fbfbfb' }}>
+                                            <Typography variant="subtitle2" sx={{ mb: 2 }}>Gerenciar Especialidades e RQEs</Typography>
+                                            
+                                            <Grid container spacing={1} alignItems="center">
+                                                <Grid item xs={12} sm={6}>
+                                                    <FormControl fullWidth size="small">
+                                                        <InputLabel>Especialidade</InputLabel>
+                                                        <Select value={novaEsp} label="Especialidade" onChange={(e) => setNovaEsp(e.target.value)}>
+                                                            {especialidadesDisponiveis.map(esp => (
+                                                                <MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                </Grid>
+                                                <Grid item xs={12} sm={4}>
+                                                    <TextField size="small" fullWidth label="RQE (Opcional)" value={novoRqe} onChange={(e) => setNovoRqe(e.target.value)} />
+                                                </Grid>
+                                                <Grid item xs={12} sm={2}>
+                                                    <Button variant="contained" fullWidth onClick={handleAddEspecialidade} disabled={!novaEsp}>
+                                                        Add
+                                                    </Button>
+                                                </Grid>
+                                            </Grid>
+
+                                            {medicoEspecialidades.length > 0 && (
+                                                <List dense sx={{ mt: 2, bgcolor: '#fff', border: '1px solid #eee', borderRadius: 1 }}>
+                                                    {medicoEspecialidades.map((item, index) => {
+                                                        const espNome = especialidadesDisponiveis.find(e => e.id === item.especialidade)?.nome || 'Desconhecida';
+                                                        return (
+                                                            <ListItem key={index} divider sx={{ pr: 0 }}>
+                                                                <ListItemText 
+                                                                    primary={espNome} 
+                                                                    secondary={item.rqe ? `RQE: ${item.rqe}` : 'Sem RQE'} 
+                                                                    primaryTypographyProps={{ fontWeight: 'bold' }}
+                                                                />
+                                                                <IconButton edge="end" color="error" onClick={() => handleRemoveEspecialidade(index)} sx={{ mr: 1 }}>
+                                                                    <DeleteIcon />
+                                                                </IconButton>
+                                                            </ListItem>
+                                                        );
+                                                    })}
+                                                </List>
+                                            )}
+                                        </Box>
                                     </Grid>
                                 </Grid>
                             </Box>
@@ -304,7 +278,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 <DialogActions>
                     <Button onClick={handleClose}>Cancelar</Button>
                     <Button type="submit" variant="contained" disabled={isSubmitting || isCepLoading}>
-                        {(isSubmitting || isCepLoading) ? <CircularProgress size={24} /> : 'Salvar'}
+                        {(isSubmitting || isCepLoading) ? <CircularProgress size={24} /> : 'Salvar Usuário'}
                     </Button>
                 </DialogActions>
             </form>

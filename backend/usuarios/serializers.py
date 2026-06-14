@@ -1,10 +1,10 @@
 # backend/usuarios/serializers.py - VERSÃO COMPLETA E CORRIGIDA
 
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator # <-- 1. IMPORTE O VALIDATOR
-from .models import CustomUser, Especialidade, JornadaDeTrabalho, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica
+from rest_framework.validators import UniqueValidator
+# 1. IMPORTAR A NOVA CLASSE MedicoEspecialidade
+from .models import CustomUser, Especialidade, JornadaDeTrabalho, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica, MedicoEspecialidade
 
-# 1º A CLASSE DO VALOR VEM PRIMEIRO:
 class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
     plano_convenio_id = serializers.IntegerField(source='plano_convenio.id', read_only=True)
     plano_nome = serializers.CharField(source='plano_convenio.nome', read_only=True)
@@ -14,7 +14,6 @@ class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
         model = ValorEspecialidadeConvenio
         fields = ['id', 'plano_convenio_id', 'plano_nome', 'convenio_nome', 'valor']
 
-# 2º A CLASSE DA ESPECIALIDADE VEM DEPOIS:
 class EspecialidadeSerializer(serializers.ModelSerializer):
     valores_convenio = ValorEspecialidadeConvenioSerializer(many=True, read_only=True)
 
@@ -22,15 +21,18 @@ class EspecialidadeSerializer(serializers.ModelSerializer):
         model = Especialidade
         fields = ['id', 'nome', 'valor_consulta', 'valores_convenio']
 
-class UserSerializer(serializers.ModelSerializer):
-    especialidades_detalhes = EspecialidadeSerializer(source='especialidades', many=True, read_only=True)
-    especialidades = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Especialidade.objects.all(),
-        required=False
-    )
+# 2. CRIAR O NOVO SERIALIZER DA TABELA INTERMEDIÁRIA
+class MedicoEspecialidadeSerializer(serializers.ModelSerializer):
+    especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True)
 
-    # <--- 1. ADICIONE ESTE NOVO CAMPO --->
+    class Meta:
+        model = MedicoEspecialidade
+        fields = ['especialidade', 'especialidade_nome', 'rqe']
+
+class UserSerializer(serializers.ModelSerializer):
+    # 3. SUBSTITUIR O CAMPO ANTIGO PELO NOVO NESTED SERIALIZER
+    medico_especialidades = MedicoEspecialidadeSerializer(many=True, required=False)
+
     jornadas = serializers.SerializerMethodField()
     
     cpf = serializers.CharField(
@@ -41,9 +43,6 @@ class UserSerializer(serializers.ModelSerializer):
         required=False, allow_blank=True, allow_null=True,
         validators=[UniqueValidator(queryset=CustomUser.objects.all(), message="Já existe um usuário com este CRM.")]
     )
-    
-    # O validador de 'username' já é automático
-
 
     class Meta:
         model = CustomUser
@@ -51,24 +50,17 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'first_name', 'last_name', 
             'genero', 'data_nascimento', 'telefone', 'cpf', 'email',
             'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 
-            'crm', 'rqe', 
-            'cargo', 'is_active', 'especialidades', 'especialidades_detalhes', 'password', 'jornadas',
-            'pin_ponto'
+            'crm', 'cargo', 'is_active', 'password', 'jornadas', 'pin_ponto',
+            'medico_especialidades' # <-- O novo campo entra aqui, os antigos (rqe, especialidades) saem
         ]
         extra_kwargs = {'password': {'write_only': True, 'required': False}}
-
-    # --- 3. ADICIONE ESTES MÉTODOS DE VALIDAÇÃO ---
-    # Isso converte strings vazias "" em None (NULL), permitindo
-    # que vários usuários tenham o campo em branco sem violar a regra "unique".
 
     def validate_cpf(self, value):
         if value == "":
             return None
         return value
     
-    # <--- 3. ADICIONE ESTA FUNÇÃO DENTRO DA CLASSE (Logo após os validate_cpf) --->
     def get_jornadas(self, obj):
-        # Retorna apenas os dados essenciais das jornadas ativas deste médico
         return obj.jornadas_de_trabalho.filter(ativo=True).values(
             'dia_da_semana', 'hora_inicio', 'hora_fim', 'semanas_do_mes'
         )
@@ -77,47 +69,53 @@ class UserSerializer(serializers.ModelSerializer):
         if value == "":
             return None
         return value
-    
-    # --- FIM DA CORREÇÃO ---
 
     def create(self, validated_data):
-        especialidades_data = validated_data.pop('especialidades', [])
+        # 4. CAPTURAR OS DADOS DO NOVO CAMPO
+        medico_especialidades_data = validated_data.pop('medico_especialidades', [])
         password = validated_data.pop('password', None)
+        
         user = CustomUser.objects.create_user(**validated_data)
+        
         if password:
             user.set_password(password)
             user.save()
-        if especialidades_data:
-            user.especialidades.set(especialidades_data)
+            
+        # 5. SALVAR CADA ESPECIALIDADE E RQE NO BANCO
+        for esp_data in medico_especialidades_data:
+            MedicoEspecialidade.objects.create(medico=user, **esp_data)
+            
         return user
 
     def update(self, instance, validated_data):
+        # 4. CAPTURAR OS DADOS DO NOVO CAMPO
+        medico_especialidades_data = validated_data.pop('medico_especialidades', None)
         password = validated_data.pop('password', None)
+        
         if password:
             instance.set_password(password)
-        if 'especialidades' in validated_data:
-            especialidades_data = validated_data.pop('especialidades')
-            instance.especialidades.set(especialidades_data)
         
-        # --- 4. ATUALIZE A LÓGICA DE UPDATE ---
-        # Isso garante que a conversão de "" para None funcione também na edição (PATCH)
-        
-        # Converte "" para None ANTES de passar para o super().update
         if 'cpf' in validated_data and validated_data['cpf'] == "":
             validated_data['cpf'] = None
         if 'crm' in validated_data and validated_data['crm'] == "":
             validated_data['crm'] = None
             
-        return super().update(instance, validated_data)
+        user = super().update(instance, validated_data)
 
-# --- ADICIONE ESTE NOVO SERIALIZER ---
+        # 5. ATUALIZAR ESPECIALIDADES E RQEs
+        if medico_especialidades_data is not None:
+            # Limpa as antigas para evitar duplicação ou manter removidas
+            instance.medico_especialidades.all().delete()
+            # Cria as novas com os RQEs atualizados
+            for esp_data in medico_especialidades_data:
+                MedicoEspecialidade.objects.create(medico=user, **esp_data)
+
+        return user
+
 class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
-    # Para leitura (quando listamos), mostra o nome do médico
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True)
-    # Para leitura (quando listamos), mostra o nome do dia
     dia_da_semana_display = serializers.CharField(source='get_dia_da_semana_display', read_only=True)
 
-    # Para escrita (quando criamos/editamos), usa o ID
     medico = serializers.PrimaryKeyRelatedField(
         queryset=CustomUser.objects.filter(cargo='medico')
     )
@@ -132,21 +130,18 @@ class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
         read_only_fields = ['medico_nome', 'dia_da_semana_display']
 
 class UserMeUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer estrito para o próprio usuário atualizar seu perfil.
-    Bloqueia intencionalmente campos sensíveis como cargo, cpf, crm, is_active.
-    """
+    # Adicionamos como leitura apenas para garantir que o médico veja suas especialidades
+    medico_especialidades = MedicoEspecialidadeSerializer(many=True, read_only=True)
+    
     class Meta:
         model = CustomUser
         fields = [
             'first_name', 'last_name', 'genero', 'data_nascimento', 
             'telefone', 'logradouro', 'numero', 'complemento', 
-            'bairro', 'cidade', 'uf', 'cep'
+            'bairro', 'cidade', 'uf', 'cep', 'medico_especialidades'
         ]
-        # NENHUM campo de permissão, cargo ou documento oficial é incluído aqui.
 
 class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
-    # Campos virtuais para não precisarmos importar o serializer de faturamento (evita erro de import circular)
     plano_convenio_id = serializers.IntegerField(source='plano_convenio.id', read_only=True)
     plano_nome = serializers.CharField(source='plano_convenio.nome', read_only=True)
     convenio_nome = serializers.CharField(source='plano_convenio.convenio.nome', read_only=True)
