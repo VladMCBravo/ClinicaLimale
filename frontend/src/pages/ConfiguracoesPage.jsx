@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 
 // Imports dos seus componentes
-import MeuPerfilTab from '../components/configuracoes/MeuPerfilTab'; // <-- NOSSO NOVO COMPONENTE
+import MeuPerfilTab from '../components/configuracoes/MeuPerfilTab';
 import UsuariosTab from '../components/configuracoes/UsuariosTab';
 import JornadasTab from '../components/configuracoes/JornadasTab';
 import CategoriasTab from '../components/configuracoes/CategoriasTab';
@@ -19,14 +19,29 @@ import ProcedimentosView from '../components/financeiro/ProcedimentosView';
 import EspecialidadesPage from './EspecialidadesPage'; 
 import ConveniosTab from '../components/configuracoes/ConveniosTab';
 import SalasTab from '../components/configuracoes/SalasTab';
-import DadosClinicaTab from '../components/configuracoes/DadosClinicaTab'; // <--- NOVO COMPONENTE ADICIONADO AQUI
+import DadosClinicaTab from '../components/configuracoes/DadosClinicaTab';
 import RelatorioPontoTab from '../components/configuracoes/RelatorioPontoTab';
 
-// ... (Mantenha as funções TabPanel e SubTabs originais que você já tinha no arquivo)
+// TabPanel refatorado para ocupar o espaço total da tela e delegar o scroll
 function TabPanel({ children, value, index, ...other }) {
     return (
-        <div role="tabpanel" hidden={value !== index} {...other} style={{ width: '100%' }}>
-            {value === index && <Box sx={{ py: 2 }}>{children}</Box>}
+        <div 
+            role="tabpanel" 
+            hidden={value !== index} 
+            {...other} 
+            style={{ 
+                width: '100%', 
+                height: '100%', 
+                display: value === index ? 'flex' : 'none',
+                flexDirection: 'column',
+                overflow: 'hidden' // Esconde o scroll no nível superior
+            }}
+        >
+            {value === index && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden', p: 1 }}>
+                    {children}
+                </Box>
+            )}
         </div>
     );
 }
@@ -34,7 +49,7 @@ function TabPanel({ children, value, index, ...other }) {
 function SubTabs({ value, onChange, tabs }) {
     const theme = useTheme();
     return (
-        <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, p: 0.5, display: 'inline-flex', bgcolor: '#f8f9fa', mb: 2 }}>
+        <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, p: 0.5, display: 'inline-flex', bgcolor: '#f8f9fa', mb: 1, flexShrink: 0 }}>
             <Tabs 
                 value={value} onChange={onChange}
                 sx={{ 
@@ -54,49 +69,42 @@ export default function ConfiguracoesPage() {
     const [mainTab, setMainTab] = useState(0);
     const [equipeTab, setEquipeTab] = useState(0);
     const [servicosTab, setServicosTab] = useState(0);
-
-    // Lógica para pegar o cargo do usuário (Ajuste para como você salva no seu app)
-    // Pode ser do localStorage, de um Context, etc. Assumindo que você grava no localStorage ao logar:
     const { user } = useAuth(); 
-    const isAdmin = user?.isAdmin || false; // Puxa a propriedade isAdmin que você já tem no seu sistema
+    const isAdmin = user?.isAdmin || false;
 
-    // Se o usuário tentar acessar uma aba que não tem permissão via mudança de estado, resetamos
     useEffect(() => {
         if (!isAdmin && mainTab !== 0) {
             setMainTab(0);
         }
     }, [isAdmin, mainTab]);
 
-    // Substitua o bloco do return principal:
-return (
-    <Container maxWidth="xl" sx={{ mt: 1, mb: 1, height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ mb: 1.5 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a233b', fontSize: '1.3rem' }}>
-                Configurações
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-                {isAdmin ? "Gestão unificada do sistema e do seu perfil." : "Gerencie suas informações pessoais."}
-            </Typography>
-        </Box>
-        
-        <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff' }}>
-                <Tabs value={mainTab} onChange={(e, v) => setMainTab(v)} textColor="primary" indicatorColor="primary">
-                    <Tab icon={<AccountCircle sx={{ fontSize: 20 }}/>} iconPosition="start" label="Meu Perfil" />
-                    {isAdmin && <Tab icon={<People sx={{ fontSize: 20 }}/>} iconPosition="start" label="Equipe" />}
-                    {isAdmin && <Tab icon={<Business sx={{ fontSize: 20 }}/>} iconPosition="start" label="Clínica" />}
-                    {isAdmin && <Tab icon={<AttachMoney sx={{ fontSize: 20 }}/>} iconPosition="start" label="Financeiro" />}
-                </Tabs>
-            </Box>
-                {/* === ABA 0: MEU PERFIL (Visível para todos) === */}
-            <Box sx={{ p: 1.5, flexGrow: 1, overflowY: 'auto', bgcolor: '#fafafa' }}>
-                {/* O conteúdo das abas agora rola apenas dentro deste Box, mantendo o rodapé fixo no lugar */}
-                <TabPanel value={mainTab} index={0}>
-                    <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
-                        <MeuPerfilTab />
-                    </Paper>
-                </TabPanel>
-                     
+    return (
+        // Ajuste no height caso você tenha uma navbar fixa no topo. (Ex: 80px)
+        <Container maxWidth="xl" sx={{ pt: 1, pb: 1, height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            
+            <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                
+                {/* Abas Principais Fixas */}
+                <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff', flexShrink: 0 }}>
+                    <Tabs value={mainTab} onChange={(e, v) => setMainTab(v)} textColor="primary" indicatorColor="primary">
+                        <Tab icon={<AccountCircle sx={{ fontSize: 20 }}/>} iconPosition="start" label="Meu Perfil" />
+                        {isAdmin && <Tab icon={<People sx={{ fontSize: 20 }}/>} iconPosition="start" label="Equipe" />}
+                        {isAdmin && <Tab icon={<Business sx={{ fontSize: 20 }}/>} iconPosition="start" label="Clínica" />}
+                        {isAdmin && <Tab icon={<AttachMoney sx={{ fontSize: 20 }}/>} iconPosition="start" label="Financeiro" />}
+                    </Tabs>
+                </Box>
+
+                {/* Área de Conteúdo */}
+                <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', bgcolor: '#fafafa' }}>
+                    
+                    {/* === ABA 0: MEU PERFIL === */}
+                    <TabPanel value={mainTab} index={0}>
+                        {/* O overflowY: 'auto' fica aqui na casca que envolve o componente */}
+                        <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white', flexGrow: 1, overflowY: 'auto' }}>
+                            <MeuPerfilTab />
+                        </Paper>
+                    </TabPanel>
+                         
                     {/* === ABAS DO ADMIN === */}
                     {isAdmin && (
                         <>
@@ -107,30 +115,29 @@ return (
                                     tabs={[ 
                                         { label: 'Usuários', icon: <Badge /> }, 
                                         { label: 'Jornadas', icon: <AccessTime /> },
-                                        { label: 'Relatório de Ponto', icon: <Fingerprint /> } // <--- NOVA ABA AQUI
+                                        { label: 'Relatório de Ponto', icon: <Fingerprint /> }
                                     ]}
                                 />
-                                <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
+                                <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white', flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                                     {equipeTab === 0 && <UsuariosTab />}
                                     {equipeTab === 1 && <JornadasTab />}
-                                    {equipeTab === 2 && <RelatorioPontoTab />} {/* <--- RENDERIZAÇÃO DO COMPONENTE */}
+                                    {equipeTab === 2 && <RelatorioPontoTab />}
                                 </Paper>
                             </TabPanel>
 
-                            {/* ABA 2: CLÍNICA (ATUALIZADA) */}
+                            {/* ABA 2: CLÍNICA */}
                             <TabPanel value={mainTab} index={2}>
                                 <SubTabs 
                                     value={servicosTab} onChange={(e, v) => setServicosTab(v)}
                                     tabs={[ 
-                                        { label: 'Dados da Clínica', icon: <Map /> }, // <--- ABA NOVA NA POSIÇÃO 0
+                                        { label: 'Dados da Clínica', icon: <Map /> },
                                         { label: 'Procedimentos', icon: <ListAlt /> }, 
                                         { label: 'Especialidades', icon: <LocalHospital /> }, 
                                         { label: 'Convênios', icon: <CardMembership /> }, 
                                         { label: 'Salas', icon: <MeetingRoom /> } 
                                     ]}
                                 />
-                                <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
-                                    {/* OS ÍNDICES FORAM AJUSTADOS PARA ACOMODAR A NOVA ABA */}
+                                <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white', flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                                     {servicosTab === 0 && <DadosClinicaTab />}
                                     {servicosTab === 1 && <ProcedimentosView />}
                                     {servicosTab === 2 && <EspecialidadesPage />}
@@ -141,10 +148,13 @@ return (
 
                             {/* ABA 3: FINANCEIRO */}
                             <TabPanel value={mainTab} index={3}>
-                                <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
-                                    <Typography variant="subtitle1" sx={{mb: 1, fontWeight: 'bold'}}>Categorias Financeiras</Typography>
-                                    <Divider sx={{mb: 2}} />
-                                    <CategoriasTab />
+                                <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white', flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                    <Typography variant="subtitle1" sx={{mb: 1, fontWeight: 'bold', flexShrink: 0}}>Categorias Financeiras</Typography>
+                                    <Divider sx={{mb: 2, flexShrink: 0}} />
+                                    {/* Isolando a rolagem apenas no conteúdo financeiro */}
+                                    <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                                        <CategoriasTab />
+                                    </Box>
                                 </Paper>
                             </TabPanel>
                         </>
