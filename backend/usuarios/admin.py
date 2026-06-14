@@ -3,23 +3,33 @@
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico
+from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, MedicoEspecialidade
 
 # 2. Registre o modelo Especialidade para que ele apareça no admin
 admin.site.register(Especialidade)
 
+# Cria a grelha para editar Especialidades e RQEs dentro do Médico
+class MedicoEspecialidadeInline(admin.TabularInline):
+    model = MedicoEspecialidade
+    extra = 1
+
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     
-    # Adicionamos 'especialidades' para aparecer na tela de edição do usuário
+    # 1. REMOVEMOS 'especialidades' DAQUI
     fieldsets = UserAdmin.fieldsets + (
-        ('Informações Adicionais', {'fields': ('cargo', 'especialidades')}), # 3. Adicione o campo aqui
+        ('Informações Adicionais', {'fields': ('cargo', 'crm', 'pin_ponto')}), # Aproveitei para colocar o crm e pin_ponto que estavam de fora!
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (None, {'fields': ('cargo',)}),
+        (None, {'fields': ('cargo', 'crm')}),
     )
-    # 4. (Opcional, mas recomendado) Melhora a interface para campos ManyToMany
-    filter_horizontal = ('especialidades', 'groups', 'user_permissions',)
+    
+    # 2. REMOVEMOS 'especialidades' DAQUI TAMBÉM
+    filter_horizontal = ('groups', 'user_permissions',)
+
+    # 3. ADICIONAMOS O INLINE AQUI! 
+    # É isso que vai fazer a grelha de Especialidade + RQE aparecer no final da página
+    inlines = [MedicoEspecialidadeInline]
 
 # --- 2. FORMULÁRIO ESPECIAL PARA O CERTIFICADO ---
 # (Isso é necessário para CRIPTOGRAFAR a senha ao salvar pelo Admin)

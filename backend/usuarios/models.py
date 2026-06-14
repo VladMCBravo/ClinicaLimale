@@ -64,6 +64,25 @@ class CertificadoMedico(models.Model):
         return f"Certificado de {self.medico.username}"
 
 
+# 1. ADICIONE ESTA NOVA CLASSE (A "Ponte" entre Médico e Especialidade)
+class MedicoEspecialidade(models.Model):
+    medico = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='medico_especialidades' # Importante para buscarmos depois
+    )
+    especialidade = models.ForeignKey(Especialidade, on_delete=models.CASCADE)
+    rqe = models.CharField(max_length=20, blank=True, null=True, verbose_name="RQE")
+
+    class Meta:
+        unique_together = ('medico', 'especialidade') # Evita que o médico tenha a mesma especialidade duas vezes
+        verbose_name = "Especialidade do Profissional"
+        verbose_name_plural = "Especialidades do Profissional"
+
+    def __str__(self):
+        return f"{self.especialidade.nome} (RQE: {self.rqe})"
+
+# 2. ATUALIZE A SUA CLASSE CustomUser
 class CustomUser(AbstractUser):
     GENERO_CHOICES = [
         ('M', 'Masculino'),
@@ -113,9 +132,7 @@ class CustomUser(AbstractUser):
     ]
     cargo = models.CharField(max_length=10, choices=CARGO_CHOICES, default='recepcao')
     crm = models.CharField(max_length=20, blank=True, null=True, unique=True, verbose_name="CRM")
-    # NOVO: RQE (Registro de Qualificação de Especialista)
-    rqe = models.CharField(max_length=20, blank=True, null=True, verbose_name="RQE")
-
+    
     # --- NOVOS: CAMPOS DE ENDEREÇO ---
     logradouro = models.CharField(max_length=255, blank=True, null=True)
     numero = models.CharField(max_length=20, blank=True, null=True)
@@ -126,17 +143,32 @@ class CustomUser(AbstractUser):
     cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
     # --- FIM DO ENDEREÇO ---
     
-    # Esta relação ManyToMany que você já tinha é a forma correta e poderosa.
-    # Um médico pode ter múltiplas especialidades.
+    # ✅ ATUALIZE O CAMPO ESPECIALIDADES (Adicionando o 'through')
     especialidades = models.ManyToManyField(
         Especialidade, 
+        through='MedicoEspecialidade', # Diz ao Django para usar a nossa nova classe
         blank=True, 
         verbose_name="Especialidades do Profissional"
     )
-    
-    # <<-- ADICIONE ESTE MÉTODO AQUI -->>
+
+    # ✅ ADICIONE ESTA FUNÇÃO NO FINAL DO CustomUser
+    # Ela vai gerar o texto formatado lindamente para os PDFs!
+    def get_texto_especialidades_rqe(self):
+        relacoes = self.medico_especialidades.all().select_related('especialidade')
+        if not relacoes.exists():
+            return ""
+        
+        lista_formatada = []
+        for rel in relacoes:
+            texto = rel.especialidade.nome
+            if rel.rqe:
+                texto += f" - RQE {rel.rqe}"
+            lista_formatada.append(texto)
+        
+        # Junta todas as especialidades com " | " (Ex: Cardiologia - RQE 123 | Clínica Médica)
+        return " | ".join(lista_formatada)
+
     def __str__(self):
-        # Tenta usar o nome completo; se não houver, usa o username.
         return self.get_full_name() or self.username
 
 class JornadaDeTrabalho(models.Model):
