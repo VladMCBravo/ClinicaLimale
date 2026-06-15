@@ -35,9 +35,19 @@ export default function RelatorioPontoTab() {
     const fetchUsuarios = async () => {
         try {
             const response = await apiClient.get('/usuarios/');
-            setUsuarios(response.data);
+            
+            // O Django pode devolver os dados dentro de 'results' (se tiver paginação) ou direto no array.
+            const listaUsuarios = response.data.results || response.data;
+            
+            // Garante que o React receba apenas uma lista válida
+            if (Array.isArray(listaUsuarios)) {
+                setUsuarios(listaUsuarios);
+            } else {
+                setUsuarios([]);
+            }
         } catch (error) {
             console.error('Erro ao carregar lista de usuários', error);
+            setUsuarios([]); // Proteção extra para garantir que o .map() nunca quebre
         }
     };
 
