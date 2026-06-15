@@ -3,6 +3,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from cryptography.fernet import Fernet
 import base64
@@ -233,10 +234,15 @@ class RegistroPonto(models.Model):
         ('aprovado', 'Aprovado (Dentro do Raio)'),
         ('rejeitado', 'Rejeitado (Fora do Raio)'),
         ('ajuste_manual', 'Ajuste Manual (RH)'),
+        ('cancelado', 'Cancelado (RH)'), # <--- NOVO STATUS ADICIONADO
     ]
 
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='registros_ponto')
-    data_hora = models.DateTimeField(auto_now_add=True, verbose_name="Data e Hora")
+    
+    # MUDEI DE auto_now_add=True PARA default=timezone.now
+    # Isso permite que o RH possa lançar pontos de dias anteriores!
+    data_hora = models.DateTimeField(default=timezone.now, verbose_name="Data e Hora") 
+    
     tipo = models.CharField(max_length=20, choices=TIPO_BATIDA_CHOICES)
     
     # Coordenadas capturadas

@@ -173,3 +173,19 @@ class ConfiguracaoClinicaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracaoClinica
         fields = '__all__'
+
+class RegistroPontoAdminSerializer(serializers.ModelSerializer):
+    """
+    Serializer dedicado ao RH. Permite editar data_hora e status.
+    """
+    nome_funcionario = serializers.CharField(source='usuario.get_full_name', read_only=True)
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    
+    class Meta:
+        model = RegistroPonto
+        fields = [
+            'id', 'usuario', 'nome_funcionario', 'data_hora', 
+            'tipo', 'tipo_display', 'latitude', 'longitude', 
+            'distancia_metros', 'status', 'ip_address', 'observacao'
+        ]
+        # Aqui removemos as travas de leitura para data_hora, status e usuario!

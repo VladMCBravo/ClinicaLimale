@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica
-from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer, RegistroPontoSerializer
+from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer, RegistroPontoSerializer, RegistroPontoAdminSerializer   
 from cryptography.hazmat.primitives.serialization import pkcs12
 from django.utils import timezone
 from django.db.models import Count, Q
@@ -401,14 +401,47 @@ class BaterPontoView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 # --- NOVA VIEW DO RELATÓRIO PARA O ADMIN ---
-class RegistroPontoListView(generics.ListAPIView):
+class RegistroPontoAdminViewSet(viewsets.ModelViewSet):
     """
-    Lista todos os pontos registrados (aprovados e rejeitados). 
-    Acesso exclusivo para administradores.
+    Gerenciamento completo do Ponto pelo RH.
+    Permite listar, adicionar manualmente, editar e inativar registros.
     """
-    serializer_class = RegistroPontoSerializer
+    serializer_class = RegistroPontoAdminSerializer # Usamos o novo serializer
     permission_classes = [IsAdminUser]
 
     def get_queryset(self):
-        # Traz os mais recentes primeiro
         return RegistroPonto.objects.select_related('usuario').all().order_by('-data_hora')
+
+    def perform_create(self, serializer):
+        # Quando o RH criar um ponto manual, o status padrão é ajuste_manual
+        status_ponto = serializer.validated_data.get('status', 'ajuste_manual')
+        observacao_inicial = serializer.validated_data.get('observacao', '')
+        
+        # Assina o log automaticamente
+        obs_auditoria = f"[CRIADO POR RH: {self.request.user.get_full_name()}] {observacao_inicial}"
+        
+        serializer.save(
+            status=status_ponto,
+            observacao=obs_auditoria.strip(),
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+
+    def perform_update(self, serializer):
+        # Ao editar um registro (alterar horário, etc), assina no final
+        nova_obs = serializer.validated_data.get('observacao', '')
+        
+        # Se a string [Editado] ainda não estiver lá, nós adicionamos
+        if "[Editado por RH:" not in nova_obs:
+            obs_auditoria = f"{nova_obs} | [Editado por RH: {self.request.user.get_full_name()}]"
+            serializer.save(observacao=obs_auditoria)
+        else:
+            serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        SOFT DELETE: Não apaga do banco. Apenas muda o status e assina o cancelamento.
+        """
+        instance.status = 'cancelado'
+        obs_atual = instance.observacao or ""
+        instance.observacao = f"[CANCELADO POR RH: {self.request.user.get_full_name()}] {obs_atual}"
+        instance.save()
