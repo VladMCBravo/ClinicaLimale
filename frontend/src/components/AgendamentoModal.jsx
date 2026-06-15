@@ -184,10 +184,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     } else { novaDataFim = novaDataInicio.add(15, 'minute'); }
                     novosDados.data_hora_fim = novaDataFim;
                     setDataFimVisual(novaDataFim.format('DD/MM/YYYY HH:mm'));
-                    return novosDados;
+                   return novosDados;
                 });
             }
-        } else { if (formData.data_hora_inicio) setFormData(prev => ({...prev, data_hora_inicio: null})); }
+        } 
+        // Nota UX: Removida a limpeza agressiva (data_hora_inicio: null) enquanto o usuário digita.
     };
 
     const handleDataFimChange = (e) => {
@@ -196,7 +197,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (valorVisual.length === 16) {
             const novaDataFim = dayjs(valorVisual, 'DD/MM/YYYY HH:mm', true);
             if (novaDataFim.isValid()) setFormData(prev => ({ ...prev, data_hora_fim: novaDataFim }));
-        } else { if (formData.data_hora_fim) setFormData(prev => ({...prev, data_hora_fim: null})); }
+        }
     };
 
     const handleProcedimentosChange = (event, values) => {
@@ -273,6 +274,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
 
+    // UX FIX: Filtra as salas, mas não apaga o que o usuário já escolheu. Apenas avisa.
     useEffect(() => {
         const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
         if (!procParaFiltro || tipoAgendamento === 'Consulta') { setSalasFiltradas(salas); return; }
@@ -281,18 +283,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (equipamentoNecessario) {
             const compativeis = salas.filter(sala => sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario));
             setSalasFiltradas(compativeis);
-            setFormData(prev => {
-                if (prev.sala) {
-                    const salaTemEquipamento = prev.sala.equipamentos && prev.sala.equipamentos.includes(equipamentoNecessario);
-                    if (!salaTemEquipamento) {
-                        showSnackbar(`A sala anterior não possui ${equipamentoNecessario}.`, 'warning');
-                        return { ...prev, sala: null }; 
-                    }
-                }
-                return prev;
-            });
+            // Removida a limpeza agressiva de formData.sala aqui para evitar frustração
         } else { setSalasFiltradas(salas); }
-    }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas, showSnackbar]);
+    }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas]);
 
     useEffect(() => {
         const inicioValido = formData.data_hora_inicio && formData.data_hora_inicio.isValid();
@@ -369,9 +362,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
     const validarFormulario = () => {
         if (!formData.paciente) return "Selecione um paciente.";
-        if (!formData.data_hora_inicio || !formData.data_hora_fim) return "Defina o horário de início e fim.";
+        if (!formData.data_hora_inicio || typeof formData.data_hora_inicio.isValid !== 'function' || !formData.data_hora_inicio.isValid()) return "Verifique o formato da hora de início.";
+        if (!formData.data_hora_fim || typeof formData.data_hora_fim.isValid !== 'function' || !formData.data_hora_fim.isValid()) return "Verifique o formato da hora de fim.";
         if (formData.data_hora_inicio.isAfter(formData.data_hora_fim)) return "A data de fim deve ser posterior à data de início.";
         if (!formData.sala) return "Selecione uma sala/consultório.";
+
+        // UX FIX: Pré-validação de Agendamento Passado (Janela de 2 horas)
+        const agora = dayjs();
+        const limitePassado = agora.subtract(2, 'hour');
+        if (formData.data_hora_inicio.isBefore(limitePassado)) {
+            return "Erro: Não é permitido criar agendamentos com mais de 2 horas no passado. Ajuste o horário.";
+        }
 
         if (tipoAgendamento === 'Consulta') {
             if (!formData.especialidade) return "Selecione a especialidade.";
@@ -380,6 +381,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             const temProcedimento = formData.procedimento || (formData.procedimentos && formData.procedimentos.length > 0);
             if (!temProcedimento) return "Selecione pelo menos um procedimento.";
             if (editingEvent && formData.procedimentos && formData.procedimentos.length > 1) return "Na edição, altere apenas o procedimento atual.";
+            
+            // UX FIX: Validação de Equipamento movida para cá
+            const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
+            if (formData.sala && procParaFiltro && procParaFiltro.equipamento_obrigatorio) {
+                if (!formData.sala.equipamentos || !formData.sala.equipamentos.includes(procParaFiltro.equipamento_obrigatorio)) {
+                    return `A sala selecionada é incompatível. Falta o equipamento: ${procParaFiltro.equipamento_obrigatorio}.`;
+                }
+            }
         }
 
         if (!isSlotAvailable) return "Não há capacidade disponível para este horário.";

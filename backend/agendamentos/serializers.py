@@ -98,11 +98,15 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         usuario_logado = request.user if request else None
 
-        # --- TRAVA ATUALIZADA: BLOQUEIO DE VIAGEM NO TEMPO (EXCETO ADMIN) ---
-        if inicio < timezone.now():
+        # --- TRAVA ATUALIZADA: BLOQUEIO DE VIAGEM NO TEMPO COM TOLERÂNCIA DE 2 HORAS (EXCETO ADMIN) ---
+        agora = timezone.now()
+        # Permite agendar se o horário de início for até 2 horas antes de "agora"
+        limite_tolerancia_passado = agora - timedelta(hours=2)
+        
+        if inicio < limite_tolerancia_passado:
             # Se não tiver usuário logado OU se o cargo for diferente de admin, bloqueia!
             if not usuario_logado or usuario_logado.cargo != 'admin':
-                raise serializers.ValidationError({"data_hora_inicio": "Não é permitido criar agendamentos no passado."})
+                raise serializers.ValidationError({"data_hora_inicio": "Não é permitido criar agendamentos com mais de 2 horas no passado."})
         # -----------------------------------------------
 
         # --- A MÁGICA DOS MILISSEGUNDOS (Tolerância de 1 segundo) ---
