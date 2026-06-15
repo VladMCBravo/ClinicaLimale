@@ -51,9 +51,8 @@ const NavegadorMes = ({ filtroData, setFiltroData, disabled }) => {
     );
 };
 
-// --- SUBCONPONENTE DE TABELA COMPACTA (COM ORDENAÇÃO) ---
+// --- SUBCONPONENTE DE TABELA COMPACTA (COM ORDENAÇÃO E ESTATÍSTICAS) ---
 const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
-    // Estado de ordenação isolado para cada tabela
     const [ordem, setOrdem] = useState({ coluna: 'vencimento', direcao: 'asc' });
 
     const handleSort = (coluna) => {
@@ -65,7 +64,6 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
         let sortableItems = [...data];
         sortableItems.sort((a, b) => {
             if (ordem.coluna === 'vencimento') {
-                // Se não tem vencimento, usa a data da despesa
                 const dataA = (a.data_vencimento || a.data_despesa) ? dayjs(a.data_vencimento || a.data_despesa).valueOf() : 0;
                 const dataB = (b.data_vencimento || b.data_despesa) ? dayjs(b.data_vencimento || b.data_despesa).valueOf() : 0;
                 return ordem.direcao === 'asc' ? dataA - dataB : dataB - dataA;
@@ -83,7 +81,6 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
                 return ordem.direcao === 'asc' ? valorA - valorB : valorB - valorA;
             }
             if (ordem.coluna === 'status') {
-                // Lógica simples de ordenação de status (Pago vs Aberto)
                 const statusA = a.pago ? 1 : 0;
                 const statusB = b.pago ? 1 : 0;
                 return ordem.direcao === 'asc' ? statusA - statusB : statusB - statusA;
@@ -93,7 +90,23 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
         return sortableItems;
     }, [data, ordem]);
 
-    const total = useMemo(() => data.reduce((acc, i) => acc + parseFloat(i.valor), 0), [data]);
+    // --- NOVA LÓGICA DE ESTATÍSTICAS ---
+    const totais = useMemo(() => {
+        return data.reduce((acc, item) => {
+            const valor = parseFloat(item.valor) || 0;
+            acc.total += valor;
+            
+            if (item.pago) {
+                acc.pago += valor;
+            } else {
+                const dataDisplay = item.data_vencimento ? dayjs(item.data_vencimento) : dayjs(item.data_despesa);
+                if (dataDisplay.isBefore(dayjs(), 'day')) {
+                    acc.atrasado += valor;
+                }
+            }
+            return acc;
+        }, { total: 0, pago: 0, atrasado: 0 });
+    }, [data]);
 
     return (
         <Paper variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, borderTop: `3px solid ${color}` }}>
@@ -187,11 +200,25 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
                 </Table>
             </TableContainer>
 
-            <Box sx={{ p: 1, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                <Typography variant="caption" color="text.secondary" fontSize="0.7rem">TOTAL:</Typography>
-                <Typography variant="caption" fontWeight="800" color={color} fontSize="0.8rem">
-                    {formatMoney(total)}
-                </Typography>
+            {/* --- NOVO RODAPÉ COM ESTATÍSTICAS --- */}
+            <Box sx={{ p: 1, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                        PAGOS: <b style={{ color: '#2e7d32' }}>{formatMoney(totais.pago)}</b>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                        ATRASADOS: <b style={{ color: '#d32f2f' }}>{formatMoney(totais.atrasado)}</b>
+                    </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" fontSize="0.7rem">TOTAL:</Typography>
+                    <Typography variant="caption" fontWeight="800" color={color} fontSize="0.85rem">
+                        {formatMoney(totais.total)}
+                    </Typography>
+                </Box>
+
             </Box>
         </Paper>
     );
