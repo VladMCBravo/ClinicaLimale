@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, MedicoEspecialidade
+from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, MedicoEspecialidade, RegistroPonto
 
 # 2. Registre o modelo Especialidade para que ele apareça no admin
 admin.site.register(Especialidade)
@@ -89,3 +89,35 @@ class JornadaDeTrabalhoAdmin(admin.ModelAdmin):
     def get_dia_da_semana_display(self, obj):
         return obj.get_dia_da_semana_display()
     get_dia_da_semana_display.short_description = 'Dia da Semana'
+
+
+# --- ADMIN DE PONTO ELETRÔNICO ---
+@admin.register(RegistroPonto)
+class RegistroPontoAdmin(admin.ModelAdmin):
+    # O que aparece na tabela principal do Admin
+    list_display = ('data_hora', 'usuario', 'get_tipo_display', 'status', 'distancia_metros')
+    
+    # Cria a barra lateral de filtros
+    list_filter = ('status', 'tipo', 'data_hora')
+    
+    # Cria a barra de pesquisa
+    search_fields = ('usuario__first_name', 'usuario__last_name', 'usuario__username', 'observacao')
+    
+    # Organiza os detalhes ao clicar em um registro
+    fieldsets = (
+        ('Informações Principais', {
+            'fields': ('usuario', 'data_hora', 'tipo', 'status')
+        }),
+        ('Geolocalização (GPS)', {
+            'fields': ('latitude', 'longitude', 'distancia_metros')
+        }),
+        ('Auditoria e Logs', {
+            'fields': ('observacao', 'ip_address', 'user_agent')
+        }),
+    )
+    
+    # Protege dados técnicos de alteração manual acidental no admin
+    readonly_fields = ('ip_address', 'user_agent')
+    
+    # Navegação rápida por data no topo
+    date_hierarchy = 'data_hora'

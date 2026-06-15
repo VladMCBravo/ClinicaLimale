@@ -17,6 +17,7 @@ export default function RelatorioPontoTab() {
     // Estados do Modal
     const [modalOpen, setModalOpen] = useState(false);
     const [formData, setFormData] = useState({ id: null, usuario: '', data_hora: '', tipo: 'entrada', observacao: '' });
+    const [isSaving, setIsSaving] = useState(false);
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -93,13 +94,15 @@ export default function RelatorioPontoTab() {
             return;
         }
 
+        setIsSaving(true); // <--- TRAVA O BOTÃO
+
         try {
             const payload = {
                 usuario: formData.usuario,
                 data_hora: new Date(formData.data_hora).toISOString(),
                 tipo: formData.tipo,
                 observacao: formData.observacao,
-                status: 'ajuste_manual' // Sempre que o RH mexe, vira ajuste manual
+                status: 'ajuste_manual'
             };
 
             if (formData.id) {
@@ -113,6 +116,8 @@ export default function RelatorioPontoTab() {
         } catch (error) {
             console.error(error);
             alert('Erro ao salvar o registro. Verifique os dados.');
+        } finally {
+            setIsSaving(false); // <--- DESTRAVA O BOTÃO
         }
     };
 
@@ -309,8 +314,10 @@ export default function RelatorioPontoTab() {
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleCloseModal} color="inherit">Cancelar</Button>
-                    <Button onClick={handleSave} variant="contained" color="primary">Salvar Registro</Button>
+                    <Button onClick={handleCloseModal} color="inherit" disabled={isSaving}>Cancelar</Button>
+                    <Button onClick={handleSave} variant="contained" color="primary" disabled={isSaving}>
+                        {isSaving ? 'Salvando...' : 'Salvar Registro'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 
