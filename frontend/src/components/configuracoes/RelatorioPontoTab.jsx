@@ -35,11 +35,10 @@ export default function RelatorioPontoTab() {
     const fetchUsuarios = async () => {
         try {
             const response = await apiClient.get('/usuarios/');
+            console.log("RESPOSTA DA API USUÁRIOS:", response.data); // <-- Rastreio de erro
             
-            // O Django pode devolver os dados dentro de 'results' (se tiver paginação) ou direto no array.
             const listaUsuarios = response.data.results || response.data;
             
-            // Garante que o React receba apenas uma lista válida
             if (Array.isArray(listaUsuarios)) {
                 setUsuarios(listaUsuarios);
             } else {
@@ -47,7 +46,7 @@ export default function RelatorioPontoTab() {
             }
         } catch (error) {
             console.error('Erro ao carregar lista de usuários', error);
-            setUsuarios([]); // Proteção extra para garantir que o .map() nunca quebre
+            setUsuarios([]); 
         }
     };
 
@@ -253,9 +252,21 @@ export default function RelatorioPontoTab() {
                                 label="Funcionário"
                                 onChange={(e) => setFormData({ ...formData, usuario: e.target.value })}
                             >
-                                {usuarios.map(u => (
-                                    <MenuItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</MenuItem>
-                                ))}
+                                <MenuItem value="">
+                                    <em>Selecione um funcionário...</em>
+                                </MenuItem>
+                                {usuarios.map(u => {
+                                    // Se não tiver nome e sobrenome, mostra o username de login
+                                    const nomeExibicao = (u.first_name || u.last_name) 
+                                        ? `${u.first_name || ''} ${u.last_name || ''}`.trim() 
+                                        : u.username;
+                                    
+                                    return (
+                                        <MenuItem key={u.id} value={u.id}>
+                                            {nomeExibicao}
+                                        </MenuItem>
+                                    );
+                                })}
                             </Select>
                         </FormControl>
 
