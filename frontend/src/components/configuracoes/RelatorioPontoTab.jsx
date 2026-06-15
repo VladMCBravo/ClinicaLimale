@@ -34,8 +34,8 @@ export default function RelatorioPontoTab() {
 
     const fetchUsuarios = async () => {
         try {
-            const response = await apiClient.get('/usuarios/');
-            console.log("RESPOSTA DA API USUÁRIOS:", response.data); // <-- Rastreio de erro
+            // 👇 AQUI: Adicionamos o /usuarios/ extra
+            const response = await apiClient.get('/usuarios/usuarios/'); 
             
             const listaUsuarios = response.data.results || response.data;
             
