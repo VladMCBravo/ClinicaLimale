@@ -133,7 +133,16 @@ def criar_agendamento_e_pagamento_pendente(agendamento_instance, usuario_logado,
     agendamento = agendamento_instance
     cargos_isentos_manualmente = ['recepcao', 'admin']
 
+    # =========================================================================
+    # TRAVA DE IMUTABILIDADE HISTÓRICA
+    # Se o agendamento já tem um pagamento atrelado, não tocamos mais nele.
+    # O passado está protegido. Apenas retornamos a instância como está.
+    # =========================================================================
+    if hasattr(agendamento, 'pagamento') and agendamento.pagamento is not None:
+        return agendamento
+
     valor_do_pagamento = 0.00
+    
     # --- NOVA LÓGICA DO VALOR DO CONVÊNIO ---
     if agendamento.tipo_atendimento == 'Convenio' and agendamento.plano_utilizado:
         if agendamento.tipo_agendamento == 'Consulta' and agendamento.especialidade:
