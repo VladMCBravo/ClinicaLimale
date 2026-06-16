@@ -125,10 +125,14 @@ export default function AgendaPrincipal({
                     if (agrupadosMap.has(chave)) {
                         const existente = agrupadosMap.get(chave);
                         existente.tipo_procedimento += ` + ${procAtual}`;
+                    // --- NOVA LÓGICA: SOMA A QUANTIDADE DE EXAMES ---
+                        existente.quantidade_exames = (existente.quantidade_exames || 1) + 1;
                     } else {
                         agrupadosMap.set(chave, {
                             ...ag,
-                            tipo_procedimento: procAtual
+                            tipo_procedimento: procAtual,
+                            // --- NOVA LÓGICA: INICIA O CONTADOR ---
+                            quantidade_exames: 1
                         });
                     }
                 });
@@ -146,7 +150,8 @@ export default function AgendaPrincipal({
                         end: ag.data_hora_fim,
                         extendedProps: { 
                             ...ag,
-                            tipo_procedimento: ag.tipo_procedimento, 
+                            tipo_procedimento: ag.tipo_procedimento,
+                            quantidade_exames: ag.quantidade_exames, // Passa pro calendário renderizar 
                             paciente_id: ag.paciente, 
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
@@ -348,6 +353,20 @@ useEffect(() => {
                                     }}>
                                         {arg.event.title}
                                     </span>
+                                    {/* --- A MÁGICA: BADGE DE QUANTIDADE DE EXAMES --- */}
+                                    {dados.quantidade_exames > 1 && (
+                                        <span style={{ 
+                                            fontSize: '0.65em', 
+                                            backgroundColor: isInativo ? 'transparent' : 'rgba(255,255,255,0.25)', 
+                                            padding: '1px 5px', 
+                                            borderRadius: '6px',
+                                            fontWeight: 'bold',
+                                            border: isInativo ? 'none' : '1px solid rgba(255,255,255,0.4)',
+                                            color: arg.textColor 
+                                        }}>
+                                            ({dados.quantidade_exames} exames)
+                                        </span>
+                                    )}
                                 </Box>
                                 <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center', opacity: isInativo ? 0.6 : 1 }}>
                                     {emojis}
