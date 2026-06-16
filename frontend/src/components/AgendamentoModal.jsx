@@ -64,13 +64,6 @@ const removerAcentos = (str) => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
-const formatData = (dataString) => {
-    if (!dataString) return '-';
-    const partes = dataString.split('-'); 
-    if(partes.length < 3) return dataString;
-    return `${partes[2]}/${partes[1]}/${partes[0]}`; 
-};
-
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente, refreshTrigger }) {
     const { showSnackbar } = useSnackbar();
 
@@ -102,18 +95,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
     const [jornadasMedico, setJornadasMedico] = useState([]);
     const [confirmarJornadaOpen, setConfirmarJornadaOpen] = useState(false);
-
-    // --- NOVA LÓGICA: SINALIZADOR DE PACIENTE NOVO ---
     const [esperandoNovoPaciente, setEsperandoNovoPaciente] = useState(false);
 
-    // 1. CARREGAMENTO INICIAL DAS LISTAS (ESTAVA FALTANDO!)
     useEffect(() => {
         let isMounted = true; 
         if (open) {
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
                     if (!isMounted) return; 
-                    
                     const rawPacientes = pacientesRes.data || [];
                     const pacientesUnicosMap = new Map();
                     rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p)); 
@@ -131,8 +120,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     if (!isMounted) return;
                     setSalas(response.data);
                     setSalasFiltradas(response.data); 
-                })
-                .catch(error => showSnackbar("Erro ao carregar lista de salas.", 'error'));
+                }).catch(error => showSnackbar("Erro ao carregar salas.", 'error'));
             
             faturamentoService.getPlanosConvenio().then(response => { if(isMounted) setPlanos(response.data) }).catch(err => console.error(err));
             faturamentoService.getConvenios().then(response => { if(isMounted) setConvenios(response.data) }).catch(err => console.error(err));
@@ -140,10 +128,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         return () => { isMounted = false; };
     }, [open, showSnackbar]);
 
-    // 2. O RASTREADOR DO NOVO PACIENTE (VINCULA AUTOMATICAMENTE)
     useEffect(() => {
         if (open && refreshTrigger > 0) {
-            // Toda vez que a agenda atualizar (ex: fechou modal de paciente)
             agendamentoService.getModalData().then(([pacientesRes]) => {
                 const rawPacientes = pacientesRes.data || [];
                 const pacientesUnicosMap = new Map();
@@ -154,14 +140,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 
                 setPacientes(pacientesOrdenados);
 
-                // Se o modal estava esperando um paciente ser criado...
                 if (esperandoNovoPaciente && rawPacientes.length > 0) {
-                    // Pega o paciente com o MAIOR ID (o que acabou de ser criado no banco)
                     const pacienteNovo = rawPacientes.reduce((max, p) => p.id > max.id ? p : max, rawPacientes[0]);
-                    
                     if (pacienteNovo) {
                         handlePacienteChange(null, pacienteNovo);
-                        setEsperandoNovoPaciente(false); // Desliga o alerta
+                        setEsperandoNovoPaciente(false); 
                         showSnackbar('Paciente recém-criado vinculado com sucesso!', 'success');
                     }
                 }
@@ -184,13 +167,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     } else { novaDataFim = novaDataInicio.add(15, 'minute'); }
                     novosDados.data_hora_fim = novaDataFim;
                     setDataFimVisual(novaDataFim.format('DD/MM/YYYY HH:mm'));
-                   return novosDados;
+                    return novosDados;
                 });
             }
         } 
-        // Nota UX: Removida a limpeza agressiva (data_hora_inicio: null) enquanto o usuário digita.
     };
 
+    // CORREÇÃO: O 'else' que apagava a data foi removido!
     const handleDataFimChange = (e) => {
         const valorVisual = e.target.value;
         setDataFimVisual(valorVisual);
@@ -274,7 +257,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         }
     }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
 
-    // UX FIX: Filtra as salas, mas não apaga o que o usuário já escolheu. Apenas avisa.
     useEffect(() => {
         const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
         if (!procParaFiltro || tipoAgendamento === 'Consulta') { setSalasFiltradas(salas); return; }
@@ -283,13 +265,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (equipamentoNecessario) {
             const compativeis = salas.filter(sala => sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario));
             setSalasFiltradas(compativeis);
-            // Removida a limpeza agressiva de formData.sala aqui para evitar frustração
         } else { setSalasFiltradas(salas); }
     }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas]);
 
     useEffect(() => {
-        const inicioValido = formData.data_hora_inicio && formData.data_hora_inicio.isValid();
-        const fimValido = formData.data_hora_fim && formData.data_hora_fim.isValid();
+        const inicioValido = formData.data_hora_inicio && typeof formData.data_hora_inicio.isValid === 'function' && formData.data_hora_inicio.isValid();
+        const fimValido = formData.data_hora_fim && typeof formData.data_hora_fim.isValid === 'function' && formData.data_hora_fim.isValid();
         const salaId = formData.sala ? formData.sala.id : null;
 
         if (open && inicioValido && fimValido && salaId) {
@@ -367,7 +348,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (formData.data_hora_inicio.isAfter(formData.data_hora_fim)) return "A data de fim deve ser posterior à data de início.";
         if (!formData.sala) return "Selecione uma sala/consultório.";
 
-        // UX FIX: Pré-validação de Agendamento Passado (Janela de 2 horas para recepção, livre para Admin)
+        // UX FIX: O ADMIN IGNORA A TRAVA DO TEMPO E PODE AGENDAR NO PASSADO
         if (!isAdmin) {
             const agora = dayjs();
             const limitePassado = agora.subtract(2, 'hour');
@@ -382,9 +363,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         } else {
             const temProcedimento = formData.procedimento || (formData.procedimentos && formData.procedimentos.length > 0);
             if (!temProcedimento) return "Selecione pelo menos um procedimento.";
-            if (editingEvent && formData.procedimentos && formData.procedimentos.length > 1) return "Na edição, altere apenas o procedimento atual.";
             
-            // UX FIX: Validação de Equipamento movida para cá
+            // ATENÇÃO: Aquela trava "Na edição, altere apenas o procedimento atual" foi apagada!
+            
             const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
             if (formData.sala && procParaFiltro && procParaFiltro.equipamento_obrigatorio) {
                 if (!formData.sala.equipamentos || !formData.sala.equipamentos.includes(procParaFiltro.equipamento_obrigatorio)) {
@@ -434,7 +415,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             tipo_agendamento: tipoAgendamento,
             paciente: formData.paciente?.id || null,
             medico: formData.medico?.id || null,
-            especialidade: formData.especialidade?.id || null,
             plano_utilizado: formData.plano_utilizado?.id || null,
             data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
             data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
@@ -444,12 +424,20 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
         delete submissionData.procedimentos;
 
-        if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0 && !editingEvent) {
-            submissionData.procedimentos_ids = formData.procedimentos.map(p => p.id);
-            delete submissionData.procedimento; 
-        } else {
-            submissionData.procedimento = formData.procedimento?.id || null;
-            if (tipoAgendamento === 'Procedimento' && formData.procedimentos.length > 0) { submissionData.procedimento = formData.procedimentos[0].id; }
+        // --- SOLUÇÃO: LIMPEZA PERFEITA AO TROCAR DE CONSULTA PARA PROCEDIMENTO ---
+        if (tipoAgendamento === 'Procedimento') {
+            submissionData.especialidade = null; // Garante que a especialidade antiga seja apagada
+            if (formData.procedimentos && formData.procedimentos.length > 0) {
+                submissionData.procedimentos_ids = formData.procedimentos.map(p => p.id);
+                submissionData.procedimento = formData.procedimentos[0].id; // Fallback principal
+            } else if (formData.procedimento) {
+                submissionData.procedimentos_ids = [formData.procedimento.id];
+                submissionData.procedimento = formData.procedimento.id;
+            }
+        } else if (tipoAgendamento === 'Consulta') {
+            submissionData.procedimento = null;
+            submissionData.procedimentos_ids = [];
+            submissionData.especialidade = formData.especialidade?.id || null;
         }
         
         if (formData.isento_cobranca) {
@@ -530,7 +518,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 3, bgcolor: '#fbfcff' } }}>
-            {/* CABEÇALHO COMPACTO */}
             <DialogTitle sx={{ p: 1.5, pb: 1, borderBottom: '1px solid #e0e0e0', bgcolor: '#fff' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" fontWeight="bold" color="primary.main">
@@ -550,11 +537,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             </DialogTitle>
 
             <form onSubmit={handleSubmit}>
-                {/* ESPAÇAMENTO PRINCIPAL REDUZIDO */}
                 <DialogContent sx={{ p: 1.5 }}>
                     <Grid container spacing={1.5}>
                         
-                        {/* COLUNA ESQUERDA */}
                         <Grid item xs={12} md={7}>
                             <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
@@ -576,7 +561,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Nenhum paciente encontrado.</Typography>
                                                     <Button variant="outlined" size="small" startIcon={<PersonAddIcon />} onClick={() => {
                                                         if(onAbrirNovoPaciente) {
-                                                            setEsperandoNovoPaciente(true); // SINALIZA AO MODAL QUE VEM PACIENTE NOVO AÍ!
+                                                            setEsperandoNovoPaciente(true); 
                                                             onAbrirNovoPaciente(inputValuePaciente);
                                                         }
                                                     }}>
@@ -615,7 +600,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                     <Tooltip title="Cadastrar Novo Paciente">
                                         <Button variant="contained" color="primary" sx={{ minWidth: '40px', width: '40px', height: '40px', p: 0 }} onClick={() => {
                                             if(onAbrirNovoPaciente) {
-                                                setEsperandoNovoPaciente(true); // SINALIZA AO MODAL QUE VEM PACIENTE NOVO AÍ!
+                                                setEsperandoNovoPaciente(true); 
                                                 onAbrirNovoPaciente(inputValuePaciente);
                                             }
                                         }}>
@@ -687,7 +672,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                             </Paper>
                         </Grid>
 
-                        {/* COLUNA DIREITA */}
                         <Grid item xs={12} md={5}>
                             <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
@@ -750,7 +734,6 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                     </Grid>
                 </DialogContent>
                 
-                {/* RODAPÉ COMPACTO */}
                 <DialogActions sx={{ p: 1.5, borderTop: '1px solid #e0e0e0', bgcolor: '#fff' }}>
                     <Box>{editingEvent && (<Button onClick={handleDelete} color="error" startIcon={<DeleteIcon />} disabled={isSubmitting} size="small">Excluir</Button>)}</Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>

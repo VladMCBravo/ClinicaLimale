@@ -86,8 +86,7 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         procedimentos_ids = request.data.pop('procedimentos_ids', [])
         data_inicio_base = parse_datetime(request.data.get('data_hora_inicio'))
         
-        if len(procedimentos_ids) > 4:
-            return Response({"detail": "Máximo de 4 procedimentos por vez."}, status=status.HTTP_400_BAD_REQUEST)
+        # ---> TRAVA DE 4 PROCEDIMENTOS REMOVIDA DAQUI <---
         
         if not procedimentos_ids or not data_inicio_base:
             return Response({"detail": "Dados inválidos."}, status=status.HTTP_400_BAD_REQUEST)
@@ -123,6 +122,8 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
 
                     serializer = self.get_serializer(data=dados_item)
                     serializer.is_valid(raise_exception=True)
+                    
+                    # Chama a função que salva o agendamento e gera a cobrança correta para ESTE exame específico
                     self.perform_create(serializer)
                     
                     agendamentos_criados.append(serializer.data)
