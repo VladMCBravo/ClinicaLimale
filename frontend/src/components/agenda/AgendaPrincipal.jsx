@@ -125,22 +125,22 @@ export default function AgendaPrincipal({
                     if (agrupadosMap.has(chave)) {
                         const existente = agrupadosMap.get(chave);
                         existente.tipo_procedimento += ` + ${procAtual}`;
-                    // --- NOVA LÓGICA: SOMA A QUANTIDADE DE EXAMES ---
                         existente.quantidade_exames = (existente.quantidade_exames || 1) + 1;
+                        // --- NOVO: GUARDA OS IDs DOS OUTROS EXAMES DO GRUPO ---
+                        if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
                     } else {
                         agrupadosMap.set(chave, {
                             ...ag,
                             tipo_procedimento: procAtual,
-                            // --- NOVA LÓGICA: INICIA O CONTADOR ---
-                            quantidade_exames: 1
+                            quantidade_exames: 1,
+                            // --- NOVO: INICIA A LISTA COM O PRIMEIRO EXAME ---
+                            lista_procedimentos_ids: ag.procedimento ? [ag.procedimento] : []
                         });
                     }
                 });
 
                 const eventosFormatados = Array.from(agrupadosMap.values()).map(ag => {
                     const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
-                    
-                    // A MÁGICA AQUI: Muda o ID da coluna dependendo da visão selecionada
                     const colunaId = viewMode === 'salas' ? `sala_${ag.sala}` : `medico_${ag.medico}`;
 
                     return {
@@ -150,13 +150,15 @@ export default function AgendaPrincipal({
                         end: ag.data_hora_fim,
                         extendedProps: { 
                             ...ag,
-                            tipo_procedimento: ag.tipo_procedimento,
-                            quantidade_exames: ag.quantidade_exames, // Passa pro calendário renderizar 
+                            tipo_procedimento: ag.tipo_procedimento, 
+                            quantidade_exames: ag.quantidade_exames,
+                            // --- NOVO: PASSA A LISTA COMPLETA PARA O MODAL LER ---
+                            lista_procedimentos_ids: ag.lista_procedimentos_ids, 
                             paciente_id: ag.paciente, 
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
                         },
-                        resourceId: colunaId, // Usa a variável dinâmica
+                        resourceId: colunaId, 
                         backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
                         borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
                         textColor: isInativo ? '#666' : '#fff',
