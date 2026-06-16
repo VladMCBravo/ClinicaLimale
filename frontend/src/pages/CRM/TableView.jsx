@@ -40,41 +40,44 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
   if (!displayedCards || displayedCards.length === 0) return <Typography sx={{ p: 2 }}>Nenhum paciente encontrado.</Typography>;
 
   return (
-    // 1. Força o container da tabela a ocupar 100% do limite rolável que criamos na tela pai
     <TableContainer component={Paper} sx={{ borderRadius: 1, height: '100%', overflow: 'auto' }}>
-      {/* 2. Adiciona o stickyHeader para o topo não sumir quando você descer a lista */}
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
-            {/* 3. Garante que o fundo do cabeçalho seja sólido (bgcolor) para o texto não sobrepor */}
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'data'} direction={orderBy === 'data' ? order : 'asc'} onClick={() => handleRequestSort('data')}>
                 Data
               </TableSortLabel>
             </TableCell>
+            
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'paciente'} direction={orderBy === 'paciente' ? order : 'asc'} onClick={() => handleRequestSort('paciente')}>
                 Paciente
               </TableSortLabel>
-              {/* ---> ADICIONE A COLUNA ORIGEM AQUI <--- */}
+            </TableCell>
+
+            {/* COLUNA ORIGEM - AGORA FORA DO PACIENTE */}
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               Origem
             </TableCell>
-            </TableCell>
+
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'ig'} direction={orderBy === 'ig' ? order : 'asc'} onClick={() => handleRequestSort('ig')}>
                 IG & Alerta Clínico
               </TableSortLabel>
             </TableCell>
+            
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'procedimento'} direction={orderBy === 'procedimento' ? order : 'asc'} onClick={() => handleRequestSort('procedimento')}>
                 Procedimento
               </TableSortLabel>
             </TableCell>
+            
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>Próxima Ação</TableCell>
             <TableCell align="right" sx={{ bgcolor: '#f8f9fa' }}></TableCell>
           </TableRow>
         </TableHead>
+        
         <TableBody>
           {sortedCards.map((ciclo) => {
             const isAtrasado = ciclo.proxima_acao_imediata?.atrasada;
@@ -88,7 +91,7 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
             return (
               <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ cursor: 'pointer', bgcolor: rowBgColor }}>
                 
-                {/* 1. CÉLULA DE DATA ATUALIZADA COM O 1º CONTATO */}
+                {/* 1. CÉLULA: DATA E 1º CONTATO */}
                 <TableCell sx={{ fontSize: '0.75rem' }}>
                   {ciclo.dados_agendamento ? (
                     new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')
@@ -104,7 +107,7 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                   )}
                 </TableCell>
 
-                {/* 2. CÉLULA DO PACIENTE (MANTÉM IGUAL) */}
+                {/* 2. CÉLULA: PACIENTE */}
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
@@ -112,7 +115,7 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                   </Box>
                 </TableCell>
 
-                {/* 3. NOVA CÉLULA DE ORIGEM ADICIONADA AQUI */}
+                {/* 3. CÉLULA: ORIGEM */}
                 <TableCell>
                   {ciclo.comportamento_resumo?.origem && ciclo.comportamento_resumo.origem !== "Não Informado" ? (
                     <Box sx={{ display: 'inline-block', bgcolor: '#e0f7fa', color: '#006064', px: 1, py: 0.2, borderRadius: 1, fontSize: '0.65rem', fontWeight: 'bold', border: '1px solid #b2ebf2' }}>
@@ -123,7 +126,7 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                   )}
                 </TableCell>
 
-                {/* 4. CÉLULA DE IG (MANTÉM IGUAL) */}
+                {/* 4. CÉLULA: IG & ALERTA CLÍNICO */}
                 <TableCell>
                   {ciclo.alerta_clinico ? (
                     <Box sx={{ display: 'inline-flex', bgcolor: '#ffffff80', color: '#e65100', px: 1, borderRadius: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #ffcc80' }}>
@@ -131,6 +134,8 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                     </Box>
                   ) : '--'}
                 </TableCell>
+                
+                {/* 5. CÉLULA: PROCEDIMENTO */}
                 <TableCell sx={{ fontSize: '0.75rem' }}>
                   {ciclo.dados_agendamento?.procedimento ? (
                       ciclo.dados_agendamento.procedimento
@@ -138,22 +143,19 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                       <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>--</span>
                   )}
                 </TableCell>
-                  <TableCell>
-                  {/* ALERTA CLÍNICO / WHATSAPP EXISTENTE */}
+                
+                {/* 6. CÉLULA: PRÓXIMA AÇÃO E ALERTAS */}
+                <TableCell>
                   {ciclo.alerta_whatsapp && (
                     <Box sx={{ mb: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
                       🔔 {ciclo.alerta_whatsapp.tipo_alerta}
                     </Box>
                   )}
-
-                  {/* NOVO: ALERTA OPERACIONAL DO SISTEMA */}
                   {ciclo.alerta_operacional && (
                     <Box sx={{ mb: 0.5, color: ciclo.alerta_operacional.cor, fontSize: '0.65rem', fontWeight: 'bold' }}>
                       {ciclo.alerta_operacional.icone} {ciclo.alerta_operacional.texto}
                     </Box>
                   )}
-
-                  {/* TAREFA MANUAL DA RECEPÇÃO */}
                   {ciclo.proxima_acao_imediata?.descricao && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
                       {isAtrasado && <FaExclamationTriangle size={12} />}
@@ -163,11 +165,14 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
                     </Box>
                   )}
                 </TableCell>
+                
+                {/* 7. CÉLULA: AÇÕES (WHATSAPP) */}
                 <TableCell align="right">
                   <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}>
                     <FaWhatsapp color="#25D366" size={16} />
                   </IconButton>
                 </TableCell>
+
               </TableRow>
             );
           })}
