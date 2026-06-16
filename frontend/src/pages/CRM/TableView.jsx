@@ -56,6 +56,10 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
               <TableSortLabel active={orderBy === 'paciente'} direction={orderBy === 'paciente' ? order : 'asc'} onClick={() => handleRequestSort('paciente')}>
                 Paciente
               </TableSortLabel>
+              {/* ---> ADICIONE A COLUNA ORIGEM AQUI <--- */}
+            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
+              Origem
+            </TableCell>
             </TableCell>
             <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
               <TableSortLabel active={orderBy === 'ig'} direction={orderBy === 'ig' ? order : 'asc'} onClick={() => handleRequestSort('ig')}>
@@ -83,19 +87,43 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
 
             return (
               <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ cursor: 'pointer', bgcolor: rowBgColor }}>
+                
+                {/* 1. CÉLULA DE DATA ATUALIZADA COM O 1º CONTATO */}
                 <TableCell sx={{ fontSize: '0.75rem' }}>
                   {ciclo.dados_agendamento ? (
                     new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')
                   ) : (
-                    <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>sem agendamento</span>
+                    <Box>
+                      <span style={{ color: '#9e9e9e', fontStyle: 'italic', display: 'block' }}>sem agendamento</span>
+                      {ciclo.data_inicio && (
+                        <span style={{ color: '#757575', fontSize: '0.65rem', display: 'block', marginTop: '2px' }}>
+                          1º contato: {new Date(ciclo.data_inicio).toLocaleDateString('pt-BR')}
+                        </span>
+                      )}
+                    </Box>
                   )}
                 </TableCell>
+
+                {/* 2. CÉLULA DO PACIENTE (MANTÉM IGUAL) */}
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{ciclo.paciente_nome}</Typography>
                   </Box>
                 </TableCell>
+
+                {/* 3. NOVA CÉLULA DE ORIGEM ADICIONADA AQUI */}
+                <TableCell>
+                  {ciclo.comportamento_resumo?.origem && ciclo.comportamento_resumo.origem !== "Não Informado" ? (
+                    <Box sx={{ display: 'inline-block', bgcolor: '#e0f7fa', color: '#006064', px: 1, py: 0.2, borderRadius: 1, fontSize: '0.65rem', fontWeight: 'bold', border: '1px solid #b2ebf2' }}>
+                      {ciclo.comportamento_resumo.origem}
+                    </Box>
+                  ) : (
+                    <span style={{ color: '#9e9e9e', fontSize: '0.75rem' }}>--</span>
+                  )}
+                </TableCell>
+
+                {/* 4. CÉLULA DE IG (MANTÉM IGUAL) */}
                 <TableCell>
                   {ciclo.alerta_clinico ? (
                     <Box sx={{ display: 'inline-flex', bgcolor: '#ffffff80', color: '#e65100', px: 1, borderRadius: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #ffcc80' }}>

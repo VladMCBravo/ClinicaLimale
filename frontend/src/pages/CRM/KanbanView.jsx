@@ -29,16 +29,37 @@ export default function KanbanView({ displayedCards, activePhaseBorder, handleOp
                   {ciclo.alerta_clinico.semanas}s + {ciclo.alerta_clinico.dias}d • {ciclo.alerta_clinico.texto}
                 </Box>
               )}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#666' }}>
-                <span>
+              {/* BLOCO DE AGENDAMENTO, 1º CONTATO E ORIGEM */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#666', mt: 0.5 }}>
+                
+                {/* Lado Esquerdo: Datas */}
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   {ciclo.dados_agendamento ? (
-                    new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')
+                    <span>{new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')}</span>
                   ) : (
-                    <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>sem agendamento</span>
+                    <>
+                      <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>sem agendamento</span>
+                      {ciclo.data_inicio && (
+                        <span style={{ color: '#757575', fontSize: '0.6rem', marginTop: '2px' }}>
+                          1º contato: {new Date(ciclo.data_inicio).toLocaleDateString('pt-BR')}
+                        </span>
+                      )}
+                    </>
                   )}
-                </span>
-                <span style={{ fontWeight: 'bold' }}>{ciclo.dados_agendamento?.procedimento}</span>
+                </Box>
+
+                {/* Lado Direito: Procedimento e Tag de Origem */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                  <span style={{ fontWeight: 'bold' }}>{ciclo.dados_agendamento?.procedimento}</span>
+                  
+                  {ciclo.comportamento_resumo?.origem && ciclo.comportamento_resumo.origem !== "Não Informado" && (
+                    <span style={{ backgroundColor: '#e0f7fa', color: '#006064', padding: '1px 4px', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 'bold', border: '1px solid #b2ebf2' }}>
+                      {ciclo.comportamento_resumo.origem}
+                    </span>
+                  )}
+                </Box>
               </Box>
+
               {/* NOVO: ALERTA OPERACIONAL DO SISTEMA (Acima da tarefa manual) */}
               {ciclo.alerta_operacional && (
                 <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px dashed #ddd', display: 'flex', alignItems: 'center', gap: 0.5, color: ciclo.alerta_operacional.cor }}>
