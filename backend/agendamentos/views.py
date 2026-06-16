@@ -201,6 +201,98 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             return AgendamentoWriteSerializer
         return AgendamentoSerializer
 
+    # =========================================================================
+    # 1. A MÁGICA DO BACKEND: SINCRONIZAÇÃO DE GRUPO DE EXAMES
+    # =========================================================================
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        procedimentos_ids = request.data.get('procedimentos_ids')
+        
+        # Se for um grupo de procedimentos, desviamos para a função inteligente
+        if instance.tipo_agendamento == 'Procedimento' and procedimentos_ids is not None and isinstance(procedimentos_ids, list):
+            return self.update_multi_procedimentos(request, instance, procedimentos_ids, partial)
+            
+        return super().update(request, *args, **kwargs)
+
+    def update_multi_procedimentos(self, request, instance, procedimentos_ids, partial):
+        # 1. Encontra todos os exames deste paciente nesta exata data/hora
+        grupo_atual = Agendamento.objects.filter(
+            paciente=instance.paciente,
+            data_hora_inicio=instance.data_hora_inicio,
+            tipo_agendamento='Procedimento'
+        )
+        
+        procedimentos_banco_ids = list(grupo_atual.values_list('procedimento_id', flat=True))
+        
+        # 2. Compara o que veio da tela com o que está no banco
+        ids_para_adicionar = [pid for pid in procedimentos_ids if pid not in procedimentos_banco_ids]
+        ids_para_remover = [pid for pid in procedimentos_banco_ids if pid not in procedimentos_ids]
+        
+        with transaction.atomic():
+            # --- A. DELETAR OS EXAMES REMOVIDOS ---
+            if ids_para_remover:
+                agendamentos_remover = grupo_atual.filter(procedimento_id__in=ids_para_remover)
+                for ag in agendamentos_remover:
+                    pagamento = getattr(ag, 'pagamento', None)
+                    if pagamento and pagamento.status == 'Pendente':
+                        pagamento.delete() # Limpa do financeiro
+                    ag.delete() # Limpa da agenda
+
+            # --- B. ATUALIZAR OS QUE FICARAM (Ex: Mudou Sala ou Convênio) ---
+            dados_atualizacao = request.data.copy()
+            dados_atualizacao.pop('procedimentos_ids', None) 
+            
+            grupo_restante = Agendamento.objects.filter(
+                paciente=instance.paciente,
+                data_hora_inicio=instance.data_hora_inicio,
+                tipo_agendamento='Procedimento'
+            )
+            for ag in grupo_restante:
+                serializer = self.get_serializer(ag, data=dados_atualizacao, partial=partial)
+                serializer.is_valid(raise_exception=True)
+                self.perform_update(serializer) # Roda as suas regras financeiras!
+            
+            # --- C. ADICIONAR OS NOVOS EXAMES AO GRUPO ---
+            if ids_para_adicionar:
+                duracao_base = timedelta(minutes=15)
+                try:
+                    tempo_fim_base = timezone.datetime.fromisoformat(str(dados_atualizacao.get('data_hora_inicio', instance.data_hora_inicio))) + duracao_base
+                except:
+                    tempo_fim_base = instance.data_hora_fim
+                
+                for proc_id in ids_para_adicionar:
+                    dados_novo = dados_atualizacao.copy()
+                    dados_novo['procedimento'] = proc_id
+                    dados_novo['is_encaixe'] = True # Para não dar erro de sala ocupada
+                    dados_novo['data_hora_fim'] = str(tempo_fim_base)
+                    
+                    serializer_novo = AgendamentoWriteSerializer(data=dados_novo, context={'request': request})
+                    serializer_novo.is_valid(raise_exception=True)
+                    novo_ag = serializer_novo.save()
+                    
+                    # Gera a dívida financeira do exame adicionado
+                    pagamento = Pagamento.objects.filter(agendamento=novo_ag).first()
+                    if pagamento:
+                        pagamento.registrado_por = request.user
+                        isento = request.data.get('isento_cobranca')
+                        if str(isento).lower() in ['true', '1', 't']:
+                            pagamento.valor = 0.00
+                            pagamento.descricao = f"{novo_ag.procedimento.descricao} (ISENTO)"
+                            pagamento.status = 'Pago'
+                            pagamento.forma_pagamento = 'Outros'
+                            pagamento.data_pagamento = timezone.now().date()
+                        elif novo_ag.tipo_atendimento == 'Convenio' and novo_ag.plano_utilizado:
+                            from faturamento.models import ValorProcedimentoConvenio
+                            val_obj = ValorProcedimentoConvenio.objects.filter(procedimento=novo_ag.procedimento, plano_convenio=novo_ag.plano_utilizado).first()
+                            pagamento.valor = val_obj.valor if val_obj else 0.00
+                            pagamento.descricao = f"{novo_ag.procedimento.descricao} (CONVÊNIO)"
+                            pagamento.forma_pagamento = 'Convenio'
+                        pagamento.save()
+                        
+        return Response({"detail": "Grupo atualizado e sincronizado com o financeiro."}, status=status.HTTP_200_OK)
+
     def perform_update(self, serializer):
         instance = self.get_object()
         agendamento = serializer.save()

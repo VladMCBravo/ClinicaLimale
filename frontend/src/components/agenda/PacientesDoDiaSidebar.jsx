@@ -60,14 +60,15 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                 
                 if (agrupadosMap.has(chave)) {
                     const existente = agrupadosMap.get(chave);
-                    // Concatena o nome do exame
                     existente.procedimento_descricao += ` + ${procAtual}`;
-                    
-                    // Se algum dos exames estiver pendente de pagamento, o alerta se mantém
                     if (ag.pagamento_status === 'Pendente') existente.pagamento_status = 'Pendente';
+                    // ADICIONADO: Guarda a ID dos outros exames na mochila
+                    if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
                 } else {
                     const novo = { ...ag };
                     novo.procedimento_descricao = procAtual;
+                    // ADICIONADO: Inicia a mochila com o primeiro exame
+                    novo.lista_procedimentos_ids = ag.procedimento ? [ag.procedimento] : [];
                     agrupadosMap.set(chave, novo);
                 }
             });

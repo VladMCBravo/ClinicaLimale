@@ -213,12 +213,16 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
             const tipo = dados.tipo_agendamento || 'Consulta';
             
+            setTipoAgendamento(tipo);
+            
+            // --- A MÁGICA AQUI: LÊ A MOCHILA CHEIA DE EXAMES ---
+            const procsIds = dados.lista_procedimentos_ids || (dados.procedimento ? [dados.procedimento] : []);
+            const procsEncontrados = procedimentos.filter(p => procsIds.includes(p.id));
+            // ---------------------------------------------------
+            
             const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
             const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
 
-            setTipoAgendamento(tipo);
-            const procEncontrado = procedimentos.find(p => p.id === dados.procedimento) || null;
-            
             setFormData({
                 paciente: pacientes.find(p => p.id === dados.paciente) || null,
                 data_hora_inicio: inicioDayjs,
@@ -232,13 +236,14 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
                 sala: salas.find(s => s.id === dados.sala) || null,
                 medico: medicos.find(m => m.id === dados.medico) || null,
-                procedimento: procEncontrado, 
-                procedimentos: procEncontrado ? [procEncontrado] : [], 
+                
+                procedimento: procsEncontrados.length > 0 ? procsEncontrados[0] : null, 
+                procedimentos: procsEncontrados, // PREENCHE O DROPDOWN COM TODOS OS EXAMES
             });
 
             setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
             setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
-
+        
         } else if (initialData) {
             const startTime = dayjs(initialData.start);
             const endTime = startTime.add(15, 'minute');
