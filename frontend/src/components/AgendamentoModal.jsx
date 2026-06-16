@@ -441,7 +441,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             }
         } else if (tipoAgendamento === 'Consulta') {
             submissionData.procedimento = null;
-            submissionData.procedimentos_ids = [];
+            delete submissionData.procedimentos_ids; // <--- DELETA A VARIÁVEL AQUI
             submissionData.especialidade = formData.especialidade?.id || null;
         }
         

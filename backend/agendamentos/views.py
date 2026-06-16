@@ -76,8 +76,9 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         return AgendamentoSerializer
     
     def create(self, request, *args, **kwargs):
-        # Verifica se é um agendamento de múltiplos procedimentos
-        if 'procedimentos_ids' in request.data and isinstance(request.data['procedimentos_ids'], list):
+        # Verifica se é um agendamento de múltiplos procedimentos E se a lista não está vazia
+        procs = request.data.get('procedimentos_ids', [])
+        if procs and isinstance(procs, list) and len(procs) > 0:
             return self.create_multi_procedimentos(request)
             
         return super().create(request, *args, **kwargs)
