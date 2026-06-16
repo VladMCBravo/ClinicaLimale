@@ -367,11 +367,13 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         if (formData.data_hora_inicio.isAfter(formData.data_hora_fim)) return "A data de fim deve ser posterior à data de início.";
         if (!formData.sala) return "Selecione uma sala/consultório.";
 
-        // UX FIX: Pré-validação de Agendamento Passado (Janela de 2 horas)
-        const agora = dayjs();
-        const limitePassado = agora.subtract(2, 'hour');
-        if (formData.data_hora_inicio.isBefore(limitePassado)) {
-            return "Erro: Não é permitido criar agendamentos com mais de 2 horas no passado. Ajuste o horário.";
+        // UX FIX: Pré-validação de Agendamento Passado (Janela de 2 horas para recepção, livre para Admin)
+        if (!isAdmin) {
+            const agora = dayjs();
+            const limitePassado = agora.subtract(2, 'hour');
+            if (formData.data_hora_inicio.isBefore(limitePassado)) {
+                return "Erro: Não é permitido criar agendamentos com mais de 2 horas no passado. Ajuste o horário.";
+            }
         }
 
         if (tipoAgendamento === 'Consulta') {
