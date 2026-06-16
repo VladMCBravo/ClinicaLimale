@@ -16,7 +16,8 @@ const DICAS_ACOES = [
   "Pesquisa de Satisfação"
 ];
 
-const ORIGENS = ['GOOGLE', 'INSTAGRAM', 'INDICACAO', 'MEDICO', 'CONVENIO', 'OUTRO'];
+// Substitua a linha antiga (perto da linha 14) por esta:
+const ORIGENS = ['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'SITE', 'INDICAÇÃO', 'MÉDICO', 'CONVÊNIO', 'OUTRO'];
 const PERFIS = ['TRANQUILA', 'INSEGURA', 'ANSIOSA', 'DECIDIDA', 'INDEFINIDO'];
 const OBJECOES = ['PRECO', 'AGENDA', 'MEDICO', 'DISTANCIA', 'MEDO', 'OUTRO'];
 

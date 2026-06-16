@@ -53,7 +53,7 @@ try:
         motivo_desistencia: Optional[Literal['preco', 'horario', 'localizacao', 'precisa_pedido_medico', 'outro']] = Field(description="Se agendou=False, classifique o motivo da desistência ou do 'vou pensar'. Null se não desistiu.")
         concorrencia_mencionada: Optional[str] = Field(description="Nome de outra clínica ou laboratório. Null se não mencionar.")
         nivel_urgencia: Optional[Literal['frio', 'morno', 'quente']] = Field(description="Frio: só pesquisando preço/solicitando tabela. Morno: tem dúvidas sobre o procedimento. Quente: está com dor, pressa, ou quer agendar para hoje/amanhã.")
-        origem_aquisicao: Optional[Literal['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'SITE', 'INDICACAO', 'MEDICO', 'CONVENIO', 'OUTRO']] = Field(description="De onde o paciente veio ou onde viu o anúncio. Null se não for possível identificar.")
+        origem_aquisicao: Optional[Literal['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'SITE', 'INDICAÇÃO', 'MÉDICO', 'CONVÊNIO', 'OUTRO']] = Field(description="De onde o paciente veio ou onde viu o anúncio. Null se não for possível identificar.")
 
     parser_ghost = JsonOutputParser(pydantic_object=GhostModeOutput)
     

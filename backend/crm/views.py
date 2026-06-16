@@ -21,6 +21,38 @@ class CicloViewSet(viewsets.ModelViewSet):
     filterset_fields = ['fase_atual', 'tipo', 'status', 'responsavel']
     search_fields = ['paciente__nome_completo', 'paciente__telefone_celular']
 
+    # ========================================================
+    # ADICIONE ESTE NOVO MÉTODO PARA SALVAR O COMPORTAMENTO
+    # ========================================================
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # 1. Puxamos o dicionário de comportamento que o React enviou
+        comportamento_data = request.data.pop('comportamento', None)
+        
+        # 2. Salva as alterações normais do ciclo (Fases, etc)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # 3. Se tiver dados de comportamento, injetamos no perfil do paciente
+        if comportamento_data and instance.paciente:
+            from .models import AnaliseComportamental
+            comp, _ = AnaliseComportamental.objects.get_or_create(paciente=instance.paciente)
+            
+            # Loop iterativo que atualiza tudo que o React mandou (Instagram, objeções, origem, etc)
+            for attr, value in comportamento_data.items():
+                if hasattr(comp, attr):
+                    setattr(comp, attr, value)
+            comp.save()
+
+        # Limpa o cache para retornar os dados frescos na resposta
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return CicloDetalheSerializer
