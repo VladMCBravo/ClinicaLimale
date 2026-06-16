@@ -217,7 +217,10 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return super().update(request, *args, **kwargs)
 
     def update_multi_procedimentos(self, request, instance, procedimentos_ids, partial):
-        # 1. Encontra todos os exames deste paciente nesta exata data/hora
+        print(f"\n[DEBUG-MULTI] =========================================")
+        print(f"[DEBUG-MULTI] Iniciando edição de múltiplos procedimentos")
+        print(f"[DEBUG-MULTI] IDs recebidos da tela: {procedimentos_ids}")
+        
         grupo_atual = Agendamento.objects.filter(
             paciente=instance.paciente,
             data_hora_inicio=instance.data_hora_inicio,
@@ -225,10 +228,13 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         )
         
         procedimentos_banco_ids = list(grupo_atual.values_list('procedimento_id', flat=True))
+        print(f"[DEBUG-MULTI] IDs encontrados no banco: {procedimentos_banco_ids}")
         
-        # 2. Compara o que veio da tela com o que está no banco
         ids_para_adicionar = [pid for pid in procedimentos_ids if pid not in procedimentos_banco_ids]
         ids_para_remover = [pid for pid in procedimentos_banco_ids if pid not in procedimentos_ids]
+        
+        print(f"[DEBUG-MULTI] Ação: Remover do banco -> {ids_para_remover}")
+        print(f"[DEBUG-MULTI] Ação: Adicionar no banco -> {ids_para_adicionar}")
         
         with transaction.atomic():
             # --- A. DELETAR OS EXAMES REMOVIDOS ---
@@ -237,25 +243,33 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                 for ag in agendamentos_remover:
                     pagamento = getattr(ag, 'pagamento', None)
                     if pagamento and pagamento.status == 'Pendente':
-                        pagamento.delete() # Limpa do financeiro
-                    ag.delete() # Limpa da agenda
+                        print(f"[DEBUG-MULTI] Excluindo financeiro pendente (R$ {pagamento.valor}) do proc ID {ag.procedimento_id}")
+                        pagamento.delete() 
+                    print(f"[DEBUG-MULTI] Excluindo agendamento do proc ID {ag.procedimento_id}")
+                    ag.delete() 
 
-            # --- B. ATUALIZAR OS QUE FICARAM (Ex: Mudou Sala ou Convênio) ---
+            # --- B. ATUALIZAR OS QUE FICARAM (Sem causar Efeito Clone) ---
             dados_atualizacao = request.data.copy()
             dados_atualizacao.pop('procedimentos_ids', None) 
+            
+            # ---> O PULO DO GATO: Remove o procedimento raiz para não sobrescrever os irmãos! <---
+            procedimento_removido_payload = dados_atualizacao.pop('procedimento', None)
+            print(f"[DEBUG-MULTI] 'procedimento' ({procedimento_removido_payload}) removido do payload para evitar clones.")
             
             grupo_restante = Agendamento.objects.filter(
                 paciente=instance.paciente,
                 data_hora_inicio=instance.data_hora_inicio,
                 tipo_agendamento='Procedimento'
             )
+            print(f"[DEBUG-MULTI] Processando regras financeiras para {grupo_restante.count()} exames mantidos...")
             for ag in grupo_restante:
                 serializer = self.get_serializer(ag, data=dados_atualizacao, partial=partial)
                 serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer) # Roda as suas regras financeiras!
+                self.perform_update(serializer) 
             
             # --- C. ADICIONAR OS NOVOS EXAMES AO GRUPO ---
             if ids_para_adicionar:
+                print(f"[DEBUG-MULTI] Iniciando a criação de {len(ids_para_adicionar)} novos exames...")
                 duracao_base = timedelta(minutes=15)
                 try:
                     tempo_fim_base = timezone.datetime.fromisoformat(str(dados_atualizacao.get('data_hora_inicio', instance.data_hora_inicio))) + duracao_base
@@ -263,16 +277,16 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                     tempo_fim_base = instance.data_hora_fim
                 
                 for proc_id in ids_para_adicionar:
+                    print(f"[DEBUG-MULTI] Criando agendamento para novo proc ID {proc_id}")
                     dados_novo = dados_atualizacao.copy()
                     dados_novo['procedimento'] = proc_id
-                    dados_novo['is_encaixe'] = True # Para não dar erro de sala ocupada
+                    dados_novo['is_encaixe'] = True 
                     dados_novo['data_hora_fim'] = str(tempo_fim_base)
                     
                     serializer_novo = AgendamentoWriteSerializer(data=dados_novo, context={'request': request})
                     serializer_novo.is_valid(raise_exception=True)
                     novo_ag = serializer_novo.save()
                     
-                    # Gera a dívida financeira do exame adicionado
                     pagamento = Pagamento.objects.filter(agendamento=novo_ag).first()
                     if pagamento:
                         pagamento.registrado_por = request.user
@@ -290,7 +304,10 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                             pagamento.descricao = f"{novo_ag.procedimento.descricao} (CONVÊNIO)"
                             pagamento.forma_pagamento = 'Convenio'
                         pagamento.save()
+                        print(f"[DEBUG-MULTI] Financeiro do proc ID {proc_id} gerado com valor R$ {pagamento.valor}")
                         
+        print(f"[DEBUG-MULTI] Sincronização de grupo concluída com sucesso!")
+        print(f"[DEBUG-MULTI] =========================================\n")
         return Response({"detail": "Grupo atualizado e sincronizado com o financeiro."}, status=status.HTTP_200_OK)
 
     def perform_update(self, serializer):

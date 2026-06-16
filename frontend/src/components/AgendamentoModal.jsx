@@ -217,7 +217,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             
             // --- A MÁGICA AQUI: LÊ A MOCHILA CHEIA DE EXAMES ---
             const procsIds = dados.lista_procedimentos_ids || (dados.procedimento ? [dados.procedimento] : []);
-            const procsEncontrados = procedimentos.filter(p => procsIds.includes(p.id));
+            const procsEncontrados = procsIds.map(id => procedimentos.find(p => p.id === id)).filter(Boolean);
             // ---------------------------------------------------
             
             const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
