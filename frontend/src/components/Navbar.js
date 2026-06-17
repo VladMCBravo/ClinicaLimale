@@ -41,18 +41,45 @@ const Navbar = () => {
 
     const handleAbrirModalPonto = () => {
         setModalPontoOpen(true);
-        setMensagemPonto({ tipo: '', texto: '' });
+        setMensagemPonto({ tipo: 'info', texto: 'Buscando localização...' }); // Feedback visual melhor
         
         // Pode iniciar o CPF já preenchido se o objeto user tiver essa info
         if (user && user.cpf) setCpf(user.cpf);
         
+        let gpsResolvido = false;
+
+        // 1. O "Freio de Emergência" - Dispara após 6 segundos se o navegador travar
+        const fallbackTimeout = setTimeout(() => {
+            if (!gpsResolvido) {
+                gpsResolvido = true;
+                setMensagemPonto({ 
+                    tipo: 'error', 
+                    texto: 'Tempo esgotado para achar o GPS. Verifique a permissão no ícone de cadeado ao lado da URL.' 
+                });
+            }
+        }, 6000);
+
+        // 2. Busca nativa do navegador
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
-                (pos) => setLocalizacao({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-                (err) => setMensagemPonto({ tipo: 'error', texto: 'Permita o acesso à localização para bater o ponto.' }),
-                { enableHighAccuracy: true, timeout: 5000 }
+                (pos) => {
+                    if (gpsResolvido) return; // Ignora se o timeout já disparou
+                    gpsResolvido = true;
+                    clearTimeout(fallbackTimeout);
+                    setLocalizacao({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+                    setMensagemPonto({ tipo: '', texto: '' }); // Limpa a mensagem
+                },
+                (err) => {
+                    if (gpsResolvido) return;
+                    gpsResolvido = true;
+                    clearTimeout(fallbackTimeout);
+                    setMensagemPonto({ tipo: 'error', texto: 'Permissão de localização negada ou indisponível.' });
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
         } else {
+            gpsResolvido = true;
+            clearTimeout(fallbackTimeout);
             setMensagemPonto({ tipo: 'error', texto: 'Geolocalização não suportada.' });
         }
     };

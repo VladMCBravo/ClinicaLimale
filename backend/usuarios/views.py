@@ -365,15 +365,17 @@ class BaterPontoView(APIView):
         if not usuario.pin_ponto or str(usuario.pin_ponto) != str(pin):
             status_ponto = 'rejeitado'
             observacao = 'Tentativa Bloqueada: PIN Incorreto'
-            erro_response = Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_401_UNAUTHORIZED)
+            # MUDADO PARA HTTP_400_BAD_REQUEST
+            erro_response = Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_400_BAD_REQUEST)
             
         elif config and distancia is not None and distancia > config.raio_metros:
             status_ponto = 'rejeitado'
             observacao = f'Tentativa Bloqueada: Fora do raio permitido ({int(distancia)}m da clínica)'
+            # MUDADO PARA HTTP_400_BAD_REQUEST
             erro_response = Response({
                 "detail": f"Você está a {int(distancia)} metros da clínica. O máximo permitido é {config.raio_metros} metros.",
                 "distancia": distancia
-            }, status=status.HTTP_403_FORBIDDEN)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # 4. Salva o Registro de Auditoria (Ocorrendo erro ou sucesso)
         registro = RegistroPonto.objects.create(
