@@ -381,7 +381,7 @@ export const gerarPDFLaudo = async ({
     } else {
         elementoAssinatura = {
             stack: [
-                { text: '', margin: [0, 35] }, 
+                { text: '', margin: [0, 15] }, // <-- Reduzido para 15
                 { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
                 { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
                 { text: medicoCrm ? `CRM: ${limparCRM(medicoCrm)}` : '', alignment: 'center', fontSize: 9, color: '#555' }
@@ -396,7 +396,7 @@ export const gerarPDFLaudo = async ({
     // Insere a assinatura perfeitamente no fluxo do PDF
     content.push({
         stack: [ elementoAssinatura ],
-        margin: [0, 20, 0, 0], 
+        margin: [0, 10, 0, 0], // <-- Reduzido para 10
         unbreakable: true
     });
         
@@ -445,7 +445,7 @@ export const gerarPDFLaudo = async ({
         pageSize: 'A4', 
         
         // MARGENS DEFINITIVAS QUE NÃO ESMAGAM O TEXTO E AFASTAM DO RODAPÉ
-        pageMargins: [40, 130, 40, 60],
+        pageMargins: [40, 130, 40, 50], // <-- Reduzido para 50
         
         // ESTILO ÚNICO E CONSOLIDADO
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.1 },
