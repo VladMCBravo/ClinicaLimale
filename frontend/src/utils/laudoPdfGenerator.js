@@ -438,16 +438,17 @@ export const gerarPDFLaudo = async ({
 
     const docDefinition = {
         pageSize: 'A4', 
-        // 1. Aumente a última margem (bottom) de 160 para 180
-        pageMargins: [40, 170, 40, 180], 
+        // A margem inferior de 180 é essencial para o texto parar de ser escrito
+        // antes de esbarrar na área da assinatura (Y: 690)
+        pageMargins: [40, 170, 40, 180],
         
-        footer: function(currentPage, pageCount) {
-            return {
-                // 2. Aumente o último valor de 50 para 90 para empurrar a assinatura para cima
-                margin: [40, 0, 40, 90], 
-                ...elementoAssinatura
-            };
-        },
+        //footer: function(currentPage, pageCount) {
+        //    return {
+        //        // 2. Aumente o último valor de 50 para 90 para empurrar a assinatura para cima
+        //        margin: [40, 0, 40, 90], 
+        //        ...elementoAssinatura
+        //    };
+      //},
         
         // --- ADICIONE ESTE BLOCO PARA COMPRIMIR O TEXTO ---
         defaultStyle: {
