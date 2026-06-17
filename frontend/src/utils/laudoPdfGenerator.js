@@ -260,13 +260,40 @@ export const gerarPDFLaudo = async ({
         });
     }
 
-    // TÍTULO DO EXAME
+    // =========================================================
+    // TRATAMENTO DO TÍTULO DUPLICADO E CORPO DO TEXTO
+    // =========================================================
+    let textoParaImprimir = textoLaudo || '';
+    
+    // O TextBuilder (ex: obstétrico) muitas vezes joga o Título Específico na primeira linha do texto.
+    // Vamos extrair essa linha, usá-la como título principal (azul e centralizado) e apagá-la do corpo.
+    let linhasTexto = textoParaImprimir.split('\n');
+    let tituloEspecificoExtraido = null;
+    
+    for (let i = 0; i < Math.min(3, linhasTexto.length); i++) {
+        const linha = linhasTexto[i].trim();
+        if (linha !== '') {
+            // Se for toda em maiúsculas e for um nome de exame
+            const palavrasChave = ['ULTRASSONOGRAFIA', 'USG', 'ECOCARDIOGRAMA', 'ELETROCARDIOGRAMA', 'DOPPLER', 'RELATÓRIO', 'EXAME'];
+            const isExamTitle = palavrasChave.some(p => linha.includes(p));
+            
+            if (linha === linha.toUpperCase() && linha.length > 5 && isExamTitle) {
+                tituloEspecificoExtraido = linha;
+                linhasTexto.splice(i, 1); // Arranca a linha do corpo do texto
+                textoParaImprimir = linhasTexto.join('\n');
+            }
+            break; // Já analisou a primeira linha real do laudo
+        }
+    }
+
+    // Define qual será o título oficial impresso no topo
+    const tituloFinal = tituloEspecificoExtraido || tituloExame || 'RELATÓRIO MÉDICO';
+
+    // Insere o Título Azul no PDF
     content.push({ 
-        text: tituloExame || 'RELATÓRIO MÉDICO', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 10] 
+        text: tituloFinal, style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 10] 
     });
 
-    // CORPO DO TEXTO
-    let textoParaImprimir = textoLaudo || '';
     const temRisco = dadosEstruturados?.riscoT21Basal || dadosEstruturados?.feto1?.riscoT21Basal;
     if (temRisco) {
         const regexRemoveTabela = /CÁLCULO DE RISCO \(1:X\)[\s\S]*?Corrigido 1\/.*?\n/g;
