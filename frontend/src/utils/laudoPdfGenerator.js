@@ -136,7 +136,7 @@ export const gerarPDFLaudo = async ({
         });
         return {
             stack: [
-                { text: titulo, style: 'sectionHeader', margin: [0, 10, 0, 5] },
+                { text: titulo, style: 'sectionHeader', margin: [0, 8, 0, 2] }, // Margem reduzida
                 { table: { widths: ['*', 100], body: bodyTable }, layout: 'noBorders' }
             ],
             unbreakable: true 
@@ -147,7 +147,7 @@ export const gerarPDFLaudo = async ({
         if (!d.riscoT21Basal && !d.riscoT21Corrigido) return null;
         return {
             stack: [
-                { text: 'CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS', style: 'sectionHeader', margin: [0, 15, 0, 5] },
+                { text: 'CÁLCULO DE RISCO PARA CROMOSSOMOPATIAS', style: 'sectionHeader', margin: [0, 10, 0, 5] },
                 {
                     table: {
                         widths: ['*', '*', '*', '*'], 
@@ -190,7 +190,9 @@ export const gerarPDFLaudo = async ({
 
     const hasExtraData = dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante;
 
-    // CABEÇALHOS DO PACIENTE
+    // =========================================================
+    // CABEÇALHO COMPACTO (TUDO NA MESMA LINHA)
+    // =========================================================
     if (hasExtraData) {
         const calcularIdadePDF = (nascimentoStr) => {
             if (!nascimentoStr) return '';
@@ -211,51 +213,24 @@ export const gerarPDFLaudo = async ({
         const infoSolicitante = dadosEstruturados.medicoSolicitante || '___';
 
         content.push({
-            layout: 'noBorders',
-            margin: [0, 0, 0, 10], 
-            table: {
-                widths: ['*', 'auto'],
-                body: [
-                    [
-                        { text: [{ text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___'] },
-                        { text: [{ text: 'Data: ', bold: true, color: '#555' }, dataExameFormatada], alignment: 'right' } 
-                    ],
-                    [
-                        { 
-                            text: [
-                                { text: 'Idade: ', bold: true, color: '#555' }, infoIdade, 
-                                { text: '      Sexo: ', bold: true, color: '#555' }, infoSexo
-                            ], 
-                            colSpan: 2, 
-                            margin: [0, 3, 0, 3] 
-                        },
-                        {}
-                    ],
-                    [
-                        { text: [{ text: 'Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase()], colSpan: 2 },
-                        {}
-                    ]
-                ]
-            },
-            fontSize: 11
+            text: [
+                { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
+                { text: '    Idade: ', bold: true, color: '#555' }, infoIdade,
+                { text: '    Sexo: ', bold: true, color: '#555' }, infoSexo,
+                { text: '    Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase(),
+                { text: '    Data: ', bold: true, color: '#555' }, dataExameFormatada
+            ],
+            fontSize: 10,
+            margin: [0, 0, 0, 10]
         });
 
     } else {
-        const patientStack = [
-            { text: 'PACIENTE', fontSize: 8, color: '#666', bold: true },
-            { text: pacienteNome ? pacienteNome.toUpperCase() : '___', fontSize: 11, bold: true }
-        ];
-
         content.push({
-            columns: [
-                { stack: patientStack, width: '*' },
-                { 
-                    stack: [
-                        { text: 'DATA DO EXAME', fontSize: 8, color: '#666', bold: true, alignment: 'right' },
-                        { text: dataExameFormatada, fontSize: 11, alignment: 'right' } 
-                    ], width: 100 
-                }
+            text: [
+                { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
+                { text: '    Data: ', bold: true, color: '#555' }, dataExameFormatada
             ],
+            fontSize: 10,
             margin: [0, 0, 0, 10]
         });
     }
@@ -265,33 +240,29 @@ export const gerarPDFLaudo = async ({
     // =========================================================
     let textoParaImprimir = textoLaudo || '';
     
-    // O TextBuilder (ex: obstétrico) muitas vezes joga o Título Específico na primeira linha do texto.
-    // Vamos extrair essa linha, usá-la como título principal (azul e centralizado) e apagá-la do corpo.
     let linhasTexto = textoParaImprimir.split('\n');
     let tituloEspecificoExtraido = null;
     
     for (let i = 0; i < Math.min(3, linhasTexto.length); i++) {
         const linha = linhasTexto[i].trim();
         if (linha !== '') {
-            // Se for toda em maiúsculas e for um nome de exame
             const palavrasChave = ['ULTRASSONOGRAFIA', 'USG', 'ECOCARDIOGRAMA', 'ELETROCARDIOGRAMA', 'DOPPLER', 'RELATÓRIO', 'EXAME'];
             const isExamTitle = palavrasChave.some(p => linha.includes(p));
             
             if (linha === linha.toUpperCase() && linha.length > 5 && isExamTitle) {
                 tituloEspecificoExtraido = linha;
-                linhasTexto.splice(i, 1); // Arranca a linha do corpo do texto
+                linhasTexto.splice(i, 1); 
                 textoParaImprimir = linhasTexto.join('\n');
             }
-            break; // Já analisou a primeira linha real do laudo
+            break; 
         }
     }
 
-    // Define qual será o título oficial impresso no topo
     const tituloFinal = tituloEspecificoExtraido || tituloExame || 'RELATÓRIO MÉDICO';
 
-    // Insere o Título Azul no PDF
+    // Insere o Título Azul no PDF com margem menor para ganhar espaço
     content.push({ 
-        text: tituloFinal, style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 10] 
+        text: tituloFinal, style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 5] 
     });
 
     const temRisco = dadosEstruturados?.riscoT21Basal || dadosEstruturados?.feto1?.riscoT21Basal;
@@ -302,7 +273,6 @@ export const gerarPDFLaudo = async ({
 
     const paragrafosTexto = processarTexto(textoParaImprimir);
     
-    // Puxa o último parágrafo para não ficar solto na hora da assinatura
     let ultimoParagrafo = null;
     if (paragrafosTexto.length > 0) {
         ultimoParagrafo = paragrafosTexto.pop(); 
@@ -340,7 +310,7 @@ export const gerarPDFLaudo = async ({
     });
 
     // ==========================================================
-    // 1. ASSINATURA (FLUÍDA APÓS O TEXTO)
+    // 1. ASSINATURA
     // ==========================================================
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const isDra = primeiroNome.endsWith('a'); 
@@ -408,7 +378,7 @@ export const gerarPDFLaudo = async ({
     } else {
         elementoAssinatura = {
             stack: [
-                { text: '', margin: [0, 15] }, // <-- Reduzido para 15
+                { text: '', margin: [0, 15] }, 
                 { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
                 { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
                 { text: medicoCrm ? `CRM: ${limparCRM(medicoCrm)}` : '', alignment: 'center', fontSize: 9, color: '#555' }
@@ -423,7 +393,7 @@ export const gerarPDFLaudo = async ({
     // Insere a assinatura perfeitamente no fluxo do PDF
     content.push({
         stack: [ elementoAssinatura ],
-        margin: [0, 10, 0, 0], // <-- Reduzido para 10
+        margin: [0, 10, 0, 0], 
         unbreakable: true
     });
         
@@ -472,7 +442,7 @@ export const gerarPDFLaudo = async ({
         pageSize: 'A4', 
         
         // MARGENS DEFINITIVAS QUE NÃO ESMAGAM O TEXTO E AFASTAM DO RODAPÉ
-        pageMargins: [40, 130, 40, 50], // <-- Reduzido para 50
+        pageMargins: [40, 130, 40, 50], 
         
         // ESTILO ÚNICO E CONSOLIDADO
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.1 },
