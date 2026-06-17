@@ -377,18 +377,13 @@ export const gerarPDFLaudo = async ({
         content.push(ultimoParagrafo);
     }
         
-    // === ADICIONE ESTE NOVO BLOCO AQUI ===
-    // Fixa a assinatura de forma absoluta no final da última página de texto
+    // === ASSINATURA FLUÍDA ===
     content.push({
-        absolutePosition: { x: 40, y: 690 }, // Eixo Y 690 garante que fique no local exato do rodapé da Limalé
-        columns: [
-            {
-                width: 515.28, // Largura útil da página A4
-                stack: [ elementoAssinatura ]
-            }
-        ]
+        stack: [ elementoAssinatura ],
+        margin: [0, 40, 0, 0], // Dá um salto de espaço após o fim do texto do laudo
+        unbreakable: true      // Garante que a assinatura não quebre pela metade mudando de folha
     });
-    // =====================================
+    // =========================
         
     
     // ==========================================================
@@ -438,9 +433,11 @@ export const gerarPDFLaudo = async ({
 
     const docDefinition = {
         pageSize: 'A4', 
-        // A margem inferior de 180 é essencial para o texto parar de ser escrito
-        // antes de esbarrar na área da assinatura (Y: 690)
-        pageMargins: [40, 170, 40, 180],
+        
+        // MARGENS CORRIGIDAS: [Esquerda, Topo, Direita, Base]
+        // 130 no topo afasta o texto da logo da Limalé
+        // 80 na base é espaço suficiente para não encostar no site/email da Limalé no fundo
+        pageMargins: [40, 130, 40, 80],
         
         //footer: function(currentPage, pageCount) {
         //    return {
