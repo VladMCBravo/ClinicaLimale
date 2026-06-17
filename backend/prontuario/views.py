@@ -1522,32 +1522,39 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             # --- 🛡️ CAMADA 1: AUDITORIA ANTI-FRAUDE E RETIFICAÇÃO ---
             laudo.titulo_exame = titulo_base
 
+            # --- 🛡️ OTIMIZAÇÃO DE MEMÓRIA (ANTI-SIGKILL/OOM) ---
+            # Carrega apenas os campos necessários, ignorando 'dados_estruturados' que tem megabytes de fotos antigas.
             laudos_anteriores = Laudo.objects.filter(
                 paciente=paciente, 
                 titulo_exame=titulo_base
-            ).exclude(id=laudo.id)
+            ).exclude(id=laudo.id).only('id', 'exame', 'status', 'arquivo_pdf')
             
-            exame_herdado = None # <--- ESSA É A VARIÁVEL QUE FALTAVA
+            exame_herdado = None
 
             if laudos_anteriores.exists():
                 for laudo_antigo in laudos_anteriores:
                     # 1. O novo laudo "rouba" o contêiner (Exame) do laudo antigo
-                    if laudo_antigo.exame:
+                    if laudo_antigo.exame_id:
                         exame_herdado = laudo_antigo.exame
                         laudo_antigo.exame = None # Desvincula para sumir do portal
                     
                     # 2. Inativa o laudo antigo no prontuário
                     laudo_antigo.status = 'CANCELADO_POR_RETIFICACAO'
-                    laudo_antigo.save()
+                    
+                    # update_fields impede que o Django baixe o resto das colunas pesadas para salvar
+                    laudo_antigo.save(update_fields=['exame', 'status'])
                     
                     # 3. Limpa o PDF velho de dentro do contêiner
                     if exame_herdado and laudo_antigo.arquivo_pdf:
-                        nome_arquivo_antigo = laudo_antigo.arquivo_pdf.name.split('/')[-1]
-                        ArquivoExame.objects.filter(
-                            exame=exame_herdado,
-                            tipo='LAUDO',
-                            arquivo__icontains=nome_arquivo_antigo
-                        ).delete()
+                        try:
+                            nome_arquivo_antigo = laudo_antigo.arquivo_pdf.name.split('/')[-1]
+                            ArquivoExame.objects.filter(
+                                exame=exame_herdado,
+                                tipo='LAUDO',
+                                arquivo__icontains=nome_arquivo_antigo
+                            ).delete()
+                        except Exception as e:
+                            print(f"Erro ao limpar PDF antigo: {e}")
             # --------------------------------------------------------
 
             # --- 🛡️ CAMADA 2: VÍNCULO SEGURO COM EXAME E SENHAS ---
