@@ -72,6 +72,9 @@ export const gerarPDFLaudo = async ({
             'RASTREAMENTO DE ANEUPLOIDIAS', 'ANEXOS'
         ];
 
+        // Títulos que indicam a reta final do exame (para colar na assinatura)
+        const titulosFinais = ['CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO'];
+
         const identificadoresRodape = [
             'Diretriz', 'Obs', 'Liberado por:', 'Nota:', 'Atenção:',
             'A ultrassonografia obstétrica', 'Favor trazer este', 'A imagem diagnóstica'
@@ -79,6 +82,7 @@ export const gerarPDFLaudo = async ({
 
         let currentSection = null;
         let isRodapeSection = false; 
+        let inFinalSection = false; // <-- Nova flag inteligente
 
         for (let i = 0; i < linhas.length; i++) {
             const line = linhas[i].trim();
@@ -90,6 +94,7 @@ export const gerarPDFLaudo = async ({
             }
             
             const isHeader = line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t));
+            const isFinalHeader = titulosFinais.some(t => line.toUpperCase().includes(t));
             
             if (!isRodapeSection && identificadoresRodape.some(id => line.startsWith(id))) {
                 isRodapeSection = true;
@@ -97,20 +102,25 @@ export const gerarPDFLaudo = async ({
             
             if (isHeader) {
                 if (currentSection) content.push(currentSection);
+                
+                // Se detectou a Impressão/Opinião/Conclusão, ativa a flag magnética
+                if (isFinalHeader) inFinalSection = true;
+
                 currentSection = {
                     stack: [ { text: line, style: 'sectionHeader', margin: [0, 8, 0, 2] } ],
                     unbreakable: true 
                 };
-            } else if (isRodapeSection) {
-                if (currentSection) {
-                    content.push(currentSection);
-                    currentSection = null;
+            } else if (isRodapeSection || inFinalSection) {
+                // Se estamos na seção final ou nos rodapés, joga tudo dentro do MESMO bloco indestrutível
+                if (!currentSection) {
+                    currentSection = { stack: [], unbreakable: true };
                 }
-                content.push(formatarLinhaNormal(line, true));
+                currentSection.stack.push(formatarLinhaNormal(line, isRodapeSection));
             } else {
                 if (currentSection) {
                     currentSection.stack.push(formatarLinhaNormal(line, false));
-                    if (currentSection.stack.length > 15) currentSection.unbreakable = false;
+                    // Se a seção do meio do laudo crescer muito, permite quebrar folha normalmente
+                    if (currentSection.stack.length > 25) currentSection.unbreakable = false;
                 } else {
                     content.push(formatarLinhaNormal(line, false));
                 }
@@ -136,7 +146,7 @@ export const gerarPDFLaudo = async ({
         });
         return {
             stack: [
-                { text: titulo, style: 'sectionHeader', margin: [0, 8, 0, 2] }, // Margem reduzida
+                { text: titulo, style: 'sectionHeader', margin: [0, 8, 0, 2] }, 
                 { table: { widths: ['*', 100], body: bodyTable }, layout: 'noBorders' }
             ],
             unbreakable: true 
@@ -191,7 +201,7 @@ export const gerarPDFLaudo = async ({
     const hasExtraData = dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante;
 
     // =========================================================
-    // CABEÇALHO COMPACTO (TUDO NA MESMA LINHA)
+    // CABEÇALHO (2 LINHAS)
     // =========================================================
     if (hasExtraData) {
         const calcularIdadePDF = (nascimentoStr) => {
@@ -217,21 +227,25 @@ export const gerarPDFLaudo = async ({
                 { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
                 { text: '    Idade: ', bold: true, color: '#555' }, infoIdade,
                 { text: '    Sexo: ', bold: true, color: '#555' }, infoSexo,
-                { text: '    Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase(),
+                '\n', // Quebra de linha aqui!
+                { text: 'Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase(),
                 { text: '    Data: ', bold: true, color: '#555' }, dataExameFormatada
             ],
             fontSize: 10,
-            margin: [0, 0, 0, 10]
+            lineHeight: 1.3,
+            margin: [0, 0, 0, 15] // Espaço antes do título
         });
 
     } else {
         content.push({
             text: [
                 { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
-                { text: '    Data: ', bold: true, color: '#555' }, dataExameFormatada
+                '\n', // Quebra de linha aqui!
+                { text: 'Data: ', bold: true, color: '#555' }, dataExameFormatada
             ],
             fontSize: 10,
-            margin: [0, 0, 0, 10]
+            lineHeight: 1.3,
+            margin: [0, 0, 0, 15]
         });
     }
 
@@ -260,7 +274,6 @@ export const gerarPDFLaudo = async ({
 
     const tituloFinal = tituloEspecificoExtraido || tituloExame || 'RELATÓRIO MÉDICO';
 
-    // Insere o Título Azul no PDF com margem menor para ganhar espaço
     content.push({ 
         text: tituloFinal, style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 5] 
     });
@@ -271,12 +284,16 @@ export const gerarPDFLaudo = async ({
         textoParaImprimir = textoParaImprimir.replace(regexRemoveTabela, '');
     }
 
+    // Processa todo o texto
     const paragrafosTexto = processarTexto(textoParaImprimir);
     
-    let ultimoParagrafo = null;
+    // Captura o ÚLTIMO bloco gerado pelo processador (O bloco final indestrutível)
+    let blocoFinal = null;
     if (paragrafosTexto.length > 0) {
-        ultimoParagrafo = paragrafosTexto.pop(); 
+        blocoFinal = paragrafosTexto.pop(); 
     }
+    
+    // Insere o restante do texto no documento
     content.push(...paragrafosTexto);
 
     // INSERÇÃO DAS TABELAS (BIOMETRIA/RISCO)
@@ -310,7 +327,7 @@ export const gerarPDFLaudo = async ({
     });
 
     // ==========================================================
-    // 1. ASSINATURA
+    // 1. ASSINATURA (MAGNETIZADA AO BLOCO FINAL)
     // ==========================================================
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const isDra = primeiroNome.endsWith('a'); 
@@ -386,16 +403,22 @@ export const gerarPDFLaudo = async ({
         };
     }
 
-    if (ultimoParagrafo) {
-        content.push(ultimoParagrafo);
+    // A MÁGICA FINAL: Injeta a assinatura DENTRO do bloco final do texto
+    if (blocoFinal && blocoFinal.stack) {
+        blocoFinal.stack.push({
+            stack: [ elementoAssinatura ],
+            margin: [0, 15, 0, 0] // Espaço entre o fim do texto e a assinatura
+        });
+        content.push(blocoFinal);
+    } else {
+        // Fallback caso não exista seção de Impressão (laudos super curtos)
+        if (blocoFinal) content.push(blocoFinal);
+        content.push({
+            stack: [ elementoAssinatura ],
+            margin: [0, 15, 0, 0], 
+            unbreakable: true
+        });
     }
-        
-    // Insere a assinatura perfeitamente no fluxo do PDF
-    content.push({
-        stack: [ elementoAssinatura ],
-        margin: [0, 10, 0, 0], 
-        unbreakable: true
-    });
         
     // ==========================================================
     // 2. DOCUMENTAÇÃO FOTOGRÁFICA (VAI PARA A ÚLTIMA PÁGINA)
