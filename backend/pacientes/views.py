@@ -29,16 +29,9 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
         # 1. A SOLUÇÃO DO BUG: Primeiro fazemos a query limpa, SEM O ANNOTATE
         base_queryset = Paciente.objects.all()
 
-        if user.cargo in ['admin', 'recepcao']:
+        # Libera o acesso total para admin, recepção E médicos
+        if user.cargo in ['admin', 'recepcao', 'medico']:
             qs = base_queryset
-        elif user.cargo == 'medico':
-            pacientes_responsaveis = Q(medico_responsavel=user)
-            pacientes_com_evolucao = Q(evolucoes__medico=user)
-            pacientes_agendados = Q(agendamentos__medico=user)
-
-            filtro_medico = pacientes_responsaveis | pacientes_com_evolucao | pacientes_agendados
-            # O distinct aqui agora funciona corretamente pois não tem Count() atrapalhando
-            qs = base_queryset.filter(filtro_medico).distinct()
         else:
             qs = Paciente.objects.none()
 
