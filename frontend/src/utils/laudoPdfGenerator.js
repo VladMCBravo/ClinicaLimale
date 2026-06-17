@@ -50,39 +50,82 @@ export const gerarPDFLaudo = async ({
     const pageMargins = [40, 170, 40, 150];
 
     // --- FUNÇÕES AUXILIARES ---
+    const formatarLinhaNormal = (line) => {
+        // Atualizado com as frases exatas da sua imagem para diminuir a fonte dos avisos
+        const identificadoresRodape = [
+            'Diretriz', 'Obs', 'Liberado por:', 'Nota:', 'Atenção:', 
+            'A ultrassonografia obstétrica', 'Favor trazer este', 'A imagem diagnóstica'
+        ];
+        
+        if (identificadoresRodape.some(id => line.startsWith(id))) {
+            return { 
+                text: line, 
+                fontSize: 8,       
+                color: '#555',     
+                alignment: 'justify', 
+                lineHeight: 1.1,   
+                margin: [0, 0, 0, 3] 
+            };
+        }
+        return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
+    };
+
     const processarTexto = (textoRaw) => {
         if (!textoRaw) return [];
-        return textoRaw.split('\n').map(line => {
-            if (line.trim() === '') return { text: '', margin: [0, 2] };
-            
-            const titulosConhecidos = [
-                'CONCLUSÃO', 'BIOMETRIA FETAL', 'MORFOLOGIA FETAL', 
-                'RASTREAMENTO MORFOLÓGICO', 'ESTUDO DOPPLERFLUXOMÉTRICO',
-                'ANÁLISE MORFOLÓGICA', 'ESTUDO TRIDIMENSIONAL', 'AVALIAÇÃO DO COLO UTERINO'
-            ];
-            
-            if (line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t))) {
-                return { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
-            }
-            // ====================================================================
-            // NOVA REGRA: Encolhe a fonte automaticamente para Avisos e Referências
-            // ====================================================================
-            const identificadoresRodape = ['Diretriz', 'Obs.:', 'Liberado por:', 'Nota:', 'Atenção:'];
-            
-            if (identificadoresRodape.some(id => line.startsWith(id))) {
-                return { 
-                    text: line, 
-                    fontSize: 8,       // <-- FONTE MENOR (Padrão é 10)
-                    color: '#555',     // <-- Cor levemente acinzentada para diferenciar
-                    alignment: 'justify', 
-                    lineHeight: 1.1,   // <-- Linhas mais espremidas
-                    margin: [0, 0, 0, 3] 
-                };
-            }
+        const content = [];
+        const linhas = textoRaw.split('\n');
+        
+        // Adicionei os títulos da sua imagem aqui também
+        const titulosConhecidos = [
+            'CONCLUSÃO', 'BIOMETRIA FETAL', 'MORFOLOGIA FETAL', 
+            'RASTREAMENTO MORFOLÓGICO', 'ESTUDO DOPPLERFLUXOMÉTRICO',
+            'ANÁLISE MORFOLÓGICA', 'ESTUDO TRIDIMENSIONAL', 'AVALIAÇÃO DO COLO UTERINO',
+            'IMPRESSÃO DIAGNÓSTICA', 'ÍNDICES E ESTIMATIVAS', 'OPINIÃO'
+        ];
 
-            // Texto normal do Laudo
-            return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.3, margin: [0, 0, 0, 6] };
-        });
+        for (let i = 0; i < linhas.length; i++) {
+            const line = linhas[i];
+            
+            if (line.trim() === '') {
+                content.push({ text: '', margin: [0, 2] });
+                continue;
+            }
+            
+            const isHeader = line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t));
+            
+            if (isHeader) {
+                // Se for título, procura a próxima linha preenchida para "amarrar" junto
+                let nextLine = null;
+                let skipIndex = i;
+                
+                for (let j = i + 1; j < linhas.length; j++) {
+                    if (linhas[j].trim() !== '') {
+                        nextLine = linhas[j];
+                        skipIndex = j;
+                        break;
+                    }
+                }
+                
+                const headerElement = { text: line, style: 'sectionHeader', margin: [0, 10, 0, 2] };
+                
+                if (nextLine) {
+                    // Agrupa o título e a primeira linha para NUNCA quebrarem de página
+                    content.push({
+                        stack: [
+                            headerElement,
+                            formatarLinhaNormal(nextLine)
+                        ],
+                        unbreakable: true // <-- A mágica acontece aqui!
+                    });
+                    i = skipIndex; // Pula o laço para a linha que já inserimos
+                } else {
+                    content.push(headerElement);
+                }
+            } else {
+                content.push(formatarLinhaNormal(line));
+            }
+        }
+        return content;
     };
 
     const criarTabelaBiometria = (dadosTabela, titulo) => {
