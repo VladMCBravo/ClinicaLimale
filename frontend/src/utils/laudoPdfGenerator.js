@@ -377,6 +377,19 @@ export const gerarPDFLaudo = async ({
         content.push(ultimoParagrafo);
     }
         
+    // === ADICIONE ESTE NOVO BLOCO AQUI ===
+    // Fixa a assinatura de forma absoluta no final da última página de texto
+    content.push({
+        absolutePosition: { x: 40, y: 690 }, // Eixo Y 690 garante que fique no local exato do rodapé da Limalé
+        columns: [
+            {
+                width: 515.28, // Largura útil da página A4
+                stack: [ elementoAssinatura ]
+            }
+        ]
+    });
+    // =====================================
+        
     
     // ==========================================================
     // 2. DOCUMENTAÇÃO FOTOGRÁFICA (VAI PARA A ÚLTIMA PÁGINA)
