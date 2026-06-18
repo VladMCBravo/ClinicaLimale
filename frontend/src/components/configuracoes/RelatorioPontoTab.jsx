@@ -308,37 +308,42 @@ export default function RelatorioPontoTab() {
                                 {usuarioSelecionadoObj?.cargo && <Typography><strong>Cargo:</strong> {usuarioSelecionadoObj.cargo.toUpperCase()}</Typography>}
                             </Box>
 
-                            <Table size="small" sx={{ mb: 4, border: '1px solid #ddd' }}>
+                            <Table size="small" sx={{ 
+                                mb: 4, 
+                                borderCollapse: 'collapse', // Garante que as linhas não fiquem duplas
+                                '& th, & td': { border: '1px solid #cfcfcf' } // <--- GRADE AQUI
+                            }}>
                                 <TableHead>
-                                    <TableRow sx={{ bgcolor: '#eee' }}>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Data</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Batidas Registradas (Entrada | Pausa | Retorno | Saída)</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>Horas Trabalhadas</TableCell>
+                                    <TableRow sx={{ bgcolor: '#eeeeee' }}>
+                                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: '20%' }}>Data</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Batidas Registradas (Entrada | Pausa | Retorno | Saída)</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', width: '20%' }}>Horas Trabalhadas</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {dadosEspelho.linhas.map((linha, index) => (
-                                        <TableRow key={index} sx={{ bgcolor: linha.isFimDeSemana ? '#fcfcfc' : 'inherit' }}>
-                                            <TableCell>{linha.diaStr} {linha.isFimDeSemana && '(FDS)'}</TableCell>
-                                            <TableCell sx={{ fontFamily: 'monospace' }}>{linha.horarios}</TableCell>
-                                            <TableCell sx={{ textAlign: 'right', fontWeight: 'bold' }}>{linha.horasDiaText}</TableCell>
+                                        <TableRow key={index} sx={{ bgcolor: linha.isFimDeSemana ? '#f9f9f9' : 'inherit' }}>
+                                            <TableCell sx={{ textAlign: 'center' }}>
+                                                {linha.diaStr} {linha.isFimDeSemana && <span style={{fontSize: '0.7rem', color: '#888'}}><br/>(FDS)</span>}
+                                            </TableCell>
+                                            <TableCell sx={{ fontFamily: 'monospace', textAlign: 'center', letterSpacing: '1px' }}>
+                                                {linha.horarios}
+                                            </TableCell>
+                                            <TableCell sx={{ textAlign: 'center', fontWeight: 'bold', color: linha.horasDiaText !== '-' ? '#1a233b' : '#aaa' }}>
+                                                {linha.horasDiaText}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                     <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-                                        <TableCell colSpan={2} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Total de Horas no Mês:</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'right', fontSize: '1.1rem' }}>{dadosEspelho.totalHorasText}</TableCell>
+                                        <TableCell colSpan={2} sx={{ fontWeight: 'bold', textAlign: 'right', textTransform: 'uppercase' }}>
+                                            Total de Horas no Mês:
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', fontSize: '1.2rem', color: '#0d47a1' }}>
+                                            {dadosEspelho.totalHorasText}
+                                        </TableCell>
                                     </TableRow>
                                 </TableBody>
                             </Table>
-
-                            <Box sx={{ mt: 10, display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-                                <Box sx={{ width: '40%', borderTop: '1px solid black', pt: 1 }}>
-                                    <Typography variant="body2">Assinatura do Responsável (RH)</Typography>
-                                </Box>
-                                <Box sx={{ width: '40%', borderTop: '1px solid black', pt: 1 }}>
-                                    <Typography variant="body2">Assinatura do Funcionário</Typography>
-                                </Box>
-                            </Box>
                         </Paper>
                     )}
 
