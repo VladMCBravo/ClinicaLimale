@@ -362,11 +362,23 @@ class BaterPontoView(APIView):
         observacao = ''
         erro_response = None
 
-        if not usuario.pin_ponto or str(usuario.pin_ponto) != str(pin):
+        # Limpa possíveis espaços em branco invisíveis enviados acidentalmente
+        pin_digitado = str(pin).strip()
+
+        if not usuario.pin_ponto:
+            status_ponto = 'rejeitado'
+            observacao = 'Tentativa Bloqueada: PIN não configurado no perfil'
+            erro_response = Response(
+                {"detail": "Seu PIN de ponto ainda não foi cadastrado. Peça ao Administrador para configurar no seu perfil."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif str(usuario.pin_ponto).strip() != pin_digitado:
             status_ponto = 'rejeitado'
             observacao = 'Tentativa Bloqueada: PIN Incorreto'
-            # MUDADO PARA HTTP_400_BAD_REQUEST
-            erro_response = Response({"detail": "PIN incorreto ou não cadastrado."}, status=status.HTTP_400_BAD_REQUEST)
+            erro_response = Response(
+                {"detail": "O PIN digitado está incorreto."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
             
         elif config and distancia is not None and distancia > config.raio_metros:
             status_ponto = 'rejeitado'
