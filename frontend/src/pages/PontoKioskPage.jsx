@@ -37,11 +37,7 @@ export default function PontoKioskPage() {
             setMensagem({ tipo: 'warning', texto: 'Preencha seu CPF e PIN.' });
             return;
         }
-        if (!localizacao) {
-            setMensagem({ tipo: 'error', texto: 'Aguardando sinal de GPS. Verifique a permissão do navegador.' });
-            return;
-        }
-
+        
         setLoading(true);
         setMensagem({ tipo: '', texto: '' });
 
@@ -51,8 +47,9 @@ export default function PontoKioskPage() {
                 cpf: cpf.replace(/\D/g, ''),
                 pin: pin,
                 tipo: tipo_batida,
-                latitude: localizacao.latitude,
-                longitude: localizacao.longitude
+                // Envia as coordenadas se tiver, ou null se for PC
+                latitude: localizacao ? localizacao.latitude : null,
+                longitude: localizacao ? localizacao.longitude : null
             });
 
             setMensagem({ tipo: 'success', texto: `${response.data.detail} (${response.data.tipo})` });

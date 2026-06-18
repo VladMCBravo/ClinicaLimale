@@ -89,11 +89,7 @@ const Navbar = () => {
             setMensagemPonto({ tipo: 'warning', texto: 'Preencha CPF e PIN.' });
             return;
         }
-        if (!localizacao) {
-            setMensagemPonto({ tipo: 'error', texto: 'Aguardando sinal de GPS.' });
-            return;
-        }
-
+        
         setLoadingPonto(true);
         try {
             // Usando o apiClient para garantir que aponte para a URL correta (Local ou Vercel)
@@ -101,8 +97,9 @@ const Navbar = () => {
                 cpf: cpf.replace(/\D/g, ''),
                 pin: pin,
                 tipo: tipo_batida,
-                latitude: localizacao.latitude,
-                longitude: localizacao.longitude
+                // Envia as coordenadas se tiver, ou null se for PC
+                latitude: localizacao ? localizacao.latitude : null,
+                longitude: localizacao ? localizacao.longitude : null
             });
             setMensagemPonto({ tipo: 'success', texto: `${response.data.detail} (${response.data.tipo})` });
             setPin(''); 

@@ -333,68 +333,63 @@ class BaterPontoView(APIView):
         lat_usuario = request.data.get('latitude')
         lng_usuario = request.data.get('longitude')
 
-        if not all([cpf_recebido, pin, lat_usuario, lng_usuario]):
-            return Response({"detail": "Dados incompletos para o ponto."}, status=status.HTTP_400_BAD_REQUEST)
+        # 1. Deixa de exigir lat/lng na primeira validação
+        if not cpf_recebido or not pin:
+            return Response({"detail": "CPF e PIN são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Busca o Usuário
+        # 2. Busca o Usuário
         cpf_limpo = re.sub(r'\D', '', cpf_recebido)
-        cpf_formatado = f"{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}" if len(cpf_limpo) == 11 else cpf_recebido
-        
         try:
-            usuario = CustomUser.objects.get(Q(cpf=cpf_limpo) | Q(cpf=cpf_formatado) | Q(cpf=cpf_recebido))
+            usuario = CustomUser.objects.get(cpf__icontains=cpf_limpo)
         except CustomUser.DoesNotExist:
             return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
         except CustomUser.MultipleObjectsReturned:
-            return Response({"detail": "Erro: Multiplos CPFs idênticos encontrados."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            usuario = CustomUser.objects.filter(cpf__icontains=cpf_limpo).first()
 
-        # 2. Busca GPS da Clínica e calcula distância
+        # 3. Busca GPS da Clínica e calcula distância (SÓ SE O PC MANDOU COORDENADAS)
         config = ConfiguracaoClinica.objects.first()
         distancia = None
-        if config and config.latitude and config.longitude:
+        
+        if config and config.latitude and config.longitude and lat_usuario and lng_usuario:
             try:
-                lat_usuario, lng_usuario = float(lat_usuario), float(lng_usuario)
-                distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_usuario, lng_usuario)
-            except ValueError:
-                pass # Mantém distância como None se der erro na conversão
+                lat_float = float(lat_usuario)
+                lng_float = float(lng_usuario)
+                distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_float, lng_float)
+            except (ValueError, TypeError):
+                pass 
 
-        # 3. Motor de Regras (Auditoria)
+        # 4. Motor de Regras (Auditoria)
         status_ponto = 'aprovado'
-        observacao = ''
+        # Adiciona uma nota para o RH se foi batido via PC sem GPS
+        observacao = 'Ponto via PC (Sem GPS)' if not lat_usuario else ''
         erro_response = None
 
-        # Limpa possíveis espaços em branco invisíveis enviados acidentalmente
         pin_digitado = str(pin).strip()
-
+        
         if not usuario.pin_ponto:
             status_ponto = 'rejeitado'
-            observacao = 'Tentativa Bloqueada: PIN não configurado no perfil'
-            erro_response = Response(
-                {"detail": "Seu PIN de ponto ainda não foi cadastrado. Peça ao Administrador para configurar no seu perfil."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            observacao = 'Bloqueado: PIN não configurado'
+            erro_response = Response({"detail": "PIN não configurado no perfil."}, status=status.HTTP_400_BAD_REQUEST)
+            
         elif str(usuario.pin_ponto).strip() != pin_digitado:
             status_ponto = 'rejeitado'
-            observacao = 'Tentativa Bloqueada: PIN Incorreto'
-            erro_response = Response(
-                {"detail": "O PIN digitado está incorreto."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            observacao = 'Bloqueado: PIN Incorreto'
+            erro_response = Response({"detail": "O PIN digitado está incorreto."}, status=status.HTTP_400_BAD_REQUEST)
             
         elif config and distancia is not None and distancia > config.raio_metros:
             status_ponto = 'rejeitado'
-            observacao = f'Tentativa Bloqueada: Fora do raio permitido ({int(distancia)}m da clínica)'
-            # MUDADO PARA HTTP_400_BAD_REQUEST
+            observacao = f'Bloqueado: Fora do raio permitido ({int(distancia)}m)'
             erro_response = Response({
-                "detail": f"Você está a {int(distancia)} metros da clínica. O máximo permitido é {config.raio_metros} metros.",
+                "detail": f"Você está a {int(distancia)} metros da clínica. Máximo permitido: {config.raio_metros}m.",
                 "distancia": distancia
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 4. Salva o Registro de Auditoria (Ocorrendo erro ou sucesso)
+        # 5. Salva o Registro
         registro = RegistroPonto.objects.create(
             usuario=usuario,
             tipo=tipo,
-            latitude=lat_usuario,
-            longitude=lng_usuario,
+            latitude=lat_usuario if lat_usuario else None,
+            longitude=lng_usuario if lng_usuario else None,
             distancia_metros=distancia,
             status=status_ponto,
             observacao=observacao,
@@ -402,11 +397,9 @@ class BaterPontoView(APIView):
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )
 
-        # 5. Se houve erro na regra 3, devolve a mensagem bloqueando a tela
         if erro_response:
             return erro_response
 
-        # 6. Sucesso!
         return Response({
             "detail": "Ponto registrado com sucesso!",
             "tipo": registro.get_tipo_display(),
