@@ -38,7 +38,7 @@ export const gerarPDFLaudo = async ({
     };
 
     // =========================================================
-    // SUPER PROCESSADOR DE TEXTO (AGORA COM COLUNAS INTELIGENTES)
+    // SUPER PROCESSADOR DE TEXTO (COM TABELAS ALINHADAS E LINHAS)
     // =========================================================
     const processarTexto = (textoRaw) => {
         if (!textoRaw) return [];
@@ -58,44 +58,53 @@ export const gerarPDFLaudo = async ({
         let isRodapeSection = false; 
         let inFinalSection = false; 
 
-        // Variáveis do modo Tabela Lado a Lado
         let mode = 'NORMAL'; 
         let biometriaRows = [];
         let indicesRows = [];
 
-        // Função que "despeja" as duas colunas no PDF
+        // Estilo das Tabelas com Linhas (Bordas Horizontais)
+        const customTableLayout = {
+            hLineWidth: function (i, node) { return 0.5; }, // Espessura da linha horizontal
+            vLineWidth: function (i, node) { return 0; },   // Sem linhas verticais
+            hLineColor: function (i, node) { return '#E0E0E0'; }, // Cor cinza clara
+            paddingLeft: function (i, node) { return 0; },
+            paddingRight: function (i, node) { return 0; },
+            paddingTop: function (i, node) { return 4; },
+            paddingBottom: function (i, node) { return 4; }
+        };
+
         const flushSideBySide = () => {
             if (biometriaRows.length > 0 || indicesRows.length > 0) {
                 const bioBody = biometriaRows.map(row => {
-                    if (row.isNote || row.colSpan) return [{ text: row.label, fontSize: 9, color: '#555', colSpan: 2, margin: [0, 1] }, {}];
+                    if (row.isNote || row.colSpan) return [{ text: row.label, fontSize: 9, color: '#555', colSpan: 2, border: [false, true, false, true] }, {}];
                     return [
-                        { text: row.label, fontSize: 9, color: '#333', margin: [0, 1] },
-                        { text: row.value, fontSize: 9, bold: true, alignment: 'right', margin: [0, 1] }
+                        { text: row.label, fontSize: 9, color: '#333' },
+                        { text: row.value, fontSize: 9, bold: true, alignment: 'right' }
                     ];
                 });
 
                 const indBody = indicesRows.map(row => {
-                    if (row.isNote || row.colSpan) return [{ text: row.label, fontSize: 9, color: '#555', colSpan: 2, margin: [0, 1] }, {}];
+                    if (row.isNote || row.colSpan) return [{ text: row.label, fontSize: 9, color: '#555', colSpan: 2, border: [false, true, false, true] }, {}];
                     return [
-                        { text: row.label, fontSize: 9, color: '#333', margin: [0, 1] },
-                        { text: row.value, fontSize: 9, bold: true, alignment: 'right', margin: [0, 1] }
+                        { text: row.label, fontSize: 9, color: '#333' },
+                        { text: row.value, fontSize: 9, bold: true, alignment: 'right' }
                     ];
                 });
 
                 const leftCol = biometriaRows.length > 0 ? [
-                    { text: 'BIOMETRIA FETAL', style: 'sectionHeader', margin: [0, 0, 0, 4] },
-                    { table: { widths: ['*', 'auto'], body: bioBody }, layout: 'noBorders', margin: [0, 0, 15, 0] }
+                    { text: 'BIOMETRIA FETAL', style: 'sectionHeader', margin: [0, 0, 0, 6] },
+                    { table: { widths: ['*', 'auto'], body: bioBody }, layout: customTableLayout }
                 ] : [];
 
                 const rightCol = indicesRows.length > 0 ? [
-                    { text: 'ÍNDICES E ESTIMATIVAS', style: 'sectionHeader', margin: [0, 0, 0, 4] },
-                    { table: { widths: ['*', 'auto'], body: indBody }, layout: 'noBorders' }
+                    { text: 'ÍNDICES E ESTIMATIVAS', style: 'sectionHeader', margin: [0, 0, 0, 6] },
+                    { table: { widths: ['*', 'auto'], body: indBody }, layout: customTableLayout }
                 ] : [];
 
-                // Gera a divisão lado a lado
                 if (leftCol.length > 0 && rightCol.length > 0) {
                     content.push({
-                        columns: [ { width: '55%', stack: leftCol }, { width: '45%', stack: rightCol } ],
+                        columns: [ { width: '48%', stack: leftCol }, { width: '48%', stack: rightCol } ],
+                        columnGap: 20, // Espaçamento claro entre as duas tabelas
                         margin: [0, 5, 0, 10], unbreakable: true
                     });
                 } else if (leftCol.length > 0) {
@@ -120,14 +129,13 @@ export const gerarPDFLaudo = async ({
 
             const cleanLine = line.toUpperCase().replace(/^[-*\s]+/, '').replace(/:/g, '').trim();
             
-            // Ativa os Modos de Tabela
             if (cleanLine === 'BIOMETRIA FETAL') {
                 flushSideBySide();
                 if (currentSection) { content.push(currentSection); currentSection = null; }
                 mode = 'BIOMETRIA'; continue;
             }
             if (cleanLine === 'ÍNDICES E ESTIMATIVAS') {
-                mode = 'INDICES'; continue; // Não faz flush, junta com a Biometria!
+                mode = 'INDICES'; continue; 
             }
 
             const isHeader = line.includes('---') || titulosConhecidos.some(t => cleanLine.startsWith(t));
@@ -135,17 +143,15 @@ export const gerarPDFLaudo = async ({
             
             if (!isRodapeSection && identificadoresRodape.some(id => line.startsWith(id))) isRodapeSection = true;
 
-            // Se achou um Título Novo e estava fazendo Tabela, finaliza a Tabela
             if (mode !== 'NORMAL' && (isHeader || isFinalHeader || isRodapeSection)) {
                 flushSideBySide();
             }
 
-            // --- LÓGICA DE ALINHAMENTO DA BIOMETRIA ---
             if (mode === 'BIOMETRIA') {
                 if (line.toUpperCase().startsWith('NOTA:')) {
                     biometriaRows.push({ label: line, value: '', isNote: true });
                 } else if (line.includes('...')) {
-                    const parts = line.split(/\.{2,}/); // Arranca os pontinhos
+                    const parts = line.split(/\.{2,}/); 
                     biometriaRows.push({ label: parts[0].trim(), value: parts[1] ? parts[1].trim() : '' });
                 } else {
                     const match = line.match(/^(.*?)\s+([\d,]+\s*[a-zA-Z%]+.*)$/);
@@ -155,7 +161,6 @@ export const gerarPDFLaudo = async ({
                 continue;
             }
 
-            // --- LÓGICA DE ALINHAMENTO DOS ÍNDICES ---
             if (mode === 'INDICES') {
                 if (line.toUpperCase().startsWith('NOTA:')) {
                     indicesRows.push({ label: line, value: '', isNote: true });
@@ -173,7 +178,6 @@ export const gerarPDFLaudo = async ({
                 continue;
             }
 
-            // --- LÓGICA NORMAL (PARA AS OUTRAS SEÇÕES) ---
             if (isHeader) {
                 if (currentSection) content.push(currentSection);
                 if (isFinalHeader) inFinalSection = true;
@@ -270,6 +274,7 @@ export const gerarPDFLaudo = async ({
 
     const paragrafosTexto = processarTexto(textoParaImprimir);
     
+    // Captura o Bloco Final (Impressão Diagnóstica)
     let blocoFinal = null;
     if (paragrafosTexto.length > 0) {
         blocoFinal = paragrafosTexto.pop(); 
@@ -277,7 +282,7 @@ export const gerarPDFLaudo = async ({
     content.push(...paragrafosTexto);
 
     // ==========================================================
-    // 1. ASSINATURA (CRAVADA NO FUNDO E PROTEGIDA)
+    // 1. PREPARAÇÃO DA ASSINATURA 
     // ==========================================================
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const prefixoMedico = primeiroNome.endsWith('a') ? 'Dra.' : 'Dr.';
@@ -293,9 +298,10 @@ export const gerarPDFLaudo = async ({
             ? medicoEspecialidades.map(esp => `${esp.especialidade_nome}${esp.rqe ? ` - RQE ${esp.rqe}` : ''}`).join(' | ') 
             : '';
 
+        // Tabela com as Larguras Fixas [55, *, 55] para evitar esmagamento do QR Code
         elementoAssinatura = {
             table: {
-                widths: ['auto', '*', 'auto'], 
+                widths: [55, '*', 55], 
                 body: [[
                     { image: logoIcpBase64, width: 55, margin: [0, 5, 0, 0], border: [false, true, false, false], borderColor: ['#999', '#999', '#999', '#999'] },
                     {
@@ -323,13 +329,23 @@ export const gerarPDFLaudo = async ({
         };
     }
 
-    if (blocoFinal) content.push(blocoFinal);
-        
-    // ASSINATURA TOTALMENTE ISOLADA DO FLUXO (RODAPÉ FIXO)
-    content.push({
-        absolutePosition: { x: 40, y: 740 },
-        columns: [ { width: 515.28, stack: [ elementoAssinatura ] } ]
-    });
+    // ==========================================================
+    // A MÁGICA FINAL: ASSINATURA MAGNETIZADA AO TEXTO FINAL
+    // ==========================================================
+    if (blocoFinal && blocoFinal.stack) {
+        blocoFinal.stack.push({
+            stack: [ elementoAssinatura ],
+            margin: [0, 15, 0, 0] // Espaço entre o fim da impressão diagnóstica e a assinatura
+        });
+        content.push(blocoFinal); // Como o bloco final é "unbreakable", se a assinatura não couber, ele puxa a Impressão inteira pra folha 2!
+    } else {
+        if (blocoFinal) content.push(blocoFinal);
+        content.push({
+            stack: [ elementoAssinatura ],
+            margin: [0, 15, 0, 0], 
+            unbreakable: true
+        });
+    }
         
     // ==========================================================
     // 2. DOCUMENTAÇÃO FOTOGRÁFICA (VAI PARA A ÚLTIMA PÁGINA)
@@ -360,7 +376,10 @@ export const gerarPDFLaudo = async ({
 
     const docDefinition = {
         pageSize: 'A4', 
-        pageMargins: [40, 130, 40, 105], 
+        
+        // MARGEM CORRIGIDA: 75 no fundo. Usa 100% da folha útil antes do rodapé da Limalé
+        pageMargins: [40, 130, 40, 75], 
+        
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.1 },
         content: content,
         styles: {
