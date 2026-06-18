@@ -92,8 +92,11 @@ export const gerarPDFLaudo = async ({
                 continue;
             }
             
-            const isHeader = line.includes('---') || titulosConhecidos.some(t => line.toUpperCase().includes(t));
-            const isFinalHeader = titulosFinais.some(t => line.toUpperCase().includes(t));
+            // LÓGICA CORRIGIDA: Limpa espaços, traços iniciais e dois-pontos para avaliar apenas o começo real da frase
+            const cleanLine = line.toUpperCase().replace(/^[-*\s]+/, '').replace(/:/g, '').trim();
+            
+            const isHeader = line.includes('---') || titulosConhecidos.some(t => cleanLine.startsWith(t));
+            const isFinalHeader = titulosFinais.some(t => cleanLine.startsWith(t));
             
             if (!isRodapeSection && identificadoresRodape.some(id => line.startsWith(id))) {
                 isRodapeSection = true;
@@ -196,7 +199,7 @@ export const gerarPDFLaudo = async ({
     const hasExtraData = dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante;
 
     // =========================================================
-    // CABEÇALHO (2 LINHAS)
+    // CABEÇALHO (MANTIDO EXATAMENTE COMO SOLICITADO)
     // =========================================================
     if (hasExtraData) {
         const calcularIdadePDF = (nascimentoStr) => {
@@ -319,7 +322,7 @@ export const gerarPDFLaudo = async ({
     });
 
     // ==========================================================
-    // 1. ASSINATURA (RESTAURADA À LARGURA ORIGINAL E CRAVADA NO FUNDO)
+    // 1. ASSINATURA (CRAVADA NO FUNDO E PROTEGIDA)
     // ==========================================================
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const isDra = primeiroNome.endsWith('a'); 
@@ -397,13 +400,13 @@ export const gerarPDFLaudo = async ({
     if (blocoFinal) content.push(blocoFinal);
         
     // ==========================================================
-    // A MÁGICA DEFINITIVA: CRAVA A ASSINATURA NO FUNDO DA PÁGINA
+    // ASSINATURA TOTALMENTE ISOLADA DO FLUXO (RODAPÉ FIXO)
     // ==========================================================
     content.push({
-        absolutePosition: { x: 40, y: 735 }, // Altura cirurgicamente ajustada para colar acima do rodapé da máscara
+        absolutePosition: { x: 40, y: 740 }, // Reduzi sutilmente para afastar da logo de rodapé
         columns: [
             {
-                width: 515.28, // Força a tabela da assinatura a ocupar 100% da largura útil, impedindo que ela seja esmagada
+                width: 515.28, 
                 stack: [ elementoAssinatura ]
             }
         ]
@@ -453,10 +456,9 @@ export const gerarPDFLaudo = async ({
     const docDefinition = {
         pageSize: 'A4', 
         
-        // 110 DE MARGEM INFERIOR É O SEGREDO!
-        // Impede que o texto flua por cima da área reservada para a assinatura.
-        // Se a Impressão Diagnóstica bater na altura 730, a folha pula automaticamente!
-        pageMargins: [40, 130, 40, 110], 
+        // MARGEM INFERIOR 105: O texto vai fluir exatamente até encostar no topo da assinatura.
+        // Se a Impressão não couber, pula a Impressão INTEIRA e a Assinatura a segue.
+        pageMargins: [40, 130, 40, 105], 
         
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.1 },
 
