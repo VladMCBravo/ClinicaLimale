@@ -72,7 +72,6 @@ export const gerarPDFLaudo = async ({
             'RASTREAMENTO DE ANEUPLOIDIAS', 'ANEXOS'
         ];
 
-        // Títulos que indicam a reta final do exame (para colar na assinatura)
         const titulosFinais = ['CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO'];
 
         const identificadoresRodape = [
@@ -82,7 +81,7 @@ export const gerarPDFLaudo = async ({
 
         let currentSection = null;
         let isRodapeSection = false; 
-        let inFinalSection = false; // <-- Nova flag inteligente
+        let inFinalSection = false; 
 
         for (let i = 0; i < linhas.length; i++) {
             const line = linhas[i].trim();
@@ -102,8 +101,6 @@ export const gerarPDFLaudo = async ({
             
             if (isHeader) {
                 if (currentSection) content.push(currentSection);
-                
-                // Se detectou a Impressão/Opinião/Conclusão, ativa a flag magnética
                 if (isFinalHeader) inFinalSection = true;
 
                 currentSection = {
@@ -111,7 +108,6 @@ export const gerarPDFLaudo = async ({
                     unbreakable: true 
                 };
             } else if (isRodapeSection || inFinalSection) {
-                // Se estamos na seção final ou nos rodapés, joga tudo dentro do MESMO bloco indestrutível
                 if (!currentSection) {
                     currentSection = { stack: [], unbreakable: true };
                 }
@@ -119,7 +115,6 @@ export const gerarPDFLaudo = async ({
             } else {
                 if (currentSection) {
                     currentSection.stack.push(formatarLinhaNormal(line, false));
-                    // Se a seção do meio do laudo crescer muito, permite quebrar folha normalmente
                     if (currentSection.stack.length > 25) currentSection.unbreakable = false;
                 } else {
                     content.push(formatarLinhaNormal(line, false));
@@ -227,20 +222,20 @@ export const gerarPDFLaudo = async ({
                 { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
                 { text: '    Idade: ', bold: true, color: '#555' }, infoIdade,
                 { text: '    Sexo: ', bold: true, color: '#555' }, infoSexo,
-                '\n', // Quebra de linha aqui!
+                '\n', 
                 { text: 'Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase(),
                 { text: '    Data: ', bold: true, color: '#555' }, dataExameFormatada
             ],
             fontSize: 10,
             lineHeight: 1.3,
-            margin: [0, 0, 0, 15] // Espaço antes do título
+            margin: [0, 0, 0, 15] 
         });
 
     } else {
         content.push({
             text: [
                 { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
-                '\n', // Quebra de linha aqui!
+                '\n', 
                 { text: 'Data: ', bold: true, color: '#555' }, dataExameFormatada
             ],
             fontSize: 10,
@@ -284,16 +279,13 @@ export const gerarPDFLaudo = async ({
         textoParaImprimir = textoParaImprimir.replace(regexRemoveTabela, '');
     }
 
-    // Processa todo o texto
     const paragrafosTexto = processarTexto(textoParaImprimir);
     
-    // Captura o ÚLTIMO bloco gerado pelo processador (O bloco final indestrutível)
     let blocoFinal = null;
     if (paragrafosTexto.length > 0) {
         blocoFinal = paragrafosTexto.pop(); 
     }
     
-    // Insere o restante do texto no documento
     content.push(...paragrafosTexto);
 
     // INSERÇÃO DAS TABELAS (BIOMETRIA/RISCO)
@@ -327,7 +319,7 @@ export const gerarPDFLaudo = async ({
     });
 
     // ==========================================================
-    // 1. ASSINATURA (MAGNETIZADA AO BLOCO FINAL)
+    // 1. ASSINATURA (RESTAURADA À LARGURA ORIGINAL E CRAVADA NO FUNDO)
     // ==========================================================
     const primeiroNome = medicoNome ? medicoNome.trim().split(' ')[0].toLowerCase() : '';
     const isDra = primeiroNome.endsWith('a'); 
@@ -395,30 +387,27 @@ export const gerarPDFLaudo = async ({
     } else {
         elementoAssinatura = {
             stack: [
-                { text: '', margin: [0, 15] }, 
-                { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 0, 0, 5] },
+                { text: '_______________________________', alignment: 'center', color: '#999', margin: [0, 15, 0, 5] },
                 { text: nomeFormatado, alignment: 'center', bold: true, fontSize: 10, margin: [0, 2] },
                 { text: medicoCrm ? `CRM: ${limparCRM(medicoCrm)}` : '', alignment: 'center', fontSize: 9, color: '#555' }
             ]
         };
     }
 
-    // A MÁGICA FINAL: Injeta a assinatura DENTRO do bloco final do texto
-    if (blocoFinal && blocoFinal.stack) {
-        blocoFinal.stack.push({
-            stack: [ elementoAssinatura ],
-            margin: [0, 15, 0, 0] // Espaço entre o fim do texto e a assinatura
-        });
-        content.push(blocoFinal);
-    } else {
-        // Fallback caso não exista seção de Impressão (laudos super curtos)
-        if (blocoFinal) content.push(blocoFinal);
-        content.push({
-            stack: [ elementoAssinatura ],
-            margin: [0, 15, 0, 0], 
-            unbreakable: true
-        });
-    }
+    if (blocoFinal) content.push(blocoFinal);
+        
+    // ==========================================================
+    // A MÁGICA DEFINITIVA: CRAVA A ASSINATURA NO FUNDO DA PÁGINA
+    // ==========================================================
+    content.push({
+        absolutePosition: { x: 40, y: 735 }, // Altura cirurgicamente ajustada para colar acima do rodapé da máscara
+        columns: [
+            {
+                width: 515.28, // Força a tabela da assinatura a ocupar 100% da largura útil, impedindo que ela seja esmagada
+                stack: [ elementoAssinatura ]
+            }
+        ]
+    });
         
     // ==========================================================
     // 2. DOCUMENTAÇÃO FOTOGRÁFICA (VAI PARA A ÚLTIMA PÁGINA)
@@ -464,10 +453,11 @@ export const gerarPDFLaudo = async ({
     const docDefinition = {
         pageSize: 'A4', 
         
-        // MARGENS DEFINITIVAS QUE NÃO ESMAGAM O TEXTO E AFASTAM DO RODAPÉ
-        pageMargins: [40, 130, 40, 50], 
+        // 110 DE MARGEM INFERIOR É O SEGREDO!
+        // Impede que o texto flua por cima da área reservada para a assinatura.
+        // Se a Impressão Diagnóstica bater na altura 730, a folha pula automaticamente!
+        pageMargins: [40, 130, 40, 110], 
         
-        // ESTILO ÚNICO E CONSOLIDADO
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.1 },
 
         content: content,
