@@ -25,7 +25,7 @@ export default function PontoKioskPage() {
             navigator.geolocation.getCurrentPosition(
                 (pos) => setLocalizacao({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
                 (err) => setMensagem({ tipo: 'error', texto: 'Permita o acesso à localização para bater o ponto.' }),
-                { enableHighAccuracy: true, timeout: 5000 }
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 } // <--- NOVO CÓDIGO AQUI
             );
         } else {
             setMensagem({ tipo: 'error', texto: 'Geolocalização não suportada.' });

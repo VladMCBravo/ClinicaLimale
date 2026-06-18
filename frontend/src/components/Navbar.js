@@ -75,7 +75,7 @@ const Navbar = () => {
                     clearTimeout(fallbackTimeout);
                     setMensagemPonto({ tipo: 'error', texto: 'Permissão de localização negada ou indisponível.' });
                 },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 } // <--- NOVO CÓDIGO AQUI
             );
         } else {
             gpsResolvido = true;
