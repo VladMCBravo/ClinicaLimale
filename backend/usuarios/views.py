@@ -339,12 +339,17 @@ class BaterPontoView(APIView):
 
         # 2. Busca o Usuário
         cpf_limpo = re.sub(r'\D', '', cpf_recebido)
+        # Monta a versão com pontuação para garantir a busca
+        cpf_formatado = f"{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}" if len(cpf_limpo) == 11 else cpf_recebido
+        
         try:
-            usuario = CustomUser.objects.get(cpf__icontains=cpf_limpo)
+            # Procura por todas as variações (só números, formatado, ou exatamente como foi recebido)
+            usuario = CustomUser.objects.get(Q(cpf=cpf_limpo) | Q(cpf=cpf_formatado) | Q(cpf=cpf_recebido))
         except CustomUser.DoesNotExist:
             return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
         except CustomUser.MultipleObjectsReturned:
-            usuario = CustomUser.objects.filter(cpf__icontains=cpf_limpo).first()
+            # Prevenção extra caso haja dois usuários com o mesmo CPF
+            usuario = CustomUser.objects.filter(Q(cpf=cpf_limpo) | Q(cpf=cpf_formatado) | Q(cpf=cpf_recebido)).first()
 
         # 3. Busca GPS da Clínica e calcula distância (SÓ SE O PC MANDOU COORDENADAS)
         config = ConfiguracaoClinica.objects.first()
