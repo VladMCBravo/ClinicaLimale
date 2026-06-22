@@ -405,7 +405,7 @@ class MarcoDNPM(models.Model):
     # Idade-chave do marco (ex: '6m')
     idade_marco = models.CharField(max_length=10)
     
-    alcançado = models.BooleanField(default=False)
+    alcançado = models.BooleanField(default=None, null=True, blank=True)
     data_registro = models.DateTimeField(auto_now_add=True)
     observacao = models.TextField(blank=True, null=True)
 

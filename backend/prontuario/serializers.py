@@ -76,6 +76,15 @@ class EvolucaoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome']
 
 # -----------------------------------------------
+# ✅ ADICIONE ESTE BLOCO ABAIXO DO 'class Meta':
+    def to_internal_value(self, data):
+        # Converte strings vazias vindas do React em 'null' para não quebrar a validação
+        _mutable_data = data.copy()
+        for field in ['peso', 'altura', 'frequencia_cardiaca']:
+            if _mutable_data.get(field) == "":
+                _mutable_data[field] = None
+        return super().to_internal_value(_mutable_data)
+# -----------------------------------------------
 
 # Serializer para os Itens da Prescrição
 class ItemPrescricaoSerializer(serializers.ModelSerializer):
