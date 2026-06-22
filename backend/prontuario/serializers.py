@@ -73,7 +73,7 @@ class EvolucaoSerializer(serializers.ModelSerializer):
             'especialidade',    # O ID da especialidade
             'especialidade_nome' # O NOME da especialidade (ex: "Cardiologia")
         ]
-        read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome']
+        read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome', 'especialidade']
 
 # -----------------------------------------------
 # ✅ ADICIONE ESTE BLOCO ABAIXO DO 'class Meta':

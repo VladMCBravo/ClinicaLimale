@@ -18,6 +18,7 @@ import apiClient from '../../api/axiosConfig'; // Ajuste o caminho se necessári
 
 // --- Importação Tardia (Lazy) das Ferramentas e Formulários ---
 const AtendimentoPediatria = lazy(() => import('../../components/prontuario/AtendimentoPediatria'));
+const AtendimentoNeonatologia = lazy(() => import('../../components/prontuario/AtendimentoNeonatologia')); // <-- ADICIONE ESTA LINHA
 const AtendimentoClinicaGeral = lazy(() => import('../../components/prontuario/AtendimentoClinicaGeral'));
 const AtendimentoCardiologia = lazy(() => import('../../components/prontuario/AtendimentoCardiologia'));
 const AtendimentoObstetricia = lazy(() => import('../../components/prontuario/AtendimentoObstetricia'));
@@ -144,6 +145,7 @@ export default function ProntuarioWorkspace() {
             return (
                 <Suspense fallback={<CircularProgress sx={{ m: 'auto', display: 'block', mt: 4 }} />}>
                     {esp.includes('pediatria') ? <AtendimentoPediatria {...props} /> :
+                     esp.includes('neonatologia') ? <AtendimentoNeonatologia {...props} /> :
                      esp.includes('cardio') ? <AtendimentoCardiologia {...props} /> :
                      esp.includes('obstetr') ? <AtendimentoObstetricia {...props} /> :
                      <AtendimentoClinicaGeral {...props} />}
