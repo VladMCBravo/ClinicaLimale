@@ -75,16 +75,26 @@ class EvolucaoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome', 'especialidade']
 
-# -----------------------------------------------
-# ✅ ADICIONE ESTE BLOCO ABAIXO DO 'class Meta':
+# ✅ SUBSTITUA OU ADICIONE ESTE BLOCO ABAIXO DO 'class Meta':
     def to_internal_value(self, data):
-        # Converte strings vazias vindas do React em 'null' para não quebrar a validação
-        _mutable_data = data.copy()
-        for field in ['peso', 'altura', 'frequencia_cardiaca']:
+        # Cria uma cópia do pacote enviado pelo React para podermos modificar
+        _mutable_data = data.copy() if hasattr(data, 'copy') else dict(data)
+        
+        # 1. Transforma strings vazias em NULO (None) para o banco aceitar
+        for field in ['peso', 'altura', 'frequencia_cardiaca', 'agendamento']:
             if _mutable_data.get(field) == "":
                 _mutable_data[field] = None
+                
+        # 2. O PULO DO GATO: Se o React mandar o NOME da especialidade no lugar do ID numérico,
+        # nós apagamos a informação do pacote para não dar Erro 400. 
+        # (Não se preocupe, a view EvolucaoListCreateAPIView gera a especialidade sozinha depois)
+        if 'especialidade' in _mutable_data:
+            valor_especialidade = _mutable_data['especialidade']
+            # Se for uma palavra (ex: "Neonatologia") e não um número, ele descarta a chave
+            if isinstance(valor_especialidade, str) and not valor_especialidade.isdigit():
+                _mutable_data.pop('especialidade')
+
         return super().to_internal_value(_mutable_data)
-# -----------------------------------------------
 
 # Serializer para os Itens da Prescrição
 class ItemPrescricaoSerializer(serializers.ModelSerializer):
