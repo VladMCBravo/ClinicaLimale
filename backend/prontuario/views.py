@@ -88,7 +88,7 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         """
-        Cria a evolução original e herda as especialidades (Mantido igual)
+        Cria a evolução original e herda as especialidades
         """
         paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
         agendamento_id = self.request.data.get('agendamento')
@@ -104,8 +104,10 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
                 pass 
         
         if not especialidade_herdada:
-            especialidade_nome_fornecida = self.request.data.get('especialidade_nome_fornecida')
-            if especialidade_nome_fornecida:
+            # Tenta pegar pelo nome técnico ou pelo nome direto enviado pelo React
+            especialidade_nome_fornecida = self.request.data.get('especialidade_nome_fornecida') or self.request.data.get('especialidade')
+            
+            if especialidade_nome_fornecida and isinstance(especialidade_nome_fornecida, str):
                 try:
                     especialidade_herdada = Especialidade.objects.get(nome__iexact=especialidade_nome_fornecida)
                 except Especialidade.DoesNotExist:
