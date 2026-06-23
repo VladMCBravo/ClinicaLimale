@@ -196,6 +196,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         });
     };
     
+    // 1. EFEITO DE CARREGAMENTO IMEDIATO (Abertura Ultra-rápida)
     useEffect(() => {
         if (!open) {
             setFormData(getInitialFormData());
@@ -212,19 +213,17 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             const isFullCalendarEvent = !!editingEvent.extendedProps;
             const dados = isFullCalendarEvent ? editingEvent.extendedProps : editingEvent;
             const tipo = dados.tipo_agendamento || 'Consulta';
-            
+
             setTipoAgendamento(tipo);
-            
-            // --- A MÁGICA AQUI: LÊ A MOCHILA CHEIA DE EXAMES ---
-            const procsIds = dados.lista_procedimentos_ids || (dados.procedimento ? [dados.procedimento] : []);
-            const procsEncontrados = procsIds.map(id => procedimentos.find(p => p.id === id)).filter(Boolean);
-            // ---------------------------------------------------
-            
+
             const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
             const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
 
+            // A MÁGICA DA VELOCIDADE: Criamos "objetos provisórios" para a tela não ficar em branco esperando a API
+            const procsIds = dados.lista_procedimentos_ids || (dados.procedimento ? [dados.procedimento] : []);
+
             setFormData({
-                paciente: pacientes.find(p => p.id === dados.paciente) || null,
+                paciente: dados.paciente ? { id: dados.paciente, nome_completo: dados.paciente_nome || 'Carregando paciente...' } : null,
                 data_hora_inicio: inicioDayjs,
                 data_hora_fim: fimDayjs,
                 status: dados.status,
@@ -233,12 +232,12 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                 observacoes: dados.observacoes || '',
                 tipo_visita: dados.tipo_visita || 'Primeira Consulta',
                 modalidade: dados.modalidade || 'Presencial',
-                especialidade: especialidades.find(e => e.id === dados.especialidade) || null,
-                sala: salas.find(s => s.id === dados.sala) || null,
-                medico: medicos.find(m => m.id === dados.medico) || null,
+                especialidade: dados.especialidade ? { id: dados.especialidade, nome: dados.especialidade_nome || 'Carregando especialidade...' } : null,
+                sala: dados.sala ? { id: dados.sala, nome: dados.sala_nome || 'Carregando sala...' } : null,
+                medico: dados.medico ? { id: dados.medico, first_name: dados.medico_nome || 'Carregando médico...', last_name: '' } : null,
                 
-                procedimento: procsEncontrados.length > 0 ? procsEncontrados[0] : null, 
-                procedimentos: procsEncontrados, // PREENCHE O DROPDOWN COM TODOS OS EXAMES
+                procedimento: procsIds.length > 0 ? { id: procsIds[0], descricao: 'Carregando...' } : null, 
+                procedimentos: procsIds.map(id => ({ id, descricao: 'Carregando...' })), 
             });
 
             setDataInicioVisual(inicioDayjs.isValid() ? inicioDayjs.format('DD/MM/YYYY HH:mm') : '');
@@ -248,48 +247,52 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             const startTime = dayjs(initialData.start);
             const endTime = startTime.add(15, 'minute');
             if (initialData.medicoId) setTipoAgendamento('Consulta');
+            
             setFormData(prev => ({ 
                 ...prev, 
                 data_hora_inicio: startTime,
                 data_hora_fim: endTime, 
-                sala: initialData.resource ? salas.find(s => s.id === initialData.resource.id) : null,
-                medico: initialData.medicoId ? medicos.find(m => m.id === initialData.medicoId) : null,
-                especialidade: initialData.especialidadeId ? especialidades.find(e => e.id === initialData.especialidadeId) : null,
+                sala: initialData.resource ? { id: initialData.resource.id, nome: 'Carregando...' } : null,
+                medico: initialData.medicoId ? { id: initialData.medicoId, first_name: 'Carregando...', last_name: '' } : null,
+                especialidade: initialData.especialidadeId ? { id: initialData.especialidadeId, nome: 'Carregando...' } : null,
             }));
 
             setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
             setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
         }
-    }, [editingEvent, initialData, open, pacientes, procedimentos, medicos, especialidades, salas]);
+    }, [editingEvent, initialData, open]); // <-- NOTE QUE REMOVEMOS AS LISTAS PESADAS DAQUI!
 
+
+    // 2. EFEITO DE HIDRATAÇÃO (Substitui os "Carregando..." pelos dados reais assim que eles chegam do banco)
     useEffect(() => {
-        const procParaFiltro = formData.procedimento || (formData.procedimentos.length > 0 ? formData.procedimentos[0] : null);
-        if (!procParaFiltro || tipoAgendamento === 'Consulta') { setSalasFiltradas(salas); return; }
+        if (!open || (!editingEvent && !initialData)) return;
 
-        const equipamentoNecessario = procParaFiltro.equipamento_obrigatorio;
-        if (equipamentoNecessario) {
-            const compativeis = salas.filter(sala => sala.equipamentos && sala.equipamentos.includes(equipamentoNecessario));
-            setSalasFiltradas(compativeis);
-        } else { setSalasFiltradas(salas); }
-    }, [formData.procedimento, formData.procedimentos, tipoAgendamento, salas]);
+        setFormData(prev => {
+            // Função auxiliar para descobrir se a informação da tela ainda é a provisória
+            const isFake = (obj) => obj && (obj.nome_completo?.includes('Carregando') || obj.nome?.includes('Carregando') || obj.first_name?.includes('Carregando') || obj.descricao?.includes('Carregando'));
 
-    useEffect(() => {
-        const inicioValido = formData.data_hora_inicio && typeof formData.data_hora_inicio.isValid === 'function' && formData.data_hora_inicio.isValid();
-        const fimValido = formData.data_hora_fim && typeof formData.data_hora_fim.isValid === 'function' && formData.data_hora_fim.isValid();
-        const salaId = formData.sala ? formData.sala.id : null;
-
-        if (open && inicioValido && fimValido && salaId) {
-            setCapacidade(prev => ({ ...prev, loading: true }));
-            const inicioISO = formData.data_hora_inicio.toISOString();
-            const fimISO = formData.data_hora_fim.toISOString();
+            // Se for provisório, e a lista da API já chegou, ele puxa o objeto verdadeiro
+            const novoPaciente = isFake(prev.paciente) ? (pacientes.find(p => p.id === prev.paciente.id) || prev.paciente) : prev.paciente;
+            const novaEspecialidade = isFake(prev.especialidade) ? (especialidades.find(e => e.id === prev.especialidade.id) || prev.especialidade) : prev.especialidade;
+            const novoMedico = isFake(prev.medico) ? (medicos.find(m => m.id === prev.medico.id) || prev.medico) : prev.medico;
+            const novaSala = isFake(prev.sala) ? (salas.find(s => s.id === prev.sala.id) || prev.sala) : prev.sala;
             
-            agendamentoService.verificarCapacidade(inicioISO, fimISO, salaId)
-                .then(response => {
-                    setCapacidade({ consultas: response.data.consultas_agendadas, procedimentos: response.data.procedimentos_agendados, loading: false });
-                    if (response.data.is_admin) setIsAdmin(true); else setIsAdmin(false);
-                }).catch(err => { setCapacidade({ consultas: 0, procedimentos: 0, loading: false }); });
-        }
-    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]);
+            let novosProcedimentos = prev.procedimentos;
+            if (prev.procedimentos.length > 0 && prev.procedimentos.some(p => isFake(p))) {
+                novosProcedimentos = prev.procedimentos.map(fakeProc => procedimentos.find(p => p.id === fakeProc.id) || fakeProc);
+            }
+
+            return {
+                ...prev,
+                paciente: novoPaciente,
+                especialidade: novaEspecialidade,
+                medico: novoMedico,
+                sala: novaSala,
+                procedimento: novosProcedimentos.length > 0 ? novosProcedimentos[0] : null,
+                procedimentos: novosProcedimentos
+            };
+        });
+    }, [pacientes, procedimentos, medicos, especialidades, salas, open]); // Roda silenciosamente em segundo plano
 
     useEffect(() => {
         if (!open) return;
