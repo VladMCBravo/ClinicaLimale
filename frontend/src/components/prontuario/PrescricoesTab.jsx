@@ -5,19 +5,20 @@ import {
   Box, Button, CircularProgress, TextField, Typography, 
   Accordion, AccordionSummary, AccordionDetails, IconButton, 
   Tabs, Tab, Chip, MenuItem, Select, FormControl, InputLabel,
-  FormGroup, FormControlLabel, Switch
+  FormGroup, FormControlLabel, Switch, Divider
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import CloseIcon from '@mui/icons-material/Close';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
 const initialItemState = { medicamento: '', via: 'Oral', dosagem: '', instrucoes: '' };
 const VIAS_ADMINISTRACAO = ['Oral', 'Tópica', 'Intramuscular', 'Intravenosa', 'Inalatória', 'Retal', 'Oftálmica', 'Nasal'];
 
-// 🌟 CATÁLOGO PROFUNDO POR ESPECIALIDADE (Acesso Rápido)
 const catalogoRapido = {
   Neonatologia: [
     { medicamento: 'Vitamina A + D (Ad-Til)', via: 'Oral', dosagem: '2 gotas', instrucoes: 'Dar 1x ao dia direto na boca do bebê.' },
@@ -51,26 +52,30 @@ const catalogoRapido = {
   ]
 };
 
-export default function PrescricoesTab({ pacienteId, medicoId }) {
+export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
   const { showSnackbar } = useSnackbar();
   
-  // Abas transformadas no cabeçalho
   const [tabIndex, setTabIndex] = useState(0);
   const [categoriaAtiva, setCategoriaAtiva] = useState('Clínica Geral');
   
-  // Estados de Dados
-  const [modelosMedico, setModelosMedico] = useState([]);
+  const [prescricoesAnteriores, setPrescricoesAnteriores] = useState([]); // Histórico do Paciente
+  const [modelosMedico, setModelosMedico] = useState([]); // Modelos do Médico
   const [isLoading, setIsLoading] = useState(true);
 
-  // Estado do Formulário
   const [titulo, setTitulo] = useState('');
   const [itens, setItens] = useState([initialItemState]);
-  const [salvarComoModelo, setSalvarComoModelo] = useState(false); // NOVO: Flag para salvar template
+  const [salvarComoModelo, setSalvarComoModelo] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Simulação da busca de modelos salvos pelo médico no BD
+      // 1. Busca Histórico do Paciente (O que já existia)
+      if (pacienteId) {
+        const resPaciente = await apiClient.get(`/prontuario/pacientes/${pacienteId}/prescricoes/`);
+        setPrescricoesAnteriores(resPaciente.data);
+      }
+
+      // 2. Busca Modelos Salvos pelo Médico (Mock para exemplo)
       // const resModelos = await apiClient.get(`/prontuario/medicos/${medicoId}/modelos/`);
       setModelosMedico([
         { id: 'm1', titulo: 'Infecção Urinária (ITU) Padrão', itens: [{ medicamento: 'Fosfomicina Trometamol 3g', via: 'Oral', dosagem: '1 envelope', instrucoes: 'Dissolver em água e tomar dose única à noite após esvaziar a bexiga.' }] },
@@ -81,7 +86,7 @@ export default function PrescricoesTab({ pacienteId, medicoId }) {
     } finally {
       setIsLoading(false);
     }
-  }, [medicoId, showSnackbar]);
+  }, [pacienteId, medicoId, showSnackbar]);
 
   useEffect(() => {
     fetchData();
@@ -107,16 +112,28 @@ export default function PrescricoesTab({ pacienteId, medicoId }) {
   const handleUsarModelo = (modelo) => {
     setTitulo(modelo.titulo);
     setItens(modelo.itens.map(item => ({ ...item }))); 
-    setTabIndex(0); // Pula para a aba de edição
+    setTabIndex(0);
+  };
+
+  const handleGerarPdf = async (prescricaoId) => {
+    try {
+        const response = await apiClient.get(
+            `/pdf/prescricao/${prescricaoId}/`, 
+            { responseType: 'blob' } 
+        );
+        const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+        window.open(fileURL, '_blank');
+        setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
+    } catch (error) {
+        showSnackbar('Erro ao gerar PDF da prescrição.', 'error');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // 1. Salva a prescrição para o paciente
       await apiClient.post(`/prontuario/pacientes/${pacienteId}/prescricoes/`, { titulo, itens });
       
-      // 2. Se o médico marcou a flag, salva também no banco de dados de modelos do médico
       if (salvarComoModelo && titulo.trim() !== '') {
         await apiClient.post(`/prontuario/medicos/${medicoId}/modelos/`, { titulo, itens });
         showSnackbar('Prescrição e Modelo salvos com sucesso!', 'success');
@@ -126,11 +143,10 @@ export default function PrescricoesTab({ pacienteId, medicoId }) {
         showSnackbar('Prescrição salva para o paciente!', 'success');
       }
 
-      // Reseta form
       setTitulo('');
       setItens([initialItemState]);
       setSalvarComoModelo(false);
-      fetchData(); // Recarrega os modelos para atualizar a aba 1
+      fetchData(); 
     } catch (error) {
       showSnackbar('Erro ao processar prescrição.', 'error');
     }
@@ -139,141 +155,170 @@ export default function PrescricoesTab({ pacienteId, medicoId }) {
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress size={24}/></Box>;
 
   return (
-    <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       
-      {/* CABEÇALHO / ABAS OTMIZADAS - Ocupam o lugar do antigo Título */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={tabIndex} onChange={(e, newValue) => setTabIndex(newValue)} textColor="primary" indicatorColor="primary">
-          <Tab label="Escrever Prescrição" sx={{ fontWeight: 'bold' }} />
-          <Tab label={`Meus Modelos Salvos (${modelosMedico.length})`} sx={{ fontWeight: 'bold' }} />
+      {/* HEADER INTEGRADO (Substitui o cabeçalho antigo) */}
+      <Box sx={{ 
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', 
+          borderBottom: 1, borderColor: 'divider', bgcolor: '#ffffff', px: 2, pt: 1 
+      }}>
+        <Tabs value={tabIndex} onChange={(e, newValue) => setTabIndex(newValue)} textColor="primary" indicatorColor="primary" sx={{ minHeight: '40px' }}>
+          <Tab label="Escrever Prescrição" sx={{ minHeight: '40px', fontWeight: 'bold', textTransform: 'none' }} />
+          <Tab label="Meus Modelos" sx={{ minHeight: '40px', fontWeight: 'bold', textTransform: 'none' }} />
         </Tabs>
+        
+        {/* BOTÃO "X" RECEBIDO VIA PROP DO WORKSPACE */}
+        {onClose && (
+            <IconButton size="small" onClick={onClose} sx={{ mb: 0.5 }}>
+                <CloseIcon fontSize="small" />
+            </IconButton>
+        )}
       </Box>
 
-      {/* ABA 0: ESCREVER PRESCRIÇÃO */}
-      {tabIndex === 0 && (
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          
-          {/* ACESSO RÁPIDO (CLICK-TO-BUILD) */}
-          <Box sx={{ p: 1.5, bgcolor: '#f4f6f8', borderRadius: 1, border: '1px dashed #ccc' }}>
-            <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', pb: 0.5 }}>
-              {Object.keys(catalogoRapido).map(cat => (
-                <Chip 
-                  key={cat} label={cat} size="small" 
-                  color={categoriaAtiva === cat ? 'primary' : 'default'}
-                  onClick={() => setCategoriaAtiva(cat)} clickable
-                />
-              ))}
-            </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {catalogoRapido[categoriaAtiva].map((med, idx) => (
-                <Chip 
-                  key={idx} label={med.medicamento} size="small" variant="outlined"
-                  onClick={() => handleAddFromCatalog(med)} 
-                  icon={<AddCircleOutlineIcon fontSize="small"/>}
-                  clickable sx={{ bgcolor: 'white' }}
-                />
-              ))}
-            </Box>
-          </Box>
-
-          {/* DADOS DA RECEITA */}
-          <TextField 
-            label="Título desta Prescrição / Diagnóstico (Opcional)" 
-            placeholder="Ex: Tratamento Amigdalite, Uso Contínuo Hipertensão..."
-            value={titulo} onChange={(e) => setTitulo(e.target.value)} 
-            fullWidth size="small" 
-          />
-          
-          {/* LISTA DE ITENS */}
-          {itens.map((item, index) => (
-            <Box key={index} sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 1, position: 'relative' }}>
-              {itens.length > 1 && (
-                <IconButton size="small" color="error" onClick={() => handleRemoveItem(index)} sx={{ position: 'absolute', top: -10, right: -10, bgcolor: 'white' }}>
-                  <RemoveCircleOutlineIcon />
-                </IconButton>
-              )}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 1, mb: 1 }}>
-                  <TextField label="Medicamento" value={item.medicamento} onChange={(e) => handleItemChange(index, 'medicamento', e.target.value)} required size="small" />
-                  <FormControl size="small" fullWidth>
-                    <InputLabel>Via</InputLabel>
-                    <Select value={item.via} label="Via" onChange={(e) => handleItemChange(index, 'via', e.target.value)}>
-                      {VIAS_ADMINISTRACAO.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-                    </Select>
-                  </FormControl>
-                  <TextField label="Dosagem" value={item.dosagem} onChange={(e) => handleItemChange(index, 'dosagem', e.target.value)} required size="small" />
-              </Box>
-              <TextField label="Instruções de Uso" value={item.instrucoes} onChange={(e) => handleItemChange(index, 'instrucoes', e.target.value)} required fullWidth size="small" />
+      {/* ÁREA DE SCROLL (Formulários e Listas) */}
+      <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto' }}>
+        
+        {/* ABA 0: ESCREVER PRESCRIÇÃO E HISTÓRICO DO PACIENTE */}
+        {tabIndex === 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               
-              {item.via === 'Intramuscular' && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block', fontWeight: 'bold' }}>
-                  * Atenção: Este item de via Intramuscular será impresso em folha separada para encaminhamento à enfermagem.
-                </Typography>
-              )}
-            </Box>
-          ))}
-
-          {/* RODAPÉ DO FORMULÁRIO (Adicionar, Salvar e Checkbox de Modelo) */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, flexWrap: 'wrap', gap: 2 }}>
-              <Button startIcon={<AddCircleOutlineIcon />} onClick={handleAddItem} size="small" color="secondary">
-                  Adicionar Outro Medicamento
-              </Button>
-              
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {/* NOVO: SWITCH PARA SALVAR COMO MODELO */}
-                <FormGroup>
-                  <FormControlLabel 
-                    control={<Switch size="small" checked={salvarComoModelo} onChange={(e) => setSalvarComoModelo(e.target.checked)} />} 
-                    label={<Typography variant="body2" sx={{ fontWeight: salvarComoModelo ? 'bold' : 'normal' }}>Salvar nos Meus Modelos</Typography>} 
-                  />
-                </FormGroup>
-
-                <Button type="submit" variant="contained" disableElevation>
-                    Imprimir e Salvar
-                </Button>
-              </Box>
-          </Box>
-        </Box>
-      )}
-
-      {/* ABA 1: MEUS MODELOS SALVOS */}
-      {tabIndex === 1 && (
-        <Box>
-          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-            Estes são os modelos que você criou para agilizar seus atendimentos. Clique em "Usar" para carregar as medicações na tela de edição.
-          </Typography>
-          {modelosMedico.length > 0 ? (
-            modelosMedico.map(modelo => (
-              <Accordion key={modelo.id} variant="outlined" sx={{ mb: 1, boxShadow: 'none' }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#fafafa' }}>
-                  <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1976d2' }}>
-                    {modelo.titulo || 'Receita sem Título'}
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ pt: 1 }}>
-                  {modelo.itens.map((item, idx) => (
-                    <Box key={idx} sx={{ mb: 1 }}>
-                      <Typography variant="body2" fontWeight="bold">
-                        {item.medicamento} ({item.via}) - {item.dosagem}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Uso: {item.instrucoes}
-                      </Typography>
-                    </Box>
+              <Box sx={{ p: 1.5, bgcolor: '#f4f6f8', borderRadius: 1, border: '1px dashed #ccc' }}>
+                <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', pb: 0.5 }}>
+                  {Object.keys(catalogoRapido).map(cat => (
+                    <Chip key={cat} label={cat} size="small" color={categoriaAtiva === cat ? 'primary' : 'default'} onClick={() => setCategoriaAtiva(cat)} clickable />
                   ))}
-                  <Button startIcon={<ContentCopyIcon />} onClick={() => handleUsarModelo(modelo)} variant="outlined" size="small" sx={{ mt: 1 }}>
-                    Usar este Modelo
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {catalogoRapido[categoriaAtiva].map((med, idx) => (
+                    <Chip key={idx} label={med.medicamento} size="small" variant="outlined" onClick={() => handleAddFromCatalog(med)} icon={<AddCircleOutlineIcon fontSize="small"/>} clickable sx={{ bgcolor: 'white' }} />
+                  ))}
+                </Box>
+              </Box>
+
+              <TextField label="Título desta Prescrição / Diagnóstico (Opcional)" value={titulo} onChange={(e) => setTitulo(e.target.value)} fullWidth size="small" />
+              
+              {itens.map((item, index) => (
+                <Box key={index} sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 1, position: 'relative' }}>
+                  {itens.length > 1 && (
+                    <IconButton size="small" color="error" onClick={() => handleRemoveItem(index)} sx={{ position: 'absolute', top: -10, right: -10, bgcolor: 'white' }}>
+                      <RemoveCircleOutlineIcon />
+                    </IconButton>
+                  )}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 1, mb: 1 }}>
+                      <TextField label="Medicamento" value={item.medicamento} onChange={(e) => handleItemChange(index, 'medicamento', e.target.value)} required size="small" />
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>Via</InputLabel>
+                        <Select value={item.via} label="Via" onChange={(e) => handleItemChange(index, 'via', e.target.value)}>
+                          {VIAS_ADMINISTRACAO.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+                        </Select>
+                      </FormControl>
+                      <TextField label="Dosagem" value={item.dosagem} onChange={(e) => handleItemChange(index, 'dosagem', e.target.value)} required size="small" />
+                  </Box>
+                  <TextField label="Instruções de Uso" value={item.instrucoes} onChange={(e) => handleItemChange(index, 'instrucoes', e.target.value)} required fullWidth size="small" />
+                  
+                  {item.via === 'Intramuscular' && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block', fontWeight: 'bold' }}>
+                      * Atenção: Este item de via Intramuscular será impresso em folha separada para a enfermagem.
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, flexWrap: 'wrap', gap: 2 }}>
+                  <Button startIcon={<AddCircleOutlineIcon />} onClick={handleAddItem} size="small" color="secondary">
+                      Adicionar Medicamento
                   </Button>
-                </AccordionDetails>
-              </Accordion>
-            ))
-          ) : (
-            <Box sx={{ textAlign: 'center', p: 4, bgcolor: '#f9f9f9', borderRadius: 2 }}>
-               <Typography variant="body1" color="text.secondary">Você ainda não salvou nenhum modelo.</Typography>
-               <Typography variant="body2" color="text.secondary">Na aba "Escrever Prescrição", marque a opção "Salvar nos Meus Modelos" ao finalizar uma receita.</Typography>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <FormGroup>
+                      <FormControlLabel control={<Switch size="small" checked={salvarComoModelo} onChange={(e) => setSalvarComoModelo(e.target.checked)} />} label={<Typography variant="body2" sx={{ fontWeight: salvarComoModelo ? 'bold' : 'normal' }}>Salvar nos Meus Modelos</Typography>} />
+                    </FormGroup>
+                    <Button type="submit" variant="contained" disableElevation>
+                        Imprimir e Salvar
+                    </Button>
+                  </Box>
+              </Box>
             </Box>
-          )}
-        </Box>
-      )}
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* RESTAURAÇÃO: HISTÓRICO DO PACIENTE */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, color: 'text.secondary' }}>
+                Prescrições Anteriores deste Paciente
+              </Typography>
+              {prescricoesAnteriores.length > 0 ? (
+                prescricoesAnteriores.map(prescricao => (
+                  <Accordion key={prescricao.id} disableGutters sx={{ border: '1px solid #e0e0e0', mb: 1, '&:before': { display: 'none' } }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                        {new Date(prescricao.data_prescricao).toLocaleDateString('pt-BR')} 
+                        {prescricao.titulo ? ` - ${prescricao.titulo}` : ''}
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ p: 1.5, pt: 0, bgcolor: '#f8f9fa' }}>
+                      {prescricao.itens.map((item, idx) => (
+                        <Box key={idx} sx={{ mb: 1 }}>
+                          <Typography variant="body2" fontWeight="bold">{item.medicamento} - {item.dosagem}</Typography>
+                          <Typography variant="caption" color="text.secondary">{item.instrucoes}</Typography>
+                          <Divider sx={{ my: 0.5 }} />
+                        </Box>
+                      ))}
+                      <Button startIcon={<PictureAsPdfIcon />} onClick={() => handleGerarPdf(prescricao.id)} variant="outlined" size="small" fullWidth sx={{ mt: 1 }}>
+                        Imprimir PDF
+                      </Button>
+                    </AccordionDetails>
+                  </Accordion>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">Nenhuma prescrição salva para este paciente.</Typography>
+              )}
+            </Box>
+
+          </Box>
+        )}
+
+        {/* ABA 1: MEUS MODELOS SALVOS (Do Médico) */}
+        {tabIndex === 1 && (
+          <Box>
+            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+              Modelos criados para agilizar seus atendimentos. Clique em "Usar" para carregar as medicações na tela de edição.
+            </Typography>
+            {modelosMedico.length > 0 ? (
+              modelosMedico.map(modelo => (
+                <Accordion key={modelo.id} variant="outlined" sx={{ mb: 1, boxShadow: 'none' }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#fafafa' }}>
+                    <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1976d2' }}>
+                      {modelo.titulo || 'Receita sem Título'}
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ pt: 1 }}>
+                    {modelo.itens.map((item, idx) => (
+                      <Box key={idx} sx={{ mb: 1 }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          {item.medicamento} ({item.via}) - {item.dosagem}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Uso: {item.instrucoes}
+                        </Typography>
+                      </Box>
+                    ))}
+                    <Button startIcon={<ContentCopyIcon />} onClick={() => handleUsarModelo(modelo)} variant="outlined" size="small" sx={{ mt: 1 }}>
+                      Usar este Modelo
+                    </Button>
+                  </AccordionDetails>
+                </Accordion>
+              ))
+            ) : (
+              <Box sx={{ textAlign: 'center', p: 4, bgcolor: '#f9f9f9', borderRadius: 2 }}>
+                 <Typography variant="body1" color="text.secondary">Você ainda não salvou nenhum modelo.</Typography>
+                 <Typography variant="body2" color="text.secondary">Na aba "Escrever Prescrição", marque a opção "Salvar nos Meus Modelos" ao finalizar uma receita.</Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }

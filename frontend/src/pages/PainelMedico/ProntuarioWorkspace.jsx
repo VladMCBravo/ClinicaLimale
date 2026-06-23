@@ -230,18 +230,28 @@ export default function ProntuarioWorkspace() {
                 {/* COLUNA DIREITA (Ferramentas Ocultas) */}
                 {ferramentaDireita && (
                     <Box sx={{ width: '400px', borderLeft: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', flexShrink: 0, bgcolor: '#fafafa' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, borderBottom: '1px solid #e0e0e0' }}>
-                            <Typography variant="subtitle2" fontWeight="bold" color="primary" sx={{ textTransform: 'uppercase' }}>
-                                {ferramentaDireita}
-                            </Typography>
-                            <IconButton size="small" onClick={() => setFerramentaDireita(null)}><CloseIcon fontSize="small" /></IconButton>
-                        </Box>
-                        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+                        
+                        {/* 🌟 MUDANÇA AQUI: Omitimos o cabeçalho se a aba for PRESCRIÇÕES */}
+                        {ferramentaDireita !== 'PRESCRIÇÕES' && (
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, borderBottom: '1px solid #e0e0e0' }}>
+                                <Typography variant="subtitle2" fontWeight="bold" color="primary" sx={{ textTransform: 'uppercase' }}>
+                                    {ferramentaDireita}
+                                </Typography>
+                                <IconButton size="small" onClick={() => setFerramentaDireita(null)}><CloseIcon fontSize="small" /></IconButton>
+                            </Box>
+                        )}
+                        
+                        {/* Remove o padding interno de "PRESCRIÇÕES" para a tab colar no teto */}
+                        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: ferramentaDireita === 'PRESCRIÇÕES' ? 0 : 2 }}>
                             <Suspense fallback={<CircularProgress sx={{ m: 'auto', display: 'block' }} />}>
-                                {ferramentaDireita === 'PRESCRIÇÕES' && <PrescricoesTab pacienteId={pacienteAtivo?.id} />}
+                                {ferramentaDireita === 'PRESCRIÇÕES' && (
+                                    <PrescricoesTab 
+                                        pacienteId={pacienteAtivo?.id} 
+                                        onClose={() => setFerramentaDireita(null)} 
+                                    />
+                                )}
                                 {ferramentaDireita === 'DOCUMENTOS' && <DocumentosTab pacienteId={pacienteAtivo?.id} />}
                                 {ferramentaDireita === 'LAUDOS' && <LaudosTab pacienteId={pacienteAtivo?.id} />}
-                                {/* NOVA LINHA ADICIONADA PARA O DICOM */}
                                 {ferramentaDireita === 'IMAGENS' && <ExamesDicomTab pacienteId={pacienteAtivo?.id} />}
                                 {ferramentaDireita === 'ATESTADOS' && (
                                     <RelatoriosTab 
