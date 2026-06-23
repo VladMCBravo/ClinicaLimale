@@ -58,8 +58,8 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
   const [tabIndex, setTabIndex] = useState(0);
   const [categoriaAtiva, setCategoriaAtiva] = useState('Clínica Geral');
   
-  const [prescricoesAnteriores, setPrescricoesAnteriores] = useState([]); // Histórico do Paciente
-  const [modelosMedico, setModelosMedico] = useState([]); // Modelos do Médico
+  const [prescricoesAnteriores, setPrescricoesAnteriores] = useState([]);
+  const [modelosMedico, setModelosMedico] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
 
   const [titulo, setTitulo] = useState('');
@@ -69,17 +69,33 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Busca Histórico do Paciente (O que já existia)
       if (pacienteId) {
         const resPaciente = await apiClient.get(`/prontuario/pacientes/${pacienteId}/prescricoes/`);
         setPrescricoesAnteriores(resPaciente.data);
       }
 
-      // 2. Busca Modelos Salvos pelo Médico (Mock para exemplo)
-      // const resModelos = await apiClient.get(`/prontuario/medicos/${medicoId}/modelos/`);
+      // Adicionados TODOS os exemplos solicitados
       setModelosMedico([
-        { id: 'm1', titulo: 'Infecção Urinária (ITU) Padrão', itens: [{ medicamento: 'Fosfomicina Trometamol 3g', via: 'Oral', dosagem: '1 envelope', instrucoes: 'Dissolver em água e tomar dose única à noite após esvaziar a bexiga.' }] },
-        { id: 'm2', titulo: 'HAS + Dislipidemia Básica', itens: [catalogoRapido.Cardiologia[0], catalogoRapido.Cardiologia[2]] }
+        { 
+            id: 'm1', 
+            titulo: 'Padrão Amigdalite', 
+            itens: [catalogoRapido.Pediatria[0], catalogoRapido['Clínica Geral'][0]] 
+        },
+        { 
+            id: 'm2', 
+            titulo: 'Rotina HAS Básica', 
+            itens: [catalogoRapido.Cardiologia[0]] 
+        },
+        { 
+            id: 'm3', 
+            titulo: 'Infecção Urinária (ITU) Padrão', 
+            itens: [{ medicamento: 'Fosfomicina Trometamol 3g', via: 'Oral', dosagem: '1 envelope', instrucoes: 'Dissolver em água e tomar dose única à noite após esvaziar a bexiga.' }] 
+        },
+        { 
+            id: 'm4', 
+            titulo: 'HAS + Dislipidemia', 
+            itens: [catalogoRapido.Cardiologia[0], catalogoRapido.Cardiologia[2]] 
+        }
       ]);
     } catch (error) {
       showSnackbar('Erro ao carregar dados.', 'error');
@@ -157,7 +173,7 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
   return (
     <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       
-      {/* HEADER INTEGRADO (Substitui o cabeçalho antigo) */}
+      {/* HEADER INTEGRADO */}
       <Box sx={{ 
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', 
           borderBottom: 1, borderColor: 'divider', bgcolor: '#ffffff', px: 2, pt: 1 
@@ -167,7 +183,6 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
           <Tab label="Meus Modelos" sx={{ minHeight: '40px', fontWeight: 'bold', textTransform: 'none' }} />
         </Tabs>
         
-        {/* BOTÃO "X" RECEBIDO VIA PROP DO WORKSPACE */}
         {onClose && (
             <IconButton size="small" onClick={onClose} sx={{ mb: 0.5 }}>
                 <CloseIcon fontSize="small" />
@@ -175,7 +190,7 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
         )}
       </Box>
 
-      {/* ÁREA DE SCROLL (Formulários e Listas) */}
+      {/* ÁREA DE SCROLL */}
       <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto' }}>
         
         {/* ABA 0: ESCREVER PRESCRIÇÃO E HISTÓRICO DO PACIENTE */}
@@ -184,14 +199,33 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
             <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               
               <Box sx={{ p: 1.5, bgcolor: '#f4f6f8', borderRadius: 1, border: '1px dashed #ccc' }}>
-                <Box sx={{ display: 'flex', gap: 1, mb: 1, overflowX: 'auto', pb: 0.5 }}>
+                
+                {/* 🌟 ESPECIALIDADES - FONTES MENORES E SEM ROLAGEM HORIZONTAL */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
                   {Object.keys(catalogoRapido).map(cat => (
-                    <Chip key={cat} label={cat} size="small" color={categoriaAtiva === cat ? 'primary' : 'default'} onClick={() => setCategoriaAtiva(cat)} clickable />
+                    <Chip 
+                        key={cat} 
+                        label={cat} 
+                        color={categoriaAtiva === cat ? 'primary' : 'default'} 
+                        onClick={() => setCategoriaAtiva(cat)} 
+                        clickable 
+                        sx={{ fontSize: '0.7rem', height: '24px' }} 
+                    />
                   ))}
                 </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                
+                {/* 🌟 MEDICAMENTOS - FONTES MENORES */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                   {catalogoRapido[categoriaAtiva].map((med, idx) => (
-                    <Chip key={idx} label={med.medicamento} size="small" variant="outlined" onClick={() => handleAddFromCatalog(med)} icon={<AddCircleOutlineIcon fontSize="small"/>} clickable sx={{ bgcolor: 'white' }} />
+                    <Chip 
+                        key={idx} 
+                        label={med.medicamento} 
+                        variant="outlined" 
+                        onClick={() => handleAddFromCatalog(med)} 
+                        icon={<AddCircleOutlineIcon sx={{ fontSize: '14px' }}/>} 
+                        clickable 
+                        sx={{ bgcolor: 'white', fontSize: '0.7rem', height: '26px' }} 
+                    />
                   ))}
                 </Box>
               </Box>
@@ -232,9 +266,9 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
                   
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <FormGroup>
-                      <FormControlLabel control={<Switch size="small" checked={salvarComoModelo} onChange={(e) => setSalvarComoModelo(e.target.checked)} />} label={<Typography variant="body2" sx={{ fontWeight: salvarComoModelo ? 'bold' : 'normal' }}>Salvar nos Meus Modelos</Typography>} />
+                      <FormControlLabel control={<Switch size="small" checked={salvarComoModelo} onChange={(e) => setSalvarComoModelo(e.target.checked)} />} label={<Typography variant="body2" sx={{ fontWeight: salvarComoModelo ? 'bold' : 'normal', fontSize: '0.8rem' }}>Salvar nos Meus Modelos</Typography>} />
                     </FormGroup>
-                    <Button type="submit" variant="contained" disableElevation>
+                    <Button type="submit" variant="contained" disableElevation size="small">
                         Imprimir e Salvar
                     </Button>
                   </Box>
@@ -243,7 +277,7 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
 
             <Divider sx={{ my: 2 }} />
 
-            {/* RESTAURAÇÃO: HISTÓRICO DO PACIENTE */}
+            {/* HISTÓRICO DO PACIENTE */}
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, color: 'text.secondary' }}>
                 Prescrições Anteriores deste Paciente
@@ -279,7 +313,7 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
           </Box>
         )}
 
-        {/* ABA 1: MEUS MODELOS SALVOS (Do Médico) */}
+        {/* ABA 1: MEUS MODELOS SALVOS */}
         {tabIndex === 1 && (
           <Box>
             <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
@@ -288,23 +322,23 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
             {modelosMedico.length > 0 ? (
               modelosMedico.map(modelo => (
                 <Accordion key={modelo.id} variant="outlined" sx={{ mb: 1, boxShadow: 'none' }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#fafafa' }}>
-                    <Typography sx={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#1976d2' }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: '#fafafa', minHeight: '40px', '& .MuiAccordionSummary-content': { my: 1 } }}>
+                    <Typography sx={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1976d2' }}>
                       {modelo.titulo || 'Receita sem Título'}
                     </Typography>
                   </AccordionSummary>
-                  <AccordionDetails sx={{ pt: 1 }}>
+                  <AccordionDetails sx={{ pt: 1, px: 1.5 }}>
                     {modelo.itens.map((item, idx) => (
                       <Box key={idx} sx={{ mb: 1 }}>
-                        <Typography variant="body2" fontWeight="bold">
+                        <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
                           {item.medicamento} ({item.via}) - {item.dosagem}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1.2 }}>
                           Uso: {item.instrucoes}
                         </Typography>
                       </Box>
                     ))}
-                    <Button startIcon={<ContentCopyIcon />} onClick={() => handleUsarModelo(modelo)} variant="outlined" size="small" sx={{ mt: 1 }}>
+                    <Button startIcon={<ContentCopyIcon />} onClick={() => handleUsarModelo(modelo)} variant="outlined" size="small" sx={{ mt: 1, py: 0.5, fontSize: '0.75rem' }}>
                       Usar este Modelo
                     </Button>
                   </AccordionDetails>
