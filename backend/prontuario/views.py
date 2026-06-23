@@ -76,15 +76,31 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
             evolucao_existente = Evolucao.objects.filter(agendamento_id=agendamento_id).first()
             
             if evolucao_existente:
-                # 🔥 A MÁGICA AQUI: Se já existe, o Django ignora o erro 400 
-                # e atualiza os textos (SOAP) do atendimento atual!
                 serializer = self.get_serializer(evolucao_existente, data=request.data, partial=True)
+                
+                # 📢 MEGAFONE AQUI: Se der erro na atualização, printa no terminal
+                if not serializer.is_valid():
+                    print("\n🚨 ERRO 400 (ATUALIZANDO EVOLUÇÃO) - O DJANGO BARROU! MOTIVO:")
+                    print(serializer.errors)
+                    print("\n")
+                    
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # Se não existe evolução para esse ID de agendamento, cria um novo registro normalmente
-        return super().create(request, *args, **kwargs)
+        # Se não existe evolução para esse ID de agendamento, cria um novo registro
+        serializer = self.get_serializer(data=request.data)
+        
+        # 📢 MEGAFONE AQUI: Se der erro na criação, printa no terminal
+        if not serializer.is_valid():
+            print("\n🚨 ERRO 400 (CRIANDO NOVA EVOLUÇÃO) - O DJANGO BARROU! MOTIVO:")
+            print(serializer.errors)
+            print("\n")
+            
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
         """
