@@ -55,7 +55,7 @@ class Evolucao(models.Model):
     # (Campos de vitais - pressao_arterial, peso, etc... - Sem alteração)
     pressao_arterial = models.CharField(max_length=20, blank=True, null=True, verbose_name="Pressão Arterial")
     frequencia_cardiaca = models.PositiveIntegerField(blank=True, null=True, verbose_name="Frequência Cardíaca (bpm)")
-    peso = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, verbose_name="Peso (kg)")
+    peso = models.DecimalField(max_digits=6, decimal_places=3, blank=True, null=True, verbose_name="Peso (kg)")
     altura = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, verbose_name="Altura (cm/m)")
     exames_complementares = models.TextField(blank=True, null=True, verbose_name="Exames Complementares (ECG, Eco, etc.)")
     
