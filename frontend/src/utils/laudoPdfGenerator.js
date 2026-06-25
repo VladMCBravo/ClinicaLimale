@@ -208,45 +208,60 @@ export const gerarPDFLaudo = async ({
     // ==========================================================
     const dataExameFormatada = dataExame ? dataExame.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
     const content = [];
-    const hasExtraData = dadosEstruturados?.dataNascimento || dadosEstruturados?.idade || dadosEstruturados?.sexo || dadosEstruturados?.medicoSolicitante;
+    
+    // CABEÇALHO DINÂMICO
+    const cabecalhoTexto = [];
 
-    if (hasExtraData) {
-        const calcularIdadePDF = (nascimentoStr) => {
-            if (!nascimentoStr) return '';
-            if (nascimentoStr.includes('anos') || isNaN(Date.parse(nascimentoStr))) return nascimentoStr; 
-            const nascimento = new Date(nascimentoStr + 'T12:00:00'); 
-            const hoje = new Date();
-            let idade = hoje.getFullYear() - nascimento.getFullYear();
-            const m = hoje.getMonth() - nascimento.getMonth();
-            if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
-            return `${idade} anos`;
-        };
-
-        const infoIdade = dadosEstruturados.dataNascimento ? calcularIdadePDF(dadosEstruturados.dataNascimento) : (dadosEstruturados.idade || '___');
-        const infoSexo = dadosEstruturados.sexo || '___';
-        const infoSolicitante = dadosEstruturados.medicoSolicitante || '___';
-
-        content.push({
-            text: [
-                { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
-                { text: '    Idade: ', bold: true, color: '#555' }, infoIdade,
-                { text: '    Sexo: ', bold: true, color: '#555' }, infoSexo,
-                '\n', 
-                { text: 'Médico solicitante: ', bold: true, color: '#555' }, infoSolicitante.toUpperCase(),
-                { text: '    Data: ', bold: true, color: '#555' }, dataExameFormatada
-            ],
-            fontSize: 10, lineHeight: 1.3, margin: [0, 0, 0, 15] 
-        });
-    } else {
-        content.push({
-            text: [
-                { text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome ? pacienteNome.toUpperCase() : '___',
-                '\n', 
-                { text: 'Data: ', bold: true, color: '#555' }, dataExameFormatada
-            ],
-            fontSize: 10, lineHeight: 1.3, margin: [0, 0, 0, 15]
-        });
+    // 1. Paciente
+    if (pacienteNome) {
+        cabecalhoTexto.push({ text: 'Paciente: ', bold: true, color: '#555' }, pacienteNome.toUpperCase());
     }
+
+    // 2. Idade
+    const calcularIdadePDF = (nascimentoStr) => {
+        if (!nascimentoStr) return '';
+        if (nascimentoStr.includes('anos') || isNaN(Date.parse(nascimentoStr))) return nascimentoStr; 
+        const nascimento = new Date(nascimentoStr + 'T12:00:00'); 
+        const hoje = new Date();
+        let idade = hoje.getFullYear() - nascimento.getFullYear();
+        const m = hoje.getMonth() - nascimento.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
+        return `${idade} anos`;
+    };
+
+    const infoIdade = dadosEstruturados?.dataNascimento ? calcularIdadePDF(dadosEstruturados.dataNascimento) : dadosEstruturados?.idade;
+    if (infoIdade && infoIdade.trim() !== '') {
+        // Se já tem paciente na linha, dá um espaçamento, senão fica no começo
+        cabecalhoTexto.push({ text: cabecalhoTexto.length > 0 ? '    Idade: ' : 'Idade: ', bold: true, color: '#555' }, infoIdade);
+    }
+
+    // 3. Sexo
+    if (dadosEstruturados?.sexo && dadosEstruturados.sexo.trim() !== '') {
+        cabecalhoTexto.push({ text: cabecalhoTexto.length > 0 ? '    Sexo: ' : 'Sexo: ', bold: true, color: '#555' }, dadosEstruturados.sexo);
+    }
+
+    // Quebra de linha para separar o paciente do exame
+    if (cabecalhoTexto.length > 0) {
+        cabecalhoTexto.push('\n');
+    }
+
+    // 4. Médico Solicitante
+    let temSolicitante = false;
+    if (dadosEstruturados?.medicoSolicitante && dadosEstruturados.medicoSolicitante.trim() !== '') {
+        cabecalhoTexto.push({ text: 'Médico solicitante: ', bold: true, color: '#555' }, dadosEstruturados.medicoSolicitante.toUpperCase());
+        temSolicitante = true;
+    }
+
+    // 5. Data (Sempre exibida)
+    cabecalhoTexto.push({ text: temSolicitante ? '    Data: ' : 'Data: ', bold: true, color: '#555' }, dataExameFormatada);
+
+    // Insere o cabeçalho dinâmico no documento
+    content.push({
+        text: cabecalhoTexto,
+        fontSize: 10, 
+        lineHeight: 1.3, 
+        margin: [0, 0, 0, 15] 
+    });
 
     let textoParaImprimir = textoLaudo || '';
     let linhasTexto = textoParaImprimir.split('\n');
