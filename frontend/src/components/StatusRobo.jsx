@@ -61,6 +61,22 @@ export default function StatusRobo() {
         }
     };
 
+    const formatarDataBR = (dataString) => {
+    if (!dataString) return '';
+    try {
+        const data = new Date(dataString);
+        return new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(data);
+    } catch (e) {
+        return dataString; // Retorna original se falhar
+    }
+};
+
     return (
         <>
             <Box 
@@ -180,7 +196,7 @@ export default function StatusRobo() {
                                             }
                                             secondary={
                                                 <span style={{ fontSize: '11px', color: '#757575', display: 'block', marginTop: '2px' }}>
-                                                    {item.data_envio} • Pasta: {item.nome_pasta}
+                                                    {formatarDataBR(item.data_envio)} • Pasta: {item.nome_pasta}
                                                 </span>
                                             }
                                         />
