@@ -6,9 +6,10 @@ import {
     Button, CircularProgress, Alert, Dialog, DialogTitle, 
     DialogContent, DialogActions, Grid
 } from '@mui/material';
-import { FaPrint, FaEye, FaPlus, FaTimes, FaFilePdf } from 'react-icons/fa';
+import { FaPrint, FaEye, FaPlus, FaTimes, FaFilePdf, FaTrash } from 'react-icons/fa';
 import apiClient from '../../api/axiosConfig';
 import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator'; // Importando o gerador
+import { useAuth } from '../../hooks/useAuth';
 
 const LaudosTab = ({ pacienteId }) => {
     const [laudos, setLaudos] = useState([]);
@@ -19,7 +20,7 @@ const LaudosTab = ({ pacienteId }) => {
     const [laudoSelecionado, setLaudoSelecionado] = useState(null);
     const [openModal, setOpenModal] = useState(false);
     const [loadingImagens, setLoadingImagens] = useState(false);
-
+    const { user } = useAuth();
     useEffect(() => {
         if (!pacienteId) return;
         buscarLaudos();
@@ -38,6 +39,31 @@ const LaudosTab = ({ pacienteId }) => {
             setErro("Não foi possível carregar o histórico.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteLaudo = async (laudo) => {
+        // Freio de Segurança Visual
+        if (laudo.status === 'FINALIZADO') {
+            const confirmar = window.confirm(
+                "🛑 ATENÇÃO: Este laudo já está FINALIZADO e disponível no portal do paciente.\n\n" +
+                "Se você excluí-lo, o paciente perderá o acesso ao PDF imediatamente.\n\n" +
+                "Tem certeza absoluta que deseja apagar este documento oficial?"
+            );
+            if (!confirmar) return;
+        } else {
+            const confirmarRascunho = window.confirm("Deseja excluir este laudo em andamento?");
+            if (!confirmarRascunho) return;
+        }
+
+        // Requisição para o Backend
+        try {
+            await apiClient.delete(`/prontuario/laudos/${laudo.id}/`);
+            // Recarrega a lista automaticamente após a exclusão
+            buscarLaudos();
+        } catch (error) {
+            console.error("Erro ao excluir o laudo:", error);
+            alert("Erro ao excluir o laudo. Verifique se você tem permissão ou tente novamente.");
         }
     };
 
@@ -135,36 +161,43 @@ const LaudosTab = ({ pacienteId }) => {
                                     <Chip label={laudo.status} size="small" color={laudo.status === 'FINALIZADO' ? 'success' : 'warning'} />
                                 </TableCell>
                                 <TableCell align="center">
-    {/* 1. Botão do PDF Assinado (Prioridade) */}
-    {laudo.arquivo_pdf ? (
-        <IconButton 
-            size="small" 
-            color="error" // Vermelho para destacar PDF
-            title="Baixar PDF Assinado Original"
-            onClick={() => window.open(laudo.arquivo_pdf, '_blank')}
-            sx={{ mr: 1 }}
-        >
-            <FaFilePdf />
-        </IconButton>
-    ) : (
-        /* Se não tiver PDF salvo (legado), mostra o botão de Gerar na Hora */
-        <IconButton 
-            size="small" 
-            color="primary" 
-            title="Gerar PDF Agora"
-            onClick={() => handleImprimir(laudo)} 
-            disabled={loadingImagens}
-            sx={{ mr: 1 }}
-        >
-            {loadingImagens ? <CircularProgress size={20} /> : <FaPrint />}
-        </IconButton>
-    )}
+                                    {/* 1. Botão do PDF Assinado (Prioridade) */}
+                                    {laudo.arquivo_pdf ? (
+                                        <IconButton 
+                                            size="small" 
+                                            color="error" // Vermelho para destacar PDF
+                                            title="Baixar PDF Assinado Original"
+                                            onClick={() => window.open(laudo.arquivo_pdf, '_blank')}
+                                            sx={{ mr: 1 }}
+                                        >
+                                            <FaFilePdf />
+                                        </IconButton>
+                                    ) : (
+                                        /* Se não tiver PDF salvo (legado), mostra o botão de Gerar na Hora */
+                                        <IconButton 
+                                            size="small" 
+                                            color="primary" 
+                                            title="Gerar PDF Agora"
+                                            onClick={() => handleImprimir(laudo)} 
+                                            disabled={loadingImagens}
+                                            sx={{ mr: 1 }}
+                                        >
+                                            {loadingImagens ? <CircularProgress size={20} /> : <FaPrint />}
+                                        </IconButton>
+                                    )}
 
-    {/* 2. Botão de Visualizar Texto Rápido */}
-    <IconButton size="small" onClick={() => handleVisualizar(laudo)} title="Ver Detalhes">
-        <FaEye />
-    </IconButton>
-</TableCell>
+                                    {/* 2. Botão de Visualizar Texto Rápido */}
+                                    <IconButton size="small" onClick={() => handleVisualizar(laudo)} title="Ver Detalhes" sx={{ mr: 1 }}>
+                                        <FaEye />
+                                    </IconButton>
+
+                                    {/* 3. Botão de Excluir Laudo (Apenas para o Dono) */}
+                                    {user?.id === laudo.medico && (
+                                        <IconButton size="small" onClick={() => handleDeleteLaudo(laudo)} title="Excluir Laudo" sx={{ color: '#d32f2f' }}>
+                                            <FaTrash />
+                                        </IconButton>
+                                    )}
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

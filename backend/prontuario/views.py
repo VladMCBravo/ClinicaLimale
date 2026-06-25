@@ -911,9 +911,17 @@ class LaudoListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         paciente_id = self.request.query_params.get('paciente')
+        
+        # Mágica do ORM: Carrega os relacionamentos na mesma query
+        queryset = Laudo.objects.select_related(
+            'paciente', 'medico', 'exame'
+        ).prefetch_related(
+            'imagens', 'exame__arquivos'
+        ).order_by('-data_criacao')
+
         if paciente_id:
-            return Laudo.objects.filter(paciente__id=paciente_id).order_by('-data_criacao')
-        return Laudo.objects.all().order_by('-data_criacao')
+            return queryset.filter(paciente__id=paciente_id)
+        return queryset
 
     def perform_create(self, serializer):
         import json
@@ -1277,12 +1285,14 @@ class LaudoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
     # 👇 ADICIONE ESTE BLOCO PARA BLINDAR A EXCLUSÃO 👇
     def perform_destroy(self, instance):
+        from rest_framework.exceptions import PermissionDenied
+        
+        # Trava de Autoria: Apenas o próprio médico pode excluir
         if instance.medico != self.request.user:
             raise PermissionDenied("Você não tem permissão para excluir o laudo de outro médico.")
         
-        if instance.status == 'FINALIZADO':
-            raise ValidationError("Falha Médico-Legal: Laudos finalizados são registros permanentes e não podem ser excluídos.")
-
+        # Trava médico-legal removida. O médico agora tem autonomia para deletar o laudo.
+        
         instance.delete() 
 
     def update(self, request, *args, **kwargs):

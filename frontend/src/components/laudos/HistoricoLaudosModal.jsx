@@ -10,12 +10,14 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 
 import apiClient from '../../api/axiosConfig';
+import { useAuth } from '../../hooks/useAuth';
 import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator';
 
 const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const [laudos, setLaudos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [gerandoId, setGerandoId] = useState(null);
+    const { user } = useAuth();
 
     useEffect(() => {
         if (open && pacienteId) {
@@ -63,14 +65,27 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("⚠️ TEM CERTEZA? Isso apagará o laudo permanentemente.")) return;
+    const handleDelete = async (id, status) => {
+        // Freio de Segurança Visual baseado no Status
+        if (status === 'FINALIZADO') {
+            const confirmar = window.confirm(
+                "🛑 ATENÇÃO: Este laudo já está FINALIZADO e disponível no portal do paciente.\n\n" +
+                "Se você excluí-lo, o paciente perderá o acesso ao PDF imediatamente.\n\n" +
+                "Tem certeza absoluta que deseja apagar este documento oficial?"
+            );
+            if (!confirmar) return;
+        } else {
+            const confirmarRascunho = window.confirm("Deseja excluir este laudo do sistema?");
+            if (!confirmarRascunho) return;
+        }
+
         try {
             await apiClient.delete(`/prontuario/laudos/${id}/`);
             setLaudos(prev => prev.filter(l => l.id !== id));
-            alert("Laudo excluído!");
+            // Substituído alert() simples por um feedback mais suave, opcionalmente use Snackbar aqui se tiver
         } catch (error) {
-            alert("Erro ao excluir. Verifique permissões.");
+            console.error("Erro ao excluir laudo:", error);
+            alert("Erro ao excluir. Verifique se você tem permissão ou tente novamente.");
         }
     };
 
@@ -233,11 +248,12 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                                 </Tooltip>
                                             )}
 
-                                            {!laudo.is_exame_externo && (
+                                            {/* Mostra a lixeira APENAS se não for arquivo externo E o usuário logado for o AUTOR do laudo */}
+                                            {!laudo.is_exame_externo && user?.id === laudo.medico && (
                                                 <Tooltip title="Excluir Laudo">
                                                     <IconButton 
                                                         size="small" color="error" 
-                                                        onClick={() => handleDelete(laudo.id)}
+                                                        onClick={() => handleDelete(laudo.id, laudo.status)}
                                                         sx={{ border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#fff' }}
                                                     >
                                                         <FaTrash size={14} />

@@ -496,7 +496,11 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                     setModalSucessoOpen(true);
                 } else if (statusAtual === 'ERRO') {
                     setIsPolling(false);
-                    alert("Ocorreu um erro no servidor ao gerar o PDF ou aplicar a assinatura digital.");
+                    alert(
+                        "⚠️ Falha na Assinatura Digital!\n\n" +
+                        "Ocorreu um erro de comunicação ao aplicar o seu certificado no PDF. O laudo NÃO foi finalizado e continua como rascunho.\n\n" +
+                        "Por favor, verifique sua conexão e clique em 'Finalizar' novamente."
+                    );
                 } else {
                     // Se estiver 'PROCESSANDO', checa novamente em 3 segundos
                     setTimeout(checkStatus, 3000);
