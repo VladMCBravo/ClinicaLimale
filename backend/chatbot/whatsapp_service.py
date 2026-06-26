@@ -53,23 +53,20 @@ class WhatsAppBotHandler:
         }
         
         try:
-            # Disparo da requisição com timeout de segurança
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             
-            # --- DEBUG PODEROSO: Captura refinada de falhas de envio (ex: bloqueios, anti-spam, 9º dígito) ---
             if not response.ok:
-                error_msg = f"\n[ERRO META API] Status: {response.status_code}\n[ERRO META API] Detalhes: {response.text}\n"
+                error_msg = f"\n[💥 ERRO FATAL META API] Status: {response.status_code}\n[💥 ERRO FATAL META API] Destinatário: {self.phone}\n[💥 ERRO FATAL META API] Detalhes: {response.text}\n"
                 logger.error(error_msg)
-                print(error_msg)
+                print(error_msg) # Força a impressão no console do Render
                 
             response.raise_for_status()
             return response
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Falha de infraestrutura ao enviar mensagem para {self.phone} via Meta: {e}")
-            return None
         except Exception as e:
-            logger.error(f"Erro de sistema inesperado ao enviar mensagem para {self.phone}: {e}")
+            error_trace = f"\n[💥 ERRO DE SISTEMA] Falha ao enviar para {self.phone}: {e}\n"
+            logger.error(error_trace)
+            print(error_trace) # Força a impressão no console do Render
             return None
 
     def processar_fluxo(self, texto):
