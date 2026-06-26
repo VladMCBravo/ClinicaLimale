@@ -15,6 +15,7 @@ from .views import (
     ListarMedicosPorEspecialidadeView,
     ListarConversasAtivasView,
     EvolutionWebhookView,
+    MetaWhatsAppWebhookView,  # <-- Adicione a nova view aqui
     WhatsAppStatusView,
     WhatsAppLogoutView
 )
@@ -45,6 +46,9 @@ urlpatterns = [
     path('dashboard/health/', ChatbotHealthCheckView.as_view(), name='chatbot_health'),
     path('conversas-ativas/', ListarConversasAtivasView.as_view(), name='listar_conversas_ativas'),
     path('webhook/evolution/', EvolutionWebhookView.as_view(), name='webhook_evolution'),
+
+    # --- Webhook Oficial da Meta ---
+    path('webhook/whatsapp/', MetaWhatsAppWebhookView.as_view(), name='webhook_whatsapp'),
 
     # --- ROTA DO QR CODE ---
     path('whatsapp/status/', WhatsAppStatusView.as_view(), name='whatsapp_status'),

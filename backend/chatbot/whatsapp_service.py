@@ -22,39 +22,57 @@ class WhatsAppBotHandler:
             self.ciclo_ativo = None
 
     def enviar_mensagem(self, texto):
-        """Envia a resposta via Evolution API"""
+        """Envia a resposta via API Oficial da Meta (WhatsApp Cloud API)"""
         if not texto:
             return
             
-        url = f"{settings.EVOLUTION_API_URL}/message/sendText/{settings.EVOLUTION_INSTANCE}"
+        # As variáveis abaixo precisarão ser adicionadas no seu settings.py e arquivo .env
+        api_version = getattr(settings, 'META_API_VERSION', 'v25.0')
+        phone_number_id = settings.META_PHONE_NUMBER_ID
+        access_token = settings.META_ACCESS_TOKEN
         
-        # --- MUDANÇA AQUI: Formato atualizado para Evolution API V2 ---
+        # URL oficial de disparo da Graph API
+        url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
+        
+        # Estrutura de Payload exigida pela Meta para mensagens de texto
         payload = {
-            "number": self.phone, 
-            "text": texto  # Antes estava "textMessage": {"text": texto}
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": self.phone,
+            "type": "text",
+            "text": {
+                "preview_url": False, # Define se o WhatsApp deve renderizar links
+                "body": texto
+            }
         }
         
+        # Cabeçalho com o Token Permanente gerado no painel da Meta
         headers = {
-            "apikey": settings.EVOLUTION_API_KEY,
+            "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
         
         try:
-            response = requests.post(url, json=payload, headers=headers, verify=False, timeout=10)
+            # Disparo da requisição com timeout de segurança
+            response = requests.post(url, json=payload, headers=headers, timeout=10)
             
-            # --- DEBUG PODEROSO: Se der erro, printa a fofoca toda ---
+            # --- DEBUG PODEROSO: Captura refinada de falhas de envio (ex: bloqueios, anti-spam, 9º dígito) ---
             if not response.ok:
-                print(f"\n[ERRO EVOLUTION] Status: {response.status_code}")
-                print(f"[ERRO EVOLUTION] Detalhes: {response.text}\n")
+                error_msg = f"\n[ERRO META API] Status: {response.status_code}\n[ERRO META API] Detalhes: {response.text}\n"
+                logger.error(error_msg)
+                print(error_msg)
                 
             response.raise_for_status()
             return response
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Falha de infraestrutura ao enviar mensagem para {self.phone} via Meta: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Erro ao enviar mensagem para {self.phone}: {e}")
+            logger.error(f"Erro de sistema inesperado ao enviar mensagem para {self.phone}: {e}")
             return None
 
     def processar_fluxo(self, texto):
         """Orquestra o recebimento de mensagens e repassa diretamente ao bot_logic"""
         resultado = processar_mensagem_bot(self.phone, texto)
         return resultado.get("response_message")
-

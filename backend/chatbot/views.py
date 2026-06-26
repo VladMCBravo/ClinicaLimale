@@ -416,3 +416,107 @@ class WhatsAppLogoutView(APIView):
                 return Response({"erro": "Falha ao desconectar."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"erro": "Erro de infraestrutura ao tentar desconectar."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ==============================================================================
+# WEBHOOK DA API OFICIAL DA META (WHATSAPP CLOUD API)
+# ==============================================================================
+
+class MetaWhatsAppWebhookView(APIView):
+    """Endpoint para validação e recebimento de mensagens da API Oficial da Meta"""
+    
+    # Rota pública: quem faz a autenticação é a própria Meta através do Token de Verificação
+    permission_classes = [] 
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        """
+        Fase 1: Handshake (O aperto de mão)
+        A Meta faz uma requisição GET para confirmar se a URL realmente te pertence.
+        """
+        mode = request.query_params.get('hub.mode')
+        token = request.query_params.get('hub.verify_token')
+        challenge = request.query_params.get('hub.challenge')
+
+        # ATENÇÃO: Defina uma senha segura aqui e use a MESMA senha lá no painel da Meta
+        VERIFY_TOKEN = "Limal3_S3cur3_T0k3n_2026" 
+
+        if mode and token:
+            if mode == 'subscribe' and token == VERIFY_TOKEN:
+                logger.info("Webhook da Meta verificado com sucesso!")
+                # O Django precisa retornar APENAS o 'challenge' como texto puro (text/plain)
+                from django.http import HttpResponse
+                return HttpResponse(challenge, content_type="text/plain", status=200)
+            else:
+                logger.error("Falha na verificação do Webhook da Meta: Token inválido.")
+                return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+                
+        return Response({"error": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Fase 2: Recebimento das Mensagens
+        Tudo o que os clientes enviarem (textos, áudios, etc) chegará aqui através de requisições POST.
+        """
+        try:
+            data = request.data
+            
+            # 1. Valida se é um evento do WhatsApp
+            if data.get("object") == "whatsapp_business_account":
+                for entry in data.get("entry", []):
+                    for change in entry.get("changes", []):
+                        value = change.get("value", {})
+                        
+                        # 2. Verifica se existem mensagens (ignora status de lido/entregue por enquanto)
+                        if "messages" in value:
+                            for message in value["messages"]:
+                                
+                                # Coleta os dados básicos
+                                phone_number = message.get("from")
+                                message_id = message.get("id")
+                                
+                                # 3. Extrai o texto (se for uma mensagem de texto)
+                                message_text = ""
+                                if message.get("type") == "text":
+                                    message_text = message.get("text", {}).get("body", "")
+                                
+                                # Você pode adicionar lógicas para áudio, imagem e botoes aqui no futuro
+                                
+                                if message_text:
+                                    logger.info(f"Mensagem Meta recebida de {phone_number}: {message_text}")
+                                    
+                                    handler = WhatsAppBotHandler(phone_number)
+                                    
+                                    # 4. Envia o processamento pesado (IA Langchain) para uma Thread
+                                    # Exatamente como você fez brilhantemente na view da Evolution
+                                    def tarefa_em_segundo_plano_meta():
+                                        try:
+                                            memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
+                                            
+                                            # ATENÇÃO: O seu WhatsAppBotHandler precisará ser adaptado
+                                            # para saber que agora ele deve enviar a resposta de volta usando a URL da Meta, 
+                                            # e não a URL da Evolution.
+                                            resposta = handler.processar_fluxo(message_text)
+                                            
+                                            if is_nova_conversa:
+                                                time.sleep(12)
+                                                mensagem_saudacao = (
+                                                    "Olá 🤍\n\n"
+                                                    "Sou o Leônidas, assistente da Clínica Limalé — centro de "
+                                                    "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                                                    "Será um prazer te atender.\nNo que posso ajudar hoje?"
+                                                )
+                                                handler.enviar_mensagem(mensagem_saudacao)
+
+                                        except Exception as e:
+                                            logger.error(f"Erro no processamento da IA via Meta: {e}")
+
+                                    thread = threading.Thread(target=tarefa_em_segundo_plano_meta)
+                                    thread.start()
+            
+            # A Meta exige que o servidor retorne 200 OK imediatamente. 
+            # Caso contrário, ela vai tentar reenviar a mesma mensagem repetidas vezes.
+            return Response({"status": "EVENT_RECEIVED"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Erro ao processar Webhook da Meta: {e}", exc_info=True)
+            return Response({"status": "ERROR"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

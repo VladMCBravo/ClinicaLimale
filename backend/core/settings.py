@@ -225,6 +225,11 @@ EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY')
 EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE', 'crm_oficial')
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
+# --- API Oficial da Meta (WhatsApp Cloud API) ---
+META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+META_PHONE_NUMBER_ID = os.environ.get('META_PHONE_NUMBER_ID')
+META_ACCESS_TOKEN = os.environ.get('META_ACCESS_TOKEN')
+
 # Chave para criptografia do certificado digital (Mantenha em segredo!)
 # Você pode gerar uma nova com: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())
 FERNET_KEY = os.environ.get('FERNET_KEY', 'sua-chave-fernet-aqui')
