@@ -1,15 +1,23 @@
 // src/components/prontuario/AtestadosTab.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    Box, Button, CircularProgress, TextField, Typography, Paper, Accordion, 
-    AccordionSummary, AccordionDetails, Select, MenuItem, InputLabel, FormControl 
-} from '@mui/material';
+import { Box, Button, CircularProgress, TextField, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, Select, MenuItem, InputLabel, FormControl, Autocomplete, FormControlLabel, Checkbox } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext'; // 1. IMPORTE O SNACKBAR
 
-const initialFormState = { tipo_atestado: '', observacoes: '' };
+// Uma lista rápida de exemplo (Você pode expandir isso depois)
+const listaCIDs = [
+    { codigo: 'J03.9', descricao: 'Amigdalite aguda não especificada' },
+    { codigo: 'J01.9', descricao: 'Sinusite aguda não especificada' },
+    { codigo: 'I10', descricao: 'Hipertensão essencial (primária)' },
+    { codigo: 'A09', descricao: 'Diarreia e gastroenterite de origem infecciosa presumível' },
+    { codigo: 'N39.0', descricao: 'Infecção do trato urinário de localização não especificada' },
+    { codigo: 'M54.5', descricao: 'Dor lombar baixa' },
+    { codigo: 'Z11.3', descricao: 'Exame de rastreamento para infecções de transmissão predominantemente sexual' }
+];
+
+const initialFormState = { tipo_atestado: '', observacoes: '', cid: null, paciente_autorizou_cid: false };
 
 export default function AtestadosTab({ pacienteId }) {
   const { showSnackbar } = useSnackbar(); // 2. INICIALIZE O HOOK
@@ -39,12 +47,20 @@ export default function AtestadosTab({ pacienteId }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await apiClient.post(`/prontuario/pacientes/${pacienteId}/atestados/`, formData);
-      showSnackbar('Atestado salvo com sucesso!', 'success'); // Feedback de sucesso
+      // 1. PREPARA OS DADOS ANTES DE ENVIAR
+      const payloadFormatoCorreto = {
+          ...formData,
+          // Se tiver um CID selecionado, manda só o código dele (String). Se não, manda null.
+          cid: formData.cid ? formData.cid.codigo : null 
+      };
+
+      // 2. ENVIA O PAYLOAD CORRETO
+      await apiClient.post(`/prontuario/pacientes/${pacienteId}/atestados/`, payloadFormatoCorreto);
+      
+      showSnackbar('Atestado salvo com sucesso!', 'success');
       setFormData(initialFormState);
       fetchAtestados();
     } catch (error) {
-      // MUDANÇA AQUI
       showSnackbar('Erro ao salvar atestado.', 'error');
       console.error("Erro ao salvar atestado:", error.response?.data);
     } finally {
@@ -102,6 +118,32 @@ export default function AtestadosTab({ pacienteId }) {
               <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>
             </Select>
           </FormControl>
+          {/* O MÁGICO AUTOCOMPLETE DE CID */}
+          <Autocomplete
+              options={listaCIDs}
+              getOptionLabel={(option) => `${option.codigo} - ${option.descricao}`}
+              value={formData.cid}
+              onChange={(event, newValue) => {
+                  setFormData({ ...formData, cid: newValue });
+              }}
+              renderInput={(params) => (
+                  <TextField {...params} label="Buscar Diagnóstico (CID-10)" placeholder="Digite a doença ou código..." />
+              )}
+              isOptionEqualToValue={(option, value) => option.codigo === value?.codigo}
+              clearOnEscape
+          />
+
+          {/* CHECKBOX DE AUTORIZAÇÃO (Requisito Legal) */}
+          <FormControlLabel
+              control={
+                  <Checkbox 
+                      checked={formData.paciente_autorizou_cid} 
+                      onChange={(e) => setFormData({ ...formData, paciente_autorizou_cid: e.target.checked })}
+                      disabled={!formData.cid} // Só habilita se tiver um CID selecionado
+                  />
+              }
+              label="Paciente autoriza a impressão do CID no atestado (Res. CFM nº 1.658/2002)"
+          />
           <TextField 
             label="Observações (Texto do atestado, CID, etc.)" 
             value={formData.observacoes} 

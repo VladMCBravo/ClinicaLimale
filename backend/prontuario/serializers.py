@@ -59,7 +59,7 @@ class EvolucaoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'medico_nome', 'data_atendimento', 'notas_subjetivas', 'notas_objetivas',
             'avaliacao', 'plano', 'pressao_arterial', 'frequencia_cardiaca', 'peso', 'altura',
-            'exames_complementares', 'agendamento', 'especialidade', 'especialidade_nome'
+            'exames_complementares', 'agendamento', 'especialidade', 'especialidade_nome', 'cid'
         ]
         # A MÁGICA 1: Adicionamos 'especialidade' aqui para o Django não barrar textos
         read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome', 'especialidade']
@@ -196,7 +196,9 @@ class AtestadoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Atestado
-        fields = ['id', 'paciente', 'medico', 'data_emissao', 'tipo_atestado', 'tipo_atestado_display', 'observacoes']
+        fields = ['id', 'paciente', 'medico', 'data_emissao', 'tipo_atestado', 'tipo_atestado_display', 'observacoes',
+                  'cid', 'paciente_autorizou_cid' # <--- ADICIONE AQUI
+        ]
 
 class DocumentoPacienteSerializer(serializers.ModelSerializer):
     enviado_por_nome = serializers.CharField(source='enviado_por.get_full_name', read_only=True)

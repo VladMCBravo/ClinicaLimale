@@ -50,6 +50,8 @@ class Evolucao(models.Model):
     notas_subjetivas = models.TextField(blank=True, null=True, verbose_name="Subjetivo (Queixa Principal / HDA)")
     notas_objetivas = models.TextField(blank=True, null=True, verbose_name="Exame Físico (Ausculta, Sinais, etc.)")
     avaliacao = models.TextField(blank=True, null=True, verbose_name="Diagnóstico / Hipóteses")
+    # NOVO CAMPO
+    cid = models.CharField(max_length=100, blank=True, null=True, verbose_name="Código CID-10")
     plano = models.TextField(blank=True, null=True, verbose_name="Plano Terapêutico / Condutas")
     
     # (Campos de vitais - pressao_arterial, peso, etc... - Sem alteração)
@@ -133,6 +135,10 @@ class Atestado(models.Model):
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     data_emissao = models.DateTimeField(auto_now_add=True)
     tipo_atestado = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    # NOVOS CAMPOS PARA O CID
+    cid = models.CharField(max_length=100, blank=True, null=True, verbose_name="Código CID-10")
+    paciente_autorizou_cid = models.BooleanField(default=False, verbose_name="Paciente autorizou CID")
+
     observacoes = models.TextField(help_text="Texto do atestado, incluindo informações como CID, dias de afastamento, etc.")
 
     class Meta:
