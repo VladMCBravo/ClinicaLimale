@@ -31,7 +31,7 @@ def assinar_pdf_digitalmente(pdf_bytes, usuario_medico):
         
         signer = signers.SimpleSigner.load_pkcs12(
             pfx_file=p12_data,
-            key_passphrase=senha_bytes
+            passphrase=senha_bytes      # <--- CORRIGIDO
         )
 
         # 4. Prepara o PDF para assinatura incremental
