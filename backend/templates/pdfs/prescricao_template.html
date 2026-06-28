@@ -32,7 +32,7 @@
                                 Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).
                             </span><br>
                             <span style="font-size: 7.5pt; color: #555;">
-                                *Para validar a assinatura deste documento, acesse <strong><a href="https://validar.iti.gov.br" style="color: #333; text-decoration: underline;">https://validar.iti.gov.br</a></strong> ou aponte a câmera para o QR Code ao lado.
+                                *Para validar, acesse <strong><a href="https://validar.iti.gov.br" style="color: #333; text-decoration: underline;">https://validar.iti.gov.br</a></strong> ou aponte a câmera para o QR Code ao lado.
                             </span>
                         </td>
                         <td style="width: 60px; text-align: right; vertical-align: middle;">
@@ -52,27 +52,60 @@
             </div>
         {% endif %}
     </div>
-    <h1>PRESCRIÇÃO MÉDICA</h1>
 
-    <table class="info-grid">
-        <tr>
-            <td class="label">Paciente:</td>
-            <td>{{ prescricao.paciente.nome_completo }}</td>
-            <td class="label">Data:</td>
-            <td>{{ prescricao.data_prescricao|date:"d/m/Y" }}</td>
-        </tr>
-    </table>
+    {% if itens_comuns %}
+        <h1>PRESCRIÇÃO MÉDICA</h1>
 
-    <div class="section">
-        <div class="section-title">Medicamentos</div>
+        <table class="info-grid">
+            <tr>
+                <td class="label">Paciente:</td>
+                <td>{{ prescricao.paciente.nome_completo }}</td>
+                <td class="label">Data:</td>
+                <td>{{ prescricao.data_prescricao|date:"d/m/Y" }}</td>
+            </tr>
+        </table>
+
+        <div class="section">
+            <div class="section-title">Uso Domiciliar</div>
+            
+            {% for item in itens_comuns %}
+                <div class="content" style="margin-bottom: 15px;">
+                    <strong>{{ forloop.counter }}) {{ item.medicamento }} - {{ item.dosagem }}</strong>
+                    <br>
+                    <span style="padding-left: 15px;">Uso: {{ item.instrucoes }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if itens_injetaveis %}
         
-        {% for item in prescricao.itens.all %}
-            <div class="content" style="margin-bottom: 15px;">
-                <strong>{{ forloop.counter }}) {{ item.medicamento }} - {{ item.dosagem }}</strong>
-                <br>
-                <span style="padding-left: 15px;">Uso: {{ item.instrucoes }}</span>
-            </div>
-        {% endfor %}
-    </div>
+        {% if itens_comuns %}
+            <pdf:nextpage />
+        {% endif %}
+
+        <h1>RECEITUÁRIO PARA ENFERMAGEM</h1>
+
+        <table class="info-grid">
+            <tr>
+                <td class="label">Paciente:</td>
+                <td>{{ prescricao.paciente.nome_completo }}</td>
+                <td class="label">Data:</td>
+                <td>{{ prescricao.data_prescricao|date:"d/m/Y" }}</td>
+            </tr>
+        </table>
+
+        <div class="section">
+            <div class="section-title">Administração Injetável</div>
+            
+            {% for item in itens_injetaveis %}
+                <div class="content" style="margin-bottom: 15px;">
+                    <strong>{{ forloop.counter }}) {{ item.medicamento }} - {{ item.dosagem }}</strong>
+                    <br>
+                    <span style="padding-left: 15px;">Via: {{ item.via }} | Instruções: {{ item.instrucoes }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 
 {% endblock %}

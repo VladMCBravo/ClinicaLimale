@@ -85,6 +85,7 @@ class Prescricao(models.Model):
 class ItemPrescricao(models.Model):
     prescricao = models.ForeignKey('Prescricao', on_delete=models.CASCADE, related_name='itens')
     medicamento = models.CharField(max_length=200)
+    via = models.CharField(max_length=50, default='Oral')
     dosagem = models.CharField(max_length=100)
     instrucoes = models.TextField(verbose_name="Instruções de Uso")
 

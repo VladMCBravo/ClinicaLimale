@@ -457,8 +457,20 @@ class GerarPrescricaoPDFView(APIView):
         except Prescricao.DoesNotExist:
             return HttpResponse("Prescrição não encontrada.", status=404)
         
-        # --- VIU COMO FICOU LIMPO? ---
-        context = {'prescricao': prescricao}
+        # --- NOVA LÓGICA DE SEPARAÇÃO ---
+        todos_itens = prescricao.itens.all()
+        vias_enfermagem = ['Intramuscular', 'Intravenosa']
+        
+        # Divide em duas listas baseadas na via de administração
+        itens_comuns = [item for item in todos_itens if item.via not in vias_enfermagem]
+        itens_injetaveis = [item for item in todos_itens if item.via in vias_enfermagem]
+
+        context = {
+            'prescricao': prescricao,
+            'itens_comuns': itens_comuns,
+            'itens_injetaveis': itens_injetaveis,
+        }
+        
         filename = f'prescricao_{prescricao.paciente.nome_completo}_{prescricao.id}'
         
         return generate_pdf_response(

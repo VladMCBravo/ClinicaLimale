@@ -79,7 +79,7 @@ class EvolucaoSerializer(serializers.ModelSerializer):
 class ItemPrescricaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ItemPrescricao
-        fields = ['medicamento', 'dosagem', 'instrucoes']
+        fields = ['medicamento', 'via', 'dosagem', 'instrucoes']
 
 # Serializer para a Prescrição (que contém os Itens)
 class PrescricaoSerializer(serializers.ModelSerializer):
