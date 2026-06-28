@@ -2,7 +2,8 @@
 import io
 from pyhanko.sign import signers, fields
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-from cryptography.hazmat.primitives.serialization import pkcs12
+
+# Removido: from cryptography.hazmat.primitives.serialization import pkcs12
 
 def assinar_pdf_digitalmente(pdf_bytes, usuario_medico):
     """
@@ -25,23 +26,19 @@ def assinar_pdf_digitalmente(pdf_bytes, usuario_medico):
         with cert_obj.arquivo_p12.open('rb') as f:
             p12_data = f.read()
 
-        # 3. Configura o assinante (Signer) usando os bytes em memória
-        private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
-            p12_data,
-            senha.encode()
-        )
-
-        signer = signers.SimpleSigner(
-            signing_cert=certificate,
-            signing_key=private_key,
-            cert_registry=additional_certs
+        # 3. CORREÇÃO: Usa o carregador nativo do PyHanko para PKCS#12
+        senha_bytes = senha.encode('utf-8')
+        
+        signer = signers.SimpleSigner.load_pkcs12(
+            pfx_file=p12_data,
+            key_passphrase=senha_bytes
         )
 
         # 4. Prepara o PDF para assinatura incremental
         pdf_stream = io.BytesIO(pdf_bytes)
         w = IncrementalPdfFileWriter(pdf_stream)
 
-        # 5. CORREÇÃO: Cria o campo de assinatura invisível corretamente
+        # 5. Cria o campo de assinatura invisível corretamente
         sig_field_spec = fields.SigFieldSpec(
             sig_field_name='Assinatura_ICP_Brasil',
             on_page=0, # Página 1 (índice 0)
