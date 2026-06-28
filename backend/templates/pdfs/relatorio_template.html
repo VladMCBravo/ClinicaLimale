@@ -67,21 +67,19 @@
             <td colspan="3">{{ medico.get_full_name }} (CRM: {{ medico.crm|default:'N/A' }})</td>
         </tr>
     </table>
-    <!-- === LÓGICA DO CID AQUI === -->
-    {% if relatorio.cid and relatorio.paciente_autorizou_cid %}
-    <div style="border: 1px dashed #ccc; padding: 10px; margin-bottom: 20px; background-color: #fcfcfc;">
-        <span style="font-size: 10pt; color: #333;"><strong>Diagnóstico (CID-10):</strong> {{ relatorio.cid }}</span><br>
-        <span style="font-size: 7.5pt; color: #777;"><i>*O código da classificação de doenças foi incluído neste documento mediante autorização expressa do paciente.</i></span>
-    </div>
-    {% endif %}
-    <!-- ========================== -->
 
     <div class="section">
         <div class="section-title">Conteúdo do Relatório</div>
         
-        <div class="content" style="white-space: normal;">
+        <div class="content" style="white-space: normal; text-align: justify; line-height: 1.5;">
             {{ relatorio.conteudo_final|linebreaksbr }}
         </div>
     </div>
 
-{% endblock %}
+    {% if relatorio.cid and relatorio.paciente_autorizou_cid %}
+    <div style="border: 1px solid #ccc; padding: 10px; margin-top: 30px;">
+        <span style="font-size: 10pt; color: #333;"><strong>Diagnóstico (CID-10):</strong> {{ relatorio.cid }}</span><br>
+        <span style="font-size: 7.5pt; color: #777;"><i>*O código da classificação de doenças foi incluído neste documento mediante autorização expressa do paciente.</i></span>
+    </div>
+    {% endif %}
+    {% endblock %}
