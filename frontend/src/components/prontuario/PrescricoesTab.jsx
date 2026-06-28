@@ -130,14 +130,17 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
     try {
       await apiClient.post(`/prontuario/pacientes/${pacienteId}/prescricoes/`, { titulo, itens });
       
+      // Salvamento de modelos temporariamente desabilitado até a criação da rota
+      /*
       if (salvarComoModelo && titulo.trim() !== '') {
         await apiClient.post(`/prontuario/medicos/${medicoId}/modelos/`, { titulo, itens });
         showSnackbar('Prescrição e Modelo salvos com sucesso!', 'success');
       } else if (salvarComoModelo && titulo.trim() === '') {
          showSnackbar('Prescrição salva! Dê um título para salvar como modelo da próxima vez.', 'warning');
       } else {
+      */
         showSnackbar('Prescrição salva para o paciente!', 'success');
-      }
+      // }
 
       setTitulo('');
       setItens([initialItemState]);
