@@ -16,7 +16,7 @@
                         </td>
                         <td style="vertical-align: middle; text-align: left; padding-left: 10px; line-height: 1.3;">
                             <span style="font-size: 9pt; color: #000;">
-                                <strong>Assinado digitalmente por Dr(a). {{ medico.get_full_name }} - CRM {{ medico.crm|default:'N/A' }}</strong>
+                                <<strong>Assinado digitalmente por {{ medico.nome_com_prefixo }} - CRM {{ medico.crm|default:'N/A' }}</strong>
                             </span><br>
                             
                             {% if medico.get_texto_especialidades_rqe %}
@@ -44,7 +44,7 @@
         {% else %}
             <div style="text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
                 <p>___________________________________</p>
-                <p>Dr(a). {{ medico.get_full_name }}</p>
+                <p>{{ medico.nome_com_prefixo }}</p>
                 <p>CRM: {{ medico.crm|default:'N/A' }}</p>
                 {% if medico.get_texto_especialidades_rqe %}
                 <p style="font-size: 10pt; color: #555; margin-top: 2px;">{{ medico.get_texto_especialidades_rqe }}</p>

@@ -321,7 +321,7 @@ export const gerarPDFLaudo = async ({
                     { image: logoIcpBase64, width: 55, margin: [0, 5, 0, 0], border: [false, true, false, false], borderColor: ['#999', '#999', '#999', '#999'] },
                     {
                         stack: [
-                            { text: `Assinado digitalmente por Dr(a). ${nomeFormatado} - CRM ${limparCRM(medicoCrm) || 'N/A'}`, bold: true, fontSize: 9, margin: [0, 0, 0, 2] },
+                            { text: `Assinado digitalmente por ${nomeFormatado} - CRM ${limparCRM(medicoCrm) || 'N/A'}`, bold: true, fontSize: 9, margin: [0, 0, 0, 2] },
                             ...(textoEspecialidades ? [{ text: textoEspecialidades, fontSize: 8, color: '#1C2E4A', bold: true, margin: [0, 0, 0, 2] }] : []),
                             { text: `Data e hora: ${agora.toLocaleDateString('pt-BR')} - ${agora.toLocaleTimeString('pt-BR')} (GMT-3)`, fontSize: 8, color: '#333', margin: [0, 0, 0, 2] },
                             { text: 'Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).', fontSize: 7.5, color: '#555', margin: [0, 0, 0, 2] },  

@@ -169,6 +169,23 @@ class CustomUser(AbstractUser):
         # Junta todas as especialidades com " | " (Ex: Cardiologia - RQE 123 | Clínica Médica)
         return " | ".join(lista_formatada)
 
+    @property
+    def nome_com_prefixo(self):
+        nome = self.get_full_name()
+        if not nome:
+            return "Médico(a)"
+            
+        # 1. Tenta usar o campo de gênero do banco de dados (mais preciso)
+        if self.genero == 'F':
+            return f"Dra. {nome}"
+        elif self.genero == 'M':
+            return f"Dr. {nome}"
+            
+        # 2. Fallback: Se o gênero não estiver preenchido, usa a regra da última letra
+        primeiro_nome = nome.strip().split(' ')[0].lower()
+        prefixo = "Dra." if primeiro_nome.endswith('a') else "Dr."
+        return f"{prefixo} {nome}"
+
     def __str__(self):
         return self.get_full_name() or self.username
 
