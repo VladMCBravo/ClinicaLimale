@@ -2,8 +2,7 @@
 import io
 from pyhanko.sign import signers, fields
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-
-# Removido: from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography.hazmat.primitives.serialization import pkcs12
 
 def assinar_pdf_digitalmente(pdf_bytes, usuario_medico):
     """
@@ -17,36 +16,42 @@ def assinar_pdf_digitalmente(pdf_bytes, usuario_medico):
     cert_obj = usuario_medico.certificado
     
     try:
-        # 1. Recupera a senha descriptografada
+        # 1. Recupera a senha descriptografada e garante formato de bytes
         senha = cert_obj.get_password()
         if not senha:
             raise ValueError("Não foi possível recuperar a senha do certificado.")
+        senha_bytes = senha.encode('utf-8')
 
-        # 2. LÊ O CONTEÚDO DO ARQUIVO (Funciona com Supabase/S3)
+        # 2. LÊ O CONTEÚDO DO ARQUIVO (Funciona com S3, Cloudinary ou FileSystem)
         with cert_obj.arquivo_p12.open('rb') as f:
             p12_data = f.read()
 
-        # 3. CORREÇÃO: Usa o carregador nativo do PyHanko para PKCS#12
-        senha_bytes = senha.encode('utf-8')
-        
-        signer = signers.SimpleSigner.load_pkcs12(
-            pfx_file=p12_data,
-            passphrase=senha_bytes      # <--- CORRIGIDO
+        # 3. EXTRAI AS CHAVES DA MEMÓRIA 
+        private_key, certificate, additional_certs = pkcs12.load_key_and_certificates(
+            p12_data, 
+            senha_bytes
         )
 
-        # 4. Prepara o PDF para assinatura incremental
+        # 4. INSTANCIA O SIGNER MANUALMENTE (A forma correta quando as chaves já foram extraídas)
+        signer = signers.SimpleSigner(
+            signing_cert=certificate,
+            signing_key=private_key,
+            cert_registry=additional_certs
+        )
+
+        # 5. Prepara o PDF para assinatura incremental
         pdf_stream = io.BytesIO(pdf_bytes)
         w = IncrementalPdfFileWriter(pdf_stream)
 
-        # 5. Cria o campo de assinatura invisível corretamente
+        # 6. Cria o campo de assinatura invisível corretamente
         sig_field_spec = fields.SigFieldSpec(
             sig_field_name='Assinatura_ICP_Brasil',
-            on_page=0, # Página 1 (índice 0)
-            box=(0, 0, 0, 0) # Coordenadas 0,0,0,0 criam uma assinatura invisível
+            on_page=0, 
+            box=(0, 0, 0, 0)
         )
         fields.append_signature_field(w, sig_field_spec)
 
-        # 6. Realiza a assinatura final conectando ao campo criado
+        # 7. Realiza a assinatura final conectando ao campo criado
         meta = signers.PdfSignatureMetadata(field_name='Assinatura_ICP_Brasil')
         
         out = io.BytesIO()
@@ -60,7 +65,4 @@ def assinar_pdf_digitalmente(pdf_bytes, usuario_medico):
 
     except Exception as e:
         print(f"Erro técnico na assinatura digital: {str(e)}")
-        # MUDANÇA CRÍTICA: Lançamos a exceção. 
-        # É melhor o laudo cair para o status 'ERRO' (permitindo ao médico tentar de novo)
-        # do que gerar um documento que parece assinado, mas não tem validade legal.
         raise e
