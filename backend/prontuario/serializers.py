@@ -271,7 +271,7 @@ class RelatorioSalvoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RelatorioSalvo
         # O frontend enviará apenas estes campos
-        fields = ['titulo', 'conteudo_final', 'consulta', 'template_origem']
+        fields = ['titulo', 'conteudo_final', 'consulta', 'template_origem', 'cid', 'paciente_autorizou_cid']
         extra_kwargs = {
             'consulta': {'required': False, 'allow_null': True},
             'template_origem': {'required': False, 'allow_null': True},

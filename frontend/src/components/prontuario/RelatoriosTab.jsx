@@ -6,12 +6,25 @@ import {
     Box, Typography, FormControl, InputLabel, Select,
     MenuItem, Button, TextField, CircularProgress, List, ListItem,
     ListItemText, Divider, IconButton, Tooltip,
-    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+    Autocomplete, FormControlLabel, Checkbox // <--- ADICIONE ESTES TRÊS
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
+
+// Lista rápida de exemplo
+const listaCIDs = [
+    { codigo: 'J03.9', descricao: 'Amigdalite aguda não especificada' },
+    { codigo: 'J01.9', descricao: 'Sinusite aguda não especificada' },
+    { codigo: 'I10', descricao: 'Hipertensão essencial (primária)' },
+    { codigo: 'A09', descricao: 'Diarreia e gastroenterite de origem infecciosa presumível' },
+    { codigo: 'N39.0', descricao: 'Infecção do trato urinário de localização não especificada' },
+    { codigo: 'M54.5', descricao: 'Dor lombar baixa' },
+    { codigo: 'Z11.3', descricao: 'Exame de rastreamento para infecções de transmissão predominantemente sexual' },
+    { codigo: 'Z00.0', descricao: 'Exame médico geral (Check-up)' }
+];
 
 export default function RelatoriosTab({ pacienteId, consultaAtualId, especialidade }) {
     const { showSnackbar } = useSnackbar();
@@ -21,6 +34,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [titulo, setTitulo] = useState(''); 
     const [editorContent, setEditorContent] = useState('');
+    const [cidSelecionado, setCidSelecionado] = useState(null);
+    const [autorizouCid, setAutorizouCid] = useState(false);
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
@@ -60,6 +75,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         setSelectedTemplateId('');
         setTitulo('');
         setEditorContent('');
+        setCidSelecionado(null); // <-- LIMPA O CID AO TROCAR DE PACIENTE
+        setAutorizouCid(false);  // <-- LIMPA O CHECKBOX
     }, [pacienteId, especialidade, fetchTemplates, fetchSavedReports]);
 
     const handleGerarPreview = async () => {
@@ -101,7 +118,10 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             // Não enviamos mais o ID da consulta para evitar o conflito de Pk.
             const payload = {
                 titulo: titulo,
-                conteudo_final: editorContent
+                conteudo_final: editorContent,
+                // Adiciona o CID se houver
+                cid: cidSelecionado ? cidSelecionado.codigo : null,
+                paciente_autorizou_cid: autorizouCid
             };
 
             // Adiciona o template apenas se for um ID válido
@@ -219,6 +239,34 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                     size="small"
                     fullWidth
                 />
+
+                {/* --- MÓDULO DE DIAGNÓSTICO E CID --- */}
+                <Box sx={{ border: '1px solid #e0e0e0', p: 1.5, borderRadius: 1, bgcolor: '#fafafa' }}>
+                    <Autocomplete
+                        options={listaCIDs}
+                        getOptionLabel={(option) => `${option.codigo} - ${option.descricao}`}
+                        value={cidSelecionado}
+                        onChange={(event, newValue) => setCidSelecionado(newValue)}
+                        size="small"
+                        renderInput={(params) => (
+                            <TextField {...params} label="Diagnóstico / CID-10 (Opcional)" placeholder="Digite a doença..." />
+                        )}
+                        isOptionEqualToValue={(option, value) => option.codigo === value?.codigo}
+                        clearOnEscape
+                    />
+                    <FormControlLabel
+                        sx={{ mt: 0.5, '& .MuiFormControlLabel-label': { fontSize: '0.75rem', color: '#555' } }}
+                        control={
+                            <Checkbox 
+                                size="small"
+                                checked={autorizouCid} 
+                                onChange={(e) => setAutorizouCid(e.target.checked)}
+                                disabled={!cidSelecionado} // Só habilita se tiver CID
+                            />
+                        }
+                        label="O paciente autoriza a impressão do CID neste documento (Res. CFM nº 1.658/2002)."
+                    />
+                </Box>
                 
                 <TextField
                     label="Conteúdo do Relatório"

@@ -532,7 +532,10 @@ class RelatorioSalvo(models.Model):
     )
 
     titulo = models.CharField(max_length=255) # Ex: "Atestado - João Silva - 31/10/2025"
-    # O texto final, após o médico editar o template preenchido
+    # NOVOS CAMPOS PARA ACOMODAR OS ATESTADOS E CIDs
+    cid = models.CharField(max_length=100, blank=True, null=True, verbose_name="Código CID-10")
+    paciente_autorizou_cid = models.BooleanField(default=False, verbose_name="Paciente autorizou CID")
+    
     conteudo_final = models.TextField()
     
     data_criacao = models.DateTimeField(auto_now_add=True)
