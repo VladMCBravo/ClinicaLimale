@@ -5,7 +5,7 @@ from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, An
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
 from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
-from .models import ModeloLaudo # <--- Adicione ModeloLaudo aqui
+from .models import ModeloLaudo, ModeloPrescricao 
 from pacientes.models import Paciente
 from agendamentos.models import Agendamento
 
@@ -97,6 +97,12 @@ class PrescricaoSerializer(serializers.ModelSerializer):
         for item_data in itens_data:
             ItemPrescricao.objects.create(prescricao=prescricao, **item_data)
         return prescricao
+
+class ModeloPrescricaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModeloPrescricao
+        fields = ['id', 'titulo', 'itens', 'data_criacao']
+        # Não incluímos 'medico' aqui pois ele será salvo automaticamente pela View
 
 # Serializer para a Anamnese
 class AnamneseSerializer(serializers.ModelSerializer):

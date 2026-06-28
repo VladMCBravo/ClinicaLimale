@@ -91,6 +91,22 @@ class ItemPrescricao(models.Model):
     def __str__(self):
         return f"{self.medicamento} ({self.dosagem})"
 
+class ModeloPrescricao(models.Model):
+    medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='modelos_prescricao')
+    titulo = models.CharField(max_length=255, verbose_name="Título do Modelo")
+    
+    # Usaremos JSONField pois o frontend já envia os itens prontos num array
+    itens = models.JSONField(default=list, help_text="Lista de medicamentos e instruções do modelo")
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['titulo']
+        verbose_name = "Modelo de Prescrição"
+        verbose_name_plural = "Modelos de Prescrição"
+
+    def __str__(self):
+        return f"Modelo: {self.titulo} ({self.medico.get_full_name()})"
+
 class Anamnese(models.Model):
     paciente = models.OneToOneField(Paciente, on_delete=models.CASCADE, related_name='anamnese')
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)

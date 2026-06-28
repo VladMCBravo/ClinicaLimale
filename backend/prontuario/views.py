@@ -39,13 +39,13 @@ from .serializers import LaudoSerializer, PatientBannerSerializer, WorkspacePaci
 # Importando APENAS a permissão necessária para o prontuário
 from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
 from .models import (
-    Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica, ItemPrescricao, AnamneseGinecologica, 
+    Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica, ModeloPrescricao, AnamneseGinecologica, 
     AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral,
     MarcoDNPM, VacinaPaciente, TemplateRelatorio, RelatorioSalvo
 )
 from .serializers import (
     AnamneseSerializer, AtestadoSerializer, DocumentoPacienteSerializer, 
-    EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer,
+    EvolucaoSerializer, PrescricaoSerializer, OpcaoClinicaSerializer, ModeloPrescricaoSerializer,
     MarcoDNPMSerializer, VacinaPacienteSerializer, TemplateRelatorioSerializer, RelatorioSalvoListSerializer, RelatorioSalvoCreateSerializer
 )
 
@@ -1795,3 +1795,19 @@ class ConsultasWorkspaceAPIView(APIView):
                 "status": ag.status
             })
         return Response(data)
+
+class ModeloPrescricaoListCreateView(generics.ListCreateAPIView):
+    """
+    Lista os modelos salvos de um médico específico (GET) 
+    e permite salvar novos modelos (POST).
+    """
+    serializer_class = ModeloPrescricaoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        medico_id = self.kwargs.get('medico_id')
+        return ModeloPrescricao.objects.filter(medico__id=medico_id).order_by('titulo')
+
+    def perform_create(self, serializer):
+        # Salva o modelo vinculando automaticamente ao médico logado
+        serializer.save(medico=self.request.user)
