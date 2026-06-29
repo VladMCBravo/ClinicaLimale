@@ -1,0 +1,801 @@
+Estrutura do Projeto: Sistema_Consultorio
+
+├── .gitignore
+├── backend
+│   ├── .env
+│   ├── agendamentos
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── management
+│   │   │   └── commands
+│   │   │       ├── cancelar_agendamentos_expirados.py
+│   │   │       └── enviar_lembretes.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_agendamento_plano_utilizado.py
+│   │   │   ├── 0003_agendamento_tipo_atendimento.py
+│   │   │   ├── 0004_alter_agendamento_paciente.py
+│   │   │   ├── 0005_agendamento_procedimento.py
+│   │   │   ├── 0006_agendamento_id_sala_telemedicina_and_more.py
+│   │   │   ├── 0007_agendamento_modalidade_agendamento_tipo_visita.py
+│   │   │   ├── 0008_agendamento_expira_em.py
+│   │   │   ├── 0009_remove_agendamento_tipo_consulta_and_more.py
+│   │   │   ├── 0010_sala_agendamento_sala.py
+│   │   │   ├── 0011_alter_agendamento_status.py
+│   │   │   ├── 0012_bloqueioagenda.py
+│   │   │   ├── 0013_sala_e_sala_exame_sala_equipamentos_and_more.py
+│   │   │   ├── 0014_agendamento_ciclo.py
+│   │   │   ├── 0015_diafuncionamentoexame.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── services.py
+│   │   ├── signals.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── build.sh
+│   ├── chatbot
+│   │   ├── .pylintrc
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── agente_cancelamento.py
+│   │   ├── agente_consultas.py
+│   │   ├── agente_exames.py
+│   │   ├── agente_medicina_fetal.py
+│   │   ├── agente_recepcionista.py
+│   │   ├── analytics.py
+│   │   ├── apps.py
+│   │   ├── bot_logic.py
+│   │   ├── chains.py
+│   │   ├── config.py
+│   │   ├── consumers.py
+│   │   ├── context_manager.py
+│   │   ├── conversation_manager.py
+│   │   ├── dashboard_views.py
+│   │   ├── human_transfer.py
+│   │   ├── management
+│   │   │   ├── __init__.py
+│   │   │   └── commands
+│   │   │       ├── __init__.py
+│   │   │       ├── check_inactivity.py
+│   │   │       ├── limpar_chatbot.py
+│   │   │       ├── processar_historico.py
+│   │   │       └── resgatar_leads.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_chatmemory_state.py
+│   │   │   ├── 0003_chatmemory_previous_state_and_more.py
+│   │   │   ├── 0004_alter_chatmemory_options_chatbotmetrics.py
+│   │   │   ├── 0005_alter_chatmemory_session_id_and_more.py
+│   │   │   ├── 0006_fix_security_issues.py
+│   │   │   ├── 0007_add_conversation_control_fields.py
+│   │   │   ├── 0008_rename_chatbot_chatmemory_transfer_idx_chatbot_cha_transfe_fec5b0_idx_and_more.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── recovery_manager.py
+│   │   ├── response_generator.py
+│   │   ├── routing.py
+│   │   ├── services.py
+│   │   ├── tests.py
+│   │   ├── timeout_manager.py
+│   │   ├── urls.py
+│   │   ├── validators.py
+│   │   ├── views.py
+│   │   └── whatsapp_service.py
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── asgi.py
+│   │   ├── celery.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_auto_20251202_1732.py
+│   │   │   ├── 0003_clinica_delete_configuracaoclinica.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── pdf_services.py
+│   │   ├── services_assinatura.py
+│   │   ├── settings.py
+│   │   ├── settings_aws.py
+│   │   ├── urls.py
+│   │   ├── views.py
+│   │   └── wsgi.py
+│   ├── crm
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── management
+│   │   │   ├── __init__.py
+│   │   │   └── commands
+│   │   │       ├── __init__.py
+│   │   │       ├── migrar_crm.py
+│   │   │       └── sincronizar_legado.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_ciclo_nivel_risco_ciclo_origem.py
+│   │   │   ├── 0003_ciclo_status.py
+│   │   │   ├── 0004_ciclo_data_dum.py
+│   │   │   ├── 0005_analisecomportamental_avaliou_google_and_more.py
+│   │   │   ├── 0006_proximaacao_atualizado_em_proximaacao_responsavel_and_more.py
+│   │   │   ├── 0007_alter_analisecomportamental_origem_aquisicao.py
+│   │   │   ├── 0008_analisecomportamental_concorrencia_mencionada_and_more.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── services.py
+│   │   ├── signals.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── dashboard
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── management
+│   │   │   └── commands
+│   │   │       └── gerar_snapshot.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── diagnostico_crm.csv
+│   ├── docker-compose.yml
+│   ├── evolution
+│   │   └── docker-compose.ymly
+│   ├── exames
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_alter_arquivoexame_arquivo_and_more.py
+│   │   │   ├── 0003_exame_ciclo.py
+│   │   │   ├── 0004_alter_exame_unique_together.py
+│   │   │   ├── 0005_alter_exame_codigo_acesso.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── faturamento
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_alter_pagamento_agendamento_and_more.py
+│   │   │   ├── 0003_categoriadespesa_alter_pagamento_forma_pagamento_and_more.py
+│   │   │   ├── 0004_convenio_planoconvenio.py
+│   │   │   ├── 0005_pagamento_status_alter_pagamento_data_pagamento_and_more.py
+│   │   │   ├── 0006_lotefaturamento_guiatiss.py
+│   │   │   ├── 0007_procedimento.py
+│   │   │   ├── 0008_remove_procedimento_valor_and_more.py
+│   │   │   ├── 0009_pagamento_inter_txid_pagamento_link_pagamento_and_more.py
+│   │   │   ├── 0010_procedimento_descricao_detalhada.py
+│   │   │   ├── 0011_pagamento_descricao.py
+│   │   │   ├── 0012_alter_procedimento_options_procedimento_categoria_and_more.py
+│   │   │   ├── 0013_despesa_data_vencimento_despesa_pago.py
+│   │   │   ├── 0014_alter_pagamento_paciente.py
+│   │   │   ├── 0015_despesa_data_pagamento_pagamento_data_vencimento.py
+│   │   │   ├── 0016_categoriadespesa_tipo.py
+│   │   │   ├── 0017_alter_procedimento_codigo_tuss.py
+│   │   │   ├── 0018_despesa_numero_parcela_pagamento_numero_parcela_and_more.py
+│   │   │   ├── 0019_alter_categoriadespesa_options_alter_despesa_options_and_more.py
+│   │   │   ├── 0020_alter_pagamento_agendamento.py
+│   │   │   ├── 0021_despesa_forma_pagamento.py
+│   │   │   ├── 0022_pagamento_baixado_por_pagamento_data_hora_baixa_and_more.py
+│   │   │   ├── 0023_lotefaturamento_data_pagamento_and_more.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── regras_faturamento.py
+│   │   ├── serializers.py
+│   │   ├── services
+│   │   │   └── inter_service.py
+│   │   ├── signals.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── integracao_dicom
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── laudos
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_alter_modelolaudo_conteudo_padrao.py
+│   │   │   ├── 0003_remove_laudo_agendamento_id_and_more.py
+│   │   │   ├── 0004_rename_medico_executante_laudo_medico_and_more.py
+│   │   │   ├── 0005_laudo_codigo_acesso_laudo_crm_medico_and_more.py
+│   │   │   ├── 0006_laudo_arquivo_pdf.py
+│   │   │   ├── 0007_laudo_exame_laudo_medico_responsavel.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── laudos_imagens
+│   │   └── 2026
+│   │       └── 04
+│   │           └── USG_ABDOMEN_MARIA
+│   │               └── foto_figado.jpg
+│   ├── manage.py
+│   ├── pacientes
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_alter_paciente_genero.py
+│   │   │   ├── 0003_paciente_medico_responsavel.py
+│   │   │   ├── 0004_alter_paciente_medico_responsavel_and_more.py
+│   │   │   ├── 0005_remove_paciente_convenio.py
+│   │   │   ├── 0006_paciente_altura_paciente_peso.py
+│   │   │   ├── 0007_paciente_cpf_responsavel_paciente_nome_responsavel_and_more.py
+│   │   │   ├── 0008_alter_paciente_cpf.py
+│   │   │   ├── 0009_paciente_dum.py
+│   │   │   ├── 0010_alter_paciente_data_nascimento.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── static
+│   │   │   └── pacientes
+│   │   │       └── js
+│   │   │           └── cep_autofill.js
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── prontuario
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── migrations
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_documentopaciente.py
+│   │   │   ├── 0003_opcaoclinica.py
+│   │   │   ├── 0004_popular_opcoes_clinicas.py
+│   │   │   ├── 0005_evolucao_altura_evolucao_exames_complementares_and_more.py
+│   │   │   ├── 0006_alter_evolucao_exames_complementares_and_more.py
+│   │   │   ├── 0007_carregar_opcoes_cardiologia.py
+│   │   │   ├── 0008_merge_20251009_1656.py
+│   │   │   ├── 0009_anamneseginecologica.py
+│   │   │   ├── 0010_alter_anamneseginecologica_options_and_more.py
+│   │   │   ├── 0011_marcodnpm_vacinapaciente.py
+│   │   │   ├── 0012_remove_anamnesecardiologia_ausculta_cardiaca_and_more.py
+│   │   │   ├── 0013_remove_anamneseneonatologia_alimentacao_and_more.py
+│   │   │   ├── 0014_remove_anamneseginecologica_altura_and_more.py
+│   │   │   ├── 0015_anamneseclinicageral.py
+│   │   │   ├── 0016_remove_anamnesepediatria_abdome_and_more.py
+│   │   │   ├── 0017_templaterelatorio_relatoriosalvo.py
+│   │   │   ├── 0018_anamneseneonatologia_antibioticos_and_more.py
+│   │   │   ├── 0019_anamneseneonatologia_outros_exames.py
+│   │   │   ├── 0020_remove_anamnesepediatria_apgar_and_more.py
+│   │   │   ├── 0021_evolucao_especialidade.py
+│   │   │   ├── 0022_alter_anamnesecardiologia_fatores_risco.py
+│   │   │   ├── 0023_evolucao_agendamento_evolucao_especialidade_link_and_more.py
+│   │   │   ├── 0024_migrar_especialidades_para_fk.py
+│   │   │   ├── 0025_remove_evolucao_especialidade_link_and_more.py
+│   │   │   ├── 0026_alter_anamneseneonatologia_neuroprotecao_mg_and_more.py
+│   │   │   ├── 0027_laudo_imagemlaudo.py
+│   │   │   ├── 0028_laudo_exame.py
+│   │   │   ├── 0029_modelolaudo_rename_titulo_laudo_titulo_exame_and_more.py
+│   │   │   ├── 0030_alter_laudo_arquivo_pdf.py
+│   │   │   ├── 0031_alter_laudo_status.py
+│   │   │   ├── 0032_alter_laudo_status_alter_vacinapaciente_status.py
+│   │   │   ├── 0033_prescricao_titulo.py
+│   │   │   ├── 0034_alter_marcodnpm_alcançado.py
+│   │   │   ├── 0035_alter_evolucao_altura.py
+│   │   │   ├── 0036_alter_evolucao_peso.py
+│   │   │   ├── 0037_modeloprescricao.py
+│   │   │   ├── 0038_itemprescricao_via.py
+│   │   │   ├── 0039_atestado_cid_atestado_paciente_autorizou_cid_and_more.py
+│   │   │   ├── 0040_relatoriosalvo_cid_and_more.py
+│   │   │   └── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── signals.py
+│   │   ├── tasks.py
+│   │   ├── templates
+│   │   │   └── pdfs
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   ├── utils.py
+│   │   └── views.py
+│   ├── render.yaml
+│   ├── requirements-dev.txt
+│   ├── requirements.txt
+│   ├── scripts
+│   │   ├── anexar_pdfs.py
+│   │   ├── auditar_recepcao.py
+│   │   ├── auditoria_dias.py
+│   │   ├── buscar_paciente.py
+│   │   ├── caça_fantasmas.py
+│   │   ├── corrigir_vinculos.py
+│   │   ├── gerar_estrutura.py
+│   │   ├── limpar_funil_crm.py
+│   │   ├── limpar_importacoes.py
+│   │   ├── limpar_laudos_fantasmas.py
+│   │   ├── limpar_laudos_portal.py
+│   │   ├── limpar_paciente_teste.py
+│   │   ├── limpar_senhas_redundantes.py
+│   │   ├── mesclar_pacientes.py
+│   │   ├── mesclar_pacientes_avancado.py
+│   │   ├── raio_x_banco.py
+│   │   ├── raio_x_paciente.py
+│   │   ├── raiox_exames.py
+│   │   ├── remover_acentos.py
+│   │   ├── renomear_laudos.py
+│   │   ├── resgatar_gestacoes.py
+│   │   ├── resgatar_gestacoes_v2.py
+│   │   ├── resgatar_origens_chatbot.py
+│   │   ├── resgate_pdf.py
+│   │   ├── unificar_agendamentos_interativo.py
+│   │   └── vincular_pdfs.py
+│   ├── static
+│   │   ├── Receituario.jpg
+│   │   ├── Receituario.pdf
+│   │   └── images
+│   │       ├── logo.png
+│   │       ├── logo_icp_brasil.png
+│   │       └── logo_limale.jpg
+│   ├── templates
+│   │   └── pdfs
+│   │       ├── atestado_template.html
+│   │       ├── base_pdf.html
+│   │       ├── evolucao_template.html
+│   │       ├── prescricao_template.html
+│   │       └── relatorio_template.html
+│   └── usuarios
+│       ├── .DS_Store
+│       ├── __init__.py
+│       ├── admin.py
+│       ├── apps.py
+│       ├── management
+│       │   ├── __init__.py
+│       │   └── commands
+│       │       ├── __init__.py
+│       │       ├── criar_dados_teste.py
+│       │       └── set_admin_cargo.py
+│       ├── migrations
+│       │   ├── .DS_Store
+│       │   ├── 0001_initial.py
+│       │   ├── 0002_especialidade_customuser_especialidades.py
+│       │   ├── 0003_customuser_crm_especialidade_valor_consulta.py
+│       │   ├── 0004_jornadadetrabalho.py
+│       │   ├── 0005_alter_especialidade_nome.py
+│       │   ├── 0006_customuser_genero.py
+│       │   ├── 0007_add_intervalo_ativo_jornada.py
+│       │   ├── 0008_customuser_cpf_customuser_data_nascimento_and_more.py
+│       │   ├── 0009_customuser_bairro_customuser_cep_customuser_cidade_and_more.py
+│       │   ├── 0010_certificadomedico.py
+│       │   ├── 0011_certificadomedico_data_expiracao.py
+│       │   ├── 0012_jornadadetrabalho_semanas_do_mes.py
+│       │   ├── 0013_valorespecialidadeconvenio.py
+│       │   ├── 0014_customuser_pin_ponto_registroponto.py
+│       │   ├── 0015_configuracaoclinica.py
+│       │   ├── 0016_remove_customuser_especialidades_and_more.py
+│       │   ├── 0017_customuser_especialidades.py
+│       │   ├── 0018_alter_registroponto_data_hora_and_more.py
+│       │   └── __init__.py
+│       ├── models.py
+│       ├── permissions.py
+│       ├── serializers.py
+│       ├── tests.py
+│       ├── urls.py
+│       └── views.py
+├── backup.sql
+├── estrutura_projeto.txt
+└── frontend
+    ├── .DS_Store
+    ├── .env
+    ├── .env.production
+    ├── .gitignore
+    ├── README.md
+    ├── jsconfig.json
+    ├── package-lock.json
+    ├── package.json
+    ├── public
+    │   ├── Receituario.jpg
+    │   ├── android
+    │   │   ├── android-launchericon-144-144.png
+    │   │   ├── android-launchericon-192-192.png
+    │   │   ├── android-launchericon-48-48.png
+    │   │   ├── android-launchericon-512-512.png
+    │   │   ├── android-launchericon-72-72.png
+    │   │   └── android-launchericon-96-96.png
+    │   ├── favicon.ico
+    │   ├── index.html
+    │   ├── ios
+    │   │   ├── 100.png
+    │   │   ├── 1024.png
+    │   │   ├── 114.png
+    │   │   ├── 120.png
+    │   │   ├── 128.png
+    │   │   ├── 144.png
+    │   │   ├── 152.png
+    │   │   ├── 16.png
+    │   │   ├── 167.png
+    │   │   ├── 180.png
+    │   │   ├── 192.png
+    │   │   ├── 20.png
+    │   │   ├── 256.png
+    │   │   ├── 29.png
+    │   │   ├── 32.png
+    │   │   ├── 40.png
+    │   │   ├── 50.png
+    │   │   ├── 512.png
+    │   │   ├── 57.png
+    │   │   ├── 58.png
+    │   │   ├── 60.png
+    │   │   ├── 64.png
+    │   │   ├── 72.png
+    │   │   ├── 76.png
+    │   │   ├── 80.png
+    │   │   └── 87.png
+    │   ├── manifest.json
+    │   ├── robots.txt
+    │   └── windows11
+    │       ├── LargeTile.scale-100.png
+    │       ├── LargeTile.scale-125.png
+    │       ├── LargeTile.scale-150.png
+    │       ├── LargeTile.scale-200.png
+    │       ├── LargeTile.scale-400.png
+    │       ├── SmallTile.scale-100.png
+    │       ├── SmallTile.scale-125.png
+    │       ├── SmallTile.scale-150.png
+    │       ├── SmallTile.scale-200.png
+    │       ├── SmallTile.scale-400.png
+    │       ├── SplashScreen.scale-100.png
+    │       ├── SplashScreen.scale-125.png
+    │       ├── SplashScreen.scale-150.png
+    │       ├── SplashScreen.scale-200.png
+    │       ├── SplashScreen.scale-400.png
+    │       ├── Square150x150Logo.scale-100.png
+    │       ├── Square150x150Logo.scale-125.png
+    │       ├── Square150x150Logo.scale-150.png
+    │       ├── Square150x150Logo.scale-200.png
+    │       ├── Square150x150Logo.scale-400.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-16.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-20.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-24.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-256.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-30.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-32.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-36.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-40.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-44.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-48.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-60.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-64.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-72.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-80.png
+    │       ├── Square44x44Logo.altform-lightunplated_targetsize-96.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-16.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-20.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-24.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-256.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-30.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-32.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-36.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-40.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-44.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-48.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-60.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-64.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-72.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-80.png
+    │       ├── Square44x44Logo.altform-unplated_targetsize-96.png
+    │       ├── Square44x44Logo.scale-100.png
+    │       ├── Square44x44Logo.scale-125.png
+    │       ├── Square44x44Logo.scale-150.png
+    │       ├── Square44x44Logo.scale-200.png
+    │       ├── Square44x44Logo.scale-400.png
+    │       ├── Square44x44Logo.targetsize-16.png
+    │       ├── Square44x44Logo.targetsize-20.png
+    │       ├── Square44x44Logo.targetsize-24.png
+    │       ├── Square44x44Logo.targetsize-256.png
+    │       ├── Square44x44Logo.targetsize-30.png
+    │       ├── Square44x44Logo.targetsize-32.png
+    │       ├── Square44x44Logo.targetsize-36.png
+    │       ├── Square44x44Logo.targetsize-40.png
+    │       ├── Square44x44Logo.targetsize-44.png
+    │       ├── Square44x44Logo.targetsize-48.png
+    │       ├── Square44x44Logo.targetsize-60.png
+    │       ├── Square44x44Logo.targetsize-64.png
+    │       ├── Square44x44Logo.targetsize-72.png
+    │       ├── Square44x44Logo.targetsize-80.png
+    │       ├── Square44x44Logo.targetsize-96.png
+    │       ├── StoreLogo.scale-100.png
+    │       ├── StoreLogo.scale-125.png
+    │       ├── StoreLogo.scale-150.png
+    │       ├── StoreLogo.scale-200.png
+    │       ├── StoreLogo.scale-400.png
+    │       ├── Wide310x150Logo.scale-100.png
+    │       ├── Wide310x150Logo.scale-125.png
+    │       ├── Wide310x150Logo.scale-150.png
+    │       ├── Wide310x150Logo.scale-200.png
+    │       └── Wide310x150Logo.scale-400.png
+    └── src
+        ├── .DS_Store
+        ├── App.css
+        ├── App.js
+        ├── api
+        │   ├── axiosConfig.js
+        │   └── pdfService.js
+        ├── assets
+        │   ├── Logo-pdf.png
+        │   └── logo.png
+        ├── atendimento.css
+        ├── components
+        │   ├── .DS_Store
+        │   ├── AdminRoute.jsx
+        │   ├── AgendamentoModal.jsx
+        │   ├── MainLayout.jsx
+        │   ├── Navbar.css
+        │   ├── Navbar.js
+        │   ├── PacienteModal.jsx
+        │   ├── PatientHeader.css
+        │   ├── PatientHeader.jsx
+        │   ├── ProtectedRoute.jsx
+        │   ├── StatusRobo.jsx
+        │   ├── __tests__
+        │   │   └── AgendamentoModal.test.js
+        │   ├── agenda
+        │   │   ├── AgendaPrincipal.jsx
+        │   │   └── PacientesDoDiaSidebar.jsx
+        │   ├── chat
+        │   │   └── ChatPanel.jsx
+        │   ├── common
+        │   │   └── MaskedInput.jsx
+        │   ├── configuracoes
+        │   │   ├── CategoriaDespesaModal.jsx
+        │   │   ├── CategoriasTab.jsx
+        │   │   ├── ConvenioModal.jsx
+        │   │   ├── ConveniosTab.jsx
+        │   │   ├── DadosClinicaTab.jsx
+        │   │   ├── JornadasTab.jsx
+        │   │   ├── MeuPerfilTab.jsx
+        │   │   ├── RelatorioPontoTab.jsx
+        │   │   ├── SalasTab.jsx
+        │   │   ├── UsuarioModal.jsx
+        │   │   └── UsuariosTab.jsx
+        │   ├── dicom
+        │   │   └── DicomViewer.jsx
+        │   ├── financeiro
+        │   │   ├── BaixaUnificadaModal.jsx
+        │   │   ├── ContasReceberView.jsx
+        │   │   ├── DespesasView.jsx
+        │   │   ├── EditarDespesaModal.jsx
+        │   │   ├── ExpensePaymentDrawer.jsx
+        │   │   ├── FaturamentoConveniosView.jsx
+        │   │   ├── Financeiro.css
+        │   │   ├── FinanceiroDashboardView.jsx
+        │   │   ├── LancamentoAvulsoTab.jsx
+        │   │   ├── LancamentoCaixaModal.jsx
+        │   │   ├── PagarAgendamentoTab.jsx
+        │   │   ├── PatientPaymentDrawer.jsx
+        │   │   ├── ProcedimentoModal.jsx
+        │   │   ├── ProcedimentosView.jsx
+        │   │   └── ResumoPacienteModal.jsx
+        │   ├── laudos
+        │   │   ├── AtestadoModal.jsx
+        │   │   ├── DeclaracaoModal.jsx
+        │   │   ├── GraficosObstetricos.jsx
+        │   │   ├── HistoricoLaudosModal.jsx
+        │   │   ├── ImagensNuvemModal.jsx
+        │   │   ├── Laudos.css
+        │   │   ├── LaudosPreviewModal.jsx
+        │   │   ├── LaudosTab.jsx
+        │   │   ├── abdome
+        │   │   │   └── FormAbdome.jsx
+        │   │   ├── carotidas
+        │   │   │   ├── FormDopplerCarotidas.jsx
+        │   │   │   ├── hooks
+        │   │   │   │   └── useDopplerCarotidasForm.js
+        │   │   │   ├── logic
+        │   │   │   │   ├── carotidasCalculations.js
+        │   │   │   │   ├── carotidasInitialState.js
+        │   │   │   │   └── carotidasTextBuilder.js
+        │   │   │   └── sections
+        │   │   │       ├── ModalTabelaEstenose.jsx
+        │   │   │       ├── SecaoBulbo.jsx
+        │   │   │       ├── SecaoCarotidaComum.jsx
+        │   │   │       ├── SecaoCarotidaExterna.jsx
+        │   │   │       ├── SecaoCarotidaInterna.jsx
+        │   │   │       ├── SecaoConclusaoCarotidas.jsx
+        │   │   │       └── SecaoVertebral.jsx
+        │   │   ├── dados
+        │   │   │   └── hadlockData.js
+        │   │   ├── ecocardiograma
+        │   │   │   ├── FormEcocardiograma.jsx
+        │   │   │   ├── hooks
+        │   │   │   │   └── useEcoForm.js
+        │   │   │   ├── logic
+        │   │   │   │   ├── ecoCalculations.js
+        │   │   │   │   ├── ecoInitialState.js
+        │   │   │   │   └── ecoTextBuilder.js
+        │   │   │   └── sections_eco
+        │   │   │       ├── SecaoAortaVenaCava.jsx
+        │   │   │       ├── SecaoEspessura.jsx
+        │   │   │       ├── SecaoFuncaoVentricular.jsx
+        │   │   │       ├── SecaoMedidasEco.jsx
+        │   │   │       ├── SecaoPericardio.jsx
+        │   │   │       ├── SecaoRitmoCamaras.jsx
+        │   │   │       ├── SecaoStrain.jsx
+        │   │   │       ├── SecaoTecnicaEco.jsx
+        │   │   │       ├── SecaoValvaMitral.jsx
+        │   │   │       ├── SecaoValvaPulmonar.jsx
+        │   │   │       └── SecaoValvaTricuspide.jsx
+        │   │   ├── eletrocardiograma
+        │   │   │   └── FormEletrocardiograma.jsx
+        │   │   ├── obstetrico
+        │   │   │   ├── FormObstetrico.jsx
+        │   │   │   ├── hooks
+        │   │   │   │   └── useObstetricoForm.js
+        │   │   │   ├── logic
+        │   │   │   │   ├── obstetricCalculations.js
+        │   │   │   │   ├── obstetricInitialState.js
+        │   │   │   │   └── obstetricTextBuilder.js
+        │   │   │   └── sections
+        │   │   │       ├── ModalTabelaVPS.jsx
+        │   │   │       ├── Secao3D.jsx
+        │   │   │       ├── SecaoBiometria.jsx
+        │   │   │       ├── SecaoColoDados.jsx
+        │   │   │       ├── SecaoConclusao.jsx
+        │   │   │       ├── SecaoDadosGerais.jsx
+        │   │   │       ├── SecaoDadosMaternos1Tri.jsx
+        │   │   │       ├── SecaoDatacao.jsx
+        │   │   │       ├── SecaoDoppler.jsx
+        │   │   │       ├── SecaoIndicesGraficos.jsx
+        │   │   │       ├── SecaoMorfologia.jsx
+        │   │   │       ├── SecaoPlacentaLiquido.jsx
+        │   │   │       ├── SecaoSacoGestacional.jsx
+        │   │   │       └── SecaoSubtipo.jsx
+        │   │   └── trasnvaginal
+        │   │       ├── FormTransvaginal.jsx
+        │   │       └── sections
+        │   │           ├── SecaoOvariosTuring.jsx
+        │   │           └── SecaoUteroTuring.jsx
+        │   ├── painel
+        │   │   ├── Aniversariantes.jsx
+        │   │   ├── BarraIconesLateral.jsx
+        │   │   ├── ChatbotStatusModal.jsx
+        │   │   ├── ControlesAgenda.jsx
+        │   │   ├── KpiCards.jsx
+        │   │   ├── ListaEspera.jsx
+        │   │   ├── TabelaValoresModal.jsx
+        │   │   └── VerificadorDisponibilidade.jsx
+        │   ├── prontuario
+        │   │   ├── .DS_Store
+        │   │   ├── AlertasClinicos.jsx
+        │   │   ├── AnamneseTab.jsx
+        │   │   ├── AnexosTab.jsx
+        │   │   ├── AtendimentoCardiologia.jsx
+        │   │   ├── AtendimentoClinicaGeral.jsx
+        │   │   ├── AtendimentoGinecologia.jsx
+        │   │   ├── AtendimentoNeonatologia.jsx
+        │   │   ├── AtendimentoNeurologia.jsx
+        │   │   ├── AtendimentoObstetricia.jsx
+        │   │   ├── AtendimentoOrtopedia.jsx
+        │   │   ├── AtendimentoPediatria.jsx
+        │   │   ├── AtendimentoReumatologia.jsx
+        │   │   ├── AtestadosTab.jsx
+        │   │   ├── DetalheConsultaModal.jsx
+        │   │   ├── DocumentosTab.jsx
+        │   │   ├── EvolucoesTab.jsx
+        │   │   ├── ExamesDicomTab.jsx
+        │   │   ├── FormularioEvolucaoBase.jsx
+        │   │   ├── HistoricoConsultas.jsx
+        │   │   ├── LayoutEvolucaoPadrao.jsx
+        │   │   ├── ModalHistoricoEvolucao.jsx
+        │   │   ├── ModalVincularExame.jsx
+        │   │   ├── PainelAcoes.jsx
+        │   │   ├── PrescricoesTab.jsx
+        │   │   ├── ProntuarioCompleto.jsx
+        │   │   ├── RelatoriosTab.jsx
+        │   │   ├── TelemedicinaTab.jsx
+        │   │   ├── VisaoGeralPaciente.jsx
+        │   │   ├── cardiologia
+        │   │   │   └── HistoricoCardiologia.jsx
+        │   │   ├── cards
+        │   │   │   └── CardHistoriaPerinatal.jsx
+        │   │   ├── clinica_geral
+        │   │   │   └── HistoricoClinicaGeral.jsx
+        │   │   ├── especialidades
+        │   │   │   ├── AnamneseCardiologia.jsx
+        │   │   │   ├── AnamneseGinecologia.jsx
+        │   │   │   ├── AnamneseNeonatologia.jsx
+        │   │   │   ├── AnamneseOrtopedia.jsx
+        │   │   │   ├── AnamnesePadrao.jsx
+        │   │   │   ├── AnamnesePediatria.jsx
+        │   │   │   ├── AnamneseReumatologia.jsx
+        │   │   │   ├── AnamneseReumatologiaPediatrica.jsx
+        │   │   │   └── ExameFisicoNeonatologia.jsx
+        │   │   ├── ginecologia
+        │   │   │   └── HistoricoGinecologia.jsx
+        │   │   ├── neonatologia
+        │   │   │   └── HistoricoNeonatologia.jsx
+        │   │   ├── neurologia
+        │   │   │   └── HistoricoNeurologia.jsx
+        │   │   ├── obstetricia
+        │   │   │   └── HistoricoObstetricia.jsx
+        │   │   ├── ortopedia
+        │   │   │   └── HistoricoOrtopedia.jsx
+        │   │   ├── pediatria
+        │   │   │   ├── DnpmDetalhado.jsx
+        │   │   │   ├── HistoricoPediatrico.jsx
+        │   │   │   └── VacinacaoTab.jsx
+        │   │   └── reumatologia
+        │   │       └── HistoricoReumatologia.jsx
+        │   └── telemedicina
+        │       └── VideoCallView.jsx
+        ├── contexts
+        │   └── SnackbarContext.js
+        ├── hooks
+        │   ├── useAuth.js
+        │   └── useChatWebSocket.js
+        ├── index.css
+        ├── index.js
+        ├── layouts
+        ├── pages
+        │   ├── Agenda.css
+        │   ├── AgendaPage.jsx
+        │   ├── CRM
+        │   │   ├── CRMKanbanPage.jsx
+        │   │   ├── CicloDetalhesModal.jsx
+        │   │   ├── DashboardExecutivoPage.jsx
+        │   │   ├── GraficosView.jsx
+        │   │   ├── KanbanView.jsx
+        │   │   └── TableView.jsx
+        │   ├── ConfiguracoesPage.jsx
+        │   ├── EspecialidadesPage.jsx
+        │   ├── FinanceiroPage.jsx
+        │   ├── LaudosPage.jsx
+        │   ├── LoginPage.jsx
+        │   ├── PacientesPage.jsx
+        │   ├── PainelMedico
+        │   │   ├── FilaDeAtendimento.jsx
+        │   │   ├── PainelMedicoPage.jsx
+        │   │   └── ProntuarioWorkspace.jsx
+        │   ├── PainelRecepcaoPage.jsx
+        │   ├── PontoKioskPage.jsx
+        │   ├── PortalResultados.jsx
+        │   ├── ProntuarioPage.jsx
+        │   ├── TelemedicinaPage.jsx
+        │   └── VincularExames.jsx
+        ├── reportWebVitals.js
+        ├── services
+        │   ├── agendamentoService.js
+        │   ├── configuracoesService.js
+        │   ├── crmService.js
+        │   ├── exames.js
+        │   ├── faturamentoService.js
+        │   ├── pacienteService.js
+        │   └── prontuarioService.js
+        ├── theme.js
+        └── utils
+            ├── agendaPdfGenerator.js
+            ├── format.js
+            ├── imageHelper.js
+            ├── laudoPdfGenerator.js
+            ├── pdfFinanceiro.js
+            └── tabelaValoresPdfGenerator.js

@@ -76,10 +76,13 @@
         </div>
     </div>
 
+    <!-- === LÓGICA DO CID AQUI (NO FINAL E TRANSPARENTE) === -->
     {% if relatorio.cid and relatorio.paciente_autorizou_cid %}
-    <div style="border: 1px solid #ccc; padding: 10px; margin-top: 30px;">
+    <div style="border: 1px solid #999999; padding: 10px; margin-top: 20px;">
         <span style="font-size: 10pt; color: #333;"><strong>Diagnóstico (CID-10):</strong> {{ relatorio.cid }}</span><br>
         <span style="font-size: 7.5pt; color: #777;"><i>*O código da classificação de doenças foi incluído neste documento mediante autorização expressa do paciente.</i></span>
     </div>
     {% endif %}
-    {% endblock %}
+    <!-- ========================================================== -->
+
+{% endblock %}
