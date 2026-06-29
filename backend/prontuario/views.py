@@ -1821,3 +1821,14 @@ class ModeloPrescricaoListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(medico=self.request.user)
+
+class ModeloPrescricaoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Permite Ler (GET), Atualizar (PUT/PATCH) ou Apagar (DELETE) um modelo de prescrição.
+    """
+    serializer_class = ModeloPrescricaoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Proteção de Autoria: O médico só enxerga, edita e deleta os próprios modelos
+        return ModeloPrescricao.objects.filter(medico=self.request.user)
