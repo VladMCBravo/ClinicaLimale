@@ -1810,16 +1810,14 @@ class ConsultasWorkspaceAPIView(APIView):
 
 class ModeloPrescricaoListCreateView(generics.ListCreateAPIView):
     """
-    Lista os modelos salvos de um médico específico (GET) 
-    e permite salvar novos modelos (POST).
+    Lista os modelos salvos do médico logado e permite criar novos.
     """
     serializer_class = ModeloPrescricaoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        medico_id = self.kwargs.get('medico_id')
-        return ModeloPrescricao.objects.filter(medico__id=medico_id).order_by('titulo')
+        # MÁGICA AQUI: Puxa o ID direto do Token de segurança do usuário logado!
+        return ModeloPrescricao.objects.filter(medico=self.request.user).order_by('titulo')
 
     def perform_create(self, serializer):
-        # Salva o modelo vinculando automaticamente ao médico logado
         serializer.save(medico=self.request.user)

@@ -76,13 +76,11 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
       }
 
       // 2. Busca os modelos REAIS salvos por este médico no banco de dados
-      if (medicoId) {
-          try {
-              const resModelos = await apiClient.get(`/prontuario/medicos/${medicoId}/modelos/`);
-              setModelosMedico(resModelos.data);
-          } catch (err) {
-              console.warn("Erro ao buscar modelos do médico", err);
-          }
+      try {
+          const resModelos = await apiClient.get(`/prontuario/modelos-prescricao/`);
+          setModelosMedico(resModelos.data);
+      } catch (err) {
+          console.warn("Erro ao buscar modelos do médico", err);
       }
 
     } catch (error) {
@@ -138,19 +136,13 @@ export default function PrescricoesTab({ pacienteId, medicoId, onClose }) {
       
       // 2. Lógica para salvar como modelo
       if (salvarComoModelo && titulo.trim() !== '') {
-          // Proteção caso medicoId venha undefined do componente pai
-          if (!medicoId) {
-              showSnackbar('Erro: ID do médico não encontrado. O modelo não foi salvo.', 'error');
-          } else {
-              await apiClient.post(`/prontuario/medicos/${medicoId}/modelos/`, { titulo, itens });
-              showSnackbar('Prescrição e Modelo salvos com sucesso!', 'success');
-          }
+          await apiClient.post(`/prontuario/modelos-prescricao/`, { titulo, itens });
+          showSnackbar('Prescrição e Modelo salvos com sucesso!', 'success');
       } else if (salvarComoModelo && titulo.trim() === '') {
          showSnackbar('Prescrição salva! Dê um título para salvar como modelo da próxima vez.', 'warning');
       } else {
         showSnackbar('Prescrição salva para o paciente!', 'success');
       }
-
       setTitulo('');
       setItens([initialItemState]);
       setSalvarComoModelo(false);
