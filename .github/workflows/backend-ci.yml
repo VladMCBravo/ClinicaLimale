@@ -1,0 +1,40 @@
+name: Backend CI - Sistema Clínico
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+
+jobs:
+  testes-seguranca:
+    runs-on: ubuntu-latest
+    
+    # Diz ao robô que todos os comandos abaixo devem rodar dentro da pasta backend
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - name: 📥 Fazer o checkout do código
+      uses: actions/checkout@v4
+
+    - name: 🐍 Configurar o Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12' # Versão madura e super estável para o Django
+        cache: 'pip'
+
+    - name: 📦 Instalar dependências
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-django pytest-cov
+
+    - name: 🧪 Executar Testes e Cobertura
+      env:
+        # Se você usar variáveis de ambiente no settings.py (como SECRET_KEY ou DB_URL),
+        # você pode declará-las aqui com valores fictícios só para o teste passar.
+        DJANGO_SETTINGS_MODULE: core.settings
+      run: |
+        pytest --cov=usuarios --cov=prontuario --cov-report=term-missing usuarios/tests.py prontuario/tests.py -v
