@@ -250,41 +250,55 @@ export default function ContasReceberView() {
                                 const isAtrasado = row.status === 'Pendente' && dayjs(row.data_vencimento).isBefore(dayjs(), 'day');
                                 const isRenegociado = row.status === 'Renegociado';
                                 const isConvenio = row.tipo_atendimento === 'Convenio';
+                                const isCancelado = row.status === 'Cancelado'; // <--- Nova variável
 
                                 return (
-                                    <TableRow key={row.id} hover onClick={() => handleRowClick(row)} sx={{ cursor: 'pointer' }}>
-                                        <TableCell sx={{ color: '#444' }}>
-                                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                    <TableRow key={row.id} hover onClick={() => handleRowClick(row)} sx={{ cursor: 'pointer', bgcolor: isCancelado ? '#fff5f5' : 'inherit' }}>
+                                        
+                                        {/* COLUNA 1: Vencimento e Hora */}
+                                        <TableCell sx={{ color: isCancelado ? '#999' : '#444' }}>
+                                            <Typography variant="body2" sx={{ fontSize: '0.8rem', textDecoration: isCancelado ? 'line-through' : 'none' }}>
                                                 {dayjs(row.data_vencimento).format('DD/MM/YY')}
                                             </Typography>
                                             {row.agendamento_detalhes?.data_hora_inicio && (
-                                                <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                                                <Typography variant="caption" sx={{ color: isCancelado ? '#999' : 'primary.main', fontWeight: 'bold', fontSize: '0.7rem' }}>
                                                     {dayjs(row.agendamento_detalhes.data_hora_inicio).format('HH:mm')}
                                                 </Typography>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem">
+                                        
+                                        {/* COLUNA 2: Paciente e Exames */}
+                                        <TableCell sx={{ opacity: isCancelado ? 0.6 : 1 }}>
+                                            <Typography variant="body2" fontWeight="600" fontSize="0.85rem" sx={{ textDecoration: isCancelado ? 'line-through' : 'none' }}>
                                                 {row.paciente_nome || row.descricao}
                                                 {row.originais && row.originais.length > 1 && (
                                                     <Chip label={`${row.originais.length} Itens`} size="small" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />
                                                 )}
                                             </Typography>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.2 }}>
-                                                <Typography variant="caption" color="textSecondary" fontSize="0.7rem">
-                                                    {row.descricao_visual || row.categoria_nome}
-                                                </Typography>
-                                                {isConvenio && (
-                                                    <Chip label={`${row.convenio_nome || 'Convênio'} - ${row.plano_nome || ''}`} size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 'bold' }} />
+                                                {/* ALERTA VISUAL NOVO SE ESTIVER CANCELADO */}
+                                                {isCancelado ? (
+                                                    <Typography variant="caption" color="error" fontWeight="bold" fontSize="0.7rem">
+                                                        ⚠️ Cobrança Anulada (Falta ou Cancelamento)
+                                                    </Typography>
+                                                ) : (
+                                                    <Typography variant="caption" color="textSecondary" fontSize="0.7rem">
+                                                        {row.descricao_visual || row.categoria_nome}
+                                                    </Typography>
                                                 )}
-                                                {row.paciente_nome && (row.primeira_consulta !== undefined || row.tipo_visita) && (
-                                                    <Chip label={row.primeira_consulta || row.tipo_visita === 'Primeira Consulta' ? '1ª Vez' : (row.tipo_visita || 'Retorno')} size="small" sx={{ height: '16px', fontSize: '0.6rem', bgcolor: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#fff8e1' : '#e3f2fd', color: (row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#f57f17' : '#1565c0', border: `1px solid ${(row.primeira_consulta || row.tipo_visita === 'Primeira Consulta') ? '#ffe082' : '#90caf9'}`, '& .MuiChip-label': { px: 0.6, py: 0 } }} />
+                                                
+                                                {isConvenio && !isCancelado && (
+                                                    <Chip label={`${row.convenio_nome || 'Convênio'} - ${row.plano_nome || ''}`} size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 'bold' }} />
                                                 )}
                                             </Box>
                                         </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold', color: isRenegociado ? '#999' : '#2e7d32', fontSize: '0.85rem', textDecoration: isRenegociado ? 'line-through' : 'none' }}>
+                                        
+                                        {/* COLUNA 3: Valor (Riscado se anulado) */}
+                                        <TableCell align="right" sx={{ fontWeight: 'bold', color: (isRenegociado || isCancelado) ? '#999' : '#2e7d32', fontSize: '0.85rem', textDecoration: (isRenegociado || isCancelado) ? 'line-through' : 'none' }}>
                                             {formatMoney(row.valor)}
                                         </TableCell>
+                                        
+                                        {/* COLUNA 4: Status (Já estava correta, não mexemos) */}
                                         <TableCell align="center">
                                             <Chip 
                                                 label={isAtrasado && row.status === 'Pendente' ? 'Atrasado' : row.status} 
