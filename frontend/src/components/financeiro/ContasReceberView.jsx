@@ -100,6 +100,13 @@ export default function ContasReceberView() {
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
+    // 👇 ADICIONE ESTE BLOCO AQUI 👇
+    const handleSort = (coluna) => {
+        const isAsc = ordem.coluna === coluna && ordem.direcao === 'asc';
+        setOrdem({ coluna, direcao: isAsc ? 'desc' : 'asc' });
+    };
+    // 👆 ATÉ AQUI 👆
+
     // --- NOVA LÓGICA DE FILTRAGEM E ORDENAÇÃO ---
     const listaOrdenada = useMemo(() => {
         // 1. Filtragem Multi-campos
