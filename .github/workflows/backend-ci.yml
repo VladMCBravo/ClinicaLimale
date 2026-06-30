@@ -34,8 +34,7 @@ jobs:
     - name: 🧪 Executar Testes e Cobertura
       env:
         DJANGO_SETTINGS_MODULE: core.settings
-        # 👇 Diz ao GitHub que a pasta /backend é a raiz do Python
-        PYTHONPATH: . 
+        # 👇 Caminho absoluto cravado para o GitHub não se perder
+        PYTHONPATH: ${{ github.workspace }}/backend
       run: |
-        # 👇 Usar 'python -m pytest' garante que ele leia o PYTHONPATH
         python -m pytest --cov=usuarios --cov=prontuario --cov-report=term-missing usuarios/tests.py prontuario/tests.py -v
