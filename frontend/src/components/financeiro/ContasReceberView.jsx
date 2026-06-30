@@ -17,6 +17,19 @@ import './Financeiro.css';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+// --- FUNÇÕES AUXILIARES PARA A BUSCA ---
+const removeAcentos = (str) => {
+    if (!str) return '';
+    // Converte para minúsculo e remove acentos (diacríticos)
+    return str.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+};
+
+const apenasNumeros = (str) => {
+    if (!str) return '';
+    // Remove tudo que não for número (útil para CPF, RG e Telefone)
+    return str.toString().replace(/\D/g, '');
+};
+
 export default function ContasReceberView() {
     const [lista, setLista] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -87,14 +100,54 @@ export default function ContasReceberView() {
         return () => clearTimeout(timeoutId);
     }, [carregarDados]);
 
-    // --- NOVA LÓGICA DE ORDENAÇÃO NA MEMÓRIA ---
+    // 👇 ADICIONE ESTE BLOCO AQUI 👇
     const handleSort = (coluna) => {
         const isAsc = ordem.coluna === coluna && ordem.direcao === 'asc';
         setOrdem({ coluna, direcao: isAsc ? 'desc' : 'asc' });
     };
+    // 👆 ATÉ AQUI 👆
 
+    // --- NOVA LÓGICA DE FILTRAGEM E ORDENAÇÃO ---
     const listaOrdenada = useMemo(() => {
-        let sortableItems = [...lista];
+        // 1. Filtragem Multi-campos
+        let itensFiltrados = lista;
+
+        if (busca) {
+            const termoBusca = removeAcentos(busca);
+            const termoNumero = apenasNumeros(busca); // Para comparar com CPF/Valores numéricos
+
+            itensFiltrados = lista.filter(item => {
+                const pacienteNome = removeAcentos(item.paciente_nome || item.descricao);
+                // Caso seu backend mande o CPF no item, mapeie a propriedade correta aqui (ex: item.cpf, item.paciente_cpf)
+                const pacienteCpf = apenasNumeros(item.cpf || item.paciente_cpf); 
+                const procedimento = removeAcentos(item.descricao_visual || item.categoria_nome);
+                const status = removeAcentos(item.status);
+                
+                // Formata datas para o formato BR para que a busca por "15/10/2023" ou "15/10" funcione
+                const dataVencimento = item.data_vencimento ? dayjs(item.data_vencimento).format('DD/MM/YYYY') : '';
+                const dataVencimentoCurta = item.data_vencimento ? dayjs(item.data_vencimento).format('DD/MM/YY') : '';
+                
+                const valorFormatado = item.valor ? removeAcentos(formatMoney(item.valor)) : '';
+                const valorPuro = item.valor ? item.valor.toString() : '';
+
+                // Verifica se a busca (apenas os números) bate com algum CPF
+                const matchCpf = termoNumero.length > 0 && pacienteCpf.includes(termoNumero);
+
+                return (
+                    pacienteNome.includes(termoBusca) ||
+                    procedimento.includes(termoBusca) ||
+                    status.includes(termoBusca) ||
+                    dataVencimento.includes(termoBusca) ||
+                    dataVencimentoCurta.includes(termoBusca) ||
+                    valorFormatado.includes(termoBusca) ||
+                    valorPuro.includes(termoBusca) ||
+                    matchCpf
+                );
+            });
+        }
+
+        // 2. Ordenação da lista filtrada
+        let sortableItems = [...itensFiltrados];
         sortableItems.sort((a, b) => {
             if (ordem.coluna === 'vencimento') {
                 const dataA = a.data_vencimento ? dayjs(a.data_vencimento).valueOf() : 0;
@@ -122,32 +175,31 @@ export default function ContasReceberView() {
             }
             return 0;
         });
-        return sortableItems;
-    }, [lista, ordem]);
 
+        return sortableItems;
+    }, [lista, ordem, busca]);
+
+    // --- TOTAIS ATUALIZADOS PARA REFLETIR A BUSCA ---
     const totais = useMemo(() => {
-        // Filtra removendo faturas renegociadas e canceladas
-        const validos = lista.filter(i => i.status !== 'Renegociado' && i.status !== 'Cancelado');
+        // Agora usa a 'listaOrdenada' para calcular apenas o que está visível após o filtro
+        const validos = listaOrdenada.filter(i => i.status !== 'Renegociado' && i.status !== 'Cancelado');
         
-        // 1. VALOR TOTAL (Soma financeira dos serviços executados/ativos)
         const totalValor = validos.reduce((acc, item) => acc + parseFloat(item.valor || 0), 0);
         
-        // 2. QTDE. DE SERVIÇOS (Soma a quantidade real de itens dentro de cada grupo)
         const qtdServicos = validos.reduce((acc, item) => {
             return acc + (item.originais ? item.originais.length : 1);
         }, 0);
         
-        // 3. PACIENTES ATENDIDOS (Conta quantos pacientes únicos existem na lista)
         const pacientesUnicos = new Set();
         validos.forEach(item => {
             if (item.paciente) {
-                pacientesUnicos.add(item.paciente); // O Set impede IDs duplicados
+                pacientesUnicos.add(item.paciente);
             }
         });
         const qtdPacientes = pacientesUnicos.size;
 
         return { qtdServicos, qtdPacientes, valor: totalValor };
-    }, [lista]);
+    }, [listaOrdenada]); // A dependência passou de 'lista' para 'listaOrdenada'
 
     const handleRowClick = (item) => {
         setSelectedItem(item);
