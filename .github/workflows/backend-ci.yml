@@ -33,8 +33,10 @@ jobs:
 
     - name: 🧪 Executar Testes e Cobertura
       env:
-        # Se você usar variáveis de ambiente no settings.py (como SECRET_KEY ou DB_URL),
-        # você pode declará-las aqui com valores fictícios só para o teste passar.
         DJANGO_SETTINGS_MODULE: core.settings
+        PYTHONPATH: ${{ github.workspace }}/backend
+        # 👇 Adicionamos variáveis de "mentirinha" para enganar a trava do settings.py
+        SECRET_KEY: 'chave-ficticia-apenas-para-os-testes-passarem'
+        DEBUG: 'True'
       run: |
-        pytest --cov=usuarios --cov=prontuario --cov-report=term-missing usuarios/tests.py prontuario/tests.py -v
+        python -m pytest --cov=usuarios --cov=prontuario --cov-report=term-missing usuarios/tests.py prontuario/tests.py -v

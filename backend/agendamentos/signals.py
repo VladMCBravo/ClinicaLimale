@@ -42,21 +42,24 @@ def gerenciar_financeiro_automatico(sender, instance, created, **kwargs):
             logger.error(f"Erro ao gerar financeiro via Signal para Agendamento {instance.id}: {e}", exc_info=True)
             
     else:
-        # === NOVA LÓGICA DE CANCELAMENTO ===
+        # === NOVA LÓGICA DE CANCELAMENTO (BLINDADA) ===
         try:
-            # Verifica se o status do agendamento mudou para Cancelado
-            # (Ajuste a string 'Cancelado' caso no seu banco o status seja diferente, ex: 'cancelado' ou 'C')
-            if instance.status == 'Cancelado':
+            # 1. Mapeamos todos os status que representam quebra de funil
+            status_cancelamento = ['Cancelado', 'Falta', 'Desistência', 'Não Compareceu']
+            
+            if instance.status in status_cancelamento:
                 
                 # Checa se existe um pagamento atrelado a esse agendamento
                 if hasattr(instance, 'pagamento') and instance.pagamento is not None:
                     pagamento = instance.pagamento
                     
-                    # Se o pagamento ainda não estiver cancelado, nós cancelamos ele
-                    if pagamento.status != 'Cancelado':
+                    # 2. 🛡️ TRAVA DE SEGURANÇA FINANCEIRA: 
+                    # Só cancelamos a cobrança se o paciente AINDA NÃO PAGOU.
+                    # Se já estiver 'Pago', não faz nada (exige estorno manual da recepção).
+                    if pagamento.status == 'Pendente':
                         pagamento.status = 'Cancelado'
                         pagamento.save()
-                        logger.info(f"Pagamento {pagamento.id} cancelado automaticamente pois o Agendamento {instance.id} foi cancelado.")
+                        logger.info(f"Pagamento {pagamento.id} anulado. Agendamento {instance.id} mudou para '{instance.status}'.")
                         
         except Exception as e:
             logger.error(f"Erro ao cancelar financeiro via Signal para o Agendamento {instance.id}: {e}", exc_info=True)
