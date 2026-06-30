@@ -34,7 +34,9 @@ jobs:
     - name: 🧪 Executar Testes e Cobertura
       env:
         DJANGO_SETTINGS_MODULE: core.settings
-        # 👇 Caminho absoluto cravado para o GitHub não se perder
         PYTHONPATH: ${{ github.workspace }}/backend
+        # 👇 Adicionamos variáveis de "mentirinha" para enganar a trava do settings.py
+        SECRET_KEY: 'chave-ficticia-apenas-para-os-testes-passarem'
+        DEBUG: 'True'
       run: |
         python -m pytest --cov=usuarios --cov=prontuario --cov-report=term-missing usuarios/tests.py prontuario/tests.py -v
