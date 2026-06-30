@@ -483,14 +483,34 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
 
     const handleDelete = async () => {
         if (!editingEvent?.id) return;
-        if (!window.confirm("Tem certeza que deseja EXCLUIR este agendamento?")) return;
+        if (!window.confirm("Deseja CANCELAR este agendamento? Ele ficará salvo no histórico e a cobrança pendente será anulada.")) return;
+        
         setIsSubmitting(true);
         try {
-            await agendamentoService.deleteAgendamento(editingEvent.id);
-            showSnackbar("Agendamento excluído com sucesso.", "success");
-            onSave(); onClose(); 
-        } catch (error) { showSnackbar("Erro ao excluir agendamento.", "error"); } 
-        finally { setIsSubmitting(false); }
+            // 👇 CORREÇÃO: Montamos o pacote completo para satisfazer o Django
+            const cancelData = {
+                ...formData,
+                paciente: formData.paciente?.id || null,
+                medico: formData.medico?.id || null,
+                sala: formData.sala?.id || null,
+                especialidade: formData.especialidade?.id || null,
+                procedimento: formData.procedimento?.id || null,
+                tipo_agendamento: tipoAgendamento,
+                data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
+                data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
+                status: 'Cancelado' // <--- O gatilho que aciona o financeiro!
+            };
+
+            await agendamentoService.updateAgendamento(editingEvent.id, cancelData);
+            
+            showSnackbar("Agendamento cancelado com sucesso.", "success");
+            onSave(); 
+            onClose(); 
+        } catch (error) { 
+            showSnackbar("Erro ao cancelar agendamento.", "error"); 
+        } finally { 
+            setIsSubmitting(false); 
+        }
     };
     
     const infoFinanceira = useMemo(() => {
@@ -697,7 +717,15 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 
                                 <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, mt: 1 }}>
                                     <FormControl fullWidth size="small"><InputLabel>Modalidade</InputLabel><Select name="modalidade" value={formData.modalidade} label="Modalidade" onChange={(e) => setFormData({...formData, modalidade: e.target.value})} ><MenuItem value="Presencial">Presencial</MenuItem><MenuItem value="Telemedicina">Telemedicina</MenuItem></Select></FormControl>
-                                    <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}><MenuItem value="Agendado">Agendado</MenuItem><MenuItem value="Confirmado">Confirmado</MenuItem><MenuItem value="Realizado">Realizado</MenuItem><MenuItem value="Não Compareceu">Faltou</MenuItem></Select></FormControl>
+                                    <FormControl fullWidth size="small"><InputLabel>Status</InputLabel><Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                                        <MenuItem value="Agendado">Agendado</MenuItem>
+                                        <MenuItem value="Confirmado">Confirmado</MenuItem>
+                                        <MenuItem value="Realizado">Realizado</MenuItem>
+                                        <MenuItem value="Não Compareceu">Faltou / Não Compareceu</MenuItem>
+                                        {/* 👇 Adicione as novas opções abaixo 👇 */}
+                                        <MenuItem value="Cancelado">Cancelado</MenuItem>
+                                        <MenuItem value="Desistência">Desistência</MenuItem>
+                                    </Select></FormControl>
                                 </Box>
                             </Paper>
 
