@@ -103,7 +103,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
     
     modo = 'NORMAL'
     em_tabela = False
-    modo_rodape = False # NOVO: Trava para manter a formatação menor até o final
+    modo_rodape = False
 
     titulos_principais = [
         'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL',
@@ -124,10 +124,10 @@ def formatar_texto_laudo_para_html(texto_bruto):
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
 
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
-            modo_rodape = False # Desliga o modo observação se um novo título aparecer
+            modo_rodape = False 
             if em_tabela:
-                # Dá um respiro de 8px após o fim da tabela
-                html_out.append("</table><div style='height: 8px;'></div>")
+                # CORREÇÃO: Usando <br/> que o xhtml2pdf entende para forçar um espaço real
+                html_out.append("</table><br/>")
                 em_tabela = False
             modo = 'NORMAL'
 
@@ -150,8 +150,8 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 html_out.append(f'<tr><td style="color: #333; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 60%;">{partes[0].strip()}:</td><td style="text-align: left; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 40%;">{partes[1].strip()}</td></tr>')
                 continue 
             else:
-                # Texto longo detectado! Fecha a tabela, dá um espaço e volta ao normal
-                html_out.append("</table><div style='height: 8px;'></div>")
+                # CORREÇÃO: Usando <br/> para descolar a frase do Peso Fetal do fim da tabela
+                html_out.append("</table><br/>")
                 em_tabela = False
                 modo = 'NORMAL'
         
@@ -161,10 +161,8 @@ def formatar_texto_laudo_para_html(texto_bruto):
             else:
                 frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
                 
-                # Liga o modo observação
                 if any(linha_limpa.startswith(f) for f in frases_rodape):
                     if not modo_rodape:
-                        # Separa visualmente o bloco de observações da Conclusão
                         html_out.append("<div style='height: 12px;'></div>") 
                     modo_rodape = True
                 
