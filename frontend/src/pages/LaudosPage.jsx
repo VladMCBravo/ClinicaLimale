@@ -394,20 +394,17 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
   const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada) => {
     // 🛑 1. TRAVA DEFINITIVA ANTI-CLIQUE DUPLO
-    // Se já estiver processando (isPolling = true), ignora qualquer outro clique.
     if (isPolling) return;
     
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
-    // --- NOVA TRAVA DE CONSCIENTIZAÇÃO ---
     const confirmacao = window.confirm(
         "Atenção: Após finalizado, este laudo será processado e assinado digitalmente.\n\n" +
         "Se houver erros e você precisar corrigir algo depois, o laudo atual será CANCELADO no prontuário e substituído por um novo laudo oficial para o paciente.\n\n" +
         "Deseja gerar o laudo definitivo agora?"
     );
     if (!confirmacao) return;
-    // -------------------------------------
 
     setModalRevisaoOpen(false);
     setIsPolling(true); // Bloqueia a tela com o loader do Polling
@@ -421,22 +418,15 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         setTextoFinal(textoCorrigido);
         setImagens(imagensOtimizadas);
 
-        // 2. Gera o PDF Transparente localmente
-        const blobPdf = await gerarPDFLaudo({
-            pacienteNome: paciente.nome_completo,
-            medicoNome, medicoCrm, tituloExame,
-            medicoEspecialidades,
-            textoLaudo: textoCorrigido, dadosEstruturados,
-            imagensBase64: imagensOtimizadas,
-            dataExame: dataExameSelecionada, // <--- USE O PARÂMETRO AQUI
-            comTimbre: true, usaAssinaturaDigital: usuarioTemCertificado,
-            retornarBlob: true
-        });
+        // ===============================================================
+        // 🚀 TRANSIÇÃO: O FRONTEND NÃO GERA MAIS O PDF!
+        // Removemos o gerarPDFLaudo(). O Backend fará o trabalho pesado.
+        // ===============================================================
 
-        // 3. Prepara o envio
+        // 3. Prepara o envio APENAS com os textos e imagens
         const formData = new FormData();
         formData.append('paciente', paciente.id);
-        formData.append('data_exame', dataExameSelecionada); // <--- USE O PARÂMETRO AQUI
+        formData.append('data_exame', dataExameSelecionada); 
         formData.append('tipo_exame', tipoExame);
         formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
         formData.append('texto_laudo', textoCorrigido);
@@ -444,7 +434,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         formData.append('crm_medico', medicoCrm);
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
         formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
-        formData.append('arquivo_pdf', blobPdf, `Rascunho_${Date.now()}.pdf`);
+        
+        // A ausência do formData.append('arquivo_pdf', ...) acionará o gerador do Django!
 
         // 4. Envia para a NOVA ROTA ASSÍNCRONA
         let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -463,7 +454,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                     // Alimenta os dados exatos para o WhatsApp e E-mail funcionarem
                     if (res.data.credenciais) setCredenciais(res.data.credenciais);
 
-                    // Força o download do PDF final
+                    // Força o download do PDF final GERADO PELO BACKEND
                     if (res.data.arquivo_url) {
                         const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
                         const urlCompleta = res.data.arquivo_url.startsWith('/') ? `${baseUrl}${res.data.arquivo_url}` : res.data.arquivo_url;
@@ -519,7 +510,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         setIsPolling(false);
         alert("Erro ao enviar o laudo para processamento.");
     }
-};
+  };
 
   // Função Auxiliar para impressão simples (botão handlePrint antigo, usado nos modais de envio)
   const handlePrint = (usarTimbre = true) => {
