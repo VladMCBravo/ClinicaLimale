@@ -1652,25 +1652,31 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             else:
                 # ====================================================================
                 # 🚀 TRANSIÇÃO SEGURA: GERAÇÃO DE PDF NO BACKEND
-                # Se o React NÃO mandar o 'arquivo_pdf', o backend assume o controle!
                 # ====================================================================
                 import json
+                from datetime import date # Certifique-se de que isso existe
                 from django.core.files.base import ContentFile
                 from prontuario.utils import gerar_pdf_laudo_backend 
 
-                # Pega as imagens otimizadas que o React continua enviando
                 imagens_raw = request.data.get('imagens_anexas', '[]')
                 try:
                     imagens_lista = json.loads(imagens_raw) if isinstance(imagens_raw, str) else imagens_raw
                 except:
                     imagens_lista = []
 
+                # CALCULA A IDADE DIRETAMENTE AQUI PARA NÃO FALHAR
+                idade_formatada = ""
+                if paciente.data_nascimento:
+                    hoje = date.today()
+                    anos = hoje.year - paciente.data_nascimento.year - ((hoje.month, hoje.day) < (paciente.data_nascimento.month, paciente.data_nascimento.day))
+                    idade_formatada = f"{anos} ANOS"
+
                 contexto = {
                     'laudo': laudo,
                     'paciente': paciente,
                     'medico': laudo.medico,
                     'data_exame': data_retroativa,
-                    'idade_formatada': paciente.get_idade_anos() if hasattr(paciente, 'get_idade_anos') else "",
+                    'idade_formatada': idade_formatada,
                     'imagens': imagens_lista
                 }
 

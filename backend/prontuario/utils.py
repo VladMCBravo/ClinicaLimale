@@ -102,22 +102,14 @@ def formatar_texto_laudo_para_html(texto_bruto):
     html_out = []
     
     modo = 'NORMAL'
-    em_tabela_dupla = False
-    em_tabela_simples = False
+    em_tabela = False
 
-    tabela_dupla_html = """
-    <table style="width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 2px;">
-        <tr>
-            <td style="width: 50%; vertical-align: top; padding-right: 5px;">
-                <div style="color: #2E7D32; font-size: 9pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-bottom: 2px;">BIOMETRIA FETAL</div>
-                <table style="width: 100%; font-size: 8.5pt;">
-    """
-
+    # Adicionado 'ÍNDICES E ESTIMATIVAS' como título para quebrar a tabela!
     titulos_principais = [
         'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL',
         'AVALIAÇÃO DO COLO UTERINO', 'ESTUDO DOPPLERFLUXOMÉTRICO', 'ESTUDO TRIDIMENSIONAL',
         'AVALIAÇÃO COMPLEMENTAR', 'RASTREAMENTO DE ANEUPLOIDIAS', 'ANEXOS', 
-        'COMENTÁRIOS', 'FETO I', 'FETO II', 'FETO III', 'TABELA DE MEDIDAS'
+        'COMENTÁRIOS', 'FETO I', 'FETO II', 'FETO III', 'TABELA DE MEDIDAS', 'ÍNDICES E ESTIMATIVAS'
     ]
 
     for linha in linhas:
@@ -131,61 +123,50 @@ def formatar_texto_laudo_para_html(texto_bruto):
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
 
+        # Se achar um título, fecha a tabela (caso esteja aberta)
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
-            if em_tabela_dupla:
-                html_out.append("</table></td></tr></table>")
-                em_tabela_dupla = False
-            if em_tabela_simples:
+            if em_tabela:
                 html_out.append("</table>")
-                em_tabela_simples = False
+                em_tabela = False
             modo = 'NORMAL'
 
-        if "BIOMETRIA FETAL" in linha_limpa:
-            modo = 'BIOMETRIA'
-            em_tabela_dupla = True
-            html_out.append(tabela_dupla_html)
-            continue
-            
-        if "ÍNDICES E ESTIMATIVAS" in linha_limpa and em_tabela_dupla:
-            modo = 'INDICES'
-            html_out.append("""
-                </table>
-            </td>
-            <td style="width: 50%; vertical-align: top; padding-left: 5px;">
-                <div style="color: #2E7D32; font-size: 9pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-bottom: 2px;">ÍNDICES E ESTIMATIVAS</div>
-                <table style="width: 100%; font-size: 8.5pt;">
-            """)
-            continue
-
-        if "TABELA DE MEDIDAS" in linha_limpa:
-            modo = 'ECO_TABELA'
-            em_tabela_simples = True
-            html_out.append("""
-            <div style="color: #1C2E4A; font-size: 9pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 5px; margin-bottom: 2px;">TABELA DE MEDIDAS</div>
+        # Cria Tabela Simples (Ocupando a linha inteira para não espremer textos longos)
+        if "BIOMETRIA FETAL" in linha_limpa or "TABELA DE MEDIDAS" in linha_limpa:
+            modo = 'TABELA'
+            em_tabela = True
+            titulo_tabela = linha.replace(":", "").strip()
+            html_out.append(f"""
+            <div style="color: #2E7D32; font-size: 9.5pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 2px;">{titulo_tabela}</div>
             <table style="width: 100%; font-size: 8.5pt; border-collapse: collapse; margin-bottom: 5px;">
             """)
             continue
 
-        if modo in ['BIOMETRIA', 'INDICES', 'ECO_TABELA']:
+        # Lógica de preenchimento
+        if modo == 'TABELA':
             if ':' in linha:
                 partes = linha.split(':', 1)
-                # Removido totalmente o padding vertical para máxima compactação
-                html_out.append(f'<tr><td style="color: #333; padding: 1px 0; border-bottom: 1px solid #f9f9f9;">{partes[0].strip()}:</td><td style="font-weight: bold; text-align: right; padding: 1px 0; border-bottom: 1px solid #f9f9f9;">{partes[1].strip()}</td></tr>')
+                # Formata Medidas
+                html_out.append(f'<tr><td style="color: #333; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 60%;">{partes[0].strip()}:</td><td style="text-align: left; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 40%;">{partes[1].strip()}</td></tr>')
             else:
-                html_out.append(f'<tr><td colspan="2" style="color: #333; padding: 1px 0; font-weight: bold;">{linha}</td></tr>')
+                # Se não tem ':', é um texto longo normal. REMOVIDO o font-weight: bold!
+                html_out.append(f'<tr><td colspan="2" style="color: #333; padding: 1px 0;">{linha}</td></tr>')
         
         else:
             if is_titulo:
-                html_out.append(f'<div style="color: #1C2E4A; font-weight: bold; font-size: 9.5pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
+                # TÍTULOS AGORA SÃO VERDES (#2E7D32)
+                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 9.5pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
             else:
                 if '\t' in linha_original:
                     linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
                     html_out.append(f'<div style="margin-bottom: 1px; font-family: monospace; font-size: 8.5pt; color: #333;">{linha_formatada.strip()}</div>')
                 else:
-                    html_out.append(f'<div style="margin-bottom: 1px;">{linha}</div>')
+                    if linha.startswith('-'):
+                        # Dá um espacinho em listas para ficar bonito
+                        html_out.append(f'<div style="margin-bottom: 1px; padding-left: 10px;">{linha}</div>')
+                    else:
+                        html_out.append(f'<div style="margin-bottom: 1px;">{linha}</div>')
 
-    if em_tabela_dupla: html_out.append("</table></td></tr></table>")
-    if em_tabela_simples: html_out.append("</table>")
+    if em_tabela: html_out.append("</table>")
     
     return "".join(html_out)
 
