@@ -259,12 +259,14 @@ export const gerarPDFLaudo = async ({
     // 5. Data (Sempre exibida)
     cabecalhoTexto.push({ text: temSolicitante ? '    Data: ' : 'Data: ', bold: true, color: '#555' }, dataExameFormatada);
 
-    // Insere o cabeçalho dinâmico no documento
+    // Insere o cabeçalho dinâmico fixado ao lado do logo usando absolutePosition
     content.push({
         text: cabecalhoTexto,
         fontSize: 10, 
         lineHeight: 1.3, 
-        margin: [0, 0, 0, 15] 
+        // X = Afastamento da margem esquerda (ajuste para não encostar no logo)
+        // Y = Afastamento do topo da folha
+        absolutePosition: { x: 160, y: 50 } 
     });
 
     let textoParaImprimir = textoLaudo || '';
@@ -348,21 +350,22 @@ export const gerarPDFLaudo = async ({
         };
     }
 
-    /// ==========================================================
+    // ==========================================================
     // A MÁGICA FINAL: ASSINATURA MAGNETIZADA AO TEXTO FINAL
     // ==========================================================
     
-    // 1. Adiciona a Conclusão / Impressão diagnóstica
+    // 1. Adiciona a Conclusão / Impressão diagnóstica normalmente
     if (blocoFinal) {
         content.push(blocoFinal);
     }
     
-    // 2. Adiciona a assinatura isolada
-    // Se não houver espaço apenas para ela, somente a assinatura descerá para a próxima página.
+    // 2. Encaixa a assinatura cirurgicamente no quadro vazio no rodapé da folha
     content.push({
         stack: [ elementoAssinatura ],
-        margin: [0, 15, 0, 0], 
-        unbreakable: true 
+        // X = Margem esquerda padrão (40)
+        // Y = Posição vertical na folha. Uma folha A4 tem ~842 de altura. 
+        // 710 deve colocá-la bem no rodapé. Ajuste esse número se precisar subir ou descer.
+        absolutePosition: { x: 40, y: 710 } 
     });
         
     // ==========================================================
@@ -395,8 +398,9 @@ export const gerarPDFLaudo = async ({
     const docDefinition = {
         pageSize: 'A4', 
         
-        // MARGEM CORRIGIDA: 75 no fundo. Usa 100% da folha útil antes do rodapé da Limalé
-        pageMargins: [40, 130, 40, 75], 
+        /// MARGENS: [Esquerda, Topo, Direita, Fundo]
+        // Aumentamos o fundo de 75 para 160 para barrar o texto antes dele chegar no quadro da assinatura
+        pageMargins: [40, 130, 40, 160], 
         
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.1 },
         content: content,
