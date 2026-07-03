@@ -32,9 +32,9 @@ export const gerarPDFLaudo = async ({
 
     const formatarLinhaNormal = (line, isRodape = false) => {
         if (isRodape) {
-            return { text: line, fontSize: 8, color: '#555', alignment: 'justify', lineHeight: 1.1, margin: [0, 0, 0, 2] };
+            return { text: line, fontSize: 8, color: '#555', alignment: 'justify', lineHeight: 1.1, margin: [0, 0, 0, 1] };
         }
-        return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.15, margin: [0, 0, 0, 4] };
+        return { text: line, fontSize: 10, alignment: 'justify', lineHeight: 1.1, margin: [0, 0, 0, 2] };
     };
 
     // =========================================================
@@ -64,13 +64,13 @@ export const gerarPDFLaudo = async ({
 
         // Estilo das Tabelas com Linhas (Bordas Horizontais)
         const customTableLayout = {
-            hLineWidth: function (i, node) { return 0.5; }, // Espessura da linha horizontal
-            vLineWidth: function (i, node) { return 0; },   // Sem linhas verticais
-            hLineColor: function (i, node) { return '#E0E0E0'; }, // Cor cinza clara
+            hLineWidth: function (i, node) { return 0.5; }, 
+            vLineWidth: function (i, node) { return 0; },   
+            hLineColor: function (i, node) { return '#E0E0E0'; }, 
             paddingLeft: function (i, node) { return 0; },
             paddingRight: function (i, node) { return 0; },
-            paddingTop: function (i, node) { return 4; },
-            paddingBottom: function (i, node) { return 4; }
+            paddingTop: function (i, node) { return 2; },    // Alterado de 4 para 2
+            paddingBottom: function (i, node) { return 2; }  // Alterado de 4 para 2
         };
 
         const flushSideBySide = () => {
@@ -150,6 +150,10 @@ export const gerarPDFLaudo = async ({
             if (mode === 'BIOMETRIA') {
                 if (line.toUpperCase().startsWith('NOTA:')) {
                     biometriaRows.push({ label: line, value: '', isNote: true });
+                } else if (line.includes(':')) {
+                    // NOVO: Lê corretamente dados no formato "Chave:Valor"
+                    const parts = line.split(':');
+                    biometriaRows.push({ label: parts[0].trim() + ':', value: parts.slice(1).join(':').trim() });
                 } else if (line.includes('...')) {
                     const parts = line.split(/\.{2,}/); 
                     biometriaRows.push({ label: parts[0].trim(), value: parts[1] ? parts[1].trim() : '' });
@@ -344,23 +348,22 @@ export const gerarPDFLaudo = async ({
         };
     }
 
-    // ==========================================================
+    /// ==========================================================
     // A MÁGICA FINAL: ASSINATURA MAGNETIZADA AO TEXTO FINAL
     // ==========================================================
-    if (blocoFinal && blocoFinal.stack) {
-        blocoFinal.stack.push({
-            stack: [ elementoAssinatura ],
-            margin: [0, 15, 0, 0] // Espaço entre o fim da impressão diagnóstica e a assinatura
-        });
-        content.push(blocoFinal); // Como o bloco final é "unbreakable", se a assinatura não couber, ele puxa a Impressão inteira pra folha 2!
-    } else {
-        if (blocoFinal) content.push(blocoFinal);
-        content.push({
-            stack: [ elementoAssinatura ],
-            margin: [0, 15, 0, 0], 
-            unbreakable: true
-        });
+    
+    // 1. Adiciona a Conclusão / Impressão diagnóstica
+    if (blocoFinal) {
+        content.push(blocoFinal);
     }
+    
+    // 2. Adiciona a assinatura isolada
+    // Se não houver espaço apenas para ela, somente a assinatura descerá para a próxima página.
+    content.push({
+        stack: [ elementoAssinatura ],
+        margin: [0, 15, 0, 0], 
+        unbreakable: true 
+    });
         
     // ==========================================================
     // 2. DOCUMENTAÇÃO FOTOGRÁFICA (VAI PARA A ÚLTIMA PÁGINA)
