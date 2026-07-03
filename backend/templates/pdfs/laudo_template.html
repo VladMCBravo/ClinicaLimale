@@ -23,10 +23,10 @@
         /* CAIXA DA ASSINATURA (Rodapé) */
         @frame assinatura_footer {
             -pdf-frame-content: assinatura_digital;
-            left: 1.8cm; 
-            right: 1.5cm;
+            left: 2.0cm; 
+            right: 2.0cm;
             bottom: 0.3cm; 
-            height: 3.0cm; 
+            height: 3.2cm; 
         }
     }
     
@@ -79,29 +79,29 @@
 <!-- 2. BLOCO DA ASSINATURA -->
 <div id="assinatura_digital">
     {% if tem_assinatura_digital %}
-        <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 5px;">
+        <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
             <tr>
-                <td style="width: 15%; text-align: left; vertical-align: middle;">
+                <td style="width: 15%; text-align: center; vertical-align: top;">
                     {% if logo_icp_base64 %}
-                        <img src="{{ logo_icp_base64 }}" alt="ICP-Brasil" style="width: 50px; display: block;" />
+                        <img src="{{ logo_icp_base64 }}" alt="ICP-Brasil" style="width: 65px; display: inline-block;" />
                     {% endif %}
                 </td>
-                <td style="width: 70%; vertical-align: middle; text-align: center; line-height: 1.1;">
-                    <span style="font-size: 8pt; color: #000;">
+                <td style="width: 70%; vertical-align: top; text-align: center; line-height: 1.15; padding-top: 0;">
+                    <span style="font-size: 8.5pt; color: #000;">
                         <strong>Assinado digitalmente por {{ medico.nome_com_prefixo }} - CRM {{ medico.crm|default:'N/A' }}</strong>
                     </span><br>
                     {% if medico.get_texto_especialidades_rqe %}
-                    <span style="font-size: 7.5pt; color: #1C2E4A; font-weight: bold;">
+                    <span style="font-size: 8pt; color: #1C2E4A; font-weight: bold;">
                         {{ medico.get_texto_especialidades_rqe }}
                     </span><br>
                     {% endif %}
-                    <span style="font-size: 7.5pt; color: #333;">Data e hora: {% now "d/m/Y - H:i:s" %} (GMT-3)</span><br>
-                    <span style="font-size: 7pt; color: #555;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</span><br>
-                    <span style="font-size: 7pt; color: #555;">*Para validar, acesse <a href="https://validar.iti.gov.br" style="color: #333; text-decoration: underline;">validar.iti.gov.br</a> ou aponte a câmera.</span>
+                    <span style="font-size: 8pt; color: #333;">Data e hora: {% now "d/m/Y - H:i:s" %} (GMT-3)</span><br>
+                    <span style="font-size: 7.5pt; color: #555;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</span><br>
+                    <span style="font-size: 7.5pt; color: #555;">*Para validar, acesse <a href="https://validar.iti.gov.br" style="color: #333; text-decoration: underline;">validar.iti.gov.br</a> ou aponte a câmera.</span>
                 </td>
-                <td style="width: 15%; text-align: right; vertical-align: middle;">
+                <td style="width: 15%; text-align: center; vertical-align: top;">
                     {% if qr_code_base64_ou_url %}
-                        <img src="{{ qr_code_base64_ou_url }}" alt="QR Code" style="width: 50px; height: 50px; display: inline-block;" />
+                        <img src="{{ qr_code_base64_ou_url }}" alt="QR Code" style="width: 65px; height: 65px; display: inline-block;" />
                     {% endif %}
                 </td>
             </tr>
