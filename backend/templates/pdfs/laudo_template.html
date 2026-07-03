@@ -6,27 +6,26 @@
 <style>
     @page {
         size: a4;
-        /* Reduzimos as margens para dar o máximo de espaço ao texto */
         margin-top: 4.5cm; 
-        margin-bottom: 4.0cm; /* Impede que o texto invada a caixa de assinatura */
+        margin-bottom: 3.2cm; /* Garante que o texto pare antes da assinatura */
         margin-left: 1.5cm;
         margin-right: 1.5cm;
         
         /* CAIXA DO CABEÇALHO (Informações do Paciente) */
         @frame header_info {
             -pdf-frame-content: header_content;
-            left: 5.5cm; /* Afasta da logo que fica à esquerda */
+            left: 10cm; /* Mais para a direita, longe do logo */
             right: 1.5cm;
-            top: 1.2cm;  /* Alinha com o topo da logo */
+            top: 1.2cm;  
             height: 3.0cm;
         }
 
         /* CAIXA DA ASSINATURA (Rodapé) */
         @frame assinatura_footer {
             -pdf-frame-content: assinatura_digital;
-            left: 1.5cm;
+            left: 2.2cm; /* Centraliza melhor horizontalmente */
             right: 1.5cm;
-            bottom: 0.8cm; /* Desce a assinatura para o quadro em branco da imagem */
+            bottom: 0.2cm; /* Desce quase colado ao fim da folha */
             height: 3.0cm; 
         }
     }
@@ -39,7 +38,7 @@
     }
     
     .header-linha {
-        border-bottom: 1px solid #E67E22; /* Linha Laranja solicitada */
+        border-bottom: 1px solid #E67E22;
         margin-top: 6px;
     }
     
@@ -53,7 +52,7 @@
     }
     
     .corpo-laudo {
-        font-size: 8.5pt; /* Fonte ajustada para caber tudo em 1 página */
+        font-size: 8.5pt;
         text-align: justify;
         line-height: 1.15;
     }
