@@ -1640,17 +1640,51 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             
             # --- 🛡️ CAMADA 3: SALVAR PDF TRANSPARENTE E DISPARAR CELERY ---
             if 'arquivo_pdf' in request.FILES:
+                # [MANTIDO: Se o React enviar o PDF, usamos o dele]
                 pdf_file = request.FILES['arquivo_pdf']
-                
-                # Usa a data retroativa no nome físico do arquivo
                 data_hoje_str = data_retroativa.strftime("%d-%m-%Y")
                 nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
                 nome_seguro = slugify(nome_base_arquivo).upper()
                 extensao = pdf_file.name.split('.')[-1]
                 pdf_file.name = f"{nome_seguro}.{extensao}"
-                
-                # Salva o PDF no banco. Ele ainda não tem máscara nem assinatura.
                 laudo.arquivo_pdf = pdf_file
+                
+            else:
+                # ====================================================================
+                # 🚀 TRANSIÇÃO SEGURA: GERAÇÃO DE PDF NO BACKEND
+                # Se o React NÃO mandar o 'arquivo_pdf', o backend assume o controle!
+                # ====================================================================
+                import json
+                from django.core.files.base import ContentFile
+                from prontuario.utils import gerar_pdf_laudo_backend 
+
+                # Pega as imagens otimizadas que o React continua enviando
+                imagens_raw = request.data.get('imagens_anexas', '[]')
+                try:
+                    imagens_lista = json.loads(imagens_raw) if isinstance(imagens_raw, str) else imagens_raw
+                except:
+                    imagens_lista = []
+
+                contexto = {
+                    'laudo': laudo,
+                    'paciente': paciente,
+                    'medico': laudo.medico,
+                    'data_exame': data_retroativa,
+                    'idade_formatada': paciente.get_idade_anos() if hasattr(paciente, 'get_idade_anos') else "",
+                    'imagens': imagens_lista
+                }
+
+                pdf_bytes = gerar_pdf_laudo_backend(contexto)
+                
+                if pdf_bytes:
+                    data_hoje_str = data_retroativa.strftime("%d-%m-%Y")
+                    nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
+                    nome_seguro = slugify(nome_base_arquivo).upper()
+                    
+                    # Salva no banco. O Celery vai pegar este arquivo transparente 
+                    # para colocar a máscara da Limalé e assinar criptograficamente!
+                    laudo.arquivo_pdf = ContentFile(pdf_bytes, name=f"{nome_seguro}.pdf")
+                # ====================================================================
             
             laudo.save()
             

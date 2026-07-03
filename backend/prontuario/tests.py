@@ -215,3 +215,111 @@ class TestGeracaoPDFViews:
         assert mock_reader.called is True
         assert mock_writer.called is True
         assert mock_assinar.called is True
+
+from prontuario.utils import formatar_texto_laudo_para_html
+
+class TestFormatadorDeLaudos:
+    def test_formatador_detecta_tabela_obstetrica(self):
+        """Garante que a palavra 'BIOMETRIA FETAL' aciona a criação da tabela HTML dupla."""
+        texto_bruto = "BIOMETRIA FETAL\nDiâmetro Biparietal: 50 mm"
+        html_gerado = formatar_texto_laudo_para_html(texto_bruto)
+        
+        assert '<table' in html_gerado
+        assert 'BIOMETRIA FETAL' in html_gerado
+        assert 'Diâmetro Biparietal' in html_gerado
+        assert '50 mm' in html_gerado
+
+    def test_formatador_detecta_tabela_cardiologica(self):
+        """Garante que a 'TABELA DE MEDIDAS' do Ecocardiograma gera a tabela simples."""
+        texto_bruto = "TABELA DE MEDIDAS\nRaiz aórtica: 30 mm"
+        html_gerado = formatar_texto_laudo_para_html(texto_bruto)
+        
+        assert '<table' in html_gerado
+        assert 'TABELA DE MEDIDAS' in html_gerado
+        assert 'Raiz aórtica' in html_gerado
+        assert '30 mm' in html_gerado
+
+import json
+from datetime import date
+from crm.models import Ciclo
+from unittest.mock import patch
+
+@pytest.mark.django_db
+class TestLaudoAsyncView:
+    
+    # Bloqueia o gatilho de transação do Django que disparava a Thread demorada
+    @patch('django.db.transaction.on_commit') 
+    @patch('prontuario.utils.gerar_pdf_laudo_backend')
+    def test_criacao_laudo_gera_pdf_no_backend_quando_ausente(self, mock_gerar_pdf, mock_on_commit, client, medico_titular, paciente_padrao):
+        """Testa se o Django gera o PDF sozinho quando o front envia apenas o texto (A Nova Arquitetura)."""
+        
+        mock_gerar_pdf.return_value = b"PDF_FALSO_DE_TESTE"
+        
+        client.force_authenticate(user=medico_titular)
+        url = reverse('laudo-create-async')
+        
+        payload = {
+            'paciente': paciente_padrao.id,
+            'titulo': 'USG Obstétrico',
+            'texto_laudo': 'Feto bem desenvolvido.',
+            'dados_estruturados': json.dumps({'sexo': 'Feminino'})
+        }
+        
+        response = client.post(url, payload, format='multipart')
+        
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        
+        laudo_criado = Laudo.objects.get(paciente=paciente_padrao)
+        
+        assert bool(laudo_criado.arquivo_pdf) is True, "O Fallback do backend falhou em gerar o PDF!"
+        assert laudo_criado.status == 'PROCESSANDO'
+    
+@pytest.mark.django_db
+class TestAtualizacaoAutomaticaPaciente:
+    
+    @patch('django.db.transaction.on_commit') # Bloqueia o gatilho aqui também
+    @patch('prontuario.utils.gerar_pdf_laudo_backend')
+    def test_laudo_atualiza_idade_e_sexo_do_paciente_vazio(self, mock_gerar_pdf, mock_on_commit, client, medico_titular):
+        mock_gerar_pdf.return_value = b"PDF_FALSO_DE_TESTE"
+        
+        client.force_authenticate(user=medico_titular)
+        url = reverse('laudo-create-async')
+        
+        paciente_incompleto = Paciente.objects.create(nome_completo="Joana Sem Dados")
+        
+        payload = {
+            'paciente': paciente_incompleto.id,
+            'titulo': 'USG',
+            'dados_estruturados': json.dumps({'sexo': 'Feminino', 'idade': '30 anos'})
+        }
+        
+        client.post(url, payload, format='multipart')
+        paciente_incompleto.refresh_from_db()
+        
+        assert paciente_incompleto.genero == 'F'
+        assert paciente_incompleto.data_nascimento is not None
+        assert paciente_incompleto.data_nascimento.year == date.today().year - 30
+
+
+@pytest.mark.django_db
+class TestSincroniaCRM:
+    def test_laudo_finalizado_atualiza_dum_no_crm(self, db, medico_titular, paciente_padrao):
+        """Garante que a extração inteligente da DUM atualize o ciclo do CRM."""
+        
+        # Cria um ciclo ativo no CRM sem data_dum
+        ciclo = Ciclo.objects.create(paciente=paciente_padrao, tipo='GESTACAO', status='ativo')
+        
+        # Cria um laudo FINALIZADO com a estrutura aninhada do feto1 simulando a DUM
+        Laudo.objects.create(
+            paciente=paciente_padrao,
+            medico=medico_titular,
+            titulo_exame="USG Obstétrico",
+            status="FINALIZADO", # Tem que ser finalizado para disparar o signal
+            dados_estruturados={
+                'feto1': {'metodoDatacao': 'DUM', 'dum': '2026-01-01'}
+            }
+        )
+        
+        # O Signal deve ter atuado
+        ciclo.refresh_from_db()
+        assert ciclo.data_dum == date(2026, 1, 1), "A extração da DUM do JSON e a sincronia com o CRM falharam!"
