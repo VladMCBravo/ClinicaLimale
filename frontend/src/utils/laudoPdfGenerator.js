@@ -7,7 +7,7 @@ import { assinarPdfRemotamente } from "../api/pdfService";
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 const getMascaraBase64 = async () => {
-    const TIMBRE_URL = '/Receituario.jpg';
+    const TIMBRE_URL = '/Receituario_v2.jpg';
     try {
         const response = await fetch(TIMBRE_URL);
         if (!response.ok) throw new Error('Falha ao carregar a máscara');
