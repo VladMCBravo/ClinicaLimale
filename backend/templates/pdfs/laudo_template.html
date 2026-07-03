@@ -14,7 +14,7 @@
         /* CAIXA DO CABEÇALHO (Informações do Paciente) */
         @frame header_info {
             -pdf-frame-content: header_content;
-            left: 10cm; /* Mais para a direita, longe do logo */
+            left: 10cm; /* Seu ajuste perfeito mantido */
             right: 1.5cm;
             top: 1.2cm;  
             height: 3.0cm;
@@ -23,9 +23,9 @@
         /* CAIXA DA ASSINATURA (Rodapé) */
         @frame assinatura_footer {
             -pdf-frame-content: assinatura_digital;
-            left: 2.2cm; /* Centraliza melhor horizontalmente */
+            left: 1.8cm; 
             right: 1.5cm;
-            bottom: 0.2cm; /* Desce quase colado ao fim da folha */
+            bottom: 0.3cm; 
             height: 3.0cm; 
         }
     }
@@ -76,17 +76,17 @@
     </div>
 </div>
 
-<!-- 2. BLOCO DA ASSINATURA (Renderizado no @frame assinatura_footer no rodapé) -->
+<!-- 2. BLOCO DA ASSINATURA -->
 <div id="assinatura_digital">
     {% if tem_assinatura_digital %}
         <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 5px;">
             <tr>
-                <td style="width: 60px; text-align: left; vertical-align: middle;">
+                <td style="width: 15%; text-align: left; vertical-align: middle;">
                     {% if logo_icp_base64 %}
                         <img src="{{ logo_icp_base64 }}" alt="ICP-Brasil" style="width: 50px; display: block;" />
                     {% endif %}
                 </td>
-                <td style="vertical-align: middle; text-align: left; padding-left: 8px; line-height: 1.1;">
+                <td style="width: 70%; vertical-align: middle; text-align: center; line-height: 1.1;">
                     <span style="font-size: 8pt; color: #000;">
                         <strong>Assinado digitalmente por {{ medico.nome_com_prefixo }} - CRM {{ medico.crm|default:'N/A' }}</strong>
                     </span><br>
@@ -99,7 +99,7 @@
                     <span style="font-size: 7pt; color: #555;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</span><br>
                     <span style="font-size: 7pt; color: #555;">*Para validar, acesse <a href="https://validar.iti.gov.br" style="color: #333; text-decoration: underline;">validar.iti.gov.br</a> ou aponte a câmera.</span>
                 </td>
-                <td style="width: 55px; text-align: right; vertical-align: middle;">
+                <td style="width: 15%; text-align: right; vertical-align: middle;">
                     {% if qr_code_base64_ou_url %}
                         <img src="{{ qr_code_base64_ou_url }}" alt="QR Code" style="width: 50px; height: 50px; display: inline-block;" />
                     {% endif %}

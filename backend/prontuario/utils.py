@@ -104,7 +104,6 @@ def formatar_texto_laudo_para_html(texto_bruto):
     modo = 'NORMAL'
     em_tabela = False
 
-    # Adicionado 'ÍNDICES E ESTIMATIVAS' como título para quebrar a tabela!
     titulos_principais = [
         'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL',
         'AVALIAÇÃO DO COLO UTERINO', 'ESTUDO DOPPLERFLUXOMÉTRICO', 'ESTUDO TRIDIMENSIONAL',
@@ -123,14 +122,12 @@ def formatar_texto_laudo_para_html(texto_bruto):
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
 
-        # Se achar um título, fecha a tabela (caso esteja aberta)
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
             if em_tabela:
                 html_out.append("</table>")
                 em_tabela = False
             modo = 'NORMAL'
 
-        # Cria Tabela Simples (Ocupando a linha inteira para não espremer textos longos)
         if "BIOMETRIA FETAL" in linha_limpa or "TABELA DE MEDIDAS" in linha_limpa:
             modo = 'TABELA'
             em_tabela = True
@@ -141,27 +138,42 @@ def formatar_texto_laudo_para_html(texto_bruto):
             """)
             continue
 
-        # Lógica de preenchimento
+        # ==========================================
+        # INTELIGÊNCIA DA TABELA AQUI
+        # ==========================================
         if modo == 'TABELA':
-            if ':' in linha:
+            tem_dois_pontos = ':' in linha
+            # Se tiver ':' e a frase antes for curta (até 45 letras), é linha de tabela!
+            label_curta = tem_dois_pontos and len(linha.split(':', 1)[0]) <= 45
+
+            if tem_dois_pontos and label_curta:
                 partes = linha.split(':', 1)
-                # Formata Medidas
                 html_out.append(f'<tr><td style="color: #333; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 60%;">{partes[0].strip()}:</td><td style="text-align: left; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 40%;">{partes[1].strip()}</td></tr>')
+                continue # Pula para a próxima linha
             else:
-                # Se não tem ':', é um texto longo normal. REMOVIDO o font-weight: bold!
-                html_out.append(f'<tr><td colspan="2" style="color: #333; padding: 1px 0;">{linha}</td></tr>')
+                # É um texto longo! FECHA a tabela e processa como NORMAL.
+                html_out.append("</table>")
+                em_tabela = False
+                modo = 'NORMAL'
         
-        else:
+        # ==========================================
+        # MODO TEXTO NORMAL E OBSERVAÇÕES
+        # ==========================================
+        if modo == 'NORMAL':
             if is_titulo:
-                # TÍTULOS AGORA SÃO VERDES (#2E7D32)
                 html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 9.5pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
             else:
-                if '\t' in linha_original:
+                # RADAR DE OBSERVAÇÕES (Letra menor e cinza)
+                frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGNÓSTICA", "NEM TODAS AS ALTERAÇÕES", "A MEDIDA DA TRANSLUCÊNCIA", "ESTE EXAME NÃO SUBSTITUI"]
+                is_rodape = any(linha_limpa.startswith(f) for f in frases_rodape)
+                
+                if is_rodape:
+                    html_out.append(f'<div style="margin-bottom: 1px; font-size: 7pt; color: #666; text-align: justify; line-height: 1.1;">{linha}</div>')
+                elif '\t' in linha_original:
                     linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
                     html_out.append(f'<div style="margin-bottom: 1px; font-family: monospace; font-size: 8.5pt; color: #333;">{linha_formatada.strip()}</div>')
                 else:
                     if linha.startswith('-'):
-                        # Dá um espacinho em listas para ficar bonito
                         html_out.append(f'<div style="margin-bottom: 1px; padding-left: 10px;">{linha}</div>')
                     else:
                         html_out.append(f'<div style="margin-bottom: 1px;">{linha}</div>')
