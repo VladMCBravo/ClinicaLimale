@@ -94,16 +94,10 @@ import qrcode
 from django.conf import settings
 
 def formatar_texto_laudo_para_html(texto_bruto):
-    """
-    Traduz a lógica do frontend para HTML compatível com xhtml2pdf.
-    Suporta tabelas duplas (Obstetrícia), tabelas simples (Cardiologia) e formatação de Doppler.
-    """
     if not texto_bruto:
         return ""
 
-    # Limpeza de marcadores do frontend
     texto_bruto = texto_bruto.replace("(Ver PDF)", "").replace("===", "").strip()
-
     linhas = texto_bruto.split('\n')
     html_out = []
     
@@ -112,11 +106,11 @@ def formatar_texto_laudo_para_html(texto_bruto):
     em_tabela_simples = False
 
     tabela_dupla_html = """
-    <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px;">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 2px;">
         <tr>
-            <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                <h3 style="color: #2E7D32; font-size: 10pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-bottom: 5px;">BIOMETRIA FETAL</h3>
-                <table style="width: 100%; font-size: 9pt;">
+            <td style="width: 50%; vertical-align: top; padding-right: 5px;">
+                <div style="color: #2E7D32; font-size: 9pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-bottom: 2px;">BIOMETRIA FETAL</div>
+                <table style="width: 100%; font-size: 8.5pt;">
     """
 
     titulos_principais = [
@@ -131,13 +125,10 @@ def formatar_texto_laudo_para_html(texto_bruto):
         linha = linha.strip()
         
         if not linha:
-            if modo == 'NORMAL': html_out.append("<div style='height: 5px;'></div>")
+            if modo == 'NORMAL': html_out.append("<div style='line-height: 4px;'>&nbsp;</div>")
             continue
 
-        # Remove caracteres especiais do início para checar os títulos
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
-
-        # 1. VERIFICA SE É UM NOVO TÍTULO E FECHA AS TABELAS ABERTAS
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
 
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
@@ -149,7 +140,6 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 em_tabela_simples = False
             modo = 'NORMAL'
 
-        # 2. IDENTIFICA A TABELA DE OBSTETRÍCIA (DUPLA)
         if "BIOMETRIA FETAL" in linha_limpa:
             modo = 'BIOMETRIA'
             em_tabela_dupla = True
@@ -161,43 +151,39 @@ def formatar_texto_laudo_para_html(texto_bruto):
             html_out.append("""
                 </table>
             </td>
-            <td style="width: 50%; vertical-align: top; padding-left: 10px;">
-                <h3 style="color: #2E7D32; font-size: 10pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-bottom: 5px;">ÍNDICES E ESTIMATIVAS</h3>
-                <table style="width: 100%; font-size: 9pt;">
+            <td style="width: 50%; vertical-align: top; padding-left: 5px;">
+                <div style="color: #2E7D32; font-size: 9pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-bottom: 2px;">ÍNDICES E ESTIMATIVAS</div>
+                <table style="width: 100%; font-size: 8.5pt;">
             """)
             continue
 
-        # 3. IDENTIFICA A TABELA DE CARDIOLOGIA (SIMPLES)
         if "TABELA DE MEDIDAS" in linha_limpa:
             modo = 'ECO_TABELA'
             em_tabela_simples = True
             html_out.append("""
-            <h3 style="color: #1C2E4A; font-size: 10pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 10px; margin-bottom: 5px;">TABELA DE MEDIDAS</h3>
-            <table style="width: 100%; font-size: 9pt; border-collapse: collapse; margin-bottom: 15px;">
+            <div style="color: #1C2E4A; font-size: 9pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 5px; margin-bottom: 2px;">TABELA DE MEDIDAS</div>
+            <table style="width: 100%; font-size: 8.5pt; border-collapse: collapse; margin-bottom: 5px;">
             """)
             continue
 
-        # 4. PREENCHE OS DADOS DENTRO DAS TABELAS
         if modo in ['BIOMETRIA', 'INDICES', 'ECO_TABELA']:
             if ':' in linha:
                 partes = linha.split(':', 1)
-                html_out.append(f'<tr><td style="color: #333; padding: 3px 0; border-bottom: 1px solid #f9f9f9;">{partes[0].strip()}:</td><td style="font-weight: bold; text-align: right; padding: 3px 0; border-bottom: 1px solid #f9f9f9;">{partes[1].strip()}</td></tr>')
+                # Removido totalmente o padding vertical para máxima compactação
+                html_out.append(f'<tr><td style="color: #333; padding: 1px 0; border-bottom: 1px solid #f9f9f9;">{partes[0].strip()}:</td><td style="font-weight: bold; text-align: right; padding: 1px 0; border-bottom: 1px solid #f9f9f9;">{partes[1].strip()}</td></tr>')
             else:
-                html_out.append(f'<tr><td colspan="2" style="color: #333; padding: 3px 0; font-weight: bold;">{linha}</td></tr>')
+                html_out.append(f'<tr><td colspan="2" style="color: #333; padding: 1px 0; font-weight: bold;">{linha}</td></tr>')
         
-        # 5. RENDERIZA TÍTULOS E TEXTO NORMAL
         else:
             if is_titulo:
-                html_out.append(f'<div style="color: #1C2E4A; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
+                html_out.append(f'<div style="color: #1C2E4A; font-weight: bold; font-size: 9.5pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
             else:
-                # Resolve o problema das tabulações (\t) usadas no Doppler
                 if '\t' in linha_original:
                     linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
-                    html_out.append(f'<div style="margin-bottom: 3px; font-family: monospace; font-size: 9pt; color: #333;">{linha_formatada.strip()}</div>')
+                    html_out.append(f'<div style="margin-bottom: 1px; font-family: monospace; font-size: 8.5pt; color: #333;">{linha_formatada.strip()}</div>')
                 else:
-                    html_out.append(f'<div style="margin-bottom: 3px;">{linha}</div>')
+                    html_out.append(f'<div style="margin-bottom: 1px;">{linha}</div>')
 
-    # Garante o fechamento das tabelas no final
     if em_tabela_dupla: html_out.append("</table></td></tr></table>")
     if em_tabela_simples: html_out.append("</table>")
     
