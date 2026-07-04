@@ -7,10 +7,10 @@
 <!-- 1. BLOCO DO CABEÇALHO -->
 <div id="header_content">
     <div class="header-text">
-        <div><strong>PACIENTE:</strong> &nbsp;{{ prescricao.paciente.nome_completo|upper }}</div>
+        <div><strong>PACIENTE:</strong> &nbsp;{{ paciente.nome_completo|upper }}</div>
         <div>
-            <strong>NASC.:</strong> &nbsp;{{ prescricao.paciente.data_nascimento|date:"d/m/Y"|default:"__/__/____" }} &nbsp;&nbsp;|&nbsp;&nbsp; 
-            <strong>IDADE:</strong> &nbsp;{{ prescricao.paciente.get_idade_anos|default:"N/A"|upper }}
+            <strong>NASC.:</strong> &nbsp;{{ paciente.data_nascimento|date:"d/m/Y"|default:"__/__/____" }} &nbsp;&nbsp;|&nbsp;&nbsp; 
+            <strong>IDADE:</strong> &nbsp;{{ idade_formatada }}
         </div>
         <div>
             <strong>DATA DA PRESCRIÇÃO:</strong> &nbsp;{{ prescricao.data_prescricao|date:"d/m/Y" }}

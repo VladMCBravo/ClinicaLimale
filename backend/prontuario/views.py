@@ -272,10 +272,12 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     """
     print(f"\n--- INICIANDO GERAÇÃO DE PDF: {filename_prefix} ---")
     
+    from datetime import date # Garante que a data está disponível
+    
     clinica_info = Clinica.get_instance()
     logo_path = finders.find(clinica_info.logo) if clinica_info else None
     
-    # 1. Busca Anamnese
+    # 1. Busca Anamnese e Paciente
     anamnese_obj = None
     paciente = None
     if 'evolucao' in context: paciente = context['evolucao'].paciente
@@ -283,13 +285,21 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     elif 'prescricao' in context: paciente = context['prescricao'].paciente
     elif 'relatorio' in context: paciente = context['relatorio'].paciente
 
+    idade_formatada = "N/A"
+    
     if paciente:
         try:
             anamnese_obj = Anamnese.objects.get(paciente=paciente)
         except Anamnese.DoesNotExist:
             anamnese_obj = None
+            
+        # Calcula a idade do paciente dinamicamente
+        if paciente.data_nascimento:
+            hoje = date.today()
+            anos = hoje.year - paciente.data_nascimento.year - ((hoje.month, hoje.day) < (paciente.data_nascimento.month, paciente.data_nascimento.day))
+            idade_formatada = f"{anos} ANOS"
 
-    # 2. IDENTIFICAÇÃO DO MÉDICO (DEBUG)
+    # 2. IDENTIFICAÇÃO DO MÉDICO
     medico_assinante = None
     if 'medico' in context:
         medico_assinante = context['medico']
@@ -302,78 +312,43 @@ def generate_pdf_response(template_path, context, filename_prefix='documento'):
     elif 'evolucao' in context:
         medico_assinante = context['evolucao'].medico
 
-    if medico_assinante:
-        print(f"DEBUG: Médico identificado no contexto: {medico_assinante.get_full_name()} (ID: {medico_assinante.id})")
-    else:
-        print("DEBUG: ERRO - Nenhum médico foi identificado no contexto do PDF.")
-
     # 3. VERIFICAÇÃO DO CERTIFICADO E GERAÇÃO DE QR CODE
     tem_certificado_valido = False
     qr_code_data_url = ""
     logo_icp_data_url = ""
 
-    if medico_assinante and hasattr(medico_assinante, 'certificado'):
-        print("DEBUG: O médico possui objeto 'CertificadoMedico' vinculado.")
-        if medico_assinante.certificado.arquivo_p12:
-            try:
-                # REMOVEMOS A LINHA DO .path QUE CAUSAVA O CRASH
-                print("DEBUG: Arquivo .p12 encontrado no storage.")
-                tem_certificado_valido = True
-                
-                # ==========================================================
-                # GERAÇÃO DO QR CODE EM BASE64
-                # ==========================================================
-                # ATUALIZADO: Nova URL do Governo (veja o item 2 abaixo)
-                url_validacao = "https://validar.iti.gov.br" 
-                
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=4,
-                    border=0,
-                )
-                qr.add_data(url_validacao)
-                qr.make(fit=True)
-                
-                # O fundo transparente ou cor da caixa (f8f9fa)
-                img_qr = qr.make_image(fill_color="black", back_color="#f8f9fa")
-                
-                buffer_qr = io.BytesIO()
-                img_qr.save(buffer_qr, format="PNG")
-                qr_base64 = base64.b64encode(buffer_qr.getvalue()).decode("utf-8")
-                qr_code_data_url = f"data:image/png;base64,{qr_base64}"
+    if medico_assinante and hasattr(medico_assinante, 'certificado') and medico_assinante.certificado.arquivo_p12:
+        tem_certificado_valido = True
+        try:
+            qr = qrcode.QRCode(version=1, box_size=4, border=0)
+            qr.add_data("https://validar.iti.gov.br")
+            qr.make(fit=True)
+            img_qr = qr.make_image(fill_color="black", back_color="#f8f9fa")
+            buffer_qr = io.BytesIO()
+            img_qr.save(buffer_qr, format="PNG")
+            qr_base64 = base64.b64encode(buffer_qr.getvalue()).decode("utf-8")
+            qr_code_data_url = f"data:image/png;base64,{qr_base64}"
 
-                # ==========================================================
-                # NOVO: CARREGAMENTO DO LOGÓTIPO ICP-BRASIL EM BASE64
-                # ==========================================================
-                # Vai procurar a imagem na pasta backend/static/images/
-                caminho_logo = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_icp_brasil.png')
-                if os.path.exists(caminho_logo):
-                    with open(caminho_logo, "rb") as image_file:
-                        logo_base64 = base64.b64encode(image_file.read()).decode("utf-8")
-                        logo_icp_data_url = f"data:image/png;base64,{logo_base64}"
-                else:
-                    print(f"DEBUG: Logótipo ICP-Brasil não encontrado em {caminho_logo}")
+            caminho_logo = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_icp_brasil.png')
+            if os.path.exists(caminho_logo):
+                with open(caminho_logo, "rb") as image_file:
+                    logo_base64 = base64.b64encode(image_file.read()).decode("utf-8")
+                    logo_icp_data_url = f"data:image/png;base64,{logo_base64}"
+        except Exception as e:
+            print(f"DEBUG: Erro ao aceder ao certificado ou gerar QR/Logo: {e}")
 
-            except Exception as e:
-                print(f"DEBUG: Erro ao aceder ao certificado ou gerar QR/Logo: {e}")
-        else:
-            print("DEBUG: O objeto CertificadoMedico existe, mas o campo arquivo_p12 está vazio.")
-    else:
-        print("DEBUG: O médico NÃO possui certificado configurado no banco de dados.")
-
-    # ==========================================================
-    # === BLOCO QUE FALTAVA: DEFINIÇÃO DO full_context ===
-    # ==========================================================
     if 'medico' not in context and medico_assinante:
         context['medico'] = medico_assinante
 
+    # NOVO FULL CONTEXT (Injetando a Idade e o Paciente)
     full_context = {
         'clinica': clinica_info,
         'anamnese': anamnese_obj,
+        'paciente': paciente,
+        'idade_formatada': idade_formatada,
         'tem_assinatura_digital': tem_certificado_valido, 
-        'qr_code_base64_ou_url': qr_code_data_url, # ENVIANDO O QR CODE
-        'logo_icp_base64': logo_icp_data_url,      # ENVIANDO O LOGÓTIPO
+        'qr_code_base64_ou_url': qr_code_data_url, 
+        'logo_icp_base64': logo_icp_data_url,      
         **context
     }
     # ==========================================================
