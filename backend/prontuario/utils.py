@@ -126,7 +126,6 @@ def formatar_texto_laudo_para_html(texto_bruto):
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
             modo_rodape = False 
             if em_tabela:
-                # CORREÇÃO: Usando <br/> que o xhtml2pdf entende para forçar um espaço real
                 html_out.append("</table><br/>")
                 em_tabela = False
             modo = 'NORMAL'
@@ -135,9 +134,10 @@ def formatar_texto_laudo_para_html(texto_bruto):
             modo = 'TABELA'
             em_tabela = True
             titulo_tabela = linha.replace(":", "").strip()
+            # TÍTULOS DA TABELA: 14pt | CONTEÚDO DA TABELA: 12pt
             html_out.append(f"""
-            <div style="color: #2E7D32; font-size: 9.5pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 2px;">{titulo_tabela}</div>
-            <table style="width: 100%; font-size: 8.5pt; border-collapse: collapse; margin-bottom: 5px;">
+            <div style="color: #2E7D32; font-size: 14pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 2px;">{titulo_tabela}</div>
+            <table style="width: 100%; font-size: 12pt; border-collapse: collapse; margin-bottom: 5px;">
             """)
             continue
 
@@ -150,14 +150,14 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 html_out.append(f'<tr><td style="color: #333; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 60%;">{partes[0].strip()}:</td><td style="text-align: left; padding: 1px 0; border-bottom: 1px solid #f9f9f9; width: 40%;">{partes[1].strip()}</td></tr>')
                 continue 
             else:
-                # CORREÇÃO: Usando <br/> para descolar a frase do Peso Fetal do fim da tabela
                 html_out.append("</table><br/>")
                 em_tabela = False
                 modo = 'NORMAL'
         
         if modo == 'NORMAL':
             if is_titulo:
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 9.5pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
+                # TÍTULOS NORMAIS: 14pt
+                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 14pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
             else:
                 frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
                 
@@ -167,10 +167,12 @@ def formatar_texto_laudo_para_html(texto_bruto):
                     modo_rodape = True
                 
                 if modo_rodape:
-                    html_out.append(f'<div style="margin-bottom: 1px; font-size: 7.5pt; color: #666; text-align: justify; line-height: 1.15;">{linha}</div>')
+                    # OBSERVAÇÕES DE RODAPÉ: 10pt
+                    html_out.append(f'<div style="margin-bottom: 1px; font-size: 10pt; color: #666; text-align: justify; line-height: 1.15;">{linha}</div>')
                 elif '\t' in linha_original:
                     linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
-                    html_out.append(f'<div style="margin-bottom: 1px; font-family: monospace; font-size: 8.5pt; color: #333;">{linha_formatada.strip()}</div>')
+                    # TEXTO MONOSPACE: 12pt
+                    html_out.append(f'<div style="margin-bottom: 1px; font-family: monospace; font-size: 12pt; color: #333;">{linha_formatada.strip()}</div>')
                 else:
                     if linha.startswith('-'):
                         html_out.append(f'<div style="margin-bottom: 1px; padding-left: 10px;">{linha}</div>')
