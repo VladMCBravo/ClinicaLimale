@@ -4,43 +4,46 @@
     <meta charset="UTF-8">
     <title>{% block title %}Documento Médico{% endblock %}</title>
     <style>
-        /* Estilos do seu evolucao_template.html, agora centralizados */
-        @page { 
-            size: a4; 
-            margin: 6cm 1.5cm 5.5cm 1.5cm;
+        @page {
+            size: a4;
+            margin-top: 4.5cm; 
+            margin-bottom: 4.5cm; 
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
             
-            /* ISSO CRIA UM QUADRO FIXO NO RODAPÉ DE TODAS AS FOLHAS */
-            /* Ignore o aviso amarelo do VS Code aqui, o xhtml2pdf entende perfeitamente */
+            /* CAIXA DO CABEÇALHO (Informações do Paciente) */
+            @frame header_info {
+                -pdf-frame-content: header_content;
+                left: 10cm; 
+                right: 1.5cm;
+                top: 1.2cm;  
+                height: 3.0cm;
+            }
+
+            /* CAIXA DA ASSINATURA (Rodapé) */
             @frame assinatura_footer {
                 -pdf-frame-content: assinatura_digital;
-                left: 1.5cm;
-                right: 1.5cm;
-                bottom: 2.5cm;
-                height: 3.5cm; 
+                left: 2.0cm; 
+                right: 2.0cm;
+                bottom: 1.3cm; 
+                height: 3.2cm; 
             }
         }
         
-        body { font-family: "Helvetica", sans-serif; font-size: 11pt; color: #333; }
+        body { font-family: "Helvetica", sans-serif; font-size: 12pt; color: #333; line-height: 1.15; }
         
-        /* --- CONTEÚDO --- */
-        h1 { 
-            text-align: center; 
-            font-size: 16pt; 
-            margin-bottom: 20px; 
-            border-bottom: 2px solid #333; 
-            padding-bottom: 10px; 
-        }
-        .section { margin-bottom: 15px; }
-        .section-title { font-weight: bold; font-size: 12pt; color: #333; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 5px; }
-        .content { white-space: pre-wrap; line-height: 1.4; }
-        .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .info-grid td { padding: 5px; vertical-align: top; }
-        .label { font-weight: bold; width: 120px; }
-
+        /* CSS Universal Compartilhado */
+        .header-text { font-family: Helvetica, sans-serif; font-size: 9pt; color: #1C2E4A; line-height: 1.4; }
+        .header-linha { border-bottom: 1px solid #E67E22; margin-top: 6px; }
+        .titulo-exame { text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; margin-top: 5px; margin-bottom: 10px; text-transform: uppercase; }
+        .section-title { font-weight: bold; font-size: 14pt; color: #2E7D32; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-top: 15px; margin-bottom: 5px; }
+        .content-text { font-size: 12pt; text-align: justify; line-height: 1.15; }
+        .obs-text { font-size: 10pt; color: #666; text-align: justify; line-height: 1.1; margin-top: 10px; }
+        .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; }
+        .info-grid td { padding: 5px 0; vertical-align: top; border-bottom: 1px solid #f9f9f9;}
     </style>
 </head>
 <body>
-
     <main>
         {% block content %}
         {% endblock %}
