@@ -10,7 +10,7 @@
         <div><strong>PACIENTE:</strong> &nbsp;{{ paciente.nome_completo|upper }}</div>
         <div>
             <strong>NASC.:</strong> &nbsp;{{ paciente.data_nascimento|date:"d/m/Y"|default:"__/__/____" }} &nbsp;&nbsp;|&nbsp;&nbsp; 
-            <strong>IDADE:</strong> &nbsp;{{ paciente.get_idade_anos|default:"N/A"|upper }}
+            <strong>IDADE:</strong> &nbsp;{{ idade_formatada }}
         </div>
         <div>
             <strong>DATA DA CONSULTA:</strong> &nbsp;{{ evolucao.data_atendimento|date:"d/m/Y H:i" }}
