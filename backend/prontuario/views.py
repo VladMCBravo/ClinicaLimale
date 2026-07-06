@@ -1850,14 +1850,22 @@ class ModeloPrescricaoDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class RegerarLaudoPDFView(APIView):
     """
-    Rota de resgate: Pega o JSON do laudo e força o backend a montar o PDF.
+    Rota de resgate: Pega o JSON do laudo e força o backend a montar o PDF,
+    aplicando a máscara da Limalé e a Assinatura Digital na mesma hora.
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, laudo_id, *args, **kwargs):
+        import io
+        import os
         from datetime import date
         from django.core.files.base import ContentFile
+        from django.conf import settings
+        from pypdf import PdfReader, PdfWriter
+        from django.utils.text import slugify
+        
         from prontuario.utils import gerar_pdf_laudo_backend
+        from core.services_assinatura import assinar_pdf_digitalmente
 
         try:
             laudo = Laudo.objects.get(pk=laudo_id)
@@ -1871,25 +1879,71 @@ class RegerarLaudoPDFView(APIView):
             anos = hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
             idade_formatada = f"{anos} ANOS"
 
-        # Reconstrói o contexto para montar o PDF
+        # =======================================================
+        # 1. GERA O PDF TRANSPARENTE (Texto e Dados)
+        # =======================================================
         contexto = {
             'laudo': laudo,
             'paciente': laudo.paciente,
             'medico': laudo.medico,
             'data_exame': laudo.data_criacao,
             'idade_formatada': idade_formatada,
-            'imagens': [] # Segunda via gera apenas o texto para ser rápido
+            'imagens': [] # Segunda via gera sem as fotos de ultrassom pesadas
         }
 
-        pdf_bytes = gerar_pdf_laudo_backend(contexto)
+        pdf_bytes_transparente = gerar_pdf_laudo_backend(contexto)
 
-        if pdf_bytes:
-            nome_arquivo = f"laudo_regerado_{laudo.paciente.id}_{laudo.id}.pdf"
-            # Salva o arquivo no banco e muda o status
-            laudo.arquivo_pdf.save(nome_arquivo, ContentFile(pdf_bytes), save=True)
-            laudo.status = 'FINALIZADO'
-            laudo.save()
+        if not pdf_bytes_transparente:
+            return Response({'erro': 'Falha interna ao converter HTML em PDF'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response({'arquivo_url': laudo.arquivo_pdf.url})
+        pdf_bytes_finais = pdf_bytes_transparente
 
-        return Response({'erro': 'Falha interna ao gerar PDF'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # =======================================================
+        # 2. APLICA A MÁSCARA DA LIMALÉ (Receituario.pdf)
+        # =======================================================
+        try:
+            caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf')
+            with open(caminho_mascara, 'rb') as f_mascara:
+                mascara_bytes = f_mascara.read()
+
+            conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_transparente))
+            writer = PdfWriter()
+
+            for i in range(len(conteudo_reader.pages)):
+                pagina_conteudo = conteudo_reader.pages[i]
+                mascara_reader_fresca = PdfReader(io.BytesIO(mascara_bytes))
+                pagina_mascara_limpa = mascara_reader_fresca.pages[0]
+                
+                # A máscara fica embaixo, o texto por cima
+                pagina_mascara_limpa.merge_page(pagina_conteudo)
+                writer.add_page(pagina_mascara_limpa)
+
+            merged_result = io.BytesIO()
+            writer.write(merged_result)
+            pdf_bytes_finais = merged_result.getvalue()
+            print("DEBUG [RESGATE]: Máscara aplicada com sucesso.")
+        except Exception as e:
+            print(f"DEBUG [RESGATE]: Erro ao aplicar máscara: {e}")
+
+        # =======================================================
+        # 3. APLICA A CRIPTOGRAFIA DO CERTIFICADO ICP-BRASIL
+        # =======================================================
+        medico_logado = request.user
+        if hasattr(medico_logado, 'certificado') and medico_logado.certificado.arquivo_p12:
+            try:
+                print("DEBUG [RESGATE]: Aplicando assinatura criptográfica...")
+                pdf_bytes_finais = assinar_pdf_digitalmente(pdf_bytes_finais, medico_logado)
+            except Exception as e:
+                print(f"DEBUG [RESGATE]: Erro ao assinar: {e}")
+
+        # =======================================================
+        # 4. SALVA NO BANCO DE DADOS E FINALIZA
+        # =======================================================
+        nome_arquivo = f"laudo_regerado_{laudo.titulo_exame}_{laudo.paciente.nome_completo}.pdf"
+        nome_seguro = f"{slugify(nome_arquivo)}.pdf"
+
+        laudo.arquivo_pdf.save(nome_seguro, ContentFile(pdf_bytes_finais), save=True)
+        laudo.status = 'FINALIZADO'
+        laudo.save()
+
+        return Response({'arquivo_url': laudo.arquivo_pdf.url})
