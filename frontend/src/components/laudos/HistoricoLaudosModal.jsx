@@ -4,7 +4,7 @@ import {
     Button, IconButton, Alert, CircularProgress, Tooltip,
     Box, Typography, Accordion, AccordionSummary, AccordionDetails, Divider
 } from '@mui/material';
-import { FaWhatsapp, FaUserMd, FaKeyboard, FaTrash, FaSpinner } from 'react-icons/fa';
+import { FaWhatsapp, FaUserMd, FaKeyboard, FaTrash, FaSpinner, FaPrint } from 'react-icons/fa';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
@@ -60,6 +60,29 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             console.error("Erro ao buscar histórico unificado:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleGerar2Via = async (laudo) => {
+        setGerandoId(laudo.id);
+        try {
+            // Solicita ao servidor que reconstrua o PDF com o nosso gerador avançado
+            const res = await apiClient.post(`/prontuario/laudos/${laudo.id}/regerar-pdf/`);
+            
+            if (res.data && res.data.arquivo_url) {
+                const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
+                const fullUrl = res.data.arquivo_url.startsWith('/') ? `${baseUrl}${res.data.arquivo_url}` : res.data.arquivo_url;
+                
+                // Transforma o botão amarelo em botão vermelho na mesma hora!
+                setLaudos(prev => prev.map(l => l.id === laudo.id ? { ...l, arquivo_pdf: fullUrl, status: 'FINALIZADO' } : l));
+                
+                window.open(fullUrl, '_blank');
+            }
+        } catch (error) {
+            console.error("Erro ao regerar 2ª via:", error);
+            alert("Erro ao recriar o PDF no servidor. Tente novamente.");
+        } finally {
+            setGerandoId(null);
         }
     };
 
@@ -182,11 +205,12 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                             ) : (
                                                 <Button 
                                                     size="small" variant="outlined" color="warning"
-                                                    startIcon={laudo.status === 'PROCESSANDO' ? <FaSpinner className="spin" /> : null}
-                                                    disabled
+                                                    startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
+                                                    onClick={() => handleGerar2Via(laudo)}
+                                                    disabled={gerandoId === laudo.id}
                                                     sx={{ flexGrow: 1, textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
                                                 >
-                                                    {laudo.status === 'PROCESSANDO' ? "Gerando PDF..." : "PDF não anexado"}
+                                                    {gerandoId === laudo.id ? "Processando..." : "Gerar 2ª Via"}
                                                 </Button>
                                             )}
 
