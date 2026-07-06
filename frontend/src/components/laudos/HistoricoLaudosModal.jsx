@@ -81,7 +81,8 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
             }
         } catch (error) {
             console.error("Erro ao regerar 2ª via:", error);
-            alert("Erro ao recriar o PDF no servidor. Tente novamente.");
+            // ISSO VAI MOSTRAR EXATAMENTE O QUE DEU ERRADO LÁ NO PYTHON
+            alert(`Falha no servidor:\n${error.response?.data?.erro || error.message}`);
         } finally {
             setGerandoId(null);
         }

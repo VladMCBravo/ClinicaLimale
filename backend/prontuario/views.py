@@ -1856,116 +1856,110 @@ class RegerarLaudoPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, laudo_id, *args, **kwargs):
-        import io
-        import os
-        import base64
-        from datetime import date
-        from django.core.files.base import ContentFile
-        from django.conf import settings
-        from pypdf import PdfReader, PdfWriter
-        from django.utils.text import slugify
-        
-        from prontuario.utils import gerar_pdf_laudo_backend
-        from core.services_assinatura import assinar_pdf_digitalmente
-        from prontuario.models import Laudo, ImagemLaudo
-
+        import traceback
         try:
+            import io
+            import os
+            import base64
+            from datetime import date
+            from django.core.files.base import ContentFile
+            from django.conf import settings
+            from pypdf import PdfReader, PdfWriter
+            from django.utils.text import slugify
+            
+            from prontuario.utils import gerar_pdf_laudo_backend
+            from core.services_assinatura import assinar_pdf_digitalmente
+            from prontuario.models import Laudo, ImagemLaudo
+
             laudo = Laudo.objects.get(pk=laudo_id)
+
+            idade_formatada = ""
+            if laudo.paciente and laudo.paciente.data_nascimento:
+                hoje = date.today()
+                nasc = laudo.paciente.data_nascimento
+                anos = hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
+                idade_formatada = f"{anos} ANOS"
+
+            # 1. RESGATA IMAGENS COM LEITURA SEGURA DE NUVEM
+            imagens_base64 = []
+            imagens_do_banco = ImagemLaudo.objects.filter(laudo=laudo).order_by('id')
+            
+            for img in imagens_do_banco:
+                try:
+                    if img.arquivo:
+                        # Abre explicitamente em modo binário (Crucial para S3/Supabase)
+                        with img.arquivo.open('rb') as f:
+                            img_bytes = f.read()
+                            
+                        ext = img.arquivo.name.split('.')[-1].lower()
+                        mime = 'image/png' if ext == 'png' else 'image/jpeg'
+                        encoded = base64.b64encode(img_bytes).decode('utf-8')
+                        imagens_base64.append(f"data:{mime};base64,{encoded}")
+                except Exception as e:
+                    print(f"DEBUG: Erro ao carregar imagem {img.id}: {e}")
+
+            # 2. GERA PDF TRANSPARENTE
+            contexto = {
+                'laudo': laudo,
+                'paciente': laudo.paciente,
+                'medico': laudo.medico,
+                'data_exame': laudo.data_criacao,
+                'idade_formatada': idade_formatada,
+                'imagens': imagens_base64
+            }
+
+            pdf_bytes_transparente = gerar_pdf_laudo_backend(contexto)
+
+            if not pdf_bytes_transparente:
+                return Response({'erro': 'Falha do gerador HTML para PDF. As imagens originais podem estar muito pesadas ou corrompidas.'}, status=500)
+
+            pdf_bytes_finais = pdf_bytes_transparente
+
+            # 3. APLICA MÁSCARA
+            try:
+                caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf')
+                with open(caminho_mascara, 'rb') as f_mascara:
+                    mascara_bytes = f_mascara.read()
+
+                conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_transparente))
+                writer = PdfWriter()
+
+                for i in range(len(conteudo_reader.pages)):
+                    pagina_conteudo = conteudo_reader.pages[i]
+                    mascara_reader_fresca = PdfReader(io.BytesIO(mascara_bytes))
+                    pagina_mascara_limpa = mascara_reader_fresca.pages[0]
+                    
+                    pagina_mascara_limpa.merge_page(pagina_conteudo)
+                    writer.add_page(pagina_mascara_limpa)
+
+                merged_result = io.BytesIO()
+                writer.write(merged_result)
+                pdf_bytes_finais = merged_result.getvalue()
+            except Exception as e:
+                print(f"DEBUG [RESGATE]: Erro ao aplicar máscara: {e}")
+
+            # 4. ASSINATURA DIGITAL
+            medico_logado = request.user
+            if hasattr(medico_logado, 'certificado') and medico_logado.certificado.arquivo_p12:
+                try:
+                    pdf_bytes_finais = assinar_pdf_digitalmente(pdf_bytes_finais, medico_logado)
+                except Exception as e:
+                    print(f"DEBUG [RESGATE]: Erro ao assinar: {e}")
+
+            # 5. SALVA
+            nome_arquivo = f"laudo_regerado_{laudo.titulo_exame}_{laudo.paciente.nome_completo}.pdf"
+            nome_seguro = f"{slugify(nome_arquivo)}.pdf"
+
+            laudo.arquivo_pdf.save(nome_seguro, ContentFile(pdf_bytes_finais), save=True)
+            laudo.status = 'FINALIZADO'
+            laudo.save()
+
+            return Response({'arquivo_url': laudo.arquivo_pdf.url})
+
         except Laudo.DoesNotExist:
-            return Response({'erro': 'Laudo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-        idade_formatada = ""
-        if laudo.paciente and laudo.paciente.data_nascimento:
-            hoje = date.today()
-            nasc = laudo.paciente.data_nascimento
-            anos = hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
-            idade_formatada = f"{anos} ANOS"
-
-        # =======================================================
-        # 1. RESGATA AS IMAGENS SALVAS NO BANCO DE DADOS
-        # =======================================================
-        imagens_base64 = []
-        imagens_do_banco = ImagemLaudo.objects.filter(laudo=laudo).order_by('id')
-        
-        for img in imagens_do_banco:
-            try:
-                if img.arquivo:
-                    # Abre a imagem salva no disco/nuvem
-                    img.arquivo.seek(0)
-                    img_bytes = img.arquivo.read()
-                    
-                    # Identifica o formato para montar a string Base64 correta
-                    ext = img.arquivo.name.split('.')[-1].lower()
-                    mime = 'image/png' if ext == 'png' else 'image/jpeg'
-                    
-                    # Converte para o padrão que o gerador HTML aceita
-                    encoded = base64.b64encode(img_bytes).decode('utf-8')
-                    imagens_base64.append(f"data:{mime};base64,{encoded}")
-            except Exception as e:
-                print(f"DEBUG: Erro ao carregar imagem {img.id}: {e}")
-
-        # =======================================================
-        # 2. GERA O PDF TRANSPARENTE (Texto + Imagens)
-        # =======================================================
-        contexto = {
-            'laudo': laudo,
-            'paciente': laudo.paciente,
-            'medico': laudo.medico,
-            'data_exame': laudo.data_criacao,
-            'idade_formatada': idade_formatada,
-            'imagens': imagens_base64 # <--- AGORA AS FOTOS VÃO JUNTO!
-        }
-
-        pdf_bytes_transparente = gerar_pdf_laudo_backend(contexto)
-
-        if not pdf_bytes_transparente:
-            return Response({'erro': 'Falha interna ao converter HTML em PDF'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        pdf_bytes_finais = pdf_bytes_transparente
-
-        # =======================================================
-        # 3. APLICA A MÁSCARA DA LIMALÉ (Receituario.pdf)
-        # =======================================================
-        try:
-            caminho_mascara = os.path.join(settings.BASE_DIR, 'static', 'Receituario.pdf')
-            with open(caminho_mascara, 'rb') as f_mascara:
-                mascara_bytes = f_mascara.read()
-
-            conteudo_reader = PdfReader(io.BytesIO(pdf_bytes_transparente))
-            writer = PdfWriter()
-
-            for i in range(len(conteudo_reader.pages)):
-                pagina_conteudo = conteudo_reader.pages[i]
-                mascara_reader_fresca = PdfReader(io.BytesIO(mascara_bytes))
-                pagina_mascara_limpa = mascara_reader_fresca.pages[0]
-                
-                pagina_mascara_limpa.merge_page(pagina_conteudo)
-                writer.add_page(pagina_mascara_limpa)
-
-            merged_result = io.BytesIO()
-            writer.write(merged_result)
-            pdf_bytes_finais = merged_result.getvalue()
+            return Response({'erro': 'Laudo não encontrado no banco de dados.'}, status=404)
         except Exception as e:
-            print(f"DEBUG [RESGATE]: Erro ao aplicar máscara: {e}")
-
-        # =======================================================
-        # 4. APLICA A CRIPTOGRAFIA DO CERTIFICADO ICP-BRASIL
-        # =======================================================
-        medico_logado = request.user
-        if hasattr(medico_logado, 'certificado') and medico_logado.certificado.arquivo_p12:
-            try:
-                pdf_bytes_finais = assinar_pdf_digitalmente(pdf_bytes_finais, medico_logado)
-            except Exception as e:
-                print(f"DEBUG [RESGATE]: Erro ao assinar: {e}")
-
-        # =======================================================
-        # 5. SALVA NO BANCO DE DADOS E FINALIZA
-        # =======================================================
-        nome_arquivo = f"laudo_regerado_{laudo.titulo_exame}_{laudo.paciente.nome_completo}.pdf"
-        nome_seguro = f"{slugify(nome_arquivo)}.pdf"
-
-        laudo.arquivo_pdf.save(nome_seguro, ContentFile(pdf_bytes_finais), save=True)
-        laudo.status = 'FINALIZADO'
-        laudo.save()
-
-        return Response({'arquivo_url': laudo.arquivo_pdf.url})
+            # Captura QUALQUER erro e devolve em texto limpo!
+            erro_trace = traceback.format_exc()
+            print(f"ERRO FATAL NA ROTA DE RESGATE:\n{erro_trace}")
+            return Response({'erro': f"Erro interno do Python: {str(e)}"}, status=500)
