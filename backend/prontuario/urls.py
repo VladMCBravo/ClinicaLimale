@@ -3,7 +3,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import buscar_credenciais_ativas, LaudoCreateAsyncView, LaudoStatusView
+from .views import buscar_credenciais_ativas, LaudoCreateAsyncView, LaudoStatusView, RegerarLaudoPDFView
 
 router = DefaultRouter()
 router.register(r'documentos', views.DocumentoPacienteViewSet, basename='documento-paciente')
@@ -54,6 +54,7 @@ urlpatterns = [
     path('laudos/<int:pk>/', views.LaudoRetrieveUpdateDestroyView.as_view(), name='detalhe-laudo'),
     path('laudos-async/', LaudoCreateAsyncView.as_view(), name='laudo-create-async'),
     path('laudos/<int:pk>/status/', LaudoStatusView.as_view(), name='laudo-status'),
+    path('laudos/<int:laudo_id>/regerar-pdf/', RegerarLaudoPDFView.as_view(), name='regerar-laudo-pdf'),
 
     # =========================================================================
     # ★★★ CORREÇÃO AQUI: ALINHAMENTO COM O FRONTEND ★★★
