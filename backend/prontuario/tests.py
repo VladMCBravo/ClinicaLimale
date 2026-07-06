@@ -323,3 +323,39 @@ class TestSincroniaCRM:
         # O Signal deve ter atuado
         ciclo.refresh_from_db()
         assert ciclo.data_dum == date(2026, 1, 1), "A extração da DUM do JSON e a sincronia com o CRM falharam!"
+
+# ==========================================
+# TESTES DA NOVA ROTA DE RESGATE DE LAUDOS
+# ==========================================
+
+@pytest.mark.django_db
+class TestResgateLaudoAPI:
+
+    # 🚀 CORREÇÃO AQUI: O caminho exato de onde a função foi declarada (utils)
+    @patch('prontuario.utils.gerar_pdf_laudo_backend')
+    def test_regerar_pdf_resgata_laudo_preso(self, mock_gerar_pdf, client, medico_titular, laudo_rascunho):
+        """
+        Garante que a nova rota de resgate (APIView isolada) consegue 
+        forçar a montagem do PDF e alterar o status para FINALIZADO.
+        """
+        # 1. Configura o dublê para fingir que a biblioteca xhtml2pdf funcionou
+        mock_gerar_pdf.return_value = b"PDF_FALSO_DE_TESTE_RESGATE"
+        
+        # 2. Autentica o médico
+        client.force_authenticate(user=medico_titular)
+        
+        # 3. Monta a URL da nova rota registrada em urls.py
+        url = reverse('regerar-laudo-pdf', kwargs={'laudo_id': laudo_rascunho.id})
+        
+        # 4. Dispara o POST
+        response = client.post(url)
+        
+        # 5. Verificações
+        assert response.status_code == status.HTTP_200_OK, "A API não retornou 200 OK na rota de resgate!"
+        assert 'arquivo_url' in response.data, "A resposta não devolveu a URL do novo PDF!"
+        
+        # 6. Atualiza o objeto do banco para ver as mudanças reais
+        laudo_rascunho.refresh_from_db()
+        
+        assert bool(laudo_rascunho.arquivo_pdf) is True, "O arquivo PDF não foi anexado ao laudo!"
+        assert laudo_rascunho.status == 'FINALIZADO', "O status do laudo não mudou para FINALIZADO!"

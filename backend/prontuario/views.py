@@ -1847,3 +1847,49 @@ class ModeloPrescricaoDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         # Proteção de Autoria: O médico só enxerga, edita e deleta os próprios modelos
         return ModeloPrescricao.objects.filter(medico=self.request.user)
+
+class RegerarLaudoPDFView(APIView):
+    """
+    Rota de resgate: Pega o JSON do laudo e força o backend a montar o PDF.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, laudo_id, *args, **kwargs):
+        from datetime import date
+        from django.core.files.base import ContentFile
+        from prontuario.utils import gerar_pdf_laudo_backend
+
+        try:
+            laudo = Laudo.objects.get(pk=laudo_id)
+        except Laudo.DoesNotExist:
+            return Response({'erro': 'Laudo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        idade_formatada = ""
+        if laudo.paciente and laudo.paciente.data_nascimento:
+            hoje = date.today()
+            nasc = laudo.paciente.data_nascimento
+            anos = hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
+            idade_formatada = f"{anos} ANOS"
+
+        # Reconstrói o contexto para montar o PDF
+        contexto = {
+            'laudo': laudo,
+            'paciente': laudo.paciente,
+            'medico': laudo.medico,
+            'data_exame': laudo.data_criacao,
+            'idade_formatada': idade_formatada,
+            'imagens': [] # Segunda via gera apenas o texto para ser rápido
+        }
+
+        pdf_bytes = gerar_pdf_laudo_backend(contexto)
+
+        if pdf_bytes:
+            nome_arquivo = f"laudo_regerado_{laudo.paciente.id}_{laudo.id}.pdf"
+            # Salva o arquivo no banco e muda o status
+            laudo.arquivo_pdf.save(nome_arquivo, ContentFile(pdf_bytes), save=True)
+            laudo.status = 'FINALIZADO'
+            laudo.save()
+
+            return Response({'arquivo_url': laudo.arquivo_pdf.url})
+
+        return Response({'erro': 'Falha interna ao gerar PDF'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
