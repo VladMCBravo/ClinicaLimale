@@ -15,6 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const [laudos, setLaudos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [gerandoId, setGerandoId] = useState(null); // 🚀 ADICIONE ESTA LINHA AQUI!
     const { user } = useAuth();
 
     useEffect(() => {
