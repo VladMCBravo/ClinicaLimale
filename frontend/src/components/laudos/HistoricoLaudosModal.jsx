@@ -4,19 +4,17 @@ import {
     Button, IconButton, Alert, CircularProgress, Tooltip,
     Box, Typography, Accordion, AccordionSummary, AccordionDetails, Divider
 } from '@mui/material';
-import { FaWhatsapp, FaPrint, FaSpinner, FaUserMd, FaKeyboard, FaTrash } from 'react-icons/fa';
+import { FaWhatsapp, FaUserMd, FaKeyboard, FaTrash, FaSpinner } from 'react-icons/fa';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 
 import apiClient from '../../api/axiosConfig';
 import { useAuth } from '../../hooks/useAuth';
-import { gerarPDFLaudo } from '../../utils/laudoPdfGenerator';
 
 const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     const [laudos, setLaudos] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [gerandoId, setGerandoId] = useState(null);
     const { user } = useAuth();
 
     useEffect(() => {
@@ -66,7 +64,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const handleDelete = async (id, status) => {
-        // Freio de Segurança Visual baseado no Status
         if (status === 'FINALIZADO') {
             const confirmar = window.confirm(
                 "🛑 ATENÇÃO: Este laudo já está FINALIZADO e disponível no portal do paciente.\n\n" +
@@ -82,7 +79,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
         try {
             await apiClient.delete(`/prontuario/laudos/${id}/`);
             setLaudos(prev => prev.filter(l => l.id !== id));
-            // Substituído alert() simples por um feedback mais suave, opcionalmente use Snackbar aqui se tiver
         } catch (error) {
             console.error("Erro ao excluir laudo:", error);
             alert("Erro ao excluir. Verifique se você tem permissão ou tente novamente.");
@@ -90,69 +86,33 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
     };
 
     const getLinkPDF = (laudo) => {
+        let path = null;
+        
         if (laudo.arquivo_pdf) {
-            if (typeof laudo.arquivo_pdf === 'string' && laudo.arquivo_pdf.toLowerCase().includes('.pdf')) return laudo.arquivo_pdf;
-            if (typeof laudo.arquivo_pdf === 'object' && laudo.arquivo_pdf !== null && laudo.arquivo_pdf.url) return laudo.arquivo_pdf.url;
-        }
-        if (laudo.arquivos_exame && Array.isArray(laudo.arquivos_exame) && laudo.arquivos_exame.length > 0) {
+            path = typeof laudo.arquivo_pdf === 'object' ? laudo.arquivo_pdf.url : laudo.arquivo_pdf;
+        } else if (laudo.arquivos_exame && Array.isArray(laudo.arquivos_exame) && laudo.arquivos_exame.length > 0) {
             const arquivoPdf = laudo.arquivos_exame.find(f => f.arquivo && typeof f.arquivo === 'string' && f.arquivo.toLowerCase().includes('.pdf'));
-            if (arquivoPdf) return arquivoPdf.arquivo;
+            if (arquivoPdf) path = arquivoPdf.arquivo;
+        }
+
+        if (path) {
+            // Se o Django mandou apenas a rota /media/..., nós colamos a base da API
+            if (path.startsWith('/')) {
+                const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
+                return `${baseUrl}${path}`;
+            }
+            return path;
         }
         return null;
     };
 
     const handleEnviarZap = (linkPdf) => {
-        if (!linkPdf) return alert("Gere a 2ª via do PDF primeiro.");
+        if (!linkPdf) return alert("O PDF ainda não está disponível.");
         const texto = `Olá! Segue o link do seu laudo: ${linkPdf}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
     };
 
-    const handleGerar2Via = async (laudo) => {
-        const tituloLaudo = laudo.titulo || laudo.titulo_exame || laudo.tipo_exame || '';
-        if (tituloLaudo.includes("Importação") || tituloLaudo.includes("Exames Anexados")) {
-            return alert("⚠️ O servidor ainda não processou o arquivo físico deste laudo antigo. Se você acabou de importar, atualize a página em alguns segundos.");
-        }
-        setGerandoId(laudo.id);
-        const pdfWindow = window.open('', '_blank');
-        
-        if (pdfWindow) {
-            pdfWindow.document.write(`<html><head><title>Gerando PDF...</title></head><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f5f5f5;"><div style="text-align:center;"><h3>Gerando 2ª via do Laudo...</h3><p>Aguarde um instante.</p></div></body></html>`);
-        } else {
-            setGerandoId(null);
-            return alert("O navegador bloqueou a janela. Permita pop-ups.");
-        }
-
-        try {
-            let dadosEstruturados = laudo.dados_estruturados;
-            if (typeof dadosEstruturados === 'string') { try { dadosEstruturados = JSON.parse(dadosEstruturados); } catch (e) {} }
-
-            const blob = await gerarPDFLaudo({
-                pacienteNome: pacienteNome || laudo.paciente_nome,
-                medicoNome: laudo.medico_responsavel || laudo.medico_nome,
-                medicoCrm: laudo.crm_medico || '',
-                tituloExame: tituloLaudo,
-                textoLaudo: laudo.texto_laudo,
-                dadosEstruturados: dadosEstruturados,
-                imagensBase64: [], 
-                comTimbre: true,
-                usaAssinaturaDigital: false,
-                retornarBlob: true
-            });
-
-            const pdfUrl = URL.createObjectURL(blob);
-            if (pdfWindow) pdfWindow.location.href = pdfUrl;
-
-        } catch (error) {
-            console.error("Erro ao gerar 2ª via:", error);
-            if (pdfWindow) pdfWindow.close();
-            alert("Erro ao recriar o PDF.");
-        } finally {
-            setGerandoId(null);
-        }
-    };
-
     return (
-        // Forçamos maxWidth="sm" para que o modal fique fininho (imita a coluna direita do prontuário)
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth disableEscapeKeyDown={loading}>
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
                 <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: '#333', fontSize: '1.1rem' }}>
@@ -161,9 +121,7 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                 <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
             </DialogTitle>
             
-            {/* Classe tasy-compact-input engloba o conteúdo para herdar o CSS */}
             <DialogContent dividers sx={{ p: 2, bgcolor: '#ffffff' }} className="tasy-compact-input">
-                
                 <Typography className="tasy-section-header">
                     Paciente: {pacienteNome || "Não Informado"}
                 </Typography>
@@ -180,7 +138,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                             const crm = laudo.crm_medico || "";
 
                             return (
-                                // --- O MESMO PADRÃO DE SANFONA DAS PRESCRIÇÕES ---
                                 <Accordion key={laudo.id} disableGutters sx={{ border: '1px solid #e0e0e0', '&:before': { display: 'none' } }}>
                                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -194,7 +151,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                     </AccordionSummary>
                                     
                                     <AccordionDetails sx={{ p: 1.5, pt: 0, bgcolor: '#f8f9fa' }}>
-                                        {/* Informações de Autoria */}
                                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1.5 }}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <FaUserMd color="#1976d2" size={12} />
@@ -212,7 +168,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                         
                                         <Divider sx={{ my: 1 }} />
                                         
-                                        {/* Botões de Ação Horizontalmente Alinhados */}
                                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                                             {linkPdfReal ? (
                                                 <Button 
@@ -222,17 +177,16 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                                     sx={{ flexGrow: 1, textTransform: 'none', fontSize: '11px' }}
                                                     disableElevation
                                                 >
-                                                    Abrir PDF
+                                                    Baixar PDF Finalizado
                                                 </Button>
                                             ) : (
                                                 <Button 
                                                     size="small" variant="outlined" color="warning"
-                                                    startIcon={gerandoId === laudo.id ? <FaSpinner className="spin" /> : <FaPrint />}
-                                                    onClick={() => handleGerar2Via(laudo)}
-                                                    disabled={gerandoId === laudo.id}
+                                                    startIcon={laudo.status === 'PROCESSANDO' ? <FaSpinner className="spin" /> : null}
+                                                    disabled
                                                     sx={{ flexGrow: 1, textTransform: 'none', fontSize: '11px', fontWeight: 'bold' }}
                                                 >
-                                                    {gerandoId === laudo.id ? "Gerando..." : "Gerar 2ª Via"}
+                                                    {laudo.status === 'PROCESSANDO' ? "Gerando PDF..." : "PDF não anexado"}
                                                 </Button>
                                             )}
 
@@ -248,7 +202,6 @@ const HistoricoLaudosModal = ({ open, onClose, pacienteId, pacienteNome }) => {
                                                 </Tooltip>
                                             )}
 
-                                            {/* Mostra a lixeira APENAS se não for arquivo externo E o usuário logado for o AUTOR do laudo */}
                                             {!laudo.is_exame_externo && user?.id === laudo.medico && (
                                                 <Tooltip title="Excluir Laudo">
                                                     <IconButton 
