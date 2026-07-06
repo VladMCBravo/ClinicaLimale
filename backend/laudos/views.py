@@ -4,6 +4,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import ModeloLaudo, Laudo
 from .serializers import ModeloLaudoSerializer, LaudoSerializer
+from django.core.files.base import ContentFile
+from prontuario.utils import gerar_pdf_laudo_backend
+from datetime import date
 
 class ModeloLaudoViewSet(viewsets.ModelViewSet):
     """
@@ -59,5 +62,42 @@ class LaudoViewSet(viewsets.ModelViewSet):
                 'laudo_id': ultimo_laudo.id, # Opcional: se quiser abrir o laudo antigo
                 'data': ultimo_laudo.data_criacao
             })
+    
+    @action(detail=True, methods=['post'], url_path='regerar-pdf')
+    def regerar_pdf(self, request, pk=None):
+        """
+        Rota de resgate: Pega o JSON do laudo e força o backend a montar o PDF.
+        """
+        laudo = self.get_object()
+        
+        idade_formatada = ""
+        if laudo.paciente and laudo.paciente.data_nascimento:
+            hoje = date.today()
+            nasc = laudo.paciente.data_nascimento
+            anos = hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
+            idade_formatada = f"{anos} ANOS"
+
+        # Reconstrói o contexto como se o laudo estivesse sendo feito agora
+        contexto = {
+            'laudo': laudo,
+            'paciente': laudo.paciente,
+            'medico': laudo.medico,
+            'data_exame': laudo.data_criacao,
+            'idade_formatada': idade_formatada,
+            'imagens': [] # Segunda via é gerada apenas com o texto para ser rápido
+        }
+        
+        pdf_bytes = gerar_pdf_laudo_backend(contexto)
+        
+        if pdf_bytes:
+            nome_arquivo = f"laudo_regerado_{laudo.paciente.id}_{laudo.id}.pdf"
+            # Salva o arquivo no banco e muda o status
+            laudo.arquivo_pdf.save(nome_arquivo, ContentFile(pdf_bytes), save=True)
+            laudo.status = 'FINALIZADO'
+            laudo.save()
+            
+            return Response({'arquivo_url': laudo.arquivo_pdf.url})
+            
+        return Response({'erro': 'Falha interna ao gerar PDF'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({'encontrado': False, 'msg': 'Nenhuma credencial ativa encontrada.'})
