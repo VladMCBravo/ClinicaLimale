@@ -50,7 +50,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
             em_tabela = True
             titulo_tabela = linha.replace(":", "").strip()
             
-            # Formatação exata preservada para passar nos testes e manter o visual bonito
+            # Fonte 11pt, sem tabelas HTML para proteger contra Erro 500
             html_out.append(f"""
             <div style="color: #2E7D32; font-size: 11pt; font-weight: bold; margin-top: 10px; margin-bottom: 6px;">{titulo_tabela}</div>
             """)
@@ -65,7 +65,6 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 label = partes[0].strip()
                 valor = partes[1].strip()
                 
-                # Formatação exata preservada para passar nos testes do pytest
                 html_out.append(f'<div style="margin-bottom: 2px; font-size: 10pt;"><span style="color: #333;">{label}:</span> <span style="margin-left: 5px; font-weight: bold;">{valor}</span></div>')
                 continue 
             else:
@@ -142,7 +141,7 @@ def gerar_pdf_laudo_backend(context):
             print(f"DEBUG: Erro ao gerar selos visuais: {e}")
 
     # ==========================================================
-    # ASSINATURA ELETRÔNICA (Mapeada exatamente do pdfMake)
+    # ASSINATURA ELETRÔNICA
     # ==========================================================
     bloco_assinatura = ""
     if tem_certificado:
@@ -181,11 +180,11 @@ def gerar_pdf_laudo_backend(context):
     # ==========================================================
     bloco_imagens = ""
     if imagens:
-        # A tag <pdf:nexttemplate> garante que as margens enormes não se apliquem às fotos
+        # A tag <pdf:nexttemplate> aciona o css '@page fotos' onde não existe a caixa de assinatura!
         bloco_imagens = """
-        <pdf:nexttemplate name="imagens" />
+        <pdf:nexttemplate name="fotos" />
         <pdf:nextpage />
-        <div style="color: #2E7D32; font-size: 11pt; font-weight: bold; margin-bottom: 10px;">DOCUMENTAÇÃO FOTOGRÁFICA</div>
+        <div style="color: #2E7D32; font-size: 11pt; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">DOCUMENTAÇÃO FOTOGRÁFICA</div>
         <table width="100%" border="0" cellpadding="5" cellspacing="5">
         """
         for i in range(0, len(imagens), 2):
@@ -203,7 +202,7 @@ def gerar_pdf_laudo_backend(context):
         bloco_imagens += "</table>"
 
     # ==========================================================
-    # MONTAGEM FINAL DO PDF COM COORDENADAS EXATAS DO PDFMAKE
+    # MONTAGEM FINAL DO PDF USANDO SEU CSS DE REFERÊNCIA
     # ==========================================================
     html_final = f"""
     <!DOCTYPE html>
@@ -211,30 +210,68 @@ def gerar_pdf_laudo_backend(context):
     <head>
         <meta charset="UTF-8">
         <style>
+            /* 1. FOLHA DO LAUDO (Tem cabeçalho E assinatura) */
             @page {{
-                size: a4 portrait;
-                /* As margens seguram o fluxo de texto para nunca bater no logotipo nem na assinatura */
-                margin-top: 130pt; 
-                margin-bottom: 160pt; 
-                margin-left: 40pt;
-                margin-right: 40pt;
+                size: a4;
+                margin-top: 4.5cm; 
+                margin-bottom: 4.5cm; 
+                margin-left: 1.5cm;
+                margin-right: 1.5cm;
+                
+                @frame header_info {{
+                    -pdf-frame-content: header_content;
+                    left: 10cm; 
+                    right: 1.5cm;
+                    top: 1.2cm;  
+                    height: 3.0cm;
+                }}
+
+                @frame assinatura_footer {{
+                    -pdf-frame-content: assinatura_digital;
+                    left: 2.0cm; 
+                    right: 2.0cm;
+                    bottom: 1.0cm; 
+                    height: 3.2cm; 
+                }}
             }}
-            @page imagens {{
-                size: a4 portrait;
-                margin: 40pt; /* Devolve o espaço inteiro da folha para as fotos */
+            
+            /* 2. FOLHAS DE FOTOS (Tem cabeçalho MAS NÃO tem assinatura) */
+            @page fotos {{
+                size: a4;
+                margin-top: 4.5cm; 
+                margin-bottom: 1.5cm; /* Mais espaço para as fotos respirarem no rodapé */
+                margin-left: 1.5cm;
+                margin-right: 1.5cm;
+                
+                @frame header_info {{
+                    -pdf-frame-content: header_content;
+                    left: 10cm; 
+                    right: 1.5cm;
+                    top: 1.2cm;  
+                    height: 3.0cm;
+                }}
+                /* Repare que o frame "assinatura_footer" não existe aqui! */
             }}
+            
             body {{ font-family: "Helvetica", sans-serif; font-size: 10pt; color: #333; line-height: 1.15; }}
+            .header-text {{ font-family: "Helvetica", sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; }}
             .titulo-exame {{ text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-bottom: 15px; margin-top: 0px; text-transform: uppercase; }}
             .corpo-laudo {{ text-align: justify; font-size: 10pt; }}
         </style>
     </head>
     <body>
-        <div style="position: absolute; top: 50pt; left: 160pt; width: 350pt; font-size: 10pt; line-height: 1.3;">
-            <div style="margin-bottom: 4px;"><span style="font-weight: bold; color: #555;">PACIENTE:</span> {paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
-            <div style="margin-bottom: 4px;"><span style="font-weight: bold; color: #555;">NASC.:</span> {paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold; color: #555;">IDADE:</span> {idade_formatada}</div>
-            <div style="margin-bottom: 4px;"><span style="font-weight: bold; color: #555;">SEXO:</span> {'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'}</div>
-            <div style="margin-bottom: 4px;"><span style="font-weight: bold; color: #555;">SOLICITANTE:</span> {medico_solicitante}</div>
-            <div style="margin-bottom: 4px;"><span style="font-weight: bold; color: #555;">DATA:</span> {data_formatada}</div>
+        <div id="header_content">
+            <div class="header-text">
+                <div><span style="font-weight: bold;">PACIENTE:</span> {paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
+                <div><span style="font-weight: bold;">NASC.:</span> {paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> {idade_formatada}</div>
+                <div><span style="font-weight: bold;">SEXO:</span> {'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'}</div>
+                <div><span style="font-weight: bold;">SOLICITANTE:</span> {medico_solicitante}</div>
+                <div><span style="font-weight: bold;">DATA:</span> {data_formatada}</div>
+            </div>
+        </div>
+        
+        <div id="assinatura_digital">
+            {bloco_assinatura}
         </div>
         
         <div class="titulo-exame">
@@ -243,10 +280,6 @@ def gerar_pdf_laudo_backend(context):
         
         <div class="corpo-laudo">
             {html_corpo}
-        </div>
-        
-        <div style="position: absolute; top: 25cm; left: 40pt; width: 515pt;">
-            {bloco_assinatura}
         </div>
         
         {bloco_imagens}
@@ -261,7 +294,7 @@ def gerar_pdf_laudo_backend(context):
         else: raise Exception("O gerador xhtml2pdf reportou erro interno.")
     except Exception as e:
         print("\n\n" + "="*50)
-        print("🚨 FALHA NO HTML DO LAUDO (Inspecione o HTML abaixo):")
+        print("🚨 FALHA NO HTML DO LAUDO:")
         print(html_final)
         print("="*50 + "\n\n")
         raise e
