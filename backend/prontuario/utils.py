@@ -15,7 +15,6 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame=""):
     texto_bruto = texto_bruto.replace("(Ver PDF)", "").replace("===", "").strip()
     linhas_brutas = texto_bruto.split('\n')
     
-    # 1. REMOVE TÍTULOS DUPLICADOS DO INÍCIO DO TEXTO
     titulo_exame_upper = titulo_exame.strip().upper()
     for i in range(min(4, len(linhas_brutas))):
         linha_atual = linhas_brutas[i].strip().upper()
@@ -42,7 +41,7 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame=""):
     def fechar_tabela():
         nonlocal em_tabela
         if em_tabela:
-            html_out.append("</table></div><br/>")
+            html_out.append("</table><br/>")
             em_tabela = False
 
     for linha in linhas:
@@ -58,18 +57,17 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame=""):
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
         is_rodape = any(linha_limpa.startswith(f) for f in frases_rodape)
 
-        # TRATAMENTO DE TÍTULOS E TABELAS
         if is_titulo:
             fechar_tabela()
             titulo_limpo = linha.replace(":", "").strip()
             
-            # Se for bloco tabular, encapsula o título e a tabela no mesmo bloco inquebrável
+            # O SEGREDO: O título vira a primeira linha da tabela, blindando tudo num bloco de concreto!
             if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"]):
-                html_out.append('<div style="page-break-inside: avoid;"><table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt; margin-top: 15px; margin-bottom: 5px;">')
+                html_out.append('<table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt; margin-top: 15px; margin-bottom: 5px; page-break-inside: avoid;">')
                 html_out.append(f'<tr><td colspan="2" style="color: #2E7D32; font-weight: bold; font-size: 11pt; border-bottom: 1px solid #E0E0E0; padding-bottom: 4px;">{titulo_limpo}</td></tr>')
                 em_tabela = True
             else:
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; page-break-after: avoid;">{titulo_limpo}</div>')
+                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; page-break-after: avoid; page-break-inside: avoid;">{titulo_limpo}</div>')
             continue
 
         if is_rodape:
@@ -92,12 +90,11 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame=""):
                 html_out.append(f'<tr><td colspan="2" style="color: #333; padding-left: 15px; vertical-align: top;">{linha}</td></tr>')
             continue
 
-        # TEXTO NORMAL COM SMART BOLD ( page-break-inside: avoid garante que a chave e o valor não se separem)
         if '\t' in linha_original:
             linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
             html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
         elif linha.startswith('-'):
-            html_out.append(f'<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify;">{linha}</div>')
+            html_out.append(f'<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify; page-break-inside: avoid;">{linha}</div>')
         elif ': ' in linha:
             partes = linha.split(': ', 1)
             prefixo = partes[0].strip()
@@ -217,7 +214,7 @@ def gerar_pdf_laudo_backend(context):
             @page {{
                 size: a4;
                 margin-top: 4.5cm; 
-                margin-bottom: 1.5cm; 
+                margin-bottom: 3.5cm; /* MAIOR RODAPÉ: Garante que o texto pare cedo para a assinatura não colar no fundo da folha */
                 margin-left: 1.5cm;
                 margin-right: 1.5cm;
                 
@@ -248,7 +245,7 @@ def gerar_pdf_laudo_backend(context):
             
             body {{ font-family: "Helvetica", sans-serif; font-size: 10pt; color: #333; line-height: 1.15; }}
             .header-text {{ font-family: "Helvetica", sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; }}
-            .titulo-exame {{ text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-bottom: 15px; margin-top: 0px; text-transform: uppercase; }}
+            .titulo-exame {{ text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-bottom: 15px; margin-top: 35px; text-transform: uppercase; }} /* MARGIN TOP AUMENTADA PARA DESCER O TÍTULO */
             .corpo-laudo {{ text-align: justify; font-size: 10pt; }}
         </style>
     </head>
@@ -270,7 +267,7 @@ def gerar_pdf_laudo_backend(context):
         <div class="corpo-laudo">
             {html_corpo}
             
-            <div style="page-break-inside: avoid; margin-top: 20px; margin-bottom: 10px;">
+            <div style="page-break-inside: avoid; margin-top: 40px; margin-bottom: 10px;">
                 {bloco_assinatura}
             </div>
         </div>
