@@ -1,5 +1,5 @@
 from prontuario.models import Laudo
-
+#python manage.py shell
 # Busca todos os laudos que já possuem um arquivo_pdf gravado
 laudos_para_limpar = Laudo.objects.exclude(arquivo_pdf='')
 total = laudos_para_limpar.count()

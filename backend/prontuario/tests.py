@@ -220,23 +220,22 @@ from prontuario.utils import formatar_texto_laudo_para_html
 
 class TestFormatadorDeLaudos:
     def test_formatador_detecta_tabela_obstetrica(self):
-        """Garante que a palavra 'BIOMETRIA FETAL' formata as medidas em divs estruturadas (nova arquitetura anti-bug)."""
+        """Garante que a palavra 'BIOMETRIA FETAL' formata as medidas nas novas tabelas seguras."""
         texto_bruto = "BIOMETRIA FETAL\nDiâmetro Biparietal: 50 mm"
         html_gerado = formatar_texto_laudo_para_html(texto_bruto)
         
-        # Ajustado para refletir o layout exato de 2px e fonte 10pt
-        assert '<div style="margin-bottom: 2px;' in html_gerado
-        assert '<span style="color: #333;">Diâmetro Biparietal:</span>' in html_gerado
+        assert '<table width="100%"' in html_gerado
+        assert '>Diâmetro Biparietal:</td>' in html_gerado
         assert 'BIOMETRIA FETAL' in html_gerado
         assert '50 mm' in html_gerado
 
     def test_formatador_detecta_tabela_cardiologica(self):
-        """Garante que a 'TABELA DE MEDIDAS' do Ecocardiograma gera as divs formatadas."""
+        """Garante que a 'TABELA DE MEDIDAS' do Ecocardiograma gera tabelas seguras."""
         texto_bruto = "TABELA DE MEDIDAS\nRaiz aórtica: 30 mm"
         html_gerado = formatar_texto_laudo_para_html(texto_bruto)
         
-        assert '<div style="margin-bottom: 2px;' in html_gerado
-        assert '<span style="color: #333;">Raiz aórtica:</span>' in html_gerado
+        assert '<table width="100%"' in html_gerado
+        assert '>Raiz aórtica:</td>' in html_gerado
         assert 'TABELA DE MEDIDAS' in html_gerado
         assert '30 mm' in html_gerado
 
