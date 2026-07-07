@@ -18,7 +18,6 @@ def formatar_texto_laudo_para_html(texto_bruto):
     
     em_tabela = False
 
-    # CATÁLOGO UNIVERSAL DE TÍTULOS (Cobre Obstetrícia, Ginecologia, Vascular, Eco, Abdome, etc)
     titulos_principais = [
         'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'COMENTÁRIOS', 'OBSERVAÇÕES', 'ANEXOS',
         'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL', 'RASTREAMENTO MORFOLÓGICO', 'RASTREAMENTO DE ANEUPLOIDIAS',
@@ -28,6 +27,8 @@ def formatar_texto_laudo_para_html(texto_bruto):
         'SISTEMA CAROTÍDEO', 'ARTÉRIAS CARÓTIDAS', 'SISTEMA VERTEBRAL', 'ARTÉRIAS VERTEBRAIS',
         'MEDIDAS ECOCARDIOGRÁFICAS', 'TABELA DE MEDIDAS', 'ANÁLISE DESCRITIVA', 'AVALIAÇÃO COMPLEMENTAR'
     ]
+    
+    frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
 
     def fechar_tabela():
         nonlocal em_tabela
@@ -46,63 +47,58 @@ def formatar_texto_laudo_para_html(texto_bruto):
 
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
+        is_rodape = any(linha_limpa.startswith(f) for f in frases_rodape)
 
-        # 1. PROCESSAMENTO DE TÍTULOS E ABERTURA DE TABELAS
+        # 1. TRATAMENTO DE TÍTULOS
         if is_titulo:
             fechar_tabela()
             titulo_limpo = linha.replace(":", "").strip()
-            # page-break-after: avoid = Garante que o título nunca fique sozinho na última linha da folha
             html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; page-break-after: avoid;">{titulo_limpo}</div>')
             
-            # Se o título tiver relação com medidas, aciona a tabela segura
             if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"]):
                 html_out.append('<div style="page-break-inside: avoid;"><table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt; margin-top: 5px;">')
                 em_tabela = True
             continue
 
-        # 2. PROCESSAMENTO DENTRO DO MODO TABELA
+        # 2. TRATAMENTO DO RODAPÉ
+        if is_rodape:
+            fechar_tabela()
+            html_out.append(f'<div style="margin-top: 10px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1; page-break-inside: avoid;">{linha}</div>')
+            continue
+
+        # 3. TRATAMENTO DENTRO DA TABELA (Ex: Doppler e Biometria)
         if em_tabela:
-            # Subtítulo de tabela (Ex: "Artéria Umbilical:")
+            # Subtítulos do Doppler (ex: "Artéria Umbilical:")
             if linha.endswith(':') and len(linha) < 45:
-                html_out.append(f'<tr><td colspan="2" style="font-weight: bold; color: #1C2E4A; padding-top: 8px;">{linha}</td></tr>')
-                continue
-            # Chave e Valor (Ex: "IR: 0.60")
+                html_out.append(f'<tr><td colspan="2" style="font-weight: bold; color: #1C2E4A; padding-top: 10px; padding-bottom: 2px;">{linha}</td></tr>')
+            # Chaves e Valores (ex: "IR: 0.60")
             elif ':' in linha:
                 partes = linha.split(':', 1)
                 label = partes[0].strip()
                 valor = partes[1].strip()
-                # Valida se realmente é uma métrica para encaixar nas colunas
                 if len(label) < 45 and valor:
-                    html_out.append(f'<tr><td width="40%" style="color: #444; padding-left: 10px;">{label}:</td><td width="60%" style="font-weight: bold; color: #000;">{valor}</td></tr>')
-                    continue
-            
-            # Se a linha não parece mais tabela, fecha e continua como texto normal
-            fechar_tabela()
-        
-        # 3. MODO DE TEXTO NORMAL (A MÁGICA ACONTECE AQUI)
-        frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
-        
-        if any(linha_limpa.startswith(f) for f in frases_rodape):
-            html_out.append(f'<div style="margin-top: 10px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1; page-break-inside: avoid;">{linha}</div>')
-        
-        elif '\t' in linha_original:
+                    html_out.append(f'<tr><td width="40%" style="color: #555; padding-left: 15px;">{label}:</td><td width="60%" style="font-weight: bold; color: #111;">{valor}</td></tr>')
+                else:
+                    html_out.append(f'<tr><td colspan="2" style="color: #333; padding-left: 15px;">{linha}</td></tr>')
+            # Textos livres dentro da tabela
+            else:
+                html_out.append(f'<tr><td colspan="2" style="color: #333; padding-left: 15px;">{linha}</td></tr>')
+            continue
+
+        # 4. MODO DE TEXTO NORMAL
+        if '\t' in linha_original:
             linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
             html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
-        
         elif linha.startswith('-'):
             html_out.append(f'<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify;">{linha}</div>')
-        
-        # O "Smart Inline Bold": Ex: "Fígado: textura preservada" -> Fica Negrito automaticamente!
         elif ': ' in linha:
             partes = linha.split(': ', 1)
             prefixo = partes[0].strip()
             resto = partes[1].strip()
-            # Se o prefixo for curto (até 45 caracteres), transformamos em destaque visual
             if len(prefixo) <= 45:
                 html_out.append(f'<div style="margin-bottom: 4px; font-size: 10pt; text-align: justify; line-height: 1.25;"><span style="font-weight: bold; color: #1C2E4A;">{prefixo}:</span> {resto}</div>')
             else:
                 html_out.append(f'<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25;">{linha}</div>')
-                
         else:
             html_out.append(f'<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25;">{linha}</div>')
 
@@ -150,11 +146,9 @@ def gerar_pdf_laudo_backend(context):
                     logo_base64 = base64.b64encode(f.read()).decode('utf-8')
                     logo_icp_tag = f'<img src="data:image/png;base64,{logo_base64}" width="55"/>'
         except Exception as e:
-            print(f"DEBUG: Erro ao gerar selos visuais: {e}")
+            pass
 
-    # ==========================================================
     # ASSINATURA ELETRÔNICA
-    # ==========================================================
     bloco_assinatura = ""
     if tem_certificado:
         medico_nome = f"{'Dra.' if str(medico.first_name).endswith('a') else 'Dr.'} {medico.get_full_name() or medico.username}"
@@ -187,9 +181,7 @@ def gerar_pdf_laudo_backend(context):
         </div>
         """
 
-    # ==========================================================
     # IMAGENS
-    # ==========================================================
     bloco_imagens = ""
     if imagens:
         bloco_imagens = """
@@ -210,9 +202,7 @@ def gerar_pdf_laudo_backend(context):
             bloco_imagens += "</tr>"
         bloco_imagens += "</table>"
 
-    # ==========================================================
-    # MONTAGEM FINAL DO LAYOUT MESTRE
-    # ==========================================================
+    # MONTAGEM FINAL
     html_final = f"""
     <!DOCTYPE html>
     <html>
@@ -222,7 +212,7 @@ def gerar_pdf_laudo_backend(context):
             @page {{
                 size: a4;
                 margin-top: 4.5cm; 
-                margin-bottom: 2.5cm; 
+                margin-bottom: 1.5cm; /* REDUZIDO para não quebrar a página da assinatura à toa */
                 margin-left: 1.5cm;
                 margin-right: 1.5cm;
                 
@@ -275,7 +265,7 @@ def gerar_pdf_laudo_backend(context):
         <div class="corpo-laudo">
             {html_corpo}
             
-            <div style="page-break-inside: avoid; margin-top: 40px; margin-bottom: 20px;">
+            <div style="page-break-inside: avoid; margin-top: 20px; margin-bottom: 10px;">
                 {bloco_assinatura}
             </div>
         </div>
