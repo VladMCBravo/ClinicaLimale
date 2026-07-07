@@ -1,5 +1,13 @@
 from datetime import timedelta, datetime
 import re
+import os
+import io
+import base64
+import qrcode
+from io import BytesIO
+from django.conf import settings
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
 
 def extrair_dum_do_laudo(laudo):
     """
@@ -126,7 +134,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
             modo_rodape = False 
             if em_tabela:
-                html_out.append("</table><br/>")
+                html_out.append("<br/>") # Substitui o fechamento da tabela
                 em_tabela = False
             modo = 'NORMAL'
 
@@ -135,10 +143,9 @@ def formatar_texto_laudo_para_html(texto_bruto):
             em_tabela = True
             titulo_tabela = linha.replace(":", "").strip()
             
-            # 🛡️ BLINDAGEM 1: Tabela totalmente "nua", sem CSS de border-collapse
+            # 🛡️ SOLUÇÃO NUCLEAR: Sem tag <table...>. Apenas um título.
             html_out.append(f"""
-            <div style="color: #2E7D32; font-size: 14pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 2px;">{titulo_tabela}</div>
-            <table width="100%" border="0" style="font-size: 12pt; margin-bottom: 10px;">
+            <div style="color: #2E7D32; font-size: 14pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 6px;">{titulo_tabela}</div>
             """)
             continue
 
@@ -151,12 +158,11 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 label = partes[0].strip()
                 valor = partes[1].strip()
                 
-                # 🛡️ BLINDAGEM 2: Células 100% limpas, sem o CSS de 'border-bottom'.
-                # Isso impede a criação do PmlKeepInFrame que causa o Erro 500 no reportlab.
-                html_out.append(f'<tr><td width="60%" style="color: #333;">{label}:</td><td width="40%">{valor}</td></tr>')
+                # 🛡️ SOLUÇÃO NUCLEAR: O dado é formatado em um bloco de texto normal, impossível de quebrar o gerador de PDF
+                html_out.append(f'<div style="margin-bottom: 3px; font-size: 12pt;"><span style="color: #333; font-weight: bold;">{label}:</span> <span style="margin-left: 5px;">{valor}</span></div>')
                 continue 
             else:
-                html_out.append("</table><br/>")
+                html_out.append("<br/>")
                 em_tabela = False
                 modo = 'NORMAL'
         
@@ -182,9 +188,8 @@ def formatar_texto_laudo_para_html(texto_bruto):
                     else:
                         html_out.append(f'<div style="margin-bottom: 1px;">{linha}</div>')
 
-    if em_tabela: html_out.append("</table>")
-    
     return "".join(html_out)
+
 
 def gerar_pdf_laudo_backend(context):
     """Renderiza o HTML para PDF em memória (transparente)"""
@@ -220,10 +225,26 @@ def gerar_pdf_laudo_backend(context):
     context['qr_code_base64_ou_url'] = qr_code_data_url
     context['logo_icp_base64'] = logo_icp_data_url
 
+    # Mapeia o template e pega a string HTML crua
     html = render_to_string('pdfs/laudo_template.html', context)
-    result = BytesIO()
-    pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
     
-    if not pdf.err:
-        return result.getvalue()
+    # 🛡️ NOVO RASTREADOR DE LOGS
+    try:
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+        
+        if not pdf.err:
+            return result.getvalue()
+        else:
+            raise Exception("O gerador de PDF reportou erro interno.")
+            
+    except Exception as e:
+        # Se qualquer coisa falhar, ele vai imprimir todo o HTML no seu log!
+        print("\n\n" + "="*50)
+        print("🚨 FALHA CRÍTICA NO XHTML2PDF - INSPECIONE O HTML ABAIXO:")
+        print("="*50)
+        print(html)
+        print("="*50 + "\n\n")
+        raise e
+        
     return None
