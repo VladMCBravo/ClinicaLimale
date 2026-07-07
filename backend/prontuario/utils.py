@@ -16,15 +16,18 @@ def formatar_texto_laudo_para_html(texto_bruto):
     linhas = texto_bruto.split('\n')
     html_out = []
     
-    titulos_principais = [
-        'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL',
-        'AVALIAÇÃO DO COLO UTERINO', 'ESTUDO DOPPLERFLUXOMÉTRICO', 'ESTUDO TRIDIMENSIONAL',
-        'AVALIAÇÃO COMPLEMENTAR', 'RASTREAMENTO DE ANEUPLOIDIAS', 'ANEXOS', 
-        'COMENTÁRIOS', 'FETO I', 'FETO II', 'FETO III', 'TABELA DE MEDIDAS', 'ÍNDICES E ESTIMATIVAS',
-        'BIOMETRIA FETAL'
-    ]
-
     em_tabela = False
+
+    # CATÁLOGO UNIVERSAL DE TÍTULOS (Cobre Obstetrícia, Ginecologia, Vascular, Eco, Abdome, etc)
+    titulos_principais = [
+        'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'COMENTÁRIOS', 'OBSERVAÇÕES', 'ANEXOS',
+        'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL', 'RASTREAMENTO MORFOLÓGICO', 'RASTREAMENTO DE ANEUPLOIDIAS',
+        'BIOMETRIA FETAL', 'ÍNDICES E ESTIMATIVAS', 'AVALIAÇÃO DO COLO UTERINO', 'ESTUDO TRIDIMENSIONAL',
+        'ESTUDO DOPPLERFLUXOMÉTRICO', 'FETO I', 'FETO II', 'FETO III',
+        'AVALIAÇÃO PÉLVICA', 'ÚTERO E ANEXOS', 'ÓRGÃOS ABDOMINAIS', 'AVALIAÇÃO ABDOMINAL',
+        'SISTEMA CAROTÍDEO', 'ARTÉRIAS CARÓTIDAS', 'SISTEMA VERTEBRAL', 'ARTÉRIAS VERTEBRAIS',
+        'MEDIDAS ECOCARDIOGRÁFICAS', 'TABELA DE MEDIDAS', 'ANÁLISE DESCRITIVA', 'AVALIAÇÃO COMPLEMENTAR'
+    ]
 
     def fechar_tabela():
         nonlocal em_tabela
@@ -44,48 +47,64 @@ def formatar_texto_laudo_para_html(texto_bruto):
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
 
+        # 1. PROCESSAMENTO DE TÍTULOS E ABERTURA DE TABELAS
         if is_titulo:
             fechar_tabela()
             titulo_limpo = linha.replace(":", "").strip()
-            # page-break-after: avoid garante que o título NUNCA fique sozinho no fim da página
+            # page-break-after: avoid = Garante que o título nunca fique sozinho na última linha da folha
             html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; page-break-after: avoid;">{titulo_limpo}</div>')
             
-            # Reconhece Doppler, Biometria e afins como blocos tabulares estruturados
-            if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES"]):
-                # page-break-inside: avoid amarra a tabela inteira para não ser cortada ao meio! (Prevenindo o Erro 500)
+            # Se o título tiver relação com medidas, aciona a tabela segura
+            if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"]):
                 html_out.append('<div style="page-break-inside: avoid;"><table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt; margin-top: 5px;">')
                 em_tabela = True
             continue
 
+        # 2. PROCESSAMENTO DENTRO DO MODO TABELA
         if em_tabela:
-            # Se for um subtítulo sem valor (Ex: "Artéria Umbilical:")
+            # Subtítulo de tabela (Ex: "Artéria Umbilical:")
             if linha.endswith(':') and len(linha) < 45:
                 html_out.append(f'<tr><td colspan="2" style="font-weight: bold; color: #1C2E4A; padding-top: 8px;">{linha}</td></tr>')
                 continue
-            # Se for chave-valor (Ex: "IR: 0,60")
+            # Chave e Valor (Ex: "IR: 0.60")
             elif ':' in linha:
                 partes = linha.split(':', 1)
                 label = partes[0].strip()
                 valor = partes[1].strip()
-                if len(label) < 45:
+                # Valida se realmente é uma métrica para encaixar nas colunas
+                if len(label) < 45 and valor:
                     html_out.append(f'<tr><td width="40%" style="color: #444; padding-left: 10px;">{label}:</td><td width="60%" style="font-weight: bold; color: #000;">{valor}</td></tr>')
                     continue
             
-            # Se o texto parou de parecer uma tabela, fecha o bloco
+            # Se a linha não parece mais tabela, fecha e continua como texto normal
             fechar_tabela()
         
-        # Modo de Texto Normal
-        frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI", "ASSINADO DIGITALMENTE"]
+        # 3. MODO DE TEXTO NORMAL (A MÁGICA ACONTECE AQUI)
+        frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
         
         if any(linha_limpa.startswith(f) for f in frases_rodape):
             html_out.append(f'<div style="margin-top: 10px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1; page-break-inside: avoid;">{linha}</div>')
+        
         elif '\t' in linha_original:
             linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
             html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
+        
         elif linha.startswith('-'):
             html_out.append(f'<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify;">{linha}</div>')
+        
+        # O "Smart Inline Bold": Ex: "Fígado: textura preservada" -> Fica Negrito automaticamente!
+        elif ': ' in linha:
+            partes = linha.split(': ', 1)
+            prefixo = partes[0].strip()
+            resto = partes[1].strip()
+            # Se o prefixo for curto (até 45 caracteres), transformamos em destaque visual
+            if len(prefixo) <= 45:
+                html_out.append(f'<div style="margin-bottom: 4px; font-size: 10pt; text-align: justify; line-height: 1.25;"><span style="font-weight: bold; color: #1C2E4A;">{prefixo}:</span> {resto}</div>')
+            else:
+                html_out.append(f'<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25;">{linha}</div>')
+                
         else:
-            html_out.append(f'<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.2;">{linha}</div>')
+            html_out.append(f'<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25;">{linha}</div>')
 
     fechar_tabela()
     return "".join(html_out)
@@ -134,7 +153,7 @@ def gerar_pdf_laudo_backend(context):
             print(f"DEBUG: Erro ao gerar selos visuais: {e}")
 
     # ==========================================================
-    # ASSINATURA ELETRÔNICA - FORA DOS FRAMES
+    # ASSINATURA ELETRÔNICA
     # ==========================================================
     bloco_assinatura = ""
     if tem_certificado:
@@ -192,7 +211,7 @@ def gerar_pdf_laudo_backend(context):
         bloco_imagens += "</table>"
 
     # ==========================================================
-    # MONTAGEM FINAL
+    # MONTAGEM FINAL DO LAYOUT MESTRE
     # ==========================================================
     html_final = f"""
     <!DOCTYPE html>
@@ -203,7 +222,7 @@ def gerar_pdf_laudo_backend(context):
             @page {{
                 size: a4;
                 margin-top: 4.5cm; 
-                margin-bottom: 2.5cm; /* Mais espaço para o texto ir até o fim */
+                margin-bottom: 2.5cm; 
                 margin-left: 1.5cm;
                 margin-right: 1.5cm;
                 
@@ -214,7 +233,6 @@ def gerar_pdf_laudo_backend(context):
                     top: 1.2cm;  
                     height: 3.0cm;
                 }}
-                /* A ASSINATURA FOI RETIRADA DO @FRAME PARA NÃO REPETIR */
             }}
             
             @page fotos {{
