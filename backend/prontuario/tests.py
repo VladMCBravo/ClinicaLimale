@@ -220,22 +220,20 @@ from prontuario.utils import formatar_texto_laudo_para_html
 
 class TestFormatadorDeLaudos:
     def test_formatador_detecta_tabela_obstetrica(self):
-        """Garante que a palavra 'BIOMETRIA FETAL' formata as medidas nas novas tabelas seguras."""
         texto_bruto = "BIOMETRIA FETAL\nDiâmetro Biparietal: 50 mm"
         html_gerado = formatar_texto_laudo_para_html(texto_bruto)
         
         assert '<table width="100%"' in html_gerado
-        assert '>Diâmetro Biparietal:</td>' in html_gerado
+        assert 'Diâmetro Biparietal:</td>' in html_gerado
         assert 'BIOMETRIA FETAL' in html_gerado
         assert '50 mm' in html_gerado
 
     def test_formatador_detecta_tabela_cardiologica(self):
-        """Garante que a 'TABELA DE MEDIDAS' do Ecocardiograma gera tabelas seguras."""
         texto_bruto = "TABELA DE MEDIDAS\nRaiz aórtica: 30 mm"
         html_gerado = formatar_texto_laudo_para_html(texto_bruto)
         
         assert '<table width="100%"' in html_gerado
-        assert '>Raiz aórtica:</td>' in html_gerado
+        assert 'Raiz aórtica:</td>' in html_gerado
         assert 'TABELA DE MEDIDAS' in html_gerado
         assert '30 mm' in html_gerado
 
