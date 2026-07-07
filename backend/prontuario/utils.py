@@ -141,7 +141,7 @@ def gerar_pdf_laudo_backend(context):
             print(f"DEBUG: Erro ao gerar selos visuais: {e}")
 
     # ==========================================================
-    # ASSINATURA ELETRÔNICA
+    # ASSINATURA ELETRÔNICA (AGORA CENTRALIZADA E AGRUPADA)
     # ==========================================================
     bloco_assinatura = ""
     if tem_certificado:
@@ -149,18 +149,18 @@ def gerar_pdf_laudo_backend(context):
         crm = f" - CRM {medico.crm}" if medico.crm else ""
         
         bloco_assinatura = f"""
-        <table width="100%" border="0" cellpadding="0" cellspacing="0">
+        <table align="center" width="450" border="0" cellpadding="0" cellspacing="0">
             <tr>
-                <td width="65" align="left" valign="middle">
+                <td width="60" align="right" valign="middle">
                     {logo_icp_tag}
                 </td>
-                <td align="left" valign="middle" style="line-height: 1.2;">
+                <td align="left" valign="middle" style="line-height: 1.2; padding-left: 15px; padding-right: 15px;">
                     <div style="font-size: 8pt; font-weight: bold; color: #000;">Assinado digitalmente por {medico_nome}{crm}</div>
                     <div style="font-size: 7.5pt; color: #333; margin-top: 1px;">Data e hora: {assinatura_data}</div>
                     <div style="font-size: 7pt; color: #555; margin-top: 1px;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</div>
                     <div style="font-size: 7pt; color: #555; margin-top: 1px;">*Para validar, acesse validar.iti.gov.br ou aponte a câmera.</div>
                 </td>
-                <td width="65" align="right" valign="middle">
+                <td width="60" align="left" valign="middle">
                     {qr_code_tag}
                 </td>
             </tr>
