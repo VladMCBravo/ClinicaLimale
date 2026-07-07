@@ -1,4 +1,3 @@
-from datetime import timedelta, datetime
 import re
 import os
 import io
@@ -8,98 +7,7 @@ from io import BytesIO
 from django.conf import settings
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
-
-def extrair_dum_do_laudo(laudo):
-    """
-    Lê o JSON estruturado do laudo para encontrar a DUM.
-    Suporta estrutura simples e estrutura aninhada (feto1, feto2).
-    """
-    dados = laudo.dados_estruturados or {}
-    
-    if not dados:
-        return None
-
-    # --- CORREÇÃO PARA ESTRUTURA ANINHADA (GÊMEOS/MULTIPLOS) ---
-    # Se o JSON tiver a chave 'feto1', usamos ela como fonte principal de dados
-    # pois a datação da gestação geralmente segue o Feto 1 ou o maior.
-    fonte_dados = dados
-    if 'feto1' in dados and isinstance(dados['feto1'], dict):
-        # Estamos no novo formato do useObstetricoForm
-        fonte_dados = dados['feto1'] 
-        print(f"[IA LAUDO] Detectada estrutura aninhada. Lendo dados do Feto 1.")
-
-    try:
-        # --- CASO 1: DATAÇÃO PELA DUM (A médica confiou na DUM) ---
-        metodo = fonte_dados.get('metodoDatacao') # Ex: 'DUM', 'CCN', 'BIOMETRIA'
-        
-        # Verifica DUM explícita
-        if metodo == 'DUM' and fonte_dados.get('dum'):
-            return parse_data(fonte_dados.get('dum'))
-
-        # --- CASO 2: DATAÇÃO PELA BIOMETRIA/CCN ---
-        # Tenta pegar a DPP calculada para fazer a engenharia reversa
-        dpp_calculada = fonte_dados.get('dppBiometriaCalculada') or fonte_dados.get('dppVeredito')
-        
-        if dpp_calculada:
-            dpp_date = parse_data(dpp_calculada)
-            if dpp_date:
-                # DUM = DPP - 280 dias
-                dum_operacional = dpp_date - timedelta(days=280)
-                print(f"[IA LAUDO] DUM calculada via DPP ({dpp_calculada}): {dum_operacional}")
-                return dum_operacional
-
-        # --- CASO 3: FALLBACK (Pela string de IG) ---
-        ig_texto = fonte_dados.get('igVeredito') or fonte_dados.get('igBiometria')
-        
-        # Se falhar no feto1, tenta no root (compatibilidade legada)
-        if not ig_texto and fonte_dados != dados:
-            ig_texto = dados.get('igVeredito')
-
-        if ig_texto:
-            semanas_match = re.search(r'(\d+)\s*sem', ig_texto)
-            dias_match = re.search(r'(\d+)\s*d', ig_texto)
-            
-            semanas = int(semanas_match.group(1)) if semanas_match else 0
-            dias = int(dias_match.group(1)) if dias_match else 0
-            
-            if semanas > 0:
-                dias_totais = (semanas * 7) + dias
-                # Pega data do exame
-                data_exame = laudo.data_criacao.date()
-                if laudo.exame:
-                    data_exame = laudo.exame.data_exame
-                
-                dum_reversa = data_exame - timedelta(days=dias_totais)
-                print(f"[IA LAUDO] DUM calculada via IG ({ig_texto}): {dum_reversa}")
-                return dum_reversa
-
-    except Exception as e:
-        print(f"[IA LAUDO] Erro ao processar JSON: {e}")
-        return None
-
-    return None
-
-def parse_data(data_str):
-    """Helper para tentar vários formatos de data"""
-    if not data_str: return None
-    if isinstance(data_str, datetime): return data_str.date() # Já é objeto
-    
-    formatos = ['%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d']
-    for fmt in formatos:
-        try:
-            return datetime.strptime(str(data_str)[:10], fmt).date()
-        except ValueError:
-            continue
-    return None
-
-import re
-from io import BytesIO
-from django.template.loader import render_to_string
-from xhtml2pdf import pisa
-import base64
-import os
-import qrcode
-from django.conf import settings
+from datetime import datetime
 
 def formatar_texto_laudo_para_html(texto_bruto):
     if not texto_bruto:
@@ -143,7 +51,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
             em_tabela = True
             titulo_tabela = linha.replace(":", "").strip()
             
-            # 🛡️ SOLUÇÃO NUCLEAR: Sem tag <table...>. Apenas um título.
+            # Tabela limpa transformada em divs para evitar crash
             html_out.append(f"""
             <div style="color: #2E7D32; font-size: 14pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 6px;">{titulo_tabela}</div>
             """)
@@ -158,7 +66,6 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 label = partes[0].strip()
                 valor = partes[1].strip()
                 
-                # 🛡️ SOLUÇÃO NUCLEAR: O dado é formatado em um bloco de texto normal, impossível de quebrar o gerador de PDF
                 html_out.append(f'<div style="margin-bottom: 3px; font-size: 12pt;"><span style="color: #333; font-weight: bold;">{label}:</span> <span style="margin-left: 5px;">{valor}</span></div>')
                 continue 
             else:
@@ -192,58 +99,170 @@ def formatar_texto_laudo_para_html(texto_bruto):
 
 
 def gerar_pdf_laudo_backend(context):
-    """Renderiza o HTML para PDF em memória (transparente)"""
-    texto_bruto = context.get('laudo').texto_laudo if context.get('laudo') else ''
-    context['texto_laudo_html'] = formatar_texto_laudo_para_html(texto_bruto)
+    """
+    Renderiza o laudo para PDF usando xhtml2pdf sem o uso de @frames perigosos.
+    O fluxo é sequencial e blindado contra erros 500 de frame rendering.
+    """
     
+    # 1. PEGA OS DADOS
+    laudo = context.get('laudo')
+    paciente = context.get('paciente')
     medico = context.get('medico')
-    tem_certificado = False
-    qr_code_data_url = ""
-    logo_icp_data_url = ""
+    idade_formatada = context.get('idade_formatada', '')
+    data_exame = context.get('data_exame')
+    imagens = context.get('imagens', [])
+    texto_bruto = laudo.texto_laudo if laudo else ''
+    
+    html_corpo = formatar_texto_laudo_para_html(texto_bruto)
+    data_formatada = data_exame.strftime("%d/%m/%Y") if data_exame else ""
 
-    # Gera a caixa visual de assinatura ICP-Brasil no rodapé se o médico tiver certificado
+    # 2. GERA AS IMAGENS DA ASSINATURA ICP-BRASIL
+    tem_certificado = False
+    qr_code_tag = ""
+    logo_icp_tag = ""
+    assinatura_data = ""
+    
     if medico and hasattr(medico, 'certificado') and medico.certificado.arquivo_p12:
         tem_certificado = True
+        assinatura_data = datetime.now().strftime("%d/%m/%Y - %H:%M:%S (GMT-3)")
+        
         try:
             qr = qrcode.QRCode(version=1, box_size=4, border=0)
             qr.add_data("https://validar.iti.gov.br")
             qr.make(fit=True)
-            img_qr = qr.make_image(fill_color="black", back_color="#f8f9fa")
+            img_qr = qr.make_image(fill_color="black", back_color="white")
             buffer_qr = BytesIO()
             img_qr.save(buffer_qr, format="PNG")
             qr_base64 = base64.b64encode(buffer_qr.getvalue()).decode("utf-8")
-            qr_code_data_url = f"data:image/png;base64,{qr_base64}"
+            qr_code_tag = f'<img src="data:image/png;base64,{qr_base64}" width="65" height="65"/>'
 
             caminho_logo = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_icp_brasil.png')
             if os.path.exists(caminho_logo):
                 with open(caminho_logo, "rb") as f:
-                    logo_icp_data_url = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+                    logo_base64 = base64.b64encode(f.read()).decode('utf-8')
+                    logo_icp_tag = f'<img src="data:image/png;base64,{logo_base64}" width="65"/>'
         except Exception as e:
-            print(f"Erro ao gerar selos visuais do laudo: {e}")
+            print(f"DEBUG: Erro ao gerar selos visuais: {e}")
 
-    context['tem_assinatura_digital'] = tem_certificado
-    context['qr_code_base64_ou_url'] = qr_code_data_url
-    context['logo_icp_base64'] = logo_icp_data_url
+    # 3. BLOCO DA ASSINATURA ELETRÔNICA
+    # Transformado em DIV flex-like para o xhtml2pdf digerir fácil sem quebrar a página
+    bloco_assinatura = ""
+    if tem_certificado:
+        medico_nome = f"{'Dra.' if str(medico.first_name).endswith('a') else 'Dr.'} {medico.get_full_name() or medico.username}"
+        crm = f" - CRM {medico.crm}" if medico.crm else ""
+        
+        bloco_assinatura = f"""
+        <div style="margin-top: 40px; padding-top: 15px; border-top: 1px solid #ccc;">
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td width="20%" align="left" valign="middle">
+                        {logo_icp_tag}
+                    </td>
+                    <td width="60%" align="center" valign="middle" style="line-height: 1.1;">
+                        <div style="font-size: 9pt; font-weight: bold; color: #000;">Assinado digitalmente por {medico_nome}{crm}</div>
+                        <div style="font-size: 8pt; color: #333; margin-top: 2px;">Data e hora: {assinatura_data}</div>
+                        <div style="font-size: 7.5pt; color: #555; margin-top: 2px;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</div>
+                        <div style="font-size: 7.5pt; color: #555; margin-top: 2px;">*Para validar, acesse validar.iti.gov.br ou aponte a câmera.</div>
+                    </td>
+                    <td width="20%" align="right" valign="middle">
+                        {qr_code_tag}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        """
+    else:
+        bloco_assinatura = f"""
+        <div style="margin-top: 60px; text-align: center;">
+            <div style="border-top: 1px solid #999; width: 50%; margin: 0 auto; padding-top: 5px;"></div>
+            <div style="font-size: 11pt; font-weight: bold; color: #333;">{medico.get_full_name() or medico.username}</div>
+            <div style="font-size: 10pt; color: #666;">CRM: {medico.crm if medico.crm else 'Não informado'}</div>
+        </div>
+        """
 
-    # Mapeia o template e pega a string HTML crua
-    html = render_to_string('pdfs/laudo_template.html', context)
-    
-    # 🛡️ NOVO RASTREADOR DE LOGS
+    # 4. GALERIA DE IMAGENS
+    bloco_imagens = ""
+    if imagens:
+        bloco_imagens = """
+        <pdf:nextpage />
+        <div style="color: #2E7D32; font-size: 12pt; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; margin-bottom: 15px;">DOCUMENTAÇÃO FOTOGRÁFICA</div>
+        <table width="100%" border="0" cellpadding="5" cellspacing="5">
+        """
+        for i in range(0, len(imagens), 2):
+            img1 = imagens[i]
+            img2 = imagens[i+1] if i+1 < len(imagens) else ""
+            
+            bloco_imagens += "<tr>"
+            bloco_imagens += f'<td width="50%" align="center"><img src="{img1}" style="max-height: 180px;"/></td>'
+            if img2:
+                bloco_imagens += f'<td width="50%" align="center"><img src="{img2}" style="max-height: 180px;"/></td>'
+            else:
+                bloco_imagens += '<td width="50%"></td>'
+            bloco_imagens += "</tr>"
+            
+        bloco_imagens += "</table>"
+
+    # 5. MONTA O HTML FINAL MESTRE
+    # Este HTML não tem o @frame, o que impede totalmente o Erro 500
+    html_final = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @page {{
+                size: a4;
+                margin-top: 4.5cm;
+                margin-bottom: 2.0cm;
+                margin-left: 1.5cm;
+                margin-right: 1.5cm;
+            }}
+            body {{ font-family: "Helvetica", sans-serif; font-size: 12pt; color: #333; line-height: 1.15; }}
+            .header-box {{ margin-left: 8.5cm; margin-bottom: 1.5cm; font-size: 9pt; color: #1C2E4A; line-height: 1.4; border-bottom: 1px solid #E67E22; padding-bottom: 5px; }}
+            .titulo-exame {{ text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }}
+            .corpo-laudo {{ text-align: justify; font-size: 12pt; }}
+        </style>
+    </head>
+    <body>
+        <div class="header-box">
+            <div><strong>PACIENTE:</strong> &nbsp;{paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
+            <div>
+                <strong>NASC.:</strong> &nbsp;{paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <strong>IDADE:</strong> &nbsp;{idade_formatada}
+            </div>
+            <div><strong>SEXO:</strong> &nbsp;{'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'}</div>
+            <div><strong>DATA:</strong> &nbsp;{data_formatada}</div>
+        </div>
+        
+        <div class="titulo-exame">
+            {laudo.titulo_exame if laudo else 'RELATÓRIO MÉDICO'}
+        </div>
+        
+        <div class="corpo-laudo">
+            {html_corpo}
+        </div>
+        
+        {bloco_assinatura}
+        
+        {bloco_imagens}
+    </body>
+    </html>
+    """
+
     try:
         result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+        pdf = pisa.pisaDocument(BytesIO(html_final.encode("UTF-8")), result)
         
         if not pdf.err:
             return result.getvalue()
         else:
-            raise Exception("O gerador de PDF reportou erro interno.")
+            raise Exception("O gerador xhtml2pdf reportou erro.")
             
     except Exception as e:
-        # Se qualquer coisa falhar, ele vai imprimir todo o HTML no seu log!
         print("\n\n" + "="*50)
         print("🚨 FALHA CRÍTICA NO XHTML2PDF - INSPECIONE O HTML ABAIXO:")
         print("="*50)
-        print(html)
+        print(html_final)
         print("="*50 + "\n\n")
         raise e
         
