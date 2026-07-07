@@ -1,0 +1,13 @@
+from prontuario.models import Laudo
+
+# Busca todos os laudos que já possuem um arquivo_pdf gravado
+laudos_para_limpar = Laudo.objects.exclude(arquivo_pdf='')
+total = laudos_para_limpar.count()
+
+for laudo in laudos_para_limpar:
+    # Apaga apenas o PDF defeituoso (o texto, o status FINALIZADO e as imagens continuam salvos)
+    laudo.arquivo_pdf = None
+    laudo.save(update_fields=['arquivo_pdf'])
+
+print(f"\n✅ SUCESSO! {total} PDFs antigos foram desvinculados do sistema.")
+print("Os botões 'Gerar 2ª Via' já voltaram a aparecer para todos os pacientes no frontend.\n")
