@@ -134,10 +134,11 @@ def formatar_texto_laudo_para_html(texto_bruto):
             modo = 'TABELA'
             em_tabela = True
             titulo_tabela = linha.replace(":", "").strip()
-            # BLINDAGEM 1: Usando atributos nativos (cellpadding/cellspacing) em vez de border-collapse CSS
+            
+            # 🛡️ BLINDAGEM 1: Tabela totalmente "nua", sem CSS de border-collapse
             html_out.append(f"""
             <div style="color: #2E7D32; font-size: 14pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 2px;">{titulo_tabela}</div>
-            <table width="100%" cellpadding="3" cellspacing="0" style="font-size: 12pt; margin-bottom: 5px;">
+            <table width="100%" border="0" style="font-size: 12pt; margin-bottom: 10px;">
             """)
             continue
 
@@ -150,11 +151,9 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 label = partes[0].strip()
                 valor = partes[1].strip()
                 
-                # BLINDAGEM 2: Se não houver valor, injeta um espaço invisível para não crashar a altura da linha
-                if not valor:
-                    valor = "&nbsp;"
-
-                html_out.append(f'<tr><td width="60%" style="color: #333; border-bottom: 0.1pt solid #eee;">{label}:</td><td width="40%" style="text-align: left; border-bottom: 0.1pt solid #eee;">{valor}</td></tr>')
+                # 🛡️ BLINDAGEM 2: Células 100% limpas, sem o CSS de 'border-bottom'.
+                # Isso impede a criação do PmlKeepInFrame que causa o Erro 500 no reportlab.
+                html_out.append(f'<tr><td width="60%" style="color: #333;">{label}:</td><td width="40%">{valor}</td></tr>')
                 continue 
             else:
                 html_out.append("</table><br/>")
