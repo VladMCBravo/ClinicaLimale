@@ -16,89 +16,82 @@ def formatar_texto_laudo_para_html(texto_bruto):
     linhas = texto_bruto.split('\n')
     html_out = []
     
-    modo = 'NORMAL'
-    em_tabela = False
-    modo_rodape = False
-
     titulos_principais = [
         'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'ANÁLISE MORFOLÓGICA', 'ANÁLISE FETAL',
         'AVALIAÇÃO DO COLO UTERINO', 'ESTUDO DOPPLERFLUXOMÉTRICO', 'ESTUDO TRIDIMENSIONAL',
         'AVALIAÇÃO COMPLEMENTAR', 'RASTREAMENTO DE ANEUPLOIDIAS', 'ANEXOS', 
-        'COMENTÁRIOS', 'FETO I', 'FETO II', 'FETO III', 'TABELA DE MEDIDAS', 'ÍNDICES E ESTIMATIVAS'
+        'COMENTÁRIOS', 'FETO I', 'FETO II', 'FETO III', 'TABELA DE MEDIDAS', 'ÍNDICES E ESTIMATIVAS',
+        'BIOMETRIA FETAL'
     ]
+
+    em_tabela = False
+
+    def fechar_tabela():
+        nonlocal em_tabela
+        if em_tabela:
+            html_out.append("</table></div><br/>")
+            em_tabela = False
 
     for linha in linhas:
         linha_original = linha
         linha = linha.strip()
         
         if not linha:
-            if modo == 'NORMAL': html_out.append("<div style='line-height: 4px;'>&nbsp;</div>")
+            if not em_tabela:
+                html_out.append("<div style='line-height: 4px;'>&nbsp;</div>")
             continue
 
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
 
-        if is_titulo or linha_limpa == "BIOMETRIA FETAL":
-            modo_rodape = False 
-            if em_tabela:
-                html_out.append("<br/>") 
-                em_tabela = False
-            modo = 'NORMAL'
-
-        if "BIOMETRIA FETAL" in linha_limpa or "TABELA DE MEDIDAS" in linha_limpa:
-            modo = 'TABELA'
-            em_tabela = True
-            titulo_tabela = linha.replace(":", "").strip()
+        if is_titulo:
+            fechar_tabela()
+            titulo_limpo = linha.replace(":", "").strip()
+            # page-break-after: avoid garante que o título NUNCA fique sozinho no fim da página
+            html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; page-break-after: avoid;">{titulo_limpo}</div>')
             
-            # Fonte 11pt, sem tabelas HTML para proteger contra Erro 500
-            html_out.append(f"""
-            <div style="color: #2E7D32; font-size: 11pt; font-weight: bold; margin-top: 10px; margin-bottom: 6px;">{titulo_tabela}</div>
-            """)
+            # Reconhece Doppler, Biometria e afins como blocos tabulares estruturados
+            if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES"]):
+                # page-break-inside: avoid amarra a tabela inteira para não ser cortada ao meio! (Prevenindo o Erro 500)
+                html_out.append('<div style="page-break-inside: avoid;"><table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt; margin-top: 5px;">')
+                em_tabela = True
             continue
 
-        if modo == 'TABELA':
-            tem_dois_pontos = ':' in linha
-            label_curta = tem_dois_pontos and len(linha.split(':', 1)[0]) <= 45
-
-            if tem_dois_pontos and label_curta:
+        if em_tabela:
+            # Se for um subtítulo sem valor (Ex: "Artéria Umbilical:")
+            if linha.endswith(':') and len(linha) < 45:
+                html_out.append(f'<tr><td colspan="2" style="font-weight: bold; color: #1C2E4A; padding-top: 8px;">{linha}</td></tr>')
+                continue
+            # Se for chave-valor (Ex: "IR: 0,60")
+            elif ':' in linha:
                 partes = linha.split(':', 1)
                 label = partes[0].strip()
                 valor = partes[1].strip()
-                
-                html_out.append(f'<div style="margin-bottom: 2px; font-size: 10pt;"><span style="color: #333;">{label}:</span> <span style="margin-left: 5px; font-weight: bold;">{valor}</span></div>')
-                continue 
-            else:
-                html_out.append("<br/>")
-                em_tabela = False
-                modo = 'NORMAL'
+                if len(label) < 45:
+                    html_out.append(f'<tr><td width="40%" style="color: #444; padding-left: 10px;">{label}:</td><td width="60%" style="font-weight: bold; color: #000;">{valor}</td></tr>')
+                    continue
+            
+            # Se o texto parou de parecer uma tabela, fecha o bloco
+            fechar_tabela()
         
-        if modo == 'NORMAL':
-            if is_titulo:
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px;">{linha.replace(":", "")}</div>')
-            else:
-                frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
-                
-                if any(linha_limpa.startswith(f) for f in frases_rodape):
-                    if not modo_rodape:
-                        html_out.append("<div style='height: 12px;'></div>") 
-                    modo_rodape = True
-                
-                if modo_rodape:
-                    html_out.append(f'<div style="margin-bottom: 1px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1;">{linha}</div>')
-                elif '\t' in linha_original:
-                    linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
-                    html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
-                else:
-                    if linha.startswith('-'):
-                        html_out.append(f'<div style="margin-bottom: 2px; padding-left: 10px; font-size: 10pt;">{linha}</div>')
-                    else:
-                        html_out.append(f'<div style="margin-bottom: 2px; font-size: 10pt; text-align: justify; line-height: 1.1;">{linha}</div>')
+        # Modo de Texto Normal
+        frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI", "ASSINADO DIGITALMENTE"]
+        
+        if any(linha_limpa.startswith(f) for f in frases_rodape):
+            html_out.append(f'<div style="margin-top: 10px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1; page-break-inside: avoid;">{linha}</div>')
+        elif '\t' in linha_original:
+            linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
+            html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
+        elif linha.startswith('-'):
+            html_out.append(f'<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify;">{linha}</div>')
+        else:
+            html_out.append(f'<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.2;">{linha}</div>')
 
+    fechar_tabela()
     return "".join(html_out)
 
 
 def gerar_pdf_laudo_backend(context):
-    
     laudo = context.get('laudo')
     paciente = context.get('paciente')
     medico = context.get('medico')
@@ -141,7 +134,7 @@ def gerar_pdf_laudo_backend(context):
             print(f"DEBUG: Erro ao gerar selos visuais: {e}")
 
     # ==========================================================
-    # ASSINATURA ELETRÔNICA (AGORA CENTRALIZADA E AGRUPADA)
+    # ASSINATURA ELETRÔNICA - FORA DOS FRAMES
     # ==========================================================
     bloco_assinatura = ""
     if tem_certificado:
@@ -149,18 +142,18 @@ def gerar_pdf_laudo_backend(context):
         crm = f" - CRM {medico.crm}" if medico.crm else ""
         
         bloco_assinatura = f"""
-        <table align="center" width="450" border="0" cellpadding="0" cellspacing="0">
+        <table align="center" width="85%" border="0" cellpadding="0" cellspacing="0">
             <tr>
-                <td width="60" align="right" valign="middle">
+                <td width="20%" align="right" valign="middle">
                     {logo_icp_tag}
                 </td>
-                <td align="left" valign="middle" style="line-height: 1.2; padding-left: 15px; padding-right: 15px;">
+                <td width="60%" align="center" valign="middle" style="line-height: 1.2; padding-left: 15px; padding-right: 15px;">
                     <div style="font-size: 8pt; font-weight: bold; color: #000;">Assinado digitalmente por {medico_nome}{crm}</div>
                     <div style="font-size: 7.5pt; color: #333; margin-top: 1px;">Data e hora: {assinatura_data}</div>
                     <div style="font-size: 7pt; color: #555; margin-top: 1px;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</div>
                     <div style="font-size: 7pt; color: #555; margin-top: 1px;">*Para validar, acesse validar.iti.gov.br ou aponte a câmera.</div>
                 </td>
-                <td width="60" align="left" valign="middle">
+                <td width="20%" align="left" valign="middle">
                     {qr_code_tag}
                 </td>
             </tr>
@@ -169,18 +162,17 @@ def gerar_pdf_laudo_backend(context):
     else:
         bloco_assinatura = f"""
         <div style="text-align: center;">
-            <div style="border-top: 1px solid #999; width: 50%; margin: 0 auto; padding-top: 3px;"></div>
+            <div style="border-top: 1px solid #999; width: 60%; margin: 0 auto; padding-top: 5px;"></div>
             <div style="font-size: 10pt; font-weight: bold; color: #333;">{medico.get_full_name() or medico.username}</div>
             <div style="font-size: 9pt; color: #666;">CRM: {medico.crm if medico.crm else 'Não informado'}</div>
         </div>
         """
 
     # ==========================================================
-    # IMAGENS (Fotos)
+    # IMAGENS
     # ==========================================================
     bloco_imagens = ""
     if imagens:
-        # A tag <pdf:nexttemplate> aciona o css '@page fotos' onde não existe a caixa de assinatura!
         bloco_imagens = """
         <pdf:nexttemplate name="fotos" />
         <pdf:nextpage />
@@ -190,7 +182,6 @@ def gerar_pdf_laudo_backend(context):
         for i in range(0, len(imagens), 2):
             img1 = imagens[i]
             img2 = imagens[i+1] if i+1 < len(imagens) else ""
-            
             bloco_imagens += "<tr>"
             bloco_imagens += f'<td width="50%" align="center"><img src="{img1}" style="max-height: 160px;"/></td>'
             if img2:
@@ -198,11 +189,10 @@ def gerar_pdf_laudo_backend(context):
             else:
                 bloco_imagens += '<td width="50%"></td>'
             bloco_imagens += "</tr>"
-            
         bloco_imagens += "</table>"
 
     # ==========================================================
-    # MONTAGEM FINAL DO PDF USANDO SEU CSS DE REFERÊNCIA
+    # MONTAGEM FINAL
     # ==========================================================
     html_final = f"""
     <!DOCTYPE html>
@@ -210,11 +200,10 @@ def gerar_pdf_laudo_backend(context):
     <head>
         <meta charset="UTF-8">
         <style>
-            /* 1. FOLHA DO LAUDO (Tem cabeçalho E assinatura) */
             @page {{
                 size: a4;
                 margin-top: 4.5cm; 
-                margin-bottom: 4.5cm; 
+                margin-bottom: 2.5cm; /* Mais espaço para o texto ir até o fim */
                 margin-left: 1.5cm;
                 margin-right: 1.5cm;
                 
@@ -225,21 +214,13 @@ def gerar_pdf_laudo_backend(context):
                     top: 1.2cm;  
                     height: 3.0cm;
                 }}
-
-                @frame assinatura_footer {{
-                    -pdf-frame-content: assinatura_digital;
-                    left: 2.0cm; 
-                    right: 2.0cm;
-                    bottom: 1.0cm; 
-                    height: 3.2cm; 
-                }}
+                /* A ASSINATURA FOI RETIRADA DO @FRAME PARA NÃO REPETIR */
             }}
             
-            /* 2. FOLHAS DE FOTOS (Tem cabeçalho MAS NÃO tem assinatura) */
             @page fotos {{
                 size: a4;
                 margin-top: 4.5cm; 
-                margin-bottom: 1.5cm; /* Mais espaço para as fotos respirarem no rodapé */
+                margin-bottom: 1.5cm; 
                 margin-left: 1.5cm;
                 margin-right: 1.5cm;
                 
@@ -250,7 +231,6 @@ def gerar_pdf_laudo_backend(context):
                     top: 1.2cm;  
                     height: 3.0cm;
                 }}
-                /* Repare que o frame "assinatura_footer" não existe aqui! */
             }}
             
             body {{ font-family: "Helvetica", sans-serif; font-size: 10pt; color: #333; line-height: 1.15; }}
@@ -270,16 +250,16 @@ def gerar_pdf_laudo_backend(context):
             </div>
         </div>
         
-        <div id="assinatura_digital">
-            {bloco_assinatura}
-        </div>
-        
         <div class="titulo-exame">
             {laudo.titulo_exame if laudo else 'RELATÓRIO MÉDICO'}
         </div>
         
         <div class="corpo-laudo">
             {html_corpo}
+            
+            <div style="page-break-inside: avoid; margin-top: 40px; margin-bottom: 20px;">
+                {bloco_assinatura}
+            </div>
         </div>
         
         {bloco_imagens}
