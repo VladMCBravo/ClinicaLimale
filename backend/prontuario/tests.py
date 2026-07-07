@@ -223,16 +223,18 @@ class TestFormatadorDeLaudos:
         texto_bruto = "BIOMETRIA FETAL\nDiâmetro Biparietal: 50 mm"
         html_gerado = formatar_texto_laudo_para_html(texto_bruto)
         
+        assert '<div style="page-break-inside: avoid;' in html_gerado
         assert '<table width="100%" border="0" cellpadding="2" cellspacing="0"' in html_gerado
-        assert 'BIOMETRIA FETAL</td></tr>' in html_gerado
+        assert 'BIOMETRIA FETAL</div>' in html_gerado
         assert 'Diâmetro Biparietal:</td>' in html_gerado
 
     def test_formatador_detecta_tabela_cardiologica(self):
         texto_bruto = "TABELA DE MEDIDAS\nRaiz aórtica: 30 mm"
         html_gerado = formatar_texto_laudo_para_html(texto_bruto)
         
+        assert '<div style="page-break-inside: avoid;' in html_gerado
         assert '<table width="100%" border="0" cellpadding="2" cellspacing="0"' in html_gerado
-        assert 'TABELA DE MEDIDAS</td></tr>' in html_gerado
+        assert 'TABELA DE MEDIDAS</div>' in html_gerado
         assert 'Raiz aórtica:</td>' in html_gerado
         
 
