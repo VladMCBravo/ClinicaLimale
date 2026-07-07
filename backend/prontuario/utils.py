@@ -5,7 +5,6 @@ import base64
 import qrcode
 from io import BytesIO
 from django.conf import settings
-from django.template.loader import render_to_string
 from xhtml2pdf import pisa
 from datetime import datetime
 
@@ -42,7 +41,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
         if is_titulo or linha_limpa == "BIOMETRIA FETAL":
             modo_rodape = False 
             if em_tabela:
-                html_out.append("<br/>") # Substitui o fechamento da tabela
+                html_out.append("<br/>") 
                 em_tabela = False
             modo = 'NORMAL'
 
@@ -51,9 +50,9 @@ def formatar_texto_laudo_para_html(texto_bruto):
             em_tabela = True
             titulo_tabela = linha.replace(":", "").strip()
             
-            # Tabela limpa transformada em divs para evitar crash
+            # Fonte 11pt, sem tabelas HTML para proteger contra Erro 500
             html_out.append(f"""
-            <div style="color: #2E7D32; font-size: 14pt; font-weight: bold; border-bottom: 1px solid #E0E0E0; margin-top: 8px; margin-bottom: 6px;">{titulo_tabela}</div>
+            <div style="color: #2E7D32; font-size: 11pt; font-weight: bold; margin-top: 10px; margin-bottom: 6px;">{titulo_tabela}</div>
             """)
             continue
 
@@ -66,7 +65,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
                 label = partes[0].strip()
                 valor = partes[1].strip()
                 
-                html_out.append(f'<div style="margin-bottom: 3px; font-size: 12pt;"><span style="color: #333; font-weight: bold;">{label}:</span> <span style="margin-left: 5px;">{valor}</span></div>')
+                html_out.append(f'<div style="margin-bottom: 2px; font-size: 10pt;"><span style="color: #333;">{label}:</span> <span style="margin-left: 5px; font-weight: bold;">{valor}</span></div>')
                 continue 
             else:
                 html_out.append("<br/>")
@@ -75,7 +74,7 @@ def formatar_texto_laudo_para_html(texto_bruto):
         
         if modo == 'NORMAL':
             if is_titulo:
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 14pt; margin-top: 8px; margin-bottom: 2px; border-bottom: 1px solid #eee;">{linha.replace(":", "")}</div>')
+                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px;">{linha.replace(":", "")}</div>')
             else:
                 frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
                 
@@ -85,24 +84,20 @@ def formatar_texto_laudo_para_html(texto_bruto):
                     modo_rodape = True
                 
                 if modo_rodape:
-                    html_out.append(f'<div style="margin-bottom: 1px; font-size: 10pt; color: #666; text-align: justify; line-height: 1.15;">{linha}</div>')
+                    html_out.append(f'<div style="margin-bottom: 1px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1;">{linha}</div>')
                 elif '\t' in linha_original:
                     linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
-                    html_out.append(f'<div style="margin-bottom: 1px; font-family: monospace; font-size: 12pt; color: #333;">{linha_formatada.strip()}</div>')
+                    html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
                 else:
                     if linha.startswith('-'):
-                        html_out.append(f'<div style="margin-bottom: 1px; padding-left: 10px;">{linha}</div>')
+                        html_out.append(f'<div style="margin-bottom: 2px; padding-left: 10px; font-size: 10pt;">{linha}</div>')
                     else:
-                        html_out.append(f'<div style="margin-bottom: 1px;">{linha}</div>')
+                        html_out.append(f'<div style="margin-bottom: 2px; font-size: 10pt; text-align: justify; line-height: 1.1;">{linha}</div>')
 
     return "".join(html_out)
 
 
 def gerar_pdf_laudo_backend(context):
-    """
-    Renderiza o laudo para PDF usando xhtml2pdf sem o uso de @frames perigosos.
-    O fluxo é sequencial e blindado contra erros 500 de frame rendering.
-    """
     
     # 1. PEGA OS DADOS
     laudo = context.get('laudo')
@@ -112,6 +107,9 @@ def gerar_pdf_laudo_backend(context):
     data_exame = context.get('data_exame')
     imagens = context.get('imagens', [])
     texto_bruto = laudo.texto_laudo if laudo else ''
+    
+    dados_estruturados = laudo.dados_estruturados if laudo and isinstance(laudo.dados_estruturados, dict) else {}
+    medico_solicitante = dados_estruturados.get('medicoSolicitante', 'NÃO INFORMADO').upper()
     
     html_corpo = formatar_texto_laudo_para_html(texto_bruto)
     data_formatada = data_exame.strftime("%d/%m/%Y") if data_exame else ""
@@ -134,49 +132,46 @@ def gerar_pdf_laudo_backend(context):
             buffer_qr = BytesIO()
             img_qr.save(buffer_qr, format="PNG")
             qr_base64 = base64.b64encode(buffer_qr.getvalue()).decode("utf-8")
-            qr_code_tag = f'<img src="data:image/png;base64,{qr_base64}" width="65" height="65"/>'
+            qr_code_tag = f'<img src="data:image/png;base64,{qr_base64}" width="55" height="55"/>'
 
             caminho_logo = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_icp_brasil.png')
             if os.path.exists(caminho_logo):
                 with open(caminho_logo, "rb") as f:
                     logo_base64 = base64.b64encode(f.read()).decode('utf-8')
-                    logo_icp_tag = f'<img src="data:image/png;base64,{logo_base64}" width="65"/>'
+                    logo_icp_tag = f'<img src="data:image/png;base64,{logo_base64}" width="55"/>'
         except Exception as e:
             print(f"DEBUG: Erro ao gerar selos visuais: {e}")
 
-    # 3. BLOCO DA ASSINATURA ELETRÔNICA
-    # Transformado em DIV flex-like para o xhtml2pdf digerir fácil sem quebrar a página
+    # 3. BLOCO DA ASSINATURA ELETRÔNICA (Para caber exato no quadro)
     bloco_assinatura = ""
     if tem_certificado:
         medico_nome = f"{'Dra.' if str(medico.first_name).endswith('a') else 'Dr.'} {medico.get_full_name() or medico.username}"
         crm = f" - CRM {medico.crm}" if medico.crm else ""
         
         bloco_assinatura = f"""
-        <div style="margin-top: 40px; padding-top: 15px; border-top: 1px solid #ccc;">
-            <table width="100%" border="0" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td width="20%" align="left" valign="middle">
-                        {logo_icp_tag}
-                    </td>
-                    <td width="60%" align="center" valign="middle" style="line-height: 1.1;">
-                        <div style="font-size: 9pt; font-weight: bold; color: #000;">Assinado digitalmente por {medico_nome}{crm}</div>
-                        <div style="font-size: 8pt; color: #333; margin-top: 2px;">Data e hora: {assinatura_data}</div>
-                        <div style="font-size: 7.5pt; color: #555; margin-top: 2px;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</div>
-                        <div style="font-size: 7.5pt; color: #555; margin-top: 2px;">*Para validar, acesse validar.iti.gov.br ou aponte a câmera.</div>
-                    </td>
-                    <td width="20%" align="right" valign="middle">
-                        {qr_code_tag}
-                    </td>
-                </tr>
-            </table>
-        </div>
+        <table width="100%" border="0" cellpadding="0" cellspacing="0">
+            <tr>
+                <td width="60" align="left" valign="middle">
+                    {logo_icp_tag}
+                </td>
+                <td align="left" valign="middle" style="line-height: 1.2;">
+                    <div style="font-size: 8pt; font-weight: bold; color: #000;">Assinado digitalmente por {medico_nome}{crm}</div>
+                    <div style="font-size: 7.5pt; color: #333; margin-top: 1px;">Data e hora: {assinatura_data}</div>
+                    <div style="font-size: 7pt; color: #555; margin-top: 1px;">Assinatura eletrônica em conformidade com a MP 2.200-2/2001 (ICP-Brasil).</div>
+                    <div style="font-size: 7pt; color: #555; margin-top: 1px;">*Para validar, acesse validar.iti.gov.br ou aponte a câmera.</div>
+                </td>
+                <td width="60" align="right" valign="middle">
+                    {qr_code_tag}
+                </td>
+            </tr>
+        </table>
         """
     else:
         bloco_assinatura = f"""
-        <div style="margin-top: 60px; text-align: center;">
-            <div style="border-top: 1px solid #999; width: 50%; margin: 0 auto; padding-top: 5px;"></div>
-            <div style="font-size: 11pt; font-weight: bold; color: #333;">{medico.get_full_name() or medico.username}</div>
-            <div style="font-size: 10pt; color: #666;">CRM: {medico.crm if medico.crm else 'Não informado'}</div>
+        <div style="text-align: center;">
+            <div style="border-top: 1px solid #999; width: 50%; margin: 0 auto; padding-top: 3px;"></div>
+            <div style="font-size: 10pt; font-weight: bold; color: #333;">{medico.get_full_name() or medico.username}</div>
+            <div style="font-size: 9pt; color: #666;">CRM: {medico.crm if medico.crm else 'Não informado'}</div>
         </div>
         """
 
@@ -185,7 +180,7 @@ def gerar_pdf_laudo_backend(context):
     if imagens:
         bloco_imagens = """
         <pdf:nextpage />
-        <div style="color: #2E7D32; font-size: 12pt; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 20px; margin-bottom: 15px;">DOCUMENTAÇÃO FOTOGRÁFICA</div>
+        <div style="color: #2E7D32; font-size: 11pt; font-weight: bold; margin-top: 20px; margin-bottom: 10px;">DOCUMENTAÇÃO FOTOGRÁFICA</div>
         <table width="100%" border="0" cellpadding="5" cellspacing="5">
         """
         for i in range(0, len(imagens), 2):
@@ -193,17 +188,16 @@ def gerar_pdf_laudo_backend(context):
             img2 = imagens[i+1] if i+1 < len(imagens) else ""
             
             bloco_imagens += "<tr>"
-            bloco_imagens += f'<td width="50%" align="center"><img src="{img1}" style="max-height: 180px;"/></td>'
+            bloco_imagens += f'<td width="50%" align="center"><img src="{img1}" style="max-height: 160px;"/></td>'
             if img2:
-                bloco_imagens += f'<td width="50%" align="center"><img src="{img2}" style="max-height: 180px;"/></td>'
+                bloco_imagens += f'<td width="50%" align="center"><img src="{img2}" style="max-height: 160px;"/></td>'
             else:
                 bloco_imagens += '<td width="50%"></td>'
             bloco_imagens += "</tr>"
             
         bloco_imagens += "</table>"
 
-    # 5. MONTA O HTML FINAL MESTRE
-    # Este HTML não tem o @frame, o que impede totalmente o Erro 500
+    # 5. O SEGREDO DO LAYOUT: QUADROS FIXOS (@page e @frame) Mapeados matematicamente do seu código antigo
     html_final = f"""
     <!DOCTYPE html>
     <html>
@@ -211,27 +205,52 @@ def gerar_pdf_laudo_backend(context):
         <meta charset="UTF-8">
         <style>
             @page {{
-                size: a4;
-                margin-top: 4.5cm;
-                margin-bottom: 2.0cm;
-                margin-left: 1.5cm;
-                margin-right: 1.5cm;
+                size: A4 portrait;
+                /* As margens do conteudo: 130pt (topo) garante que o texto comece abaixo do cabecalho */
+                /* 160pt (fundo) garante que o texto pare antes do quadro da assinatura */
+                margin-top: 130pt; 
+                margin-bottom: 160pt; 
+                margin-left: 40pt;
+                margin-right: 40pt;
+                
+                /* O QUADRO DO CABEÇALHO (x: 160, y: 50) */
+                @frame header {{
+                    -pdf-frame-content: header_content;
+                    left: 160pt;
+                    top: 50pt;
+                    right: 40pt;
+                    height: 80pt;
+                }}
+                
+                /* O QUADRO DA ASSINATURA (x: 40, y: 710) -> Posicionado de baixo pra cima */
+                @frame footer {{
+                    -pdf-frame-content: footer_content;
+                    left: 40pt;
+                    bottom: 42pt; 
+                    right: 40pt;
+                    height: 90pt;
+                }}
             }}
-            body {{ font-family: "Helvetica", sans-serif; font-size: 12pt; color: #333; line-height: 1.15; }}
-            .header-box {{ margin-left: 8.5cm; margin-bottom: 1.5cm; font-size: 9pt; color: #1C2E4A; line-height: 1.4; border-bottom: 1px solid #E67E22; padding-bottom: 5px; }}
-            .titulo-exame {{ text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }}
-            .corpo-laudo {{ text-align: justify; font-size: 12pt; }}
+            
+            body {{ font-family: "Helvetica", sans-serif; font-size: 10pt; color: #333; line-height: 1.15; }}
+            .header-text {{ font-size: 9pt; color: #1C2E4A; line-height: 1.3; }}
+            .titulo-exame {{ text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-bottom: 15px; margin-top: 0px; text-transform: uppercase; }}
+            .corpo-laudo {{ text-align: justify; font-size: 10pt; }}
         </style>
     </head>
     <body>
-        <div class="header-box">
-            <div><strong>PACIENTE:</strong> &nbsp;{paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
-            <div>
-                <strong>NASC.:</strong> &nbsp;{paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <strong>IDADE:</strong> &nbsp;{idade_formatada}
+        <div id="header_content">
+            <div class="header-text">
+                <div style="margin-bottom: 3px;"><span style="font-weight: bold; color: #1C2E4A;">PACIENTE:</span> {paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
+                <div style="margin-bottom: 3px;"><span style="font-weight: bold; color: #1C2E4A;">NASC.:</span> {paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold; color: #1C2E4A;">IDADE:</span> {idade_formatada}</div>
+                <div style="margin-bottom: 3px;"><span style="font-weight: bold; color: #1C2E4A;">SEXO:</span> {'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'}</div>
+                <div style="margin-bottom: 3px;"><span style="font-weight: bold; color: #1C2E4A;">SOLICITANTE:</span> {medico_solicitante}</div>
+                <div style="margin-bottom: 3px;"><span style="font-weight: bold; color: #1C2E4A;">DATA:</span> {data_formatada}</div>
             </div>
-            <div><strong>SEXO:</strong> &nbsp;{'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'}</div>
-            <div><strong>DATA:</strong> &nbsp;{data_formatada}</div>
+        </div>
+        
+        <div id="footer_content">
+            {bloco_assinatura}
         </div>
         
         <div class="titulo-exame">
@@ -242,8 +261,6 @@ def gerar_pdf_laudo_backend(context):
             {html_corpo}
         </div>
         
-        {bloco_assinatura}
-        
         {bloco_imagens}
     </body>
     </html>
@@ -252,12 +269,8 @@ def gerar_pdf_laudo_backend(context):
     try:
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_final.encode("UTF-8")), result)
-        
-        if not pdf.err:
-            return result.getvalue()
-        else:
-            raise Exception("O gerador xhtml2pdf reportou erro.")
-            
+        if not pdf.err: return result.getvalue()
+        else: raise Exception("O gerador xhtml2pdf reportou erro.")
     except Exception as e:
         print("\n\n" + "="*50)
         print("🚨 FALHA CRÍTICA NO XHTML2PDF - INSPECIONE O HTML ABAIXO:")
