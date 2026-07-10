@@ -250,10 +250,9 @@ def gerar_pdf_laudo_backend(context):
                 
                 @frame header_info {{
                     -pdf-frame-content: header_content;
-                    /* ALINHAMENTO DO CABEÇALHO:
                     left: 11.2cm; 
                     right: 1.5cm;
-                    top: 1.5cm;  
+                    top: 2.4cm;  
                     height: 3.5cm;
                 }}
             }}
@@ -267,9 +266,9 @@ def gerar_pdf_laudo_backend(context):
                 
                 @frame header_info {{
                     -pdf-frame-content: header_content;
-                    left: 10.5cm; 
+                    left: 11.2cm; 
                     right: 1.5cm;
-                    top: 2.2cm;  
+                    top: 2.4cm;  
                     height: 3.5cm;
                 }}
             }}
