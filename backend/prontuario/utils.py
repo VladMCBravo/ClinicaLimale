@@ -15,7 +15,6 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
     texto_bruto = texto_bruto.replace("(Ver PDF)", "").replace("===", "").strip()
     linhas_brutas = texto_bruto.split('\n')
     
-    # 1. REMOVE TÍTULOS DUPLICADOS DO INÍCIO
     titulo_exame_upper = titulo_exame.strip().upper()
     for i in range(min(4, len(linhas_brutas))):
         linha_atual = linhas_brutas[i].strip().upper()
@@ -26,7 +25,7 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
     
     html_out = []
     em_tabela = False
-    em_bloco_final = False # A nova variável que controla a Assinatura
+    em_bloco_final = False
 
     titulos_principais = [
         'CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO', 'COMENTÁRIOS', 'OBSERVAÇÕES', 'ANEXOS',
@@ -44,8 +43,8 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
     def fechar_tabela():
         nonlocal em_tabela
         if em_tabela:
-            # Fecha a tabela e a Tag Mágica do Python de Cálculo Delimitador
-            html_out.append("</table></pdf:keeptogether><br/>")
+            # Fecha a tabela de dados, E fecha a Tabela Mestre invisível (Blindagem)
+            html_out.append("</table></td></tr></table><br/>")
             em_tabela = False
 
     for linha in linhas:
@@ -61,34 +60,39 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
         is_rodape = any(linha_limpa.startswith(f) for f in frases_rodape)
 
-        # =========================================================
-        # O CÁLCULO DE BLOCOS: TABELAS E CONCLUSÃO
-        # =========================================================
         if is_titulo:
             fechar_tabela()
-            
-            # Se já estávamos no bloco final (Conclusão) e apareceu outro título, fecha o bloco final
-            if em_bloco_final:
-                html_out.append("</pdf:keeptogether>")
-                em_bloco_final = False
-                
             titulo_limpo = linha.replace(":", "").strip()
             
-            # SEGREDO 1: Se for tabela de medidas, envelopa no <pdf:keeptogether> para nunca quebrar na página
+            # 1. BLINDAGEM DO BLOCO FINAL (Agrupa Conclusão, Obs e Assinatura em uma Tabela Mestre Inquebrável)
+            if any(linha_limpa.startswith(t) for t in titulos_finais):
+                if not em_bloco_final:
+                    # Abre a Tabela Mestre
+                    html_out.append('<table width="100%" border="0" cellpadding="0" cellspacing="0" style="page-break-inside: avoid; margin-top: 15px;"><tr><td>')
+                    em_bloco_final = True
+                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
+                continue
+            
+            # 2. BLINDAGEM DAS TABELAS DE EXAMES (Impede divisão de páginas nas medidas)
             if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"]):
-                html_out.append('<pdf:keeptogether>')
+                if em_bloco_final:
+                    html_out.append('</td></tr></table>')
+                    em_bloco_final = False
+                
+                # Abre a Tabela Mestre que abraça o Título e a Tabela de dados
+                html_out.append('<table width="100%" border="0" cellpadding="0" cellspacing="0" style="page-break-inside: avoid; margin-top: 15px; margin-bottom: 5px;"><tr><td>')
                 html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; border-bottom: 1px solid #E0E0E0; padding-bottom: 4px; margin-bottom: 5px;">{titulo_limpo}</div>')
+                
+                # Abre a tabela de dados real
                 html_out.append('<table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt;">')
                 em_tabela = True
-            
-            # SEGREDO 2: Se for a Conclusão/Impressão, envelopa no <pdf:keeptogether> para a Assinatura grudar nela
-            elif any(linha_limpa.startswith(t) for t in titulos_finais):
-                html_out.append('<pdf:keeptogether>')
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
-                em_bloco_final = True
-            
-            else:
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
+                continue
+
+            # 3. TÍTULOS NORMAIS
+            if em_bloco_final:
+                html_out.append('</td></tr></table>')
+                em_bloco_final = False
+            html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
             continue
 
         if is_rodape:
@@ -96,7 +100,6 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
             html_out.append(f'<div style="margin-top: 10px; font-size: 8pt; color: #555; text-align: justify; line-height: 1.1;">{linha}</div>')
             continue
 
-        # TRATAMENTO DE LINHAS DE TABELA
         if em_tabela:
             if linha.endswith(':') and len(linha) < 45:
                 html_out.append(f'<tr><td colspan="2" style="font-weight: bold; color: #1C2E4A; padding-top: 10px; padding-bottom: 2px;">{linha}</td></tr>')
@@ -112,7 +115,6 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
                 html_out.append(f'<tr><td colspan="2" style="color: #333; padding-left: 15px; vertical-align: top;">{linha}</td></tr>')
             continue
 
-        # TEXTO NORMAL (Subtítulos dinâmicos em Negrito)
         if '\t' in linha_original:
             linha_formatada = linha_original.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
             html_out.append(f'<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">{linha_formatada.strip()}</div>')
@@ -131,14 +133,13 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
 
     fechar_tabela()
     
-    # 3. ANCORAGEM FINAL: Solda a Assinatura no último bloco criado
+    # Ao final do texto, se o bloco final estiver aberto, colamos a assinatura dentro dele!
     html_joined = "".join(html_out)
     if em_bloco_final:
-        # Se terminou na Conclusão, adicionamos a assinatura DENTRO do <pdf:keeptogether> e fechamos
-        html_joined += f'<div style="margin-top: 30px;">{bloco_assinatura}</div></pdf:keeptogether>'
+        html_joined += f'<div style="margin-top: 40px;">{bloco_assinatura}</div></td></tr></table>'
     else:
-        # Se não houver Conclusão explícita, envelopa a assinatura de forma segura no final
-        html_joined += f'<pdf:keeptogether><div style="margin-top: 30px;">{bloco_assinatura}</div></pdf:keeptogether>'
+        # Se não teve conclusão, envelopamos a assinatura de forma segura no final
+        html_joined += f'<table width="100%" border="0" cellpadding="0" cellspacing="0" style="page-break-inside: avoid; margin-top: 40px;"><tr><td>{bloco_assinatura}</td></tr></table>'
 
     return html_joined
 
@@ -157,9 +158,6 @@ def gerar_pdf_laudo_backend(context):
     titulo_do_laudo = laudo.titulo_exame if laudo else 'RELATÓRIO MÉDICO'
     data_formatada = data_exame.strftime("%d/%m/%Y") if data_exame else ""
 
-    # ==========================================================
-    # ASSINATURA ELETRÔNICA (Geração dos Selos)
-    # ==========================================================
     tem_certificado = False
     qr_code_tag = ""
     logo_icp_tag = ""
@@ -215,12 +213,8 @@ def gerar_pdf_laudo_backend(context):
         </div>
         """
 
-    # Envia o Bloco de Assinatura para o Formatador (onde a matemática acontece)
     html_corpo = formatar_texto_laudo_para_html(texto_bruto, titulo_do_laudo, bloco_assinatura)
 
-    # ==========================================================
-    # IMAGENS
-    # ==========================================================
     bloco_imagens = ""
     if imagens:
         bloco_imagens = """
@@ -241,9 +235,6 @@ def gerar_pdf_laudo_backend(context):
             bloco_imagens += "</tr>"
         bloco_imagens += "</table>"
 
-    # ==========================================================
-    # O HTML MESTRE
-    # ==========================================================
     html_final = f"""
     <!DOCTYPE html>
     <html>
@@ -252,7 +243,6 @@ def gerar_pdf_laudo_backend(context):
         <style>
             @page {{
                 size: a4;
-                /* CÁLCULO DE DESCIDA DO TÍTULO: 6.0cm = O título começa 1.5 centímetros ABAIXO do cabeçalho de dados */
                 margin-top: 6.0cm; 
                 margin-bottom: 2.0cm; 
                 margin-left: 1.5cm;
@@ -260,10 +250,11 @@ def gerar_pdf_laudo_backend(context):
                 
                 @frame header_info {{
                     -pdf-frame-content: header_content;
-                    left: 10cm; 
+                    /* ALINHAMENTO DO CABEÇALHO CORRIGIDO: Mais para baixo (2.2cm) e para a direita (10.5cm) */
+                    left: 10.5cm; 
                     right: 1.5cm;
-                    top: 1.2cm;  
-                    height: 3.0cm;
+                    top: 2.2cm;  
+                    height: 3.5cm;
                 }}
             }}
             
@@ -276,10 +267,10 @@ def gerar_pdf_laudo_backend(context):
                 
                 @frame header_info {{
                     -pdf-frame-content: header_content;
-                    left: 10cm; 
+                    left: 10.5cm; 
                     right: 1.5cm;
-                    top: 1.2cm;  
-                    height: 3.0cm;
+                    top: 2.2cm;  
+                    height: 3.5cm;
                 }}
             }}
             
