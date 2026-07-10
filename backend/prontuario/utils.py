@@ -255,7 +255,7 @@ def gerar_pdf_laudo_backend(context):
                     -pdf-frame-content: header_content;
                     left: 11.2cm; 
                     right: 1.5cm;
-                    top: 2.4cm;  
+                    top: 1.5cm;  
                     height: 3.5cm;
                 }}
             }}
