@@ -250,10 +250,10 @@ def gerar_pdf_laudo_backend(context):
                 
                 @frame header_info {{
                     -pdf-frame-content: header_content;
-                    /* ALINHAMENTO DO CABEÇALHO CORRIGIDO: Mais para baixo (2.2cm) e para a direita (10.5cm) */
+                    /* ALINHAMENTO DO CABEÇALHO:
                     left: 11.2cm; 
                     right: 1.5cm;
-                    top: 2.0cm;  
+                    top: 1.5cm;  
                     height: 3.5cm;
                 }}
             }}
@@ -285,9 +285,8 @@ def gerar_pdf_laudo_backend(context):
             <div class="header-text">
                 <div><span style="font-weight: bold;">PACIENTE:</span> {paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
                 <div><span style="font-weight: bold;">NASC.:</span> {paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> {idade_formatada}</div>
-                <div><span style="font-weight: bold;">SEXO:</span> {'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'}</div>
+                <div><span style="font-weight: bold;">SEXO:</span> {'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> {data_formatada}</div>
                 <div><span style="font-weight: bold;">SOLICITANTE:</span> {medico_solicitante}</div>
-                <div><span style="font-weight: bold;">DATA:</span> {data_formatada}</div>
             </div>
         </div>
         
