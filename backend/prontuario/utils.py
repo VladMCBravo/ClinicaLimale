@@ -43,8 +43,8 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
     def fechar_tabela():
         nonlocal em_tabela
         if em_tabela:
-            # Fecha a tabela de dados, E fecha a Tabela Mestre invisível (Blindagem)
-            html_out.append("</table></td></tr></table><br/>")
+            # Fecha a tabela e o Bloco Inquebrável de forma limpa!
+            html_out.append("</table></pdf:keeptogether><br/>")
             em_tabela = False
 
     for linha in linhas:
@@ -64,33 +64,29 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
             fechar_tabela()
             titulo_limpo = linha.replace(":", "").strip()
             
-            # 1. BLINDAGEM DO BLOCO FINAL (Agrupa Conclusão, Obs e Assinatura em uma Tabela Mestre Inquebrável)
+            # 1. BLINDAGEM DO BLOCO FINAL
             if any(linha_limpa.startswith(t) for t in titulos_finais):
                 if not em_bloco_final:
-                    # Abre a Tabela Mestre
-                    html_out.append('<table width="100%" border="0" cellpadding="0" cellspacing="0" style="page-break-inside: avoid; margin-top: 15px;"><tr><td>')
+                    html_out.append('<pdf:keeptogether>')
                     em_bloco_final = True
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
+                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
                 continue
             
-            # 2. BLINDAGEM DAS TABELAS DE EXAMES (Impede divisão de páginas nas medidas)
+            # 2. BLINDAGEM DAS TABELAS (Abre Keeptogether + Tabela Única)
             if any(x in linha_limpa for x in ["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"]):
                 if em_bloco_final:
-                    html_out.append('</td></tr></table>')
+                    html_out.append('</pdf:keeptogether>')
                     em_bloco_final = False
                 
-                # Abre a Tabela Mestre que abraça o Título e a Tabela de dados
-                html_out.append('<table width="100%" border="0" cellpadding="0" cellspacing="0" style="page-break-inside: avoid; margin-top: 15px; margin-bottom: 5px;"><tr><td>')
-                html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; border-bottom: 1px solid #E0E0E0; padding-bottom: 4px; margin-bottom: 5px;">{titulo_limpo}</div>')
-                
-                # Abre a tabela de dados real
-                html_out.append('<table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt;">')
+                html_out.append('<pdf:keeptogether>')
+                html_out.append('<table width="100%" border="0" cellpadding="2" cellspacing="0" style="font-size: 10pt; margin-top: 15px; margin-bottom: 5px; page-break-inside: avoid;">')
+                html_out.append(f'<tr><td colspan="2" style="color: #2E7D32; font-weight: bold; font-size: 11pt; border-bottom: 1px solid #E0E0E0; padding-bottom: 4px; padding-top: 5px;">{titulo_limpo}</td></tr>')
                 em_tabela = True
                 continue
 
             # 3. TÍTULOS NORMAIS
             if em_bloco_final:
-                html_out.append('</td></tr></table>')
+                html_out.append('</pdf:keeptogether>')
                 em_bloco_final = False
             html_out.append(f'<div style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px;">{titulo_limpo}</div>')
             continue
@@ -133,13 +129,11 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
 
     fechar_tabela()
     
-    # Ao final do texto, se o bloco final estiver aberto, colamos a assinatura dentro dele!
     html_joined = "".join(html_out)
     if em_bloco_final:
-        html_joined += f'<div style="margin-top: 40px;">{bloco_assinatura}</div></td></tr></table>'
+        html_joined += f'<div style="margin-top: 40px;">{bloco_assinatura}</div></pdf:keeptogether>'
     else:
-        # Se não teve conclusão, envelopamos a assinatura de forma segura no final
-        html_joined += f'<table width="100%" border="0" cellpadding="0" cellspacing="0" style="page-break-inside: avoid; margin-top: 40px;"><tr><td>{bloco_assinatura}</td></tr></table>'
+        html_joined += f'<pdf:keeptogether><div style="margin-top: 40px;">{bloco_assinatura}</div></pdf:keeptogether>'
 
     return html_joined
 
@@ -242,27 +236,8 @@ def gerar_pdf_laudo_backend(context):
         <meta charset="UTF-8">
         <style>
             @page {{
-                size: a4;
-                margin-top: 6.0cm; 
-                margin-bottom: 2.0cm; 
-                margin-left: 1.5cm;
-                margin-right: 1.5cm;
-                
-                @frame header_info {{
-                    -pdf-frame-content: header_content;
-                    left: 11.2cm; 
-                    right: 1.5cm;
-                    top: 1.5cm;  
-                    height: 3.5cm;
-                }}
-            }}
-            
-            @page fotos {{
-                size: a4;
-                margin-top: 6.0cm; 
-                margin-bottom: 1.5cm; 
-                margin-left: 1.5cm;
-                margin-right: 1.5cm;
+                size: a4 portrait;
+                margin: 0;
                 
                 @frame header_info {{
                     -pdf-frame-content: header_content;
@@ -270,6 +245,33 @@ def gerar_pdf_laudo_backend(context):
                     right: 1.5cm;
                     top: 2.4cm;  
                     height: 3.5cm;
+                }}
+                
+                @frame content_frame {{
+                    left: 1.5cm;
+                    right: 1.5cm;
+                    top: 6.5cm; /* DESCIDA DO TÍTULO! */
+                    bottom: 2.0cm;
+                }}
+            }}
+            
+            @page fotos {{
+                size: a4 portrait;
+                margin: 0;
+                
+                @frame header_info {{
+                    -pdf-frame-content: header_content;
+                    left: 11.2cm; 
+                    right: 1.5cm;
+                    top: 2.4cm;  
+                    height: 3.5cm;
+                }}
+                
+                @frame content_frame {{
+                    left: 1.5cm;
+                    right: 1.5cm;
+                    top: 6.5cm; 
+                    bottom: 1.5cm;
                 }}
             }}
             
