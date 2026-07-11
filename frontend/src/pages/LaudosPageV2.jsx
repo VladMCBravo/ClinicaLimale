@@ -338,10 +338,16 @@ const LaudosPageV2 = () => {
       <LaudosPreviewModalV2 
           open={modalRevisaoOpen} 
           onClose={() => setModalRevisaoOpen(false)} 
-          htmlInicial={textoFinal.replace(/\n/g, '<br/>')} // Temporário até o TextBuilderV2
+          htmlInicial={textoFinal} // Retiramos o .replace() provisório, pois o TextBuilder novo já manda HTML
           imagensIniciais={imagens} 
           onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)}
+          
+          // NOVA PROPRIEDADE AQUI:
+          onSalvarRascunho={(htmlEditado) => {
+              setTextoFinal(htmlEditado);
+              setModalRevisaoOpen(false);
+          }}
       />
       <ImagensNuvemModal open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} paciente={paciente} onConfirmar={handleImportarDaNuvem} />
       <DeclaracaoModal open={modalDeclaracaoOpen} onClose={() => setModalDeclaracaoOpen(false)} paciente={paciente} medico={medicoNome} />
