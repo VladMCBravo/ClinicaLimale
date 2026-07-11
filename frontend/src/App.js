@@ -21,6 +21,7 @@ import PainelRecepcaoPage from './pages/PainelRecepcaoPage';
 import PacientesPage from './pages/PacientesPage';
 import FinanceiroPage from './pages/FinanceiroPage';
 import LaudosPage from './pages/LaudosPage';
+import LaudosPageV2 from './pages/LaudosPageV2';
 import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
@@ -67,6 +68,8 @@ function App() {
                   <Route path="/" element={<RotaInicialDinamica />} />
                   <Route path="/painel" element={<PainelRecepcaoPage />} />
                   <Route path="/laudos" element={<LaudosPage />} />
+                  {/* ROTA OCULTA DO TURING V2 */}
+                  <Route path="/laudos-v2" element={<LaudosPageV2 />} />
                   <Route path="/vincular" element={<VincularExames />} />
                   <Route path="/pacientes" element={<PacientesPage />} />
                   

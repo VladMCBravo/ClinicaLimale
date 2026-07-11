@@ -11,7 +11,17 @@ from datetime import datetime
 def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatura=""):
     if not texto_bruto:
         return ""
+    
+    # =================================================================
+    # 🚀 NOVO: CATRACA INTELIGENTE (BYPASS PARA O V2)
+    # Verifica se o texto já é HTML nativo (veio do TinyMCE)
+    texto_limpo = texto_bruto.strip()
+    if texto_limpo.startswith('<') and ('</p>' in texto_limpo or '</h4>' in texto_limpo or '</table>' in texto_limpo):
+        # É HTML pronto! Ignora o processador antigo e só cola a assinatura no final.
+        return f'{texto_limpo}<div style="margin-top: 40px; page-break-inside: avoid;">{bloco_assinatura}</div>'
+    # =================================================================
 
+    # 👇 DAQUI PARA BAIXO, SEU CÓDIGO LEGADO CONTINUA INTACTO 👇
     texto_bruto = texto_bruto.replace("(Ver PDF)", "").replace("===", "").strip()
     linhas_brutas = texto_bruto.split('\n')
     
